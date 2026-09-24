@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Collection traversal must follow the iterator and ownership contract: use an iterator's remove when supported, bulk operations, or a separate result instead of structurally mutating behind an active traversal.",
+    "summary": "While a loop walks a collection, **changing its size behind the loop's back** breaks the traversal. Removing from an `ArrayList` inside an enhanced for loop usually throws **ConcurrentModificationException**, and when it doesn't, it silently **skips** an element. Safe options: call **`iterator.remove()`** on the iterator doing the walking, use a **bulk operation** like `removeIf`, or build a **new result** collection. Also be clear about **ownership**: `List.of` and `List.copyOf` give **unmodifiable** lists (add throws), while `Collections.unmodifiableList` is only a **read-only view** that still changes if the original does.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: An Iterator removes expired entries through iterator.remove while visiting, avoiding a structural change through the collection itself. Your goal is to repair an unsafe collection mutation and document ownership of the resulting collection. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner removes expired sessions inside `for (Session s : sessions)` and gets ConcurrentModificationException. On another run with different data, no exception, but one expired session stays behind. An Iterator removes expired entries through iterator.remove while visiting, avoiding a structural change through the collection itself. In this lesson you'll repair an unsafe collection mutation and document ownership of the resulting collection.\n\n```predict\n{\"question\": \"Is removing the current element with list.remove(x) inside for (x : list) safe?\", \"options\": [\"Yes, if it's the current element\", \"No: it's a structural change behind the iterator, which throws or skips items\"], \"answer\": 1, \"why\": \"Use iterator.remove() or removeIf.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Interfaces; Arrays and multidimensional arrays; List, Set, Map and Queue; Bounds and wildcards. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Interfaces**, **Arrays and multidimensional arrays**, **List, Set, Map and Queue** and **Bounds and wildcards** (the types collection methods accept)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Collection traversal must follow the iterator and ownership contract: use an iterator's remove when supported, bulk operations, or a separate result instead of structurally mutating behind an active traversal. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The rule: mutate through the iterator, or not during the loop",
+        "body": "```java\nimport java.util.*;\n\npublic class Expire {\n    public static void main(String[] args) {\n        List<Integer> ages = new ArrayList<>(List.of(5, 40, 7, 50, 60));\n\n        Iterator<Integer> it = ages.iterator();\n        while (it.hasNext()) {\n            if (it.next() > 30) it.remove();          // the iterator stays in sync.\n        }\n        System.out.println(ages);                     // [5, 7]\n\n        List<Integer> more = new ArrayList<>(List.of(5, 40, 7, 50, 60));\n        more.removeIf(a -> a > 30);                   // bulk operation, same result.\n        System.out.println(more);                     // [5, 7]\n\n        List<Integer> frozen = List.copyOf(more);     // unmodifiable, independent copy.\n        try { frozen.add(1); }\n        catch (UnsupportedOperationException e) { System.out.println(\"read-only\"); }\n    }\n}\n```\n\n```reveal\n{\"prompt\": \"Why does the plain for-each loop sometimes skip instead of throwing?\", \"answer\": \"Removing shifts the next element into the current index, so the loop's cursor jumps over it. If the loop then ends before the next check, no exception fires and the skipped item stays.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "Fail-fast behavior is best-effort rather than synchronization, unmodifiable views can reflect backing changes, immutable copies detach differently, and concurrent collections define separate consistency rules. The learner must reject this documented misconception: Removing directly from an ArrayList inside an enhanced-for loop is safe whenever the removed element is the current one."
+        "heading": "Views versus copies",
+        "body": "```predict\n{\"question\": \"view = Collections.unmodifiableList(src); then src.add(9). Does view now contain 9?\", \"options\": [\"No, it's unmodifiable\", \"Yes: it's a read-only view of src, not a copy\"], \"answer\": 1, \"why\": \"Use List.copyOf when you need an independent snapshot.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Traverse safely, avoid concurrent modification and use immutable views or copies intentionally.",
-      "Repair an unsafe collection mutation and document ownership of the resulting collection."
+      "Remove during traversal with iterator.remove or removeIf.",
+      "Document ownership with unmodifiable copies versus read-only views."
     ],
     "excludes": [
-      "Fail-fast behavior is best-effort rather than synchronization, unmodifiable views can reflect backing changes, immutable copies detach differently, and concurrent collections define separate consistency rules."
+      "Concurrent collections.",
+      "Fail-safe iterators in depth."
     ]
   },
   "outcomes": [
@@ -63,133 +64,134 @@
   "examples": [
     {
       "id": "java.collections.iteration.example.direct",
-      "title": "Iteration, mutation and immutability: direct language case",
+      "title": "Removing expired entries while iterating",
       "situation": "An Iterator removes expired entries through iterator.remove while visiting, avoiding a structural change through the collection itself.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: An Iterator removes expired entries through iterator.remove while visiting, avoiding a structural change through the collection itself.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Mutate through the traversal mechanism or after traversal, and distinguish an unmodifiable view from an immutable detached copy."
+        "**An Iterator removes expired entries:** it.next() visits each age and checks if it's over 30.",
+        "**Through iterator.remove while visiting:** the iterator updates its own position.",
+        "**Avoiding a structural change through the collection itself:** ages.remove is never called, so the loop will finish with [5, 7]."
       ],
-      "result": "The example meets the atomic outcome because Mutate through the traversal mechanism or after traversal, and distinguish an unmodifiable view from an immutable detached copy."
+      "result": "Every expired entry is removed and nothing is skipped."
     },
     {
       "id": "java.collections.iteration.example.boundary",
-      "title": "Iteration, mutation and immutability: boundary and transfer case",
-      "situation": "List.copyOf creates an unmodifiable snapshot, while Collections.unmodifiableList creates a view whose contents can still change through the backing list.",
+      "title": "The skipped session",
+      "situation": "A for-each loop removes a matching element and silently leaves the next matching one behind.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: List.copyOf creates an unmodifiable snapshot, while Collections.unmodifiableList creates a view whose contents can still change through the backing list.",
-        "Step 2 — Keep the language boundary explicit: Fail-fast behavior is best-effort rather than synchronization, unmodifiable views can reflect backing changes, immutable copies detach differently, and concurrent collections define separate consistency rules.",
-        "Step 3 — Reject the tempting but incorrect rule: Removing directly from an ArrayList inside an enhanced-for loop is safe whenever the removed element is the current one."
+        "The removal shifted the next element under the cursor.",
+        "Replace the loop with sessions.removeIf(Session::expired).",
+        "Test with two expired sessions next to each other."
       ],
-      "result": "This case demonstrates the declared outcome: Repair an unsafe collection mutation and document ownership of the resulting collection."
+      "result": "Adjacent expired sessions are both removed."
     }
   ],
   "misconceptions": [
     {
       "id": "java.collections.iteration.misconception",
       "mistakenBelief": "Removing directly from an ArrayList inside an enhanced-for loop is safe whenever the removed element is the current one.",
-      "correction": "Mutate through the traversal mechanism or after traversal, and distinguish an unmodifiable view from an immutable detached copy.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Removing directly from an ArrayList inside an enhanced-for loop is safe whenever the removed element is the current one."
+      "correction": "Any structural change through the list during a for-each loop breaks the hidden iterator. Remove through the iterator or use removeIf.",
+      "diagnosticPrompt": "In \"The skipped session\", why was the second expired session missed?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a typed storage service whose labels constrain accepted contents and whose containers promise order, uniqueness, lookup, or removal policy can introduce Iteration, mutation and immutability, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "example": "Iterating is like **a tour guide counting people along a line**. If someone steps out of the line while the guide is mid-count, everyone shifts and the guide miscounts. Telling **the guide** \"remove this person\" (iterator.remove) keeps the count right. A **view** is a window onto the line; a **copy** is a photo of it.",
     "usefulFor": [
-      "generic relationships, wildcard direction, and collection choice"
+      "remembering tell the guide, don't leave the line",
+      "window versus photo"
     ],
     "limitations": [
-      "type erasure, variance, hashing, iterator validity, and complexity guarantees are not visible in physical bins",
-      "Fail-fast behavior is best-effort rather than synchronization, unmodifiable views can reflect backing changes, immutable copies detach differently, and concurrent collections define separate consistency rules."
+      "removeIf is the guide doing one sweep.",
+      "A photo never changes; a window does."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "An Iterator removes expired entries through iterator.remove while visiting, avoiding a structural change through the collection itself.",
-      "Collection traversal must follow the iterator and ownership contract: use an iterator's remove when supported, bulk operations, or a separate result instead of structurally mutating behind an active traversal.",
-      "Mutate through the traversal mechanism or after traversal, and distinguish an unmodifiable view from an immutable detached copy."
+      "iterator over [5, 40, 7, 50, 60]",
+      "remove values > 30",
+      "List.copyOf(result)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Visit",
         "state": {
-          "evidence": "An Iterator removes expired entries through iterator.remove while visiting, avoiding a structural change through the collection itself."
+          "current": "40",
+          "action": "it.remove()"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "An Iterator removes expired entries through iterator.remove while visiting."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Finish",
         "state": {
-          "rule": "Collection traversal must follow the iterator and ownership contract: use an iterator's remove when supported, bulk operations, or a separate result instead of structurally mutating behind an active traversal."
+          "ages": "[5, 7]"
         },
-        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "The traversal avoids a structural change through the collection itself."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Freeze",
         "state": {
-          "correction": "Mutate through the traversal mechanism or after traversal, and distinguish an unmodifiable view from an immutable detached copy."
+          "add": "UnsupportedOperationException"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Removing directly from an ArrayList inside an enhanced-for loop is safe whenever the removed element is the current one."
+        "explanation": "The copied result is unmodifiable and owned independently."
       }
     ],
-    "textAlternative": "Starting artifact: An Iterator removes expired entries through iterator.remove while visiting, avoiding a structural change through the collection itself. Step 1, Observe. State: evidence: An Iterator removes expired entries through iterator.remove while visiting, avoiding a structural change through the collection itself.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Collection traversal must follow the iterator and ownership contract: use an iterator's remove when supported, bulk operations, or a separate result instead of structurally mutating behind an active traversal.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Mutate through the traversal mechanism or after traversal, and distinguish an unmodifiable view from an immutable detached copy.. Compare the observation with the correction and explain why the misconception fails: Removing directly from an ArrayList inside an enhanced-for loop is safe whenever the removed element is the current one."
+    "textAlternative": "Tracing safe removal. Step 1, Visit: current is 40; action is it.remove(). An Iterator removes expired entries through iterator.remove while visiting. Step 2, Finish: ages is [5, 7]. The traversal avoids a structural change through the collection itself. Step 3, Freeze: add is UnsupportedOperationException. The copied result is unmodifiable and owned independently."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Iteration, mutation and immutability: direct language case”: state its starting evidence, apply the Iteration, mutation and immutability rule, and give the observable result in three short lines.",
+      "prompt": "For \"Removing expired entries while iterating\", explain how an Iterator removes expired entries through iterator.remove while visiting, avoiding a structural change through the collection itself.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Iterate.",
+        "Remove.",
+        "Own."
       ],
       "expectedEvidence": [
-        "Named example: Iteration, mutation and immutability: direct language case.",
-        "Starting evidence: An Iterator removes expired entries through iterator.remove while visiting, avoiding a structural change through the collection itself.",
-        "Core rule: Collection traversal must follow the iterator and ownership contract: use an iterator's remove when supported, bulk operations, or a separate result instead of structurally mutating behind an active traversal.",
-        "Observable result: The example meets the atomic outcome because Mutate through the traversal mechanism or after traversal, and distinguish an unmodifiable view from an immutable detached copy.",
-        "Boundary check: Mutate through the traversal mechanism or after traversal, and distinguish an unmodifiable view from an immutable detached copy."
+        "Names the example \"Removing expired entries while iterating\": for-each removal threw or skipped.",
+        "An Iterator removes expired entries through iterator.remove while visiting.",
+        "It avoids a structural change through the collection itself.",
+        "Nothing is skipped."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: List.copyOf creates an unmodifiable snapshot, while Collections.unmodifiableList creates a view whose contents can still change through the backing list.",
+      "prompt": "Remove all blank strings from a List<String> in two ways (iterator and removeIf), and remove map entries whose value is zero using entrySet().removeIf.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Test adjacent blanks.",
+        "Map entries via entrySet."
       ],
       "expectedEvidence": [
-        "Collection traversal must follow the iterator and ownership contract: use an iterator's remove when supported, bulk operations, or a separate result instead of structurally mutating behind an active traversal.",
-        "Fail-fast behavior is best-effort rather than synchronization, unmodifiable views can reflect backing changes, immutable copies detach differently, and concurrent collections define separate consistency rules."
+        "Both lists equal.",
+        "Zero entries gone."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Iteration, mutation and immutability, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Refactor a class that returns its internal List directly. Return an unmodifiable copy, add explicit add and remove methods, and write tests proving callers can't change internal state.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "List.copyOf in the getter.",
+        "Test that add throws."
       ],
       "expectedEvidence": [
-        "Repair an unsafe collection mutation and document ownership of the resulting collection.",
-        "Mutate through the traversal mechanism or after traversal, and distinguish an unmodifiable view from an immutable detached copy."
+        "Encapsulation proved.",
+        "Ownership documented."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "java.collections.iteration.misconception",
-      "explanation": "Mutate through the traversal mechanism or after traversal, and distinguish an unmodifiable view from an immutable detached copy.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: List.copyOf creates an unmodifiable snapshot, while Collections.unmodifiableList creates a view whose contents can still change through the backing list."
+      "explanation": "Inside a loop, ask: **am I changing this collection's size?** If so, use iterator.remove, removeIf, or collect into a new list. When returning a collection, decide: **copy or view?**",
+      "retryPrompt": "Apply this to \"The skipped session\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to repair an unsafe collection mutation and document ownership of the resulting collection. Keep this boundary in view: Fail-fast behavior is best-effort rather than synchronization, unmodifiable views can reflect backing changes, immutable copies detach differently, and concurrent collections define separate consistency rules.",
+    "summary": "To repair an unsafe collection mutation and document ownership, never change a collection's size behind an active loop, remove through the iterator or with removeIf, and return List.copyOf snapshots when callers must not see or make changes.",
     "retrievalPrompts": [
-      "Explain Iteration, mutation and immutability using canonical Java: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Removing directly from an ArrayList inside an enhanced-for loop is safe whenever the removed element is the current one.",
-      "Predict this case from memory: List.copyOf creates an unmodifiable snapshot, while Collections.unmodifiableList creates a view whose contents can still change through the backing list."
+      "Why does for-each removal fail?",
+      "Name two safe ways to remove while iterating.",
+      "View or copy: which changes with the source?"
     ],
     "nextReviewPrompt": "Next: continue to “Exception flow and stack traces”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

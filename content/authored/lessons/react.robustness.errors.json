@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "React error boundaries catch render-tree errors below them and show recovery UI, while async, event, and server errors need their own handling.",
+    "summary": "If a component throws **while rendering**, React unmounts the whole tree and the learner sees a blank page, unless an **error boundary** above it catches the error and shows a fallback instead. Place boundaries around routes or features so one broken widget doesn't take down the app. A good fallback says something human, offers **Try again** (which resets the boundary) and shows a short incident id, never a stack trace. Boundaries only catch errors thrown during rendering; **event-handler errors and rejected fetches** aren't caught, so handle those with try/catch and error state.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A route boundary reports a safe incident id and lets the learner retry without exposing stack details. Your goal is to design and test a route or feature error boundary with useful fallback and reset behavior. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A lesson page renders a code-runner widget. When a lesson's example data is malformed, the widget throws during render and the entire app goes white: no navigation, no way back. A route boundary reports a safe incident id and lets the learner retry without exposing stack details. In this lesson you'll design and test a route or feature error boundary with useful fallback and reset behavior.\n\n```predict\n{\"question\": \"A button's onClick throws. Does the nearest error boundary show its fallback?\", \"options\": [\"Yes\", \"No: boundaries catch render errors, not event-handler errors\"], \"answer\": 1, \"why\": \"Wrap handler code in try/catch and set error state; the boundary won't see it.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Routing and application context; Remote data and asynchronous UI; Loading, empty, success and failure states; javascript errors exceptions. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Routing and application context** module, the **Remote data and asynchronous UI** module, **Loading, empty, success and failure states**, and **Errors, throw and recovery boundaries** (throw, catch and safe messages)."
       },
       {
-        "heading": "Technology rule",
-        "body": "React error boundaries catch render-tree errors below them and show recovery UI, while async, event, and server errors need their own handling. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: a boundary per route or feature",
+        "body": "```jsx\n// Using the react-error-boundary package's ErrorBoundary component.\nimport { useEffect, useState } from \"react\";\nimport { ErrorBoundary } from \"react-error-boundary\";\n\nfunction LessonFallback({ error, resetErrorBoundary }) {\n  const [incidentId] = useState(() => crypto.randomUUID().slice(0, 8));\n  useEffect(() => {\n    sendToLogs({ id: incidentId, message: error.message });   // details go to logs.\n  }, [incidentId, error]);\n  return (\n    <section role=\"alert\">\n      <h2>This lesson couldn't be shown</h2>\n      <p>Something went wrong on our side. Reference: {incidentId}.</p>\n      <button type=\"button\" onClick={resetErrorBoundary}>Try again</button>\n    </section>\n  );\n}\n\n<ErrorBoundary FallbackComponent={LessonFallback} resetKeys={[lessonId]}>\n  <LessonPage lessonId={lessonId} />\n</ErrorBoundary>\n```\n\n| Error happens in | Caught by |\n|---|---|\n| rendering a child. | the nearest error boundary. |\n| an event handler. | your try/catch. |\n| a fetch or promise. | .catch or try/await, stored as error state. |\n| the boundary itself. | the next boundary above. |\n\n```reveal\n{\"prompt\": \"What does resetKeys={[lessonId]} do?\", \"answer\": \"When the learner navigates to another lesson, the boundary resets automatically, so one broken lesson doesn't block the next.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Boundaries do not catch their own errors, reset strategy matters, and logging must avoid sensitive data. This draft therefore rejects: One error boundary catches rejected fetches and every event-handler exception automatically."
+        "heading": "Where to place boundaries",
+        "body": "```predict\n{\"question\": \"One boundary at the root only. What does a learner see when the sidebar widget throws?\", \"options\": [\"Just the sidebar fallback\", \"The whole app replaced by one fallback\"], \"answer\": 1, \"why\": \"Add boundaries around routes and risky widgets so failures stay local.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Contain render failures at meaningful regions and provide recovery without masking event or async errors.",
-      "Design and test a route or feature error boundary with useful fallback and reset behavior."
+      "Wrap routes or features in error boundaries with human fallbacks, retry and incident ids.",
+      "Handle event and async errors separately, and test the fallback and reset."
     ],
     "excludes": [
-      "Boundaries do not catch their own errors, reset strategy matters, and logging must avoid sensitive data."
+      "Writing class-based boundaries from scratch in depth.",
+      "Monitoring service setup."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "react.robustness.errors.example-a",
-      "title": "Error boundaries and recovery: concrete case",
+      "title": "A lesson page that fails gracefully",
       "situation": "A route boundary reports a safe incident id and lets the learner retry without exposing stack details.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A route boundary reports a safe incident id and lets the learner retry without exposing stack details.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Error boundaries cover descendant rendering failures; handle async and event errors at their actual boundaries."
+        "**Contain:** the lesson route is wrapped in an ErrorBoundary, so the header and navigation stay usable.",
+        "**Report a safe incident id:** the fallback logs the message with a short id and shows only the id and a friendly sentence.",
+        "**Retry:** a test will make LessonPage throw once, check the alert text, click Try again, and see the lesson render."
       ],
-      "result": "The result follows because Error boundaries cover descendant rendering failures; handle async and event errors at their actual boundaries."
+      "result": "A broken lesson shows a calm message with a reference and a retry, while the rest of the app keeps working."
     },
     {
       "id": "react.robustness.errors.example-b",
-      "title": "Error boundaries and recovery: boundary case",
-      "situation": "Boundaries do not catch their own errors, reset strategy matters, and logging must avoid sensitive data.",
+      "title": "The save error nobody saw",
+      "situation": "A Save button's handler throws when the server returns bad JSON. The team expected the error boundary to show a message, but nothing appears.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Boundaries do not catch their own errors, reset strategy matters, and logging must avoid sensitive data.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: One error boundary catches rejected fetches and every event-handler exception automatically."
+        "Errors in event handlers don't reach error boundaries.",
+        "Wrap the handler's await in try/catch.",
+        "Set an error state and render a role=\"alert\" message next to the button."
       ],
-      "result": "The boundary requires this correction: Error boundaries cover descendant rendering failures; handle async and event errors at their actual boundaries."
+      "result": "Learners see \"Couldn't save. Try again.\" when the save fails."
     }
   ],
   "misconceptions": [
     {
       "id": "react.robustness.errors.misconception",
       "mistakenBelief": "One error boundary catches rejected fetches and every event-handler exception automatically.",
-      "correction": "Error boundaries cover descendant rendering failures; handle async and event errors at their actual boundaries.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: One error boundary catches rejected fetches and every event-handler exception automatically."
+      "correction": "Error boundaries only catch errors thrown while React is rendering their children. Event handlers and async work need their own try/catch and error state.",
+      "diagnosticPrompt": "In \"The save error nobody saw\", why didn't the boundary react?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Error boundaries and recovery, where inputs and state produce a UI description.",
+    "example": "Error boundaries are like **fuses in a house**. A fault in one room's wiring (a component) trips that room's fuse, and the rest of the house stays lit. But a fuse doesn't notice a dropped plate (an event-handler error); someone in the room has to deal with that.",
     "usefulFor": [
-      "Building a first mental model for Error boundaries and recovery before using exact platform terms"
+      "remembering local containment",
+      "reset = flipping the fuse back on"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Boundaries do not catch their own errors, reset strategy matters, and logging must avoid sensitive data."
+      "Fuses don't show messages; fallbacks should.",
+      "One fuse for the whole house means everything goes dark."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A route boundary reports a safe incident id and lets the learner retry without exposing stack details.",
-      "React error boundaries catch render-tree errors below them and show recovery UI, while async, event, and server errors need their own handling.",
-      "Error boundaries cover descendant rendering failures; handle async and event errors at their actual boundaries."
+      "LessonPage throws during render",
+      "boundary catches, fallback reports",
+      "learner clicks Try again"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Throw",
         "state": {
-          "evidence": "A route boundary reports a safe incident id and lets the learner retry without exposing stack details."
+          "LessonPage": "TypeError during render"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "Malformed lesson data makes the component throw while rendering."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Fallback",
         "state": {
-          "rule": "React error boundaries catch render-tree errors below them and show recovery UI, while async, event, and server errors need their own handling."
+          "shown": "This lesson couldn't be shown, Reference: 3f9a2c1d",
+          "stack on screen": "no"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The route boundary reports a safe incident id without exposing stack details."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Reset",
         "state": {
-          "correction": "Error boundaries cover descendant rendering failures; handle async and event errors at their actual boundaries."
+          "boundary": "reset",
+          "LessonPage": "renders again"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: One error boundary catches rejected fetches and every event-handler exception automatically."
+        "explanation": "It lets the learner retry by resetting the boundary."
       }
     ],
-    "textAlternative": "Starting artifact: A route boundary reports a safe incident id and lets the learner retry without exposing stack details. Step 1, Artifact. State: evidence: A route boundary reports a safe incident id and lets the learner retry without exposing stack details.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: React error boundaries catch render-tree errors below them and show recovery UI, while async, event, and server errors need their own handling.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Error boundaries cover descendant rendering failures; handle async and event errors at their actual boundaries.. Check the result against the boundary and reject this misconception: One error boundary catches rejected fetches and every event-handler exception automatically."
+    "textAlternative": "Tracing a caught render error. Step 1, Throw: LessonPage is TypeError during render. Malformed lesson data makes the component throw while rendering. Step 2, Fallback: shown is This lesson couldn't be shown, Reference: 3f9a2c1d; stack on screen is no. The route boundary reports a safe incident id without exposing stack details. Step 3, Reset: boundary is reset; LessonPage is renders again. It lets the learner retry by resetting the boundary."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Error boundaries and recovery: concrete case”: state its starting evidence, apply the Error boundaries and recovery rule, and give the observable result in three short lines.",
+      "prompt": "For \"A lesson page that fails gracefully\", explain how a route boundary reports a safe incident id and lets the learner retry without exposing stack details.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Contain.",
+        "Report.",
+        "Retry."
       ],
       "expectedEvidence": [
-        "Named example: Error boundaries and recovery: concrete case.",
-        "Starting evidence: A route boundary reports a safe incident id and lets the learner retry without exposing stack details.",
-        "Core rule: React error boundaries catch render-tree errors below them and show recovery UI, while async, event, and server errors need their own handling.",
-        "Observable result: The result follows because Error boundaries cover descendant rendering failures; handle async and event errors at their actual boundaries.",
-        "Boundary check: Error boundaries cover descendant rendering failures; handle async and event errors at their actual boundaries."
+        "Names the example \"A lesson page that fails gracefully\": the lesson route has its own boundary.",
+        "It reports a safe incident id.",
+        "It lets the learner retry without exposing stack details.",
+        "The rest of the app keeps working."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Boundaries do not catch their own errors, reset strategy matters, and logging must avoid sensitive data.",
+      "prompt": "Wrap a comments widget in its own ErrorBoundary with a small fallback (\"Comments are unavailable\") and a Try again button, leaving the lesson content visible.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Boundary around the widget only.",
+        "resetErrorBoundary on click."
       ],
       "expectedEvidence": [
-        "React error boundaries catch render-tree errors below them and show recovery UI, while async, event, and server errors need their own handling.",
-        "Boundaries do not catch their own errors, reset strategy matters, and logging must avoid sensitive data."
+        "Lesson stays visible when comments fail.",
+        "Retry re-renders comments."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Error boundaries and recovery and explain why the misconception fails.",
+      "prompt": "Add route-level and widget-level boundaries to an app, plus try/catch error states for two event handlers. Write tests that force each kind of error and check what the learner sees.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "A test component that throws on demand.",
+        "Assert role=alert messages."
       ],
       "expectedEvidence": [
-        "Design and test a route or feature error boundary with useful fallback and reset behavior.",
-        "Error boundaries cover descendant rendering failures; handle async and event errors at their actual boundaries."
+        "Render errors contained locally.",
+        "Handler errors shown as inline messages."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.robustness.errors.misconception",
-      "explanation": "Error boundaries cover descendant rendering failures; handle async and event errors at their actual boundaries.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'rendering failures' and state the decisive evidence."
+      "explanation": "For each possible failure ask: **Is it thrown while rendering?** Then a boundary. **In a handler or promise?** Then try/catch and error state. For each boundary ask: **what stays usable, and how does the learner retry?**",
+      "retryPrompt": "Apply this to \"The save error nobody saw\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to design and test a route or feature error boundary with useful fallback and reset behavior. Keep this boundary in view: Boundaries do not catch their own errors, reset strategy matters, and logging must avoid sensitive data.",
+    "summary": "To design and test a route or feature error boundary, wrap routes and risky widgets so render errors stay local, show a friendly fallback with a safe incident id and a Try again that resets, send details to logs, and handle event-handler and async errors separately with try/catch and error state.",
     "retrievalPrompts": [
-      "Explain Error boundaries and recovery using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: One error boundary catches rejected fetches and every event-handler exception automatically.",
-      "Apply checkpoint 'rendering failures' to a new artifact."
+      "What kinds of errors do boundaries catch?",
+      "Why place boundaries around routes and widgets?",
+      "What should a fallback show and hide?"
     ],
     "nextReviewPrompt": "Next: continue to “Measure before optimization”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

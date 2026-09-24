@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Python file persistence uses pathlib paths, explicit text encoding, context-managed I/O, and schema-aware JSON validation with documented handling for missing, malformed, partial, or forbidden data.",
+    "summary": "Saving and loading data safely takes four habits: build paths with **`pathlib.Path`**, always pass **`encoding=\"utf-8\"`**, handle each failure separately (missing file, bad JSON, no permission), and **validate** the loaded data yourself — `json.load` only checks that the text is JSON, not that it has the keys and types your app needs.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A loader reads UTF-8 through Path.open, catches missing and decode failures separately, and validates required keys and value types before constructing domain data. Your goal is to implement file persistence that handles missing, malformed and permission-failure cases. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Your habit tracker saves progress to `habits.json`. One day the file is missing (first run), another day it's half-written (the laptop died), another day a user hand-edits `\"streak\": \"five\"`. A robust app handles each case on purpose. A loader reads UTF-8 through Path.open, catches missing and decode failures separately, and validates required keys and value types before constructing domain data. In this lesson you'll implement file persistence that handles missing, malformed and permission-failure cases.\n\n```predict\n{\"question\": \"The file contains `{\\\"streak\\\": \\\"five\\\"}`. Does `json.load` raise an error?\", \"options\": [\"Yes, streak must be a number\", \"No — it's valid JSON; checking types is your job\"], \"answer\": 1, \"why\": \"JSON allows strings anywhere. `json.load` checks syntax only; your code must validate that streak is an int.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Function contracts and returns; Unicode text and formatting; Exception handling and propagation; Dictionaries and sets. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Function contracts and returns**, **Unicode text and formatting**, **Exception handling and propagation**, and **Dictionaries and sets**."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Python file persistence uses pathlib paths, explicit text encoding, context-managed I/O, and schema-aware JSON validation with documented handling for missing, malformed, partial, or forbidden data. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: path, encoding, separate failures, validation",
+        "body": "```python\nimport json\nfrom pathlib import Path\n\nDATA = Path(__file__).parent / \"habits.json\"\n\ndef load_habits(path: Path = DATA) -> dict:\n    try:\n        with path.open(encoding=\"utf-8\") as f:\n            raw = json.load(f)\n    except FileNotFoundError:\n        return {\"streak\": 0}                     # first run: fresh start\n    except json.JSONDecodeError as err:\n        raise ValueError(f\"{path.name} is corrupted (line {err.lineno})\") from err\n    if not isinstance(raw.get(\"streak\"), int):\n        raise ValueError(f\"{path.name}: streak must be a whole number\")\n    return raw\n```\n\n| Failure | Policy |\n|---|---|\n| FileNotFoundError. | normal on first run → defaults. |\n| JSONDecodeError. | corrupted → clear error, don't overwrite. |\n| PermissionError. | let it propagate; the user must fix access. |\n| wrong key or type. | validation error with the field name. |\n\n```reveal\n{\"prompt\": \"What encoding does `open()` use if you don't specify one?\", \"answer\": \"It depends on the operating system's locale — often not UTF-8 on Windows. Always pass `encoding=\\\"utf-8\\\"` for text files.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "Relative paths use the process working directory, JSON types do not enforce a domain schema, writes can be partial, ensure_ascii is a representation option, and untrusted sizes or nesting need bounds. The learner must reject this documented misconception: json.load validates application fields and open automatically chooses UTF-8 and the script directory."
+        "heading": "Saving safely",
+        "body": "```predict\n{\"question\": \"Writing directly over `habits.json` crashes halfway. What's left?\", \"options\": [\"The old file, untouched\", \"A half-written, corrupted file\"], \"answer\": 1, \"why\": \"Write to a temporary file first, then `tmp.replace(path)` — the replace is atomic, so the old file stays intact until the new one is complete.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Read and write text with explicit encoding and validate structured JSON data.",
-      "Implement file persistence that handles missing, malformed and permission-failure cases."
+      "Read and write JSON with Path and explicit UTF-8.",
+      "Handle missing, malformed and permission failures separately and validate loaded data."
     ],
     "excludes": [
-      "Relative paths use the process working directory, JSON types do not enforce a domain schema, writes can be partial, ensure_ascii is a representation option, and untrusted sizes or nesting need bounds."
+      "CSV, YAML and databases.",
+      "Context managers in depth (next lesson)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "python.io.files-json.example.direct",
-      "title": "Files, paths and JSON: direct language case",
+      "title": "A careful JSON loader",
       "situation": "A loader reads UTF-8 through Path.open, catches missing and decode failures separately, and validates required keys and value types before constructing domain data.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A loader reads UTF-8 through Path.open, catches missing and decode failures separately, and validates required keys and value types before constructing domain data.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Resolve an explicit Path base, specify encoding, validate the decoded JSON shape, and define missing, malformed, size, and replacement behavior."
+        "**Read UTF-8 through Path.open:** `path.open(encoding=\"utf-8\")` then `json.load(f)`.",
+        "**Catch missing and decode failures separately:** FileNotFoundError → defaults; JSONDecodeError → a clear 'corrupted' ValueError.",
+        "**Validate required keys and value types:** check `streak` exists and is an int before constructing domain data."
       ],
-      "result": "The example meets the atomic outcome because Resolve an explicit Path base, specify encoding, validate the decoded JSON shape, and define missing, malformed, size, and replacement behavior."
+      "result": "Each failure gets its own deliberate outcome, and only validated data reaches the rest of the app."
     },
     {
       "id": "python.io.files-json.example.boundary",
-      "title": "Files, paths and JSON: boundary and transfer case",
-      "situation": "A save writes a temporary sibling then replaces the target under a documented policy rather than assuming one text write is crash-atomic.",
+      "title": "The script-folder assumption",
+      "situation": "`open(\"habits.json\")` works when run from the project folder but creates a new empty streak when run from the home folder.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A save writes a temporary sibling then replaces the target under a documented policy rather than assuming one text write is crash-atomic.",
-        "Step 2 — Keep the language boundary explicit: Relative paths use the process working directory, JSON types do not enforce a domain schema, writes can be partial, ensure_ascii is a representation option, and untrusted sizes or nesting need bounds.",
-        "Step 3 — Reject the tempting but incorrect rule: json.load validates application fields and open automatically chooses UTF-8 and the script directory."
+        "open() resolves relative paths from the working directory, not the script's folder.",
+        "From home, the file wasn't found, so the loader returned defaults and the streak looked reset.",
+        "Fix: `Path(__file__).parent / \"habits.json\"` points at the file beside the script."
       ],
-      "result": "This case demonstrates the declared outcome: Implement file persistence that handles missing, malformed and permission-failure cases."
+      "result": "The loader finds the same file no matter which folder the program is run from."
     }
   ],
   "misconceptions": [
     {
       "id": "python.io.files-json.misconception",
-      "mistakenBelief": "json.load validates application fields and open automatically chooses UTF-8 and the script directory.",
-      "correction": "Resolve an explicit Path base, specify encoding, validate the decoded JSON shape, and define missing, malformed, size, and replacement behavior.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: json.load validates application fields and open automatically chooses UTF-8 and the script directory."
+      "mistakenBelief": "json.load validates application fields, and open automatically chooses UTF-8 and the script directory.",
+      "correction": "json.load checks only JSON syntax; your code must validate keys and types. open uses the platform's default encoding and resolves relative paths from the working directory — specify encoding=\"utf-8\" and build paths from Path(__file__).parent.",
+      "diagnosticPrompt": "In \"The script-folder assumption\", why did the streak appear reset?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a records office that escalates named failures, validates decoded forms, and returns borrowed resources on every exit can introduce Files, paths and JSON, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "example": "Loading a file is like **receiving a parcel**: check it arrived (missing?), check it isn't smashed (malformed?), then open and check the contents match the order (validation). A courier accepting a box doesn't mean the contents are right.",
     "usefulFor": [
-      "exceptions, custom failure categories, files, JSON, and contexts"
+      "remembering three separate checks",
+      "seeing validation as your job"
     ],
     "limitations": [
-      "exception chaining, suppression, path resolution, encoding, partial writes, and protocol methods are software rules",
-      "Relative paths use the process working directory, JSON types do not enforce a domain schema, writes can be partial, ensure_ascii is a representation option, and untrusted sizes or nesting need bounds."
+      "Parcels don't have encodings; text files do.",
+      "A permission error is like a locked mailbox — you can't fix it from inside the app."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A loader reads UTF-8 through Path.open, catches missing and decode failures separately, and validates required keys and value types before constructing domain data.",
-      "Python file persistence uses pathlib paths, explicit text encoding, context-managed I/O, and schema-aware JSON validation with documented handling for missing, malformed, partial, or forbidden data.",
-      "Resolve an explicit Path base, specify encoding, validate the decoded JSON shape, and define missing, malformed, size, and replacement behavior."
+      "path.open(encoding='utf-8')",
+      "json.load(f)",
+      "isinstance(raw.get('streak'), int)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Open UTF-8",
         "state": {
-          "evidence": "A loader reads UTF-8 through Path.open, catches missing and decode failures separately, and validates required keys and value types before constructing domain data."
+          "file": "habits.json",
+          "encoding": "utf-8"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "The loader reads UTF-8 through Path.open using an explicit encoding."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Parse",
         "state": {
-          "rule": "Python file persistence uses pathlib paths, explicit text encoding, context-managed I/O, and schema-aware JSON validation with documented handling for missing, malformed, partial, or forbidden data."
+          "raw": "{'streak': 'five'}",
+          "JSONDecodeError": "no"
         },
-        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "The JSON is syntactically valid, so no decode failure occurs."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Validate",
         "state": {
-          "correction": "Resolve an explicit Path base, specify encoding, validate the decoded JSON shape, and define missing, malformed, size, and replacement behavior."
+          "streak is int": "False",
+          "raised": "ValueError: streak must be a whole number"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: json.load validates application fields and open automatically chooses UTF-8 and the script directory."
+        "explanation": "Validation of required keys and value types rejects the data before it becomes domain data."
       }
     ],
-    "textAlternative": "Starting artifact: A loader reads UTF-8 through Path.open, catches missing and decode failures separately, and validates required keys and value types before constructing domain data. Step 1, Observe. State: evidence: A loader reads UTF-8 through Path.open, catches missing and decode failures separately, and validates required keys and value types before constructing domain data.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Python file persistence uses pathlib paths, explicit text encoding, context-managed I/O, and schema-aware JSON validation with documented handling for missing, malformed, partial, or forbidden data.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Resolve an explicit Path base, specify encoding, validate the decoded JSON shape, and define missing, malformed, size, and replacement behavior.. Compare the observation with the correction and explain why the misconception fails: json.load validates application fields and open automatically chooses UTF-8 and the script directory."
+    "textAlternative": "Loading and validating a JSON file. Step 1, Open UTF-8: file is habits.json; encoding is utf-8. The loader reads UTF-8 through Path.open using an explicit encoding. Step 2, Parse: raw is {'streak': 'five'}; JSONDecodeError is no. The JSON is syntactically valid, so no decode failure occurs. Step 3, Validate: streak is int is False; raised is ValueError: streak must be a whole number. Validation of required keys and value types rejects the data before it becomes domain data."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Files, paths and JSON: direct language case”: state its starting evidence, apply the Files, paths and JSON rule, and give the observable result in three short lines.",
+      "prompt": "For \"A careful JSON loader\", explain how the loader reads UTF-8 through Path.open, how it catches missing and decode failures separately, and what it validates before constructing domain data.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Read.",
+        "Failures.",
+        "Validation."
       ],
       "expectedEvidence": [
-        "Named example: Files, paths and JSON: direct language case.",
-        "Starting evidence: A loader reads UTF-8 through Path.open, catches missing and decode failures separately, and validates required keys and value types before constructing domain data.",
-        "Core rule: Python file persistence uses pathlib paths, explicit text encoding, context-managed I/O, and schema-aware JSON validation with documented handling for missing, malformed, partial, or forbidden data.",
-        "Observable result: The example meets the atomic outcome because Resolve an explicit Path base, specify encoding, validate the decoded JSON shape, and define missing, malformed, size, and replacement behavior.",
-        "Boundary check: Resolve an explicit Path base, specify encoding, validate the decoded JSON shape, and define missing, malformed, size, and replacement behavior."
+        "Names the example \"A careful JSON loader\": the loader reads UTF-8 through Path.open.",
+        "It catches missing and decode failures separately: defaults vs a corrupted-file error.",
+        "It validates required keys and value types like streak being an int.",
+        "Each failure gets its own deliberate outcome, and only validated data reaches the rest of the app."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A save writes a temporary sibling then replaces the target under a documented policy rather than assuming one text write is crash-atomic.",
+      "prompt": "Write `save_habits(data, path)` that writes JSON with UTF-8 and indentation safely using a temporary file and replace. What happens to the old file if writing fails?",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Write to path.with_suffix('.tmp').",
+        "Then tmp.replace(path)."
       ],
       "expectedEvidence": [
-        "Python file persistence uses pathlib paths, explicit text encoding, context-managed I/O, and schema-aware JSON validation with documented handling for missing, malformed, partial, or forbidden data.",
-        "Relative paths use the process working directory, JSON types do not enforce a domain schema, writes can be partial, ensure_ascii is a representation option, and untrusted sizes or nesting need bounds."
+        "Writes to a temp file, then atomically replaces the original.",
+        "If writing fails, the old file remains intact."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Files, paths and JSON, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Build load and save for a small to-do list stored as JSON. Write tests for: missing file, corrupted file, wrong types, and a save/load round trip. Use `tmp_path` in pytest.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "tmp_path gives a clean folder per test.",
+        "Write bad files on purpose."
       ],
       "expectedEvidence": [
-        "Implement file persistence that handles missing, malformed and permission-failure cases.",
-        "Resolve an explicit Path base, specify encoding, validate the decoded JSON shape, and define missing, malformed, size, and replacement behavior."
+        "Loader and saver with separate failure handling.",
+        "Four passing tests covering each case."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "python.io.files-json.misconception",
-      "explanation": "Resolve an explicit Path base, specify encoding, validate the decoded JSON shape, and define missing, malformed, size, and replacement behavior.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A save writes a temporary sibling then replaces the target under a documented policy rather than assuming one text write is crash-atomic."
+      "explanation": "For every file operation, write down: **path built how? encoding? what if missing? what if malformed? what if no permission? what do I validate?**",
+      "retryPrompt": "Answer these for \"The script-folder assumption\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement file persistence that handles missing, malformed and permission-failure cases. Keep this boundary in view: Relative paths use the process working directory, JSON types do not enforce a domain schema, writes can be partial, ensure_ascii is a representation option, and untrusted sizes or nesting need bounds.",
+    "summary": "To implement robust file persistence, build paths with pathlib, always use encoding=\"utf-8\", handle missing, malformed and permission-failure cases separately, validate keys and types yourself, and save via a temp file plus replace.",
     "retrievalPrompts": [
-      "Explain Files, paths and JSON using canonical Python: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: json.load validates application fields and open automatically chooses UTF-8 and the script directory.",
-      "Predict this case from memory: A save writes a temporary sibling then replaces the target under a documented policy rather than assuming one text write is crash-atomic."
+      "Does json.load check your app's field types?",
+      "Why always pass encoding=\"utf-8\"?",
+      "How do you avoid a half-written file?"
     ],
     "nextReviewPrompt": "Next: continue to “Context managers”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

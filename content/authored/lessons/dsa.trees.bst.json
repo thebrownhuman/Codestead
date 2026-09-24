@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A binary search tree maintains an ordering invariant between each node and its subtrees, enabling search proportional to height.",
+    "summary": "A **binary search tree** (BST) keeps one **invariant** at every node: all keys in the **left** subtree are smaller, all keys in the **right** subtree are larger. That lets search, insert and delete walk **one path** from the root, costing O(h) where h is the height: about log n when the tree is balanced, but n if keys arrive in sorted order and the tree becomes a chain. **Deleting** has three cases: a leaf (just remove it), one child (splice the child up), and **two children** (copy in the **inorder successor**, the smallest key in the right subtree, then delete that successor from the right subtree).",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Deleting a two-child node replaces its key with a valid successor then removes that successor from its original place. Your goal is to implement and test BST operations including zero-, one- and two-child deletion. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A course catalog stores ids in a BST. Deleting a leaf or a node with one child works, but deleting course 50, which has two children, either loses a whole subtree or breaks the ordering so later searches fail. Deleting a two-child node replaces its key with a valid successor then removes that successor from its original place. In this lesson you'll implement and test BST operations including zero-, one- and two-child deletion.\n\n```predict\n{\"question\": \"Ids 10, 20, 30, 40, 50 are inserted in that order into an empty BST. What's the search cost for 50?\", \"options\": [\"About log n\", \"n: the tree is a straight chain to the right\"], \"answer\": 1, \"why\": \"Sorted insertions make a chain. A plain BST's speed depends on its height.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Recursive problem design; Linked lists; Depth and breadth traversals; Linear and binary search. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Recursive problem design**, the **Linked lists** module, **Depth and breadth traversals** (inorder), and **Linear and binary search**, the idea a BST turns into a structure."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "A binary search tree maintains an ordering invariant between each node and its subtrees, enabling search proportional to height. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The invariant: smaller left, larger right, at every node",
+        "body": "```python\nclass Node:\n    def __init__(self, key):\n        self.key, self.left, self.right = key, None, None\n\ndef insert(node, key):                   # O(h).\n    if node is None:\n        return Node(key)\n    if key < node.key:\n        node.left = insert(node.left, key)\n    elif key > node.key:\n        node.right = insert(node.right, key)\n    return node                          # duplicates ignored by this spec.\n\ndef delete(node, key):                   # O(h).\n    if node is None:\n        return None\n    if key < node.key:\n        node.left = delete(node.left, key)\n    elif key > node.key:\n        node.right = delete(node.right, key)\n    else:\n        if node.left is None:            # zero or one child: splice.\n            return node.right\n        if node.right is None:\n            return node.left\n        succ = node.right                # two children: inorder successor.\n        while succ.left is not None:\n            succ = succ.left\n        node.key = succ.key\n        node.right = delete(node.right, succ.key)\n    return node\n```\n\n| Delete case | Action |\n|---|---|\n| leaf. | return None to the parent. |\n| one child. | return that child to the parent. |\n| two children. | copy successor's key, delete successor from the right subtree. |\n\n```reveal\n{\"prompt\": \"Why is the successor always easy to delete?\", \"answer\": \"It's the leftmost node of the right subtree, so it has no left child: deleting it is the zero- or one-child case.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Duplicate policy must be declared, unbalanced height can become n, and deletion has zero, one, or two-child cases. The draft therefore rejects: Every binary tree supports logarithmic search by comparing keys."
+        "heading": "Check the invariant",
+        "body": "```predict\n{\"question\": \"After a delete, how can a test confirm the tree is still a valid BST?\", \"options\": [\"Search for one key\", \"An inorder traversal must be strictly increasing\"], \"answer\": 1, \"why\": \"Inorder of a BST is sorted, so it's a quick whole-tree check.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Maintain ordering through search, insertion and deletion and relate shape to cost.",
-      "Implement and test BST operations including zero-, one- and two-child deletion.",
-      "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+      "Implement BST search, insert and delete for zero-, one- and two-child cases.",
+      "Test the ordering invariant with inorder traversal and explain O(h) cost."
     ],
     "excludes": [
-      "Duplicate policy must be declared, unbalanced height can become n, and deletion has zero, one, or two-child cases."
+      "Self-balancing rotations (next lesson).",
+      "Duplicate-key policies in depth."
     ]
   },
   "outcomes": [
@@ -68,142 +64,136 @@
   "examples": [
     {
       "id": "dsa.trees.bst.example-a",
-      "title": "Binary search tree operations: language-neutral trace",
+      "title": "Removing a course id with two children",
       "situation": "Deleting a two-child node replaces its key with a valid successor then removes that successor from its original place.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: Deleting a two-child node replaces its key with a valid successor then removes that successor from its original place.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Only a maintained search-order invariant enables ordered search, and complexity is O(height), not automatically logarithmic."
+        "**Find the successor:** course 50 has children 30 and 70; the smallest key in its right subtree is 60.",
+        "**Replace and remove:** 50's key becomes 60, then 60 is deleted from the right subtree (a zero- or one-child case).",
+        "**Test:** after deleting 50, a test will check inorder is [20, 30, 40, 60, 70, 80] and that 50 is not found."
       ],
-      "result": "The conceptual result follows because Only a maintained search-order invariant enables ordered search, and complexity is O(height), not automatically logarithmic."
+      "result": "The catalog removes course 50 without losing any subtree, and every search still works."
     },
     {
       "id": "dsa.trees.bst.example-b",
-      "title": "Binary search tree operations: implementation transfer",
-      "situation": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
+      "title": "The catalog that became a list",
+      "situation": "Course ids are added in increasing order every term. After a few years, searching the BST is as slow as scanning a list.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
-        "Step 3 — Retest this boundary in the selected implementation: Duplicate policy must be declared, unbalanced height can become n, and deletion has zero, one, or two-child cases."
+        "Sorted inserts built a chain: height n.",
+        "Every operation is O(h) = O(n).",
+        "Fix: use a self-balancing tree (or your library's sorted map), or insert in shuffled order for a one-off build."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Search stays around log n as the catalog grows."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.trees.bst.misconception",
       "mistakenBelief": "Every binary tree supports logarithmic search by comparing keys.",
-      "correction": "Only a maintained search-order invariant enables ordered search, and complexity is O(height), not automatically logarithmic.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Every binary tree supports logarithmic search by comparing keys."
+      "correction": "Fast search needs the BST ordering invariant and a small height. An unordered binary tree must be fully searched, and a BST shaped like a chain costs O(n).",
+      "diagnosticPrompt": "In the opening predict, why was searching for 50 slow?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Binary search tree operations, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "A BST is like **a guessing game with a helpful host**: \"is it smaller or bigger?\" at every step sends you left or right. Deleting a two-child node is like **a manager leaving**: the next person in line from the right team (the successor) takes the desk, and their old desk is cleared.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering smaller left, larger right",
+      "successor = next in line"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Duplicate policy must be declared, unbalanced height can become n, and deletion has zero, one, or two-child cases."
+      "Games end fast only if the host splits options evenly; chains don't.",
+      "A leaf leaving is just removing an empty desk."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Deleting a two-child node replaces its key with a valid successor then removes that successor from its original place.",
-      "A binary search tree maintains an ordering invariant between each node and its subtrees, enabling search proportional to height.",
-      "Only a maintained search-order invariant enables ordered search, and complexity is O(height), not automatically logarithmic.",
-      "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+      "tree 50(30(20, 40), 70(60, 80))",
+      "delete(50)",
+      "result"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Find",
         "state": {
-          "scenario": "Deleting a two-child node replaces its key with a valid successor then removes that successor from its original place."
+          "node": "50",
+          "children": "30 and 70"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The node to delete has two children."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Successor",
         "state": {
-          "invariant": "A binary search tree maintains an ordering invariant between each node and its subtrees, enabling search proportional to height."
+          "leftmost of right": "60",
+          "50 becomes": "60"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "Deleting a two-child node replaces its key with a valid successor."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Remove",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "right subtree": "70(-, 80)",
+          "inorder": "20 30 40 60 70 80"
         },
-        "explanation": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Only a maintained search-order invariant enables ordered search, and complexity is O(height), not automatically logarithmic."
-        },
-        "explanation": "Verify the result and reject this misconception: Every binary tree supports logarithmic search by comparing keys."
+        "explanation": "It then removes that successor from its original place."
       }
     ],
-    "textAlternative": "Starting artifact: Deleting a two-child node replaces its key with a valid successor then removes that successor from its original place. Step 1, Specification. State: scenario: Deleting a two-child node replaces its key with a valid successor then removes that successor from its original place.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: A binary search tree maintains an ordering invariant between each node and its subtrees, enabling search proportional to height.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged. Step 4, Conclusion. State: correction: Only a maintained search-order invariant enables ordered search, and complexity is O(height), not automatically logarithmic.. Verify the result and reject this misconception: Every binary tree supports logarithmic search by comparing keys."
+    "textAlternative": "Tracing a two-child delete. Step 1, Find: node is 50; children is 30 and 70. The node to delete has two children. Step 2, Successor: leftmost of right is 60; 50 becomes is 60. Deleting a two-child node replaces its key with a valid successor. Step 3, Remove: right subtree is 70(-, 80); inorder is 20 30 40 60 70 80. It then removes that successor from its original place."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Binary search tree operations: language-neutral trace”: state its starting evidence, apply the Binary search tree operations rule, and give the observable result in three short lines.",
+      "prompt": "For \"Removing a course id with two children\", explain how deleting a two-child node replaces its key with a valid successor then removes that successor from its original place.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Successor.",
+        "Replace.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Binary search tree operations: language-neutral trace.",
-        "Starting evidence: Deleting a two-child node replaces its key with a valid successor then removes that successor from its original place.",
-        "Core rule: A binary search tree maintains an ordering invariant between each node and its subtrees, enabling search proportional to height.",
-        "Observable result: The conceptual result follows because Only a maintained search-order invariant enables ordered search, and complexity is O(height), not automatically logarithmic.",
-        "Boundary check: Only a maintained search-order invariant enables ordered search, and complexity is O(height), not automatically logarithmic."
+        "Names the example \"Removing a course id with two children\": course 50 has two children.",
+        "Deleting a two-child node replaces its key with a valid successor, 60.",
+        "It then removes that successor from its original place.",
+        "The catalog removes course 50 without losing any subtree."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: A binary search tree maintains an ordering invariant between each node and its subtrees, enabling search proportional to height.",
+      "prompt": "Insert 40, 20, 60, 10, 30, 50, 70 into an empty BST. Then delete 10 (leaf), 20 (one child after that) and 40 (two children), drawing the tree each time.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Successor of 40 is 50.",
+        "Check inorder after each delete."
       ],
       "expectedEvidence": [
-        "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
-        "Duplicate policy must be declared, unbalanced height can become n, and deletion has zero, one, or two-child cases."
+        "Final inorder: 30, 50, 60, 70.",
+        "Root becomes 50."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Binary search tree operations case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Implement a BST with insert, search, delete, min, max and inorder. Test every delete case, deleting the root repeatedly until empty, and an invariant check after each operation on random data.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Validate with inorder sortedness.",
+        "Random operations vs a sorted list."
       ],
       "expectedEvidence": [
-        "Implement and test BST operations including zero-, one- and two-child deletion.",
-        "Only a maintained search-order invariant enables ordered search, and complexity is O(height), not automatically logarithmic."
+        "All operations correct.",
+        "Invariant holds after every step."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.trees.bst.misconception",
-      "explanation": "Only a maintained search-order invariant enables ordered search, and complexity is O(height), not automatically logarithmic.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'O(height)', then state one implementation-specific risk in the selected language."
+      "explanation": "For each change ask: **does every node still have smaller keys left and larger keys right?** For deletes, name the case (0, 1 or 2 children) first, then act.",
+      "retryPrompt": "Apply this to \"The catalog that became a list\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test BST operations including zero-, one- and two-child deletion. Keep this boundary in view: Duplicate policy must be declared, unbalanced height can become n, and deletion has zero, one, or two-child cases.",
+    "summary": "To implement and test BST operations, keep smaller keys left and larger keys right at every node, walk one path for search, insert and delete in O(h), handle deletion by removing a leaf, splicing a single child, or copying in the inorder successor and deleting it, and check the invariant with a sorted inorder traversal.",
     "retrievalPrompts": [
-      "State the Binary search tree operations invariant and complexity without code.",
-      "Why is this claim false: Every binary tree supports logarithmic search by comparing keys.",
-      "Map checkpoint 'O(height)' to C, C++, Java, and Python."
+      "What invariant does a BST keep?",
+      "What are the three delete cases?",
+      "When is a BST slow?"
     ],
     "nextReviewPrompt": "Next: continue to “Balanced trees and tries”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

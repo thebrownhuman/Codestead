@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Exceptions transfer control to a matching handler while stack unwinding destroys completed automatic objects, enabling RAII cleanup and explicit basic, strong, or no-throw guarantees.",
+    "summary": "`throw` stops normal flow and jumps to the nearest matching `catch`. On the way, **stack unwinding** runs the destructors of every fully constructed local object, which is why RAII cleanup works. Each operation should state its **exception-safety guarantee**. **Basic**: if it throws, nothing leaks and the object is still valid, though its state may have changed. **Strong**: if it throws, **nothing changed** (commit or roll back). **No-throw** (`noexcept`): it never throws. The classic way to get strong: **build the new state separately, then `swap`** it in with a no-throw operation. Catch by `const&`, and only where you can actually handle the error.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A vector update builds a replacement first and swaps only after success, preserving the original state if allocation throws. Your goal is to implement an operation with a stated basic or strong exception-safety guarantee. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner updates a vector of scores in place: they clear it, then push new values. Halfway through, a push_back throws bad_alloc. The caller catches it and continues with a half-empty scores list. A vector update builds a replacement first and swaps only after success, preserving the original state if allocation throws. In this lesson you'll implement an operation with a stated basic or strong exception-safety guarantee.\n\n```predict\n{\"question\": \"An exception propagates out of a function. Are its local std::string objects destroyed?\", \"options\": [\"No, they're abandoned\", \"Yes: unwinding runs destructors of every fully constructed local\"], \"answer\": 1, \"why\": \"That's what makes RAII exception-safe.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Constructors and initialization; Value, reference and const-reference parameters; RAII and deterministic cleanup; Class interface and invariants. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Constructors and initialization**, **Value, reference and const-reference parameters**, **RAII and deterministic cleanup** and **Class interface and invariants**."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "Exceptions transfer control to a matching handler while stack unwinding destroys completed automatic objects, enabling RAII cleanup and explicit basic, strong, or no-throw guarantees. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The rule: build aside, then commit with a no-throw swap",
+        "body": "```cpp\n#include <stdexcept>\n#include <vector>\n\nclass Scoreboard {\npublic:\n    // Strong guarantee: on exception, scores_ is unchanged.\n    void replace_all(const std::vector<int>& input) {\n        std::vector<int> next;                      // build aside.\n        next.reserve(input.size());                 // may throw: scores_ untouched.\n        for (int s : input) {\n            if (s < 0) throw std::invalid_argument(\"negative score\");\n            next.push_back(s);\n        }\n        scores_.swap(next);                         // commit: swap never throws.\n    }\n    std::size_t size() const noexcept { return scores_.size(); }   // no-throw.\nprivate:\n    std::vector<int> scores_;\n};\n\nint main() {\n    Scoreboard b;\n    try {\n        b.replace_all({90, -5, 70});\n    } catch (const std::invalid_argument& e) {      // catch by const reference.\n        // b still holds its previous scores.\n    }\n}\n```\n\n| Guarantee | If an exception escapes |\n|---|---|\n| basic. | no leaks; object valid, state may differ. |\n| strong. | state exactly as before the call. |\n| no-throw. | can't happen (`noexcept`). |\n\n```reveal\n{\"prompt\": \"What happens if a noexcept function does throw?\", \"answer\": \"std::terminate is called and the program stops. noexcept is a promise, so only use it when the function truly can't throw.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Destructors should not emit exceptions during unwinding, noexcept violations terminate, catch order matters, and exceptions should not replace expected routine branching indiscriminately. Therefore the draft explicitly rejects this beginner failure model: When an exception occurs, automatic objects in exited scopes are abandoned without destructors running."
+        "heading": "Catch where you can act",
+        "body": "```predict\n{\"question\": \"A low-level parse function catches every exception, prints \\\"error\\\" and returns 0. Good idea?\", \"options\": [\"Yes, it prevents crashes\", \"No: it hides the failure and returns a fake value; let it propagate to code that can handle it\"], \"answer\": 1, \"why\": \"Catch where a decision can be made, e.g. showing the user a message.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Throw meaningful failures, catch at responsible boundaries and preserve invariants.",
-      "Implement an operation with a stated basic or strong exception-safety guarantee."
+      "Explain throw, catch and stack unwinding with RAII cleanup.",
+      "Implement basic and strong guarantees with build-then-swap, and mark no-throw functions noexcept."
     ],
     "excludes": [
-      "Destructors should not emit exceptions during unwinding, noexcept violations terminate, catch order matters, and exceptions should not replace expected routine branching indiscriminately."
+      "Custom exception hierarchies in depth.",
+      "std::expected (C++23) alternatives."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "cpp.resources.exceptions.example-a",
-      "title": "Exceptions and guarantees: defined case",
+      "title": "Updating the scores, all or nothing",
       "situation": "A vector update builds a replacement first and swaps only after success, preserving the original state if allocation throws.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A vector update builds a replacement first and swaps only after success, preserving the original state if allocation throws.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Stack unwinding destroys fully constructed automatic objects; RAII uses those destructors to release resources on exceptional exits."
+        "**Builds a replacement first:** next is filled and validated while scores_ is untouched.",
+        "**Swaps only after success:** scores_.swap(next) runs only when every value was accepted.",
+        "**Preserving the original state if allocation throws:** a bad_alloc or invalid score will leave the old scores exactly as they were."
       ],
-      "result": "The defined result follows because Stack unwinding destroys fully constructed automatic objects; RAII uses those destructors to release resources on exceptional exits."
+      "result": "The scoreboard is either fully updated or completely unchanged."
     },
     {
       "id": "cpp.resources.exceptions.example-b",
-      "title": "Exceptions and guarantees: boundary case",
-      "situation": "A catch block handles a specific parse_error before a broader std::exception handler and preserves useful context.",
+      "title": "The half-sent order",
+      "situation": "place_order() charges a card, then writes the order, and the write throws. The customer is charged with no order.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A catch block handles a specific parse_error before a broader std::exception handler and preserves useful context.",
-        "Step 2 — Keep this standard boundary visible: Destructors should not emit exceptions during unwinding, noexcept violations terminate, catch order matters, and exceptions should not replace expected routine branching indiscriminately.",
-        "Step 3 — Reject the tempting rule: When an exception occurs, automatic objects in exited scopes are abandoned without destructors running."
+        "The operation had no guarantee across two steps.",
+        "Reorder: prepare and validate everything first, then do the irreversible step last.",
+        "Or record a pending order that can be rolled back."
       ],
-      "result": "This case demonstrates the declared outcome: Implement an operation with a stated basic or strong exception-safety guarantee."
+      "result": "A failure leaves no half-finished order."
     }
   ],
   "misconceptions": [
     {
       "id": "cpp.resources.exceptions.misconception",
       "mistakenBelief": "When an exception occurs, automatic objects in exited scopes are abandoned without destructors running.",
-      "correction": "Stack unwinding destroys fully constructed automatic objects; RAII uses those destructors to release resources on exceptional exits.",
-      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: When an exception occurs, automatic objects in exited scopes are abandoned without destructors running."
+      "correction": "Stack unwinding destroys every fully constructed automatic object in the scopes being exited, so RAII members release their resources.",
+      "diagnosticPrompt": "In the opening predict, what happened to the local strings?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A system of self-managing components can model Exceptions and guarantees: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "example": "The strong guarantee is like **rearranging furniture by drawing the new plan on paper first**. If you realise halfway that the sofa won't fit (exception), you throw the paper away and the room is exactly as it was. Only when the plan works do you move everything at once (swap).",
     "usefulFor": [
-      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+      "remembering plan on paper, then move",
+      "swap = moving day"
     ],
     "limitations": [
-      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
-      "Destructors should not emit exceptions during unwinding, noexcept violations terminate, catch order matters, and exceptions should not replace expected routine branching indiscriminately."
+      "Real moving days can fail; swap can't.",
+      "Basic guarantee = the room is tidy, just not as it was."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A vector update builds a replacement first and swaps only after success, preserving the original state if allocation throws.",
-      "Exceptions transfer control to a matching handler while stack unwinding destroys completed automatic objects, enabling RAII cleanup and explicit basic, strong, or no-throw guarantees.",
-      "Stack unwinding destroys fully constructed automatic objects; RAII uses those destructors to release resources on exceptional exits."
+      "b.replace_all({90, -5, 70})",
+      "-5 triggers invalid_argument",
+      "catch in main"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Build",
         "state": {
-          "evidence": "A vector update builds a replacement first and swaps only after success, preserving the original state if allocation throws."
+          "next": "{90}",
+          "scores_": "old values"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "The update builds a replacement first, away from the real state."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Throw",
         "state": {
-          "rule": "Exceptions transfer control to a matching handler while stack unwinding destroys completed automatic objects, enabling RAII cleanup and explicit basic, strong, or no-throw guarantees."
+          "next": "destroyed by unwinding",
+          "swap": "never reached"
         },
-        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+        "explanation": "The exception skips the swap, so nothing is committed."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Catch",
         "state": {
-          "conclusion": "Stack unwinding destroys fully constructed automatic objects; RAII uses those destructors to release resources on exceptional exits."
+          "scores_": "old values"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: When an exception occurs, automatic objects in exited scopes are abandoned without destructors running."
+        "explanation": "The original state is preserved, as the strong guarantee promises."
       }
     ],
-    "textAlternative": "Starting artifact: A vector update builds a replacement first and swaps only after success, preserving the original state if allocation throws. Step 1, Source and state. State: evidence: A vector update builds a replacement first and swaps only after success, preserving the original state if allocation throws.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: Exceptions transfer control to a matching handler while stack unwinding destroys completed automatic objects, enabling RAII cleanup and explicit basic, strong, or no-throw guarantees.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Stack unwinding destroys fully constructed automatic objects; RAII uses those destructors to release resources on exceptional exits.. Check the conclusion against the boundary and reject this misconception: When an exception occurs, automatic objects in exited scopes are abandoned without destructors running."
+    "textAlternative": "Tracing a strong-guarantee update. Step 1, Build: next is {90}; scores_ is old values. The update builds a replacement first, away from the real state. Step 2, Throw: next is destroyed by unwinding; swap is never reached. The exception skips the swap, so nothing is committed. Step 3, Catch: scores_ is old values. The original state is preserved, as the strong guarantee promises."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Exceptions and guarantees: defined case”: state its starting evidence, apply the Exceptions and guarantees rule, and give the observable result in three short lines.",
+      "prompt": "For \"Updating the scores, all or nothing\", explain how a vector update builds a replacement first and swaps only after success, preserving the original state if allocation throws.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Build.",
+        "Swap.",
+        "Preserve."
       ],
       "expectedEvidence": [
-        "Named example: Exceptions and guarantees: defined case.",
-        "Starting evidence: A vector update builds a replacement first and swaps only after success, preserving the original state if allocation throws.",
-        "Core rule: Exceptions transfer control to a matching handler while stack unwinding destroys completed automatic objects, enabling RAII cleanup and explicit basic, strong, or no-throw guarantees.",
-        "Observable result: The defined result follows because Stack unwinding destroys fully constructed automatic objects; RAII uses those destructors to release resources on exceptional exits.",
-        "Boundary check: Stack unwinding destroys fully constructed automatic objects; RAII uses those destructors to release resources on exceptional exits."
+        "Names the example \"Updating the scores, all or nothing\": clearing first left half a list.",
+        "A vector update builds a replacement first and swaps only after success.",
+        "This preserves the original state if allocation throws.",
+        "The scoreboard is fully updated or unchanged."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same CPP rule to this related boundary case: A catch block handles a specific parse_error before a broader std::exception handler and preserves useful context.",
+      "prompt": "Write add_student(const std::string& name) for a class holding a vector of names and a map of name to id, with the strong guarantee: if inserting into the map fails, the vector must be unchanged too.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Insert into the map first, or roll back.",
+        "Test by throwing on purpose."
       ],
       "expectedEvidence": [
-        "Exceptions transfer control to a matching handler while stack unwinding destroys completed automatic objects, enabling RAII cleanup and explicit basic, strong, or no-throw guarantees.",
-        "Destructors should not emit exceptions during unwinding, noexcept violations terminate, catch order matters, and exceptions should not replace expected routine branching indiscriminately."
+        "Both containers consistent after failure.",
+        "Guarantee documented."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CPP example for Exceptions and guarantees, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Write a test helper that makes an operation throw at the Nth allocation or step, then test replace_all by failing at every possible point and asserting the scoreboard is unchanged each time.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "A counter-controlled throwing hook.",
+        "Loop N from 1 upward."
       ],
       "expectedEvidence": [
-        "Implement an operation with a stated basic or strong exception-safety guarantee.",
-        "Stack unwinding destroys fully constructed automatic objects; RAII uses those destructors to release resources on exceptional exits."
+        "Every failure point tested.",
+        "State unchanged in all."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "cpp.resources.exceptions.misconception",
-      "explanation": "Stack unwinding destroys fully constructed automatic objects; RAII uses those destructors to release resources on exceptional exits.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'Stack unwinding' and state the decisive evidence: A catch block handles a specific parse_error before a broader std::exception handler and preserves useful context."
+      "explanation": "For each operation write its guarantee: **basic, strong or no-throw.** For strong, ask: **is everything that can throw done before the first visible change?**",
+      "retryPrompt": "Apply this to \"The half-sent order\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement an operation with a stated basic or strong exception-safety guarantee. Keep this boundary in view: Destructors should not emit exceptions during unwinding, noexcept violations terminate, catch order matters, and exceptions should not replace expected routine branching indiscriminately.",
+    "summary": "To implement exception-safe operations, rely on stack unwinding and RAII for cleanup, state a guarantee for each operation, achieve the strong guarantee by doing all throwing work on a separate copy and committing with a no-throw swap, mark genuinely non-throwing functions noexcept, and catch by const reference only where you can handle the error.",
     "retrievalPrompts": [
-      "Explain Exceptions and guarantees using a concrete CPP rule rather than the optional analogy.",
-      "Why is this claim incorrect: When an exception occurs, automatic objects in exited scopes are abandoned without destructors running.",
-      "Apply the checkpoint 'Stack unwinding' to the boundary case from memory."
+      "What runs during stack unwinding?",
+      "What does the strong guarantee promise?",
+      "Why build aside and then swap?"
     ],
     "nextReviewPrompt": "Next: continue to “Move semantics basics”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

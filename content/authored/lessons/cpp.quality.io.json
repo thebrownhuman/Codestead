@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "C++ streams carry formatting and error state; extraction must be checked before values are used, and line-oriented input must account for delimiters left by formatted extraction.",
+    "summary": "C++ streams (`std::cin`, `std::ifstream`, `std::istringstream`) carry **state flags**. After a failed extraction like `cin >> n` on \"abc\", the stream enters a **fail state**, n is set to 0 (C++11 and later), and **every later extraction does nothing** until you `clear()` and discard the bad input. So put extraction **directly in the condition**: `if (in >> n)`. `eof()` alone doesn't tell you whether reading succeeded. Mixing `>>` with `std::getline` has a classic trap: `>>` leaves the **newline** in the buffer, so the next getline reads an empty line. Robust approach: read whole lines with getline, then parse each one with an istringstream.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: An integer extraction appears directly in an if condition, and invalid input clears or terminates processing before the destination is trusted. Your goal is to implement file-backed input and output with explicit failure handling. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner's shopping app asks for a quantity with `cin >> qty;` then a note with getline. Typing \"two\" makes qty 0, and the program loops forever printing the menu. When it does work, the note is always empty. An integer extraction appears directly in an if condition, and invalid input clears or terminates processing before the destination is trusted. In this lesson you'll implement file-backed input and output with explicit failure handling.\n\n```predict\n{\"question\": \"`int n; std::cin >> n;` and the user types \\\"abc\\\". What state is cin in?\", \"options\": [\"Normal, n is 0\", \"Fail state: later extractions do nothing until clear() and the bad input is discarded\"], \"answer\": 1, \"why\": \"Always test the extraction itself.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Conceptual constraints and diagnostics; Exceptions and guarantees; string, array and vector. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Conceptual constraints and diagnostics**, **Exceptions and guarantees** and **string, array and vector**."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "C++ streams carry formatting and error state; extraction must be checked before values are used, and line-oriented input must account for delimiters left by formatted extraction. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The rule: test the extraction, parse lines",
+        "body": "```cpp\n#include <fstream>\n#include <iostream>\n#include <optional>\n#include <sstream>\n#include <string>\n\nstd::optional<int> parse_quantity(const std::string& line) {\n    std::istringstream in(line);\n    int qty{};\n    char extra{};\n    if (!(in >> qty) || (in >> extra)) return std::nullopt;   // not a number, or junk after.\n    if (qty < 1 || qty > 99) return std::nullopt;             // range.\n    return qty;\n}\n\nint main() {\n    std::ifstream file(\"orders.txt\");\n    if (!file) { std::cerr << \"cannot open orders.txt\\n\"; return 1; }\n    std::ofstream out(\"valid.txt\");\n    std::string line;\n    int line_no = 0;\n    while (std::getline(file, line)) {                // loop on the read itself.\n        ++line_no;\n        if (auto q = parse_quantity(line)) out << *q << '\\n';\n        else std::cerr << \"line \" << line_no << \": invalid\\n\";\n    }\n    if (file.bad()) { std::cerr << \"read error\\n\"; return 1; }\n    if (!out) { std::cerr << \"write error\\n\"; return 1; }\n}\n```\n\n```reveal\n{\"prompt\": \"Why read lines with getline and parse them separately?\", \"answer\": \"A bad line affects only its own istringstream, the main stream never enters a fail state, and there's no leftover newline problem.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Locale, buffering, synchronization, fail/eof distinctions, exceptions masks, and mixing formatted with line input affect behavior. Therefore the draft explicitly rejects this beginner failure model: istream extraction always assigns a usable default value and eof alone identifies every input failure."
+        "heading": "The newline trap",
+        "body": "```predict\n{\"question\": \"`std::cin >> age; std::getline(std::cin, name);` Why is name empty?\", \"options\": [\"getline is broken\", \">> left the Enter newline, which getline reads as an empty line\"], \"answer\": 1, \"why\": \"Read everything with getline, or skip whitespace with std::ws first.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use stream state and structured parsing without silently accepting malformed input.",
-      "Implement file-backed input and output with explicit failure handling."
+      "Test every extraction in its condition and handle fail, eof and bad states.",
+      "Read lines with getline and parse with istringstream, and check file opens and writes."
     ],
     "excludes": [
-      "Locale, buffering, synchronization, fail/eof distinctions, exceptions masks, and mixing formatted with line input affect behavior."
+      "Binary file I/O.",
+      "std::format and locales."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "cpp.quality.io.example-a",
-      "title": "Streams, files and parsing: defined case",
+      "title": "Reading a quantity you can trust",
       "situation": "An integer extraction appears directly in an if condition, and invalid input clears or terminates processing before the destination is trusted.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: An integer extraction appears directly in an if condition, and invalid input clears or terminates processing before the destination is trusted.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Check stream state after each required extraction and distinguish parse failure, EOF, and I/O error before using destination values."
+        "**An integer extraction appears directly in an if condition:** if (!(in >> qty) ...) in parse_quantity.",
+        "**Invalid input:** \"two\", \"3x\" and \"500\" return nullopt and are reported with their line numbers.",
+        "**Before the destination is trusted:** only values that parsed fully and are in range will be written to valid.txt."
       ],
-      "result": "The defined result follows because Check stream state after each required extraction and distinguish parse failure, EOF, and I/O error before using destination values."
+      "result": "Bad lines are reported and skipped, and the program never loops on a failed stream."
     },
     {
       "id": "cpp.quality.io.example-b",
-      "title": "Streams, files and parsing: boundary case",
-      "situation": "After reading a number, the program consumes the pending newline before getline reads a full name.",
+      "title": "The empty note",
+      "situation": "After `cin >> qty`, `getline(cin, note)` always returns an empty note.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: After reading a number, the program consumes the pending newline before getline reads a full name.",
-        "Step 2 — Keep this standard boundary visible: Locale, buffering, synchronization, fail/eof distinctions, exceptions masks, and mixing formatted with line input affect behavior.",
-        "Step 3 — Reject the tempting rule: istream extraction always assigns a usable default value and eof alone identifies every input failure."
+        "The newline after the number was still in the buffer.",
+        "Read the quantity line with getline too, and parse it.",
+        "Or use std::getline(std::cin >> std::ws, note)."
       ],
-      "result": "This case demonstrates the declared outcome: Implement file-backed input and output with explicit failure handling."
+      "result": "The note contains what the user typed."
     }
   ],
   "misconceptions": [
     {
       "id": "cpp.quality.io.misconception",
       "mistakenBelief": "istream extraction always assigns a usable default value and eof alone identifies every input failure.",
-      "correction": "Check stream state after each required extraction and distinguish parse failure, EOF, and I/O error before using destination values.",
-      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: istream extraction always assigns a usable default value and eof alone identifies every input failure."
+      "correction": "A failed extraction puts the stream in a fail state and the value can't be trusted. eof only means the end was reached; fail and bad states must be checked too.",
+      "diagnosticPrompt": "In the opening story, why did the menu loop forever?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A system of self-managing components can model Streams, files and parsing: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "example": "A stream is like **a conveyor belt with a jam sensor**. If an item doesn't fit the slot (\"two\" into an int), the belt **jams** (fail state) and stops delivering anything until someone clears it. Taking each item off the belt whole (getline) and inspecting it at a separate table (istringstream) means a bad item never jams the main belt.",
     "usefulFor": [
-      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+      "remembering the jam sensor",
+      "inspect at a separate table"
     ],
     "limitations": [
-      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
-      "Locale, buffering, synchronization, fail/eof distinctions, exceptions masks, and mixing formatted with line input affect behavior."
+      "Real jams are loud; stream jams are silent.",
+      "The leftover newline is a crumb left on the belt."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "An integer extraction appears directly in an if condition, and invalid input clears or terminates processing before the destination is trusted.",
-      "C++ streams carry formatting and error state; extraction must be checked before values are used, and line-oriented input must account for delimiters left by formatted extraction.",
-      "Check stream state after each required extraction and distinguish parse failure, EOF, and I/O error before using destination values."
+      "getline: \"3\"",
+      "getline: \"two\"",
+      "end of file"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Valid",
         "state": {
-          "evidence": "An integer extraction appears directly in an if condition, and invalid input clears or terminates processing before the destination is trusted."
+          "qty": "3",
+          "valid.txt": "3"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "The integer extraction in the if condition succeeds and the value is trusted."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Invalid",
         "state": {
-          "rule": "C++ streams carry formatting and error state; extraction must be checked before values are used, and line-oriented input must account for delimiters left by formatted extraction."
+          "result": "nullopt",
+          "stderr": "line 2: invalid"
         },
-        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+        "explanation": "Invalid input terminates processing of that line before the destination is trusted."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Finish",
         "state": {
-          "conclusion": "Check stream state after each required extraction and distinguish parse failure, EOF, and I/O error before using destination values."
+          "file.bad()": "false",
+          "out": "good"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: istream extraction always assigns a usable default value and eof alone identifies every input failure."
+        "explanation": "End of file ends the loop, and stream errors are checked."
       }
     ],
-    "textAlternative": "Starting artifact: An integer extraction appears directly in an if condition, and invalid input clears or terminates processing before the destination is trusted. Step 1, Source and state. State: evidence: An integer extraction appears directly in an if condition, and invalid input clears or terminates processing before the destination is trusted.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: C++ streams carry formatting and error state; extraction must be checked before values are used, and line-oriented input must account for delimiters left by formatted extraction.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Check stream state after each required extraction and distinguish parse failure, EOF, and I/O error before using destination values.. Check the conclusion against the boundary and reject this misconception: istream extraction always assigns a usable default value and eof alone identifies every input failure."
+    "textAlternative": "Tracing validated stream input. Step 1, Valid: qty is 3; valid.txt is 3. The integer extraction in the if condition succeeds and the value is trusted. Step 2, Invalid: result is nullopt; stderr is line 2: invalid. Invalid input terminates processing of that line before the destination is trusted. Step 3, Finish: file.bad() is false; out is good. End of file ends the loop, and stream errors are checked."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Streams, files and parsing: defined case”: state its starting evidence, apply the Streams, files and parsing rule, and give the observable result in three short lines.",
+      "prompt": "For \"Reading a quantity you can trust\", explain how an integer extraction appears directly in an if condition, and invalid input clears or terminates processing before the destination is trusted.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Extract.",
+        "Reject.",
+        "Trust."
       ],
       "expectedEvidence": [
-        "Named example: Streams, files and parsing: defined case.",
-        "Starting evidence: An integer extraction appears directly in an if condition, and invalid input clears or terminates processing before the destination is trusted.",
-        "Core rule: C++ streams carry formatting and error state; extraction must be checked before values are used, and line-oriented input must account for delimiters left by formatted extraction.",
-        "Observable result: The defined result follows because Check stream state after each required extraction and distinguish parse failure, EOF, and I/O error before using destination values.",
-        "Boundary check: Check stream state after each required extraction and distinguish parse failure, EOF, and I/O error before using destination values."
+        "Names the example \"Reading a quantity you can trust\": \"two\" made the menu loop forever.",
+        "An integer extraction appears directly in an if condition.",
+        "Invalid input clears or terminates processing before the destination is trusted.",
+        "Bad lines are reported and skipped."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same CPP rule to this related boundary case: After reading a number, the program consumes the pending newline before getline reads a full name.",
+      "prompt": "Write a program that reads numbers from a file, one per line, and prints their sum and the count of invalid lines. Test with an empty file, a missing file, blank lines, \"12abc\" and valid numbers.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "getline + istringstream.",
+        "Check the open."
       ],
       "expectedEvidence": [
-        "C++ streams carry formatting and error state; extraction must be checked before values are used, and line-oriented input must account for delimiters left by formatted extraction.",
-        "Locale, buffering, synchronization, fail/eof distinctions, exceptions masks, and mixing formatted with line input affect behavior."
+        "Correct sum and invalid count.",
+        "Missing file reported."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CPP example for Streams, files and parsing, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Build a CSV reader for name,age lines that writes valid rows to one file and errors (with line numbers and reasons) to another. Test quotes-free edge cases: missing comma, extra fields, non-numeric age, negative age.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "std::getline(ss, field, ',').",
+        "Collect reasons as strings."
       ],
       "expectedEvidence": [
-        "Implement file-backed input and output with explicit failure handling.",
-        "Check stream state after each required extraction and distinguish parse failure, EOF, and I/O error before using destination values."
+        "Every error has a reason.",
+        "Output files checked."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "cpp.quality.io.misconception",
-      "explanation": "Check stream state after each required extraction and distinguish parse failure, EOF, and I/O error before using destination values.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'stream state' and state the decisive evidence: After reading a number, the program consumes the pending newline before getline reads a full name."
+      "explanation": "For every read ask: **is the extraction itself tested, what happens to bad input, and can a leftover newline or fail state affect the next read?**",
+      "retryPrompt": "Apply this to \"The empty note\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement file-backed input and output with explicit failure handling. Keep this boundary in view: Locale, buffering, synchronization, fail/eof distinctions, exceptions masks, and mixing formatted with line input affect behavior.",
+    "summary": "To implement file-backed input and output with explicit failure handling, check that files opened, loop on getline itself, parse each line with an istringstream and test every extraction (including junk after it and range), report bad lines, avoid mixing >> with getline, and check stream states after reading and writing.",
     "retrievalPrompts": [
-      "Explain Streams, files and parsing using a concrete CPP rule rather than the optional analogy.",
-      "Why is this claim incorrect: istream extraction always assigns a usable default value and eof alone identifies every input failure.",
-      "Apply the checkpoint 'stream state' to the boundary case from memory."
+      "What happens to a stream after a failed extraction?",
+      "Why is getline after >> often empty?",
+      "Why parse lines with istringstream?"
     ],
     "nextReviewPrompt": "Next: continue to “Unit and integration tests”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

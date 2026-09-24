@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Classic and module scripts execute JavaScript in browser realms with different scope, loading, and strictness rules.",
+    "summary": "The browser reads HTML top to bottom. A plain `<script>` **pauses parsing**, runs, then parsing continues — so it can't see elements that come **after** it. `defer` downloads the script in parallel and runs it **after** the HTML is parsed, in document order. `console.log()` writes to the DevTools Console so you can observe what your code does and when.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A deferred classic script runs after parsing while preserving document order. Your goal is to attach and run a script, then explain source order and observable output. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You add `<script src=\"app.js\">` in the head. It says `document.querySelector(\"#start\")` is `null` — but the button is right there on the page! When the script ran, the parser hadn't reached the button yet. A deferred classic script runs after parsing while preserving document order. In this lesson you'll attach and run a script, then explain source order and observable output.\n\n```predict\n{\"question\": \"`<script>` in the head (no defer) runs `console.log(document.querySelector(\\\"button\\\"))`. The button is in the body. Output?\", \"options\": [\"The button element\", \"null — the button hasn't been parsed yet\"], \"answer\": 1, \"why\": \"A classic script without defer runs the moment the parser reaches it, before later HTML exists.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: pf computing execution; html document skeleton. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Source-to-execution models** (how source becomes running code) and **Standards-mode document skeleton** (head vs body)."
       },
       {
-        "heading": "Technology rule",
-        "body": "Classic and module scripts execute JavaScript in browser realms with different scope, loading, and strictness rules. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: parse, pause, run — or defer",
+        "body": "```html\n<head>\n  <script src=\"a.js\" defer></script>   <!-- runs 1st, after parsing -->\n  <script src=\"b.js\" defer></script>   <!-- runs 2nd -->\n</head>\n<body>\n  <button id=\"start\">Start</button>\n</body>\n```\n\n```js\n// a.js\nconst btn = document.querySelector(\"#start\");\nconsole.log(\"found:\", btn);          // found: <button id=\"start\">…\n```\n\n| Script type | When it runs | Order |\n|---|---|---|\n| classic (no attribute). | immediately, pausing the parser. | document order. |\n| `defer`. | after HTML parsing finishes. | document order. |\n| `async`. | as soon as it downloads. | not guaranteed. |\n| `type=\"module\"`. | deferred by default. | document order. |\n\n```reveal\n{\"prompt\": \"Where do you see console.log output?\", \"answer\": \"In the browser's DevTools → Console tab (F12 or Ctrl+Shift+J / Cmd+Option+J).\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Parser blocking, async, defer, module dependencies, and CSP change timing and availability. This draft therefore rejects: Every script tag executes immediately before the browser parses later HTML."
+        "heading": "Observe the order",
+        "body": "```predict\n{\"question\": \"Two deferred scripts: first logs \\\"A\\\", second logs \\\"B\\\". The second is smaller and downloads first. What prints?\", \"options\": [\"B then A\", \"A then B\"], \"answer\": 1, \"why\": \"defer keeps document order regardless of download speed. async would not.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Load scripts intentionally and use the console for bounded experiments rather than application output.",
-      "Attach and run a script, then explain source order and observable output."
+      "Attach scripts with and without defer and predict when they run.",
+      "Use console.log to observe execution order and output."
     ],
     "excludes": [
-      "Parser blocking, async, defer, module dependencies, and CSP change timing and availability."
+      "Modules (next lesson).",
+      "The event loop (later lesson)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "javascript.runtime.script.example-a",
-      "title": "Scripts and console: concrete case",
+      "title": "A deferred script that finds its button",
       "situation": "A deferred classic script runs after parsing while preserving document order.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A deferred classic script runs after parsing while preserving document order.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Choose explicit script loading semantics; defer waits for parsing, while async can execute as soon as fetched."
+        "**Problem:** `<script src=\"app.js\">` in the head logs `null` for `#start` — the parser hasn't reached the button.",
+        "**Fix:** add `defer`; the script downloads in parallel and will run after parsing completes.",
+        "**Observe:** the Console now logs `found: <button id=\"start\">`, and a second deferred script runs after it, preserving document order."
       ],
-      "result": "The result follows because Choose explicit script loading semantics; defer waits for parsing, while async can execute as soon as fetched."
+      "result": "The script finds the button, and multiple deferred scripts run in the order they appear."
     },
     {
       "id": "javascript.runtime.script.example-b",
-      "title": "Scripts and console: boundary case",
-      "situation": "Parser blocking, async, defer, module dependencies, and CSP change timing and availability.",
+      "title": "The analytics script that blocked the page",
+      "situation": "A large classic script in the head delays the whole page by two seconds on slow connections.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Parser blocking, async, defer, module dependencies, and CSP change timing and availability.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Every script tag executes immediately before the browser parses later HTML."
+        "Classic scripts block the parser while they download and run.",
+        "Nothing below it renders until it finishes.",
+        "Fix: `defer` (or `async` if order doesn't matter), so parsing and rendering continue."
       ],
-      "result": "The boundary requires this correction: Choose explicit script loading semantics; defer waits for parsing, while async can execute as soon as fetched."
+      "result": "The page appears immediately and the script runs afterwards."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.runtime.script.misconception",
-      "mistakenBelief": "Every script tag executes immediately before the browser parses later HTML.",
-      "correction": "Choose explicit script loading semantics; defer waits for parsing, while async can execute as soon as fetched.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: Every script tag executes immediately before the browser parses later HTML."
+      "mistakenBelief": "Every script tag executes immediately, before the browser parses later HTML.",
+      "correction": "Only classic scripts without defer or async run immediately and block parsing. defer runs after parsing in document order; async runs when downloaded; module scripts are deferred by default.",
+      "diagnosticPrompt": "In \"A deferred script that finds its button\", why did the original script log null?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Scripts and console, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "A classic script is like a **tour guide who stops the group mid-tour to give a speech** — nobody moves until it's done, and they can't talk about rooms not yet visited. defer is a guide who **waits until the whole tour is done**, then explains everything in order.",
     "usefulFor": [
-      "Building a first mental model for Scripts and console before using exact platform terms"
+      "remembering classic = pause now",
+      "defer = run after parsing, in order"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Parser blocking, async, defer, module dependencies, and CSP change timing and availability."
+      "Tours don't download; scripts do, in parallel with defer.",
+      "async is a guide who talks whenever they arrive, out of order."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A deferred classic script runs after parsing while preserving document order.",
-      "Classic and module scripts execute JavaScript in browser realms with different scope, loading, and strictness rules.",
-      "Choose explicit script loading semantics; defer waits for parsing, while async can execute as soon as fetched."
+      "<script src='app.js' defer>",
+      "<button id='start'>",
+      "app.js: console.log(document.querySelector('#start'))"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Download",
         "state": {
-          "evidence": "A deferred classic script runs after parsing while preserving document order."
+          "app.js": "downloading in parallel",
+          "parser": "continues"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The deferred classic script downloads without pausing parsing."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Parse",
         "state": {
-          "rule": "Classic and module scripts execute JavaScript in browser realms with different scope, loading, and strictness rules."
+          "#start": "created in the DOM"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The parser reaches the button and adds it to the document."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Run",
         "state": {
-          "correction": "Choose explicit script loading semantics; defer waits for parsing, while async can execute as soon as fetched."
+          "console": "found: <button id=start>"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Every script tag executes immediately before the browser parses later HTML."
+        "explanation": "The script runs after parsing while preserving document order."
       }
     ],
-    "textAlternative": "Starting artifact: A deferred classic script runs after parsing while preserving document order. Step 1, Artifact. State: evidence: A deferred classic script runs after parsing while preserving document order.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Classic and module scripts execute JavaScript in browser realms with different scope, loading, and strictness rules.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Choose explicit script loading semantics; defer waits for parsing, while async can execute as soon as fetched.. Check the result against the boundary and reject this misconception: Every script tag executes immediately before the browser parses later HTML."
+    "textAlternative": "Running a deferred script. Step 1, Download: app.js is downloading in parallel; parser is continues. The deferred classic script downloads without pausing parsing. Step 2, Parse: #start is created in the DOM. The parser reaches the button and adds it to the document. Step 3, Run: console is found: <button id=start>. The script runs after parsing while preserving document order."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Scripts and console: concrete case”: state its starting evidence, apply the Scripts and console rule, and give the observable result in three short lines.",
+      "prompt": "For \"A deferred script that finds its button\", explain why the deferred classic script runs after parsing while preserving document order, and what the console shows.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Problem.",
+        "defer.",
+        "Output."
       ],
       "expectedEvidence": [
-        "Named example: Scripts and console: concrete case.",
-        "Starting evidence: A deferred classic script runs after parsing while preserving document order.",
-        "Core rule: Classic and module scripts execute JavaScript in browser realms with different scope, loading, and strictness rules.",
-        "Observable result: The result follows because Choose explicit script loading semantics; defer waits for parsing, while async can execute as soon as fetched.",
-        "Boundary check: Choose explicit script loading semantics; defer waits for parsing, while async can execute as soon as fetched."
+        "Names the example \"A deferred script that finds its button\": a deferred classic script.",
+        "It runs after parsing, so the button exists.",
+        "It preserves document order with other deferred scripts.",
+        "The console logs the found button instead of null."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Parser blocking, async, defer, module dependencies, and CSP change timing and availability.",
+      "prompt": "Three scripts: `a.js` (classic, in head), `b.js` (defer), `c.js` (classic, end of body). Each logs its name. Predict the order.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Classic runs when reached.",
+        "defer waits for parsing."
       ],
       "expectedEvidence": [
-        "Classic and module scripts execute JavaScript in browser realms with different scope, loading, and strictness rules.",
-        "Parser blocking, async, defer, module dependencies, and CSP change timing and availability."
+        "a, then c, then b.",
+        "a runs in the head; c at the end of body; b after parsing."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Scripts and console and explain why the misconception fails.",
+      "prompt": "Build a page with a head script that reads a body element. Try it as classic, defer and async, log what each sees, and explain the differences.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Use console.log with labels.",
+        "Throttle the network to see async timing."
       ],
       "expectedEvidence": [
-        "Attach and run a script, then explain source order and observable output.",
-        "Choose explicit script loading semantics; defer waits for parsing, while async can execute as soon as fetched."
+        "Recorded output for all three.",
+        "Correct explanation of each timing."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.runtime.script.misconception",
-      "explanation": "Choose explicit script loading semantics; defer waits for parsing, while async can execute as soon as fetched.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'defer waits for parsing' and state the decisive evidence."
+      "explanation": "For each script ask: **Where is it in the HTML? Does it have defer, async or type=module?** Then mark on the HTML the exact moment it runs and which elements exist then.",
+      "retryPrompt": "Mark it for \"The analytics script that blocked the page\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to attach and run a script, then explain source order and observable output. Keep this boundary in view: Parser blocking, async, defer, module dependencies, and CSP change timing and availability.",
+    "summary": "To attach and run a script and explain its output, remember classic scripts run immediately and block parsing, defer runs after parsing in document order, async runs when downloaded, and console.log shows what happened and when.",
     "retrievalPrompts": [
-      "Explain Scripts and console using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: Every script tag executes immediately before the browser parses later HTML.",
-      "Apply checkpoint 'defer waits for parsing' to a new artifact."
+      "Why can a head script log null for a body element?",
+      "What order do deferred scripts run in?",
+      "Where does console.log output appear?"
     ],
     "nextReviewPrompt": "Next: continue to “Module loading baseline”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

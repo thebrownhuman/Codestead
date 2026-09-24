@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -162,6 +162,22 @@ export async function POST(request: NextRequest) {
       .update(providerCredential)
       .set({ status, failureCode, lastValidatedAt: new Date() })
       .where(eq(providerCredential.id, credentialId));
+  }
+  if (status === "active") {
+    // Earlier failed submissions of this same key are dead retries; retire them
+    // so they don't linger as "pending validation" next to the working copy.
+    await db
+      .update(providerCredential)
+      .set({ status: "revoked", isPreferred: false })
+      .where(
+        and(
+          eq(providerCredential.userId, authz.session.user.id),
+          eq(providerCredential.provider, body.data.provider),
+          eq(providerCredential.lastFour, sealed.lastFour),
+          ne(providerCredential.id, credentialId),
+          inArray(providerCredential.status, ["pending_validation", "invalid", "rate_limited"]),
+        ),
+      );
   }
 
   await writeAuditEvent({

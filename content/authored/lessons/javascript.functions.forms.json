@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Function declarations, expressions, arrows, methods, and classes differ in hoisting, this, arguments, constructibility, and naming.",
+    "summary": "JavaScript has three common ways to write a function: a **declaration** (`function total() {}` — hoisted, usable before its line), a **function expression** (`const total = function () {}`), and an **arrow function** (`const total = () => {}`). Arrows are shorter, but they're not just syntax: they **don't have their own `this`** (they use the surrounding one) and can't be used as constructors. That makes them great for callbacks inside methods — and wrong as object methods that need `this`.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: An arrow callback reads surrounding this intentionally without rebinding it. Your goal is to implement equivalent callable behavior and explain where arrow semantics differ. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A timer class ticks every second with `setInterval(function () { this.seconds++; }, 1000)` — and the timer stays at 0. Inside that regular function, `this` isn't the timer (it's `window`, whose `seconds` becomes NaN)! Switching to an arrow fixes it, because arrows read `this` from where they're written. An arrow callback reads surrounding this intentionally without rebinding it. In this lesson you'll implement equivalent callable behaviour and explain where arrow semantics differ.\n\n```predict\n{\"question\": \"`const obj = { n: 1, get: () => this.n };` What does `obj.get()` return (in a module)?\", \"options\": [\"1\", \"undefined (or an error) — the arrow doesn't get obj as this\"], \"answer\": 1, \"why\": \"Arrow functions don't bind this. Use method syntax `get() { return this.n; }` for object methods.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Values, types and expressions; pf abstraction calls; Loops and iterable traversal; pf abstraction functions. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Values, types and expressions** module, **Calls, parameters and returns**, **Loops and iterable traversal**, and **Functions as contracts** (function contracts)."
       },
       {
-        "heading": "Technology rule",
-        "body": "Function declarations, expressions, arrows, methods, and classes differ in hoisting, this, arguments, constructibility, and naming. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The distinction: same job, different this",
+        "body": "```js\n// equivalent pure functions\nfunction double(x) { return x * 2; }         // declaration (hoisted)\nconst double2 = function (x) { return x * 2; }; // expression\nconst double3 = (x) => x * 2;                  // arrow, implicit return\n\nclass Timer {\n  seconds = 0;\n  start() {\n    setInterval(() => { this.seconds++; }, 1000);   // arrow: this = the Timer\n  }\n}\n\nconst counter = {\n  n: 0,\n  increment() { this.n++; },       // method syntax: this = counter\n};\n```\n\n| Form | Own `this`? | Hoisted? | Constructor? |\n|---|---|---|---|\n| declaration. | yes. | yes. | yes. |\n| expression. | yes. | no. | yes. |\n| arrow. | **no** (uses outer). | no. | no. |\n| method shorthand. | yes. | — | no. |\n\n```reveal\n{\"prompt\": \"Can you call a declaration before the line it's written on?\", \"answer\": \"Yes — declarations are hoisted. `const f = …` expressions and arrows can't be used before their line (temporal dead zone).\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Arrow functions capture lexical this and cannot be constructors, while methods receive this from the call form. This draft therefore rejects: Arrow functions are shorter syntax for every function and can always replace methods or constructors."
+        "heading": "When arrows are wrong",
+        "body": "```predict\n{\"question\": \"`button.addEventListener(\\\"click\\\", () => this.classList.toggle(\\\"on\\\"))` — does `this` refer to the button?\", \"options\": [\"Yes\", \"No — arrows use the outer this; use `event.currentTarget` or a regular function\"], \"answer\": 1, \"why\": \"In event handlers, prefer `(event) => event.currentTarget…` so it's explicit which element you mean.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Choose callable forms while understanding hoisting, lexical this and expression returns.",
-      "Implement equivalent callable behavior and explain where arrow semantics differ."
+      "Write declarations, expressions and arrows with equivalent behaviour.",
+      "Explain arrows' lexical this, hoisting differences and when not to use arrows."
     ],
     "excludes": [
-      "Arrow functions capture lexical this and cannot be constructors, while methods receive this from the call form."
+      "call/apply/bind in depth (object-model module).",
+      "Generators."
     ]
   },
   "outcomes": [
@@ -68,133 +69,133 @@
   "examples": [
     {
       "id": "javascript.functions.forms.example-a",
-      "title": "Function declarations, expressions and arrows: concrete case",
+      "title": "An arrow callback that keeps this",
       "situation": "An arrow callback reads surrounding this intentionally without rebinding it.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: An arrow callback reads surrounding this intentionally without rebinding it.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Arrow functions have lexical this and are not constructible; choose a form from call semantics, not length."
+        "**Bug:** `setInterval(function () { this.seconds++; }, 1000)` — the regular callback gets its own this (window), so the timer stays at 0 while window.seconds becomes NaN.",
+        "**Arrow callback:** `setInterval(() => { this.seconds++; }, 1000)` reads surrounding this — the Timer instance — intentionally.",
+        "**Check:** after 3 seconds, `timer.seconds` will read 3."
       ],
-      "result": "The result follows because Arrow functions have lexical this and are not constructible; choose a form from call semantics, not length."
+      "result": "The timer counts correctly because the arrow uses the method's this without rebinding it."
     },
     {
       "id": "javascript.functions.forms.example-b",
-      "title": "Function declarations, expressions and arrows: boundary case",
-      "situation": "Arrow functions capture lexical this and cannot be constructors, while methods receive this from the call form.",
+      "title": "The arrow method",
+      "situation": "`const cart = { items: [], add: (item) => this.items.push(item) };` throws \"Cannot read properties of undefined (reading 'push')\".",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Arrow functions capture lexical this and cannot be constructors, while methods receive this from the call form.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Arrow functions are shorter syntax for every function and can always replace methods or constructors."
+        "An arrow doesn't receive cart as this; it uses the module's this (undefined).",
+        "`this.items` is therefore undefined.",
+        "Fix: method shorthand `add(item) { this.items.push(item); }`."
       ],
-      "result": "The boundary requires this correction: Arrow functions have lexical this and are not constructible; choose a form from call semantics, not length."
+      "result": "cart.add(\"book\") works because the method receives cart as this."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.functions.forms.misconception",
       "mistakenBelief": "Arrow functions are shorter syntax for every function and can always replace methods or constructors.",
-      "correction": "Arrow functions have lexical this and are not constructible; choose a form from call semantics, not length.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: Arrow functions are shorter syntax for every function and can always replace methods or constructors."
+      "correction": "Arrows have lexical this, no arguments object and can't be constructors. They're ideal for callbacks that should keep the outer this, but wrong for object methods and constructors that need their own this.",
+      "diagnosticPrompt": "In \"The arrow method\", why was this.items undefined?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Function declarations, expressions and arrows, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "A regular function is like a **freelancer who works for whoever hires them** (this = the caller). An arrow is like an **employee who always works for their own company** (this = the surrounding code), no matter who asks.",
     "usefulFor": [
-      "Building a first mental model for Function declarations, expressions and arrows before using exact platform terms"
+      "remembering arrows keep the outer this",
+      "methods need their own this"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Arrow functions capture lexical this and cannot be constructors, while methods receive this from the call form."
+      "Employees can change jobs; an arrow's this is fixed when it's created.",
+      "Constructors are like founding a company — arrows can't do it."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "An arrow callback reads surrounding this intentionally without rebinding it.",
-      "Function declarations, expressions, arrows, methods, and classes differ in hoisting, this, arguments, constructibility, and naming.",
-      "Arrow functions have lexical this and are not constructible; choose a form from call semantics, not length."
+      "class Timer { seconds = 0; start() { setInterval(() => { this.seconds++; }, 1000); } }",
+      "const timer = new Timer(); timer.start();",
+      "after 3 ticks"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Method call",
         "state": {
-          "evidence": "An arrow callback reads surrounding this intentionally without rebinding it."
+          "this in start()": "timer"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "Calling timer.start() makes this the timer inside the method."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Arrow callback",
         "state": {
-          "rule": "Function declarations, expressions, arrows, methods, and classes differ in hoisting, this, arguments, constructibility, and naming."
+          "this in arrow": "timer (lexical)"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The arrow callback reads surrounding this intentionally without rebinding it."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Ticks",
         "state": {
-          "correction": "Arrow functions have lexical this and are not constructible; choose a form from call semantics, not length."
+          "timer.seconds": "3"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Arrow functions are shorter syntax for every function and can always replace methods or constructors."
+        "explanation": "Each tick increments the timer's own seconds."
       }
     ],
-    "textAlternative": "Starting artifact: An arrow callback reads surrounding this intentionally without rebinding it. Step 1, Artifact. State: evidence: An arrow callback reads surrounding this intentionally without rebinding it.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Function declarations, expressions, arrows, methods, and classes differ in hoisting, this, arguments, constructibility, and naming.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Arrow functions have lexical this and are not constructible; choose a form from call semantics, not length.. Check the result against the boundary and reject this misconception: Arrow functions are shorter syntax for every function and can always replace methods or constructors."
+    "textAlternative": "An arrow callback inside a method. Step 1, Method call: this in start() is timer. Calling timer.start() makes this the timer inside the method. Step 2, Arrow callback: this in arrow is timer (lexical). The arrow callback reads surrounding this intentionally without rebinding it. Step 3, Ticks: timer.seconds is 3. Each tick increments the timer's own seconds."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Function declarations, expressions and arrows: concrete case”: state its starting evidence, apply the Function declarations, expressions and arrows rule, and give the observable result in three short lines.",
+      "prompt": "For \"An arrow callback that keeps this\", explain why the arrow callback reads surrounding this intentionally without rebinding it, and what went wrong with the regular function.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Bug.",
+        "Arrow.",
+        "Result."
       ],
       "expectedEvidence": [
-        "Named example: Function declarations, expressions and arrows: concrete case.",
-        "Starting evidence: An arrow callback reads surrounding this intentionally without rebinding it.",
-        "Core rule: Function declarations, expressions, arrows, methods, and classes differ in hoisting, this, arguments, constructibility, and naming.",
-        "Observable result: The result follows because Arrow functions have lexical this and are not constructible; choose a form from call semantics, not length.",
-        "Boundary check: Arrow functions have lexical this and are not constructible; choose a form from call semantics, not length."
+        "Names the example \"An arrow callback that keeps this\": an arrow callback reads surrounding this.",
+        "It doesn't rebind this, so this is the Timer.",
+        "The regular function had its own this (window), so the timer never counted.",
+        "After 3 seconds, timer.seconds is 3."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Arrow functions capture lexical this and cannot be constructors, while methods receive this from the call form.",
+      "prompt": "Rewrite `function square(n) { return n * n; }` as an expression and an arrow. Which one can be called before its definition line?",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Hoisting.",
+        "Implicit return."
       ],
       "expectedEvidence": [
-        "Function declarations, expressions, arrows, methods, and classes differ in hoisting, this, arguments, constructibility, and naming.",
-        "Arrow functions capture lexical this and cannot be constructors, while methods receive this from the call form."
+        "`const square = function (n) { return n * n; }` and `const square = (n) => n * n`.",
+        "Only the declaration is hoisted."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Function declarations, expressions and arrows and explain why the misconception fails.",
+      "prompt": "Build a small counter object with methods and a click handler that uses an arrow callback. Explain in comments which this each function sees, and test each method.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Method shorthand for methods.",
+        "Arrow for the inner callback."
       ],
       "expectedEvidence": [
-        "Implement equivalent callable behavior and explain where arrow semantics differ.",
-        "Arrow functions have lexical this and are not constructible; choose a form from call semantics, not length."
+        "Working counter with correct this everywhere.",
+        "Comments explaining each this."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.functions.forms.misconception",
-      "explanation": "Arrow functions have lexical this and are not constructible; choose a form from call semantics, not length.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'lexical this' and state the decisive evidence."
+      "explanation": "For each function ask: **Does it use `this`? Whose this should it be?** Its own caller's → method/regular function. The surrounding code's → arrow. No this at all → any form.",
+      "retryPrompt": "Ask this for \"The arrow method\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement equivalent callable behavior and explain where arrow semantics differ. Keep this boundary in view: Arrow functions capture lexical this and cannot be constructors, while methods receive this from the call form.",
+    "summary": "To implement equivalent callable behaviour, use declarations, expressions or arrows interchangeably for functions that don't use this. Where arrow semantics differ: arrows take this from the surrounding code, aren't hoisted and can't be constructors — use them for callbacks, not object methods.",
     "retrievalPrompts": [
-      "Explain Function declarations, expressions and arrows using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: Arrow functions are shorter syntax for every function and can always replace methods or constructors.",
-      "Apply checkpoint 'lexical this' to a new artifact."
+      "Where does an arrow's this come from?",
+      "Which function form is hoisted?",
+      "Why is an arrow a bad object method?"
     ],
     "nextReviewPrompt": "Next: continue to “Parameters, rest and return contracts”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Java while, do-while, counted for, and enhanced-for loops repeat a body while preserving a progress argument, termination condition, and valid traversal state.",
+    "summary": "Java's loops: `for (int i = 0; i < a.length; i++)` when you need the **index**; the **enhanced for** `for (int m : marks)` to simply **visit each element**; `while` when you don't know how many passes (sentinel or input-driven); `do-while` when the body must run **at least once**. Arrays are zero-based, so valid indexes run from `0` to `length - 1`, and `a[a.length]` throws `ArrayIndexOutOfBoundsException`. In an enhanced for, the loop variable is a **copy** of each element (for primitives), so assigning to it **doesn't change the array**; use an index loop to modify. Every loop must **make progress** toward stopping.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A counted loop visits indices 0 through length - 1, maintains a running total, and is tested for empty, one-element, and many-element arrays. Your goal is to implement and debug counted, sentinel and collection traversals. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner doubles every mark with `for (int m : marks) m = m * 2;` and nothing changes. Their total loop uses `i <= marks.length` and crashes on the last pass. A counted loop visits indices 0 through length - 1, maintains a running total, and is tested for empty, one-element, and many-element arrays. In this lesson you'll implement and debug counted, sentinel and collection traversals.\n\n```predict\n{\"question\": \"`for (int m : marks) m = 0;` Does the array change?\", \"options\": [\"Yes, all zeros\", \"No: m is a copy of each element\"], \"answer\": 1, \"why\": \"Use for (int i = 0; i < marks.length; i++) marks[i] = 0;\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: First source and main; pf state expressions; if and switch. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **First source and main**, **Expressions and evaluation** and **if and switch** (conditions and boundaries)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Java while, do-while, counted for, and enhanced-for loops repeat a body while preserving a progress argument, termination condition, and valid traversal state. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The rule: pick the loop by what you need",
+        "body": "```java\npublic class Marks {\n    static int total(int[] marks) {\n        int sum = 0;                              // running total.\n        for (int i = 0; i < marks.length; i++) {  // 0 .. length - 1.\n            sum += marks[i];\n        }\n        return sum;                               // empty array: 0.\n    }\n\n    static void doubleAll(int[] marks) {\n        for (int i = 0; i < marks.length; i++) marks[i] *= 2;   // index: modifies.\n    }\n\n    static int countUntilSentinel(int[] data) {   // stop at -1 or the end.\n        int i = 0;\n        while (i < data.length && data[i] != -1) i++;           // progress each pass.\n        return i;\n    }\n\n    public static void main(String[] args) {\n        int[] marks = {7, 9, 8};\n        for (int m : marks) System.out.print(m + \" \");        // read-only visit.\n        System.out.println(\"total \" + total(marks));           // 24\n        doubleAll(marks);                                       // {14, 18, 16}\n        System.out.println(countUntilSentinel(new int[]{4, 2, -1, 5}));   // 2\n    }\n}\n```\n\n| Test input | Expected total |\n|---|---|\n| `{}`. | 0. |\n| `{5}`. | 5. |\n| `{7, 9, 8}`. | 24. |\n\n```reveal\n{\"prompt\": \"Why check i < data.length before data[i] != -1?\", \"answer\": \"&& short-circuits: if i has reached the end, the array access is skipped. Reversing the order could throw ArrayIndexOutOfBoundsException when there's no sentinel.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "Enhanced-for does not expose a writable index, mutation can invalidate iteration, off-by-one bounds are common, and sentinel loops must handle missing or malformed termination input. The learner must reject this documented misconception: Changing a local element variable inside an enhanced-for loop replaces the corresponding array or collection element."
+        "heading": "Progress",
+        "body": "```predict\n{\"question\": \"`int i = 0; while (i < 10) { System.out.println(i); }` What happens?\", \"options\": [\"Prints 0 to 9\", \"Prints 0 forever: i never changes\"], \"answer\": 1, \"why\": \"Every loop needs a step toward its condition becoming false.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use while, do, for and enhanced-for loops with deliberate termination and bounded access.",
-      "Implement and debug counted, sentinel and collection traversals."
+      "Write counted, enhanced-for, while and do-while loops, choosing by need.",
+      "Keep indexes in 0..length-1, modify arrays with index loops, and test empty, one and many elements."
     ],
     "excludes": [
-      "Enhanced-for does not expose a writable index, mutation can invalidate iteration, off-by-one bounds are common, and sentinel loops must handle missing or malformed termination input."
+      "Iterating collections with Iterator (collections module).",
+      "Streams (functional module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "java.fundamentals.iteration.example.direct",
-      "title": "Loops and branching: direct language case",
+      "title": "Totalling an array of marks",
       "situation": "A counted loop visits indices 0 through length - 1, maintains a running total, and is tested for empty, one-element, and many-element arrays.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A counted loop visits indices 0 through length - 1, maintains a running total, and is tested for empty, one-element, and many-element arrays.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Select a loop whose state matches the job, prove progress toward termination, and use an index, iterator, or collection operation when the underlying structure must change."
+        "**A counted loop visits indices 0 through length - 1:** i < marks.length stops before the invalid index.",
+        "**Maintains a running total:** sum grows to 24 for {7, 9, 8}.",
+        "**Tested for empty, one-element, and many-element arrays:** total({}) will return 0 and total({5}) 5."
       ],
-      "result": "The example meets the atomic outcome because Select a loop whose state matches the job, prove progress toward termination, and use an index, iterator, or collection operation when the underlying structure must change."
+      "result": "The total is correct for every size, with no out-of-bounds crash."
     },
     {
       "id": "java.fundamentals.iteration.example.boundary",
-      "title": "Loops and branching: boundary and transfer case",
-      "situation": "A sentinel loop reads until a quit token or end of input and updates input on every path so malformed data cannot create an infinite loop.",
+      "title": "The doubling that didn't",
+      "situation": "`for (int m : marks) m *= 2;` leaves marks unchanged.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A sentinel loop reads until a quit token or end of input and updates input on every path so malformed data cannot create an infinite loop.",
-        "Step 2 — Keep the language boundary explicit: Enhanced-for does not expose a writable index, mutation can invalidate iteration, off-by-one bounds are common, and sentinel loops must handle missing or malformed termination input.",
-        "Step 3 — Reject the tempting but incorrect rule: Changing a local element variable inside an enhanced-for loop replaces the corresponding array or collection element."
+        "m is a copy of each int element.",
+        "Changing the copy doesn't touch the array.",
+        "Use an index loop: marks[i] *= 2."
       ],
-      "result": "This case demonstrates the declared outcome: Implement and debug counted, sentinel and collection traversals."
+      "result": "Every mark is doubled in the array itself."
     }
   ],
   "misconceptions": [
     {
       "id": "java.fundamentals.iteration.misconception",
       "mistakenBelief": "Changing a local element variable inside an enhanced-for loop replaces the corresponding array or collection element.",
-      "correction": "Select a loop whose state matches the job, prove progress toward termination, and use an index, iterator, or collection operation when the underlying structure must change.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Changing a local element variable inside an enhanced-for loop replaces the corresponding array or collection element."
+      "correction": "The enhanced-for variable receives a copy of each primitive element (or a copy of each reference). Assigning to it changes only the local variable; use an index to replace elements.",
+      "diagnosticPrompt": "In the opening predict, why did the array stay the same?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a control panel whose typed gauges, expressions, switches, and repeating cycles produce observable state can introduce Loops and branching, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "example": "An enhanced for is like **being handed a photocopy of each page** to read: great for reading, useless for editing the book. An index loop is **opening the book at page i** and writing on the real page. Page numbers start at 0 and the last is length - 1.",
     "usefulFor": [
-      "tracing primitive values, operators, decisions, and loop progress"
+      "remembering photocopies vs real pages",
+      "last page is length - 1"
     ],
     "limitations": [
-      "the panel does not model promotion, overflow, short-circuit evaluation, scope, or JVM representation exactly",
-      "Enhanced-for does not expose a writable index, mutation can invalidate iteration, off-by-one bounds are common, and sentinel loops must handle missing or malformed termination input."
+      "Photocopies of objects still point at the same object; primitives are true copies.",
+      "A while loop is reading until you hit the bookmark (sentinel)."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A counted loop visits indices 0 through length - 1, maintains a running total, and is tested for empty, one-element, and many-element arrays.",
-      "Java while, do-while, counted for, and enhanced-for loops repeat a body while preserving a progress argument, termination condition, and valid traversal state.",
-      "Select a loop whose state matches the job, prove progress toward termination, and use an index, iterator, or collection operation when the underlying structure must change."
+      "total(new int[]{7, 9, 8})",
+      "i = 0, 1, 2",
+      "i = 3: stop"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Start",
         "state": {
-          "evidence": "A counted loop visits indices 0 through length - 1, maintains a running total, and is tested for empty, one-element, and many-element arrays."
+          "sum": "0",
+          "i": "0"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "A counted loop starts at index 0 with a zero running total."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Accumulate",
         "state": {
-          "rule": "Java while, do-while, counted for, and enhanced-for loops repeat a body while preserving a progress argument, termination condition, and valid traversal state."
+          "sum": "7, 16, 24"
         },
-        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "It visits indices 0 through length - 1, maintaining a running total."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Stop",
         "state": {
-          "correction": "Select a loop whose state matches the job, prove progress toward termination, and use an index, iterator, or collection operation when the underlying structure must change."
+          "i": "3",
+          "3 < 3": "false",
+          "return": "24"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Changing a local element variable inside an enhanced-for loop replaces the corresponding array or collection element."
+        "explanation": "The loop stops before index 3; tests also cover empty and one-element arrays."
       }
     ],
-    "textAlternative": "Starting artifact: A counted loop visits indices 0 through length - 1, maintains a running total, and is tested for empty, one-element, and many-element arrays. Step 1, Observe. State: evidence: A counted loop visits indices 0 through length - 1, maintains a running total, and is tested for empty, one-element, and many-element arrays.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Java while, do-while, counted for, and enhanced-for loops repeat a body while preserving a progress argument, termination condition, and valid traversal state.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Select a loop whose state matches the job, prove progress toward termination, and use an index, iterator, or collection operation when the underlying structure must change.. Compare the observation with the correction and explain why the misconception fails: Changing a local element variable inside an enhanced-for loop replaces the corresponding array or collection element."
+    "textAlternative": "Tracing a counted loop. Step 1, Start: sum is 0; i is 0. A counted loop starts at index 0 with a zero running total. Step 2, Accumulate: sum is 7, 16, 24. It visits indices 0 through length - 1, maintaining a running total. Step 3, Stop: i is 3; 3 < 3 is false; return is 24. The loop stops before index 3; tests also cover empty and one-element arrays."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Loops and branching: direct language case”: state its starting evidence, apply the Loops and branching rule, and give the observable result in three short lines.",
+      "prompt": "For \"Totalling an array of marks\", explain how a counted loop visits indices 0 through length - 1, maintains a running total, and is tested for empty, one-element, and many-element arrays.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Indexes.",
+        "Total.",
+        "Tests."
       ],
       "expectedEvidence": [
-        "Named example: Loops and branching: direct language case.",
-        "Starting evidence: A counted loop visits indices 0 through length - 1, maintains a running total, and is tested for empty, one-element, and many-element arrays.",
-        "Core rule: Java while, do-while, counted for, and enhanced-for loops repeat a body while preserving a progress argument, termination condition, and valid traversal state.",
-        "Observable result: The example meets the atomic outcome because Select a loop whose state matches the job, prove progress toward termination, and use an index, iterator, or collection operation when the underlying structure must change.",
-        "Boundary check: Select a loop whose state matches the job, prove progress toward termination, and use an index, iterator, or collection operation when the underlying structure must change."
+        "Names the example \"Totalling an array of marks\": i <= length crashed.",
+        "A counted loop visits indices 0 through length - 1 and maintains a running total.",
+        "It is tested for empty, one-element, and many-element arrays.",
+        "The total is correct for every size."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A sentinel loop reads until a quit token or end of input and updates input on every path so malformed data cannot create an infinite loop.",
+      "prompt": "Write max(int[] a) (throw IllegalArgumentException for empty), countEven(int[] a) with an enhanced for, and reverse(int[] a) in place with an index loop. Test sizes 0, 1, 2 and 5.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Swap a[i] and a[a.length - 1 - i].",
+        "Stop at the middle."
       ],
       "expectedEvidence": [
-        "Java while, do-while, counted for, and enhanced-for loops repeat a body while preserving a progress argument, termination condition, and valid traversal state.",
-        "Enhanced-for does not expose a writable index, mutation can invalidate iteration, off-by-one bounds are common, and sentinel loops must handle missing or malformed termination input."
+        "All sizes tested.",
+        "No out-of-bounds exceptions."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Loops and branching, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Write a do-while menu that reads commands from a Scanner until \"quit\", and a while loop that reads numbers until -1, summing them. Test with immediate quit, several commands, and input without a -1 (end of input).",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "scanner.hasNextInt() guards reads.",
+        "Handle end of input."
       ],
       "expectedEvidence": [
-        "Implement and debug counted, sentinel and collection traversals.",
-        "Select a loop whose state matches the job, prove progress toward termination, and use an index, iterator, or collection operation when the underlying structure must change."
+        "All cases terminate.",
+        "Sums correct."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "java.fundamentals.iteration.misconception",
-      "explanation": "Select a loop whose state matches the job, prove progress toward termination, and use an index, iterator, or collection operation when the underlying structure must change.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A sentinel loop reads until a quit token or end of input and updates input on every path so malformed data cannot create an infinite loop."
+      "explanation": "For each loop say: **first index, last index, why it stops, and whether it needs to modify elements.** Then test empty, one and many.",
+      "retryPrompt": "Apply this to \"The doubling that didn't\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and debug counted, sentinel and collection traversals. Keep this boundary in view: Enhanced-for does not expose a writable index, mutation can invalidate iteration, off-by-one bounds are common, and sentinel loops must handle missing or malformed termination input.",
+    "summary": "To implement correct traversals, use index loops from 0 to length - 1 when you need positions or must modify elements, enhanced for loops to read each element, while loops for sentinels and input with a guaranteed step toward stopping, do-while when the body must run once, and test empty, one-element and many-element inputs.",
     "retrievalPrompts": [
-      "Explain Loops and branching using canonical Java: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Changing a local element variable inside an enhanced-for loop replaces the corresponding array or collection element.",
-      "Predict this case from memory: A sentinel loop reads until a quit token or end of input and updates input on every path so malformed data cannot create an infinite loop."
+      "Does assigning to an enhanced-for variable change the array?",
+      "What is the last valid index?",
+      "When use do-while?"
     ],
     "nextReviewPrompt": "Next: continue to “Method contracts and parameters”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

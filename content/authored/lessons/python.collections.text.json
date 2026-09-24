@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Python str values are immutable Unicode text; splitting, joining, formatting, normalization, case handling, and encoding each solve a distinct boundary problem.",
+    "summary": "A Python `str` is a sequence of **Unicode code points**, not bytes and not always \"one visible letter each\". Build text with **f-strings** and `\"sep\".join(parts)`, compare user text with `.casefold()` (stronger than `.lower()`), and convert to **bytes** with `.encode(\"utf-8\")` only at the edge — when writing a file or sending over a network.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A report builds rows with join and f-strings, then encodes UTF-8 only at the file or network boundary. Your goal is to implement and test robust text normalization, parsing and formatting. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Your sales report must show names like \"José\" and \"Zoë\", line up columns, and save to a file every spreadsheet can open. Meanwhile a login check says \"STRASSE\" and \"straße\" don't match. Text has rules worth knowing. A report builds rows with join and f-strings, then encodes UTF-8 only at the file or network boundary. In this lesson you'll implement and test robust text normalization, parsing and formatting.\n\n```predict\n{\"question\": \"What is `f\\\"{name:<6}|{qty:>3}\\\"` for `name = \\\"tea\\\"`, `qty = 5`?\", \"options\": [\"\\\"tea   |  5\\\"\", \"\\\"tea|5\\\"\"], \"answer\": 0, \"why\": \"`:<6` left-aligns in 6 characters; `:>3` right-aligns in 3. f-string format specs line up columns.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: for, while and loop control; pf data selection; Numbers, booleans, None and text; Lists, tuples and slicing. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **for, while and loop control**, **Data-structure choice**, **Numbers, booleans, None and text**, and **Lists, tuples and slicing** — strings are sequences too."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Python str values are immutable Unicode text; splitting, joining, formatting, normalization, case handling, and encoding each solve a distinct boundary problem. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: text inside, bytes at the boundary",
+        "body": "```python\nrows = [(\"José\", 3), (\"Zoë\", 12)]\nlines = [f\"{name:<6}{qty:>4}\" for name, qty in rows]\nreport = \"\\n\".join(lines)              # still str\n\nwith open(\"report.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(report)                       # encoded at the boundary\n```\n\n| Task | Tool |\n|---|---|\n| format one row. | f-string with specs. |\n| combine many pieces. | `\"sep\".join(list)`. |\n| split input. | `.split(\",\")`, `.strip()`. |\n| compare case-insensitively. | `.casefold()`. |\n| text → bytes. | `.encode(\"utf-8\")`, only at I/O. |\n\n```reveal\n{\"prompt\": \"Why `\\\"\\\\n\\\".join(lines)` instead of `report += line` in a loop?\", \"answer\": \"join builds the result in one go and makes the separator explicit. Repeated `+=` creates a new string each time and is easy to get wrong.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "User-perceived graphemes can span code points, casefold differs from lower, normalization forms change comparison, split without an argument treats whitespace specially, and bytes require an encoding boundary. The learner must reject this documented misconception: One Python character is always one displayed glyph and calling lower makes arbitrary Unicode text safely comparable."
+        "heading": "One character isn't always one glyph",
+        "body": "```predict\n{\"question\": \"`s = \\\"e\\\\u0301\\\"` displays as \\\"é\\\". What is `len(s)`?\", \"options\": [\"1\", \"2\"], \"answer\": 1, \"why\": \"It's two code points: `e` plus a combining accent. Use `unicodedata.normalize(\\\"NFC\\\", s)` to combine them before comparing or counting.\"}\n```\n\nAnd `\"STRASSE\".casefold() == \"straße\".casefold()` is True, while `.lower()` gives False."
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use string methods, f-strings, splitting and joining while treating text as Unicode.",
-      "Implement and test robust text normalization, parsing and formatting."
+      "Format and join text with f-strings and join; parse with split and strip.",
+      "Normalise and casefold for comparison, and encode UTF-8 only at I/O boundaries."
     ],
     "excludes": [
-      "User-perceived graphemes can span code points, casefold differs from lower, normalization forms change comparison, split without an argument treats whitespace specially, and bytes require an encoding boundary."
+      "Regular expressions.",
+      "Locale-aware sorting."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "python.collections.text.example.direct",
-      "title": "Unicode text and formatting: direct language case",
+      "title": "Building a UTF-8 report",
       "situation": "A report builds rows with join and f-strings, then encodes UTF-8 only at the file or network boundary.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A report builds rows with join and f-strings, then encodes UTF-8 only at the file or network boundary.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Treat str as Unicode code points, define normalization and case policy for the domain, and encode or decode explicitly only at byte boundaries."
+        "**Build rows with f-strings:** `f\"{name:<6}{qty:>4}\"` formats \"José\" and \"Zoë\" into aligned columns.",
+        "**Join:** `\"\\n\".join(lines)` combines the rows into one str, still Unicode text.",
+        "**Encode at the file boundary:** `open(..., \"w\", encoding=\"utf-8\")` writes the text as UTF-8 bytes."
       ],
-      "result": "The example meets the atomic outcome because Treat str as Unicode code points, define normalization and case policy for the domain, and encode or decode explicitly only at byte boundaries."
+      "result": "The report shows accented names correctly and opens as UTF-8 in any editor."
     },
     {
       "id": "python.collections.text.example.boundary",
-      "title": "Unicode text and formatting: boundary and transfer case",
-      "situation": "A case-insensitive identifier comparison normalizes and casefolds according to its documented policy instead of assuming lower handles every script.",
+      "title": "The login that ignored capitals wrong",
+      "situation": "A sign-in compares `typed.lower() == stored.lower()`. A German user typed \"STRASSE\"; the stored name is \"straße\".",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A case-insensitive identifier comparison normalizes and casefolds according to its documented policy instead of assuming lower handles every script.",
-        "Step 2 — Keep the language boundary explicit: User-perceived graphemes can span code points, casefold differs from lower, normalization forms change comparison, split without an argument treats whitespace specially, and bytes require an encoding boundary.",
-        "Step 3 — Reject the tempting but incorrect rule: One Python character is always one displayed glyph and calling lower makes arbitrary Unicode text safely comparable."
+        "`\"STRASSE\".lower()` is \"strasse\" but `\"straße\".lower()` stays \"straße\" — no match.",
+        "`.casefold()` maps ß to \"ss\", so both become \"strasse\".",
+        "Fix: normalise with NFC, then compare `.casefold()` values; add a test with this pair."
       ],
-      "result": "This case demonstrates the declared outcome: Implement and test robust text normalization, parsing and formatting."
+      "result": "With normalization and casefold, the two spellings compare equal and the test passes."
     }
   ],
   "misconceptions": [
     {
       "id": "python.collections.text.misconception",
-      "mistakenBelief": "One Python character is always one displayed glyph and calling lower makes arbitrary Unicode text safely comparable.",
-      "correction": "Treat str as Unicode code points, define normalization and case policy for the domain, and encode or decode explicitly only at byte boundaries.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: One Python character is always one displayed glyph and calling lower makes arbitrary Unicode text safely comparable."
+      "mistakenBelief": "One Python character is always one displayed glyph, and calling lower makes arbitrary Unicode text safely comparable.",
+      "correction": "A str holds code points; one visible glyph can be several code points, so normalize (NFC) first. For case-insensitive comparison use casefold, which handles cases like ß that lower misses.",
+      "diagnosticPrompt": "In \"The login that ignored capitals wrong\", why didn't lower() work?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a flexible storeroom with ordered shelves, fixed labels, unique membership, lookup indexes, and shared nested containers can introduce Unicode text and formatting, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "example": "Think of str as **spoken words** and bytes as **a recording on tape**. You edit the words freely; you only choose a tape format (UTF-8) when you save or send it.",
     "usefulFor": [
-      "lists, tuples, dictionaries, sets, aliasing, and text processing"
+      "remembering to keep text as str until I/O",
+      "choosing encoding at the edge"
     ],
     "limitations": [
-      "hashability, shallow copying, Unicode normalization, and object identity require Python's exact data model",
-      "User-perceived graphemes can span code points, casefold differs from lower, normalization forms change comparison, split without an argument treats whitespace specially, and bytes require an encoding boundary."
+      "Recordings lose nothing with UTF-8; some older encodings can't store every character.",
+      "Combining accents have no clean spoken-word equivalent."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A report builds rows with join and f-strings, then encodes UTF-8 only at the file or network boundary.",
-      "Python str values are immutable Unicode text; splitting, joining, formatting, normalization, case handling, and encoding each solve a distinct boundary problem.",
-      "Treat str as Unicode code points, define normalization and case policy for the domain, and encode or decode explicitly only at byte boundaries."
+      "rows = [('José', 3), ('Zoë', 12)]",
+      "report = '\\n'.join(f'{n:<6}{q:>4}' for n, q in rows)",
+      "open('report.txt', 'w', encoding='utf-8').write(report)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Format rows",
         "state": {
-          "evidence": "A report builds rows with join and f-strings, then encodes UTF-8 only at the file or network boundary."
+          "line 1": "'José     3'",
+          "line 2": "'Zoë     12'"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "The report builds rows with f-strings that align each column."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Join",
         "state": {
-          "rule": "Python str values are immutable Unicode text; splitting, joining, formatting, normalization, case handling, and encoding each solve a distinct boundary problem."
+          "report type": "str"
         },
-        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "join combines the rows into one text value with newlines."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Encode",
         "state": {
-          "correction": "Treat str as Unicode code points, define normalization and case policy for the domain, and encode or decode explicitly only at byte boundaries."
+          "file": "UTF-8 bytes"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: One Python character is always one displayed glyph and calling lower makes arbitrary Unicode text safely comparable."
+        "explanation": "The text is encoded as UTF-8 only at the file boundary."
       }
     ],
-    "textAlternative": "Starting artifact: A report builds rows with join and f-strings, then encodes UTF-8 only at the file or network boundary. Step 1, Observe. State: evidence: A report builds rows with join and f-strings, then encodes UTF-8 only at the file or network boundary.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Python str values are immutable Unicode text; splitting, joining, formatting, normalization, case handling, and encoding each solve a distinct boundary problem.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Treat str as Unicode code points, define normalization and case policy for the domain, and encode or decode explicitly only at byte boundaries.. Compare the observation with the correction and explain why the misconception fails: One Python character is always one displayed glyph and calling lower makes arbitrary Unicode text safely comparable."
+    "textAlternative": "Building and saving a Unicode report. Step 1, Format rows: line 1 is 'José     3'; line 2 is 'Zoë     12'. The report builds rows with f-strings that align each column. Step 2, Join: report type is str. join combines the rows into one text value with newlines. Step 3, Encode: file is UTF-8 bytes. The text is encoded as UTF-8 only at the file boundary."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Unicode text and formatting: direct language case”: state its starting evidence, apply the Unicode text and formatting rule, and give the observable result in three short lines.",
+      "prompt": "For \"Building a UTF-8 report\", explain how the report builds rows with join and f-strings, and why it encodes UTF-8 only at the file or network boundary.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Rows.",
+        "Join.",
+        "Encode."
       ],
       "expectedEvidence": [
-        "Named example: Unicode text and formatting: direct language case.",
-        "Starting evidence: A report builds rows with join and f-strings, then encodes UTF-8 only at the file or network boundary.",
-        "Core rule: Python str values are immutable Unicode text; splitting, joining, formatting, normalization, case handling, and encoding each solve a distinct boundary problem.",
-        "Observable result: The example meets the atomic outcome because Treat str as Unicode code points, define normalization and case policy for the domain, and encode or decode explicitly only at byte boundaries.",
-        "Boundary check: Treat str as Unicode code points, define normalization and case policy for the domain, and encode or decode explicitly only at byte boundaries."
+        "Names the example \"Building a UTF-8 report\": builds rows with f-strings like f'{name:<6}{qty:>4}'.",
+        "join combines rows into one str.",
+        "It encodes UTF-8 only at the file boundary with encoding='utf-8'.",
+        "Accented names like José display correctly."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A case-insensitive identifier comparison normalizes and casefolds according to its documented policy instead of assuming lower handles every script.",
+      "prompt": "Parse `\" apple, Banana ,cherry \"` into a clean list of lowercase-insensitive names, then print them joined with \" | \".",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "split, then strip each.",
+        "casefold for comparing."
       ],
       "expectedEvidence": [
-        "Python str values are immutable Unicode text; splitting, joining, formatting, normalization, case handling, and encoding each solve a distinct boundary problem.",
-        "User-perceived graphemes can span code points, casefold differs from lower, normalization forms change comparison, split without an argument treats whitespace specially, and bytes require an encoding boundary."
+        "Produces ['apple', 'Banana', 'cherry'] after stripping.",
+        "Prints 'apple | Banana | cherry'."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Unicode text and formatting, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Write `same_name(a, b)` that returns True for \"Zoë\"/\"ZOE\\u0308\" and \"STRASSE\"/\"straße\". Test it, including an empty string.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "unicodedata.normalize('NFC', …)",
+        "then casefold."
       ],
       "expectedEvidence": [
-        "Implement and test robust text normalization, parsing and formatting.",
-        "Treat str as Unicode code points, define normalization and case policy for the domain, and encode or decode explicitly only at byte boundaries."
+        "Function normalises and casefolds both inputs.",
+        "Tests pass for both pairs and handle the empty string."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "python.collections.text.misconception",
-      "explanation": "Treat str as Unicode code points, define normalization and case policy for the domain, and encode or decode explicitly only at byte boundaries.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A case-insensitive identifier comparison normalizes and casefolds according to its documented policy instead of assuming lower handles every script."
+      "explanation": "Keep a text checklist: **format with f-strings, combine with join, parse with split/strip, compare with normalize + casefold, encode only when writing.**",
+      "retryPrompt": "Check \"The login that ignored capitals wrong\" against it."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test robust text normalization, parsing and formatting. Keep this boundary in view: User-perceived graphemes can span code points, casefold differs from lower, normalization forms change comparison, split without an argument treats whitespace specially, and bytes require an encoding boundary.",
+    "summary": "To implement robust text handling, format with f-strings, combine with join, parse with split and strip, compare with NFC normalization plus casefold, and encode to UTF-8 only at file or network boundaries. Test with accented and special-case text.",
     "retrievalPrompts": [
-      "Explain Unicode text and formatting using canonical Python: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: One Python character is always one displayed glyph and calling lower makes arbitrary Unicode text safely comparable.",
-      "Predict this case from memory: A case-insensitive identifier comparison normalizes and casefolds according to its documented policy instead of assuming lower handles every script."
+      "Why can `len(\"é\")` be 2?",
+      "Why prefer casefold over lower?",
+      "When should text become bytes?"
     ],
     "nextReviewPrompt": "Next: continue to “Function contracts and returns”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

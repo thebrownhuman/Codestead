@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Browser DevTools expose sources, breakpoints, network, console, DOM, storage, and performance evidence for one runtime state.",
+    "summary": "DevTools lets you **watch your program run**. The **Sources** panel shows your files; click a line number to set a **breakpoint** — execution pauses there so you can read every variable. Step over, into and out of functions to follow the flow. The **Console** is a live REPL on the running page: it can read *and change* state, so use it deliberately. Once you find a bug, keep a **regression test** so it can't return.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A breakpoint confirms an event payload before code is changed and a regression test preserves the finding. Your goal is to use developer tools to locate and explain a state-transition defect. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A \"Mark lesson complete\" button sometimes marks the wrong lesson. Adding `console.log` everywhere floods the Console. Instead, pause the program at the exact moment of the click and look. A breakpoint confirms an event payload before code is changed, and a regression test preserves the finding. In this lesson you'll use developer tools to locate and explain a state-transition defect.\n\n```predict\n{\"question\": \"You type `state.completed = []` in the Console while the app runs. What happens?\", \"options\": [\"Nothing — the Console only prints\", \"The running app's state really changes\"], \"answer\": 1, \"why\": \"The Console runs code in the page. That's powerful for experiments — and a reason to be careful.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: pf computing execution; html document skeleton; Scripts and console; pf tools debug test. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Source-to-execution models**, **Standards-mode document skeleton**, **Scripts and console**, and **Debugging and testing loop** (reproduce, hypothesise, observe, fix, test)."
       },
       {
-        "heading": "Technology rule",
-        "body": "Browser DevTools expose sources, breakpoints, network, console, DOM, storage, and performance evidence for one runtime state. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: pause, inspect, step",
+        "body": "| Tool | Use |\n|---|---|\n| line breakpoint. | pause before a line runs. |\n| conditional breakpoint. | pause only when an expression is true (e.g. `id === 7`). |\n| `debugger;` statement. | a breakpoint written in code (remove before committing). |\n| Scope pane. | local, closure and global variables at the pause. |\n| Call stack. | which functions led here. |\n| step over / into / out. | run the next line / enter a call / finish the current function. |\n| Console. | evaluate expressions in the paused scope. |\n\n```js\nlist.addEventListener(\"click\", (event) => {\n  const id = Number(event.target.dataset.lessonId);  // ← breakpoint here\n  markComplete(id);\n});\n```\n\n```reveal\n{\"prompt\": \"What would you check first at that breakpoint?\", \"answer\": \"`event.target` — is it the button, or a child span inside it? If a span, `dataset.lessonId` is undefined, so id becomes NaN.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Console evaluation can mutate state, source maps can mislead, and local overrides are not persisted automatically. This draft therefore rejects: The console is only for printing and cannot alter application behavior."
+        "heading": "Keep the finding",
+        "body": "```predict\n{\"question\": \"After fixing the bug, what preserves the knowledge?\", \"options\": [\"A comment saying \\\"fixed\\\"\", \"A test that clicks the inner span and expects the right lesson id\"], \"answer\": 1, \"why\": \"A regression test fails if anyone reintroduces the bug.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Set breakpoints, inspect scope and distinguish logged values from live object views.",
-      "Use developer tools to locate and explain a state-transition defect."
+      "Set line and conditional breakpoints, step through code and read scope and call stack.",
+      "Use the Console carefully and preserve findings with regression tests."
     ],
     "excludes": [
-      "Console evaluation can mutate state, source maps can mislead, and local overrides are not persisted automatically."
+      "Performance and memory profiling.",
+      "Remote debugging on devices."
     ]
   },
   "outcomes": [
@@ -63,133 +64,136 @@
   "examples": [
     {
       "id": "javascript.runtime.devtools.example-a",
-      "title": "Sources, console and debugger: concrete case",
+      "title": "Pausing on a click to read the payload",
       "situation": "A breakpoint confirms an event payload before code is changed and a regression test preserves the finding.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A breakpoint confirms an event payload before code is changed and a regression test preserves the finding.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests."
+        "**Breakpoint:** set on the `const id = …` line and click the icon inside the button.",
+        "**Confirm the event payload:** Scope shows `event.target` is the `<span class=\"icon\">`, whose `dataset.lessonId` is undefined → id is NaN.",
+        "**Fix and test:** use `event.target.closest(\"[data-lesson-id]\")`; a regression test that will click the inner span now passes."
       ],
-      "result": "The result follows because Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests."
+      "result": "The right lesson is marked every time, and a test guards the fix."
     },
     {
       "id": "javascript.runtime.devtools.example-b",
-      "title": "Sources, console and debugger: boundary case",
-      "situation": "Console evaluation can mutate state, source maps can mislead, and local overrides are not persisted automatically.",
+      "title": "The counter that skipped numbers",
+      "situation": "A step counter sometimes jumps by 2. Console logs show nothing obvious.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Console evaluation can mutate state, source maps can mislead, and local overrides are not persisted automatically.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: The console is only for printing and cannot alter application behavior."
+        "A breakpoint in the increment function is hit twice for a single click.",
+        "The call stack shows the function called from two event listeners — one added on every render.",
+        "Fix: register the listener once; add a test that renders twice and clicks once, expecting +1."
       ],
-      "result": "The boundary requires this correction: Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests."
+      "result": "The counter increments by exactly one, and the duplicated-listener cause is documented by a test."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.runtime.devtools.misconception",
-      "mistakenBelief": "The console is only for printing and cannot alter application behavior.",
-      "correction": "Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: The console is only for printing and cannot alter application behavior."
+      "mistakenBelief": "The console is only for printing and cannot alter application behaviour.",
+      "correction": "The Console evaluates JavaScript in the running page, so it can read and change state, call functions and trigger requests. Use it deliberately — ideally while paused at a breakpoint in the right scope.",
+      "diagnosticPrompt": "In the opening predict, what did typing in the Console do?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Sources, console and debugger, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "Debugging with breakpoints is like **pausing a match replay**: freeze the exact moment, look at every player's position (variables), then advance frame by frame (step). console.log is like reading the scoreboard afterwards.",
     "usefulFor": [
-      "Building a first mental model for Sources, console and debugger before using exact platform terms"
+      "remembering pause-and-inspect",
+      "stepping through time"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Console evaluation can mutate state, source maps can mislead, and local overrides are not persisted automatically."
+      "Replays can't be changed; the Console can change live state.",
+      "A regression test is like adding the play to the training plan."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A breakpoint confirms an event payload before code is changed and a regression test preserves the finding.",
-      "Browser DevTools expose sources, breakpoints, network, console, DOM, storage, and performance evidence for one runtime state.",
-      "Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests."
+      "list.addEventListener('click', (event) => {",
+      "  const id = Number(event.target.dataset.lessonId); // breakpoint",
+      "  markComplete(id); });"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Pause",
         "state": {
-          "evidence": "A breakpoint confirms an event payload before code is changed and a regression test preserves the finding."
+          "paused at": "const id line",
+          "event.target": "span.icon"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The breakpoint pauses on the click handler before any code changes."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Inspect payload",
         "state": {
-          "rule": "Browser DevTools expose sources, breakpoints, network, console, DOM, storage, and performance evidence for one runtime state."
+          "dataset.lessonId": "undefined",
+          "id": "NaN"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The breakpoint confirms an event payload that explains the wrong mark."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Fix and test",
         "state": {
-          "correction": "Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests."
+          "target": "closest('[data-lesson-id]')",
+          "regression test": "passes"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: The console is only for printing and cannot alter application behavior."
+        "explanation": "A regression test preserves the finding after the fix."
       }
     ],
-    "textAlternative": "Starting artifact: A breakpoint confirms an event payload before code is changed and a regression test preserves the finding. Step 1, Artifact. State: evidence: A breakpoint confirms an event payload before code is changed and a regression test preserves the finding.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Browser DevTools expose sources, breakpoints, network, console, DOM, storage, and performance evidence for one runtime state.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests.. Check the result against the boundary and reject this misconception: The console is only for printing and cannot alter application behavior."
+    "textAlternative": "Debugging a click handler. Step 1, Pause: paused at is const id line; event.target is span.icon. The breakpoint pauses on the click handler before any code changes. Step 2, Inspect payload: dataset.lessonId is undefined; id is NaN. The breakpoint confirms an event payload that explains the wrong mark. Step 3, Fix and test: target is closest('[data-lesson-id]'); regression test is passes. A regression test preserves the finding after the fix."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Sources, console and debugger: concrete case”: state its starting evidence, apply the Sources, console and debugger rule, and give the observable result in three short lines.",
+      "prompt": "For \"Pausing on a click to read the payload\", explain how a breakpoint confirms an event payload before code is changed, and how a regression test preserves the finding.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Breakpoint.",
+        "Payload.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Sources, console and debugger: concrete case.",
-        "Starting evidence: A breakpoint confirms an event payload before code is changed and a regression test preserves the finding.",
-        "Core rule: Browser DevTools expose sources, breakpoints, network, console, DOM, storage, and performance evidence for one runtime state.",
-        "Observable result: The result follows because Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests.",
-        "Boundary check: Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests."
+        "Names the example \"Pausing on a click to read the payload\": a breakpoint confirms an event payload.",
+        "event.target was the inner span, so the id was NaN.",
+        "The fix used closest() after confirming, before code was changed blindly.",
+        "A regression test preserves the finding, so the right lesson is marked every time."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Console evaluation can mutate state, source maps can mislead, and local overrides are not persisted automatically.",
+      "prompt": "A function returns the wrong total only for the 5th item. Which breakpoint type do you use, and what condition?",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Conditional breakpoint.",
+        "Index-based condition."
       ],
       "expectedEvidence": [
-        "Browser DevTools expose sources, breakpoints, network, console, DOM, storage, and performance evidence for one runtime state.",
-        "Console evaluation can mutate state, source maps can mislead, and local overrides are not persisted automatically."
+        "A conditional breakpoint in the loop.",
+        "Condition like `i === 4`."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Sources, console and debugger and explain why the misconception fails.",
+      "prompt": "Pick a bug in your own project. Reproduce it, pause at the right moment with a breakpoint, record variable values and call stack, fix it, and add a regression test.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Write down what you saw.",
+        "Test fails before, passes after."
       ],
       "expectedEvidence": [
-        "Use developer tools to locate and explain a state-transition defect.",
-        "Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests."
+        "Recorded observations at the breakpoint.",
+        "A regression test that fails before and passes after the fix."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.runtime.devtools.misconception",
-      "explanation": "Treat DevTools as an observation environment that can also mutate state; verify changes in source and tests.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'can also mutate state' and state the decisive evidence."
+      "explanation": "Before editing code: **reproduce → set a breakpoint where the wrong value first appears → read Scope and Call Stack → write the cause in one sentence.** Then fix and add a test.",
+      "retryPrompt": "Follow this for \"The counter that skipped numbers\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to use developer tools to locate and explain a state-transition defect. Keep this boundary in view: Console evaluation can mutate state, source maps can mislead, and local overrides are not persisted automatically.",
+    "summary": "To locate and explain a state-transition defect, pause at a breakpoint (line or conditional), inspect scope, event payload and call stack, step through the change, use the Console carefully, and keep a regression test for the finding.",
     "retrievalPrompts": [
-      "Explain Sources, console and debugger using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: The console is only for printing and cannot alter application behavior.",
-      "Apply checkpoint 'can also mutate state' to a new artifact."
+      "What does the Scope pane show?",
+      "Can the Console change app state?",
+      "Why add a regression test after debugging?"
     ],
     "nextReviewPrompt": "Next: continue to “Call stack and event loop model”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

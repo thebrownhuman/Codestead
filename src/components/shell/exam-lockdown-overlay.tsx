@@ -31,6 +31,7 @@ type ActiveExam = {
 
 type LockState =
   | { kind: "checking" }
+  | { kind: "unavailable" }
   | { kind: "unlocked" }
   | {
       kind: "locked";
@@ -162,13 +163,18 @@ export function ExamLockdownOverlay({
     let cancelled = false;
     const check = () => {
       const requestId = ++refreshRequestRef.current;
+      // Keep the last confirmed state during background rechecks so the page does not
+      // flash a blocking dialog every poll; a new result still locks or unlocks it.
       setLockState((current) => (
-        current.kind === "locked" ? current : { kind: "checking" }
+        current.kind === "locked" || current.kind === "unlocked" ? current : { kind: "checking" }
       ));
       void refresh(controller.signal)
         .then((result) => {
           if (cancelled || refreshRequestRef.current !== requestId) return;
-          if (result.kind === "unavailable") return;
+          if (result.kind === "unavailable") {
+            setLockState((current) => (current.kind === "checking" ? { kind: "unavailable" } : current));
+            return;
+          }
           if (result.kind === "auth-denied") {
             void handleSessionDenial();
             return;
@@ -184,7 +190,10 @@ export function ExamLockdownOverlay({
           observedKeyRef.current = observedKey;
           void prepareClosedBookEntry(result.exam);
         })
-        .catch(() => undefined);
+        .catch(() => {
+          if (cancelled || refreshRequestRef.current !== requestId) return;
+          setLockState((current) => (current.kind === "checking" ? { kind: "unavailable" } : current));
+        });
     };
     check();
     const interval = window.setInterval(check, 15_000);
@@ -214,6 +223,7 @@ export function ExamLockdownOverlay({
     const locked = enabled && (
       sessionBoundaryPending
       || lockState.kind === "checking"
+      || lockState.kind === "unavailable"
       || Boolean(active && !alreadyInExam)
     );
     const regions = [
@@ -262,6 +272,14 @@ export function ExamLockdownOverlay({
   if (!enabled) return null;
 
   if (lockState.kind === "checking") {
+    return (
+      <div className={styles.examLockCheckingLayer} role="presentation">
+        <p aria-live="polite" className={styles.examLockChecking}>Checking exam status…</p>
+      </div>
+    );
+  }
+
+  if (lockState.kind === "unavailable") {
     return (
       <div className={styles.examLockBackdrop} role="presentation">
         <section

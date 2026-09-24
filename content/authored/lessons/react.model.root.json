@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A React root owns rendering for one DOM container and reconciles component output into that managed subtree.",
+    "summary": "A React app starts by giving React **one DOM element** to manage: `createRoot(document.getElementById(\"root\")).render(<App />)`. From then on React **owns everything inside that container**. Your components describe what should be there, and React updates the real DOM to match, changing only what differs. Everything **outside** the container, like a server-rendered header or footer, stays yours. You call `render` once at startup; later updates come from state changes, not from calling render again.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: createRoot(container).render(<App />) gives React ownership of the app container without replacing unrelated page landmarks. Your goal is to create and explain a minimal React root and component tree. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You're adding React to an existing course page. The header, navigation and footer are plain HTML, and only the \"practice\" area should be interactive. You worry React will wipe the whole page or add a second copy of the app every time something changes. createRoot(container).render(<App />) gives React ownership of the app container without replacing unrelated page landmarks. In this lesson you'll create and explain a minimal React root and component tree.\n\n```predict\n{\"question\": \"The page has `<header>`, `<main><div id=\\\"practice\\\"></div></main>` and `<footer>`. After `createRoot(document.getElementById(\\\"practice\\\")).render(<App />)`, what does React control?\", \"options\": [\"The whole body\", \"Only the contents of #practice\"], \"answer\": 1, \"why\": \"A root manages one container's subtree. The header and footer are untouched.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: javascript project browser app; javascript runtime modules; javascript dom query update. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Modular browser application** you built, **Module loading baseline** (import/export), and **Query and update DOM**, since React now does those DOM updates for you."
       },
       {
-        "heading": "Technology rule",
-        "body": "A React root owns rendering for one DOM container and reconciles component output into that managed subtree. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: one root, one managed subtree",
+        "body": "```jsx\n// main.jsx.\nimport { StrictMode } from \"react\";\nimport { createRoot } from \"react-dom/client\";\nimport App from \"./App.jsx\";\n\nconst container = document.getElementById(\"practice\");\ncreateRoot(container).render(\n  <StrictMode>\n    <App />\n  </StrictMode>\n);\n\n// App.jsx: the top of the component tree.\nexport default function App() {\n  return (\n    <section aria-labelledby=\"practice-title\">\n      <h2 id=\"practice-title\">Practice</h2>\n      <Exercise title=\"Loops\" />\n    </section>\n  );\n}\n\nfunction Exercise({ title }) {\n  return <p>Today's exercise: {title}</p>;\n}\n```\n\n| Piece | Job |\n|---|---|\n| container. | the one DOM element React manages. |\n| `createRoot`. | connects React to that container. |\n| `render(<App />)`. | called once at startup. |\n| components. | describe the UI inside it. |\n| outside the container. | untouched plain HTML. |\n\n```reveal\n{\"prompt\": \"What does StrictMode do?\", \"answer\": \"In development it runs extra checks, such as rendering components twice, to reveal impure code. It adds nothing in production.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Multiple roots do not share context automatically, hydration has stricter matching, and external DOM mutation can conflict. This draft therefore rejects: Calling render appends a fresh duplicate DOM tree on every state change."
+        "heading": "No duplicates",
+        "body": "```predict\n{\"question\": \"A counter inside App changes state 10 times. How many copies of App are in the DOM?\", \"options\": [\"10\", \"1: React updates the existing nodes in place\"], \"answer\": 1, \"why\": \"React compares the new description with the old one and changes only what's different.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Mount one React root and distinguish rendering descriptions from DOM commit work.",
-      "Create and explain a minimal React root and component tree."
+      "Create a root with createRoot and render an App component once.",
+      "Explain which DOM React owns and how the component tree nests."
     ],
     "excludes": [
-      "Multiple roots do not share context automatically, hydration has stricter matching, and external DOM mutation can conflict."
+      "Server rendering and hydration.",
+      "Multiple roots in one page in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "react.model.root.example-a",
-      "title": "Application root and rendering: concrete case",
-      "situation": "createRoot(container).render(<App />) gives React ownership of the app container without replacing unrelated page landmarks.",
+      "title": "Handing React one container",
+      "situation": "createRoot(container).render(<App />) gives React ownership of the practice container without replacing unrelated page landmarks.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: createRoot(container).render(<App />) gives React ownership of the app container without replacing unrelated page landmarks.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: React reconciles a root's managed subtree rather than blindly appending a new tree each render."
+        "**Choose the container:** `document.getElementById(\"practice\")` inside main.",
+        "**Create the root:** `createRoot(container).render(<App />)` runs once when the page loads.",
+        "**Check the page:** DevTools will show header and footer unchanged, and App's section inside #practice."
       ],
-      "result": "The result follows because React reconciles a root's managed subtree rather than blindly appending a new tree each render."
+      "result": "The practice area is interactive while the header, navigation and footer keep working as plain HTML."
     },
     {
       "id": "react.model.root.example-b",
-      "title": "Application root and rendering: boundary case",
-      "situation": "Multiple roots do not share context automatically, hydration has stricter matching, and external DOM mutation can conflict.",
+      "title": "The app that appeared twice",
+      "situation": "A developer calls `createRoot(container).render(<App />)` inside a button click handler to \"refresh\" the app, and a warning appears about creating a root on a container that already has one.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Multiple roots do not share context automatically, hydration has stricter matching, and external DOM mutation can conflict.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Calling render appends a fresh duplicate DOM tree on every state change."
+        "The root was created again for the same container.",
+        "Each root should be created once at startup.",
+        "Fix: create the root once, and refresh by changing state inside App."
       ],
-      "result": "The boundary requires this correction: React reconciles a root's managed subtree rather than blindly appending a new tree each render."
+      "result": "The app has one root, and clicking the button updates it through state with no warnings."
     }
   ],
   "misconceptions": [
     {
       "id": "react.model.root.misconception",
       "mistakenBelief": "Calling render appends a fresh duplicate DOM tree on every state change.",
-      "correction": "React reconciles a root's managed subtree rather than blindly appending a new tree each render.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Calling render appends a fresh duplicate DOM tree on every state change."
+      "correction": "State changes don't call render again, and React never appends a second tree. It compares the new description with the previous one and updates the same DOM nodes in place.",
+      "diagnosticPrompt": "In the \"No duplicates\" predict, how many copies of App existed?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Application root and rendering, where inputs and state produce a UI description.",
+    "example": "A React root is like **renting one shop unit in a mall**. Inside your unit (the container) you can rearrange everything; React is your shop manager. The corridors, other shops and signs (header, footer) belong to the mall and stay as they are.",
     "usefulFor": [
-      "Building a first mental model for Application root and rendering before using exact platform terms"
+      "remembering one owned container",
+      "components = shelves inside the unit"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Multiple roots do not share context automatically, hydration has stricter matching, and external DOM mutation can conflict."
+      "Shops don't redraw themselves; React updates the unit when state changes.",
+      "You don't rent the unit again to rearrange it."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "createRoot(container).render(<App />) gives React ownership of the app container without replacing unrelated page landmarks.",
-      "A React root owns rendering for one DOM container and reconciles component output into that managed subtree.",
-      "React reconciles a root's managed subtree rather than blindly appending a new tree each render."
+      "const container = document.getElementById('practice')",
+      "createRoot(container)",
+      "root.render(<App />)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Find",
         "state": {
-          "evidence": "createRoot(container).render(<App />) gives React ownership of the app container without replacing unrelated page landmarks."
+          "container": "<div id=\"practice\">",
+          "children": "0"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The page provides an empty container for React."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Root",
         "state": {
-          "rule": "A React root owns rendering for one DOM container and reconciles component output into that managed subtree."
+          "owner of #practice": "React"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "createRoot gives React ownership of the app container."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Render",
         "state": {
-          "correction": "React reconciles a root's managed subtree rather than blindly appending a new tree each render."
+          "#practice": "section > h2 + p",
+          "header/footer": "unchanged"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Calling render appends a fresh duplicate DOM tree on every state change."
+        "explanation": "App renders without replacing unrelated page landmarks."
       }
     ],
-    "textAlternative": "Starting artifact: createRoot(container).render(<App />) gives React ownership of the app container without replacing unrelated page landmarks. Step 1, Artifact. State: evidence: createRoot(container).render(<App />) gives React ownership of the app container without replacing unrelated page landmarks.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A React root owns rendering for one DOM container and reconciles component output into that managed subtree.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: React reconciles a root's managed subtree rather than blindly appending a new tree each render.. Check the result against the boundary and reject this misconception: Calling render appends a fresh duplicate DOM tree on every state change."
+    "textAlternative": "Starting a React root. Step 1, Find: container is <div id=\"practice\">; children is 0. The page provides an empty container for React. Step 2, Root: owner of #practice is React. createRoot gives React ownership of the app container. Step 3, Render: #practice is section > h2 + p; header/footer is unchanged. App renders without replacing unrelated page landmarks."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Application root and rendering: concrete case”: state its starting evidence, apply the Application root and rendering rule, and give the observable result in three short lines.",
+      "prompt": "For \"Handing React one container\", explain how createRoot(container).render(<App />) gives React ownership of the app container without replacing unrelated page landmarks.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Container.",
+        "Root.",
+        "Check."
       ],
       "expectedEvidence": [
-        "Named example: Application root and rendering: concrete case.",
-        "Starting evidence: createRoot(container).render(<App />) gives React ownership of the app container without replacing unrelated page landmarks.",
-        "Core rule: A React root owns rendering for one DOM container and reconciles component output into that managed subtree.",
-        "Observable result: The result follows because React reconciles a root's managed subtree rather than blindly appending a new tree each render.",
-        "Boundary check: React reconciles a root's managed subtree rather than blindly appending a new tree each render."
+        "Names the example \"Handing React one container\": React gets ownership of the app container.",
+        "createRoot is called once at startup.",
+        "The header and footer are unrelated page landmarks that stay unchanged.",
+        "The practice area is interactive."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Multiple roots do not share context automatically, hydration has stricter matching, and external DOM mutation can conflict.",
+      "prompt": "Write main.jsx that renders `<App />` into `#quiz` under StrictMode, and an App returning a heading and a `<Question text=\"...\" />` child.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Import createRoot from react-dom/client.",
+        "Pass text as a prop."
       ],
       "expectedEvidence": [
-        "A React root owns rendering for one DOM container and reconciles component output into that managed subtree.",
-        "Multiple roots do not share context automatically, hydration has stricter matching, and external DOM mutation can conflict."
+        "One createRoot call.",
+        "App and Question as function components."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Application root and rendering and explain why the misconception fails.",
+      "prompt": "Add React to an existing static page for just one widget. Keep the rest plain HTML, and write a short note explaining what React owns, where render is called, and how updates happen.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Pick one container.",
+        "No re-creating roots."
       ],
       "expectedEvidence": [
-        "Create and explain a minimal React root and component tree.",
-        "React reconciles a root's managed subtree rather than blindly appending a new tree each render."
+        "A working widget in its container.",
+        "A clear ownership note."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.model.root.misconception",
-      "explanation": "React reconciles a root's managed subtree rather than blindly appending a new tree each render.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'managed subtree' and state the decisive evidence."
+      "explanation": "Draw the page. **Colour in the one container React owns.** Everything else is plain HTML. Then ask: is createRoot called exactly once?",
+      "retryPrompt": "Apply this to \"The app that appeared twice\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to create and explain a minimal React root and component tree. Keep this boundary in view: Multiple roots do not share context automatically, hydration has stricter matching, and external DOM mutation can conflict.",
+    "summary": "To create and explain a minimal React root, pick one container, call createRoot(container).render(<App />) once at startup, and let components describe the tree inside it. React owns only that subtree and updates it in place when state changes, never appending duplicates.",
     "retrievalPrompts": [
-      "Explain Application root and rendering using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: Calling render appends a fresh duplicate DOM tree on every state change.",
-      "Apply checkpoint 'managed subtree' to a new artifact."
+      "What part of the page does a root own?",
+      "How often should you call createRoot?",
+      "What happens to the DOM when state changes?"
     ],
     "nextReviewPrompt": "Next: continue to “Vite project and dependency pinning”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -28,34 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A variable is a name used to access part of program state. Assignment evaluates the right-hand expression first, then makes the target name refer to the resulting value for the next program state.",
+    "summary": "A **variable** is a name for a piece of your program's state. **Assignment** (`=`) works right-to-left: first work out the value on the right, then make the name on the left refer to it. So `count = count + 1` isn't a false maths equation — it's an instruction: \"take count's value, add 1, store the result back in count\".",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A program starts with balance 500, records a 120 purchase, and then receives a 50 refund. Your goal is to produce an accurate state table for sequential assignments and explain why assignment differs from algebraic equality. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Your wallet app tracks a balance. A program starts with balance 500, records a 120 purchase, and then receives a 50 refund. What's the balance at the end? To answer confidently, you'll build a state table — one row per line, showing every variable's value after it runs. In this lesson you'll produce an accurate state table for sequential assignments and explain why assignment differs from algebraic equality.\n\n```predict\n{\"code\": \"balance = 500\\nbalance = balance - 120\\nbalance = balance + 50\", \"question\": \"What is `balance` at the end?\", \"options\": [\"500\", \"430\", \"380\"], \"answer\": 1, \"why\": \"500 − 120 = 380, then 380 + 50 = 430. Each line uses the value left by the line before.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Pseudocode; Values and types. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Pseudocode** and **Values and types**. A variable is how a program remembers a value from one step to the next."
       },
       {
-        "heading": "State changes over time",
-        "body": "Trace a variable at a particular execution step, not as one timeless fact. After total is assigned 4, the current state contains total = 4. A later assignment can produce a new state in which total = 7 without making the earlier observation false."
+        "heading": "The rule: evaluate the right side, then bind the name",
+        "body": "`balance = balance - 120` happens in two moves:\n\n1. **Evaluate the right:** read balance (500), compute 500 − 120 → 380.\n2. **Bind the left:** balance now refers to 380. The old 500 is gone.\n\n| After line | balance |\n|---|---|\n| `balance = 500` | 500. |\n| `balance = balance - 120` | 380. |\n| `balance = balance + 50` | 430. |\n\n```reveal\n{\"prompt\": \"In maths, `x = x + 1` has no solution. Why is it fine in code?\", \"answer\": \"In code `=` means **assign**, not **equals**. It's an action: compute x + 1, then store it in x. Python uses `==` to test equality.\"}\n```"
       },
       {
-        "heading": "Assignment is not algebraic equality",
-        "body": "In assignment notation, total = total + 3 means read the current value of total, add 3, and store the result back under total. It is an ordered state update; it is not the impossible algebraic statement that one fixed number equals itself plus three."
+        "heading": "Copying a value, not a link",
+        "body": "```predict\n{\"code\": \"a = 5\\nb = a\\na = a + 1\", \"question\": \"What's `b` after this code?\", \"options\": [\"5\", \"6\"], \"answer\": 0, \"why\": \"`b = a` gave b the value 5 at that moment. Rebinding `a` to 6 later doesn't change b.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Tracing named values across sequential assignments",
-      "Evaluating the right-hand side before updating the left-hand target"
+      "Build a state table for a sequence of assignments.",
+      "Explain why assignment is not algebraic equality."
     ],
     "excludes": [
-      "Language-specific memory layout and pointer arithmetic",
-      "Shared-reference mutation, which is taught as a separate skill"
+      "Shared mutable objects and aliases (a later lesson).",
+      "Scope inside functions."
     ]
   },
   "outcomes": [
@@ -64,156 +64,133 @@
   "examples": [
     {
       "id": "variables-example-wallet",
-      "title": "Wallet balance update",
+      "title": "Tracking a wallet balance",
       "situation": "A program starts with balance 500, records a 120 purchase, and then receives a 50 refund.",
       "walkthrough": [
-        "Step 1 — Set balance to 500 in the first state.",
-        "Step 2 — Evaluate balance - 120 using the current 500, then assign 380 to balance.",
-        "Step 3 — Evaluate balance + 50 using the current 380, then assign 430 to balance."
+        "**Start:** `balance = 500` — the state table's first row shows balance 500.",
+        "**Purchase:** `balance = balance - 120` evaluates 500 − 120, so balance becomes 380.",
+        "**Refund:** `balance = balance + 50` evaluates 380 + 50, so balance becomes 430."
       ],
-      "result": "The successive balance values are 500, 380, and 430; only the current state's value is used by the next expression."
+      "result": "The final balance is 430; the state table shows 500, 380, then 430 after each assignment."
     },
     {
       "id": "variables-example-score",
-      "title": "Game score and bonus",
-      "situation": "A player begins with score 10, doubles the score, and then adds a fixed five-point bonus.",
+      "title": "The swap that lost a value",
+      "situation": "```python\nx = 1\ny = 2\nx = y\ny = x\n```\nThe goal was to swap x and y.",
       "walkthrough": [
-        "Step 1 — The initial assignment creates score = 10.",
-        "Step 2 — The expression score * 2 reads 10 and assignment stores 20.",
-        "Step 3 — The expression score + 5 reads 20 and assignment stores 25."
+        "After the assignment `x = y`, x refers to the value 2 — the original value 1 is gone.",
+        "`y = x` then copies 2 back into y.",
+        "Both are 2. Fix: `temp = x; x = y; y = temp`, or Python's `x, y = y, x`."
       ],
-      "result": "The final score is 25, and a trace retains the intermediate states 10 and 20 rather than replacing history."
+      "result": "The naive swap leaves x = 2 and y = 2; using a temporary keeps both values."
     }
   ],
   "misconceptions": [
     {
       "id": "variables-misconception-equality",
-      "mistakenBelief": "The statement count = count + 1 claims a number is equal to itself plus one.",
-      "correction": "Assignment uses the old count to calculate a new value and then updates the named state for later steps.",
-      "diagnosticPrompt": "If count is 4 before count = count + 1, which value is read and which value exists after the statement?"
-    },
-    {
-      "id": "variables-misconception-history",
-      "mistakenBelief": "Reassigning a variable retroactively changes every earlier state in the execution trace.",
-      "correction": "A trace records observations at successive times; assignment changes the next state but does not rewrite prior steps.",
-      "diagnosticPrompt": "After x changes from 2 to 9, what should a three-row state table show in the row recorded before that update?"
+      "mistakenBelief": "The statement count = count + 1 claims that a number is equal to itself plus one.",
+      "correction": "`=` is assignment, not equality. It evaluates the right-hand side using the current value, then makes the name refer to the new result. `count = count + 1` means \"increase count by one\".",
+      "diagnosticPrompt": "In \"Tracking a wallet balance\", what does `balance = balance - 120` actually do, step by step?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled scoreboard can display one current score; an update reads the current display, calculates a new score, and replaces what the label shows.",
+    "example": "A variable is like a **name tag stuck on a value**. Assignment peels the tag off the old value and sticks it on the new one. The right side is worked out first, while the tag is still on the old value.",
     "usefulFor": [
-      "Understanding a stable name with a value that changes between execution steps"
+      "remembering right-then-left order",
+      "seeing old values as replaced, not kept"
     ],
     "limitations": [
-      "Real variables have language-specific scope, type, lifetime, and representation rules",
-      "A label-and-box analogy does not accurately explain shared references or mutation of compound values"
+      "Old values don't linger somewhere like old tags; they're simply no longer reachable by that name.",
+      "With mutable objects, two tags can share one value — covered in a later lesson."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "tickets = 3",
-      "tickets = tickets + 2",
-      "used = 1",
-      "tickets = tickets - used"
+      "balance = 500",
+      "balance = balance - 120",
+      "balance = balance + 50"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Initialize tickets",
+        "focus": "Start",
         "state": {
-          "tickets": "3",
-          "used": "not assigned"
+          "balance": "500"
         },
-        "explanation": "The first assignment creates a current tickets value of three while used has no value yet."
+        "explanation": "The first assignment gives balance its starting value of 500."
       },
       {
         "step": 2,
-        "focus": "Add tickets",
+        "focus": "Purchase",
         "state": {
-          "tickets": "5",
-          "used": "not assigned"
+          "balance": "380"
         },
-        "explanation": "The expression reads the old tickets value three, adds two, and stores the result five."
+        "explanation": "The right side 500 - 120 is evaluated first, then balance refers to 380."
       },
       {
         "step": 3,
-        "focus": "Initialize used",
+        "focus": "Refund",
         "state": {
-          "tickets": "5",
-          "used": "1"
+          "balance": "430"
         },
-        "explanation": "Assigning used changes that name while leaving the current tickets value unchanged."
-      },
-      {
-        "step": 4,
-        "focus": "Subtract used",
-        "state": {
-          "tickets": "4",
-          "used": "1"
-        },
-        "explanation": "The right-hand expression reads tickets as five and used as one before storing four under tickets."
+        "explanation": "The right side 380 + 50 is evaluated, then balance refers to 430."
       }
     ],
-    "textAlternative": "Starting artifact: tickets = 3 Step 1, Initialize tickets. State: tickets: 3; used: not assigned. The first assignment creates a current tickets value of three while used has no value yet. Step 2, Add tickets. State: tickets: 5; used: not assigned. The expression reads the old tickets value three, adds two, and stores the result five. Step 3, Initialize used. State: tickets: 5; used: 1. Assigning used changes that name while leaving the current tickets value unchanged. Step 4, Subtract used. State: tickets: 4; used: 1. The right-hand expression reads tickets as five and used as one before storing four under tickets."
+    "textAlternative": "State table for the wallet balance. Step 1, Start: balance is 500. The first assignment gives balance its starting value of 500. Step 2, Purchase: balance is 380. The right side 500 - 120 is evaluated first, then balance refers to 380. Step 3, Refund: balance is 430. The right side 380 + 50 is evaluated, then balance refers to 430."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Wallet balance update”: state its starting evidence, apply the Variables and assignment rule, and give the observable result in three short lines.",
+      "prompt": "For \"Tracking a wallet balance\", fill in the state table: the balance after starting at 500, after the 120 purchase, and after the 50 refund.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Row 1: start.",
+        "Row 2: purchase.",
+        "Row 3: refund."
       ],
       "expectedEvidence": [
-        "Named example: Wallet balance update.",
-        "Starting evidence: A program starts with balance 500, records a 120 purchase, and then receives a 50 refund.",
-        "Core rule: A variable is a name used to access part of program state. Assignment evaluates the right-hand expression first, then makes the target name refer to the resulting value for the next program state.",
-        "Observable result: The successive balance values are 500, 380, and 430; only the current state's value is used by the next expression.",
-        "Boundary check: Assignment uses the old count to calculate a new value and then updates the named state for later steps."
+        "Names the example \"Tracking a wallet balance\": starts with balance 500.",
+        "After the 120 purchase, balance is 380.",
+        "After the 50 refund, balance is 430.",
+        "Each row evaluates the right side first, then assigns."
       ]
     },
     "nearTransfer": {
-      "prompt": "Trace fuel = 8, fuel = fuel - 3, reserve = 2, and fuel = fuel + reserve using one row per statement.",
+      "prompt": "Make a state table for: `score = 10`, `bonus = 5`, `score = score + bonus`, `bonus = 0`. Give final values.",
       "scaffold": [
-        "Record both names after each statement"
+        "One row per line.",
+        "Does changing bonus change score?"
       ],
       "expectedEvidence": [
-        "The final state shows fuel 7 and reserve 2",
-        "The explanation names the old values read by each expression"
+        "Rows: score 10; bonus 5; score 15; bonus 0.",
+        "Final score is 15 and bonus is 0 — score doesn't recompute."
       ]
     },
     "farTransfer": {
-      "prompt": "A shopping cart UI shows itemCount. Describe the state transitions caused by adding two items and removing one, without relying on assignment symbols.",
+      "prompt": "Write 5 assignments that track a game: lives start at 3, lose one twice, gain one, and track a score that doubles once. Give the full state table.",
       "scaffold": [
-        "Name the observable value before and after each event",
-        "Describe calculation before update"
+        "Two variables.",
+        "Right side first."
       ],
       "expectedEvidence": [
-        "The event description preserves ordered before-and-after states",
-        "The reasoning transfers beyond a code-looking trace"
+        "Correct state table with both variables after every line.",
+        "Final lives 2 and the correct score."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "variables-misconception-equality",
-      "explanation": "Read assignment from right to left in time: calculate with the current state, then update the named target for the next state.",
-      "retryPrompt": "Starting from points = 6, narrate points = points + 4 as a read, calculation, and update."
-    },
-    {
-      "misconceptionId": "variables-misconception-history",
-      "explanation": "Keep one state-table row per completed statement so later assignments create new rows instead of editing old observations.",
-      "retryPrompt": "Draw separate before-and-after rows for level = 2 followed by level = 3, and explain why both rows remain valid."
+      "explanation": "For every assignment, cover the left side with your finger, compute the right side using the **current** table row, then write the result in a new row.",
+      "retryPrompt": "Try it on \"The swap that lost a value\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to produce an accurate state table for sequential assignments and explain why assignment differs from algebraic equality. Keep this boundary in view: Language-specific memory layout and pointer arithmetic",
+    "summary": "To produce an accurate state table, add one row per assignment. Evaluate the right-hand side first using current values, then bind the name to the result. Assignment differs from algebraic equality: `x = x + 1` updates x, it doesn't state a fact.",
     "retrievalPrompts": [
-      "Explain count = count + 1 without using the word equals.",
-      "Which side of an assignment is evaluated first and why does that ordering matter?",
-      "Trace a variable through two updates while preserving every historical row."
+      "What's the final balance in the wallet example?",
+      "Why isn't `x = x + 1` a contradiction?",
+      "After `b = a; a = a + 1`, does b change?"
     ],
     "nextReviewPrompt": "Next: continue to “Expressions and evaluation”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

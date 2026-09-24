@@ -138,10 +138,64 @@ function responseError(value: Record<string, unknown>, fallback: string) {
   return typeof value.error === "string" ? value.error : fallback;
 }
 
+function ForcedPasswordChange({ onChanged }: { onChanged: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const currentPassword = String(form.get("currentPassword") ?? "");
+    const newPassword = String(form.get("newPassword") ?? "");
+    if (newPassword !== String(form.get("confirmPassword") ?? "")) {
+      setError("The new passwords do not match.");
+      return;
+    }
+    if (newPassword === currentPassword) {
+      setError("Choose a password different from the temporary one.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/security/forced-password-change", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      if (!response.ok) {
+        setError(response.status === 429
+          ? "Too many attempts. Wait a few minutes and try again."
+          : "Password change could not be completed. Check the temporary password and try again.");
+        return;
+      }
+      onChanged();
+    } catch {
+      setError("Password change could not be completed. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <main className={styles.page} id="main-content" tabIndex={-1}>
+      <form className={styles.form} onSubmit={submit}>
+        <h1>Choose your own password.</h1>
+        <p>This account was created with a temporary password. Set a new one (at least 12 characters), then sign in again to continue setup.</p>
+        <label><span>Temporary password</span><input autoComplete="current-password" maxLength={128} minLength={12} name="currentPassword" required type="password" /></label>
+        <label><span>New password</span><input autoComplete="new-password" maxLength={128} minLength={12} name="newPassword" required type="password" /></label>
+        <label><span>Confirm new password</span><input autoComplete="new-password" maxLength={128} minLength={12} name="confirmPassword" required type="password" /></label>
+        {error ? <p className={styles.error} role="alert">{error}</p> : null}
+        <button className="button button-primary" disabled={busy} type="submit">{busy ? "Saving…" : "Save password"}</button>
+      </form>
+    </main>
+  );
+}
+
 export function OnboardingWizard() {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [statusState, setStatusState] = useState<"loading" | "ready" | "error" | "redirecting">("loading");
+  const [statusState, setStatusState] = useState<"loading" | "ready" | "error" | "redirecting" | "password">("loading");
   const [statusAttempt, setStatusAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -166,6 +220,13 @@ export function OnboardingWizard() {
           if (!cancelled) setStatusState("redirecting");
           router.replace("/login");
           return;
+        }
+        if (response.status === 403) {
+          const denied = await readJsonObject(response);
+          if (denied.code === "PASSWORD_CHANGE_REQUIRED") {
+            if (!cancelled) setStatusState("password");
+            return;
+          }
         }
         if (!response.ok) throw new Error("Status request failed");
         const result = parseOnboardingStatus(await response.json());
@@ -427,6 +488,13 @@ export function OnboardingWizard() {
 
   if (statusState === "loading" || statusState === "redirecting") {
     return <main aria-live="polite" className={styles.loading} id="main-content" tabIndex={-1}><LoaderCircle className={styles.spin} /> {statusState === "redirecting" ? "Returning to sign in…" : "Preparing your learning space…"}</main>;
+  }
+
+  if (statusState === "password") {
+    return <ForcedPasswordChange onChanged={() => {
+      setStatusState("redirecting");
+      router.replace("/login");
+    }} />;
   }
 
   if (statusState === "error") {

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "External links should disclose meaningful destination behavior and apply deliberate new-context and referrer policies where required.",
+    "summary": "Links that leave your site or download a file should **set expectations**: say in the link text (or a visible note) that it's an external site, a PDF, or a download, and how big. Don't force new tabs by default — users can choose. When you truly need `target=\"_blank\"`, modern browsers imply `rel=\"noopener\"`, but adding `rel=\"noopener noreferrer\"` makes the intent explicit and protects older browsers.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A link identifies that documentation opens on an external site and avoids forcing a new context unless the product requires it. Your goal is to configure an external or downloadable link without opener or expectation surprises. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner clicks \"Docs\" and suddenly lands on another website in a new tab, with no way back via the Back button. Another clicks \"Syllabus\" and a 20 MB PDF starts downloading on mobile data. Neither link warned them. A link identifies that documentation opens on an external site and avoids forcing a new context unless the product requires it. In this lesson you'll configure an external or downloadable link without opener or expectation surprises.\n\n```predict\n{\"question\": \"Should every external link open in a new tab?\", \"options\": [\"Yes, always safer\", \"No — let users decide; new tabs break Back and can disorient screen-reader users\"], \"answer\": 1, \"why\": \"Users can open any link in a new tab themselves. Forcing it removes that choice and breaks the Back button.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Sections and landmarks; pf tools files; Meaningful links. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Sections and landmarks**, **Files, folders and paths**, and **Meaningful links**."
       },
       {
-        "heading": "Technology rule",
-        "body": "External links should disclose meaningful destination behavior and apply deliberate new-context and referrer policies where required. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: tell users before they click",
+        "body": "```html\n<!-- external, same tab, clearly labelled -->\n<a href=\"https://developer.mozilla.org/\">MDN Web Docs (external site)</a>\n\n<!-- download with type and size -->\n<a href=\"/files/syllabus.pdf\" download>Download the syllabus (PDF, 2 MB)</a>\n\n<!-- new tab only when truly needed, e.g. keeping an unsaved form open -->\n<a href=\"https://pay.example.com/help\" target=\"_blank\" rel=\"noopener noreferrer\">\n  Payment help (opens in a new tab)\n</a>\n```\n\n| Situation | Do |\n|---|---|\n| external site. | say so in the text or with a labelled icon. |\n| file download. | give type and size; `download` attribute if appropriate. |\n| forced new tab. | only with a reason; say \"opens in a new tab\"; add rel=\"noopener\". |\n\n```reveal\n{\"prompt\": \"What risk does `rel=\\\"noopener\\\"` prevent?\", \"answer\": \"Without it, a page opened with target=_blank could use `window.opener` to redirect your original tab to a fake login page (\\\"tabnabbing\\\").\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Opening a new tab is not always helpful, browser behavior evolves, and rel tokens do not replace URL trust or user communication. This draft therefore rejects: Every external link must open a new tab because that is always safer and more accessible."
+        "heading": "Name the surprise",
+        "body": "```predict\n{\"question\": \"Which link is clearest for a PDF?\", \"options\": [\"\\\"Syllabus\\\"\", \"\\\"Download the syllabus (PDF, 2 MB)\\\"\"], \"answer\": 1, \"why\": \"Users on slow or metered connections, and screen-reader users, deserve to know before a download starts.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use download, target, rel and referrer-related behavior only when justified and disclosed.",
-      "Configure an external or downloadable link without opener or expectation surprises."
+      "Label external links, downloads, file types and sizes.",
+      "Use target=_blank only when justified, with rel=\"noopener noreferrer\" and a visible note."
     ],
     "excludes": [
-      "Opening a new tab is not always helpful, browser behavior evolves, and rel tokens do not replace URL trust or user communication."
+      "Referrer-Policy headers.",
+      "Tracking and analytics parameters."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "html.navigation.external.example-a",
-      "title": "External navigation safety: concrete case",
+      "title": "Linking to outside documentation",
       "situation": "A link identifies that documentation opens on an external site and avoids forcing a new context unless the product requires it.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A link identifies that documentation opens on an external site and avoids forcing a new context unless the product requires it.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy."
+        "**Identify:** the link text reads \"MDN Web Docs (external site)\", so users know it leaves the course.",
+        "**Avoid forcing a new context:** no target=_blank, so Back returns to the lesson and users choose tabs themselves.",
+        "**Exception:** on the payment form, where leaving would lose input, the help link will open in a new tab with rel=\"noopener noreferrer\" and says so."
       ],
-      "result": "The result follows because Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy."
+      "result": "Users know where each link goes and keep control of tabs, except where the product genuinely requires a new context."
     },
     {
       "id": "html.navigation.external.example-b",
-      "title": "External navigation safety: boundary case",
-      "situation": "Opening a new tab is not always helpful, browser behavior evolves, and rel tokens do not replace URL trust or user communication.",
+      "title": "The silent download",
+      "situation": "A lesson page links \"Slides\" to a 45 MB .pptx file.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Opening a new tab is not always helpful, browser behavior evolves, and rel tokens do not replace URL trust or user communication.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Every external link must open a new tab because that is always safer and more accessible."
+        "Mobile users unknowingly spend data and may not be able to open .pptx.",
+        "Screen-reader users hear only \"Slides, link\".",
+        "Fix: \"Download slides (PowerPoint, 45 MB)\" and offer a lighter HTML or PDF version."
       ],
-      "result": "The boundary requires this correction: Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy."
+      "result": "Users can decide whether and how to download before clicking."
     }
   ],
   "misconceptions": [
     {
       "id": "html.navigation.external.misconception",
       "mistakenBelief": "Every external link must open a new tab because that is always safer and more accessible.",
-      "correction": "Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: Every external link must open a new tab because that is always safer and more accessible."
+      "correction": "Forced new tabs remove user choice, break the Back button and can confuse assistive technology users. Keep the same tab by default, clearly label external links and downloads, and open new tabs only when there's a real need, with rel=\"noopener\".",
+      "diagnosticPrompt": "In \"Linking to outside documentation\", when is a new tab justified?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model External navigation safety, with structure carrying meaning before decoration.",
+    "example": "External links are like **doors in a building**: a sign saying \"Exit to street\" or \"Storage room — heavy boxes\" lets people choose. Forcing a new tab is like a door that teleports you to a new building while your original one stays open behind you.",
     "usefulFor": [
-      "Building a first mental model for External navigation safety before using exact platform terms"
+      "remembering to label where a link leads",
+      "keeping users in control"
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "Opening a new tab is not always helpful, browser behavior evolves, and rel tokens do not replace URL trust or user communication."
+      "Doors don't have security risks like window.opener.",
+      "Users can \"open in new tab\" themselves; they can't choose to un-teleport."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A link identifies that documentation opens on an external site and avoids forcing a new context unless the product requires it.",
-      "External links should disclose meaningful destination behavior and apply deliberate new-context and referrer policies where required.",
-      "Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy."
+      "<a href='https://developer.mozilla.org/'>MDN Web Docs (external site)</a>",
+      "user clicks",
+      "user presses Back"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Identify",
         "state": {
-          "evidence": "A link identifies that documentation opens on an external site and avoids forcing a new context unless the product requires it."
+          "link text": "MDN Web Docs (external site)"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The link identifies that documentation opens on an external site."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Same tab",
         "state": {
-          "rule": "External links should disclose meaningful destination behavior and apply deliberate new-context and referrer policies where required."
+          "target": "none",
+          "new context": "no"
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "It avoids forcing a new context unless the product requires it."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Back works",
         "state": {
-          "correction": "Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy."
+          "Back": "returns to lesson"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Every external link must open a new tab because that is always safer and more accessible."
+        "explanation": "Because the tab wasn't changed, Back returns to the lesson."
       }
     ],
-    "textAlternative": "Starting artifact: A link identifies that documentation opens on an external site and avoids forcing a new context unless the product requires it. Step 1, Artifact. State: evidence: A link identifies that documentation opens on an external site and avoids forcing a new context unless the product requires it.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: External links should disclose meaningful destination behavior and apply deliberate new-context and referrer policies where required.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy.. Check the result against the boundary and reject this misconception: Every external link must open a new tab because that is always safer and more accessible."
+    "textAlternative": "Following a clearly labelled external link. Step 1, Identify: link text is MDN Web Docs (external site). The link identifies that documentation opens on an external site. Step 2, Same tab: target is none; new context is no. It avoids forcing a new context unless the product requires it. Step 3, Back works: Back is returns to lesson. Because the tab wasn't changed, Back returns to the lesson."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “External navigation safety: concrete case”: state its starting evidence, apply the External navigation safety rule, and give the observable result in three short lines.",
+      "prompt": "For \"Linking to outside documentation\", explain how the link identifies that documentation opens on an external site, why it avoids forcing a new context, and when a new tab would be required.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Label.",
+        "Same tab.",
+        "Exception."
       ],
       "expectedEvidence": [
-        "Named example: External navigation safety: concrete case.",
-        "Starting evidence: A link identifies that documentation opens on an external site and avoids forcing a new context unless the product requires it.",
-        "Core rule: External links should disclose meaningful destination behavior and apply deliberate new-context and referrer policies where required.",
-        "Observable result: The result follows because Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy.",
-        "Boundary check: Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy."
+        "Names the example \"Linking to outside documentation\": the link identifies that documentation opens on an external site.",
+        "It avoids forcing a new context, so Back works.",
+        "A new tab only when the product requires it, like an unsaved form.",
+        "Then with rel=noopener noreferrer and a visible note."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Opening a new tab is not always helpful, browser behavior evolves, and rel tokens do not replace URL trust or user communication.",
+      "prompt": "Rewrite: `<a href=\"https://github.com/x/y\" target=\"_blank\">here</a>` for a page where leaving is fine.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Descriptive text.",
+        "Drop the forced tab."
       ],
       "expectedEvidence": [
-        "External links should disclose meaningful destination behavior and apply deliberate new-context and referrer policies where required.",
-        "Opening a new tab is not always helpful, browser behavior evolves, and rel tokens do not replace URL trust or user communication."
+        "`<a href=\"https://github.com/x/y\">Project source on GitHub (external site)</a>`.",
+        "No target=_blank."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for External navigation safety and explain why the misconception fails.",
+      "prompt": "Audit all external links and downloads on a site you built. Label each, remove unjustified target=_blank, and add rel and a visible note where a new tab remains.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Search for target=\"_blank\".",
+        "Check file sizes."
       ],
       "expectedEvidence": [
-        "Configure an external or downloadable link without opener or expectation surprises.",
-        "Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy."
+        "Every external link and download clearly labelled.",
+        "Remaining new-tab links justified with rel and notes."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.navigation.external.misconception",
-      "explanation": "Do not force a new browsing context by default; when one is required, disclose it and apply the appropriate rel policy.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'disclose it' and state the decisive evidence."
+      "explanation": "For each link ask: **Does it leave the site? Download a file? Open a new tab?** Each yes must be visible in the link text — and the new tab must have a reason.",
+      "retryPrompt": "Apply this to \"The silent download\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to configure an external or downloadable link without opener or expectation surprises. Keep this boundary in view: Opening a new tab is not always helpful, browser behavior evolves, and rel tokens do not replace URL trust or user communication.",
+    "summary": "To configure an external or downloadable link without surprises, label external destinations, file types and sizes in the link text, keep the same tab by default, and use target=_blank only when needed — with rel=\"noopener noreferrer\" and a visible note.",
     "retrievalPrompts": [
-      "Explain External navigation safety using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: Every external link must open a new tab because that is always safer and more accessible.",
-      "Apply checkpoint 'disclose it' to a new artifact."
+      "Why not force new tabs?",
+      "What does rel=\"noopener\" protect against?",
+      "What should a download link tell users?"
     ],
     "nextReviewPrompt": "Next: continue to “Keyboard navigation and skip links”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

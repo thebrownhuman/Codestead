@@ -96,6 +96,8 @@ export function AdminOverview() {
   if (!data && error) return <ErrorState message={error} onRetry={() => void load()} />;
   if (!data) return null;
 
+  const liveCredentials = data.providers.credentials.filter((credential) => credential.status !== "revoked");
+  const revokedCredentialCount = data.providers.credentials.length - liveCredentials.length;
   const authoredCoverage = percentage(data.content.authored.covered, data.content.authored.skills);
   const backup = data.operations.backup;
   const backupFresh = Boolean(
@@ -178,14 +180,15 @@ export function AdminOverview() {
 
       <section className={styles.balancedColumns}>
         <article className={styles.panel}>
-          <div className={styles.panelHead}><div><KeyRound size={18} /><span><strong>Provider and key status</strong><small>Allowlisted metadata only; never plaintext or ciphertext</small></span></div><span className="pill">{data.providers.credentials.length} keys</span></div>
-          {data.providers.credentials.length ? <div className={styles.credentialList}>{data.providers.credentials.slice(0, 12).map((credential, index) => (
+          <div className={styles.panelHead}><div><KeyRound size={18} /><span><strong>Provider and key status</strong><small>Allowlisted metadata only; never plaintext or ciphertext</small></span></div><span className="pill">{liveCredentials.length} keys</span></div>
+          {liveCredentials.length ? <div className={styles.credentialList}>{liveCredentials.slice(0, 12).map((credential, index) => (
             <div className={styles.credentialRow} key={`${credential.ownerPublicId}-${credential.provider}-${credential.lastFour}-${index}`}>
               <KeyRound size={16} />
               <span><strong>{credential.ownerName} · {humanize(credential.provider)}</strong><small>{credential.failureCode ? `Code ${credential.failureCode} · ` : ""}used {formatRelativeTime(credential.lastUsedAt)}</small></span>
               <span><span className={styles.credentialTail}>{credentialTail(credential.lastFour)}</span><StatusPill status={credential.status} /></span>
             </div>
           ))}</div> : <EmptyState title="No provider credentials" detail="Learners have not configured provider keys yet." />}
+          {revokedCredentialCount ? <small>{revokedCredentialCount} revoked {revokedCredentialCount === 1 ? "key is" : "keys are"} kept for the audit trail and hidden here.</small> : null}
           <div className={styles.safeNotice}><ShieldCheck size={15} /> This response never selects credential ciphertext, wrapped keys, IVs, tags or plaintext. Full key reveal is intentionally absent from this console.</div>
         </article>
 

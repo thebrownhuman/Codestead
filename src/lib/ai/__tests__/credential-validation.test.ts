@@ -50,7 +50,7 @@ describe("provider credential validation", () => {
     expect(mocks.callProvider).toHaveBeenCalledWith(expect.objectContaining({
       provider: "nvidia_nim",
       apiKey: base.secret,
-      maxOutputTokens: 4,
+      maxOutputTokens: 256,
     }));
     expect(mocks.values).toHaveBeenCalledWith(expect.objectContaining({
       credentialId: "credential-1",

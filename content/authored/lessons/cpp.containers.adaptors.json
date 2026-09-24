@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Container adaptors expose a restricted stack, queue, or priority-queue interface over an underlying container to enforce access discipline.",
+    "summary": "**Adaptors** wrap a container and **restrict** it to one access pattern, so misuse can't compile. **`std::stack`**: last in, first out (`push`, `top`, `pop`). **`std::queue`**: first in, first out (`push`, `front`, `pop`). **`std::priority_queue`**: always gives the **largest** element (by default) from `top`. Two surprises. First, **`pop()` returns nothing** (`void`): read `top()` or `front()` **first**, then pop. Second, calling `top()`, `front()` or `pop()` on an **empty** adaptor is **undefined behaviour**, so check `empty()` first. For a value that may or may not exist, **`std::optional<T>`** makes emptiness explicit.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A bracket checker uses stack top and pop only after verifying the stack is nonempty. Your goal is to implement a small workflow with stack, queue or optional and test empty-state behavior. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner writes a bracket checker: `char open = stack.pop();`, which doesn't compile. After switching to top(), an input like \")\" crashes, because they called top() on an empty stack. A bracket checker uses stack top and pop only after verifying the stack is nonempty. In this lesson you'll implement a small workflow with stack, queue or optional and test empty-state behavior.\n\n```predict\n{\"question\": \"What does std::stack<int>::pop() return?\", \"options\": [\"The removed value\", \"Nothing (void): read top() before popping\"], \"answer\": 1, \"why\": \"Separating read and remove keeps pop exception-safe.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Loops and range iteration; Copy and assignment semantics; string, array and vector. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Loops and range iteration**, **Copy and assignment semantics** and **string, array and vector**."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "Container adaptors expose a restricted stack, queue, or priority-queue interface over an underlying container to enforce access discipline. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The rule: check empty, read, then pop",
+        "body": "```cpp\n#include <optional>\n#include <queue>\n#include <stack>\n#include <string_view>\n\nbool balanced(std::string_view text) {\n    std::stack<char> open;\n    for (char c : text) {\n        if (c == '(' || c == '[') {\n            open.push(c);\n        } else if (c == ')' || c == ']') {\n            if (open.empty()) return false;             // check BEFORE top().\n            char expected = (c == ')') ? '(' : '[';\n            if (open.top() != expected) return false;   // read...\n            open.pop();                                 // ...then remove.\n        }\n    }\n    return open.empty();\n}\n\nstd::optional<int> next_job(std::queue<int>& jobs) {\n    if (jobs.empty()) return std::nullopt;             // emptiness made explicit.\n    int job = jobs.front();\n    jobs.pop();\n    return job;\n}\n```\n\n| Adaptor | Add | Read | Remove |\n|---|---|---|---|\n| `stack`. | `push`. | `top`. | `pop` (newest). |\n| `queue`. | `push`. | `front`. | `pop` (oldest). |\n| `priority_queue`. | `push`. | `top` (largest). | `pop`. |\n\n```reveal\n{\"prompt\": \"How do you make a priority_queue give the smallest element?\", \"answer\": \"Use std::priority_queue<int, std::vector<int>, std::greater<int>>. The comparator flips the ordering.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Adaptors do not expose ordinary iteration, priority_queue order depends on its comparator, and front, top, or pop require nonempty preconditions. Therefore the draft explicitly rejects this beginner failure model: Calling pop on a standard stack returns the removed value like some other languages' stack APIs."
+        "heading": "Empty is a real case",
+        "body": "```predict\n{\"question\": \"balanced(\\\")\\\") — which check stops the crash?\", \"options\": [\"open.top() == '('\", \"open.empty() before calling top()\"], \"answer\": 1, \"why\": \"Test empty input and \\\"closing bracket first\\\" explicitly.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use container adaptors and explicit absence rather than sentinel misuse.",
-      "Implement a small workflow with stack, queue or optional and test empty-state behavior."
+      "Use stack, queue and priority_queue with check-read-pop order.",
+      "Represent possibly-missing results with std::optional and test empty states."
     ],
     "excludes": [
-      "Adaptors do not expose ordinary iteration, priority_queue order depends on its comparator, and front, top, or pop require nonempty preconditions."
+      "Custom underlying containers.",
+      "Thread-safe queues."
     ]
   },
   "outcomes": [
@@ -68,133 +69,137 @@
   "examples": [
     {
       "id": "cpp.containers.adaptors.example-a",
-      "title": "Stacks, queues and optional values: defined case",
+      "title": "Checking brackets with a stack",
       "situation": "A bracket checker uses stack top and pop only after verifying the stack is nonempty.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A bracket checker uses stack top and pop only after verifying the stack is nonempty.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Standard container-adaptor pop removes without returning; read top or front first after checking nonempty, then call pop."
+        "**A bracket checker uses stack top and pop:** each closing bracket is compared with open.top(), then popped.",
+        "**Only after verifying the stack is nonempty:** \")\" returns false instead of calling top() on nothing.",
+        "**Tests:** \"([])\" will return true, \"([)]\" false, \"(\" false, \"\" true."
       ],
-      "result": "The defined result follows because Standard container-adaptor pop removes without returning; read top or front first after checking nonempty, then call pop."
+      "result": "Every input, including empty and malformed ones, gives a defined answer."
     },
     {
       "id": "cpp.containers.adaptors.example-b",
-      "title": "Stacks, queues and optional values: boundary case",
-      "situation": "A task scheduler defines a comparator so priority_queue top returns the intended highest-priority task rather than assuming pair ordering.",
+      "title": "The print queue",
+      "situation": "A print server processes jobs in arrival order but a learner used std::stack, so the newest job always printed first.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A task scheduler defines a comparator so priority_queue top returns the intended highest-priority task rather than assuming pair ordering.",
-        "Step 2 — Keep this standard boundary visible: Adaptors do not expose ordinary iteration, priority_queue order depends on its comparator, and front, top, or pop require nonempty preconditions.",
-        "Step 3 — Reject the tempting rule: Calling pop on a standard stack returns the removed value like some other languages' stack APIs."
+        "Order requirement: first come, first served.",
+        "Switch to std::queue: push at the back, front/pop from the front.",
+        "next_job returns std::optional so \"no jobs\" is explicit."
       ],
-      "result": "This case demonstrates the declared outcome: Implement a small workflow with stack, queue or optional and test empty-state behavior."
+      "result": "Jobs print in arrival order, and an empty queue is handled."
     }
   ],
   "misconceptions": [
     {
       "id": "cpp.containers.adaptors.misconception",
       "mistakenBelief": "Calling pop on a standard stack returns the removed value like some other languages' stack APIs.",
-      "correction": "Standard container-adaptor pop removes without returning; read top or front first after checking nonempty, then call pop.",
-      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: Calling pop on a standard stack returns the removed value like some other languages' stack APIs."
+      "correction": "std::stack::pop returns void. Read top() first (after checking empty()), then pop().",
+      "diagnosticPrompt": "In the opening story, why didn't `char open = stack.pop();` compile?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A system of self-managing components can model Stacks, queues and optional values: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "example": "A stack is **a pile of plates**: you add and take from the top. A queue is **a line at a ticket window**: first in line is served first. Popping is **taking the plate away without looking at it**, so look (top) first, and don't reach for a plate on an empty pile.",
     "usefulFor": [
-      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+      "remembering look, then take",
+      "check the pile isn't empty"
     ],
     "limitations": [
-      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
-      "Adaptors do not expose ordinary iteration, priority_queue order depends on its comparator, and front, top, or pop require nonempty preconditions."
+      "Real piles are visible; call empty() to see.",
+      "A priority queue is a triage desk: most urgent first."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A bracket checker uses stack top and pop only after verifying the stack is nonempty.",
-      "Container adaptors expose a restricted stack, queue, or priority-queue interface over an underlying container to enforce access discipline.",
-      "Standard container-adaptor pop removes without returning; read top or front first after checking nonempty, then call pop."
+      "balanced(\"([])\")",
+      "balanced(\")\")",
+      "balanced(\"(\")"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Match",
         "state": {
-          "evidence": "A bracket checker uses stack top and pop only after verifying the stack is nonempty."
+          "pushes": "(, [",
+          "pops": "], )",
+          "result": "true"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "Each closing bracket uses top and pop only after the stack is verified nonempty."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Empty close",
         "state": {
-          "rule": "Container adaptors expose a restricted stack, queue, or priority-queue interface over an underlying container to enforce access discipline."
+          "open": "empty",
+          "result": "false"
         },
-        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+        "explanation": "Checking empty first turns a crash into a clear answer."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Leftover",
         "state": {
-          "conclusion": "Standard container-adaptor pop removes without returning; read top or front first after checking nonempty, then call pop."
+          "open": "(",
+          "result": "false"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: Calling pop on a standard stack returns the removed value like some other languages' stack APIs."
+        "explanation": "Unclosed brackets leave the stack nonempty at the end."
       }
     ],
-    "textAlternative": "Starting artifact: A bracket checker uses stack top and pop only after verifying the stack is nonempty. Step 1, Source and state. State: evidence: A bracket checker uses stack top and pop only after verifying the stack is nonempty.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: Container adaptors expose a restricted stack, queue, or priority-queue interface over an underlying container to enforce access discipline.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Standard container-adaptor pop removes without returning; read top or front first after checking nonempty, then call pop.. Check the conclusion against the boundary and reject this misconception: Calling pop on a standard stack returns the removed value like some other languages' stack APIs."
+    "textAlternative": "Tracing a bracket checker. Step 1, Match: pushes is (, [; pops is ], ); result is true. Each closing bracket uses top and pop only after the stack is verified nonempty. Step 2, Empty close: open is empty; result is false. Checking empty first turns a crash into a clear answer. Step 3, Leftover: open is (; result is false. Unclosed brackets leave the stack nonempty at the end."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Stacks, queues and optional values: defined case”: state its starting evidence, apply the Stacks, queues and optional values rule, and give the observable result in three short lines.",
+      "prompt": "For \"Checking brackets with a stack\", explain how a bracket checker uses stack top and pop only after verifying the stack is nonempty.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Push.",
+        "Check.",
+        "Pop."
       ],
       "expectedEvidence": [
-        "Named example: Stacks, queues and optional values: defined case.",
-        "Starting evidence: A bracket checker uses stack top and pop only after verifying the stack is nonempty.",
-        "Core rule: Container adaptors expose a restricted stack, queue, or priority-queue interface over an underlying container to enforce access discipline.",
-        "Observable result: The defined result follows because Standard container-adaptor pop removes without returning; read top or front first after checking nonempty, then call pop.",
-        "Boundary check: Standard container-adaptor pop removes without returning; read top or front first after checking nonempty, then call pop."
+        "Names the example \"Checking brackets with a stack\": top() on an empty stack crashed.",
+        "A bracket checker uses stack top and pop.",
+        "It does so only after verifying the stack is nonempty.",
+        "Every input gives a defined answer."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same CPP rule to this related boundary case: A task scheduler defines a comparator so priority_queue top returns the intended highest-priority task rather than assuming pair ordering.",
+      "prompt": "Extend balanced to handle {} as well, and write tests for \"\", \"{\", \"}\", \"{[()]}\", \"{[(])}\" and a long string of 10,000 nested brackets.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Add '{' and '}' cases.",
+        "Deep nesting is fine: the stack is heap-backed."
       ],
       "expectedEvidence": [
-        "Container adaptors expose a restricted stack, queue, or priority-queue interface over an underlying container to enforce access discipline.",
-        "Adaptors do not expose ordinary iteration, priority_queue order depends on its comparator, and front, top, or pop require nonempty preconditions."
+        "All tests pass.",
+        "No empty-top calls."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CPP example for Stacks, queues and optional values, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Simulate an emergency room: a priority_queue of patients ordered by urgency (ties broken by arrival order). Implement admit and next_patient returning std::optional, and test ordering, ties and an empty room.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "A struct with urgency and arrival number.",
+        "A comparator lambda or operator<."
       ],
       "expectedEvidence": [
-        "Implement a small workflow with stack, queue or optional and test empty-state behavior.",
-        "Standard container-adaptor pop removes without returning; read top or front first after checking nonempty, then call pop."
+        "Correct order including ties.",
+        "Empty room handled."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "cpp.containers.adaptors.misconception",
-      "explanation": "Standard container-adaptor pop removes without returning; read top or front first after checking nonempty, then call pop.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'removes without returning' and state the decisive evidence: A task scheduler defines a comparator so priority_queue top returns the intended highest-priority task rather than assuming pair ordering."
+      "explanation": "For every adaptor call ask: **could it be empty here?** Check empty(), read top()/front(), then pop(). Return std::optional when \"nothing\" is a valid answer.",
+      "retryPrompt": "Apply this to \"The print queue\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement a small workflow with stack, queue or optional and test empty-state behavior. Keep this boundary in view: Adaptors do not expose ordinary iteration, priority_queue order depends on its comparator, and front, top, or pop require nonempty preconditions.",
+    "summary": "To use adaptors safely, pick stack for last-in-first-out, queue for first-in-first-out and priority_queue for largest-first, always check empty() before top(), front() or pop(), read before popping because pop returns void, and use std::optional for results that may be absent.",
     "retrievalPrompts": [
-      "Explain Stacks, queues and optional values using a concrete CPP rule rather than the optional analogy.",
-      "Why is this claim incorrect: Calling pop on a standard stack returns the removed value like some other languages' stack APIs.",
-      "Apply the checkpoint 'removes without returning' to the boundary case from memory."
+      "What does pop() return?",
+      "What happens calling top() on an empty stack?",
+      "When use std::optional?"
     ],
     "nextReviewPrompt": "Next: continue to “Iterators and invalidation”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

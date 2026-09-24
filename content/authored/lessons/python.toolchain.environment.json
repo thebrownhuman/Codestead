@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A Python process has a concrete interpreter version, executable path, arguments, working directory, import path, and environment; all can change observable script behavior.",
+    "summary": "\"Which Python?\" and \"which folder?\" decide how your script behaves. Your computer may have several interpreters, each with its own installed packages, and relative file paths resolve from the **current working directory**, not the script's folder. Four lines of Python reveal the truth: `sys.executable`, `sys.version`, `sys.argv` and `Path.cwd()`.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: The learner prints sys.executable, sys.version, sys.argv, and Path.cwd() to explain why an editor run finds a dependency that a shell run does not. Your goal is to diagnose a script that runs differently because of interpreter or working-directory selection. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Your script runs perfectly with the editor's Run button. In the terminal, it fails: `ModuleNotFoundError: No module named 'requests'`. Same file, different result — spooky? No: two different interpreters. The learner prints sys.executable, sys.version, sys.argv, and Path.cwd() to explain why an editor run finds a dependency that a shell run does not. In this lesson you'll diagnose a script that runs differently because of interpreter or working-directory selection.\n\n```predict\n{\"question\": \"The editor run and the terminal run print different `sys.executable` paths. What does that mean?\", \"options\": [\"Nothing important\", \"They are different Python interpreters, possibly with different packages installed\"], \"answer\": 1, \"why\": \"Each interpreter (and each virtual environment) has its own set of installed packages. A package installed in one isn't visible to another.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: pf computing execution; pf tools terminal editor; Scripts, indentation and main guard; pf tools files. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Source-to-execution models**, **Editor and terminal workflow**, **Scripts, indentation and main guard**, and **Files, folders and paths** (relative and absolute paths)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "A Python process has a concrete interpreter version, executable path, arguments, working directory, import path, and environment; all can change observable script behavior. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: four facts that decide a run",
+        "body": "```python\nimport sys\nfrom pathlib import Path\n\nprint(sys.executable)  # which interpreter is running\nprint(sys.version)     # which Python version\nprint(sys.argv)        # how the script was launched\nprint(Path.cwd())      # where relative paths start\n```\n\n| Symptom | Likely cause | Check |\n|---|---|---|\n| `ModuleNotFoundError`. | different interpreter. | `sys.executable`. |\n| `FileNotFoundError` for `data.csv`. | different working directory. | `Path.cwd()`. |\n| syntax works in one, not other. | older Python version. | `sys.version`. |\n\n```reveal\n{\"prompt\": \"How do you install a package into exactly the interpreter that's running?\", \"answer\": \"Use that interpreter: `python -m pip install requests`. Plain `pip` might belong to a different Python.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "Activating a virtual environment mainly changes command lookup, relative paths resolve from the process working directory, PYTHONPATH can shadow modules, and editor-selected interpreters may differ from the terminal. The learner must reject this documented misconception: A .py file always runs with the interpreter beside it and relative files resolve from the script's own directory."
+        "heading": "Paths from the script, not the shell",
+        "body": "```predict\n{\"question\": \"`open(\\\"data.csv\\\")` works from the project folder but fails from your home folder. Why?\", \"options\": [\"The file is corrupted\", \"Relative paths resolve from the working directory, which changed\"], \"answer\": 1, \"why\": \"Relative paths start at `Path.cwd()`. To find files next to the script, use `Path(__file__).parent / \\\"data.csv\\\"`.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Identify interpreter version, arguments, working directory, module path and environment effects.",
-      "Diagnose a script that runs differently because of interpreter or working-directory selection."
+      "Print and read sys.executable, sys.version, sys.argv and Path.cwd().",
+      "Fix interpreter mismatches and working-directory path bugs."
     ],
     "excludes": [
-      "Activating a virtual environment mainly changes command lookup, relative paths resolve from the process working directory, PYTHONPATH can shadow modules, and editor-selected interpreters may differ from the terminal."
+      "Creating virtual environments (covered in modules and packaging).",
+      "Docker and system package managers."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "python.toolchain.environment.example.direct",
-      "title": "Interpreter and environment: direct language case",
+      "title": "Works in the editor, fails in the shell",
       "situation": "The learner prints sys.executable, sys.version, sys.argv, and Path.cwd() to explain why an editor run finds a dependency that a shell run does not.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: The learner prints sys.executable, sys.version, sys.argv, and Path.cwd() to explain why an editor run finds a dependency that a shell run does not.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Diagnose the actual process context: verify sys.executable, version, arguments, working directory, and import path before changing code or dependencies."
+        "**Print the facts** in both runs: `sys.executable` shows `.venv/bin/python` in the editor but `/usr/bin/python3` in the shell.",
+        "**Explain:** the dependency `requests` was installed into the editor's .venv interpreter only.",
+        "**Fix:** activate the venv in the shell (or run `.venv/bin/python app.py`), then `sys.executable` matches."
       ],
-      "result": "The example meets the atomic outcome because Diagnose the actual process context: verify sys.executable, version, arguments, working directory, and import path before changing code or dependencies."
+      "result": "Both runs now use the same interpreter, so the shell run finds the dependency too."
     },
     {
       "id": "python.toolchain.environment.example.boundary",
-      "title": "Interpreter and environment: boundary and transfer case",
-      "situation": "A local file named json.py shadows the standard-library module, so inspecting module.__file__ reveals the search-path collision.",
+      "title": "The CSV that vanished",
+      "situation": "`report.py` in `project/tools` opens `\"sales.csv\"` stored beside it. Running `python tools/report.py` from `project` fails.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A local file named json.py shadows the standard-library module, so inspecting module.__file__ reveals the search-path collision.",
-        "Step 2 — Keep the language boundary explicit: Activating a virtual environment mainly changes command lookup, relative paths resolve from the process working directory, PYTHONPATH can shadow modules, and editor-selected interpreters may differ from the terminal.",
-        "Step 3 — Reject the tempting but incorrect rule: A .py file always runs with the interpreter beside it and relative files resolve from the script's own directory."
+        "`Path.cwd()` prints `project`, so Python looks for `project/sales.csv`.",
+        "The file is actually in `project/tools`.",
+        "Fix: `Path(__file__).parent / \"sales.csv\"` locates it relative to the script."
       ],
-      "result": "This case demonstrates the declared outcome: Diagnose a script that runs differently because of interpreter or working-directory selection."
+      "result": "The script finds its CSV no matter which folder it's run from."
     }
   ],
   "misconceptions": [
     {
       "id": "python.toolchain.environment.misconception",
-      "mistakenBelief": "A .py file always runs with the interpreter beside it and relative files resolve from the script's own directory.",
-      "correction": "Diagnose the actual process context: verify sys.executable, version, arguments, working directory, and import path before changing code or dependencies.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: A .py file always runs with the interpreter beside it and relative files resolve from the script's own directory."
+      "mistakenBelief": "A .py file always runs with the interpreter beside it, and relative files resolve from the script's own directory.",
+      "correction": "The interpreter is whichever one launched the file — the editor's choice or the shell's PATH — and relative paths resolve from the current working directory. Print sys.executable and Path.cwd() to see what's really happening.",
+      "diagnosticPrompt": "In \"The CSV that vanished\", which folder did the relative path start from?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "an experiment notebook that becomes a saved procedure executed by one identified interpreter in a known workspace can introduce Interpreter and environment, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "example": "Like **two kitchens with different pantries**: the same recipe works in the kitchen that has cinnamon and fails in the one that doesn't. `sys.executable` tells you which kitchen you're in; `Path.cwd()` tells you which shelf you're reaching from.",
     "usefulFor": [
-      "REPL experiments, scripts, environments, and tracebacks"
+      "remembering each interpreter has its own packages",
+      "seeing cwd as where you're standing"
     ],
     "limitations": [
-      "import caching, module paths, display hooks, indentation grammar, and traceback chaining are Python-specific",
-      "Activating a virtual environment mainly changes command lookup, relative paths resolve from the process working directory, PYTHONPATH can shadow modules, and editor-selected interpreters may differ from the terminal."
+      "You can't install into two kitchens at once by accident — but you can install into the wrong Python.",
+      "Virtual environments are cheap, separate kitchens per project."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "The learner prints sys.executable, sys.version, sys.argv, and Path.cwd() to explain why an editor run finds a dependency that a shell run does not.",
-      "A Python process has a concrete interpreter version, executable path, arguments, working directory, import path, and environment; all can change observable script behavior.",
-      "Diagnose the actual process context: verify sys.executable, version, arguments, working directory, and import path before changing code or dependencies."
+      "import sys; from pathlib import Path",
+      "print(sys.executable, sys.version)",
+      "print(sys.argv, Path.cwd())"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Editor run",
         "state": {
-          "evidence": "The learner prints sys.executable, sys.version, sys.argv, and Path.cwd() to explain why an editor run finds a dependency that a shell run does not."
+          "sys.executable": ".venv/bin/python",
+          "requests": "found"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "The editor run uses the project venv, where the dependency is installed."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Shell run",
         "state": {
-          "rule": "A Python process has a concrete interpreter version, executable path, arguments, working directory, import path, and environment; all can change observable script behavior."
+          "sys.executable": "/usr/bin/python3",
+          "requests": "missing"
         },
-        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "The shell run uses a different interpreter without the dependency."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Diagnosis",
         "state": {
-          "correction": "Diagnose the actual process context: verify sys.executable, version, arguments, working directory, and import path before changing code or dependencies."
+          "fix": "activate .venv",
+          "Path.cwd()": "project"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: A .py file always runs with the interpreter beside it and relative files resolve from the script's own directory."
+        "explanation": "Matching the interpreter explains and fixes why the shell run fails."
       }
     ],
-    "textAlternative": "Starting artifact: The learner prints sys.executable, sys.version, sys.argv, and Path.cwd() to explain why an editor run finds a dependency that a shell run does not. Step 1, Observe. State: evidence: The learner prints sys.executable, sys.version, sys.argv, and Path.cwd() to explain why an editor run finds a dependency that a shell run does not.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A Python process has a concrete interpreter version, executable path, arguments, working directory, import path, and environment; all can change observable script behavior.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Diagnose the actual process context: verify sys.executable, version, arguments, working directory, and import path before changing code or dependencies.. Compare the observation with the correction and explain why the misconception fails: A .py file always runs with the interpreter beside it and relative files resolve from the script's own directory."
+    "textAlternative": "Comparing an editor run and a shell run. Step 1, Editor run: sys.executable is .venv/bin/python; requests is found. The editor run uses the project venv, where the dependency is installed. Step 2, Shell run: sys.executable is /usr/bin/python3; requests is missing. The shell run uses a different interpreter without the dependency. Step 3, Diagnosis: fix is activate .venv; Path.cwd() is project. Matching the interpreter explains and fixes why the shell run fails."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Interpreter and environment: direct language case”: state its starting evidence, apply the Interpreter and environment rule, and give the observable result in three short lines.",
+      "prompt": "For \"Works in the editor, fails in the shell\", explain what printing sys.executable, sys.version, sys.argv and Path.cwd() reveals, and why the editor run finds a dependency that the shell run does not.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "The four prints.",
+        "The difference.",
+        "The fix."
       ],
       "expectedEvidence": [
-        "Named example: Interpreter and environment: direct language case.",
-        "Starting evidence: The learner prints sys.executable, sys.version, sys.argv, and Path.cwd() to explain why an editor run finds a dependency that a shell run does not.",
-        "Core rule: A Python process has a concrete interpreter version, executable path, arguments, working directory, import path, and environment; all can change observable script behavior.",
-        "Observable result: The example meets the atomic outcome because Diagnose the actual process context: verify sys.executable, version, arguments, working directory, and import path before changing code or dependencies.",
-        "Boundary check: Diagnose the actual process context: verify sys.executable, version, arguments, working directory, and import path before changing code or dependencies."
+        "Names the example \"Works in the editor, fails in the shell\": the learner prints sys.executable, sys.version, sys.argv, and Path.cwd().",
+        "The editor run and the shell run use different interpreters.",
+        "The dependency is installed only in the editor's interpreter.",
+        "Activating the same venv in the shell fixes it."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A local file named json.py shadows the standard-library module, so inspecting module.__file__ reveals the search-path collision.",
+      "prompt": "A script works with `python3 app.py` but fails with `python app.py` on a syntax feature. Which of the four facts would you print first, and what would you expect to see?",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Syntax differences → version.",
+        "Compare both runs."
       ],
       "expectedEvidence": [
-        "A Python process has a concrete interpreter version, executable path, arguments, working directory, import path, and environment; all can change observable script behavior.",
-        "Activating a virtual environment mainly changes command lookup, relative paths resolve from the process working directory, PYTHONPATH can shadow modules, and editor-selected interpreters may differ from the terminal."
+        "Prints sys.version for both commands.",
+        "Expects an older Python version behind `python`."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Interpreter and environment, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Add a small `--debug-env` option to one of your scripts that prints the four facts. Run it from two different folders and with two interpreters if you have them, and explain each difference.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Use sys.argv to detect the option.",
+        "Record each output."
       ],
       "expectedEvidence": [
-        "Diagnose a script that runs differently because of interpreter or working-directory selection.",
-        "Diagnose the actual process context: verify sys.executable, version, arguments, working directory, and import path before changing code or dependencies."
+        "Working diagnostic option printing all four facts.",
+        "Correct explanation of each difference observed."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "python.toolchain.environment.misconception",
-      "explanation": "Diagnose the actual process context: verify sys.executable, version, arguments, working directory, and import path before changing code or dependencies.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A local file named json.py shadows the standard-library module, so inspecting module.__file__ reveals the search-path collision."
+      "explanation": "When a script behaves differently in two places, don't edit code. First print the four facts in both places and compare line by line.",
+      "retryPrompt": "Do the comparison for \"The CSV that vanished\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to diagnose a script that runs differently because of interpreter or working-directory selection. Keep this boundary in view: Activating a virtual environment mainly changes command lookup, relative paths resolve from the process working directory, PYTHONPATH can shadow modules, and editor-selected interpreters may differ from the terminal.",
+    "summary": "To diagnose a script that runs differently, print sys.executable (which interpreter), sys.version, sys.argv and Path.cwd() (working directory). Install packages with `python -m pip`, and locate data files from `Path(__file__).parent`.",
     "retrievalPrompts": [
-      "Explain Interpreter and environment using canonical Python: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: A .py file always runs with the interpreter beside it and relative files resolve from the script's own directory.",
-      "Predict this case from memory: A local file named json.py shadows the standard-library module, so inspecting module.__file__ reveals the search-path collision."
+      "Why can one run find a package and another not?",
+      "Where do relative paths start from?",
+      "How do you install into the running interpreter?"
     ],
     "nextReviewPrompt": "Next: continue to “Tracebacks and error categories”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

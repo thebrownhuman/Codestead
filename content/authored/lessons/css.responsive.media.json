@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Media queries condition styles on media features such as width, orientation, pointer, hover, contrast, color scheme, and motion preference.",
+    "summary": "**Media queries** apply styles when the viewport or user environment matches a condition: width (`(min-width: 48rem)`), colour scheme (`prefers-color-scheme: dark`), contrast (`prefers-contrast: more`), hover capability and more. Choose breakpoints where **your content breaks** — not at guessed device models — and write them in `rem` so they respect text-size settings. Feature queries (`@supports`) apply styles only when the browser understands them.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Navigation changes layout when its content no longer fits, not at a guessed tablet model width. Your goal is to implement and test layout, color-scheme and contrast adaptations. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A team adds breakpoints at 375px (\"iPhone\"), 768px (\"iPad\") and 1024px (\"laptop\"). Then a new phone is 412px wide, and the navigation wraps into three ugly lines between breakpoints. Devices change every year; content doesn't care. Navigation changes layout when its content no longer fits, not at a guessed tablet model width. In this lesson you'll implement and test layout, colour-scheme and contrast adaptations.\n\n```predict\n{\"question\": \"How should you find the right breakpoint for a nav bar?\", \"options\": [\"Look up the most popular phone width\", \"Slowly resize and note the width where the nav stops fitting on one line\"], \"answer\": 1, \"why\": \"Breakpoints belong to content. Resize until the design breaks, then add a query there.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Flexbox and Grid; Typography, color and visual treatment; Intrinsic responsive grids; Color and contrast. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Flexbox and Grid** and **Typography, color and visual treatment** modules, plus **Intrinsic responsive grids** and **Color and contrast**."
       },
       {
-        "heading": "Technology rule",
-        "body": "Media queries condition styles on media features such as width, orientation, pointer, hover, contrast, color scheme, and motion preference. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The rule: query the environment where the content needs it",
+        "body": "```css\n/* mobile-first: base styles for narrow, then enhance */\n.nav__list { display: flex; flex-direction: column; gap: 0.5rem; }\n@media (min-width: 46rem) {             /* where 6 links fit in one row */\n  .nav__list { flex-direction: row; }\n}\n\n@media (prefers-color-scheme: dark) {\n  :root { --color-bg: #111827; --color-text: #f3f4f6; }\n}\n@media (prefers-contrast: more) {\n  :root { --color-border: #000; }\n}\n@supports (container-type: inline-size) {\n  .panel { container-type: inline-size; }\n}\n```\n\n| Query | Responds to |\n|---|---|\n| `(min-width: 46rem)`. | viewport width (in rem, so text zoom counts). |\n| `prefers-color-scheme`. | the user's light/dark setting. |\n| `prefers-contrast`. | the user's request for more contrast. |\n| `@supports`. | whether the browser supports a feature. |\n\n```reveal\n{\"prompt\": \"Why write breakpoints in rem?\", \"answer\": \"If a user sets larger text, a rem-based breakpoint switches layout earlier — exactly when the bigger text stops fitting.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Device labels are unreliable, viewport width can change, feature combinations matter, and queries do not change DOM semantics. This draft therefore rejects: Media queries should target named devices such as iPhone and desktop."
+        "heading": "Test the environment",
+        "body": "```predict\n{\"question\": \"How can you test dark mode and more-contrast without changing your OS?\", \"options\": [\"You can't\", \"DevTools → Rendering → emulate prefers-color-scheme and prefers-contrast\"], \"answer\": 1, \"why\": \"DevTools can emulate these media features, so you can check every combination quickly.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Add content-driven breakpoints and feature or preference queries as progressive enhancements.",
-      "Implement and test layout, color-scheme and contrast adaptations."
+      "Write mobile-first width queries at content breakpoints in rem.",
+      "Adapt to prefers-color-scheme and prefers-contrast, and use @supports."
     ],
     "excludes": [
-      "Device labels are unreliable, viewport width can change, feature combinations matter, and queries do not change DOM semantics."
+      "Container queries (next lesson).",
+      "Print stylesheets in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "css.responsive.media.example-a",
-      "title": "Media and feature queries: concrete case",
+      "title": "Navigation that changes when it stops fitting",
       "situation": "Navigation changes layout when its content no longer fits, not at a guessed tablet model width.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: Navigation changes layout when its content no longer fits, not at a guessed tablet model width.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Choose breakpoints from content and capabilities, not device brands, and test resize, zoom, input, and preference combinations."
+        "**Find the break:** resizing shows the six links stop fitting on one row below about 46rem.",
+        "**Query:** mobile-first column layout, and `@media (min-width: 46rem)` switches to a row.",
+        "**Test:** at 412px, 700px and 1000px — and with text at 150% — the browser will render the nav cleanly because the breakpoint follows the content."
       ],
-      "result": "The result follows because Choose breakpoints from content and capabilities, not device brands, and test resize, zoom, input, and preference combinations."
+      "result": "The navigation switches exactly when its content stops fitting, on any device."
     },
     {
       "id": "css.responsive.media.example-b",
-      "title": "Media and feature queries: boundary case",
-      "situation": "Device labels are unreliable, viewport width can change, feature combinations matter, and queries do not change DOM semantics.",
+      "title": "Dark mode with unreadable borders",
+      "situation": "A site adds `prefers-color-scheme: dark` colours, but form input borders stay #d1d5db — nearly invisible on #111827.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Device labels are unreliable, viewport width can change, feature combinations matter, and queries do not change DOM semantics.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Media queries should target named devices such as iPhone and desktop."
+        "Only text and background tokens were overridden.",
+        "Input borders fail the 3:1 component contrast on dark backgrounds.",
+        "Fix: include --color-border in the dark query, measure it (≥ 3:1), and add a prefers-contrast: more override."
       ],
-      "result": "The boundary requires this correction: Choose breakpoints from content and capabilities, not device brands, and test resize, zoom, input, and preference combinations."
+      "result": "Inputs are clearly outlined in light, dark and high-contrast settings."
     }
   ],
   "misconceptions": [
     {
       "id": "css.responsive.media.misconception",
       "mistakenBelief": "Media queries should target named devices such as iPhone and desktop.",
-      "correction": "Choose breakpoints from content and capabilities, not device brands, and test resize, zoom, input, and preference combinations.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: Media queries should target named devices such as iPhone and desktop."
+      "correction": "Devices vary endlessly; layouts should change where their content stops working. Choose content-based breakpoints (in rem), and also respond to user preferences like colour scheme and contrast.",
+      "diagnosticPrompt": "In \"Navigation that changes when it stops fitting\", how was the breakpoint chosen?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Media and feature queries, where rules size, place, and paint existing content.",
+    "example": "Media queries are like **dressing for the weather, not the calendar**: you put on a coat when it's cold (content stops fitting), not on a fixed date (a device width).",
     "usefulFor": [
-      "Building a first mental model for Media and feature queries before using exact platform terms"
+      "remembering content decides breakpoints",
+      "preferences are part of the weather"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "Device labels are unreliable, viewport width can change, feature combinations matter, and queries do not change DOM semantics."
+      "Weather changes without warning; so do new devices.",
+      "@supports is like checking whether the shop sells umbrellas before relying on one."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Navigation changes layout when its content no longer fits, not at a guessed tablet model width.",
-      "Media queries condition styles on media features such as width, orientation, pointer, hover, contrast, color scheme, and motion preference.",
-      "Choose breakpoints from content and capabilities, not device brands, and test resize, zoom, input, and preference combinations."
+      ".nav__list { flex-direction: column }",
+      "@media (min-width: 46rem) { .nav__list { flex-direction: row } }",
+      "widths 412px, 700px, 1000px"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Find break",
         "state": {
-          "evidence": "Navigation changes layout when its content no longer fits, not at a guessed tablet model width."
+          "links fit in a row from": "≈46rem"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "Resizing reveals where the navigation content no longer fits."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Query",
         "state": {
-          "rule": "Media queries condition styles on media features such as width, orientation, pointer, hover, contrast, color scheme, and motion preference."
+          "below 46rem": "column",
+          "46rem and up": "row"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Navigation changes layout when its content no longer fits."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Test",
         "state": {
-          "correction": "Choose breakpoints from content and capabilities, not device brands, and test resize, zoom, input, and preference combinations."
+          "412px": "column",
+          "1000px": "row",
+          "150% text": "switches earlier"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Media queries should target named devices such as iPhone and desktop."
+        "explanation": "Not a guessed tablet model width: the rem breakpoint also tracks text size."
       }
     ],
-    "textAlternative": "Starting artifact: Navigation changes layout when its content no longer fits, not at a guessed tablet model width. Step 1, Artifact. State: evidence: Navigation changes layout when its content no longer fits, not at a guessed tablet model width.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Media queries condition styles on media features such as width, orientation, pointer, hover, contrast, color scheme, and motion preference.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Choose breakpoints from content and capabilities, not device brands, and test resize, zoom, input, and preference combinations.. Check the result against the boundary and reject this misconception: Media queries should target named devices such as iPhone and desktop."
+    "textAlternative": "Choosing a content-based breakpoint. Step 1, Find break: links fit in a row from is ≈46rem. Resizing reveals where the navigation content no longer fits. Step 2, Query: below 46rem is column; 46rem and up is row. Navigation changes layout when its content no longer fits. Step 3, Test: 412px is column; 1000px is row; 150% text is switches earlier. Not a guessed tablet model width: the rem breakpoint also tracks text size."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Media and feature queries: concrete case”: state its starting evidence, apply the Media and feature queries rule, and give the observable result in three short lines.",
+      "prompt": "For \"Navigation that changes when it stops fitting\", explain how the navigation changes layout when its content no longer fits, not at a guessed tablet model width, and how you test it.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Finding the break.",
+        "Query.",
+        "Tests."
       ],
       "expectedEvidence": [
-        "Named example: Media and feature queries: concrete case.",
-        "Starting evidence: Navigation changes layout when its content no longer fits, not at a guessed tablet model width.",
-        "Core rule: Media queries condition styles on media features such as width, orientation, pointer, hover, contrast, color scheme, and motion preference.",
-        "Observable result: The result follows because Choose breakpoints from content and capabilities, not device brands, and test resize, zoom, input, and preference combinations.",
-        "Boundary check: Choose breakpoints from content and capabilities, not device brands, and test resize, zoom, input, and preference combinations."
+        "Names the example \"Navigation that changes when it stops fitting\": navigation changes layout when its content no longer fits.",
+        "Not at a guessed tablet model width.",
+        "The breakpoint is 46rem, found by resizing.",
+        "Tested at several widths and with larger text."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Device labels are unreliable, viewport width can change, feature combinations matter, and queries do not change DOM semantics.",
+      "prompt": "Write queries so a hover-only tooltip style applies only on devices that can hover, and a dark palette applies when the user prefers dark.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "(hover: hover).",
+        "prefers-color-scheme."
       ],
       "expectedEvidence": [
-        "Media queries condition styles on media features such as width, orientation, pointer, hover, contrast, color scheme, and motion preference.",
-        "Device labels are unreliable, viewport width can change, feature combinations matter, and queries do not change DOM semantics."
+        "`@media (hover: hover) { … }` for hover styles.",
+        "`@media (prefers-color-scheme: dark) { :root { … } }`."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Media and feature queries and explain why the misconception fails.",
+      "prompt": "Take a page with device-named breakpoints. Replace them with content-based rem breakpoints, add dark and more-contrast support via tokens, and test all combinations in DevTools.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Resize to find real breaks.",
+        "Emulate preferences."
       ],
       "expectedEvidence": [
-        "Implement and test layout, color-scheme and contrast adaptations.",
-        "Choose breakpoints from content and capabilities, not device brands, and test resize, zoom, input, and preference combinations."
+        "Content-based breakpoints only.",
+        "Light, dark and high-contrast all readable."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.responsive.media.misconception",
-      "explanation": "Choose breakpoints from content and capabilities, not device brands, and test resize, zoom, input, and preference combinations.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'content and capabilities' and state the decisive evidence."
+      "explanation": "Delete your breakpoints, make the base layout work at 320px, then widen slowly. Add a query only at the width where something looks broken — and write it in rem.",
+      "retryPrompt": "Apply this to \"Dark mode with unreadable borders\" too: which tokens are missing?"
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test layout, color-scheme and contrast adaptations. Keep this boundary in view: Device labels are unreliable, viewport width can change, feature combinations matter, and queries do not change DOM semantics.",
+    "summary": "To implement and test layout, colour-scheme and contrast adaptations, write mobile-first base styles, add rem-based width queries where content breaks, respond to prefers-color-scheme and prefers-contrast through tokens, guard new features with @supports, and test with DevTools emulation.",
     "retrievalPrompts": [
-      "Explain Media and feature queries using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: Media queries should target named devices such as iPhone and desktop.",
-      "Apply checkpoint 'content and capabilities' to a new artifact."
+      "How should breakpoints be chosen?",
+      "Why write breakpoints in rem?",
+      "Which query responds to a user's dark-mode setting?"
     ],
     "nextReviewPrompt": "Next: continue to “Container queries”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

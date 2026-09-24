@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A C module boundary places stable public declarations and documented contracts in a header and keeps private helpers and representations inside source files.",
+    "summary": "A **module** is a header (the public promise) plus a .c file (the private implementation). The header should hold only what callers need: types they use, function prototypes, and **documented contracts** (who owns what, what NULL means, error returns), wrapped in an **include guard**. Everything else stays in the .c file: helper functions marked `static`, and ideally even the struct's layout. An **opaque type** (`typedef struct Stack Stack;` with no body in the header) lets callers hold `Stack *` pointers but never touch the fields, so you can change the representation without breaking them. A good header also **includes what it needs** itself, so it compiles on its own.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A stack header declares an incomplete struct Stack and public functions while stack.c defines representation and private resize helpers. Your goal is to create a self-contained header and matching implementation for a small module. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner puts the whole stack implementation (struct fields, helper functions and all) into stack.h. Two .c files include it, and the build fails with duplicate definitions. When it's fixed, other code starts poking `s->items` directly, and changing the representation breaks everything. A stack header declares an incomplete struct Stack and public functions while stack.c defines representation and private resize helpers. In this lesson you'll create a self-contained header and matching implementation for a small module.\n\n```predict\n{\"question\": \"With `typedef struct Stack Stack;` (no body) in the header, can main.c read s->len?\", \"options\": [\"Yes\", \"No: the struct is incomplete there, so only pointers and the public functions work\"], \"answer\": 1, \"why\": \"That's the point: callers depend on the interface, not the layout.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Failure-safe cleanup; Scope, linkage and storage duration; Declarations, prototypes and definitions; Type aliases and API clarity. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Failure-safe cleanup**, **Scope, linkage and storage duration**, **Declarations, prototypes and definitions** and **Type aliases and API clarity**."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "A C module boundary places stable public declarations and documented contracts in a header and keeps private helpers and representations inside source files. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The rule: public promise in .h, private details in .c",
+        "body": "```c\n/* stack.h: public interface. */\n#ifndef STACK_H\n#define STACK_H\n#include <stdbool.h>\n#include <stddef.h>\n\ntypedef struct Stack Stack;          /* opaque: layout hidden. */\n\n/* Returns NULL on allocation failure. Caller owns the stack; free with stack_destroy. */\nStack *stack_create(void);\nvoid   stack_destroy(Stack *s);      /* accepts NULL. */\nbool   stack_push(Stack *s, int v);  /* false on allocation failure. */\nbool   stack_pop(Stack *s, int *out);/* false if empty. */\nsize_t stack_size(const Stack *s);\n#endif\n```\n\n```c\n/* stack.c: private implementation. */\n#include \"stack.h\"\n#include <stdlib.h>\n\nstruct Stack { int *items; size_t len, cap; };   /* only this file sees fields. */\n\nstatic bool grow(Stack *s) {                     /* private helper. */\n    size_t cap = s->cap ? s->cap * 2 : 8;\n    int *p = realloc(s->items, cap * sizeof *p);\n    if (!p) return false;\n    s->items = p; s->cap = cap;\n    return true;\n}\n/* ... stack_create, stack_push (calls grow), etc. ... */\n```\n\n```reveal\n{\"prompt\": \"What does \\\"self-contained header\\\" mean?\", \"answer\": \"A .c file containing only #include \\\"stack.h\\\" compiles. The header includes stdbool.h and stddef.h itself instead of relying on callers to include them first.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "C has no standard module privacy for ordinary headers, exposed structure definitions freeze layout, and circular includes signal poorly separated dependencies. Therefore the draft explicitly rejects this beginner failure model: Every function and structure definition should be placed in a header so all source files can share it."
+        "heading": "What goes where",
+        "body": "```predict\n{\"question\": \"Where should `static bool grow(Stack *s)` be declared?\", \"options\": [\"In stack.h\", \"Only in stack.c: it's a private helper\"], \"answer\": 1, \"why\": \"static gives it internal linkage; putting it in the header would copy it into every includer.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Separate public declarations from private definitions without duplicate-definition hazards.",
-      "Create a self-contained header and matching implementation for a small module."
+      "Put public types, prototypes and documented contracts in a guarded, self-contained header.",
+      "Keep representations and static helpers in the .c file, using opaque types."
     ],
     "excludes": [
-      "C has no standard module privacy for ordinary headers, exposed structure definitions freeze layout, and circular includes signal poorly separated dependencies."
+      "Building and linking multiple files (next lessons).",
+      "Shared libraries and symbol visibility."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "c.modular.headers.example-a",
-      "title": "Header interfaces and include guards: defined case",
+      "title": "A stack with a hidden inside",
       "situation": "A stack header declares an incomplete struct Stack and public functions while stack.c defines representation and private resize helpers.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A stack header declares an incomplete struct Stack and public functions while stack.c defines representation and private resize helpers.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Expose only required declarations and contracts in headers; keep ordinary external definitions and private implementation details in source files."
+        "**A stack header declares an incomplete struct Stack:** typedef struct Stack Stack; with no body.",
+        "**And public functions:** create, destroy, push, pop and size, each with its ownership and error contract.",
+        "**stack.c defines representation and private resize helpers:** struct Stack and static grow live only there; switching to a linked list later will not break any caller."
       ],
-      "result": "The defined result follows because Expose only required declarations and contracts in headers; keep ordinary external definitions and private implementation details in source files."
+      "result": "Callers use a clean interface, and the implementation can change freely."
     },
     {
       "id": "c.modular.headers.example-b",
-      "title": "Header interfaces and include guards: boundary case",
-      "situation": "Headers include only dependencies needed for their own declarations and use guards so inclusion order does not alter validity.",
+      "title": "The header that needed friends",
+      "situation": "main.c compiles, but test.c fails with \"unknown type name 'bool'\" when it includes stack.h first.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: Headers include only dependencies needed for their own declarations and use guards so inclusion order does not alter validity.",
-        "Step 2 — Keep this standard boundary visible: C has no standard module privacy for ordinary headers, exposed structure definitions freeze layout, and circular includes signal poorly separated dependencies.",
-        "Step 3 — Reject the tempting rule: Every function and structure definition should be placed in a header so all source files can share it."
+        "stack.h used bool without including stdbool.h.",
+        "main.c happened to include it earlier, hiding the bug.",
+        "Add the needed includes to stack.h; test with a file that includes only it."
       ],
-      "result": "This case demonstrates the declared outcome: Create a self-contained header and matching implementation for a small module."
+      "result": "The header works in any include order."
     }
   ],
   "misconceptions": [
     {
       "id": "c.modular.headers.misconception",
       "mistakenBelief": "Every function and structure definition should be placed in a header so all source files can share it.",
-      "correction": "Expose only required declarations and contracts in headers; keep ordinary external definitions and private implementation details in source files.",
-      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: Every function and structure definition should be placed in a header so all source files can share it."
+      "correction": "Headers are pasted into every includer, so definitions there get duplicated and expose private details. Headers declare; one .c file defines.",
+      "diagnosticPrompt": "In the opening story, why did the build report duplicate definitions?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A manually managed workshop can model Header interfaces and include guards: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "example": "A module is like **a vending machine**. The header is **the front panel**: buttons, prices, \"out of stock returns your money\". The .c file is **the inside**: gears and stock layout, locked away. Customers can't reach in (opaque type), so the owner can rearrange the inside without retraining anyone.",
     "usefulFor": [
-      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+      "remembering panel vs inside",
+      "opaque = locked door"
     ],
     "limitations": [
-      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
-      "C has no standard module privacy for ordinary headers, exposed structure definitions freeze layout, and circular includes signal poorly separated dependencies."
+      "Vending machines rarely change panels; headers should change even less.",
+      "The contract printed on the panel is the documentation."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A stack header declares an incomplete struct Stack and public functions while stack.c defines representation and private resize helpers.",
-      "A C module boundary places stable public declarations and documented contracts in a header and keeps private helpers and representations inside source files.",
-      "Expose only required declarations and contracts in headers; keep ordinary external definitions and private implementation details in source files."
+      "main.c includes stack.h",
+      "stack_create(); stack_push(s, 5)",
+      "s->len in main.c?"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Include",
         "state": {
-          "evidence": "A stack header declares an incomplete struct Stack and public functions while stack.c defines representation and private resize helpers."
+          "visible": "Stack (incomplete), prototypes"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "The stack header declares an incomplete struct Stack and public functions."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Use",
         "state": {
-          "rule": "A C module boundary places stable public declarations and documented contracts in a header and keeps private helpers and representations inside source files."
+          "s": "Stack *",
+          "push": "true"
         },
-        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+        "explanation": "Callers work only through the public functions and their contracts."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Hide",
         "state": {
-          "conclusion": "Expose only required declarations and contracts in headers; keep ordinary external definitions and private implementation details in source files."
+          "s->len": "compile error in main.c"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: Every function and structure definition should be placed in a header so all source files can share it."
+        "explanation": "stack.c defines the representation and private resize helpers."
       }
     ],
-    "textAlternative": "Starting artifact: A stack header declares an incomplete struct Stack and public functions while stack.c defines representation and private resize helpers. Step 1, Source and state. State: evidence: A stack header declares an incomplete struct Stack and public functions while stack.c defines representation and private resize helpers.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A C module boundary places stable public declarations and documented contracts in a header and keeps private helpers and representations inside source files.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Expose only required declarations and contracts in headers; keep ordinary external definitions and private implementation details in source files.. Check the conclusion against the boundary and reject this misconception: Every function and structure definition should be placed in a header so all source files can share it."
+    "textAlternative": "Tracing an opaque module. Step 1, Include: visible is Stack (incomplete), prototypes. The stack header declares an incomplete struct Stack and public functions. Step 2, Use: s is Stack *; push is true. Callers work only through the public functions and their contracts. Step 3, Hide: s->len is compile error in main.c. stack.c defines the representation and private resize helpers."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Header interfaces and include guards: defined case”: state its starting evidence, apply the Header interfaces and include guards rule, and give the observable result in three short lines.",
+      "prompt": "For \"A stack with a hidden inside\", explain how a stack header declares an incomplete struct Stack and public functions while stack.c defines representation and private resize helpers.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Declare.",
+        "Use.",
+        "Hide."
       ],
       "expectedEvidence": [
-        "Named example: Header interfaces and include guards: defined case.",
-        "Starting evidence: A stack header declares an incomplete struct Stack and public functions while stack.c defines representation and private resize helpers.",
-        "Core rule: A C module boundary places stable public declarations and documented contracts in a header and keeps private helpers and representations inside source files.",
-        "Observable result: The defined result follows because Expose only required declarations and contracts in headers; keep ordinary external definitions and private implementation details in source files.",
-        "Boundary check: Expose only required declarations and contracts in headers; keep ordinary external definitions and private implementation details in source files."
+        "Names the example \"A stack with a hidden inside\": everything lived in stack.h.",
+        "A stack header declares an incomplete struct Stack and public functions.",
+        "stack.c defines representation and private resize helpers.",
+        "The implementation can change freely."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same C rule to this related boundary case: Headers include only dependencies needed for their own declarations and use guards so inclusion order does not alter validity.",
+      "prompt": "Split a single-file counter program into counter.h (opaque Counter, create/increment/get/destroy) and counter.c. Prove the header is self-contained with a file that includes only it.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Include guard.",
+        "Document ownership."
       ],
       "expectedEvidence": [
-        "A C module boundary places stable public declarations and documented contracts in a header and keeps private helpers and representations inside source files.",
-        "C has no standard module privacy for ordinary headers, exposed structure definitions freeze layout, and circular includes signal poorly separated dependencies."
+        "Clean build.",
+        "Fields inaccessible from main.c."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new C example for Header interfaces and include guards, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Write a queue module with an opaque type, documented contracts for every function (NULL, empty, allocation failure), private helpers and tests. Then change its internal representation and show no caller needs changes.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Circular buffer, then linked list.",
+        "Tests use only the public API."
       ],
       "expectedEvidence": [
-        "Create a self-contained header and matching implementation for a small module.",
-        "Expose only required declarations and contracts in headers; keep ordinary external definitions and private implementation details in source files."
+        "Tests pass for both representations.",
+        "Header unchanged."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "c.modular.headers.misconception",
-      "explanation": "Expose only required declarations and contracts in headers; keep ordinary external definitions and private implementation details in source files.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'required declarations' and state the decisive evidence: Headers include only dependencies needed for their own declarations and use guards so inclusion order does not alter validity."
+      "explanation": "For each item ask: **does a caller need this to use the module?** Yes: header, with a documented contract. No: .c file, static if it's a function.",
+      "retryPrompt": "Apply this to \"The header that needed friends\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to create a self-contained header and matching implementation for a small module. Keep this boundary in view: C has no standard module privacy for ordinary headers, exposed structure definitions freeze layout, and circular includes signal poorly separated dependencies.",
+    "summary": "To create a self-contained module, put only public types, prototypes and documented ownership and error contracts in a guarded header that includes what it needs, keep representations and static helpers in the .c file, and use opaque types so callers can't depend on the layout.",
     "retrievalPrompts": [
-      "Explain Header interfaces and include guards using a concrete C rule rather than the optional analogy.",
-      "Why is this claim incorrect: Every function and structure definition should be placed in a header so all source files can share it.",
-      "Apply the checkpoint 'required declarations' to the boundary case from memory."
+      "What belongs in a header?",
+      "What is an opaque type?",
+      "Why mark helpers static?"
     ],
     "nextReviewPrompt": "Next: continue to “Preprocessor and macros”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

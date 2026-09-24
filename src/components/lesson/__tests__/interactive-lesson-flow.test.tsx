@@ -15,6 +15,16 @@ beforeAll(async () => {
   lesson = (await repository.getAuthoredLesson("pf.computing.program"))!;
 });
 
+
+// Walkthrough steps are authored as inline markdown; match the rendered text of the innermost element.
+function renderedMarkdown(source: string) {
+  const plain = source.replace(/\*\*|`/g, "");
+  return (_: string, element: Element | null) =>
+    element !== null &&
+    element.textContent === plain &&
+    !Array.from(element.children).some((child) => child.textContent === plain);
+}
+
 describe("interactive authored lesson flow", () => {
   it("uses unique landmark and heading ids with a stable sources label", () => {
     const { container } = render(<InteractiveLessonFlow lesson={lesson} />);
@@ -63,10 +73,10 @@ describe("interactive authored lesson flow", () => {
     render(<InteractiveLessonFlow lesson={lesson} />);
 
     expect(screen.getByText(`Step 1 of ${lesson.examples[0]!.walkthrough.length}`)).toBeInTheDocument();
-    expect(screen.getByText(lesson.examples[0]!.walkthrough[0]!)).toBeInTheDocument();
+    expect(screen.getByText(renderedMarkdown(lesson.examples[0]!.walkthrough[0]!))).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Next worked step" }));
     expect(screen.getByText(`Step 2 of ${lesson.examples[0]!.walkthrough.length}`)).toBeInTheDocument();
-    expect(screen.getByText(lesson.examples[0]!.walkthrough[1]!)).toBeInTheDocument();
+    expect(screen.getByText(renderedMarkdown(lesson.examples[0]!.walkthrough[1]!))).toBeInTheDocument();
   });
 
   it("gives immediate misconception feedback without awarding official evidence", async () => {

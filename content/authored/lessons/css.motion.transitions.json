@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Transitions interpolate animatable property values when computed values change, using declared duration, delay, and easing.",
+    "summary": "**Transforms** move, scale or rotate an element visually without affecting layout. **Transitions** animate a property smoothly **between two states** when it changes (`transition: transform 150ms ease-out`). **Animations** (`@keyframes`) run defined sequences. Good motion has a **purpose** — showing a state change — and a clear start, end and **interruption** behaviour. Name the exact properties you animate; `transition: all` animates things you never intended and can be slow.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A disclosure icon rotates briefly when aria-expanded changes while the content state updates immediately. Your goal is to implement purposeful state motion and explain its start, end and interruption behavior. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "An FAQ question has an arrow that should rotate when the answer opens. The developer writes `transition: all 0.5s` on the whole item — and now the text colour, padding and height all wobble for half a second, and fast clicking leaves it confused. A disclosure icon rotates briefly when aria-expanded changes, while the content state updates immediately. In this lesson you'll implement purposeful state motion and explain its start, end and interruption behaviour.\n\n```predict\n{\"question\": \"What does `transition: all 0.5s` animate?\", \"options\": [\"Only the thing you meant\", \"Every animatable property that changes — including ones you didn't plan\"], \"answer\": 1, \"why\": \"Listing exact properties keeps motion intentional and cheaper to render.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Flexbox and Grid; Typography, color and visual treatment; Pseudo-classes and pseudo-elements; Stacking contexts and z-order. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Flexbox and Grid** and **Typography, color and visual treatment** modules, plus **Pseudo-classes and pseudo-elements** and **Stacking contexts and z-order** (transforms create stacking contexts)."
       },
       {
-        "heading": "Technology rule",
-        "body": "Transitions interpolate animatable property values when computed values change, using declared duration, delay, and easing. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: state change + targeted transition",
+        "body": "```html\n<button class=\"faq__toggle\" aria-expanded=\"false\" aria-controls=\"a1\">\n  How long is the course? <span class=\"faq__icon\" aria-hidden=\"true\">▸</span>\n</button>\n<div id=\"a1\" hidden>About six weeks.</div>\n```\n\n```css\n.faq__icon { display: inline-block; transition: transform 150ms ease-out; }\n.faq__toggle[aria-expanded=\"true\"] .faq__icon { transform: rotate(90deg); }\n```\n\n| Moment | What happens |\n|---|---|\n| start. | aria-expanded flips to true; content shows immediately. |\n| during. | icon rotates 0° → 90° over 150ms. |\n| end. | icon rests at 90°. |\n| interrupted (clicked again mid-way). | transition reverses from its current angle. |\n\n```reveal\n{\"prompt\": \"Why animate transform and opacity rather than width or top?\", \"answer\": \"Transform and opacity can usually be animated without re-running layout, so they stay smooth. Animating layout properties forces recalculation every frame.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Display does not generally interpolate like opacity, layout properties can be expensive, and motion must not hide state or block interaction. This draft therefore rejects: transition: all is the safest way to animate every visual change consistently."
+        "heading": "Motion should explain, not delay",
+        "body": "```predict\n{\"question\": \"Should the answer's content wait until the arrow finishes rotating before appearing?\", \"options\": [\"Yes, for polish\", \"No — update the content immediately; motion is a hint\"], \"answer\": 1, \"why\": \"State must never depend on an animation finishing. Motion supports understanding; it shouldn't block it.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Animate composite-friendly properties for feedback without making content inaccessible or disorienting.",
-      "Implement purposeful state motion and explain its start, end and interruption behavior."
+      "Use transforms, targeted transitions and keyframes for purposeful state changes.",
+      "Explain start, end and interruption behaviour and avoid transition: all."
     ],
     "excludes": [
-      "Display does not generally interpolate like opacity, layout properties can be expensive, and motion must not hide state or block interaction."
+      "JavaScript animation libraries.",
+      "View transitions API."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "css.motion.transitions.example-a",
-      "title": "Transforms, transitions and animations: concrete case",
+      "title": "A disclosure arrow that rotates",
       "situation": "A disclosure icon rotates briefly when aria-expanded changes while the content state updates immediately.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A disclosure icon rotates briefly when aria-expanded changes while the content state updates immediately.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Transition only deliberate properties with measured timing; avoid transition:all and keep state understandable without motion."
+        "**State:** clicking the button flips `aria-expanded` to true and removes `hidden` from the answer — the content state updates immediately.",
+        "**Motion:** `.faq__icon { transition: transform 150ms ease-out }` rotates the disclosure icon to 90°.",
+        "**Interruption:** clicking again mid-rotation will reverse the transition from its current angle — no jump, no stuck state."
       ],
-      "result": "The result follows because Transition only deliberate properties with measured timing; avoid transition:all and keep state understandable without motion."
+      "result": "The arrow's brief rotation explains the change, while the answer appears instantly."
     },
     {
       "id": "css.motion.transitions.example-b",
-      "title": "Transforms, transitions and animations: boundary case",
-      "situation": "Display does not generally interpolate like opacity, layout properties can be expensive, and motion must not hide state or block interaction.",
+      "title": "The wobbling card",
+      "situation": "Cards have `transition: all 0.4s` for a hover lift. On theme switch, every card's colours fade slowly and the page looks broken for half a second.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Display does not generally interpolate like opacity, layout properties can be expensive, and motion must not hide state or block interaction.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: transition: all is the safest way to animate every visual change consistently."
+        "`all` includes colours, borders and shadows.",
+        "The theme change wasn't meant to be animated.",
+        "Fix: `transition: transform 150ms, box-shadow 150ms` only."
       ],
-      "result": "The boundary requires this correction: Transition only deliberate properties with measured timing; avoid transition:all and keep state understandable without motion."
+      "result": "Hover lift stays smooth, and theme changes are instant."
     }
   ],
   "misconceptions": [
     {
       "id": "css.motion.transitions.misconception",
       "mistakenBelief": "transition: all is the safest way to animate every visual change consistently.",
-      "correction": "Transition only deliberate properties with measured timing; avoid transition:all and keep state understandable without motion.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: transition: all is the safest way to animate every visual change consistently."
+      "correction": "all animates every changing property, including ones that shouldn't move and expensive layout properties. List exact properties (usually transform and opacity) and keep state changes independent of the animation.",
+      "diagnosticPrompt": "In \"The wobbling card\", what did transition: all accidentally animate?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Transforms, transitions and animations, where rules size, place, and paint existing content.",
+    "example": "A good transition is like a **door closer**: it makes the door's movement smooth and predictable, but the door is already open or shut — you don't wait for the closer to decide.",
     "usefulFor": [
-      "Building a first mental model for Transforms, transitions and animations before using exact platform terms"
+      "remembering motion follows state",
+      "smooth start, end and reversal"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "Display does not generally interpolate like opacity, layout properties can be expensive, and motion must not hide state or block interaction."
+      "Doors don't get interrupted mid-swing often; UI clicks do.",
+      "A closer on every door and window (transition: all) gets annoying."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A disclosure icon rotates briefly when aria-expanded changes while the content state updates immediately.",
-      "Transitions interpolate animatable property values when computed values change, using declared duration, delay, and easing.",
-      "Transition only deliberate properties with measured timing; avoid transition:all and keep state understandable without motion."
+      "<button aria-expanded='false'>… <span class='faq__icon'>▸</span>",
+      "click → aria-expanded='true'",
+      "click again at 75ms"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Start",
         "state": {
-          "evidence": "A disclosure icon rotates briefly when aria-expanded changes while the content state updates immediately."
+          "aria-expanded": "true",
+          "answer": "visible immediately"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The content state updates immediately when aria-expanded changes."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Rotate",
         "state": {
-          "rule": "Transitions interpolate animatable property values when computed values change, using declared duration, delay, and easing."
+          "icon": "0° → 90° over 150ms"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The disclosure icon rotates briefly via a transform transition."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Interrupt",
         "state": {
-          "correction": "Transition only deliberate properties with measured timing; avoid transition:all and keep state understandable without motion."
+          "at 75ms": "reverses from ~45°"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: transition: all is the safest way to animate every visual change consistently."
+        "explanation": "A second click reverses the transition smoothly from its current angle."
       }
     ],
-    "textAlternative": "Starting artifact: A disclosure icon rotates briefly when aria-expanded changes while the content state updates immediately. Step 1, Artifact. State: evidence: A disclosure icon rotates briefly when aria-expanded changes while the content state updates immediately.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Transitions interpolate animatable property values when computed values change, using declared duration, delay, and easing.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Transition only deliberate properties with measured timing; avoid transition:all and keep state understandable without motion.. Check the result against the boundary and reject this misconception: transition: all is the safest way to animate every visual change consistently."
+    "textAlternative": "A purposeful state transition. Step 1, Start: aria-expanded is true; answer is visible immediately. The content state updates immediately when aria-expanded changes. Step 2, Rotate: icon is 0° → 90° over 150ms. The disclosure icon rotates briefly via a transform transition. Step 3, Interrupt: at 75ms is reverses from ~45°. A second click reverses the transition smoothly from its current angle."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Transforms, transitions and animations: concrete case”: state its starting evidence, apply the Transforms, transitions and animations rule, and give the observable result in three short lines.",
+      "prompt": "For \"A disclosure arrow that rotates\", explain how the disclosure icon rotates briefly when aria-expanded changes while the content state updates immediately, and what happens if interrupted.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "State.",
+        "Motion.",
+        "Interruption."
       ],
       "expectedEvidence": [
-        "Named example: Transforms, transitions and animations: concrete case.",
-        "Starting evidence: A disclosure icon rotates briefly when aria-expanded changes while the content state updates immediately.",
-        "Core rule: Transitions interpolate animatable property values when computed values change, using declared duration, delay, and easing.",
-        "Observable result: The result follows because Transition only deliberate properties with measured timing; avoid transition:all and keep state understandable without motion.",
-        "Boundary check: Transition only deliberate properties with measured timing; avoid transition:all and keep state understandable without motion."
+        "Names the example \"A disclosure arrow that rotates\": a disclosure icon rotates briefly when aria-expanded changes.",
+        "The content state updates immediately.",
+        "The rotation is a 150ms transform transition.",
+        "Interrupted, it reverses smoothly."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Display does not generally interpolate like opacity, layout properties can be expensive, and motion must not hide state or block interaction.",
+      "prompt": "Write a hover/focus effect that lifts a card 4px with a shadow, animating only the right properties.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "transform: translateY.",
+        "Include :focus-visible."
       ],
       "expectedEvidence": [
-        "Transitions interpolate animatable property values when computed values change, using declared duration, delay, and easing.",
-        "Display does not generally interpolate like opacity, layout properties can be expensive, and motion must not hide state or block interaction."
+        "`.card { transition: transform 150ms, box-shadow 150ms }`.",
+        "`.card:hover, .card:focus-visible { transform: translateY(-4px); box-shadow: … }`."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Transforms, transitions and animations and explain why the misconception fails.",
+      "prompt": "Add one purposeful transition and one keyframe animation (e.g. a loading spinner) to a page. For each, write its start, end and interruption behaviour, and prove the state never waits for the animation.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Use transform/opacity.",
+        "Test fast repeated clicks."
       ],
       "expectedEvidence": [
-        "Implement purposeful state motion and explain its start, end and interruption behavior.",
-        "Transition only deliberate properties with measured timing; avoid transition:all and keep state understandable without motion."
+        "Two purposeful motions with documented behaviour.",
+        "State changes verified as immediate."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.motion.transitions.misconception",
-      "explanation": "Transition only deliberate properties with measured timing; avoid transition:all and keep state understandable without motion.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'deliberate properties' and state the decisive evidence."
+      "explanation": "For each animation answer: **What state change does it explain? Which exact properties move? What happens if the user interrupts it? Does anything wait for it?**",
+      "retryPrompt": "Answer these for \"The wobbling card\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement purposeful state motion and explain its start, end and interruption behavior. Keep this boundary in view: Display does not generally interpolate like opacity, layout properties can be expensive, and motion must not hide state or block interaction.",
+    "summary": "To implement purposeful state motion, change state immediately, animate only named properties (usually transform and opacity) with short transitions, and make start, end and interruption behaviour predictable — never use transition: all as a default.",
     "retrievalPrompts": [
-      "Explain Transforms, transitions and animations using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: transition: all is the safest way to animate every visual change consistently.",
-      "Apply checkpoint 'deliberate properties' to a new artifact."
+      "Why avoid transition: all?",
+      "Which properties animate most smoothly?",
+      "Should content wait for an animation to finish?"
     ],
     "nextReviewPrompt": "Next: continue to “Reduced motion and input preferences”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

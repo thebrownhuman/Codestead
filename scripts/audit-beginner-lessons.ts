@@ -42,7 +42,7 @@ async function main() {
     if (!course || !courseModule || !skill) throw new Error(`Missing manifest context for ${lesson.skillId}.`);
     const issues = auditBeginnerLessonQuality(
       lesson,
-      createBeginnerQualityContext(course, courseModule, skill),
+      createBeginnerQualityContext(course, courseModule, skill, [...courses.values()]),
     );
     if (issues.length > 0) {
       failingLessons += 1;

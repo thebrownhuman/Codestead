@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Virtual dispatch selects the final overrider through a base reference or pointer, and a polymorphic base intended for deletion needs a virtual destructor.",
+    "summary": "A **virtual** function is chosen at **run time** based on the object's **actual (dynamic) type**, when it's called **through a base reference or pointer**. Without `virtual`, a call through `Shape&` always runs Shape's version. Mark overrides with **`override`** so the compiler catches signature typos. A **pure virtual** function (`= 0`) makes the class **abstract**: an interface you can't instantiate. And any base class you'll `delete` through a base pointer (for example via `unique_ptr<Shape>`) needs a **virtual destructor**, or the derived part's destructor never runs.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A vector of unique_ptr<Shape> calls virtual draw on each dynamic object and deletes safely through Shape because its destructor is virtual. Your goal is to implement and trace runtime dispatch through a small abstract interface. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner stores shapes in `std::vector<std::unique_ptr<Shape>>` and calls draw() on each. Every shape prints \"shape\", because Shape::draw wasn't virtual. After fixing that, a Circle holding a file handle leaks it, because Shape has no virtual destructor. A vector of unique_ptr<Shape> calls virtual draw on each dynamic object and deletes safely through Shape because its destructor is virtual. In this lesson you'll implement and trace runtime dispatch through a small abstract interface.\n\n```predict\n{\"question\": \"Shape::draw is NOT virtual; Circle defines its own draw. Calling draw through a Shape& that refers to a Circle runs...\", \"options\": [\"Circle::draw\", \"Shape::draw: non-virtual calls use the static type\"], \"answer\": 1, \"why\": \"Only virtual functions dispatch on the dynamic type.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Class interface and invariants; unique_ptr, shared_ptr and non-owning access; Public inheritance and substitution. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Class interface and invariants**, **unique_ptr, shared_ptr and non-owning access** and **Public inheritance and substitution**."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "Virtual dispatch selects the final overrider through a base reference or pointer, and a polymorphic base intended for deletion needs a virtual destructor. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The model: dispatch on the dynamic type",
+        "body": "```cpp\n#include <iostream>\n#include <memory>\n#include <vector>\n\nclass Shape {                                    // abstract interface.\npublic:\n    virtual ~Shape() = default;                  // safe deletion through Shape*.\n    virtual void draw() const = 0;               // pure virtual.\n};\n\nclass Circle : public Shape {\npublic:\n    void draw() const override { std::cout << \"circle\\n\"; }\n};\n\nclass Square : public Shape {\npublic:\n    void draw() const override { std::cout << \"square\\n\"; }\n    // void draw() override {}   // error with override: missing const, not an override.\n};\n\nint main() {\n    std::vector<std::unique_ptr<Shape>> shapes;\n    shapes.push_back(std::make_unique<Circle>());\n    shapes.push_back(std::make_unique<Square>());\n    for (const auto& s : shapes) s->draw();      // circle, square: chosen at run time.\n    // Shape s;   error: abstract class.\n}                                                // ~Circle and ~Square run via ~Shape.\n```\n\n| Piece | Purpose |\n|---|---|\n| `virtual`. | dispatch on dynamic type. |\n| `override`. | compiler checks it really overrides. |\n| `= 0`. | must be overridden; class is abstract. |\n| `virtual ~Base()`. | correct destruction through base pointers. |\n\n```reveal\n{\"prompt\": \"What goes wrong without a virtual destructor?\", \"answer\": \"Deleting a Circle through a Shape* is undefined behaviour: typically only ~Shape runs, so the Circle's members (and any resources they own) are never cleaned up.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Calls during construction and destruction dispatch only within the active construction level, default arguments are statically selected, and object slicing removes derived state. Therefore the draft explicitly rejects this beginner failure model: Any same-named derived function is dynamically selected even when the base function is not virtual or the object was copied by value."
+        "heading": "Why override matters",
+        "body": "```predict\n{\"question\": \"Base has `virtual void draw() const`; derived writes `void draw()` (no const). What happens?\", \"options\": [\"It overrides draw\", \"It's a new, unrelated function; base calls still run Shape::draw (override would have caught it)\"], \"answer\": 1, \"why\": \"Always write override on overriding functions.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Define virtual operations, abstract bases and virtual destructors for polymorphic ownership.",
-      "Implement and trace runtime dispatch through a small abstract interface."
+      "Implement abstract interfaces with pure virtual functions and override.",
+      "Trace dynamic dispatch through base references and pointers, and give polymorphic bases virtual destructors."
     ],
     "excludes": [
-      "Calls during construction and destruction dispatch only within the active construction level, default arguments are statically selected, and object slicing removes derived state."
+      "Vtable implementation details.",
+      "final and devirtualisation."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "cpp.polymorphism.virtual.example-a",
-      "title": "Virtual dispatch and abstract interfaces: defined case",
+      "title": "Drawing a mixed list of shapes",
       "situation": "A vector of unique_ptr<Shape> calls virtual draw on each dynamic object and deletes safely through Shape because its destructor is virtual.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A vector of unique_ptr<Shape> calls virtual draw on each dynamic object and deletes safely through Shape because its destructor is virtual.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Runtime dispatch requires a virtual base function and access through a base reference or pointer to an unsliced object."
+        "**A vector of unique_ptr<Shape>:** holds a Circle and a Square.",
+        "**Calls virtual draw on each dynamic object:** the loop prints circle, then square.",
+        "**Deletes safely through Shape because its destructor is virtual:** when shapes is destroyed, ~Circle and ~Square will both run."
       ],
-      "result": "The defined result follows because Runtime dispatch requires a virtual base function and access through a base reference or pointer to an unsliced object."
+      "result": "Each shape draws itself correctly and cleans up completely."
     },
     {
       "id": "cpp.polymorphism.virtual.example-b",
-      "title": "Virtual dispatch and abstract interfaces: boundary case",
-      "situation": "A virtual call from the base constructor does not reach a derived override whose subobject is not yet constructed.",
+      "title": "The typo that didn't override",
+      "situation": "A Triangle defines `void Draw() const` (capital D). Triangles print nothing special.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A virtual call from the base constructor does not reach a derived override whose subobject is not yet constructed.",
-        "Step 2 — Keep this standard boundary visible: Calls during construction and destruction dispatch only within the active construction level, default arguments are statically selected, and object slicing removes derived state.",
-        "Step 3 — Reject the tempting rule: Any same-named derived function is dynamically selected even when the base function is not virtual or the object was copied by value."
+        "Draw is a new function; draw is still the base version.",
+        "Adding override makes the compiler report the mistake immediately.",
+        "Rename to draw and keep override."
       ],
-      "result": "This case demonstrates the declared outcome: Implement and trace runtime dispatch through a small abstract interface."
+      "result": "Triangles draw themselves, and future typos fail to compile."
     }
   ],
   "misconceptions": [
     {
       "id": "cpp.polymorphism.virtual.misconception",
       "mistakenBelief": "Any same-named derived function is dynamically selected even when the base function is not virtual or the object was copied by value.",
-      "correction": "Runtime dispatch requires a virtual base function and access through a base reference or pointer to an unsliced object.",
-      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: Any same-named derived function is dynamically selected even when the base function is not virtual or the object was copied by value."
+      "correction": "Dynamic dispatch needs a virtual base function and a call through a reference or pointer. Non-virtual calls and calls on by-value copies use the static type.",
+      "diagnosticPrompt": "In the opening predict, which draw ran and why?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A system of self-managing components can model Virtual dispatch and abstract interfaces: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "example": "Virtual dispatch is like **a universal remote with a \"power\" button**. Pressing it (calling draw through Shape) makes **whichever device it's pointed at** respond in its own way. Without virtual, the button is **hard-wired to one device** (Shape) whatever you point it at.",
     "usefulFor": [
-      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+      "remembering the device decides",
+      "non-virtual = hard-wired"
     ],
     "limitations": [
-      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
-      "Calls during construction and destruction dispatch only within the active construction level, default arguments are statically selected, and object slicing removes derived state."
+      "Remotes need pairing; override is the pairing check.",
+      "Unplugging a device properly needs its own shutdown (virtual destructor)."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A vector of unique_ptr<Shape> calls virtual draw on each dynamic object and deletes safely through Shape because its destructor is virtual.",
-      "Virtual dispatch selects the final overrider through a base reference or pointer, and a polymorphic base intended for deletion needs a virtual destructor.",
-      "Runtime dispatch requires a virtual base function and access through a base reference or pointer to an unsliced object."
+      "shapes = {Circle, Square}",
+      "for each s: s->draw()",
+      "shapes destroyed"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Store",
         "state": {
-          "evidence": "A vector of unique_ptr<Shape> calls virtual draw on each dynamic object and deletes safely through Shape because its destructor is virtual."
+          "shapes[0]": "Circle",
+          "shapes[1]": "Square"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "A vector of unique_ptr<Shape> holds different dynamic types."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Dispatch",
         "state": {
-          "rule": "Virtual dispatch selects the final overrider through a base reference or pointer, and a polymorphic base intended for deletion needs a virtual destructor."
+          "output": "circle, square"
         },
-        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+        "explanation": "It calls virtual draw on each dynamic object at run time."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Delete",
         "state": {
-          "conclusion": "Runtime dispatch requires a virtual base function and access through a base reference or pointer to an unsliced object."
+          "destructors": "~Circle, ~Shape, ~Square, ~Shape"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: Any same-named derived function is dynamically selected even when the base function is not virtual or the object was copied by value."
+        "explanation": "Deletion through Shape is safe because its destructor is virtual."
       }
     ],
-    "textAlternative": "Starting artifact: A vector of unique_ptr<Shape> calls virtual draw on each dynamic object and deletes safely through Shape because its destructor is virtual. Step 1, Source and state. State: evidence: A vector of unique_ptr<Shape> calls virtual draw on each dynamic object and deletes safely through Shape because its destructor is virtual.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: Virtual dispatch selects the final overrider through a base reference or pointer, and a polymorphic base intended for deletion needs a virtual destructor.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Runtime dispatch requires a virtual base function and access through a base reference or pointer to an unsliced object.. Check the conclusion against the boundary and reject this misconception: Any same-named derived function is dynamically selected even when the base function is not virtual or the object was copied by value."
+    "textAlternative": "Tracing runtime dispatch. Step 1, Store: shapes[0] is Circle; shapes[1] is Square. A vector of unique_ptr<Shape> holds different dynamic types. Step 2, Dispatch: output is circle, square. It calls virtual draw on each dynamic object at run time. Step 3, Delete: destructors is ~Circle, ~Shape, ~Square, ~Shape. Deletion through Shape is safe because its destructor is virtual."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Virtual dispatch and abstract interfaces: defined case”: state its starting evidence, apply the Virtual dispatch and abstract interfaces rule, and give the observable result in three short lines.",
+      "prompt": "For \"Drawing a mixed list of shapes\", explain how a vector of unique_ptr<Shape> calls virtual draw on each dynamic object and deletes safely through Shape because its destructor is virtual.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Store.",
+        "Dispatch.",
+        "Delete."
       ],
       "expectedEvidence": [
-        "Named example: Virtual dispatch and abstract interfaces: defined case.",
-        "Starting evidence: A vector of unique_ptr<Shape> calls virtual draw on each dynamic object and deletes safely through Shape because its destructor is virtual.",
-        "Core rule: Virtual dispatch selects the final overrider through a base reference or pointer, and a polymorphic base intended for deletion needs a virtual destructor.",
-        "Observable result: The defined result follows because Runtime dispatch requires a virtual base function and access through a base reference or pointer to an unsliced object.",
-        "Boundary check: Runtime dispatch requires a virtual base function and access through a base reference or pointer to an unsliced object."
+        "Names the example \"Drawing a mixed list of shapes\": every shape printed \"shape\".",
+        "A vector of unique_ptr<Shape> calls virtual draw on each dynamic object.",
+        "It deletes safely through Shape because its destructor is virtual.",
+        "Each shape draws and cleans up correctly."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same CPP rule to this related boundary case: A virtual call from the base constructor does not reach a derived override whose subobject is not yet constructed.",
+      "prompt": "Add a Triangle to the example with override, then remove virtual from Shape::draw temporarily and predict and observe the output change. Restore it.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Pure virtual needs virtual.",
+        "Try a plain virtual with a default body."
       ],
       "expectedEvidence": [
-        "Virtual dispatch selects the final overrider through a base reference or pointer, and a polymorphic base intended for deletion needs a virtual destructor.",
-        "Calls during construction and destruction dispatch only within the active construction level, default arguments are statically selected, and object slicing removes derived state."
+        "Both outputs explained.",
+        "override catches a deliberate typo."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CPP example for Virtual dispatch and abstract interfaces, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Design an abstract Notifier interface with send(const std::string&) and implementations EmailNotifier and LogNotifier. Store them in a vector<unique_ptr<Notifier>>, send to all, and use destructor prints to prove complete cleanup. Then remove the virtual destructor and run under -fsanitize=address.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Give each implementation a std::string member.",
+        "Observe the sanitizer report."
       ],
       "expectedEvidence": [
-        "Implement and trace runtime dispatch through a small abstract interface.",
-        "Runtime dispatch requires a virtual base function and access through a base reference or pointer to an unsliced object."
+        "Dispatch correct.",
+        "Destructor issue demonstrated and fixed."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "cpp.polymorphism.virtual.misconception",
-      "explanation": "Runtime dispatch requires a virtual base function and access through a base reference or pointer to an unsliced object.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'virtual base function' and state the decisive evidence: A virtual call from the base constructor does not reach a derived override whose subobject is not yet constructed."
+      "explanation": "For each polymorphic hierarchy check: **virtual on the base function, override on each derived one, a virtual destructor on the base, and calls made through references or pointers.**",
+      "retryPrompt": "Apply this to \"The typo that didn't override\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and trace runtime dispatch through a small abstract interface. Keep this boundary in view: Calls during construction and destruction dispatch only within the active construction level, default arguments are statically selected, and object slicing removes derived state.",
+    "summary": "To implement runtime dispatch, declare base functions virtual (pure virtual for abstract interfaces), mark overrides with override, call through base references or pointers so the dynamic type decides, and give any base that's deleted polymorphically a virtual destructor.",
     "retrievalPrompts": [
-      "Explain Virtual dispatch and abstract interfaces using a concrete CPP rule rather than the optional analogy.",
-      "Why is this claim incorrect: Any same-named derived function is dynamically selected even when the base function is not virtual or the object was copied by value.",
-      "Apply the checkpoint 'virtual base function' to the boundary case from memory."
+      "When does a call dispatch on the dynamic type?",
+      "What does override check?",
+      "Why does a polymorphic base need a virtual destructor?"
     ],
     "nextReviewPrompt": "Next: continue to “Slicing and safe downcasts”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

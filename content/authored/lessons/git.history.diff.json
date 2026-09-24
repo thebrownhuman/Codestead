@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A diff compares two explicitly named states, such as working tree to index, index to HEAD, or one commit to another, and reports line-oriented changes rather than intent.",
+    "summary": "A diff always compares **two named states**. `git diff` compares working tree with index (unstaged edits). `git diff --staged` compares index with HEAD (what the next commit will contain). `git diff main..feature` or `git diff A B` compares two commits. Lines starting with `-` were removed and `+` were added, inside **hunks** marked `@@`. A diff shows **what** lines changed, not **why**, and untracked files never appear. Use `--stat` for the file list, `-w` to hide whitespace-only churn, and read every hunk looking for unintended files, noise and real behaviour changes.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: git diff reviews unstaged edits while git diff --staged reviews the snapshot proposed for the next commit. Your goal is to review a patch for unintended files, whitespace-only churn and behavior changes. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner edits two files, stages one, then runs `git diff` to check what they're about to commit. It shows only the unstaged file, and they commit believing the other change isn't included. git diff reviews unstaged edits while git diff --staged reviews the snapshot proposed for the next commit. In this lesson you'll review a patch for unintended files, whitespace-only churn and behavior changes.\n\n```predict\n{\"question\": \"You create a brand-new file, don't add it, and run git diff. Does it appear?\", \"options\": [\"Yes, as all + lines\", \"No: untracked files aren't in either compared state\"], \"answer\": 1, \"why\": \"Use git status to see untracked files, or add them and use git diff --staged.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Selective staging and first commit; Working tree, index and HEAD; Log, show and graph. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Selective staging and first commit**, **Working tree, index and HEAD**, and **Log, show and graph**."
       },
       {
-        "heading": "Operational model",
-        "body": "A diff compares two explicitly named states, such as working tree to index, index to HEAD, or one commit to another, and reports line-oriented changes rather than intent. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The distinction: which two states?",
+        "body": "```bash\ngit diff                      # working tree vs index (unstaged).\ngit diff --staged             # index vs HEAD (next commit).\ngit diff HEAD                 # working tree vs HEAD (both).\ngit diff main..feature        # tip of main vs tip of feature.\ngit diff --stat --staged      # files and line counts only.\ngit diff -w                   # ignore whitespace-only changes.\n```\n\n```diff\n@@ -12,3 +12,4 @@ function total(items) {\n-  return items.reduce((a, b) => a + b.price);\n+  return items.reduce((a, b) => a + b.price, 0);\n+  console.log(\"debug\");     // unintended: remove before committing.\n```\n\n| Look for | Why |\n|---|---|\n| files you didn't mean to touch. | accidental edits, lockfile churn. |\n| whitespace-only hunks. | noise that hides real changes. |\n| changed conditions and returns. | real behaviour changes. |\n| debug lines and secrets. | should never be committed. |\n\n```reveal\n{\"prompt\": \"What does `@@ -12,3 +12,4 @@` mean?\", \"answer\": \"The hunk starts at line 12 and covers 3 lines in the old version and 4 in the new: one line was added overall.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Renames are inferred, binary changes are limited, generated formatting can obscure logic, and an empty diff can mean the wrong pair of states was compared. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: One diff command always shows every change in the repository, including staged, unstaged, and untracked content."
+        "heading": "Review the right diff",
+        "body": "```predict\n{\"question\": \"You want to check exactly what `git commit` will record. Which command?\", \"options\": [\"git diff\", \"git diff --staged\"], \"answer\": 1, \"why\": \"The commit is built from the index, so compare index with HEAD.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Read line-level changes in working, staged and historical comparisons.",
-      "Review a patch for unintended files, whitespace-only churn and behavior changes."
+      "Choose the right diff for unstaged, staged or commit-to-commit comparisons.",
+      "Read hunks for unintended files, whitespace churn, debug lines and behaviour changes."
     ],
     "excludes": [
-      "Renames are inferred, binary changes are limited, generated formatting can obscure logic, and an empty diff can mean the wrong pair of states was compared."
+      "Merge conflict markers (branches module).",
+      "External diff tools configuration."
     ]
   },
   "outcomes": [
@@ -68,133 +69,133 @@
   "examples": [
     {
       "id": "git.history.diff.example-a",
-      "title": "Diffs and patch review: direct case",
+      "title": "Reviewing before the commit",
       "situation": "git diff reviews unstaged edits while git diff --staged reviews the snapshot proposed for the next commit.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: git diff reviews unstaged edits while git diff --staged reviews the snapshot proposed for the next commit.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Name or understand both comparison endpoints and inspect untracked status separately so no category of work is silently omitted."
+        "**Unstaged edits:** git diff shows only styles.css, which isn't staged.",
+        "**Snapshot proposed for the next commit:** git diff --staged reveals cart.js plus a stray console.log.",
+        "**Fix:** remove the debug line, re-add, and git diff --staged will show only the intended fix."
       ],
-      "result": "The case supports the declared outcome because Name or understand both comparison endpoints and inspect untracked status separately so no category of work is silently omitted."
+      "result": "The learner reviews the right comparison and commits only intended lines."
     },
     {
       "id": "git.history.diff.example-b",
-      "title": "Diffs and patch review: boundary case",
-      "situation": "Comparing a release tag with the current branch isolates all committed changes since that release rather than local uncommitted edits.",
+      "title": "The 800-line formatting patch",
+      "situation": "A pull request diff shows 800 changed lines, but the author says they fixed one condition.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: Comparing a release tag with the current branch isolates all committed changes since that release rather than local uncommitted edits.",
-        "Step 2 — Keep this boundary explicit: Renames are inferred, binary changes are limited, generated formatting can obscure logic, and an empty diff can mean the wrong pair of states was compared.",
-        "Step 3 — Reject the documented misconception: One diff command always shows every change in the repository, including staged, unstaged, and untracked content."
+        "git diff -w main..feature hides the whitespace-only reformatting.",
+        "What's left is the single real change: `<` became `<=`.",
+        "Ask for the formatting to go in its own commit so the fix is reviewable."
       ],
-      "result": "This case demonstrates the declared outcome: Review a patch for unintended files, whitespace-only churn and behavior changes."
+      "result": "The real behaviour change is found and reviewed instead of lost in noise."
     }
   ],
   "misconceptions": [
     {
       "id": "git.history.diff.misconception",
       "mistakenBelief": "One diff command always shows every change in the repository, including staged, unstaged, and untracked content.",
-      "correction": "Name or understand both comparison endpoints and inspect untracked status separately so no category of work is silently omitted.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: One diff command always shows every change in the repository, including staged, unstaged, and untracked content."
+      "correction": "Each diff compares exactly two states. Plain git diff misses staged changes, --staged misses unstaged ones, and neither shows untracked files.",
+      "diagnosticPrompt": "In the opening predict, why didn't the new file appear?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A signed lab notebook can model Diffs and patch review: stable entries record why a change happened, named markers identify milestones, and comparisons expose differences.",
+    "example": "A diff is like **comparing two photos of the same room**. You must say which two photos: this morning vs now, or yesterday vs this morning. And an object that's never been photographed (untracked) can't show up in either.",
     "usefulFor": [
-      "Inspecting immutable records, messages, selected versions, differences, and milestone names"
+      "remembering pick two photos",
+      "untracked = never photographed"
     ],
     "limitations": [
-      "Git history is a directed graph with movable references, merges, and content-addressed objects, not a single bound notebook.",
-      "Renames are inferred, binary changes are limited, generated formatting can obscure logic, and an empty diff can mean the wrong pair of states was compared."
+      "Photos show what moved, not why; so do diffs.",
+      "Rearranged furniture (whitespace) can hide the one thing that actually changed."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "git diff reviews unstaged edits while git diff --staged reviews the snapshot proposed for the next commit.",
-      "A diff compares two explicitly named states, such as working tree to index, index to HEAD, or one commit to another, and reports line-oriented changes rather than intent.",
-      "Name or understand both comparison endpoints and inspect untracked status separately so no category of work is silently omitted."
+      "git diff",
+      "git diff --staged",
+      "fix and re-check"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Unstaged",
         "state": {
-          "evidence": "git diff reviews unstaged edits while git diff --staged reviews the snapshot proposed for the next commit."
+          "shows": "styles.css"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "git diff reviews unstaged edits only."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Staged",
         "state": {
-          "model": "A diff compares two explicitly named states, such as working tree to index, index to HEAD, or one commit to another, and reports line-oriented changes rather than intent."
+          "shows": "cart.js + console.log"
         },
-        "explanation": "Apply the declared Diffs and patch review model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "git diff --staged reviews the snapshot proposed for the next commit."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Clean",
         "state": {
-          "correction": "Name or understand both comparison endpoints and inspect untracked status separately so no category of work is silently omitted."
+          "staged": "cart.js fix only"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: One diff command always shows every change in the repository, including staged, unstaged, and untracked content."
+        "explanation": "After removing the debug line, the staged diff matches the intent."
       }
     ],
-    "textAlternative": "Starting artifact: git diff reviews unstaged edits while git diff --staged reviews the snapshot proposed for the next commit. Step 1, Observe. State: evidence: git diff reviews unstaged edits while git diff --staged reviews the snapshot proposed for the next commit.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A diff compares two explicitly named states, such as working tree to index, index to HEAD, or one commit to another, and reports line-oriented changes rather than intent.. Apply the declared Diffs and patch review model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Name or understand both comparison endpoints and inspect untracked status separately so no category of work is silently omitted.. Compare the observation with the correction and reject the misconception: One diff command always shows every change in the repository, including staged, unstaged, and untracked content."
+    "textAlternative": "Tracing two diff comparisons. Step 1, Unstaged: shows is styles.css. git diff reviews unstaged edits only. Step 2, Staged: shows is cart.js + console.log. git diff --staged reviews the snapshot proposed for the next commit. Step 3, Clean: staged is cart.js fix only. After removing the debug line, the staged diff matches the intent."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Diffs and patch review: direct case”: state its starting evidence, apply the Diffs and patch review rule, and give the observable result in three short lines.",
+      "prompt": "For \"Reviewing before the commit\", explain why git diff reviews unstaged edits while git diff --staged reviews the snapshot proposed for the next commit.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Unstaged.",
+        "Staged.",
+        "Clean."
       ],
       "expectedEvidence": [
-        "Named example: Diffs and patch review: direct case.",
-        "Starting evidence: git diff reviews unstaged edits while git diff --staged reviews the snapshot proposed for the next commit.",
-        "Core rule: A diff compares two explicitly named states, such as working tree to index, index to HEAD, or one commit to another, and reports line-oriented changes rather than intent.",
-        "Observable result: The case supports the declared outcome because Name or understand both comparison endpoints and inspect untracked status separately so no category of work is silently omitted.",
-        "Boundary check: Name or understand both comparison endpoints and inspect untracked status separately so no category of work is silently omitted."
+        "Names the example \"Reviewing before the commit\": the wrong diff hid a debug line.",
+        "git diff reviews unstaged edits.",
+        "git diff --staged reviews the snapshot proposed for the next commit.",
+        "The learner commits only intended lines."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: Comparing a release tag with the current branch isolates all committed changes since that release rather than local uncommitted edits.",
+      "prompt": "In a disposable repo, make one staged change, one unstaged change and one untracked file. Predict what git diff, git diff --staged and git diff HEAD show, then check.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Untracked appears in none.",
+        "HEAD shows both tracked changes."
       ],
       "expectedEvidence": [
-        "A diff compares two explicitly named states, such as working tree to index, index to HEAD, or one commit to another, and reports line-oriented changes rather than intent.",
-        "Renames are inferred, binary changes are limited, generated formatting can obscure logic, and an empty diff can mean the wrong pair of states was compared."
+        "Predictions match output.",
+        "Explanation for each."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Diffs and patch review, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Review a supplied branch against main. Produce a short review listing unintended files, whitespace-only hunks (using -w to confirm) and every behaviour change, with the diff command you used for each finding.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Start with --stat.",
+        "Then read hunks with and without -w."
       ],
       "expectedEvidence": [
-        "Review a patch for unintended files, whitespace-only churn and behavior changes.",
-        "Name or understand both comparison endpoints and inspect untracked status separately so no category of work is silently omitted."
+        "All three categories covered.",
+        "Commands recorded."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.history.diff.misconception",
-      "explanation": "Name or understand both comparison endpoints and inspect untracked status separately so no category of work is silently omitted.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: Comparing a release tag with the current branch isolates all committed changes since that release rather than local uncommitted edits."
+      "explanation": "Before reading any diff, name the **two states** it compares. Then scan with --stat, filter noise with -w, and read every remaining hunk for behaviour.",
+      "retryPrompt": "Apply this to \"The 800-line formatting patch\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to review a patch for unintended files, whitespace-only churn and behavior changes. Keep this boundary in view: Renames are inferred, binary changes are limited, generated formatting can obscure logic, and an empty diff can mean the wrong pair of states was compared.",
+    "summary": "To review a patch, pick the diff that compares the two states you care about (git diff for unstaged, --staged for the next commit, A..B for commits), check --stat for unintended files, use -w to strip whitespace churn, and read each hunk for real behaviour changes, remembering untracked files never appear.",
     "retrievalPrompts": [
-      "Explain Diffs and patch review without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: One diff command always shows every change in the repository, including staged, unstaged, and untracked content.",
-      "Apply the model to this case from memory: Comparing a release tag with the current branch isolates all committed changes since that release rather than local uncommitted edits."
+      "What does git diff compare?",
+      "Which diff shows the next commit?",
+      "What does -w do?"
     ],
     "nextReviewPrompt": "Next: continue to “Tags and release points”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

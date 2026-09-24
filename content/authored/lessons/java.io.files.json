@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Modern Java file code uses Path and Files with an explicit charset, bounded data handling, and deliberate policies for absence, replacement, partial writes, and path resolution.",
+    "summary": "Modern Java file code uses **`Path`** (where a file is) and **`Files`** (what to do with it). Always pass an explicit **charset**, usually `StandardCharsets.UTF_8`, so text reads the same on every machine. A **relative path** is resolved against the **current working directory** of the running program, not the folder your source file lives in, so resolve paths from configuration or a known base. Decide your **policies** up front: what happens if the file is **missing** (NoSuchFileException), if the content is **malformed**, and whether a write may **replace** an existing file. Writing to a temp file and **moving** it into place avoids half-written files.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A settings reader resolves a Path from configuration, reads UTF-8 text, validates every field, and distinguishes a missing file from malformed content. Your goal is to implement tested file persistence using modern path and file APIs. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner's program reads `settings.txt` fine from the IDE but fails from the terminal: the relative path pointed somewhere else. On a colleague's machine, accented names come out garbled because no charset was given. And a missing file and a broken file both produce the same vague \"could not load\". A settings reader resolves a Path from configuration, reads UTF-8 text, validates every field, and distinguishes a missing file from malformed content. In this lesson you'll implement tested file persistence using modern path and file APIs.\n\n```predict\n{\"question\": \"Path.of(\\\"settings.txt\\\") is relative. What is it relative to?\", \"options\": [\"The folder containing the .java file\", \"The program's current working directory\"], \"answer\": 1, \"why\": \"Print Path.of(\\\"x\\\").toAbsolutePath() to see it.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Constructors and invariants; String and text processing; Checked and unchecked exception design. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Constructors and invariants**, **String and text processing** and **Checked and unchecked exception design** (IOException policy)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Modern Java file code uses Path and Files with an explicit charset, bounded data handling, and deliberate policies for absence, replacement, partial writes, and path resolution. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: Path plus Files with explicit policies",
+        "body": "```java\nimport java.io.IOException;\nimport java.nio.charset.StandardCharsets;\nimport java.nio.file.*;\nimport java.util.List;\n\npublic class Settings {\n    static int readPort(Path file) throws IOException {\n        List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);   // explicit charset.\n        for (String line : lines) {\n            if (line.startsWith(\"port=\")) {\n                int port = Integer.parseInt(line.substring(5).trim());\n                if (port < 1 || port > 65535) throw new IllegalStateException(\"bad port \" + port);\n                return port;\n            }\n        }\n        throw new IllegalStateException(\"no port line\");         // malformed content.\n    }\n\n    public static void main(String[] args) throws IOException {\n        Path dir = Files.createTempDirectory(\"app\");\n        Path file = dir.resolve(\"settings.txt\");\n        Path tmp = dir.resolve(\"settings.tmp\");\n        Files.writeString(tmp, \"port=8080\\n\", StandardCharsets.UTF_8);\n        Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);   // no half-written file.\n        System.out.println(readPort(file));                       // 8080\n        try { readPort(dir.resolve(\"nope.txt\")); }\n        catch (NoSuchFileException e) { System.out.println(\"missing\"); }   // missing\n    }\n}\n```\n\n```reveal\n{\"prompt\": \"Why write to a temp file and then move?\", \"answer\": \"If the program crashes mid-write, the real settings file is untouched. The move replaces it in one step (atomic on most file systems with ATOMIC_MOVE).\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "The working directory changes relative paths, text line endings vary, a write can fail partway, symbolic links and permissions matter, and Files convenience methods may load an entire file. The learner must reject this documented misconception: A relative filename always refers to the source-file directory, and Java text methods automatically choose the intended encoding."
+        "heading": "Missing versus malformed",
+        "body": "```predict\n{\"question\": \"Should \\\"file not found\\\" and \\\"port=abc\\\" produce the same error?\", \"options\": [\"Yes, both mean loading failed\", \"No: missing may mean use defaults; malformed means fix the file\"], \"answer\": 1, \"why\": \"Different causes deserve different handling and messages.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Read and write text with explicit charset, path and failure handling.",
-      "Implement tested file persistence using modern path and file APIs."
+      "Read and write text with Path, Files and an explicit UTF-8 charset.",
+      "Resolve paths deliberately and distinguish missing files from malformed content."
     ],
     "excludes": [
-      "The working directory changes relative paths, text line endings vary, a write can fail partway, symbolic links and permissions matter, and Files convenience methods may load an entire file."
+      "Binary and random-access I/O.",
+      "Watching directories for changes."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "java.io.files.example.direct",
-      "title": "Paths, files and text I/O: direct language case",
+      "title": "A settings reader that tells missing from broken",
       "situation": "A settings reader resolves a Path from configuration, reads UTF-8 text, validates every field, and distinguishes a missing file from malformed content.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A settings reader resolves a Path from configuration, reads UTF-8 text, validates every field, and distinguishes a missing file from malformed content.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree."
+        "**Resolves a Path from configuration:** dir.resolve(\"settings.txt\") builds it from a known base.",
+        "**Reads UTF-8 text, validates every field:** readAllLines uses UTF_8 and the port is range-checked.",
+        "**Distinguishes a missing file from malformed content:** NoSuchFileException versus IllegalStateException, so we handle each differently."
       ],
-      "result": "The example meets the atomic outcome because Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree."
+      "result": "Users get a clear message for each kind of problem."
     },
     {
       "id": "java.io.files.example.boundary",
-      "title": "Paths, files and text I/O: boundary and transfer case",
-      "situation": "A save operation writes a sibling temporary file and then moves it according to a documented replacement policy instead of assuming one write is crash-atomic.",
+      "title": "It works in my IDE",
+      "situation": "A program reading Path.of(\"data.csv\") works in the IDE but fails from the terminal with NoSuchFileException.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A save operation writes a sibling temporary file and then moves it according to a documented replacement policy instead of assuming one write is crash-atomic.",
-        "Step 2 — Keep the language boundary explicit: The working directory changes relative paths, text line endings vary, a write can fail partway, symbolic links and permissions matter, and Files convenience methods may load an entire file.",
-        "Step 3 — Reject the tempting but incorrect rule: A relative filename always refers to the source-file directory, and Java text methods automatically choose the intended encoding."
+        "The IDE and terminal had different working directories.",
+        "Print toAbsolutePath() to see the resolved location.",
+        "Take the base directory from configuration or an argument."
       ],
-      "result": "This case demonstrates the declared outcome: Implement tested file persistence using modern path and file APIs."
+      "result": "The program finds its file from any directory."
     }
   ],
   "misconceptions": [
     {
       "id": "java.io.files.misconception",
       "mistakenBelief": "A relative filename always refers to the source-file directory, and Java text methods automatically choose the intended encoding.",
-      "correction": "Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: A relative filename always refers to the source-file directory, and Java text methods automatically choose the intended encoding."
+      "correction": "Relative paths resolve against the working directory, and omitting a charset can use a platform default. Resolve from a known base and pass UTF-8.",
+      "diagnosticPrompt": "In \"It works in my IDE\", why did the terminal run fail?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a document desk that records a failure chain, handles only recoverable cases, and always closes borrowed equipment can introduce Paths, files and text I/O, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "example": "A relative path is like **directions saying \"second door on the left\"**: correct only if you start in the right hallway (the working directory). A charset is **the language a letter is written in**: if the reader guesses the wrong language, the words come out as nonsense.",
     "usefulFor": [
-      "exception boundaries, paths, text encodings, and resource cleanup"
+      "remembering directions depend on the starting hallway",
+      "charset = the letter's language"
     ],
     "limitations": [
-      "suppressed exceptions, stack unwinding, filesystem semantics, and serialization attacks need exact technical treatment",
-      "The working directory changes relative paths, text line endings vary, a write can fail partway, symbolic links and permissions matter, and Files convenience methods may load an entire file."
+      "An absolute path is a full street address.",
+      "Temp-then-move is sealing the envelope before posting."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A settings reader resolves a Path from configuration, reads UTF-8 text, validates every field, and distinguishes a missing file from malformed content.",
-      "Modern Java file code uses Path and Files with an explicit charset, bounded data handling, and deliberate policies for absence, replacement, partial writes, and path resolution.",
-      "Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree."
+      "write settings.tmp, move to settings.txt",
+      "readPort(settings.txt)",
+      "readPort(nope.txt)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Write",
         "state": {
-          "evidence": "A settings reader resolves a Path from configuration, reads UTF-8 text, validates every field, and distinguishes a missing file from malformed content."
+          "file": "settings.txt",
+          "content": "port=8080"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "The file is written in UTF-8 through a temp file and moved into place."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Read",
         "state": {
-          "rule": "Modern Java file code uses Path and Files with an explicit charset, bounded data handling, and deliberate policies for absence, replacement, partial writes, and path resolution."
+          "port": "8080"
         },
-        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "The settings reader reads UTF-8 text and validates every field."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Missing",
         "state": {
-          "correction": "Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree."
+          "exception": "NoSuchFileException",
+          "printed": "missing"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: A relative filename always refers to the source-file directory, and Java text methods automatically choose the intended encoding."
+        "explanation": "It distinguishes a missing file from malformed content."
       }
     ],
-    "textAlternative": "Starting artifact: A settings reader resolves a Path from configuration, reads UTF-8 text, validates every field, and distinguishes a missing file from malformed content. Step 1, Observe. State: evidence: A settings reader resolves a Path from configuration, reads UTF-8 text, validates every field, and distinguishes a missing file from malformed content.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Modern Java file code uses Path and Files with an explicit charset, bounded data handling, and deliberate policies for absence, replacement, partial writes, and path resolution.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree.. Compare the observation with the correction and explain why the misconception fails: A relative filename always refers to the source-file directory, and Java text methods automatically choose the intended encoding."
+    "textAlternative": "Tracing file persistence. Step 1, Write: file is settings.txt; content is port=8080. The file is written in UTF-8 through a temp file and moved into place. Step 2, Read: port is 8080. The settings reader reads UTF-8 text and validates every field. Step 3, Missing: exception is NoSuchFileException; printed is missing. It distinguishes a missing file from malformed content."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Paths, files and text I/O: direct language case”: state its starting evidence, apply the Paths, files and text I/O rule, and give the observable result in three short lines.",
+      "prompt": "For \"A settings reader that tells missing from broken\", explain how a settings reader resolves a Path from configuration, reads UTF-8 text, validates every field, and distinguishes a missing file from malformed content.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Resolve.",
+        "Read.",
+        "Distinguish."
       ],
       "expectedEvidence": [
-        "Named example: Paths, files and text I/O: direct language case.",
-        "Starting evidence: A settings reader resolves a Path from configuration, reads UTF-8 text, validates every field, and distinguishes a missing file from malformed content.",
-        "Core rule: Modern Java file code uses Path and Files with an explicit charset, bounded data handling, and deliberate policies for absence, replacement, partial writes, and path resolution.",
-        "Observable result: The example meets the atomic outcome because Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree.",
-        "Boundary check: Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree."
+        "Names the example \"A settings reader that tells missing from broken\": relative paths and default charsets broke.",
+        "A settings reader resolves a Path from configuration and reads UTF-8 text.",
+        "It validates every field and distinguishes a missing file from malformed content.",
+        "Each problem gets a clear message."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A save operation writes a sibling temporary file and then moves it according to a documented replacement policy instead of assuming one write is crash-atomic.",
+      "prompt": "Write saveNotes(Path, List<String>) and loadNotes(Path) using UTF-8, returning an empty list when the file is missing. Test with a temp directory and a note containing é.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Files.createTempDirectory.",
+        "Catch NoSuchFileException only."
       ],
       "expectedEvidence": [
-        "Modern Java file code uses Path and Files with an explicit charset, bounded data handling, and deliberate policies for absence, replacement, partial writes, and path resolution.",
-        "The working directory changes relative paths, text line endings vary, a write can fail partway, symbolic links and permissions matter, and Files convenience methods may load an entire file."
+        "Round trip preserves é.",
+        "Missing file gives empty list."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Paths, files and text I/O, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Build a tiny key=value config store with get, set and save. Save through temp-then-move, reject malformed lines with line numbers, and test missing, malformed and valid files.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Report the line number.",
+        "REPLACE_EXISTING on move."
       ],
       "expectedEvidence": [
-        "Implement tested file persistence using modern path and file APIs.",
-        "Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree."
+        "Three scenarios tested.",
+        "No partial writes possible."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "java.io.files.misconception",
-      "explanation": "Resolve paths from an explicit base and specify the charset and replacement/failure policy; do not infer location from the source tree.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A save operation writes a sibling temporary file and then moves it according to a documented replacement policy instead of assuming one write is crash-atomic."
+      "explanation": "For every file operation, answer four questions: **which base directory, which charset, what if it's missing, what if it's malformed?**",
+      "retryPrompt": "Apply this to \"It works in my IDE\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement tested file persistence using modern path and file APIs. Keep this boundary in view: The working directory changes relative paths, text line endings vary, a write can fail partway, symbolic links and permissions matter, and Files convenience methods may load an entire file.",
+    "summary": "To implement tested file persistence using modern path and file APIs, resolve Paths from a known base, read and write with an explicit UTF-8 charset, validate content, distinguish missing files from malformed ones, and write through a temp file before moving it into place.",
     "retrievalPrompts": [
-      "Explain Paths, files and text I/O using canonical Java: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: A relative filename always refers to the source-file directory, and Java text methods automatically choose the intended encoding.",
-      "Predict this case from memory: A save operation writes a sibling temporary file and then moves it according to a documented replacement policy instead of assuming one write is crash-atomic."
+      "What is a relative path resolved against?",
+      "Why pass a charset?",
+      "Why write to a temp file first?"
     ],
     "nextReviewPrompt": "Next: continue to “Resource management and serialization boundaries”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A multi-file C build compiles each translation unit with compatible declarations and then links the selected objects and libraries under reproducible flags.",
+    "summary": "A multi-file program builds in two stages: **compile each .c file to a .o** (`gcc -c`), then **link** the .o files and libraries into one executable. Recompiling only what changed saves time, but \"what changed\" includes **headers**: every .c file that includes a modified header must be recompiled, or old object files keep using the old declarations and the program misbehaves. A **Makefile** records the rules, the flags (`-std=c17 -Wall -Wextra`) and the dependencies, so builds are **repeatable**. The `-MMD -MP` flags make gcc generate header dependencies automatically.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Changing a public header recompiles every dependent source file before linking, preventing old object code from using an incompatible declaration. Your goal is to build and diagnose a multi-file command-line program using a repeatable build description. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner adds a field to struct Config in config.h and recompiles only config.c, the file they edited. The program links fine, then crashes in main.c, which still uses the old struct layout in its stale main.o. Changing a public header recompiles every dependent source file before linking, preventing old object code from using an incompatible declaration. In this lesson you'll build and diagnose a multi-file command-line program using a repeatable build description.\n\n```predict\n{\"question\": \"config.h changes. Which files must be recompiled?\", \"options\": [\"Only config.c\", \"Every .c file that includes config.h, directly or indirectly\"], \"answer\": 1, \"why\": \"Headers are pasted into each includer, so each one's object code depends on them.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Failure-safe cleanup; Scope, linkage and storage duration; Header interfaces and include guards; Preprocess, compile, assemble and link. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Failure-safe cleanup**, **Scope, linkage and storage duration**, **Header interfaces and include guards** and **Preprocess, compile, assemble and link**."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "A multi-file C build compiles each translation unit with compatible declarations and then links the selected objects and libraries under reproducible flags. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The rule: objects depend on sources AND headers",
+        "body": "```make\n# Makefile (recipe lines start with a TAB).\nCC      = gcc\nCFLAGS  = -std=c17 -Wall -Wextra -g -MMD -MP   # -MMD: record header deps.\nOBJS    = main.o stack.o config.o\n\napp: $(OBJS)\n\t$(CC) $(OBJS) -o app                         # link step.\n\n%.o: %.c\n\t$(CC) $(CFLAGS) -c $< -o $@                   # compile each unit.\n\n-include $(OBJS:.o=.d)                        # generated header dependencies.\n\nclean:\n\trm -f app $(OBJS) $(OBJS:.o=.d)\n```\n\n```bash\nmake            # builds only what's out of date.\ntouch stack.h   # simulate a header change.\nmake            # recompiles main.c and stack.c (both include stack.h), then links.\nmake clean && make   # full rebuild from scratch.\n```\n\n```reveal\n{\"prompt\": \"What does main.d contain after -MMD?\", \"answer\": \"A rule like `main.o: main.c stack.h config.h`, listing every header main.c includes, so make knows to rebuild main.o when any of them changes.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Header dependency tracking, ABI flags, library order, duplicate definitions, stale objects, and conditional macros can make incremental builds inconsistent. Therefore the draft explicitly rejects this beginner failure model: Only the .c file directly edited needs recompilation, even when a shared header changed its declarations."
+        "heading": "Diagnose by stage",
+        "body": "```predict\n{\"question\": \"`make` fails with `undefined reference to 'stack_push'`. What's the likely fix?\", \"options\": [\"Fix a syntax error in main.c\", \"Add stack.o to the link (OBJS), or check the function's name and definition\"], \"answer\": 1, \"why\": \"undefined reference is a link-stage error: an object or library is missing.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Compile separate translation units and link reproducibly with declared dependencies.",
-      "Build and diagnose a multi-file command-line program using a repeatable build description."
+      "Compile units separately and link them, with shared reproducible flags.",
+      "Track header dependencies so header changes recompile every dependent file."
     ],
     "excludes": [
-      "Header dependency tracking, ABI flags, library order, duplicate definitions, stale objects, and conditional macros can make incremental builds inconsistent."
+      "CMake and other build generators in depth.",
+      "Static and shared libraries."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "c.modular.build.example-a",
-      "title": "Multi-file builds: defined case",
+      "title": "Changing stack.h",
       "situation": "Changing a public header recompiles every dependent source file before linking, preventing old object code from using an incompatible declaration.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: Changing a public header recompiles every dependent source file before linking, preventing old object code from using an incompatible declaration.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Track header dependencies and rebuild every affected translation unit before linking a coherent program."
+        "**Changing a public header:** a field is added to struct in config.h.",
+        "**Recompiles every dependent source file before linking:** main.d and config.d list config.h, so make rebuilds main.o and config.o.",
+        "**Preventing old object code from using an incompatible declaration:** the stale-layout crash will not happen again."
       ],
-      "result": "The defined result follows because Track header dependencies and rebuild every affected translation unit before linking a coherent program."
+      "result": "Every object file agrees on the same struct layout."
     },
     {
       "id": "c.modular.build.example-b",
-      "title": "Multi-file builds: boundary case",
-      "situation": "A clean strict build uses the same language standard and warning flags in local and CI environments.",
+      "title": "Works on my machine",
+      "situation": "A learner builds with `gcc *.c -o app` on their laptop; a teammate uses different flags and gets warnings and different behaviour.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A clean strict build uses the same language standard and warning flags in local and CI environments.",
-        "Step 2 — Keep this standard boundary visible: Header dependency tracking, ABI flags, library order, duplicate definitions, stale objects, and conditional macros can make incremental builds inconsistent.",
-        "Step 3 — Reject the tempting rule: Only the .c file directly edited needs recompilation, even when a shared header changed its declarations."
+        "The build wasn't described anywhere.",
+        "Commit a Makefile with fixed CFLAGS and the file list.",
+        "Everyone, and CI, runs make."
       ],
-      "result": "This case demonstrates the declared outcome: Build and diagnose a multi-file command-line program using a repeatable build description."
+      "result": "The same command produces the same build for everyone."
     }
   ],
   "misconceptions": [
     {
       "id": "c.modular.build.misconception",
       "mistakenBelief": "Only the .c file directly edited needs recompilation, even when a shared header changed its declarations.",
-      "correction": "Track header dependencies and rebuild every affected translation unit before linking a coherent program.",
-      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: Only the .c file directly edited needs recompilation, even when a shared header changed its declarations."
+      "correction": "Every translation unit that includes a changed header has object code built from the old declarations. All of them must be recompiled before linking.",
+      "diagnosticPrompt": "In the opening story, which stale object file caused the crash?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A manually managed workshop can model Multi-file builds: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "example": "Object files are like **printed chapters of a book that all quote the same glossary** (the header). Change a glossary entry and every chapter quoting it must be reprinted, not just the glossary page. The Makefile is **the print shop's list of which chapters quote which entries**.",
     "usefulFor": [
-      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+      "remembering reprint every quoting chapter",
+      "Makefile = the dependency list"
     ],
     "limitations": [
-      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
-      "Header dependency tracking, ABI flags, library order, duplicate definitions, stale objects, and conditional macros can make incremental builds inconsistent."
+      "Printers notice obvious mismatches; linkers don't check struct layouts.",
+      "make clean is reprinting the whole book."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Changing a public header recompiles every dependent source file before linking, preventing old object code from using an incompatible declaration.",
-      "A multi-file C build compiles each translation unit with compatible declarations and then links the selected objects and libraries under reproducible flags.",
-      "Track header dependencies and rebuild every affected translation unit before linking a coherent program."
+      "edit config.h",
+      "make",
+      "./app"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Change",
         "state": {
-          "evidence": "Changing a public header recompiles every dependent source file before linking, preventing old object code from using an incompatible declaration."
+          "config.h": "new field"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "Changing a public header affects every file that includes it."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Rebuild",
         "state": {
-          "rule": "A multi-file C build compiles each translation unit with compatible declarations and then links the selected objects and libraries under reproducible flags."
+          "recompiled": "main.o, config.o",
+          "linked": "app"
         },
-        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+        "explanation": "Make recompiles every dependent source file before linking."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Run",
         "state": {
-          "conclusion": "Track header dependencies and rebuild every affected translation unit before linking a coherent program."
+          "layout": "consistent",
+          "crash": "none"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: Only the .c file directly edited needs recompilation, even when a shared header changed its declarations."
+        "explanation": "No old object code uses an incompatible declaration."
       }
     ],
-    "textAlternative": "Starting artifact: Changing a public header recompiles every dependent source file before linking, preventing old object code from using an incompatible declaration. Step 1, Source and state. State: evidence: Changing a public header recompiles every dependent source file before linking, preventing old object code from using an incompatible declaration.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A multi-file C build compiles each translation unit with compatible declarations and then links the selected objects and libraries under reproducible flags.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Track header dependencies and rebuild every affected translation unit before linking a coherent program.. Check the conclusion against the boundary and reject this misconception: Only the .c file directly edited needs recompilation, even when a shared header changed its declarations."
+    "textAlternative": "Tracing a dependency-aware rebuild. Step 1, Change: config.h is new field. Changing a public header affects every file that includes it. Step 2, Rebuild: recompiled is main.o, config.o; linked is app. Make recompiles every dependent source file before linking. Step 3, Run: layout is consistent; crash is none. No old object code uses an incompatible declaration."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Multi-file builds: defined case”: state its starting evidence, apply the Multi-file builds rule, and give the observable result in three short lines.",
+      "prompt": "For \"Changing stack.h\", explain how changing a public header recompiles every dependent source file before linking, preventing old object code from using an incompatible declaration.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Change.",
+        "Rebuild.",
+        "Run."
       ],
       "expectedEvidence": [
-        "Named example: Multi-file builds: defined case.",
-        "Starting evidence: Changing a public header recompiles every dependent source file before linking, preventing old object code from using an incompatible declaration.",
-        "Core rule: A multi-file C build compiles each translation unit with compatible declarations and then links the selected objects and libraries under reproducible flags.",
-        "Observable result: The defined result follows because Track header dependencies and rebuild every affected translation unit before linking a coherent program.",
-        "Boundary check: Track header dependencies and rebuild every affected translation unit before linking a coherent program."
+        "Names the example \"Changing stack.h\": a stale main.o crashed.",
+        "Changing a public header recompiles every dependent source file before linking.",
+        "It prevents old object code from using an incompatible declaration.",
+        "Every object file agrees on the same struct layout."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same C rule to this related boundary case: A clean strict build uses the same language standard and warning flags in local and CI environments.",
+      "prompt": "Write a Makefile for a three-file program with -MMD -MP. Touch each header and each .c file in turn and record which files make recompiles.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Recipes need a TAB.",
+        "Check the .d files."
       ],
       "expectedEvidence": [
-        "A multi-file C build compiles each translation unit with compatible declarations and then links the selected objects and libraries under reproducible flags.",
-        "Header dependency tracking, ABI flags, library order, duplicate definitions, stale objects, and conditional macros can make incremental builds inconsistent."
+        "Rebuild sets match dependencies.",
+        "Clean target works."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new C example for Multi-file builds, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Break a multi-file build three ways (missing object in link, header change without dependency tracking, conflicting CFLAGS) and diagnose each from its error or symptom. Then fix the Makefile so all three can't happen.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Remove -MMD to see stale builds.",
+        "Classify errors by stage."
       ],
       "expectedEvidence": [
-        "Build and diagnose a multi-file command-line program using a repeatable build description.",
-        "Track header dependencies and rebuild every affected translation unit before linking a coherent program."
+        "Each failure diagnosed.",
+        "Final Makefile is repeatable."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "c.modular.build.misconception",
-      "explanation": "Track header dependencies and rebuild every affected translation unit before linking a coherent program.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'header dependencies' and state the decisive evidence: A clean strict build uses the same language standard and warning flags in local and CI environments."
+      "explanation": "After any header edit ask: **which .c files include it?** Let make answer via generated dependencies, and when in doubt, **make clean && make**.",
+      "retryPrompt": "Apply this to \"Works on my machine\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to build and diagnose a multi-file command-line program using a repeatable build description. Keep this boundary in view: Header dependency tracking, ABI flags, library order, duplicate definitions, stale objects, and conditional macros can make incremental builds inconsistent.",
+    "summary": "To build a multi-file program reliably, compile each translation unit with shared flags, link the objects and libraries, track header dependencies (for example with -MMD -MP in a Makefile) so header changes rebuild every includer, and diagnose failures by compile or link stage.",
     "retrievalPrompts": [
-      "Explain Multi-file builds using a concrete C rule rather than the optional analogy.",
-      "Why is this claim incorrect: Only the .c file directly edited needs recompilation, even when a shared header changed its declarations.",
-      "Apply the checkpoint 'header dependencies' to the boundary case from memory."
+      "Why must includers rebuild after a header change?",
+      "What do -MMD -MP do?",
+      "Which stage reports undefined reference?"
     ],
     "nextReviewPrompt": "Next: continue to “Undefined behavior, tests and sanitizers”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

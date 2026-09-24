@@ -1,17 +1,17 @@
 {
   "schemaVersion": 1,
-  "files": 121,
-  "operations": 155,
-  "matrixRows": 155,
+  "files": 122,
+  "operations": 157,
+  "matrixRows": 157,
   "boundaryCounts": {
     "public": 5,
     "auth-handler": 2,
     "authenticated": 88,
-    "admin": 60
+    "admin": 62
   },
   "objectAuthorizationCounts": {
     "public-input": 5,
-    "administrator-scope": 60,
+    "administrator-scope": 62,
     "session-user": 84,
     "auth-provider": 2,
     "no-user-object": 2,
@@ -487,6 +487,32 @@
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
       "operationSourceSha256": "22237d9abae6a10a00ca50dde092c41e93553f5c4a2d07e492d6cc6e247738c7"
+    },
+    {
+      "operation": "GET /api/admin/curriculum/versions/[versionId]/owner-review",
+      "file": "src/app/api/admin/curriculum/versions/[versionId]/owner-review/route.ts",
+      "route": "/api/admin/curriculum/versions/[versionId]/owner-review",
+      "method": "GET",
+      "boundary": "admin",
+      "anonymous": "authenticated",
+      "learner": "administrator",
+      "admin": "allowed",
+      "objectAuthorization": "administrator-scope",
+      "ownershipProof": "requireAdmin() before request parsing or data access",
+      "operationSourceSha256": "f13a60806ab4626ab914264040d9d50c679d940e3232e2929c3185e81e640a7f"
+    },
+    {
+      "operation": "POST /api/admin/curriculum/versions/[versionId]/owner-review",
+      "file": "src/app/api/admin/curriculum/versions/[versionId]/owner-review/route.ts",
+      "route": "/api/admin/curriculum/versions/[versionId]/owner-review",
+      "method": "POST",
+      "boundary": "admin",
+      "anonymous": "authenticated",
+      "learner": "administrator",
+      "admin": "allowed",
+      "objectAuthorization": "administrator-scope",
+      "ownershipProof": "requireAdmin() before request parsing or data access",
+      "operationSourceSha256": "e22561a53a5f9ac91bee03b04d9fac39066903f1de133b7dde426025e99ccf2a"
     },
     {
       "operation": "POST /api/admin/curriculum/versions/[versionId]/publish",
@@ -980,7 +1006,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by eq(chatThread.userId, authz.session.user.id)",
-      "operationSourceSha256": "d15a46a1cab59f8c46735b01b987f608a831d4cca0a29c536e8795761cae2ee1"
+      "operationSourceSha256": "5b0af3b01a191bd561543ce49a71261f6eda2943946e3076f56645f15c3af0cf"
     },
     {
       "operation": "GET /api/auth/[...all]",
@@ -1253,7 +1279,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "f738cc339dbcbdd0c856d7d76df332063c9218bc940cc929ccd22642ae6965bc"
+      "operationSourceSha256": "adfa24d2e096bf99f801da0f67e5d10510e9d0fabb4b3265aebbdd086f5d9a16"
     },
     {
       "operation": "GET /api/drafts",
@@ -2140,7 +2166,7 @@
       "operationSourceSha256": "b88f55f3a91e588c90d93419fbf944eba9e0f64f9fd6a5ab3e2f9a003ce2ccd8"
     }
   ],
-  "generatedAt": "2026-07-28T11:34:58.350Z",
+  "generatedAt": "2026-09-23T19:24:25.650Z",
   "scope": "Complete static role/object-authorization source inventory. The endpoint sweep verifies guard invocation, while authz.test.ts verifies real guard decisions and runtime-authorization.integration.test.ts behaviorally covers a representative owner-bound route set. This report alone is not runtime cross-user proof, deployed proxy/browser evidence, or PostgreSQL RLS evidence.",
   "runtimeVerification": {
     "guardInvocationTest": "src/lib/security/__tests__/endpoint-auth-boundaries.test.ts",
@@ -2148,8 +2174,8 @@
     "representativeObjectAuthorizationTest": "integration/runtime-authorization.integration.test.ts",
     "protectedOperationInvocations": {
       "anonymousAuthenticated": 88,
-      "anonymousAdmin": 60,
-      "learnerAdmin": 60
+      "anonymousAdmin": 62,
+      "learnerAdmin": 62
     },
     "betterAuthAdminPolicyTest": "src/lib/security/__tests__/better-auth-admin-policy.test.ts"
   }

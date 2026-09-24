@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Figure groups self-contained media or code with an optional figcaption that names or explains that content.",
+    "summary": "`<figure>` groups **self-contained content** — an image, chart, code sample or quote — with its `<figcaption>`, so the caption is formally tied to what it describes. The caption and the image's `alt` do **different jobs**: the caption is visible to everyone and adds context; alt replaces the image for people who can't see it. Don't use figure as a generic box for layout.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A code screenshot and its explanatory caption are wrapped in figure while the image still has suitable alt text. Your goal is to create a semantically grouped figure and caption without using figure as a generic wrapper. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A tutorial shows a screenshot of an error message, with a caption underneath: \"Figure 2: the TypeError appears on line 12.\" Is that enough for a blind learner? Not if the image has no alt — they get the caption but not what the screenshot shows. A code screenshot and its explanatory caption are wrapped in figure, while the image still has suitable alt text. In this lesson you'll create a semantically grouped figure and caption without using figure as a generic wrapper.\n\n```predict\n{\"question\": \"A figure has a figcaption. Can the img inside skip its alt?\", \"options\": [\"Yes, the caption covers it\", \"No — the img still needs alt; the caption adds context, it doesn't replace the image\"], \"answer\": 1, \"why\": \"Captions and alt text have different jobs. Keep a suitable alt (or alt=\\\"\\\" only if the caption fully conveys the image).\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Relative and absolute URLs; Paragraph and inline meaning; Images and alternative text. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Relative and absolute URLs**, **Paragraph and inline meaning**, and **Images and alternative text**."
       },
       {
-        "heading": "Technology rule",
-        "body": "Figure groups self-contained media or code with an optional figcaption that names or explains that content. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: one self-contained unit plus its caption",
+        "body": "```html\n<figure>\n  <img src=\"error.png\"\n       alt=\"Terminal output: TypeError: unsupported operand type(s) for +: 'int' and 'str', at line 12 of app.py\">\n  <figcaption>Figure 2: the TypeError appears on line 12 when a number is added to text.</figcaption>\n</figure>\n```\n\n| Piece | Job |\n|---|---|\n| `figure`. | groups a self-contained item that could be moved elsewhere. |\n| `figcaption`. | visible caption, first or last child of figure. |\n| `alt`. | text replacement for the image itself. |\n\n```reveal\n{\"prompt\": \"Is a code sample in `<pre><code>` allowed inside a figure?\", \"answer\": \"Yes. Figures can hold code listings, quotes, diagrams or videos — anything referred to as a unit.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Not every image needs figure, and figcaption does not replace required image alternatives when the image itself conveys information. This draft therefore rejects: Using figcaption means the nested image can omit its alt attribute."
+        "heading": "Not a layout box",
+        "body": "```predict\n{\"question\": \"A developer wraps every card on the homepage in `<figure>` to get a border. Good idea?\", \"options\": [\"Yes\", \"No — use div for layout; figure means self-contained content with an optional caption\"], \"answer\": 1, \"why\": \"Misused figures make assistive technology announce \\\"figure\\\" everywhere, adding noise without meaning.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Associate self-contained media or examples with meaningful captions when appropriate.",
-      "Create a semantically grouped figure and caption without using figure as a generic wrapper."
+      "Group an image, chart or code listing with figcaption in figure.",
+      "Keep alt text and captions doing their separate jobs."
     ],
     "excludes": [
-      "Not every image needs figure, and figcaption does not replace required image alternatives when the image itself conveys information."
+      "Responsive images (next lesson).",
+      "Long descriptions with aria-describedby."
     ]
   },
   "outcomes": [
@@ -63,133 +64,133 @@
   "examples": [
     {
       "id": "html.media.figure.example-a",
-      "title": "Figures and captions: concrete case",
+      "title": "A code screenshot with a caption",
       "situation": "A code screenshot and its explanatory caption are wrapped in figure while the image still has suitable alt text.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A code screenshot and its explanatory caption are wrapped in figure while the image still has suitable alt text.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Use figure for self-contained referenced content, but still provide the nested media's required alternative text."
+        "**Wrap in figure:** the screenshot and caption form one self-contained unit.",
+        "**Explanatory caption:** \"Figure 2: the TypeError appears on line 12 when a number is added to text.\"",
+        "**Still suitable alt text:** the img's alt reads the error message itself, so screen readers will render what the screenshot shows."
       ],
-      "result": "The result follows because Use figure for self-contained referenced content, but still provide the nested media's required alternative text."
+      "result": "Everyone gets the context from the caption, and screen-reader users also get the screenshot's content from alt."
     },
     {
       "id": "html.media.figure.example-b",
-      "title": "Figures and captions: boundary case",
-      "situation": "Not every image needs figure, and figcaption does not replace required image alternatives when the image itself conveys information.",
+      "title": "The figure-as-wrapper page",
+      "situation": "A landing page uses `<figure>` for hero sections, pricing cards and the footer.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Not every image needs figure, and figcaption does not replace required image alternatives when the image itself conveys information.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Using figcaption means the nested image can omit its alt attribute."
+        "None of these are self-contained illustrations referred to from the text.",
+        "Screen readers announce many meaningless \"figure\" regions.",
+        "Fix: use div (or section/aside where meaningful); keep figure for real illustrations with captions."
       ],
-      "result": "The boundary requires this correction: Use figure for self-contained referenced content, but still provide the nested media's required alternative text."
+      "result": "Only genuine illustrations are figures, and the page's structure reads clearly."
     }
   ],
   "misconceptions": [
     {
       "id": "html.media.figure.misconception",
       "mistakenBelief": "Using figcaption means the nested image can omit its alt attribute.",
-      "correction": "Use figure for self-contained referenced content, but still provide the nested media's required alternative text.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: Using figcaption means the nested image can omit its alt attribute."
+      "correction": "A caption provides visible context for everyone; alt replaces the image for people who can't see it. The image still needs alt that fits its purpose, unless the caption already conveys everything and alt=\"\" is chosen deliberately.",
+      "diagnosticPrompt": "In \"A code screenshot with a caption\", what information would be lost without alt?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model Figures and captions, with structure carrying meaning before decoration.",
+    "example": "A figure is like a **museum exhibit**: the object, plus the label on the wall (figcaption). An audio guide (alt) describes the object itself for someone who can't see it — the wall label alone isn't a description.",
     "usefulFor": [
-      "Building a first mental model for Figures and captions before using exact platform terms"
+      "remembering caption ≠ description",
+      "seeing figure as a unit"
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "Not every image needs figure, and figcaption does not replace required image alternatives when the image itself conveys information."
+      "Exhibits are physical; figures can be moved around a page.",
+      "Not every box in a museum is an exhibit — like layout divs."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A code screenshot and its explanatory caption are wrapped in figure while the image still has suitable alt text.",
-      "Figure groups self-contained media or code with an optional figcaption that names or explains that content.",
-      "Use figure for self-contained referenced content, but still provide the nested media's required alternative text."
+      "<figure>",
+      "<img src='error.png' alt='Terminal output: TypeError… line 12'>",
+      "<figcaption>Figure 2: the TypeError appears on line 12…</figcaption></figure>"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Group",
         "state": {
-          "evidence": "A code screenshot and its explanatory caption are wrapped in figure while the image still has suitable alt text."
+          "figure": "screenshot + caption"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "A code screenshot and its explanatory caption are wrapped in figure."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Alt",
         "state": {
-          "rule": "Figure groups self-contained media or code with an optional figcaption that names or explains that content."
+          "alt": "the error text"
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The image still has suitable alt text describing what it shows."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Caption",
         "state": {
-          "correction": "Use figure for self-contained referenced content, but still provide the nested media's required alternative text."
+          "figcaption": "context for everyone"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Using figcaption means the nested image can omit its alt attribute."
+        "explanation": "The explanatory caption adds visible context tied to the figure."
       }
     ],
-    "textAlternative": "Starting artifact: A code screenshot and its explanatory caption are wrapped in figure while the image still has suitable alt text. Step 1, Artifact. State: evidence: A code screenshot and its explanatory caption are wrapped in figure while the image still has suitable alt text.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Figure groups self-contained media or code with an optional figcaption that names or explains that content.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use figure for self-contained referenced content, but still provide the nested media's required alternative text.. Check the result against the boundary and reject this misconception: Using figcaption means the nested image can omit its alt attribute."
+    "textAlternative": "A figure with a caption and alt text. Step 1, Group: figure is screenshot + caption. A code screenshot and its explanatory caption are wrapped in figure. Step 2, Alt: alt is the error text. The image still has suitable alt text describing what it shows. Step 3, Caption: figcaption is context for everyone. The explanatory caption adds visible context tied to the figure."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Figures and captions: concrete case”: state its starting evidence, apply the Figures and captions rule, and give the observable result in three short lines.",
+      "prompt": "For \"A code screenshot with a caption\", explain why the code screenshot and its explanatory caption are wrapped in figure, and why the image still has suitable alt text.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "figure.",
+        "caption.",
+        "alt."
       ],
       "expectedEvidence": [
-        "Named example: Figures and captions: concrete case.",
-        "Starting evidence: A code screenshot and its explanatory caption are wrapped in figure while the image still has suitable alt text.",
-        "Core rule: Figure groups self-contained media or code with an optional figcaption that names or explains that content.",
-        "Observable result: The result follows because Use figure for self-contained referenced content, but still provide the nested media's required alternative text.",
-        "Boundary check: Use figure for self-contained referenced content, but still provide the nested media's required alternative text."
+        "Names the example \"A code screenshot with a caption\": a code screenshot and its explanatory caption are wrapped in figure.",
+        "The caption gives visible context for everyone.",
+        "The image still has suitable alt text describing the error.",
+        "Caption and alt do different jobs."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Not every image needs figure, and figcaption does not replace required image alternatives when the image itself conveys information.",
+      "prompt": "Mark up a photo of a sunset with the caption \"Sunset over Goa, taken by the author\". Write both the alt and the caption.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Alt describes the image.",
+        "Caption adds credit and context."
       ],
       "expectedEvidence": [
-        "Figure groups self-contained media or code with an optional figcaption that names or explains that content.",
-        "Not every image needs figure, and figcaption does not replace required image alternatives when the image itself conveys information."
+        "figure with img alt describing the scene.",
+        "figcaption with the location and credit."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Figures and captions and explain why the misconception fails.",
+      "prompt": "Find a tutorial page you wrote with screenshots. Convert illustrations into figures with captions, fix alt texts, and remove any figures used purely for layout.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Is it referred to as a unit?",
+        "Does alt still describe the image?"
       ],
       "expectedEvidence": [
-        "Create a semantically grouped figure and caption without using figure as a generic wrapper.",
-        "Use figure for self-contained referenced content, but still provide the nested media's required alternative text."
+        "Real illustrations use figure with figcaption and suitable alt.",
+        "No layout-only figures remain."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.media.figure.misconception",
-      "explanation": "Use figure for self-contained referenced content, but still provide the nested media's required alternative text.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'required alternative text' and state the decisive evidence."
+      "explanation": "Two questions: **Is this a self-contained item the text refers to? → figure.** **If the image were missing, what does the caption NOT say? → that goes in alt.**",
+      "retryPrompt": "Ask these about \"The figure-as-wrapper page\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to create a semantically grouped figure and caption without using figure as a generic wrapper. Keep this boundary in view: Not every image needs figure, and figcaption does not replace required image alternatives when the image itself conveys information.",
+    "summary": "To create a semantically grouped figure and caption, wrap self-contained illustrations, charts or code in figure with a figcaption, keep suitable alt on images because captions don't replace them, and never use figure as a generic wrapper.",
     "retrievalPrompts": [
-      "Explain Figures and captions using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: Using figcaption means the nested image can omit its alt attribute.",
-      "Apply checkpoint 'required alternative text' to a new artifact."
+      "What does figcaption do?",
+      "Does a caption replace alt text?",
+      "When should you use div instead of figure?"
     ],
     "nextReviewPrompt": "Next: continue to “Responsive image selection”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

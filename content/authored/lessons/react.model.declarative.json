@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "React components describe UI as a function of props, state, and context, and reconciliation updates the DOM to match the latest description.",
+    "summary": "In plain JavaScript you write **steps**: find the panel, create a paragraph, append it, later remove it. In React you write a **description**: \"if isOpen, the panel is here; otherwise it isn't\". When state changes, React calls your component again (a **re-render**), compares the new description with the last one (**reconciliation**), and makes the smallest DOM changes to match. Events and state updates are still things you *do* in handlers; what becomes declarative is how the UI is **drawn from state**.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Changing isOpen causes render to describe either the panel or its absence without manually inserting nodes. Your goal is to translate a manual DOM update into state-driven rendering and trace its rerender. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "An exercise page has a \"Show hint\" button. The old code finds the hint box, creates a paragraph, appends it, flips the button text, and removes the paragraph on the next click. One missed step and the hint appears twice. Changing isOpen causes render to describe either the panel or its absence without manually inserting nodes. In this lesson you'll translate a manual DOM update into state-driven rendering and trace its rerender.\n\n```predict\n{\"question\": \"In React, after `setIsOpen(true)`, who inserts the hint paragraph into the DOM?\", \"options\": [\"Your click handler, with appendChild\", \"React, after re-rendering the component and seeing the paragraph in the new description\"], \"answer\": 1, \"why\": \"You change state; React updates the DOM to match the new output.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: javascript project browser app; Application root and rendering; javascript dom query update. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Modular browser application**, **Application root and rendering** (React owns the container), and **Query and update DOM**, the manual approach you're replacing."
       },
       {
-        "heading": "Technology rule",
-        "body": "React components describe UI as a function of props, state, and context, and reconciliation updates the DOM to match the latest description. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: UI = f(state)",
+        "body": "```jsx\nimport { useState } from \"react\";\n\nexport function Hint({ text }) {\n  const [isOpen, setIsOpen] = useState(false);\n\n  return (\n    <div>\n      <button type=\"button\" aria-expanded={isOpen} onClick={() => setIsOpen(!isOpen)}>\n        {isOpen ? \"Hide hint\" : \"Show hint\"}\n      </button>\n      {isOpen && <p className=\"hint\">{text}</p>}\n    </div>\n  );\n}\n```\n\n| Manual DOM | React |\n|---|---|\n| find the element. | not needed. |\n| createElement and append. | put `<p>` in the returned JSX. |\n| remove on close. | return nothing for it when closed. |\n| update button text. | derive it from isOpen. |\n| keep all of it in sync. | React reconciles automatically. |\n\n```reveal\n{\"prompt\": \"Is the click handler declarative too?\", \"answer\": \"No. `setIsOpen(!isOpen)` is an imperative action. The declarative part is that the JSX describes the result for any value of isOpen.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Render must stay pure, browser state can exist outside React, and imperative escape hatches need synchronization. This draft therefore rejects: Declarative React means DOM events and state updates never occur imperatively."
+        "heading": "Trace a re-render",
+        "body": "```predict\n{\"question\": \"Clicking the button once. How many times does Hint's function run in total, counting the first render?\", \"options\": [\"Once, when mounted\", \"Twice: the first render, then again after state changes\"], \"answer\": 1, \"why\": \"Each state change calls the component again to get the new description. StrictMode in development can add extra calls.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Describe UI as a function of current props and state rather than imperative DOM mutations.",
-      "Translate a manual DOM update into state-driven rendering and trace its rerender."
+      "Rewrite a manual DOM toggle as state-driven JSX.",
+      "Trace state change, re-render and reconciliation."
     ],
     "excludes": [
-      "Render must stay pure, browser state can exist outside React, and imperative escape hatches need synchronization."
+      "useState details (state module).",
+      "React's internal fiber algorithm."
     ]
   },
   "outcomes": [
@@ -63,133 +64,136 @@
   "examples": [
     {
       "id": "react.model.declarative.example-a",
-      "title": "Declarative UI and re-rendering: concrete case",
-      "situation": "Changing isOpen causes render to describe either the panel or its absence without manually inserting nodes.",
+      "title": "The hint panel that opens itself",
+      "situation": "Changing isOpen causes render to describe either the panel or its absence without manually inserting hint nodes.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: Changing isOpen causes render to describe either the panel or its absence without manually inserting nodes.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Describe UI from state and use event handlers to update state; reserve DOM imperative work for explicit escape hatches."
+        "**Before:** the handler found the box, appended a p, changed button text and removed it later.",
+        "**After:** Hint keeps isOpen in state and returns `{isOpen && <p>...</p>}` with the button text derived from isOpen.",
+        "**Trace:** clicking will call setIsOpen(true), Hint re-renders, and React inserts only the p and changes the button text."
       ],
-      "result": "The result follows because Describe UI from state and use event handlers to update state; reserve DOM imperative work for explicit escape hatches."
+      "result": "The hint shows and hides reliably, never twice, and the button label always matches."
     },
     {
       "id": "react.model.declarative.example-b",
-      "title": "Declarative UI and re-rendering: boundary case",
-      "situation": "Render must stay pure, browser state can exist outside React, and imperative escape hatches need synchronization.",
+      "title": "The label that got stuck",
+      "situation": "A Save button renders \"Save\". Its handler sets `event.target.textContent = \"Saved\"` directly. After the learner edits the form again, the button should say \"Save\" but stays stuck on \"Saved\".",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Render must stay pure, browser state can exist outside React, and imperative escape hatches need synchronization.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Declarative React means DOM events and state updates never occur imperatively."
+        "The handler changed React-owned DOM behind React's back.",
+        "React's last description still says \"Save\", so it sees no difference and never updates the text.",
+        "Fix: keep `saved` in state, set it false on edit, and render `{saved ? \"Saved\" : \"Save\"}`."
       ],
-      "result": "The boundary requires this correction: Describe UI from state and use event handlers to update state; reserve DOM imperative work for explicit escape hatches."
+      "result": "The button shows \"Saved\" after saving and \"Save\" again after any edit."
     }
   ],
   "misconceptions": [
     {
       "id": "react.model.declarative.misconception",
       "mistakenBelief": "Declarative React means DOM events and state updates never occur imperatively.",
-      "correction": "Describe UI from state and use event handlers to update state; reserve DOM imperative work for explicit escape hatches.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Declarative React means DOM events and state updates never occur imperatively."
+      "correction": "Handlers still perform actions, like setIsOpen(true) or sending a request. What's declarative is the render: the JSX describes the UI for the current state, and React applies DOM changes.",
+      "diagnosticPrompt": "In \"The hint panel that opens itself\", which line is still imperative?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Declarative UI and re-rendering, where inputs and state produce a UI description.",
+    "example": "Manual DOM code is like **giving a taxi driver every turn**; React is like **telling the driver the destination**. You still decide when to change the destination (a state update), but the route (DOM steps) is worked out for you.",
     "usefulFor": [
-      "Building a first mental model for Declarative UI and re-rendering before using exact platform terms"
+      "remembering describe, don't do",
+      "state change = new destination"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Render must stay pure, browser state can exist outside React, and imperative escape hatches need synchronization."
+      "Drivers can ignore you; React always follows the description.",
+      "If you grab the wheel (edit DOM directly), the driver doesn't notice and later gets lost."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Changing isOpen causes render to describe either the panel or its absence without manually inserting nodes.",
-      "React components describe UI as a function of props, state, and context, and reconciliation updates the DOM to match the latest description.",
-      "Describe UI from state and use event handlers to update state; reserve DOM imperative work for explicit escape hatches."
+      "initial render: isOpen = false",
+      "click: setIsOpen(true)",
+      "re-render: isOpen = true"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "First render",
         "state": {
-          "evidence": "Changing isOpen causes render to describe either the panel or its absence without manually inserting nodes."
+          "isOpen": "false",
+          "DOM": "button 'Show hint'"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The component describes the panel's absence when isOpen is false."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "State change",
         "state": {
-          "rule": "React components describe UI as a function of props, state, and context, and reconciliation updates the DOM to match the latest description."
+          "setIsOpen": "true",
+          "scheduled": "re-render"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The handler changes isOpen, which schedules a re-render."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Reconcile",
         "state": {
-          "correction": "Describe UI from state and use event handlers to update state; reserve DOM imperative work for explicit escape hatches."
+          "inserted": "<p class=hint>",
+          "changed": "button text"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Declarative React means DOM events and state updates never occur imperatively."
+        "explanation": "The new render describes the panel, and React inserts it without manual nodes."
       }
     ],
-    "textAlternative": "Starting artifact: Changing isOpen causes render to describe either the panel or its absence without manually inserting nodes. Step 1, Artifact. State: evidence: Changing isOpen causes render to describe either the panel or its absence without manually inserting nodes.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: React components describe UI as a function of props, state, and context, and reconciliation updates the DOM to match the latest description.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Describe UI from state and use event handlers to update state; reserve DOM imperative work for explicit escape hatches.. Check the result against the boundary and reject this misconception: Declarative React means DOM events and state updates never occur imperatively."
+    "textAlternative": "Tracing the hint toggle. Step 1, First render: isOpen is false; DOM is button 'Show hint'. The component describes the panel's absence when isOpen is false. Step 2, State change: setIsOpen is true; scheduled is re-render. The handler changes isOpen, which schedules a re-render. Step 3, Reconcile: inserted is <p class=hint>; changed is button text. The new render describes the panel, and React inserts it without manual nodes."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Declarative UI and re-rendering: concrete case”: state its starting evidence, apply the Declarative UI and re-rendering rule, and give the observable result in three short lines.",
+      "prompt": "For \"The hint panel that opens itself\", explain how changing isOpen causes render to describe either the panel or its absence without manually inserting nodes.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Before.",
+        "After.",
+        "Trace."
       ],
       "expectedEvidence": [
-        "Named example: Declarative UI and re-rendering: concrete case.",
-        "Starting evidence: Changing isOpen causes render to describe either the panel or its absence without manually inserting nodes.",
-        "Core rule: React components describe UI as a function of props, state, and context, and reconciliation updates the DOM to match the latest description.",
-        "Observable result: The result follows because Describe UI from state and use event handlers to update state; reserve DOM imperative work for explicit escape hatches.",
-        "Boundary check: Describe UI from state and use event handlers to update state; reserve DOM imperative work for explicit escape hatches."
+        "Names the example \"The hint panel that opens itself\": the panel depends on isOpen.",
+        "Render describes either the panel or its absence.",
+        "No nodes are inserted manually.",
+        "The hint shows and hides reliably, never twice."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Render must stay pure, browser state can exist outside React, and imperative escape hatches need synchronization.",
+      "prompt": "Convert this manual code to React: clicking \"Mark done\" adds a `done` class to the card and changes the button to \"Undo\".",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "State: done.",
+        "Derive className and label."
       ],
       "expectedEvidence": [
-        "React components describe UI as a function of props, state, and context, and reconciliation updates the DOM to match the latest description.",
-        "Render must stay pure, browser state can exist outside React, and imperative escape hatches need synchronization."
+        "`className={done ? \"card done\" : \"card\"}`.",
+        "Button text from done; no classList calls."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Declarative UI and re-rendering and explain why the misconception fails.",
+      "prompt": "Take a small vanilla widget from your browser project (tabs, accordion or modal). Rewrite it declaratively in React, and write a short trace of one interaction: event, state change, re-render, DOM change.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "List the states first.",
+        "No direct DOM edits."
       ],
       "expectedEvidence": [
-        "Translate a manual DOM update into state-driven rendering and trace its rerender.",
-        "Describe UI from state and use event handlers to update state; reserve DOM imperative work for explicit escape hatches."
+        "Working React widget.",
+        "A trace with four steps."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.model.declarative.misconception",
-      "explanation": "Describe UI from state and use event handlers to update state; reserve DOM imperative work for explicit escape hatches.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'UI from state' and state the decisive evidence."
+      "explanation": "Ask: **\"For any value of my state, what should the screen show?\"** Write that in JSX. Handlers only change state; they never touch the DOM React owns.",
+      "retryPrompt": "Apply this to \"The label that got stuck\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to translate a manual DOM update into state-driven rendering and trace its rerender. Keep this boundary in view: Render must stay pure, browser state can exist outside React, and imperative escape hatches need synchronization.",
+    "summary": "To translate a manual DOM update into state-driven rendering, keep the changing fact in state, write JSX that describes the UI for any state value, and let handlers only update state. Each update re-renders the component, and React reconciles the new description into minimal DOM changes.",
     "retrievalPrompts": [
-      "Explain Declarative UI and re-rendering using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: Declarative React means DOM events and state updates never occur imperatively.",
-      "Apply checkpoint 'UI from state' to a new artifact."
+      "What does a React component describe?",
+      "What happens after a state update?",
+      "Why not edit React-owned DOM directly?"
     ],
     "nextReviewPrompt": "Next: continue to “React developer tools”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

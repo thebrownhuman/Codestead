@@ -57,7 +57,7 @@
 .empty { display: grid; min-height: 150px; place-items: center; padding: 24px; color: var(--ink-soft); text-align: center; }
 .error { margin: 0; padding: 11px 13px; border-radius: 10px; color: var(--danger); background: color-mix(in srgb,var(--danger) 10%,transparent); }
 .success { margin: 0; padding: 11px 13px; border-radius: 10px; color: var(--brand-strong); background: var(--brand-soft); }
-.adminStudio { display: grid; min-width: 0; gap: 18px; padding-bottom: 48px; }
+.adminStudio { display: grid; min-width: 0; gap: 18px; }
 .adminStudio .hero h1 { margin: 5px 0 7px; font-size: clamp(2rem,4.6vw,4rem); letter-spacing: -.05em; line-height: 1; }
 .adminAuth { display: grid; grid-template-columns: minmax(190px,.35fr) minmax(300px,1fr) auto; align-items: end; gap: 12px; padding: 16px; }
 .adminAuth label { display: grid; gap: 6px; font-size: .78rem; font-weight: 850; }

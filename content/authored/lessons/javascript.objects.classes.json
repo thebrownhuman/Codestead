@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "JavaScript class syntax defines constructor and prototype methods with private fields and inheritance rules over the existing object model.",
+    "summary": "A `class` bundles a **constructor** (sets up each instance) and **methods** (stored on the prototype). A **private field** like `#count` can only be read or changed by code inside the class body, so the class can protect an **invariant**: a rule that must always stay true, such as \"count is never negative\". Every change goes through a method that checks the rule. Methods are still regular functions: pass one as a callback and it loses `this` unless you bind or wrap it.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A Counter private field changes only through methods that preserve its nonnegative invariant. Your goal is to implement and test a class that preserves an invariant. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A Counter for remaining lesson attempts should never drop below zero. With a public `count` property, any code can write `counter.count = -5` and the bug appears far away from the cause. A Counter private field changes only through methods that preserve its nonnegative invariant. In this lesson you'll implement and test a class that preserves an invariant.\n\n```predict\n{\"question\": \"`class Counter { #count = 0; } const c = new Counter(); c.#count = -5;` What happens?\", \"options\": [\"count becomes -5\", \"SyntaxError: private fields can't be touched outside the class\"], \"answer\": 1, \"why\": \"#count exists only inside the class body. Outside code can't even name it, so the invariant is safe.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Object records and property access; Function declarations, expressions and arrows; Prototype delegation; Parameters, rest and return contracts. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Object records and property access**, **Function declarations, expressions and arrows**, **Prototype delegation** (methods live on the prototype), and **Parameters, rest and return contracts** for validating method inputs."
       },
       {
-        "heading": "Technology rule",
-        "body": "JavaScript class syntax defines constructor and prototype methods with private fields and inheritance rules over the existing object model. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The invariant rule: one door in, checked every time",
+        "body": "```js\nclass Counter {\n  #count;                                  // private: only this class can touch it.\n  constructor(start = 0) {\n    if (!Number.isInteger(start) || start < 0) throw new RangeError(\"start must be >= 0\");\n    this.#count = start;\n  }\n  get value() { return this.#count; }        // read-only view.\n  increment() { this.#count += 1; }\n  decrement() {\n    if (this.#count === 0) throw new RangeError(\"already at 0\");\n    this.#count -= 1;\n  }\n}\n\nconst attempts = new Counter(2);\nattempts.decrement();   // value 1\nattempts.decrement();   // value 0\nattempts.decrement();   // RangeError, value stays 0\n```\n\n| Piece | Job |\n|---|---|\n| constructor. | validate and set starting state. |\n| `#count`. | hidden state no outsider can write. |\n| getter `value`. | lets others read without writing. |\n| methods. | the only doors that change state, each checks the rule. |\n\n```reveal\n{\"prompt\": \"Why throw instead of silently staying at 0?\", \"answer\": \"A silent no-op hides the bug in the caller. Throwing tells the caller immediately that its request broke the rule.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Classes are strict, methods are not auto-bound, private names are lexical, and derived constructors must initialize super first. This draft therefore rejects: Class methods automatically retain their instance this when passed as callbacks."
+        "heading": "Methods as callbacks still lose this",
+        "body": "```predict\n{\"question\": \"`button.addEventListener(\\\"click\\\", attempts.increment);` then a click. What happens?\", \"options\": [\"count goes up\", \"TypeError: this is the button, which has no #count\"], \"answer\": 1, \"why\": \"Class syntax doesn't auto-bind. Use `() => attempts.increment()` or `attempts.increment.bind(attempts)`.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use class syntax, constructors, methods and private fields for justified stateful abstractions.",
-      "Implement and test a class that preserves an invariant."
+      "Write a class with a constructor, private fields, a getter and checking methods.",
+      "Test that the invariant holds, including callback use."
     ],
     "excludes": [
-      "Classes are strict, methods are not auto-bound, private names are lexical, and derived constructors must initialize super first."
+      "Inheritance with extends and super in depth (next lesson compares it).",
+      "Decorators and static blocks."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "javascript.objects.classes.example-a",
-      "title": "Classes and private state: concrete case",
+      "title": "The counter that can't go negative",
       "situation": "A Counter private field changes only through methods that preserve its nonnegative invariant.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A Counter private field changes only through methods that preserve its nonnegative invariant.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Methods are not auto-bound; preserve the receiver, bind explicitly, or use an intentional instance arrow field."
+        "**Private field:** `#count` can't be written from outside, so `c.count = -5` can't break it.",
+        "**Methods preserve the invariant:** decrement checks `#count === 0` and throws RangeError before going negative.",
+        "**Test:** a test will build Counter(1), decrement twice, expect the second call to throw and `value` to read 0."
       ],
-      "result": "The result follows because Methods are not auto-bound; preserve the receiver, bind explicitly, or use an intentional instance arrow field."
+      "result": "The counter's value never drops below zero, and misuse fails loudly at the call that caused it."
     },
     {
       "id": "javascript.objects.classes.example-b",
-      "title": "Classes and private state: boundary case",
-      "situation": "Classes are strict, methods are not auto-bound, private names are lexical, and derived constructors must initialize super first.",
+      "title": "The click that crashed the counter",
+      "situation": "A \"try again\" button uses `addEventListener(\"click\", attempts.increment)` and every click throws \"Cannot read private member #count from an object whose class did not declare it\".",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Classes are strict, methods are not auto-bound, private names are lexical, and derived constructors must initialize super first.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Class methods automatically retain their instance this when passed as callbacks."
+        "The browser calls increment with the button as this.",
+        "The button has no #count, so the private access throws TypeError.",
+        "Fix: `addEventListener(\"click\", () => attempts.increment())`."
       ],
-      "result": "The boundary requires this correction: Methods are not auto-bound; preserve the receiver, bind explicitly, or use an intentional instance arrow field."
+      "result": "Each click increments the attempts counter correctly."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.objects.classes.misconception",
       "mistakenBelief": "Class methods automatically retain their instance this when passed as callbacks.",
-      "correction": "Methods are not auto-bound; preserve the receiver, bind explicitly, or use an intentional instance arrow field.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: Class methods automatically retain their instance this when passed as callbacks."
+      "correction": "Class methods are normal functions on the prototype. Their this is set at call time, so passing one as a callback drops the instance unless you bind it or wrap it in an arrow.",
+      "diagnosticPrompt": "In \"The click that crashed the counter\", what was this inside increment?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Classes and private state, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "A class with private fields is like a **ticket machine**: you can't reach inside and change the ticket count; you press buttons (methods), and the machine refuses a button press that would break its rules, like printing a ticket when it's empty.",
     "usefulFor": [
-      "Building a first mental model for Classes and private state before using exact platform terms"
+      "remembering one door in",
+      "invariant = the machine's built-in rule"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Classes are strict, methods are not auto-bound, private names are lexical, and derived constructors must initialize super first."
+      "Machines don't forget who pressed them; methods can lose this.",
+      "A getter is the little display window: look, don't touch."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A Counter private field changes only through methods that preserve its nonnegative invariant.",
-      "JavaScript class syntax defines constructor and prototype methods with private fields and inheritance rules over the existing object model.",
-      "Methods are not auto-bound; preserve the receiver, bind explicitly, or use an intentional instance arrow field."
+      "const c = new Counter(1)",
+      "c.decrement()",
+      "c.decrement()"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Construct",
         "state": {
-          "evidence": "A Counter private field changes only through methods that preserve its nonnegative invariant."
+          "#count": "1"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The constructor validates the start value and stores it privately."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "First decrement",
         "state": {
-          "rule": "JavaScript class syntax defines constructor and prototype methods with private fields and inheritance rules over the existing object model."
+          "#count": "0"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The method checks the rule, then lowers the private field."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Second decrement",
         "state": {
-          "correction": "Methods are not auto-bound; preserve the receiver, bind explicitly, or use an intentional instance arrow field."
+          "#count": "0",
+          "thrown": "RangeError"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Class methods automatically retain their instance this when passed as callbacks."
+        "explanation": "The method refuses, so the nonnegative invariant is preserved."
       }
     ],
-    "textAlternative": "Starting artifact: A Counter private field changes only through methods that preserve its nonnegative invariant. Step 1, Artifact. State: evidence: A Counter private field changes only through methods that preserve its nonnegative invariant.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: JavaScript class syntax defines constructor and prototype methods with private fields and inheritance rules over the existing object model.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Methods are not auto-bound; preserve the receiver, bind explicitly, or use an intentional instance arrow field.. Check the result against the boundary and reject this misconception: Class methods automatically retain their instance this when passed as callbacks."
+    "textAlternative": "A Counter protecting its invariant. Step 1, Construct: #count is 1. The constructor validates the start value and stores it privately. Step 2, First decrement: #count is 0. The method checks the rule, then lowers the private field. Step 3, Second decrement: #count is 0; thrown is RangeError. The method refuses, so the nonnegative invariant is preserved."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Classes and private state: concrete case”: state its starting evidence, apply the Classes and private state rule, and give the observable result in three short lines.",
+      "prompt": "For \"The counter that can't go negative\", explain how a Counter private field changes only through methods that preserve its nonnegative invariant.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Private field.",
+        "Checking method.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Classes and private state: concrete case.",
-        "Starting evidence: A Counter private field changes only through methods that preserve its nonnegative invariant.",
-        "Core rule: JavaScript class syntax defines constructor and prototype methods with private fields and inheritance rules over the existing object model.",
-        "Observable result: The result follows because Methods are not auto-bound; preserve the receiver, bind explicitly, or use an intentional instance arrow field.",
-        "Boundary check: Methods are not auto-bound; preserve the receiver, bind explicitly, or use an intentional instance arrow field."
+        "Names the example \"The counter that can't go negative\": the private field can't be written from outside.",
+        "decrement checks the value before changing it.",
+        "A second decrement from 1 throws RangeError.",
+        "value stays at 0."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Classes are strict, methods are not auto-bound, private names are lexical, and derived constructors must initialize super first.",
+      "prompt": "Write a `Wallet` class with private `#balance`, `deposit(amount)` and `withdraw(amount)`. Reject non-positive amounts and withdrawals larger than the balance.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Validate inside each method.",
+        "Expose balance with a getter."
       ],
       "expectedEvidence": [
-        "JavaScript class syntax defines constructor and prototype methods with private fields and inheritance rules over the existing object model.",
-        "Classes are strict, methods are not auto-bound, private names are lexical, and derived constructors must initialize super first."
+        "Balance never negative; bad amounts throw.",
+        "No way to set #balance from outside."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Classes and private state and explain why the misconception fails.",
+      "prompt": "Design a `Timer` class with start, pause and reset, whose invariant is \"elapsed time never decreases except on reset\". Write tests, including one where a method is used as a click callback.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Keep elapsed and state private.",
+        "Wrap callbacks."
       ],
       "expectedEvidence": [
-        "Implement and test a class that preserves an invariant.",
-        "Methods are not auto-bound; preserve the receiver, bind explicitly, or use an intentional instance arrow field."
+        "Tests proving the invariant.",
+        "A callback test that passes because of an arrow or bind."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.objects.classes.misconception",
-      "explanation": "Methods are not auto-bound; preserve the receiver, bind explicitly, or use an intentional instance arrow field.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'not auto-bound' and state the decisive evidence."
+      "explanation": "For every class, write the invariant in one sentence first. Then make the state private and check the rule in **every** method that changes it. When passing a method elsewhere, wrap it.",
+      "retryPrompt": "Apply this to \"The click that crashed the counter\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test a class that preserves an invariant. Keep this boundary in view: Classes are strict, methods are not auto-bound, private names are lexical, and derived constructors must initialize super first.",
+    "summary": "To implement and test a class that preserves an invariant, keep state in private fields, validate in the constructor, change state only through methods that check the rule, and expose reads with getters. Class methods still lose this as callbacks, so wrap or bind them.",
     "retrievalPrompts": [
-      "Explain Classes and private state using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: Class methods automatically retain their instance this when passed as callbacks.",
-      "Apply checkpoint 'not auto-bound' to a new artifact."
+      "What stops outside code from writing #count?",
+      "Where must the invariant be checked?",
+      "Do class methods auto-bind this?"
     ],
     "nextReviewPrompt": "Next: continue to “Composition and inheritance”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

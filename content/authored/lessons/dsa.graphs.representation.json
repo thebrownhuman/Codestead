@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Adjacency lists use space proportional to vertices plus edges, while matrices use quadratic space and constant-time edge lookup.",
+    "summary": "Two standard ways to store a graph with V vertices and E edges. An **adjacency list** keeps, for each vertex, a list of its neighbours: **O(V + E) space**, and visiting all neighbours of v costs O(degree(v)). An **adjacency matrix** is a V × V grid where `m[u][v]` says whether (or how heavily) u links to v: **O(V²) space**, but checking one edge is **O(1)**. Most real graphs are **sparse** (each vertex links to a few others), so lists win. Matrices suit **dense** graphs, small V, or algorithms that check many specific pairs, like Floyd-Warshall.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A sparse social graph uses adjacency lists rather than allocating a full V by V matrix. Your goal is to implement and compare list and matrix representations, including a two-dimensional matrix. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A study-buddy network has 100,000 learners, each connected to about 20 others. A prototype stores it as a 100,000 × 100,000 matrix of booleans and runs out of memory before loading. A sparse social graph uses adjacency lists rather than allocating a full V by V matrix. In this lesson you'll implement and compare list and matrix representations, including a two-dimensional matrix.\n\n```predict\n{\"question\": \"100,000 vertices as a boolean matrix, one byte per cell. Roughly how much memory?\", \"options\": [\"About 2 MB\", \"About 10 GB (10¹⁰ cells)\"], \"answer\": 1, \"why\": \"V² grows fast. With about 2,000,000 edges, a list needs a tiny fraction of that.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Stacks, queues and deques; Hash tables, sets and maps; Graph terminology and models; Two-dimensional arrays and matrices; Frequency and lookup patterns. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Stacks, queues and deques** module, the **Hash tables, sets and maps** module, **Graph terminology and models**, **Two-dimensional arrays and matrices**, and **Frequency and lookup patterns**."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Adjacency lists use space proportional to vertices plus edges, while matrices use quadratic space and constant-time edge lookup. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The distinction: space for edges vs space for every pair",
+        "body": "```python\ndef to_adjacency_list(n, edges):          # undirected, vertices 0..n-1.\n    adj = [[] for _ in range(n)]\n    for u, v in edges:\n        adj[u].append(v)\n        adj[v].append(u)\n    return adj\n\ndef to_adjacency_matrix(n, edges):\n    m = [[0] * n for _ in range(n)]         # n x n, independent rows.\n    for u, v in edges:\n        m[u][v] = m[v][u] = 1\n    return m\n\nedges = [(0, 1), (0, 2), (2, 3)]\nadj = to_adjacency_list(4, edges)          # [[1, 2], [0], [0, 3], [2]]\nmat = to_adjacency_matrix(4, edges)\nprint(3 in adj[2], mat[2][3] == 1)        # both True.\n```\n\n| Task | Adjacency list | Adjacency matrix |\n|---|---|---|\n| space. | O(V + E). | O(V²). |\n| is (u, v) an edge? | O(degree(u)), or O(1) with sets. | O(1). |\n| all neighbours of u. | O(degree(u)). | O(V). |\n| add an edge. | O(1). | O(1). |\n| best for. | sparse graphs. | dense or small graphs. |\n\n```reveal\n{\"prompt\": \"How do you store weights?\", \"answer\": \"List: store (neighbour, weight) pairs or a dict {neighbour: weight}. Matrix: store the weight in the cell and use infinity (or None) for no edge.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Parallel edges, weights, ordering, mutation, and dense graphs influence the representation. The draft therefore rejects: Adjacency matrices are always more memory efficient because each edge is one Boolean."
+        "heading": "Sparse or dense?",
+        "body": "```predict\n{\"question\": \"A graph with 1,000 vertices and 499,500 edges (every pair connected). Which is reasonable?\", \"options\": [\"Only a list\", \"A matrix is fine: the graph is dense, so V² isn't wasted\"], \"answer\": 1, \"why\": \"When E is close to V², the matrix's space is actually used.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Choose representation by graph density, required operations and memory cost.",
-      "Implement and compare list and matrix representations, including a two-dimensional matrix.",
-      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      "Build adjacency lists and matrices from an edge list.",
+      "Compare their space and operation costs and choose for sparse or dense graphs."
     ],
     "excludes": [
-      "Parallel edges, weights, ordering, mutation, and dense graphs influence the representation."
+      "Compressed sparse row formats.",
+      "Edge-list-only algorithms in depth."
     ]
   },
   "outcomes": [
@@ -68,142 +64,136 @@
   "examples": [
     {
       "id": "dsa.graphs.representation.example-a",
-      "title": "Adjacency list and matrix: language-neutral trace",
+      "title": "A study network of 100,000 learners",
       "situation": "A sparse social graph uses adjacency lists rather than allocating a full V by V matrix.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: A sparse social graph uses adjacency lists rather than allocating a full V by V matrix.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Lists favor sparse graphs; matrices allocate O(V^2) space regardless of edge count."
+        "**Estimate:** 100,000 learners with about 20 buddies each is about 2,000,000 edge entries in lists, versus 10¹⁰ matrix cells.",
+        "**Sparse social graph:** each learner's list holds only real buddies, so memory is O(V + E).",
+        "**Check:** a test will build both from a small edge list and assert they agree on every edge and neighbour set."
       ],
-      "result": "The conceptual result follows because Lists favor sparse graphs; matrices allocate O(V^2) space regardless of edge count."
+      "result": "The network loads in a few megabytes and neighbour lookups stay fast."
     },
     {
       "id": "dsa.graphs.representation.example-b",
-      "title": "Adjacency list and matrix: implementation transfer",
-      "situation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
+      "title": "The dense timetable clash check",
+      "situation": "A timetable tool has 300 course sections and checks \"do sections u and v clash?\" millions of times.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
-        "Step 3 — Retest this boundary in the selected implementation: Parallel edges, weights, ordering, mutation, and dense graphs influence the representation."
+        "V² = 90,000 cells: small.",
+        "Clash checks are exactly single-pair lookups.",
+        "An adjacency matrix gives O(1) answers with modest memory."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Clash checks run instantly, and the matrix fits easily in memory."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.graphs.representation.misconception",
       "mistakenBelief": "Adjacency matrices are always more memory efficient because each edge is one Boolean.",
-      "correction": "Lists favor sparse graphs; matrices allocate O(V^2) space regardless of edge count.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Adjacency matrices are always more memory efficient because each edge is one Boolean."
+      "correction": "A matrix stores a cell for every pair, edge or not, so it always uses V² space. For sparse graphs almost all cells are empty, and an adjacency list uses far less.",
+      "diagnosticPrompt": "In \"A study network of 100,000 learners\", why did the matrix run out of memory?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Adjacency list and matrix, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "An adjacency list is like **each person's contact list**: short, only real contacts. An adjacency matrix is like **a giant seating chart with a box for every possible pair** of people: easy to check one pair, but mostly empty boxes when people know only a few others.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering lists for sparse, matrices for dense",
+      "O(1) pair check = looking up one box"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Parallel edges, weights, ordering, mutation, and dense graphs influence the representation."
+      "Contact lists can be searched fast if stored as sets.",
+      "A seating chart for 300 people is fine; for 100,000 it isn't."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A sparse social graph uses adjacency lists rather than allocating a full V by V matrix.",
-      "Adjacency lists use space proportional to vertices plus edges, while matrices use quadratic space and constant-time edge lookup.",
-      "Lists favor sparse graphs; matrices allocate O(V^2) space regardless of edge count.",
-      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      "edges (0,1), (0,2), (2,3)",
+      "build list",
+      "build matrix"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "List",
         "state": {
-          "scenario": "A sparse social graph uses adjacency lists rather than allocating a full V by V matrix."
+          "adj": "[[1, 2], [0], [0, 3], [2]]",
+          "entries": "6"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The list stores each undirected edge twice, O(V + E)."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Matrix",
         "state": {
-          "invariant": "Adjacency lists use space proportional to vertices plus edges, while matrices use quadratic space and constant-time edge lookup."
+          "cells": "16",
+          "ones": "6"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "The matrix allocates every pair even when most are empty."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Compare",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "(2, 3) edge?": "both yes",
+          "memory at V = 100,000": "list small, matrix 10¹⁰ cells"
         },
-        "explanation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Lists favor sparse graphs; matrices allocate O(V^2) space regardless of edge count."
-        },
-        "explanation": "Verify the result and reject this misconception: Adjacency matrices are always more memory efficient because each edge is one Boolean."
+        "explanation": "A sparse social graph uses adjacency lists rather than a full V by V matrix."
       }
     ],
-    "textAlternative": "Starting artifact: A sparse social graph uses adjacency lists rather than allocating a full V by V matrix. Step 1, Specification. State: scenario: A sparse social graph uses adjacency lists rather than allocating a full V by V matrix.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Adjacency lists use space proportional to vertices plus edges, while matrices use quadratic space and constant-time edge lookup.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target. Step 4, Conclusion. State: correction: Lists favor sparse graphs; matrices allocate O(V^2) space regardless of edge count.. Verify the result and reject this misconception: Adjacency matrices are always more memory efficient because each edge is one Boolean."
+    "textAlternative": "Building both representations. Step 1, List: adj is [[1, 2], [0], [0, 3], [2]]; entries is 6. The list stores each undirected edge twice, O(V + E). Step 2, Matrix: cells is 16; ones is 6. The matrix allocates every pair even when most are empty. Step 3, Compare: (2, 3) edge? is both yes; memory at V = 100,000 is list small, matrix 10¹⁰ cells. A sparse social graph uses adjacency lists rather than a full V by V matrix."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Adjacency list and matrix: language-neutral trace”: state its starting evidence, apply the Adjacency list and matrix rule, and give the observable result in three short lines.",
+      "prompt": "For \"A study network of 100,000 learners\", explain why a sparse social graph uses adjacency lists rather than allocating a full V by V matrix.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Estimate.",
+        "Choose.",
+        "Check."
       ],
       "expectedEvidence": [
-        "Named example: Adjacency list and matrix: language-neutral trace.",
-        "Starting evidence: A sparse social graph uses adjacency lists rather than allocating a full V by V matrix.",
-        "Core rule: Adjacency lists use space proportional to vertices plus edges, while matrices use quadratic space and constant-time edge lookup.",
-        "Observable result: The conceptual result follows because Lists favor sparse graphs; matrices allocate O(V^2) space regardless of edge count.",
-        "Boundary check: Lists favor sparse graphs; matrices allocate O(V^2) space regardless of edge count."
+        "Names the example \"A study network of 100,000 learners\": the matrix needed 10¹⁰ cells.",
+        "A sparse social graph uses adjacency lists.",
+        "It avoids allocating a full V by V matrix.",
+        "The network loads in a few megabytes."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Adjacency lists use space proportional to vertices plus edges, while matrices use quadratic space and constant-time edge lookup.",
+      "prompt": "Convert this directed weighted edge list to both forms: (0→1, 4), (0→2, 1), (2→1, 2). Use a dict per vertex for the list and infinity for missing matrix cells.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Directed: store one direction only.",
+        "Diagonal: 0."
       ],
       "expectedEvidence": [
-        "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
-        "Parallel edges, weights, ordering, mutation, and dense graphs influence the representation."
+        "adj[0] = {1: 4, 2: 1}, adj[2] = {1: 2}.",
+        "m[0][1] = 4, m[1][0] = infinity."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Adjacency list and matrix case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Write a Graph class that can be built from an edge list as either representation behind the same methods (neighbours, has_edge, add_edge). Run the same tests on both and measure memory for a random sparse graph with V = 5,000.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Same interface, two implementations.",
+        "Use sys.getsizeof roughly or count cells."
       ],
       "expectedEvidence": [
-        "Implement and compare list and matrix representations, including a two-dimensional matrix.",
-        "Lists favor sparse graphs; matrices allocate O(V^2) space regardless of edge count."
+        "Both pass identical tests.",
+        "Memory comparison reported."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.graphs.representation.misconception",
-      "explanation": "Lists favor sparse graphs; matrices allocate O(V^2) space regardless of edge count.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'O(V^2)', then state one implementation-specific risk in the selected language."
+      "explanation": "Estimate **V² versus V + E** before choosing. Then ask which operation dominates: **listing neighbours** (list) or **checking specific pairs** (matrix, or a list of sets).",
+      "retryPrompt": "Apply this to \"The dense timetable clash check\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and compare list and matrix representations, including a two-dimensional matrix. Keep this boundary in view: Parallel edges, weights, ordering, mutation, and dense graphs influence the representation.",
+    "summary": "To implement and compare graph representations, use adjacency lists for sparse graphs with O(V + E) space and fast neighbour iteration, and an adjacency matrix (a two-dimensional array) for dense or small graphs where O(1) pair checks justify O(V²) space.",
     "retrievalPrompts": [
-      "State the Adjacency list and matrix invariant and complexity without code.",
-      "Why is this claim false: Adjacency matrices are always more memory efficient because each edge is one Boolean.",
-      "Map checkpoint 'O(V^2)' to C, C++, Java, and Python."
+      "What space does an adjacency list use?",
+      "When is a matrix a good choice?",
+      "How do you store weights in each?"
     ],
     "nextReviewPrompt": "Next: continue to “Breadth-first and depth-first search”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

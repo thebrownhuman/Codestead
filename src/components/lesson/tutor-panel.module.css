@@ -1,0 +1,222 @@
+/* ---------- Window ---------- */
+.tutorPanel { position: fixed; z-index: 60; display: flex; min-width: 0; min-height: 0; flex-direction: column; border: 1px solid color-mix(in srgb,var(--brand) 22%,var(--line)); border-radius: 18px; background: var(--surface-solid); box-shadow: 0 24px 70px color-mix(in srgb,#000 30%,transparent),0 0 0 1px color-mix(in srgb,var(--brand) 6%,transparent); animation: tutor-enter .2s var(--ease-out) both; isolation: isolate; }
+.tutorPanel[data-mode="dock"] { top: 0; right: 0; bottom: 0; height: auto; border-width: 0 0 0 1px; border-radius: 0; box-shadow: -12px 0 40px color-mix(in srgb,#000 12%,transparent); animation: none; }
+.tutorPanel[data-mode="sheet"] { inset: auto 0 0; height: min(92dvh,760px); border-width: 1px 0 0; border-radius: 20px 20px 0 0; padding-bottom: env(safe-area-inset-bottom); animation: tutor-sheet .26s var(--ease-out) both; }
+
+.resize { position: absolute; z-index: 3; touch-action: none; }
+.resize[data-dir="n"], .resize[data-dir="s"] { right: 12px; left: 12px; height: 8px; cursor: ns-resize; }
+.resize[data-dir="e"], .resize[data-dir="w"] { top: 12px; bottom: 12px; width: 8px; cursor: ew-resize; }
+.resize[data-dir="n"] { top: -4px; }
+.resize[data-dir="s"] { bottom: -4px; }
+.resize[data-dir="e"] { right: -4px; }
+.resize[data-dir="w"] { left: -4px; }
+.resize[data-dir="ne"], .resize[data-dir="nw"], .resize[data-dir="se"], .resize[data-dir="sw"] { width: 16px; height: 16px; }
+.resize[data-dir="ne"] { top: -4px; right: -4px; cursor: nesw-resize; }
+.resize[data-dir="sw"] { bottom: -4px; left: -4px; cursor: nesw-resize; }
+.resize[data-dir="nw"] { top: -4px; left: -4px; cursor: nwse-resize; }
+.resize[data-dir="se"] { right: -4px; bottom: -4px; cursor: nwse-resize; }
+.tutorPanel[data-mode="dock"] .resize[data-dir="w"] { top: 0; bottom: 0; }
+.resize[data-dir="w"]:hover, .tutorPanel[data-mode="dock"] .resize:active { background: linear-gradient(90deg,transparent 3px,color-mix(in srgb,var(--brand) 45%,transparent) 3px 5px,transparent 5px); }
+
+.dockHint { position: fixed; z-index: 59; top: 8px; right: 8px; bottom: 8px; border: 2px dashed color-mix(in srgb,var(--brand) 60%,transparent); border-radius: 16px; background: color-mix(in srgb,var(--brand) 8%,transparent); pointer-events: none; }
+
+/* ---------- Header ---------- */
+.tutorHead { position: relative; display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 8px 8px 14px; border-bottom: 1px solid color-mix(in srgb,var(--line) 80%,transparent); cursor: grab; touch-action: none; user-select: none; }
+.tutorHead:active { cursor: grabbing; }
+.tutorPanel[data-mode="sheet"] .tutorHead { padding-top: 16px; cursor: default; }
+.grabber { position: absolute; top: 6px; left: 50%; width: 36px; height: 4px; border-radius: 99px; background: var(--line); transform: translateX(-50%); }
+.title { display: grid; min-width: 0; gap: 1px; }
+.title strong { font-size: .9rem; }
+.title small { overflow: hidden; color: var(--ink-soft); font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
+.headActions { display: flex; flex: 0 0 auto; gap: 2px; }
+.headActions button { display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 9px; color: var(--ink-soft); background: transparent; cursor: pointer; }
+.headActions button:hover { color: var(--ink); background: color-mix(in srgb,var(--ink) 7%,transparent); }
+.headActions button:disabled { cursor: default; opacity: .35; }
+.headActions .confirmClear { width: auto; padding: 0 10px; color: var(--on-brand); background: color-mix(in srgb,var(--danger,#c0392b) 80%,transparent); font-size: .72rem; font-weight: 700; }
+.headActions .confirmClear:hover { color: var(--on-brand); background: var(--danger,#c0392b); }
+
+/* ---------- Messages ---------- */
+.chatMessages { display: flex; min-height: 0; flex: 1 1 auto; flex-direction: column; gap: 14px; padding: 16px 16px 48px; overflow-y: auto; overscroll-behavior: contain; }
+.welcome { display: grid; gap: 8px; margin: auto 0 0; }
+.eyebrow { display: inline-flex; align-items: center; gap: 6px; color: var(--brand-strong); font-size: .7rem; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; }
+.welcome p { margin: 0; color: var(--ink-soft); font-size: .85rem; line-height: 1.5; }
+.welcome p strong { color: var(--ink); }
+/* Starter chips sit just above the input, clear of Patch on the right. */
+.prompts { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 64px 8px 2px; }
+.prompts button { max-width: 100%; overflow: hidden; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); background: var(--surface); font-size: .72rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.prompts button:hover { border-color: var(--brand); color: var(--brand-strong); }
+.userMessage { max-width: 85%; align-self: flex-end; padding: 8px 12px; border-radius: 14px 14px 4px 14px; background: color-mix(in srgb,var(--brand) 12%,var(--surface-muted)); font-size: var(--text-sm,.875rem); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; animation: message-enter .16s var(--ease-out) both; }
+.aiMessage { min-width: 0; color: var(--ink); animation: message-enter .16s var(--ease-out) both; }
+.aiMessage[data-error] { padding: 8px 12px; border: 1px solid color-mix(in srgb,var(--danger,#c0392b) 35%,var(--line)); border-radius: 12px; color: var(--ink-soft); background: color-mix(in srgb,var(--danger,#c0392b) 6%,var(--surface-solid)); font-size: .85rem; }
+
+/* ---------- Composer with Patch perched on top ---------- */
+.composer { position: relative; flex: 0 0 auto; padding: 0 10px 8px; }
+/* Patch stands on the top-right corner of the input, above the send button;
+   bottom offset measured so his feet rest on the border line. */
+.perch { position: absolute; right: 6px; bottom: calc(100% - 1px); z-index: 1; width: 46px; height: 46px; pointer-events: none; }
+.ground { position: absolute; bottom: 1px; left: 10px; width: 26px; height: 5px; border-radius: 50%; background: color-mix(in srgb,#000 30%,transparent); filter: blur(1px); }
+.rig { position: absolute; inset: 0; transform-origin: 50% 100%; transition: transform .25s var(--ease-out); }
+/* Reset every inherited button style so only Patch himself shows. */
+.petButton { all: unset; display: block; width: 46px; height: 46px; border-radius: 50%; cursor: pointer; pointer-events: auto; }
+.petButton:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.perch .petShadow, .perch .petOrbit { display: none; }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Thought cloud: dark green glass that matches the chat, white text, and a trail of
+   circles in front of it growing out of Patch's head. It pops in head-first and
+   shrinks back in reverse. */
+/* Placed up and to the left so the trail circles sit in the gap beside his head, never on him. */
+.thought { position: absolute; right: 46px; bottom: 40px; pointer-events: none; }
+.thoughtCloud { position: relative; display: inline-flex; min-width: 74px; align-items: center; justify-content: center; gap: 5px; padding: 10px 17px 9px; color: #effff4; font-size: .68rem; font-weight: 650; line-height: 1; letter-spacing: .02em; white-space: nowrap; transform-origin: 90% 100%; opacity: 0; transform: scale(.3); transition: opacity .16s ease-out,transform .22s cubic-bezier(.3,1.5,.5,1); }
+.cloudShape { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 3px 8px color-mix(in srgb,#000 35%,transparent)); }
+.cloudShape path, .trailMid, .trailSmall { fill: color-mix(in srgb,var(--brand) 30%,#0c1611); stroke: color-mix(in srgb,var(--brand) 60%,transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.thoughtText { position: relative; animation: word-in .25s ease-out both; }
+.trailMid, .trailSmall { position: absolute; z-index: 2; border: 1px solid color-mix(in srgb,var(--brand) 60%,transparent); border-radius: 50%; background: color-mix(in srgb,var(--brand) 30%,#0c1611); opacity: 0; transform: scale(0); transition: opacity .14s ease-out,transform .2s cubic-bezier(.3,1.6,.5,1); }
+.trailMid { right: -7px; bottom: -5px; width: 7px; height: 7px; }
+.trailSmall { right: -10px; bottom: -11px; width: 4px; height: 4px; }
+/* Appear: small circle, then medium, then the cloud. Disappear: the reverse. */
+.thought[data-visible] .trailSmall { opacity: 1; transform: none; transition-delay: 0s; }
+.thought[data-visible] .trailMid { opacity: 1; transform: none; transition-delay: .07s; }
+.thought[data-visible] .thoughtCloud { opacity: 1; transform: none; transition-delay: .14s; }
+.thought:not([data-visible]) .trailSmall { transition-delay: .14s; }
+.thought:not([data-visible]) .trailMid { transition-delay: .07s; }
+
+.thought[data-kind="thinking"][data-visible] .thoughtCloud { animation: cloud-breathe 2.2s ease-in-out .4s infinite; }
+.thinkDots { position: relative; display: inline-flex; align-items: center; gap: 2px; height: 1em; }
+.thinkDots i { width: 3px; height: 3px; border-radius: 50%; background: currentColor; animation: dot-bounce 1s ease-in-out infinite; }
+.thinkDots i:nth-child(2) { animation-delay: .15s; }
+.thinkDots i:nth-child(3) { animation-delay: .3s; }
+.thought[data-kind="listening"] .thinkDots i { animation-duration: 1.6s; opacity: .7; }
+.pencil { position: relative; color: #b8f5cf; animation: pencil-scribble .5s ease-in-out infinite; }
+.check { position: relative; color: #8ff0b2; animation: check-pop .35s cubic-bezier(.3,1.8,.5,1) both; }
+.question { position: relative; color: #ffd48a; font-size: .8rem; animation: question-wobble .6s ease-in-out infinite; }
+.thought[data-kind="error"][data-visible] .thoughtCloud { animation: cloud-shake .4s ease-in-out .15s; }
+
+/* ---------- Whole-body motion lives on the rig (cloud follows) ---------- */
+.perch[data-state="thinking"] .rig { animation: rig-sit-bob 2s ease-in-out infinite; }
+.perch[data-state="writing"] .rig { animation: rig-type 0.5s ease-in-out infinite; }
+.perch[data-state="error"] .rig { transform: rotate(-8deg); }
+.perch[data-listening] .rig { transform: rotate(-6deg) translateX(-2px); }
+.perch[data-action="hop"] .rig, .perch[data-action="hi"] .rig { animation: pet-hop .6s cubic-bezier(.3,1.6,.5,1); }
+.perch[data-action="cheer"] .rig { animation: pet-hop .5s cubic-bezier(.3,1.6,.5,1) 2; }
+.perch[data-action="stretch"] .rig { animation: pet-stretch 1.2s ease-in-out; }
+.perch[data-action="hop"] .ground, .perch[data-action="hi"] .ground { animation: ground-squash .6s ease-in-out; }
+.perch[data-action="cheer"] .ground { animation: ground-squash .5s ease-in-out 2; }
+.perch[data-state="thinking"] .rig:hover .petEyes { transform: translate(-2px,-1px); animation: none; }
+.perch[data-listening] .petEyes { transform: translate(-2px,2px); animation: none; }
+.chatInput { position: relative; display: flex; align-items: flex-end; gap: 6px; padding: 6px 6px 6px 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); transition: border-color var(--motion-fast) var(--ease-out),box-shadow var(--motion-fast) var(--ease-out); }
+.chatInput:focus-within { border-color: color-mix(in srgb,var(--brand) 60%,var(--line)); box-shadow: 0 0 0 3px color-mix(in srgb,var(--brand) 12%,transparent); }
+.chatInput textarea { field-sizing: content; min-height: 1.45em; max-height: calc(8 * 1.45em + 8px); flex: 1; padding: 5px 0; border: 0; outline: 0; box-shadow: none; color: var(--ink); background: transparent; font-size: .875rem; line-height: 1.45; resize: none; overflow-y: auto; }
+.chatInput textarea::placeholder { color: color-mix(in srgb,var(--ink-soft) 82%,transparent); }
+.chatInput > button { display: grid; width: 30px; height: 30px; flex: 0 0 auto; place-items: center; border: 0; border-radius: 9px; color: var(--on-brand); background: var(--brand); cursor: pointer; transition: opacity var(--motion-fast) var(--ease-out),filter var(--motion-fast) var(--ease-out); }
+.chatInput > button:hover:not(:disabled) { filter: brightness(1.08); }
+.chatInput > button:disabled { cursor: not-allowed; opacity: .35; }
+.privacy { margin: 5px 4px 0; color: var(--ink-soft); font-size: .66rem; text-align: center; }
+@media (forced-colors: active) { .chatInput:focus-within { outline: 3px solid Highlight; outline-offset: 2px; } }
+
+/* ---------- Minimized bubble ---------- */
+.bubble { position: fixed; z-index: 60; display: grid; width: 60px; height: 60px; place-items: center; padding: 0; border: 1px solid color-mix(in srgb,var(--brand) 30%,var(--line)); border-radius: 50%; background: var(--surface-solid); box-shadow: 0 12px 32px color-mix(in srgb,#000 22%,transparent); cursor: grab; touch-action: none; user-select: none; transition: left .45s cubic-bezier(.2,1.25,.4,1),top .45s cubic-bezier(.2,1.25,.4,1),transform .2s var(--ease-out),box-shadow .2s var(--ease-out); animation: tutor-enter .2s var(--ease-out) both; }
+.bubble:hover { transform: translateY(-2px) scale(1.04); box-shadow: 0 16px 36px color-mix(in srgb,#000 28%,transparent); }
+.bubble[data-dragging] { cursor: grabbing; transition: none; transform: scale(1.08); box-shadow: 0 20px 44px color-mix(in srgb,#000 32%,transparent); }
+/* The chat has just shrunk back into Patch: a small squash as it lands. */
+.bubble[data-landing] { animation: bubble-land .45s cubic-bezier(.2,1.4,.4,1); }
+.panelInner { display: flex; min-height: 0; flex: 1 1 auto; flex-direction: column; }
+
+/* ---------- Patch ---------- */
+.mentorPet { position: relative; width: 56px; height: 56px; flex: 0 0 auto; color: var(--brand); }
+.mentorPet[data-size="sm"] { width: 46px; height: 46px; }
+.mentorPet svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.petOrbit { fill: none; stroke: transparent; stroke-width: 1.5; stroke-dasharray: 4 6; transform-box: fill-box; transform-origin: center; }
+.petShadow { fill: color-mix(in srgb,var(--ink) 16%,transparent); transform-box: fill-box; transform-origin: center; }
+.petCharacter { transform-box: fill-box; transform-origin: center bottom; animation: pet-arrive .42s cubic-bezier(.2,.85,.35,1.25) both; }
+.petStem,.petSmile,.petFrown,.petArm path,.petFoot { fill: none; stroke: var(--brand-strong); stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.4; }
+.petFrown { display: none; }
+.petHand { fill: color-mix(in srgb,var(--brand) 76%,var(--signal-cyan)); stroke: var(--brand-strong); stroke-width: 1.2; }
+.petArm { transform-box: fill-box; transform-origin: top center; }
+.petLeaf { fill: var(--signal-cyan); stroke: color-mix(in srgb,var(--signal-cyan) 76%,var(--ink)); stroke-width: 1.2; transform-box: fill-box; transform-origin: bottom center; animation: pet-leaf-wave 5.5s ease-in-out 1s infinite; }
+.petBody { fill: color-mix(in srgb,var(--brand) 76%,var(--signal-cyan)); stroke: color-mix(in srgb,var(--brand-strong) 74%,var(--ink)); stroke-width: 1.5; }
+.petFace { fill: var(--surface-solid); stroke: color-mix(in srgb,var(--brand-strong) 42%,var(--line)); stroke-width: 1.4; }
+.petEyes { fill: var(--ink); transform-box: fill-box; transform-origin: center; animation: pet-blink 5s ease-in-out 1.2s infinite; }
+
+/* Laptop (front view, lid facing us, a little glowing apple on the back). Hidden while
+   idle; while thinking it rises onto his lap after a beat, then loops: lid opens, he
+   reads and types with two small hands, lid shuts and he looks up to think, repeat.
+   Writing keeps it open and types faster. His normal arms hide while the hands type. */
+.petLaptop { opacity: 0; transform: translateY(6px); transition: opacity .25s ease-out,transform .35s cubic-bezier(.3,1.3,.5,1); }
+.laptopGlow { fill: var(--signal-cyan); opacity: 0; filter: blur(2px); }
+.laptopLid { transform-box: fill-box; transform-origin: 50% 100%; transform: scaleY(.12); }
+.lidShell { fill: #24332c; stroke: color-mix(in srgb,var(--brand) 55%,#24332c); stroke-width: 1.1; }
+.lidShine { fill: none; stroke: rgba(255,255,255,.14); stroke-linecap: round; stroke-width: 1.2; }
+.lidLogo { fill: color-mix(in srgb,var(--signal-cyan) 80%,#fff); stroke: color-mix(in srgb,var(--signal-cyan) 80%,#fff); stroke-linecap: round; stroke-width: .6; }
+.laptopBase { fill: #3a4b43; stroke: color-mix(in srgb,var(--brand) 45%,#3a4b43); stroke-width: .8; }
+.typingHand path { fill: none; stroke: var(--brand-strong); stroke-linecap: round; stroke-width: 2.4; }
+.typingHand circle { fill: color-mix(in srgb,var(--brand) 76%,var(--signal-cyan)); stroke: var(--brand-strong); stroke-width: 1.2; }
+.typingHand { transform-box: fill-box; }
+.mentorPet[data-state="thinking"] .petLaptop, .mentorPet[data-state="writing"] .petLaptop { opacity: 1; transform: none; transition-delay: .5s; }
+.mentorPet[data-state="thinking"] .petArm, .mentorPet[data-state="writing"] .petArm { opacity: 0; transition: opacity .2s .5s; }
+.mentorPet[data-state="thinking"] .laptopLid { animation: lid-cycle 7s ease-in-out .8s infinite; }
+.mentorPet[data-state="thinking"] .laptopGlow { animation: glow-cycle 7s ease-in-out .8s infinite; }
+.mentorPet[data-state="thinking"] .petEyes { animation: eyes-cycle 7s ease-in-out .8s infinite; }
+.mentorPet[data-state="thinking"] .typingHand { animation: hand-cycle 7s linear .8s infinite; }
+.mentorPet[data-state="thinking"] .typingHandRight { animation-delay: .95s; }
+.mentorPet[data-state="thinking"] .petLeaf { animation: pet-leaf-think .9s ease-in-out infinite alternate; }
+.mentorPet[data-state="writing"] .laptopLid { transform: scaleY(1); }
+.mentorPet[data-state="writing"] .laptopGlow { opacity: .28; }
+.mentorPet[data-state="writing"] .petEyes { transform: translateY(2px); animation: none; }
+.mentorPet[data-state="writing"] .typingHand { animation: hand-tap .16s ease-in-out infinite alternate; }
+.mentorPet[data-state="writing"] .typingHandRight { animation-delay: .08s; }
+/* Error: small frown (the tilt is on the rig). */
+.mentorPet[data-state="error"] .petSmile { display: none; }
+.mentorPet[data-state="error"] .petFrown { display: inline; }
+/* One-off part animations (body motion is on the rig). */
+.mentorPet[data-action="look"] .petEyes { animation: pet-look 1.4s ease-in-out; }
+.mentorPet[data-action="wave"] .petArmRight { animation: pet-wave .35s ease-in-out 4; }
+/* Hi: the right hand goes up and waves side to side, then comes back down. */
+.mentorPet[data-action="hi"] .petArmRight { animation: pet-hi-wave 1.2s ease-in-out; }
+.mentorPet[data-action="stretch"] .petArm, .mentorPet[data-action="cheer"] .petArm { animation: pet-arms-up 1.2s ease-in-out; }
+.mentorPet[data-action="stretch"] .petArmRight, .mentorPet[data-action="cheer"] .petArmRight { animation-name: pet-arms-up-right; }
+.mentorPet[data-action="cheer"] .petArm { animation-duration: .5s; animation-iteration-count: 2; }
+.mentorPet[data-action="cheer"] .petLeaf { animation: pet-leaf-think .25s ease-in-out 6 alternate; }
+/* Minimized bubble has no rig, so it bobs the svg character itself. */
+.bubble .mentorPet[data-state="thinking"] .petCharacter { animation: pet-bob .9s ease-in-out infinite; }
+
+@keyframes tutor-enter { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes tutor-sheet { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes message-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+@keyframes pet-arrive { 0% { opacity: 0; transform: translateY(8px) scale(.8) rotate(-5deg); } 68% { opacity: 1; transform: translateY(-2px) scale(1.03) rotate(2deg); } 100% { opacity: 1; transform: none; } }
+@keyframes pet-blink { 0%,45%,49%,100% { transform: scaleY(1); } 47% { transform: scaleY(.1); } }
+@keyframes pet-leaf-wave { 0%,82%,100% { transform: rotate(0); } 88% { transform: rotate(8deg); } 94% { transform: rotate(-5deg); } }
+@keyframes pet-bob { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-5px) rotate(2deg); } }
+@keyframes pet-leaf-think { from { transform: rotate(-10deg); } to { transform: rotate(12deg); } }
+@keyframes pet-look { 0%,12% { transform: translateX(0); } 20%,40% { transform: translateX(-3px); } 48%,52% { transform: translateX(0) scaleY(.1); } 60%,80% { transform: translateX(3px); } 90%,100% { transform: translateX(0); } }
+@keyframes pet-tap { from { transform: rotate(0); } to { transform: rotate(-14deg); } }
+@keyframes pet-hop { 0%,100% { transform: translateY(0) scale(1); } 20% { transform: translateY(1px) scale(1.06,.92); } 55% { transform: translateY(-10px) scale(.96,1.05); } 80% { transform: translateY(0) scale(1.04,.96); } }
+@keyframes pet-stretch { 0%,100% { transform: scale(1); } 45%,60% { transform: scale(.95,1.08); } }
+@keyframes pet-arms-up { 0%,100% { transform: rotate(0); } 40%,65% { transform: rotate(120deg); } }
+@keyframes pet-arms-up-right { 0%,100% { transform: rotate(0); } 40%,65% { transform: rotate(-120deg); } }
+@keyframes pet-hi-wave { 0%,100% { transform: rotate(0); } 18% { transform: rotate(-150deg); } 32% { transform: rotate(-115deg); } 46% { transform: rotate(-150deg); } 60% { transform: rotate(-115deg); } 74% { transform: rotate(-150deg); } }
+@keyframes pet-wave { 0%,100% { transform: rotate(0); } 50% { transform: rotate(-40deg); } }
+@keyframes rig-sit-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+@keyframes rig-type { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-1px); } }
+@keyframes ground-squash { 55% { transform: scaleX(.6); opacity: .5; } }
+@keyframes word-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+@keyframes cloud-breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05) translateY(-1px); } }
+@keyframes cloud-shake { 25% { transform: translateX(-3px) rotate(-2deg); } 50% { transform: translateX(3px) rotate(2deg); } 75% { transform: translateX(-2px); } }
+@keyframes dot-bounce { 0%,60%,100% { transform: translateY(0); opacity: .5; } 30% { transform: translateY(-3px); opacity: 1; } }
+@keyframes pencil-scribble { 0%,100% { transform: rotate(-12deg) translateX(0); } 50% { transform: rotate(8deg) translateX(2px); } }
+@keyframes check-pop { from { transform: scale(0) rotate(-30deg); } to { transform: none; } }
+@keyframes question-wobble { 0%,100% { transform: rotate(-10deg); } 50% { transform: rotate(10deg); } }
+/* 7s laptop loop: 0-8% lid opens, 8-58% reading and typing, 58-66% lid shuts, 66-100% looking up to think. */
+@keyframes lid-cycle { 0% { transform: scaleY(.12); } 8%,58% { transform: scaleY(1); } 66%,100% { transform: scaleY(.12); } }
+@keyframes glow-cycle { 0%,4% { opacity: 0; } 10%,56% { opacity: .28; } 62%,100% { opacity: 0; } }
+@keyframes eyes-cycle { 0%,8% { transform: translate(-1px,-2px); } 13%,33% { transform: translate(-1.5px,2px); } 35% { transform: translate(0,2px) scaleY(.15); } 37%,56% { transform: translate(1.5px,2px); } 68%,84% { transform: translate(0,-2.5px); } 90%,100% { transform: translate(-2px,-2px); } }
+@keyframes hand-cycle { 0%,9% { transform: translateY(0); } 12%,18%,24%,30%,36%,42%,48%,54% { transform: translateY(-2.2px); } 15%,21%,27%,33%,39%,45%,51%,57% { transform: translateY(0); } 60%,100% { transform: translateY(0); } }
+@keyframes hand-tap { from { transform: translateY(0); } to { transform: translateY(-2.2px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .tutorPanel, .bubble, .userMessage, .aiMessage, .rig, .ground, .petCharacter, .petLeaf, .petEyes, .petArm, .laptopLid, .laptopGlow, .typingHand, .thoughtCloud, .thoughtText, .thinkDots i, .pencil, .check, .question { animation: none !important; }
+  .rig, .thoughtCloud, .trailMid, .trailSmall, .petLaptop, .bubble { transition: none !important; }
+  .bubble[data-landing] { animation: none; }
+  .mentorPet[data-state="thinking"] .laptopLid { transform: scaleY(1); }
+}
+@keyframes bubble-land { 0% { transform: scale(.7); } 45% { transform: scale(1.12, .9); } 70% { transform: scale(.96, 1.04); } 100% { transform: none; } }

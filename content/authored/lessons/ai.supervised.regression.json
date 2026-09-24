@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Regression estimates a continuous target from examples and is evaluated against simple baselines using metrics whose scale and loss shape match the decision, plus residual analysis across relevant slices.",
+    "summary": "**Regression** predicts a **number**: a house price, a delivery time, tomorrow's demand. A **linear regression** fits a straight line (or flat surface) that makes the squared errors on training data as small as possible. Always compare with a **baseline**, like predicting the **median** for everyone: if your model can't beat that, it isn't useful. Pick a metric that matches the decision. **MAE** (mean absolute error) is the average miss in the target's own units, easy to explain. **RMSE** punishes big misses more. Then look at **residuals** (actual minus predicted) by **slice**: a good overall score can hide a model that's badly wrong for expensive houses or one region. And a coefficient shows association in this data, **not cause**.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A median baseline and linear model are compared with MAE, while residuals are plotted by target range and region before any deployment claim. Your goal is to train and evaluate a baseline and linear regression model with justified metrics. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner's price model reports RMSE 18,000 and R-squared 0.8, and they tell a client it's accurate for every property. For the client's luxury homes, it's off by 150,000. They also say \"adding a bathroom causes a price rise of 20,000\" because of the coefficient. A median baseline and linear model are compared with MAE, while residuals are plotted by target range and region before any deployment claim. In this lesson you'll train and evaluate a baseline and linear regression model with justified metrics.\n\n```predict\n{\"question\": \"A model has a good overall MAE. Is it accurate for every kind of case?\", \"options\": [\"Yes, the average is good\", \"Not necessarily: errors can be concentrated in some slices\"], \"answer\": 1, \"why\": \"Check residuals by range and group.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Data and experimental workflow; Conditional probability and Bayes rule; Train, validation, test and leakage. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Data and experimental workflow**, **Conditional probability and Bayes rule** and **Train, validation, test and leakage**."
       },
       {
-        "heading": "Bounded operational model",
-        "body": "Regression estimates a continuous target from examples and is evaluated against simple baselines using metrics whose scale and loss shape match the decision, plus residual analysis across relevant slices. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+        "heading": "The model: fit a line, beat a baseline, inspect residuals",
+        "body": "```python\nfrom statistics import median\n\ntrain = [(50, 150), (60, 180), (80, 240), (100, 300), (120, 330)]   # (size m2, price k).\ntest  = [(70, 205), (90, 270), (200, 900)]                          # last: a luxury home.\n\n# Least-squares line: price = a + b * size.\nxs, ys = zip(*train)\nmx, my = sum(xs) / len(xs), sum(ys) / len(ys)\nb = sum((x - mx) * (y - my) for x, y in train) / sum((x - mx) ** 2 for x in xs)\na = my - b * mx\n\ndef mae(pred):\n    return round(sum(abs(y - pred(x)) for x, y in test) / len(test), 1)\n\nbase = median(ys)\nprint(\"baseline MAE:\", mae(lambda x: base))           # 241.7\nprint(\"linear MAE:\", mae(lambda x: a + b * x))         # 119.7\nfor x, y in test:\n    print(x, \"residual:\", round(y - (a + b * x), 1))   # big miss at 200 m2.\n```\n\n| Metric | Meaning |\n|---|---|\n| MAE. | average miss, in target units. |\n| RMSE. | like MAE but punishes big misses more. |\n\n```reveal\n{\"prompt\": \"Why did the line miss the luxury home so badly?\", \"answer\": \"Training data only went up to 120 m2. At 200 m2 the model is extrapolating, and luxury homes follow a different pattern. Residuals by range reveal this.\"}\n```"
       },
       {
-        "heading": "Failure boundary and non-claim",
-        "body": "Low average error can hide subgroup or tail failures, extrapolation is fragile, correlation is not causation, squared loss emphasizes large errors, and target noise limits attainable performance. The learner must reject this overclaim: A positive R-squared or lower RMSE proves accurate predictions for every case and explains which features cause the target."
+        "heading": "Coefficients aren't causes",
+        "body": "```predict\n{\"question\": \"The size coefficient is 2.3k per m2. Does adding 1 m2 to a house cause a 2.3k rise?\", \"options\": [\"Yes, that's what the coefficient says\", \"No: it's an association in this data; other factors travel with size\"], \"answer\": 1, \"why\": \"Causal claims need causal methods.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Model continuous targets and inspect residual patterns and scale-sensitive errors.",
-      "Train and evaluate a baseline and linear regression model with justified metrics."
+      "Fit a linear regression and compare it with a median baseline using MAE or RMSE.",
+      "Analyse residuals by slice and avoid causal readings of coefficients."
     ],
     "excludes": [
-      "Low average error can hide subgroup or tail failures, extrapolation is fragile, correlation is not causation, squared loss emphasizes large errors, and target noise limits attainable performance."
+      "Regularised and nonlinear regression (later lessons).",
+      "Statistical inference on coefficients."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "ai.supervised.regression.example.direct",
-      "title": "Regression: bounded direct case",
+      "title": "A median baseline versus a line",
       "situation": "A median baseline and linear model are compared with MAE, while residuals are plotted by target range and region before any deployment claim.",
       "walkthrough": [
-        "Step 1 — Observe the exact data, state, metric, or tool behavior: A median baseline and linear model are compared with MAE, while residuals are plotted by target range and region before any deployment claim.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the claim boundary with: Compare a baseline with decision-relevant error metrics, uncertainty, residual patterns, and slices; predictive association does not establish causation."
+        "**A median baseline and linear model are compared with MAE:** baseline 241.7, linear 119.7.",
+        "**Residuals are plotted by target range:** most test homes are close, but the 200 m2 home misses by 347.",
+        "**Before any deployment claim:** we compute errors per slice and report that large homes are out of range."
       ],
-      "result": "This example supports only the atomic outcome because Compare a baseline with decision-relevant error metrics, uncertainty, residual patterns, and slices; predictive association does not establish causation."
+      "result": "The model's strengths and limits are stated honestly before anyone relies on it."
     },
     {
       "id": "ai.supervised.regression.example.stress",
-      "title": "Regression: stress and transfer case",
-      "situation": "A lower RMSE model is rejected for one decision because its rare underestimates exceed a safety tolerance despite better average fit.",
+      "title": "The luxury miss",
+      "situation": "A model with good average error was off by 150k on every luxury home a client cared about.",
       "walkthrough": [
-        "Step 1 — Name the changed population, input, assumption, or failure: A lower RMSE model is rejected for one decision because its rare underestimates exceed a safety tolerance despite better average fit.",
-        "Step 2 — Keep the non-claim visible: Low average error can hide subgroup or tail failures, extrapolation is fragile, correlation is not causation, squared loss emphasizes large errors, and target noise limits attainable performance.",
-        "Step 3 — Reject the tempting overclaim: A positive R-squared or lower RMSE proves accurate predictions for every case and explains which features cause the target."
+        "Group residuals by price range.",
+        "Notice the model never saw large homes in training.",
+        "Either collect such data or state the model covers homes up to 120 m2 only."
       ],
-      "result": "This case demonstrates the declared outcome: Train and evaluate a baseline and linear regression model with justified metrics."
+      "result": "The client knows where the predictions can be trusted."
     }
   ],
   "misconceptions": [
     {
       "id": "ai.supervised.regression.misconception",
       "mistakenBelief": "A positive R-squared or lower RMSE proves accurate predictions for every case and explains which features cause the target.",
-      "correction": "Compare a baseline with decision-relevant error metrics, uncertainty, residual patterns, and slices; predictive association does not establish causation.",
-      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: A positive R-squared or lower RMSE proves accurate predictions for every case and explains which features cause the target."
+      "correction": "Overall metrics can hide large errors in slices, and coefficients show association, not causation.",
+      "diagnosticPrompt": "In \"The luxury miss\", why did a good average hide the problem?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a measured prediction workshop that compares a simple baseline with several fitted rules on held-out outcomes can introduce Regression only after its canonical technical definition and evidence boundary are stated.",
+    "example": "Regression is like **a tailor's rule of thumb** for trouser length from height. It works well for the heights the tailor usually sees. For a basketball player it's way off (extrapolation), and **checking fit by customer type** (residuals by slice) reveals it. And the rule doesn't mean height **causes** trouser length: it just goes along with it.",
     "usefulFor": [
-      "regression, classification, model assumptions, and generalization"
+      "remembering rule of thumb fits usual customers",
+      "check fit per customer type"
     ],
     "limitations": [
-      "prediction evidence does not establish causation, fairness, or unchanged performance after deployment",
-      "Low average error can hide subgroup or tail failures, extrapolation is fragile, correlation is not causation, squared loss emphasizes large errors, and target noise limits attainable performance."
+      "The baseline is giving everyone the average size.",
+      "MAE is the average alteration needed."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A median baseline and linear model are compared with MAE, while residuals are plotted by target range and region before any deployment claim.",
-      "Regression estimates a continuous target from examples and is evaluated against simple baselines using metrics whose scale and loss shape match the decision, plus residual analysis across relevant slices.",
-      "Compare a baseline with decision-relevant error metrics, uncertainty, residual patterns, and slices; predictive association does not establish causation."
+      "fit line on train",
+      "compare MAE with median baseline",
+      "inspect residuals"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Fit",
         "state": {
-          "boundedEvidence": "A median baseline and linear model are compared with MAE, while residuals are plotted by target range and region before any deployment claim."
+          "b": "about 2.3 per m2"
         },
-        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+        "explanation": "A linear model is fitted by least squares on training data."
       },
       {
         "step": 2,
-        "focus": "Model",
+        "focus": "Compare",
         "state": {
-          "operationalRule": "Regression estimates a continuous target from examples and is evaluated against simple baselines using metrics whose scale and loss shape match the decision, plus residual analysis across relevant slices."
+          "baseline MAE": "241.7",
+          "linear MAE": "119.7"
         },
-        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+        "explanation": "A median baseline and linear model are compared with MAE."
       },
       {
         "step": 3,
-        "focus": "Limit",
+        "focus": "Residuals",
         "state": {
-          "correction": "Compare a baseline with decision-relevant error metrics, uncertainty, residual patterns, and slices; predictive association does not establish causation."
+          "200 m2": "large miss"
         },
-        "explanation": "State what the evidence does not establish and reject the misconception: A positive R-squared or lower RMSE proves accurate predictions for every case and explains which features cause the target."
+        "explanation": "Residuals are checked by target range before any deployment claim."
       }
     ],
-    "textAlternative": "Starting artifact: A median baseline and linear model are compared with MAE, while residuals are plotted by target range and region before any deployment claim. Step 1, Observe. State: boundedEvidence: A median baseline and linear model are compared with MAE, while residuals are plotted by target range and region before any deployment claim.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Regression estimates a continuous target from examples and is evaluated against simple baselines using metrics whose scale and loss shape match the decision, plus residual analysis across relevant slices.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Compare a baseline with decision-relevant error metrics, uncertainty, residual patterns, and slices; predictive association does not establish causation.. State what the evidence does not establish and reject the misconception: A positive R-squared or lower RMSE proves accurate predictions for every case and explains which features cause the target."
+    "textAlternative": "Tracing a regression evaluation. Step 1, Fit: b is about 2.3 per m2. A linear model is fitted by least squares on training data. Step 2, Compare: baseline MAE is 241.7; linear MAE is 119.7. A median baseline and linear model are compared with MAE. Step 3, Residuals: 200 m2 is large miss. Residuals are checked by target range before any deployment claim."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Regression: bounded direct case”: state its starting evidence, apply the Regression rule, and give the observable result in three short lines.",
+      "prompt": "For \"A median baseline versus a line\", explain how a median baseline and linear model are compared with MAE, while residuals are plotted by target range and region before any deployment claim.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Baseline.",
+        "Fit and compare.",
+        "Residuals."
       ],
       "expectedEvidence": [
-        "Named example: Regression: bounded direct case.",
-        "Starting evidence: A median baseline and linear model are compared with MAE, while residuals are plotted by target range and region before any deployment claim.",
-        "Core rule: Regression estimates a continuous target from examples and is evaluated against simple baselines using metrics whose scale and loss shape match the decision, plus residual analysis across relevant slices.",
-        "Observable result: This example supports only the atomic outcome because Compare a baseline with decision-relevant error metrics, uncertainty, residual patterns, and slices; predictive association does not establish causation.",
-        "Boundary check: Compare a baseline with decision-relevant error metrics, uncertainty, residual patterns, and slices; predictive association does not establish causation."
+        "Names the example \"A median baseline versus a line\": a good average hid luxury misses.",
+        "A median baseline and linear model are compared with MAE.",
+        "Residuals are plotted by target range and region before any deployment claim.",
+        "The model's strengths and limits are stated honestly before anyone relies on it."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed case: A lower RMSE model is rejected for one decision because its rare underestimates exceed a safety tolerance despite better average fit.",
+      "prompt": "Add an RMSE function and compare RMSE and MAE for both models. Explain why RMSE reacts more to the luxury home.",
       "scaffold": [
-        "Identify which assumption, population, input, or objective changed.",
-        "Preserve provenance and the declared failure boundary."
+        "Square, average, square-root.",
+        "Same test set."
       ],
       "expectedEvidence": [
-        "Regression estimates a continuous target from examples and is evaluated against simple baselines using metrics whose scale and loss shape match the decision, plus residual analysis across relevant slices.",
-        "Low average error can hide subgroup or tail failures, extrapolation is fragile, correlation is not causation, squared loss emphasizes large errors, and target noise limits attainable performance."
+        "Both metrics reported.",
+        "Difference explained."
       ]
     },
     "farTransfer": {
-      "prompt": "Design a neutral-context example or evaluation for Regression and list the evidence that would support and falsify its bounded claim.",
+      "prompt": "Fit linear regression on a dataset with a region column. Report MAE overall and per region, plot or tabulate residuals by target range, and write a short scope statement for deployment.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+        "Group residuals by region.",
+        "State where the model shouldn't be used."
       ],
       "expectedEvidence": [
-        "Train and evaluate a baseline and linear regression model with justified metrics.",
-        "Compare a baseline with decision-relevant error metrics, uncertainty, residual patterns, and slices; predictive association does not establish causation."
+        "Per-slice errors reported.",
+        "Scope statement written."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "ai.supervised.regression.misconception",
-      "explanation": "Compare a baseline with decision-relevant error metrics, uncertainty, residual patterns, and slices; predictive association does not establish causation.",
-      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A lower RMSE model is rejected for one decision because its rare underestimates exceed a safety tolerance despite better average fit."
+      "explanation": "For every regression result, ask: **does it beat a median baseline, in units that matter, for every important slice?**",
+      "retryPrompt": "Apply this to \"The luxury miss\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to train and evaluate a baseline and linear regression model with justified metrics. Keep this boundary in view: Low average error can hide subgroup or tail failures, extrapolation is fragile, correlation is not causation, squared loss emphasizes large errors, and target noise limits attainable performance.",
+    "summary": "To train and evaluate a baseline and linear regression model with justified metrics, fit the line on training data, compare it with a median baseline using MAE or RMSE, examine residuals by range and group, and never read coefficients as causes.",
     "retrievalPrompts": [
-      "Explain Regression with one technical mechanism, one evidence requirement, and one non-claim.",
-      "Why is this overclaim invalid: A positive R-squared or lower RMSE proves accurate predictions for every case and explains which features cause the target.",
-      "Apply the boundary to: A lower RMSE model is rejected for one decision because its rare underestimates exceed a safety tolerance despite better average fit."
+      "Why compare with a baseline?",
+      "What does MAE measure?",
+      "Why check residuals by slice?"
     ],
     "nextReviewPrompt": "Next: continue to “Classification and probabilities”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "children is a prop containing nested renderable content and enables wrapper, layout, and compound composition.",
+    "summary": "Whatever you put **between** a component's tags arrives as the special prop **`children`**: `<Card><p>Hi</p></Card>` gives Card `children = <p>Hi</p>`. A wrapper just places `{children}` where the content should go, so the same Card can hold text, a form, a list or nothing. `children` can be a single element, a string, an array, `null` or a mix, so **don't assume** it's an array or a particular type. For layouts with several slots, pass named props like `header` and `footer`.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A Card renders its children inside semantic article structure without assuming their concrete type. Your goal is to design and implement a reusable composition boundary for varied child content. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Your app has five card-like boxes: a lesson card, a quiz card, a stats card. Each copies the same border, padding and article markup, with different content inside. You want one Card, but a first version does `children[0]` to find a title, and it crashes for cards with a single child. A Card renders its children inside semantic article structure without assuming their concrete type. In this lesson you'll design and implement a reusable composition boundary for varied child content.\n\n```predict\n{\"question\": \"`<Card><p>Only one</p></Card>` and Card reads `children[0]`. What is it?\", \"options\": [\"The p element\", \"undefined: with one child, children is that element, not an array\"], \"answer\": 1, \"why\": \"children's shape depends on what's passed. Render it as a whole instead of indexing.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Components and JSX; Props and one-way data flow; JSX expressions and attributes. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Components and JSX** module, **Props and one-way data flow**, and **JSX expressions and attributes**."
       },
       {
-        "heading": "Technology rule",
-        "body": "children is a prop containing nested renderable content and enables wrapper, layout, and compound composition. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: a wrapper renders children as a whole",
+        "body": "```jsx\nexport function Card({ title, headingLevel = 3, footer, children }) {\n  const Heading = `h${headingLevel}`;\n  return (\n    <article className=\"card\">\n      {title && <Heading className=\"card__title\">{title}</Heading>}\n      <div className=\"card__body\">{children}</div>\n      {footer && <footer className=\"card__footer\">{footer}</footer>}\n    </article>\n  );\n}\n\n// Varied content, one wrapper.\n<Card title=\"Loops\">\n  <p>Repeat work with for and while.</p>\n</Card>\n\n<Card title=\"Quick quiz\" footer={<button type=\"button\">Submit</button>}>\n  <QuizQuestion id=\"q1\" />\n  <QuizQuestion id=\"q2\" />\n</Card>\n```\n\n| children might be | Safe handling |\n|---|---|\n| one element. | `{children}`. |\n| several elements. | `{children}`. |\n| a string or number. | `{children}`. |\n| nothing. | renders nothing; check with `children != null` if needed. |\n\n```reveal\n{\"prompt\": \"When do you need Children.map or Children.count?\", \"answer\": \"Rarely. Prefer explicit props (like title or footer) over inspecting children; it keeps the interface clear.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Children may be absent, one node, or many; cloning them couples implementation and does not make ownership transfer. This draft therefore rejects: children is always an array and can be indexed safely."
+        "heading": "Slots with named props",
+        "body": "```predict\n{\"question\": \"A layout needs a sidebar and main content. Best API?\", \"options\": [\"Put both in children and split them with children[0] and children[1]\", \"`<Layout sidebar={<Nav />}>main content</Layout>`\"], \"answer\": 1, \"why\": \"Named props make each slot explicit and don't depend on child order.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Compose layout and behavior through children or focused slots rather than prop explosions.",
-      "Design and implement a reusable composition boundary for varied child content."
+      "Build wrapper components that render children.",
+      "Use named props for extra slots without assuming children's type."
     ],
     "excludes": [
-      "Children may be absent, one node, or many; cloning them couples implementation and does not make ownership transfer."
+      "Render props and cloneElement patterns.",
+      "Compound components with context (later lesson)."
     ]
   },
   "outcomes": [
@@ -63,133 +64,133 @@
   "examples": [
     {
       "id": "react.props.children.example-a",
-      "title": "Children and composition: concrete case",
+      "title": "A Card that holds anything",
       "situation": "A Card renders its children inside semantic article structure without assuming their concrete type.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A Card renders its children inside semantic article structure without assuming their concrete type.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: children is an opaque renderable value; use supported React helpers only when traversal is actually required."
+        "**Problem:** `children[0]` worked for two children and crashed for one.",
+        "**Children inside semantic article structure:** Card wraps `{children}` in an article body and takes title and footer as named props.",
+        "**Check:** a test will render Card with a string, one element, and two elements, and find the content each time."
       ],
-      "result": "The result follows because children is an opaque renderable value; use supported React helpers only when traversal is actually required."
+      "result": "One Card holds lessons, quizzes and stats with the same structure, and never crashes on its content."
     },
     {
       "id": "react.props.children.example-b",
-      "title": "Children and composition: boundary case",
-      "situation": "Children may be absent, one node, or many; cloning them couples implementation and does not make ownership transfer.",
+      "title": "The modal that ignored its content",
+      "situation": "A Modal component renders a fixed \"Are you sure?\" paragraph, so developers copy it into three near-identical versions for different messages.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Children may be absent, one node, or many; cloning them couples implementation and does not make ownership transfer.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: children is always an array and can be indexed safely."
+        "The content was hard-coded inside Modal.",
+        "Replace the paragraph with `{children}` and keep the title as a prop.",
+        "Callers now write `<Modal title=\"Delete lesson\"><p>This can't be undone.</p></Modal>`."
       ],
-      "result": "The boundary requires this correction: children is an opaque renderable value; use supported React helpers only when traversal is actually required."
+      "result": "One Modal handles every message, and the three copies are deleted."
     }
   ],
   "misconceptions": [
     {
       "id": "react.props.children.misconception",
       "mistakenBelief": "children is always an array and can be indexed safely.",
-      "correction": "children is an opaque renderable value; use supported React helpers only when traversal is actually required.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: children is always an array and can be indexed safely."
+      "correction": "children can be a single element, a string, an array, null or a mix. Render it as a whole with {children}, and use named props when you need separate slots.",
+      "diagnosticPrompt": "In the opening predict, why was children[0] undefined?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Children and composition, where inputs and state produce a UI description.",
+    "example": "A wrapper with children is like **a picture frame**: it provides the border and the hook, and you slide in any picture: a photo, a drawing, a certificate. The frame doesn't care what's inside. Named props are a frame with a separate slot for the caption.",
     "usefulFor": [
-      "Building a first mental model for Children and composition before using exact platform terms"
+      "remembering render as a whole",
+      "slots = extra openings in the frame"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Children may be absent, one node, or many; cloning them couples implementation and does not make ownership transfer."
+      "Frames hold one picture; children can hold several.",
+      "Frames never inspect the picture; good wrappers don't either."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A Card renders its children inside semantic article structure without assuming their concrete type.",
-      "children is a prop containing nested renderable content and enables wrapper, layout, and compound composition.",
-      "children is an opaque renderable value; use supported React helpers only when traversal is actually required."
+      "<Card title='Loops'><p>Repeat...</p></Card>",
+      "Card receives children",
+      "renders article"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Call",
         "state": {
-          "evidence": "A Card renders its children inside semantic article structure without assuming their concrete type."
+          "props": "title, children"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "JSX between the tags arrives as the children prop."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Wrap",
         "state": {
-          "rule": "children is a prop containing nested renderable content and enables wrapper, layout, and compound composition."
+          "children type": "one element (not array)"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Card renders its children without assuming their concrete type."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Output",
         "state": {
-          "correction": "children is an opaque renderable value; use supported React helpers only when traversal is actually required."
+          "DOM": "article > h3 + div > p"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: children is always an array and can be indexed safely."
+        "explanation": "The children sit inside semantic article structure."
       }
     ],
-    "textAlternative": "Starting artifact: A Card renders its children inside semantic article structure without assuming their concrete type. Step 1, Artifact. State: evidence: A Card renders its children inside semantic article structure without assuming their concrete type.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: children is a prop containing nested renderable content and enables wrapper, layout, and compound composition.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: children is an opaque renderable value; use supported React helpers only when traversal is actually required.. Check the result against the boundary and reject this misconception: children is always an array and can be indexed safely."
+    "textAlternative": "Rendering a Card's content. Step 1, Call: props is title, children. JSX between the tags arrives as the children prop. Step 2, Wrap: children type is one element (not array). Card renders its children without assuming their concrete type. Step 3, Output: DOM is article > h3 + div > p. The children sit inside semantic article structure."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Children and composition: concrete case”: state its starting evidence, apply the Children and composition rule, and give the observable result in three short lines.",
+      "prompt": "For \"A Card that holds anything\", explain how a Card renders its children inside semantic article structure without assuming their concrete type.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Problem.",
+        "Wrapper.",
+        "Check."
       ],
       "expectedEvidence": [
-        "Named example: Children and composition: concrete case.",
-        "Starting evidence: A Card renders its children inside semantic article structure without assuming their concrete type.",
-        "Core rule: children is a prop containing nested renderable content and enables wrapper, layout, and compound composition.",
-        "Observable result: The result follows because children is an opaque renderable value; use supported React helpers only when traversal is actually required.",
-        "Boundary check: children is an opaque renderable value; use supported React helpers only when traversal is actually required."
+        "Names the example \"A Card that holds anything\": indexing children crashed.",
+        "A Card renders its children inside semantic article structure.",
+        "It never assumes their concrete type.",
+        "One Card holds lessons, quizzes and stats."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Children may be absent, one node, or many; cloning them couples implementation and does not make ownership transfer.",
+      "prompt": "Write `Callout({ tone, children })` rendering an aside with a role of note, a tone class, and its children. Use it with a string and with a list.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "{children} in the body.",
+        "tone as a named prop."
       ],
       "expectedEvidence": [
-        "children is a prop containing nested renderable content and enables wrapper, layout, and compound composition.",
-        "Children may be absent, one node, or many; cloning them couples implementation and does not make ownership transfer."
+        "Both usages render.",
+        "No indexing into children."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Children and composition and explain why the misconception fails.",
+      "prompt": "Design a `PageLayout` with header, sidebar and main slots. Implement it with named props plus children for main, use it on two pages with different content, and test each slot.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Named props for header and sidebar.",
+        "Landmarks: header, nav, main."
       ],
       "expectedEvidence": [
-        "Design and implement a reusable composition boundary for varied child content.",
-        "children is an opaque renderable value; use supported React helpers only when traversal is actually required."
+        "Two pages share the layout.",
+        "Tests find each landmark's content."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.props.children.misconception",
-      "explanation": "children is an opaque renderable value; use supported React helpers only when traversal is actually required.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'opaque renderable value' and state the decisive evidence."
+      "explanation": "When a component wraps content, ask: **Am I inspecting children, or just placing them?** Just place them. If you need more than one hole, add a named prop.",
+      "retryPrompt": "Apply this to \"The modal that ignored its content\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to design and implement a reusable composition boundary for varied child content. Keep this boundary in view: Children may be absent, one node, or many; cloning them couples implementation and does not make ownership transfer.",
+    "summary": "To design a reusable composition boundary, let wrapper components render {children} as a whole inside their structure, never assume children is an array or a particular type, and add named props for extra slots such as header or footer.",
     "retrievalPrompts": [
-      "Explain Children and composition using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: children is always an array and can be indexed safely.",
-      "Apply checkpoint 'opaque renderable value' to a new artifact."
+      "Where does content between a component's tags go?",
+      "Is children always an array?",
+      "How do you add a second slot?"
     ],
     "nextReviewPrompt": "Next: continue to “Component API design”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

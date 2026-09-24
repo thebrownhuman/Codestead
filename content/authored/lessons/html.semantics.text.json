@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Paragraph, emphasis, strong importance, quotation, code, time, and related text elements communicate meaning beyond visual styling.",
+    "summary": "Pick inline elements for what text **means**, not how it looks. `<strong>` marks **importance**, `<em>` marks **stress** that changes meaning, `<code>` marks code, `<a>` marks links, and `<p>` wraps paragraphs. A `<span>` or `<b>` styled bold looks the same, but carries no meaning to screen readers, search engines, reader mode or anyone reading without your CSS.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A warning uses strong for importance while a variable name uses code, allowing meaning to survive without CSS. Your goal is to mark up prose so meaning remains clear without CSS. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A settings page says \"Deleting your account is permanent\" and names a config value `max_retries`. If both are just styled spans, a screen reader reads them flatly and reader mode strips the emphasis. A warning uses strong for importance while a variable name uses code, allowing meaning to survive without CSS. In this lesson you'll mark up prose so meaning remains clear without CSS.\n\n```predict\n{\"question\": \"Which is better for \\\"Do **not** unplug during updates\\\"?\", \"options\": [\"`<span class=\\\"bold\\\">not</span>`\", \"`<strong>not</strong>`\"], \"answer\": 1, \"why\": \"strong says \\\"this is important\\\" in the markup itself. The span only looks bold, and only if the CSS loads.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Standards-mode document skeleton; Heading hierarchy. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Standards-mode document skeleton** and **Heading hierarchy** — this lesson covers the text under the headings."
       },
       {
-        "heading": "Technology rule",
-        "body": "Paragraph, emphasis, strong importance, quotation, code, time, and related text elements communicate meaning beyond visual styling. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: meaning lives in the element",
+        "body": "```html\n<p><strong>Deleting your account is permanent.</strong> Export your data first.</p>\n<p>Set <code>max_retries</code> to 3. I <em>said</em> three, not thirty.</p>\n```\n\n| Element | Means | Not for |\n|---|---|---|\n| `strong`. | importance, seriousness, urgency. | just making text bold. |\n| `em`. | stress emphasis that changes meaning. | italics for style. |\n| `code`. | a fragment of computer code. | monospace decoration. |\n| `p`. | a paragraph. | spacing (use CSS margin). |\n| `span`. | no meaning — a styling hook. | anything meaningful. |\n\n```reveal\n{\"prompt\": \"When is `<b>` or `<i>` right?\", \"answer\": \"When text is set apart without extra importance: `<i>` for a ship name or foreign phrase, `<b>` for keywords in a summary. They're for conventions, not importance.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Element semantics do not prescribe one appearance, and em or strong should not be used merely to obtain italics or bold. This draft therefore rejects: A span with bold CSS is semantically identical to strong in every context."
+        "heading": "Test without CSS",
+        "body": "```predict\n{\"question\": \"You turn off CSS (or use reader mode). A warning written as `<div class=\\\"warning-text\\\">` looks like…\", \"options\": [\"A clearly marked warning\", \"Ordinary text, with nothing showing it matters\"], \"answer\": 1, \"why\": \"Without CSS, only the elements' meaning remains. Put importance in the markup with strong (and maybe a visible \\\"Warning:\\\" label).\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Choose semantic text elements for emphasis, importance, quotations, code, time and abbreviations.",
-      "Mark up prose so meaning remains clear without CSS."
+      "Choose p, strong, em, code, b, i and span by meaning.",
+      "Check that prose keeps its meaning with CSS turned off."
     ],
     "excludes": [
-      "Element semantics do not prescribe one appearance, and em or strong should not be used merely to obtain italics or bold."
+      "Lists and tables (later lessons).",
+      "ARIA roles for text."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "html.semantics.text.example-a",
-      "title": "Paragraph and inline meaning: concrete case",
+      "title": "A warning and a variable name",
       "situation": "A warning uses strong for importance while a variable name uses code, allowing meaning to survive without CSS.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A warning uses strong for importance while a variable name uses code, allowing meaning to survive without CSS.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Use the text element whose meaning matches the content; styling alone does not add strong importance or emphasis semantics."
+        "**Warning:** `<strong>Deleting your account is permanent.</strong>` marks importance, not just boldness.",
+        "**Variable name:** `<code>max_retries</code>` marks it as code.",
+        "**Without CSS:** reader mode and screen readers still render the warning as important and the variable name as code."
       ],
-      "result": "The result follows because Use the text element whose meaning matches the content; styling alone does not add strong importance or emphasis semantics."
+      "result": "The meaning survives without CSS: the warning stays important and the variable name stays recognisable as code."
     },
     {
       "id": "html.semantics.text.example-b",
-      "title": "Paragraph and inline meaning: boundary case",
-      "situation": "Element semantics do not prescribe one appearance, and em or strong should not be used merely to obtain italics or bold.",
+      "title": "The div soup paragraph",
+      "situation": "A help article is written as `<div class=\"para\">` blocks with `<span class=\"imp\">` for key warnings.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Element semantics do not prescribe one appearance, and em or strong should not be used merely to obtain italics or bold.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: A span with bold CSS is semantically identical to strong in every context."
+        "Screen readers announce no paragraphs, so navigation by paragraph fails.",
+        "The key warnings have no importance in the markup.",
+        "Fix: use `<p>` for paragraphs and `<strong>` for the warnings; keep the classes only for styling."
       ],
-      "result": "The boundary requires this correction: Use the text element whose meaning matches the content; styling alone does not add strong importance or emphasis semantics."
+      "result": "The article reads correctly in reader mode and with assistive technology."
     }
   ],
   "misconceptions": [
     {
       "id": "html.semantics.text.misconception",
       "mistakenBelief": "A span with bold CSS is semantically identical to strong in every context.",
-      "correction": "Use the text element whose meaning matches the content; styling alone does not add strong importance or emphasis semantics.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: A span with bold CSS is semantically identical to strong in every context."
+      "correction": "A span has no meaning; its boldness exists only through CSS. strong conveys importance in the markup, which assistive technology, reader modes and search engines can use.",
+      "diagnosticPrompt": "In \"A warning and a variable name\", what happens to a span-based warning in reader mode?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model Paragraph and inline meaning, with structure carrying meaning before decoration.",
+    "example": "Semantic elements are like **tone of voice** in speech: saying \"do NOT touch\" with stress carries meaning even over the phone. A bold span is like writing it in red ink — lost the moment someone reads it aloud.",
     "usefulFor": [
-      "Building a first mental model for Paragraph and inline meaning before using exact platform terms"
+      "remembering meaning must be in the markup",
+      "testing by \"reading aloud\" (no CSS)"
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "Element semantics do not prescribe one appearance, and em or strong should not be used merely to obtain italics or bold."
+      "Voice can't be restyled; HTML meaning can be styled any way you like.",
+      "b and i are like typographic conventions, not tone."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A warning uses strong for importance while a variable name uses code, allowing meaning to survive without CSS.",
-      "Paragraph, emphasis, strong importance, quotation, code, time, and related text elements communicate meaning beyond visual styling.",
-      "Use the text element whose meaning matches the content; styling alone does not add strong importance or emphasis semantics."
+      "<strong>Deleting your account is permanent.</strong>",
+      "<code>max_retries</code>",
+      "CSS disabled / reader mode"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Importance",
         "state": {
-          "evidence": "A warning uses strong for importance while a variable name uses code, allowing meaning to survive without CSS."
+          "element": "strong",
+          "meaning": "important"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "A warning uses strong for importance in the markup."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Code",
         "state": {
-          "rule": "Paragraph, emphasis, strong importance, quotation, code, time, and related text elements communicate meaning beyond visual styling."
+          "element": "code",
+          "meaning": "code fragment"
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "A variable name uses code so it is identified as code."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Without CSS",
         "state": {
-          "correction": "Use the text element whose meaning matches the content; styling alone does not add strong importance or emphasis semantics."
+          "warning": "still emphasised",
+          "code": "still monospace"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: A span with bold CSS is semantically identical to strong in every context."
+        "explanation": "Meaning survives without CSS because it lives in the elements."
       }
     ],
-    "textAlternative": "Starting artifact: A warning uses strong for importance while a variable name uses code, allowing meaning to survive without CSS. Step 1, Artifact. State: evidence: A warning uses strong for importance while a variable name uses code, allowing meaning to survive without CSS.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Paragraph, emphasis, strong importance, quotation, code, time, and related text elements communicate meaning beyond visual styling.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use the text element whose meaning matches the content; styling alone does not add strong importance or emphasis semantics.. Check the result against the boundary and reject this misconception: A span with bold CSS is semantically identical to strong in every context."
+    "textAlternative": "Semantic inline text with and without CSS. Step 1, Importance: element is strong; meaning is important. A warning uses strong for importance in the markup. Step 2, Code: element is code; meaning is code fragment. A variable name uses code so it is identified as code. Step 3, Without CSS: warning is still emphasised; code is still monospace. Meaning survives without CSS because it lives in the elements."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Paragraph and inline meaning: concrete case”: state its starting evidence, apply the Paragraph and inline meaning rule, and give the observable result in three short lines.",
+      "prompt": "For \"A warning and a variable name\", explain why the warning uses strong for importance, why the variable name uses code, and how that allows meaning to survive without CSS.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Warning.",
+        "Variable.",
+        "Without CSS."
       ],
       "expectedEvidence": [
-        "Named example: Paragraph and inline meaning: concrete case.",
-        "Starting evidence: A warning uses strong for importance while a variable name uses code, allowing meaning to survive without CSS.",
-        "Core rule: Paragraph, emphasis, strong importance, quotation, code, time, and related text elements communicate meaning beyond visual styling.",
-        "Observable result: The result follows because Use the text element whose meaning matches the content; styling alone does not add strong importance or emphasis semantics.",
-        "Boundary check: Use the text element whose meaning matches the content; styling alone does not add strong importance or emphasis semantics."
+        "Names the example \"A warning and a variable name\": a warning uses strong for importance.",
+        "A variable name uses code.",
+        "This allows meaning to survive without CSS.",
+        "Reader mode still shows the warning as important."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Element semantics do not prescribe one appearance, and em or strong should not be used merely to obtain italics or bold.",
+      "prompt": "Mark up: \"Press Ctrl+S to save. You must save before closing. The file is called notes.txt.\"",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "kbd for keys, strong for must, code for file names.",
+        "One paragraph."
       ],
       "expectedEvidence": [
-        "Paragraph, emphasis, strong importance, quotation, code, time, and related text elements communicate meaning beyond visual styling.",
-        "Element semantics do not prescribe one appearance, and em or strong should not be used merely to obtain italics or bold."
+        "`<kbd>Ctrl</kbd>+<kbd>S</kbd>`, `<strong>You must save…</strong>`.",
+        "`<code>notes.txt</code>` inside a p."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Paragraph and inline meaning and explain why the misconception fails.",
+      "prompt": "Take a page you've built. Disable CSS (DevTools or reader mode) and list every place where meaning disappeared. Fix each with the right element.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Look for spans and divs used for meaning.",
+        "Re-test after fixing."
       ],
       "expectedEvidence": [
-        "Mark up prose so meaning remains clear without CSS.",
-        "Use the text element whose meaning matches the content; styling alone does not add strong importance or emphasis semantics."
+        "List of meaning lost without CSS.",
+        "Fixed markup that keeps meaning without styles."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.semantics.text.misconception",
-      "explanation": "Use the text element whose meaning matches the content; styling alone does not add strong importance or emphasis semantics.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'meaning matches the content' and state the decisive evidence."
+      "explanation": "For each styled piece of text ask: **If I read this aloud, would I change my voice?** Importance → strong. Stress → em. Code → code. No change → span or plain text.",
+      "retryPrompt": "Apply this to \"The div soup paragraph\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to mark up prose so meaning remains clear without CSS. Keep this boundary in view: Element semantics do not prescribe one appearance, and em or strong should not be used merely to obtain italics or bold.",
+    "summary": "To mark up prose so meaning remains clear without CSS, use p for paragraphs, strong for importance, em for stress, code for code, and b/i for conventions — keeping span for styling hooks only. Test with CSS turned off.",
     "retrievalPrompts": [
-      "Explain Paragraph and inline meaning using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: A span with bold CSS is semantically identical to strong in every context.",
-      "Apply checkpoint 'meaning matches the content' to a new artifact."
+      "What does strong mean that a bold span doesn't?",
+      "When is em correct?",
+      "How can you test meaning without CSS?"
     ],
     "nextReviewPrompt": "Next: continue to “Lists and grouped content”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

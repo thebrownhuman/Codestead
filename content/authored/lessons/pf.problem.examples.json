@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Representative, boundary, and invalid examples turn an abstract contract into checkable observations and often reveal missing constraints before implementation.",
+    "summary": "Before writing code, write **examples with expected results** in three flavours: a **normal** one, **boundary** ones right at the edges, and **invalid** ones the program must reject. Boundaries are where bugs live, and invalid examples often reveal rules nobody wrote down.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: For an age rule of 18 or older, examples include 25 as representative, 17 and 18 around the boundary, and negative age as invalid. Your goal is to produce normal, boundary and invalid examples with expected results. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A cinema's rule: viewers must be 18 or older. You test your checker with age 25 — it says \"allowed\". Done? Not yet. What about exactly 18? 17? What about -4, which someone typed by mistake? For an age rule of 18 or older, examples include 25 as representative, 17 and 18 around the boundary, and negative age as invalid. In this lesson you'll produce normal, boundary and invalid examples with expected results.\n\n```predict\n{\"question\": \"Code: `allowed = age > 18`. Which example exposes the bug?\", \"options\": [\"age 25\", \"age 18\"], \"answer\": 1, \"why\": \"25 works either way. At exactly 18, `18 > 18` is False — but the rule says 18 is allowed. Only the boundary example catches it.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Program, code and algorithm; Inputs, outputs and constraints. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Program, code and algorithm** and **Inputs, outputs and constraints**. Examples turn that statement into concrete checks."
       },
       {
-        "heading": "Operational model",
-        "body": "Representative, boundary, and invalid examples turn an abstract contract into checkable observations and often reveal missing constraints before implementation. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The model: three kinds of examples",
+        "body": "| Kind | Age-rule example | Expected |\n|---|---|---|\n| Normal (representative). | 25. | allowed. |\n| Boundary — just below. | 17. | not allowed. |\n| Boundary — exactly at. | 18. | allowed. |\n| Invalid. | -4, or \"abc\". | rejected with an error. |\n\nWrite the **expected result before** running anything — otherwise you'll just accept whatever the code says.\n\n```reveal\n{\"prompt\": \"What question does the invalid example -4 force you to answer?\", \"answer\": \"\\\"What should happen with impossible input?\\\" — a constraint the original rule never mentioned. Examples reveal missing rules early.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "A handful of examples cannot prove correctness for every input, and expected results must be derived from the contract rather than copied from the implementation under test. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: One normal example is enough because boundary and invalid inputs are unlikely to occur in real use."
+        "heading": "Finding boundaries",
+        "body": "Look for numbers in the rule (18, 500, 0) and test **just below, at, and just above**. For lists, test **empty**, **one item** and **many**.\n\n```predict\n{\"question\": \"Rule: \\\"free shipping for orders over 500\\\". Which set of examples covers the boundary best?\", \"options\": [\"100, 1000\", \"499, 500, 501\"], \"answer\": 1, \"why\": \"499, 500 and 501 sit right on the edge — and force you to decide whether exactly 500 counts as \\\"over\\\".\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use representative, boundary and invalid cases to refine a problem statement.",
-      "Produce normal, boundary and invalid examples with expected results."
+      "Write normal, boundary and invalid examples with expected results.",
+      "Use examples to reveal missing constraints."
     ],
     "excludes": [
-      "A handful of examples cannot prove correctness for every input, and expected results must be derived from the contract rather than copied from the implementation under test."
+      "Automated test frameworks.",
+      "Random or property-based testing."
     ]
   },
   "outcomes": [
@@ -63,133 +64,136 @@
   "examples": [
     {
       "id": "pf.problem.examples.example-a",
-      "title": "Examples and edge cases: direct case",
+      "title": "The age check",
       "situation": "For an age rule of 18 or older, examples include 25 as representative, 17 and 18 around the boundary, and negative age as invalid.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: For an age rule of 18 or older, examples include 25 as representative, 17 and 18 around the boundary, and negative age as invalid.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Examples should deliberately cover equivalence classes, boundaries, emptiness, duplication, sign, and invalid data that can change the required behavior."
+        "**Representative:** 25 → allowed.",
+        "**Boundary:** 17 → not allowed; 18 → allowed, because the rule says \"18 or older\".",
+        "**Invalid:** negative age like -4 → rejected; this reveals a missing rule about impossible ages."
       ],
-      "result": "The case supports the declared outcome because Examples should deliberately cover equivalence classes, boundaries, emptiness, duplication, sign, and invalid data that can change the required behavior."
+      "result": "Four examples with expected results; the 18 boundary catches a `>` vs `>=` bug, and negative age exposes a missing constraint."
     },
     {
       "id": "pf.problem.examples.example-b",
-      "title": "Examples and edge cases: boundary case",
-      "situation": "For a list maximum, examples include mixed values, one value, duplicate maxima, all negative values, and an explicitly handled empty list.",
+      "title": "The average of an empty list",
+      "situation": "A function returns the average of a list of scores. The only example tried was `[4, 8, 6]` → 6.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: For a list maximum, examples include mixed values, one value, duplicate maxima, all negative values, and an explicitly handled empty list.",
-        "Step 2 — Keep this boundary explicit: A handful of examples cannot prove correctness for every input, and expected results must be derived from the contract rather than copied from the implementation under test.",
-        "Step 3 — Reject the documented misconception: One normal example is enough because boundary and invalid inputs are unlikely to occur in real use."
+        "Boundary: one item `[7]` → 7.",
+        "Edge: empty list `[]` → dividing by zero would crash.",
+        "Decision needed: return 0, None, or raise an error? The example reveals the missing constraint."
       ],
-      "result": "This case demonstrates the declared outcome: Produce normal, boundary and invalid examples with expected results."
+      "result": "Adding boundary and edge examples uncovers a crash and forces a decision about empty input."
     }
   ],
   "misconceptions": [
     {
       "id": "pf.problem.examples.misconception",
-      "mistakenBelief": "One normal example is enough because boundary and invalid inputs are unlikely to occur in real use.",
-      "correction": "Examples should deliberately cover equivalence classes, boundaries, emptiness, duplication, sign, and invalid data that can change the required behavior.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: One normal example is enough because boundary and invalid inputs are unlikely to occur in real use."
+      "mistakenBelief": "One normal example is enough, because boundary and invalid inputs are unlikely to occur in real use.",
+      "correction": "Real users hit boundaries and make typos constantly, and bugs cluster exactly at edges. Representative, boundary and invalid examples together check the full contract and expose missing rules.",
+      "diagnosticPrompt": "In \"The age check\", which example would the one-example approach have missed?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "Planning a trip can model Examples and edge cases: name the destination, inputs and constraints, divide the journey, and check routes before traveling.",
+    "example": "Like **testing a bridge**: one normal car proves little. Engineers test at the weight limit, just over it, and with things that shouldn't be on it at all.",
     "usefulFor": [
-      "Making requirements, ordered decisions, decomposition, and edge conditions concrete"
+      "remembering to test at limits",
+      "seeing invalid input as part of the design"
     ],
     "limitations": [
-      "Programs require unambiguous executable rules, while a traveler can improvise from incomplete directions.",
-      "A handful of examples cannot prove correctness for every input, and expected results must be derived from the contract rather than copied from the implementation under test."
+      "Code examples cost almost nothing to try; bridge tests are expensive.",
+      "Programs can reject bad input outright; bridges can't refuse a truck."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "For an age rule of 18 or older, examples include 25 as representative, 17 and 18 around the boundary, and negative age as invalid.",
-      "Representative, boundary, and invalid examples turn an abstract contract into checkable observations and often reveal missing constraints before implementation.",
-      "Examples should deliberately cover equivalence classes, boundaries, emptiness, duplication, sign, and invalid data that can change the required behavior."
+      "rule: allowed if age >= 18",
+      "code: allowed = age > 18",
+      "try examples 25, 17, 18, -4"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Representative 25",
         "state": {
-          "evidence": "For an age rule of 18 or older, examples include 25 as representative, 17 and 18 around the boundary, and negative age as invalid."
+          "expected": "allowed",
+          "actual": "allowed"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "The normal example passes, so the bug stays hidden."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Boundary 18",
         "state": {
-          "model": "Representative, boundary, and invalid examples turn an abstract contract into checkable observations and often reveal missing constraints before implementation."
+          "expected": "allowed",
+          "actual": "not allowed"
         },
-        "explanation": "Apply the declared Examples and edge cases model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "At the boundary the code disagrees with the rule, revealing the bug."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Invalid -4",
         "state": {
-          "correction": "Examples should deliberately cover equivalence classes, boundaries, emptiness, duplication, sign, and invalid data that can change the required behavior."
+          "expected": "rejected",
+          "actual": "not allowed"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: One normal example is enough because boundary and invalid inputs are unlikely to occur in real use."
+        "explanation": "Negative age is treated as a normal young person, exposing a missing constraint."
       }
     ],
-    "textAlternative": "Starting artifact: For an age rule of 18 or older, examples include 25 as representative, 17 and 18 around the boundary, and negative age as invalid. Step 1, Observe. State: evidence: For an age rule of 18 or older, examples include 25 as representative, 17 and 18 around the boundary, and negative age as invalid.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Representative, boundary, and invalid examples turn an abstract contract into checkable observations and often reveal missing constraints before implementation.. Apply the declared Examples and edge cases model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Examples should deliberately cover equivalence classes, boundaries, emptiness, duplication, sign, and invalid data that can change the required behavior.. Compare the observation with the correction and reject the misconception: One normal example is enough because boundary and invalid inputs are unlikely to occur in real use."
+    "textAlternative": "Checking the age rule with representative, boundary and invalid examples. Step 1, Representative 25: expected is allowed; actual is allowed. The normal example passes, so the bug stays hidden. Step 2, Boundary 18: expected is allowed; actual is not allowed. At the boundary the code disagrees with the rule, revealing the bug. Step 3, Invalid -4: expected is rejected; actual is not allowed. Negative age is treated as a normal young person, exposing a missing constraint."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Examples and edge cases: direct case”: state its starting evidence, apply the Examples and edge cases rule, and give the observable result in three short lines.",
+      "prompt": "For \"The age check\", list the representative, boundary and invalid examples for an age rule of 18 or older, with the expected result for each.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "One representative.",
+        "Two boundary.",
+        "One invalid."
       ],
       "expectedEvidence": [
-        "Named example: Examples and edge cases: direct case.",
-        "Starting evidence: For an age rule of 18 or older, examples include 25 as representative, 17 and 18 around the boundary, and negative age as invalid.",
-        "Core rule: Representative, boundary, and invalid examples turn an abstract contract into checkable observations and often reveal missing constraints before implementation.",
-        "Observable result: The case supports the declared outcome because Examples should deliberately cover equivalence classes, boundaries, emptiness, duplication, sign, and invalid data that can change the required behavior.",
-        "Boundary check: Examples should deliberately cover equivalence classes, boundaries, emptiness, duplication, sign, and invalid data that can change the required behavior."
+        "Names the example \"The age check\": an age rule of 18 or older.",
+        "25 as representative → allowed.",
+        "17 → not allowed and 18 → allowed around the boundary.",
+        "Negative age as invalid → rejected."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: For a list maximum, examples include mixed values, one value, duplicate maxima, all negative values, and an explicitly handled empty list.",
+      "prompt": "Rule: \"passwords must be 8 to 20 characters\". Write normal, boundary and invalid examples with expected results.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Boundaries at both ends.",
+        "What's invalid besides length?"
       ],
       "expectedEvidence": [
-        "Representative, boundary, and invalid examples turn an abstract contract into checkable observations and often reveal missing constraints before implementation.",
-        "A handful of examples cannot prove correctness for every input, and expected results must be derived from the contract rather than copied from the implementation under test."
+        "Normal: 12 chars → ok. Boundaries: 7 no, 8 ok, 20 ok, 21 no.",
+        "Invalid: empty string → rejected."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Examples and edge cases, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Pick a function you've written. Write at least six examples (normal, boundaries, invalid) with expected results, run them, and report any surprise.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Expected results first.",
+        "Empty and one-item cases for lists."
       ],
       "expectedEvidence": [
-        "Produce normal, boundary and invalid examples with expected results.",
-        "Examples should deliberately cover equivalence classes, boundaries, emptiness, duplication, sign, and invalid data that can change the required behavior."
+        "Six labelled examples with expected results.",
+        "Report of actual results and any bug found."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "pf.problem.examples.misconception",
-      "explanation": "Examples should deliberately cover equivalence classes, boundaries, emptiness, duplication, sign, and invalid data that can change the required behavior.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: For a list maximum, examples include mixed values, one value, duplicate maxima, all negative values, and an explicitly handled empty list."
+      "explanation": "Circle every number and limit in the rule. For each, write examples just below, at and just above. Then add one input that should be impossible.",
+      "retryPrompt": "Do this for \"The average of an empty list\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to produce normal, boundary and invalid examples with expected results. Keep this boundary in view: A handful of examples cannot prove correctness for every input, and expected results must be derived from the contract rather than copied from the implementation under test.",
+    "summary": "To produce good examples, write a normal case, boundary cases around every limit, and invalid cases, each with its expected result decided before running. Boundaries catch off-by-one bugs; invalid examples reveal missing constraints.",
     "retrievalPrompts": [
-      "Explain Examples and edge cases without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: One normal example is enough because boundary and invalid inputs are unlikely to occur in real use.",
-      "Apply the model to this case from memory: For a list maximum, examples include mixed values, one value, duplicate maxima, all negative values, and an explicitly handled empty list."
+      "Why test exactly 18 in an \"18 or older\" rule?",
+      "What does an invalid example often reveal?",
+      "Which list sizes should you always try?"
     ],
     "nextReviewPrompt": "Next: continue to “Values and types”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

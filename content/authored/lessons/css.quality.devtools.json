@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "CSS debugging compares matched rules, cascade priority, computed values, box geometry, layout overlays, and responsive states before editing.",
+    "summary": "Browser DevTools turn CSS guessing into evidence. The **Styles** pane lists every matching rule — including **crossed-out** ones that lost, which tell you *why* a value didn't apply. **Computed** shows the final value and where it came from. The **box model** diagram, **flex/grid overlays** and **Layout** pane explain sizes and tracks. Record what you observed before changing code, so the fix targets the real cause.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A learner finds overflow by inspecting the grid track minimum rather than adding random widths. Your goal is to diagnose a cascade and a layout failure using recorded developer-tool evidence. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A page scrolls sideways on phones. A teammate starts adding `width: 100%` and `overflow: hidden` to random elements until it stops — and breaks the menu. Instead, open DevTools and ask the page. A learner finds overflow by inspecting the grid track minimum rather than adding random widths. In this lesson you'll diagnose a cascade and a layout failure using recorded developer-tool evidence.\n\n```predict\n{\"question\": \"A declaration is crossed out in the Styles pane. Can you ignore it?\", \"options\": [\"Yes, it doesn't apply\", \"No — it shows a rule that lost; the winner above it explains why your style isn't applied\"], \"answer\": 1, \"why\": \"Crossed-out rules are clues: they reveal which rule overrides yours and by what (specificity, layer, order, importance).\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Responsive design and motion; Stylesheet organization; Inheritance, initial and computed values; Flexbox and Grid. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Responsive design and motion** module, **Stylesheet organization**, **Inheritance, initial and computed values**, and the **Flexbox and Grid** module."
       },
       {
-        "heading": "Technology rule",
-        "body": "CSS debugging compares matched rules, cascade priority, computed values, box geometry, layout overlays, and responsive states before editing. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: observe, record, then change one thing",
+        "body": "| Tool | Answers |\n|---|---|\n| Styles pane. | which rules match, which win, which are crossed out, invalid declarations. |\n| Computed pane. | final value and the rule/inheritance it came from. |\n| Box model diagram. | content, padding, border, margin sizes. |\n| Grid/flex overlay. | track sizes, gaps, item boundaries. |\n| Elements tree. | the real DOM (after parser repairs and scripts). |\n\n**Evidence note format:** element · property · expected · observed · source (rule/file:line) · cause · fix.\n\n```reveal\n{\"prompt\": \"How do you find which element causes horizontal scrolling?\", \"answer\": \"In the Console, run `[...document.querySelectorAll('*')].filter(e => e.scrollWidth > document.documentElement.clientWidth)` or toggle outlines, then inspect the widest element's box and its parent's grid/flex tracks.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "DevTools can show a simulated state that differs from real input, and local edits disappear unless transferred to source. This draft therefore rejects: The Styles panel shows only declarations that currently win, so crossed-out rules can be ignored."
+        "heading": "Cascade and layout together",
+        "body": "```predict\n{\"question\": \"Computed says `color: black` but you wrote `.title { color: navy }`. First place to look?\", \"options\": [\"Rewrite the rule with !important\", \"Styles pane: find the winning rule above yours, or a warning if yours doesn't match\"], \"answer\": 1, \"why\": \"The Styles pane shows both the winner and whether your selector matched at all.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use matched rules, computed values, box, flex and grid inspectors to find the actual cause of a defect.",
-      "Diagnose a cascade and a layout failure using recorded developer-tool evidence."
+      "Use Styles, Computed, box model and grid/flex overlays to find causes.",
+      "Record evidence before changing code and fix the root cause."
     ],
     "excludes": [
-      "DevTools can show a simulated state that differs from real input, and local edits disappear unless transferred to source."
+      "Performance profiling in depth.",
+      "JavaScript debugging."
     ]
   },
   "outcomes": [
@@ -63,133 +64,137 @@
   "examples": [
     {
       "id": "css.quality.devtools.example-a",
-      "title": "Computed styles and layout inspectors: concrete case",
+      "title": "Finding the real cause of overflow",
       "situation": "A learner finds overflow by inspecting the grid track minimum rather than adding random widths.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A learner finds overflow by inspecting the grid track minimum rather than adding random widths.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Inspect matched and overridden rules plus computed values; a crossed-out declaration often explains the competing cascade."
+        "**Observe:** the page is 412px wide but content is 690px; the widest element is `.main` inside `.layout`.",
+        "**Inspect the grid track minimum:** the overlay shows the first track is `1fr` sized to 690px — its automatic minimum is a long code line.",
+        "**Record and fix:** evidence note written; change to `minmax(0, 1fr)` and add `overflow-x: auto` to the pre. Re-inspect: the track now measures 380px."
       ],
-      "result": "The result follows because Inspect matched and overridden rules plus computed values; a crossed-out declaration often explains the competing cascade."
+      "result": "The overflow is fixed at its cause, with no random widths or clipping added."
     },
     {
       "id": "css.quality.devtools.example-b",
-      "title": "Computed styles and layout inspectors: boundary case",
-      "situation": "DevTools can show a simulated state that differs from real input, and local edits disappear unless transferred to source.",
+      "title": "The colour that wouldn't change",
+      "situation": "`.card__title { color: #1e3a8a; }` has no effect. Computed shows #111827.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: DevTools can show a simulated state that differs from real input, and local edits disappear unless transferred to source.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: The Styles panel shows only declarations that currently win, so crossed-out rules can be ignored."
+        "Styles pane: `.card h2` from components.css wins; `.card__title` is crossed out.",
+        "They score (0,1,1) vs (0,1,0), so the h2 rule is more specific.",
+        "Fix: lower the other rule to `.card__heading` or move the title rule to a later layer; record the change."
       ],
-      "result": "The boundary requires this correction: Inspect matched and overridden rules plus computed values; a crossed-out declaration often explains the competing cascade."
+      "result": "The title turns navy, and the note explains exactly why."
     }
   ],
   "misconceptions": [
     {
       "id": "css.quality.devtools.misconception",
       "mistakenBelief": "The Styles panel shows only declarations that currently win, so crossed-out rules can be ignored.",
-      "correction": "Inspect matched and overridden rules plus computed values; a crossed-out declaration often explains the competing cascade.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: The Styles panel shows only declarations that currently win, so crossed-out rules can be ignored."
+      "correction": "The Styles panel shows every matching declaration; crossed-out ones lost to a winner by importance, layer, specificity or order. They are the key evidence for diagnosing why a style doesn't apply.",
+      "diagnosticPrompt": "In \"The colour that wouldn't change\", what did the crossed-out rule reveal?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Computed styles and layout inspectors, where rules size, place, and paint existing content.",
+    "example": "DevTools are like a **mechanic's diagnostic scanner**: instead of replacing random parts, you plug in, read the error codes (crossed-out rules, track sizes) and fix the part that's actually failing.",
     "usefulFor": [
-      "Building a first mental model for Computed styles and layout inspectors before using exact platform terms"
+      "remembering evidence before changes",
+      "crossed-out = error code"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "DevTools can show a simulated state that differs from real input, and local edits disappear unless transferred to source."
+      "Cars don't reflow; pages do at every width.",
+      "Write down readings like a service log."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A learner finds overflow by inspecting the grid track minimum rather than adding random widths.",
-      "CSS debugging compares matched rules, cascade priority, computed values, box geometry, layout overlays, and responsive states before editing.",
-      "Inspect matched and overridden rules plus computed values; a crossed-out declaration often explains the competing cascade."
+      "page scrolls sideways at 412px",
+      "grid overlay on .layout",
+      "grid-template-columns: minmax(0,1fr) 16rem"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Observe",
         "state": {
-          "evidence": "A learner finds overflow by inspecting the grid track minimum rather than adding random widths."
+          "viewport": "412px",
+          "content width": "690px",
+          "widest": ".main"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The learner measures the overflow and finds the widest element."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Inspect track",
         "state": {
-          "rule": "CSS debugging compares matched rules, cascade priority, computed values, box geometry, layout overlays, and responsive states before editing."
+          "track 1": "1fr → 690px",
+          "cause": "code line min-content"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Inspecting the grid track minimum reveals the real cause."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Fix and verify",
         "state": {
-          "correction": "Inspect matched and overridden rules plus computed values; a crossed-out declaration often explains the competing cascade."
+          "track 1": "380px",
+          "sideways scroll": "none"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: The Styles panel shows only declarations that currently win, so crossed-out rules can be ignored."
+        "explanation": "Rather than adding random widths, the track minimum is lifted and verified."
       }
     ],
-    "textAlternative": "Starting artifact: A learner finds overflow by inspecting the grid track minimum rather than adding random widths. Step 1, Artifact. State: evidence: A learner finds overflow by inspecting the grid track minimum rather than adding random widths.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: CSS debugging compares matched rules, cascade priority, computed values, box geometry, layout overlays, and responsive states before editing.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Inspect matched and overridden rules plus computed values; a crossed-out declaration often explains the competing cascade.. Check the result against the boundary and reject this misconception: The Styles panel shows only declarations that currently win, so crossed-out rules can be ignored."
+    "textAlternative": "Diagnosing overflow with DevTools. Step 1, Observe: viewport is 412px; content width is 690px; widest is .main. The learner measures the overflow and finds the widest element. Step 2, Inspect track: track 1 is 1fr → 690px; cause is code line min-content. Inspecting the grid track minimum reveals the real cause. Step 3, Fix and verify: track 1 is 380px; sideways scroll is none. Rather than adding random widths, the track minimum is lifted and verified."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Computed styles and layout inspectors: concrete case”: state its starting evidence, apply the Computed styles and layout inspectors rule, and give the observable result in three short lines.",
+      "prompt": "For \"Finding the real cause of overflow\", explain how the learner finds overflow by inspecting the grid track minimum rather than adding random widths, and what evidence they record.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Observe.",
+        "Inspect.",
+        "Fix."
       ],
       "expectedEvidence": [
-        "Named example: Computed styles and layout inspectors: concrete case.",
-        "Starting evidence: A learner finds overflow by inspecting the grid track minimum rather than adding random widths.",
-        "Core rule: CSS debugging compares matched rules, cascade priority, computed values, box geometry, layout overlays, and responsive states before editing.",
-        "Observable result: The result follows because Inspect matched and overridden rules plus computed values; a crossed-out declaration often explains the competing cascade.",
-        "Boundary check: Inspect matched and overridden rules plus computed values; a crossed-out declaration often explains the competing cascade."
+        "Names the example \"Finding the real cause of overflow\": the learner finds overflow by inspecting the grid track minimum.",
+        "The 1fr track was sized by a long code line.",
+        "The fix is minmax(0, 1fr) rather than adding random widths.",
+        "The evidence note records observed values and the cause."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: DevTools can show a simulated state that differs from real input, and local edits disappear unless transferred to source.",
+      "prompt": "A button's padding looks bigger than the CSS says. Which DevTools views would you check, in which order?",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Box model first.",
+        "Then Styles for the source."
       ],
       "expectedEvidence": [
-        "CSS debugging compares matched rules, cascade priority, computed values, box geometry, layout overlays, and responsive states before editing.",
-        "DevTools can show a simulated state that differs from real input, and local edits disappear unless transferred to source."
+        "Box model diagram to see actual padding.",
+        "Styles/Computed to find the rule (maybe a shorthand or em-based value)."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Computed styles and layout inspectors and explain why the misconception fails.",
+      "prompt": "Pick one cascade bug and one layout bug on a real page. For each, write a full evidence note (expected, observed, source, cause, fix) before changing code, then verify the fix.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Screenshots of the panes.",
+        "One change at a time."
       ],
       "expectedEvidence": [
-        "Diagnose a cascade and a layout failure using recorded developer-tool evidence.",
-        "Inspect matched and overridden rules plus computed values; a crossed-out declaration often explains the competing cascade."
+        "Two complete evidence notes.",
+        "Verified fixes that address the recorded causes."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.quality.devtools.misconception",
-      "explanation": "Inspect matched and overridden rules plus computed values; a crossed-out declaration often explains the competing cascade.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'computed values' and state the decisive evidence."
+      "explanation": "Before editing CSS, fill in: **expected value · observed value · winning rule (file:line) · why it wins**. Only then change one thing and re-check.",
+      "retryPrompt": "Fill it in for \"The colour that wouldn't change\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to diagnose a cascade and a layout failure using recorded developer-tool evidence. Keep this boundary in view: DevTools can show a simulated state that differs from real input, and local edits disappear unless transferred to source.",
+    "summary": "To diagnose a cascade and a layout failure, use the Styles pane (including crossed-out rules), Computed values, the box model and grid/flex overlays; record expected vs observed values and the cause, then make one targeted fix and verify it.",
     "retrievalPrompts": [
-      "Explain Computed styles and layout inspectors using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: The Styles panel shows only declarations that currently win, so crossed-out rules can be ignored.",
-      "Apply checkpoint 'computed values' to a new artifact."
+      "What do crossed-out declarations tell you?",
+      "Which tool shows grid track sizes?",
+      "What should an evidence note contain?"
     ],
     "nextReviewPrompt": "Next: continue to “Compatibility and progressive enhancement”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Robust C input checks each function's return result, distinguishes token from line input, bounds every destination, and handles leftover or invalid characters deliberately.",
+    "summary": "User input is untrusted: it can be empty, too long, not a number, or out of range. The robust pattern is: **read a whole line** with `fgets(buf, sizeof buf, stdin)`, which never writes past the buffer; **check its return** (NULL means end of input or an error); **handle the newline** (and lines too long to fit); then **convert** with `strtol`, checking that **digits were consumed**, **nothing but whitespace follows**, and the value is **in range** (and `errno` isn't `ERANGE`). Avoid `scanf(\"%s\")` (no size limit) and ignoring `scanf`'s return value: on bad input the variable is left unchanged and the bad characters stay in the stream.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A line is read with fgets into a bounded array, its newline is handled, and strtol validates complete numeric conversion and range. Your goal is to implement a console input loop that rejects malformed and out-of-range values safely. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner asks for an age with `scanf(\"%d\", &age)`. A user types \"twelve\". scanf returns 0, age keeps its garbage value, the letters stay in the input, and the next prompt fails instantly, forever. A line is read with fgets into a bounded array, its newline is handled, and strtol validates complete numeric conversion and range. In this lesson you'll implement a console input loop that rejects malformed and out-of-range values safely.\n\n```predict\n{\"question\": \"`scanf(\\\"%d\\\", &age)` gets \\\"abc\\\". What does it return, and what is age?\", \"options\": [\"1, and age is 0\", \"0, and age is unchanged (possibly uninitialised garbage)\"], \"answer\": 1, \"why\": \"Always check how many items scanf converted.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Operators and precedence; pf control iteration; while, do and for; Conversions and numeric boundaries. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Operators and precedence**, **Iteration**, **while, do and for** and **Conversions and numeric boundaries**."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "Robust C input checks each function's return result, distinguishes token from line input, bounds every destination, and handles leftover or invalid characters deliberately. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The rule: bounded line, full conversion, range check",
+        "body": "```c\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <errno.h>\n#include <stdbool.h>\n\nbool read_int(const char *prompt, long min, long max, long *out) {\n    char line[64];\n    for (;;) {\n        printf(\"%s\", prompt);\n        if (fgets(line, sizeof line, stdin) == NULL) return false;  /* EOF or error. */\n        if (strchr(line, '\\n') == NULL && !feof(stdin)) {           /* too long. */\n            int ch;\n            while ((ch = getchar()) != '\\n' && ch != EOF) {}        /* discard rest. */\n            puts(\"Too long, try again.\");\n            continue;\n        }\n        char *end;\n        errno = 0;\n        long v = strtol(line, &end, 10);\n        while (*end == ' ' || *end == '\\t') end++;                  /* allow spaces. */\n        if (end == line || (*end != '\\n' && *end != '\\0')) { puts(\"Not a whole number.\"); continue; }\n        if (errno == ERANGE || v < min || v > max) { puts(\"Out of range.\"); continue; }\n        *out = v;\n        return true;\n    }\n}\n```\n\n```reveal\n{\"prompt\": \"Why does fgets need sizeof line?\", \"answer\": \"It writes at most sizeof line - 1 characters plus '\\\\0', so input can never overflow the array. scanf(\\\"%s\\\") has no such limit unless you add a width like %63s.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "scanf conversion failure can leave input unread, fgets retains a newline when space permits, EOF differs from an empty line, and locale can affect conversions. Therefore the draft explicitly rejects this beginner failure model: scanf with %s or %d always writes a usable value, so its return result and destination width can be ignored."
+        "heading": "What counts as valid?",
+        "body": "```predict\n{\"question\": \"strtol(\\\"42abc\\\", &end, 10) returns 42. Should read_int accept it?\", \"options\": [\"Yes, it got a number\", \"No: end points at \\\"abc\\\", so the input wasn't entirely a number\"], \"answer\": 1, \"why\": \"Checking end is what rejects partial numbers.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Read bounded text, parse values and handle malformed or exhausted input.",
-      "Implement a console input loop that rejects malformed and out-of-range values safely."
+      "Read lines with fgets into bounded buffers and check every return value.",
+      "Convert with strtol, verifying complete conversion, errno and range, and reprompt on bad input."
     ],
     "excludes": [
-      "scanf conversion failure can leave input unread, fgets retains a newline when space permits, EOF differs from an empty line, and locale can affect conversions."
+      "Reading binary files (files lesson).",
+      "Locale-aware number parsing."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "c.control.input.example-a",
-      "title": "Validated text input: defined case",
+      "title": "Reading an age safely",
       "situation": "A line is read with fgets into a bounded array, its newline is handled, and strtol validates complete numeric conversion and range.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A line is read with fgets into a bounded array, its newline is handled, and strtol validates complete numeric conversion and range.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Check the input function's return value before reading destinations and provide explicit bounds such as fgets capacity or a width-limited string conversion."
+        "**A line is read with fgets into a bounded array:** line[64] can never overflow.",
+        "**Its newline is handled:** a missing newline means the input was too long, so the rest is discarded.",
+        "**strtol validates complete numeric conversion and range:** \"twelve\" and \"42abc\" are rejected, 200 fails the 0 to 130 range, and \"12\" will be accepted."
       ],
-      "result": "The defined result follows because Check the input function's return value before reading destinations and provide explicit bounds such as fgets capacity or a width-limited string conversion."
+      "result": "Bad input produces a helpful message and a new prompt, never a stuck loop."
     },
     {
       "id": "c.control.input.example-b",
-      "title": "Validated text input: boundary case",
-      "situation": "A scanf call checks that exactly one integer conversion succeeded before using the destination object.",
+      "title": "The endless prompt",
+      "situation": "A loop `while (scanf(\"%d\", &n) != 1) puts(\"Try again\");` prints \"Try again\" forever after one bad input.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A scanf call checks that exactly one integer conversion succeeded before using the destination object.",
-        "Step 2 — Keep this standard boundary visible: scanf conversion failure can leave input unread, fgets retains a newline when space permits, EOF differs from an empty line, and locale can affect conversions.",
-        "Step 3 — Reject the tempting rule: scanf with %s or %d always writes a usable value, so its return result and destination width can be ignored."
+        "scanf leaves the bad characters in the input buffer.",
+        "Each retry sees the same \"abc\" and fails again.",
+        "Switch to fgets + strtol, which consumes the whole line each time."
       ],
-      "result": "This case demonstrates the declared outcome: Implement a console input loop that rejects malformed and out-of-range values safely."
+      "result": "One bad line produces one message, and the user can try again."
     }
   ],
   "misconceptions": [
     {
       "id": "c.control.input.misconception",
       "mistakenBelief": "scanf with %s or %d always writes a usable value, so its return result and destination width can be ignored.",
-      "correction": "Check the input function's return value before reading destinations and provide explicit bounds such as fgets capacity or a width-limited string conversion.",
-      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: scanf with %s or %d always writes a usable value, so its return result and destination width can be ignored."
+      "correction": "scanf returns how many items it converted. On failure it leaves the variable unchanged and the bad input in the stream, and %s without a width can overflow the buffer.",
+      "diagnosticPrompt": "In the opening predict, what was age after \"abc\"?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A manually managed workshop can model Validated text input: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "example": "Reading input safely is like **a bouncer at a door**. They let in one person at a time through a narrow door (bounded fgets), check the ID is real and complete (strtol end check), check the age is allowed (range), and politely turn away everyone else, without letting the queue get stuck.",
     "usefulFor": [
-      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+      "remembering check the whole ID",
+      "narrow door = bounded buffer"
     ],
     "limitations": [
-      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
-      "scanf conversion failure can leave input unread, fgets retains a newline when space permits, EOF differs from an empty line, and locale can affect conversions."
+      "Bouncers can ask questions; programs can only reprompt.",
+      "A fake ID that's partly real (\"42abc\") still fails."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A line is read with fgets into a bounded array, its newline is handled, and strtol validates complete numeric conversion and range.",
-      "Robust C input checks each function's return result, distinguishes token from line input, bounds every destination, and handles leftover or invalid characters deliberately.",
-      "Check the input function's return value before reading destinations and provide explicit bounds such as fgets capacity or a width-limited string conversion."
+      "input \"twelve\"",
+      "input \"200\"",
+      "input \"12\""
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Reject text",
         "state": {
-          "evidence": "A line is read with fgets into a bounded array, its newline is handled, and strtol validates complete numeric conversion and range."
+          "end": "== line",
+          "message": "Not a whole number."
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "strtol validates complete numeric conversion and rejects text."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Reject range",
         "state": {
-          "rule": "Robust C input checks each function's return result, distinguishes token from line input, bounds every destination, and handles leftover or invalid characters deliberately."
+          "v": "200",
+          "range": "0..130"
         },
-        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+        "explanation": "The range check rejects values the program can't accept."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Accept",
         "state": {
-          "conclusion": "Check the input function's return value before reading destinations and provide explicit bounds such as fgets capacity or a width-limited string conversion."
+          "age": "12",
+          "return": "true"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: scanf with %s or %d always writes a usable value, so its return result and destination width can be ignored."
+        "explanation": "A line read with fgets into a bounded array, with its newline handled, is accepted."
       }
     ],
-    "textAlternative": "Starting artifact: A line is read with fgets into a bounded array, its newline is handled, and strtol validates complete numeric conversion and range. Step 1, Source and state. State: evidence: A line is read with fgets into a bounded array, its newline is handled, and strtol validates complete numeric conversion and range.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: Robust C input checks each function's return result, distinguishes token from line input, bounds every destination, and handles leftover or invalid characters deliberately.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Check the input function's return value before reading destinations and provide explicit bounds such as fgets capacity or a width-limited string conversion.. Check the conclusion against the boundary and reject this misconception: scanf with %s or %d always writes a usable value, so its return result and destination width can be ignored."
+    "textAlternative": "Tracing validated input. Step 1, Reject text: end is == line; message is Not a whole number.. strtol validates complete numeric conversion and rejects text. Step 2, Reject range: v is 200; range is 0..130. The range check rejects values the program can't accept. Step 3, Accept: age is 12; return is true. A line read with fgets into a bounded array, with its newline handled, is accepted."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Validated text input: defined case”: state its starting evidence, apply the Validated text input rule, and give the observable result in three short lines.",
+      "prompt": "For \"Reading an age safely\", explain how a line is read with fgets into a bounded array, its newline is handled, and strtol validates complete numeric conversion and range.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Read.",
+        "Convert.",
+        "Validate."
       ],
       "expectedEvidence": [
-        "Named example: Validated text input: defined case.",
-        "Starting evidence: A line is read with fgets into a bounded array, its newline is handled, and strtol validates complete numeric conversion and range.",
-        "Core rule: Robust C input checks each function's return result, distinguishes token from line input, bounds every destination, and handles leftover or invalid characters deliberately.",
-        "Observable result: The defined result follows because Check the input function's return value before reading destinations and provide explicit bounds such as fgets capacity or a width-limited string conversion.",
-        "Boundary check: Check the input function's return value before reading destinations and provide explicit bounds such as fgets capacity or a width-limited string conversion."
+        "Names the example \"Reading an age safely\": scanf got stuck on \"twelve\".",
+        "A line is read with fgets into a bounded array and its newline is handled.",
+        "strtol validates complete numeric conversion and range.",
+        "Bad input produces a helpful message and a new prompt."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same C rule to this related boundary case: A scanf call checks that exactly one integer conversion succeeded before using the destination object.",
+      "prompt": "Use read_int to ask for a month (1 to 12). Test with 7, 0, 13, \"seven\", \"7x\", an empty line, a 100-character line and end of input (Ctrl+D or Ctrl+Z).",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Predict each outcome first.",
+        "End of input should stop cleanly."
       ],
       "expectedEvidence": [
-        "Robust C input checks each function's return result, distinguishes token from line input, bounds every destination, and handles leftover or invalid characters deliberately.",
-        "scanf conversion failure can leave input unread, fgets retains a newline when space permits, EOF differs from an empty line, and locale can affect conversions."
+        "Every case handled.",
+        "No crash or infinite loop."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new C example for Validated text input, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Build a small menu program that repeatedly reads a choice and two numbers, using only fgets and strtol/strtod, with full validation and a clean exit on end of input. Compile with -Wall -Wextra and test malicious inputs.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Reuse read_int.",
+        "strtod for decimals."
       ],
       "expectedEvidence": [
-        "Implement a console input loop that rejects malformed and out-of-range values safely.",
-        "Check the input function's return value before reading destinations and provide explicit bounds such as fgets capacity or a width-limited string conversion."
+        "All invalid inputs rejected.",
+        "No unbounded reads anywhere."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "c.control.input.misconception",
-      "explanation": "Check the input function's return value before reading destinations and provide explicit bounds such as fgets capacity or a width-limited string conversion.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'return value' and state the decisive evidence: A scanf call checks that exactly one integer conversion succeeded before using the destination object."
+      "explanation": "For every input call ask: **is the destination bounded, is the return value checked, was the whole input converted, and is the value in range?**",
+      "retryPrompt": "Apply this to \"The endless prompt\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement a console input loop that rejects malformed and out-of-range values safely. Keep this boundary in view: scanf conversion failure can leave input unread, fgets retains a newline when space permits, EOF differs from an empty line, and locale can affect conversions.",
+    "summary": "To implement a safe input loop, read whole lines with fgets into bounded buffers, check for end of input and over-long lines, convert with strtol while checking that digits were consumed, only whitespace remains, errno isn't ERANGE and the value is in range, and reprompt on anything else.",
     "retrievalPrompts": [
-      "Explain Validated text input using a concrete C rule rather than the optional analogy.",
-      "Why is this claim incorrect: scanf with %s or %d always writes a usable value, so its return result and destination width can be ignored.",
-      "Apply the checkpoint 'return value' to the boundary case from memory."
+      "Why prefer fgets to scanf(\"%s\")?",
+      "What does strtol's end pointer tell you?",
+      "What happens to bad input left by scanf?"
     ],
     "nextReviewPrompt": "Next: continue to “Declarations, prototypes and definitions”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

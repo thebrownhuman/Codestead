@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Composition gives an object owned or injected collaborators and delegates focused work, allowing reuse without claiming a subtype relationship.",
+    "summary": "**Composition** builds an object from **collaborators** it holds and **delegates** to: a ReportService **has a** Formatter, rather than **being** one. The collaborator is usually an **interface** passed into the constructor, so you can swap CSV for HTML formatting, or a fake one in tests, without touching the service. Compared with inheritance, composition exposes **only the operations you choose**, avoids fragile base-class coupling (a superclass change can break every subclass), and allows changing behaviour at run time. It's **not** copying another class's methods wholesale into a wrapper: expose the small interface callers need.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A ReportService receives a Formatter interface and delegates formatting, so output policy changes independently of report identity. Your goal is to refactor a fragile hierarchy into composed collaborators with testable interfaces. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner builds CsvReport extends Report, then HtmlReport extends Report, then CsvEmailReport extends CsvReport, and a change to Report's constructor breaks all three. Adding PDF would mean yet more subclasses. A ReportService receives a Formatter interface and delegates formatting, so output policy changes independently of report identity. In this lesson you'll refactor a fragile hierarchy into composed collaborators with testable interfaces.\n\n```predict\n{\"question\": \"To add PDF output to the inheritance design, how many classes might you need (with and without email)?\", \"options\": [\"One\", \"Two or more new subclasses, one per combination\"], \"answer\": 1, \"why\": \"Composition needs just one new Formatter implementation.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Constructors and invariants; Overriding and dynamic dispatch. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Constructors and invariants** (injecting required collaborators) and **Overriding and dynamic dispatch** (calls through interfaces)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Composition gives an object owned or injected collaborators and delegates focused work, allowing reuse without claiming a subtype relationship. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: has-a collaborators behind interfaces",
+        "body": "```java\nimport java.util.List;\n\ninterface Formatter {\n    String format(List<String> rows);\n}\n\nclass CsvFormatter implements Formatter {\n    public String format(List<String> rows) { return String.join(\",\", rows); }\n}\n\nclass BulletFormatter implements Formatter {\n    public String format(List<String> rows) {\n        StringBuilder sb = new StringBuilder();\n        for (String r : rows) sb.append(\"- \").append(r).append('\\n');\n        return sb.toString();\n    }\n}\n\nclass ReportService {\n    private final Formatter formatter;            // HAS a formatter.\n    ReportService(Formatter formatter) { this.formatter = formatter; }\n    String build(List<String> rows) {\n        return formatter.format(rows);            // delegate formatting.\n    }\n}\n\npublic class Reports {\n    public static void main(String[] args) {\n        List<String> rows = List.of(\"pen\", \"ink\");\n        System.out.println(new ReportService(new CsvFormatter()).build(rows));     // pen,ink\n        System.out.print(new ReportService(new BulletFormatter()).build(rows));  // - pen / - ink\n    }\n}\n```\n\n| | Inheritance | Composition |\n|---|---|---|\n| relationship. | is-a. | has-a. |\n| exposed surface. | whole superclass API. | chosen methods only. |\n| change behaviour. | new subclass. | pass another collaborator. |\n\n```reveal\n{\"prompt\": \"How would email delivery fit in?\", \"answer\": \"As another collaborator: ReportService(Formatter formatter, Sender sender). Formats and senders combine freely, with no subclass per combination.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "Composition still needs clear ownership and lifecycle, excessive forwarding can obscure an interface, circular dependencies create coupling, and shared mutable collaborators need coordination. The learner must reject this documented misconception: Composition means copying another class's methods into a wrapper and exposing all of them unchanged."
+        "heading": "Not copying everything",
+        "body": "```predict\n{\"question\": \"Is composition \\\"wrap a class and forward all of its 40 public methods\\\"?\", \"options\": [\"Yes\", \"No: expose only the operations callers need, delegating inside\"], \"answer\": 1, \"why\": \"A small interface is the goal, not a full mirror.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Delegate to owned collaborators when reuse does not require subtype substitution.",
-      "Refactor a fragile hierarchy into composed collaborators with testable interfaces."
+      "Refactor inheritance-based variation into injected collaborators behind interfaces.",
+      "Delegate focused work and expose a small chosen interface."
     ],
     "excludes": [
-      "Composition still needs clear ownership and lifecycle, excessive forwarding can obscure an interface, circular dependencies create coupling, and shared mutable collaborators need coordination."
+      "Dependency injection frameworks.",
+      "Decorator and strategy patterns by name in depth."
     ]
   },
   "outcomes": [
@@ -63,133 +64,134 @@
   "examples": [
     {
       "id": "java.abstraction.composition.example.direct",
-      "title": "Composition over inheritance: direct language case",
+      "title": "A ReportService with a pluggable Formatter",
       "situation": "A ReportService receives a Formatter interface and delegates formatting, so output policy changes independently of report identity.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A ReportService receives a Formatter interface and delegates formatting, so output policy changes independently of report identity.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants."
+        "**A ReportService receives a Formatter interface:** it's passed to the constructor.",
+        "**And delegates formatting:** build(rows) calls formatter.format(rows).",
+        "**So output policy changes independently of report identity:** switching CsvFormatter for BulletFormatter will need no change to ReportService."
       ],
-      "result": "The example meets the atomic outcome because Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants."
+      "result": "New formats are one small class each, and the service is easy to test."
     },
     {
       "id": "java.abstraction.composition.example.boundary",
-      "title": "Composition over inheritance: boundary and transfer case",
-      "situation": "A Stack wraps an ArrayDeque instead of extending it, preventing callers from using queue operations that violate the stack contract.",
+      "title": "The fragile base class",
+      "situation": "Report's constructor gains a required parameter, and all three subclasses stop compiling.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A Stack wraps an ArrayDeque instead of extending it, preventing callers from using queue operations that violate the stack contract.",
-        "Step 2 — Keep the language boundary explicit: Composition still needs clear ownership and lifecycle, excessive forwarding can obscure an interface, circular dependencies create coupling, and shared mutable collaborators need coordination.",
-        "Step 3 — Reject the tempting but incorrect rule: Composition means copying another class's methods into a wrapper and exposing all of them unchanged."
+        "Every subclass depended on the base's constructor and internals.",
+        "With composition, ReportService's constructor changes in one place.",
+        "Formatters don't depend on ReportService at all."
       ],
-      "result": "This case demonstrates the declared outcome: Refactor a fragile hierarchy into composed collaborators with testable interfaces."
+      "result": "A change in one component doesn't ripple through a hierarchy."
     }
   ],
   "misconceptions": [
     {
       "id": "java.abstraction.composition.misconception",
       "mistakenBelief": "Composition means copying another class's methods into a wrapper and exposing all of them unchanged.",
-      "correction": "Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Composition means copying another class's methods into a wrapper and exposing all of them unchanged."
+      "correction": "Composition holds collaborators and delegates focused work, exposing only the operations its clients need.",
+      "diagnosticPrompt": "In \"Not copying everything\", what should the wrapper expose?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a plug-and-socket system in which contracts describe compatible behavior while components hide their implementation can introduce Composition over inheritance, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "example": "Composition is like **a camera with interchangeable lenses**: the camera body (service) stays the same while you swap lenses (formatters). Inheritance is **buying a whole new camera for every lens**, and a design change to the body means replacing them all.",
     "usefulFor": [
-      "interfaces, substitution, dispatch, and composition"
+      "remembering swap lenses, keep the body",
+      "new format = new lens"
     ],
     "limitations": [
-      "overload resolution, method hiding, constructor order, and multiple interface defaults require Java-specific rules",
-      "Composition still needs clear ownership and lifecycle, excessive forwarding can obscure an interface, circular dependencies create coupling, and shared mutable collaborators need coordination."
+      "Real lenses need mounts; interfaces are the mount standard.",
+      "A lens doesn't need to know which camera it's on."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A ReportService receives a Formatter interface and delegates formatting, so output policy changes independently of report identity.",
-      "Composition gives an object owned or injected collaborators and delegates focused work, allowing reuse without claiming a subtype relationship.",
-      "Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants."
+      "new ReportService(new CsvFormatter())",
+      "build(List.of(\"pen\", \"ink\"))",
+      "swap to BulletFormatter"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Compose",
         "state": {
-          "evidence": "A ReportService receives a Formatter interface and delegates formatting, so output policy changes independently of report identity."
+          "formatter": "CsvFormatter"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "The ReportService receives a Formatter interface through its constructor."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Delegate",
         "state": {
-          "rule": "Composition gives an object owned or injected collaborators and delegates focused work, allowing reuse without claiming a subtype relationship."
+          "output": "pen,ink"
         },
-        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "It delegates formatting to the collaborator."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Swap",
         "state": {
-          "correction": "Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants."
+          "output": "- pen / - ink",
+          "service changed": "no"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Composition means copying another class's methods into a wrapper and exposing all of them unchanged."
+        "explanation": "Output policy changes independently of report identity."
       }
     ],
-    "textAlternative": "Starting artifact: A ReportService receives a Formatter interface and delegates formatting, so output policy changes independently of report identity. Step 1, Observe. State: evidence: A ReportService receives a Formatter interface and delegates formatting, so output policy changes independently of report identity.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Composition gives an object owned or injected collaborators and delegates focused work, allowing reuse without claiming a subtype relationship.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants.. Compare the observation with the correction and explain why the misconception fails: Composition means copying another class's methods into a wrapper and exposing all of them unchanged."
+    "textAlternative": "Tracing composition and delegation. Step 1, Compose: formatter is CsvFormatter. The ReportService receives a Formatter interface through its constructor. Step 2, Delegate: output is pen,ink. It delegates formatting to the collaborator. Step 3, Swap: output is - pen / - ink; service changed is no. Output policy changes independently of report identity."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Composition over inheritance: direct language case”: state its starting evidence, apply the Composition over inheritance rule, and give the observable result in three short lines.",
+      "prompt": "For \"A ReportService with a pluggable Formatter\", explain how a ReportService receives a Formatter interface and delegates formatting, so output policy changes independently of report identity.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Receive.",
+        "Delegate.",
+        "Swap."
       ],
       "expectedEvidence": [
-        "Named example: Composition over inheritance: direct language case.",
-        "Starting evidence: A ReportService receives a Formatter interface and delegates formatting, so output policy changes independently of report identity.",
-        "Core rule: Composition gives an object owned or injected collaborators and delegates focused work, allowing reuse without claiming a subtype relationship.",
-        "Observable result: The example meets the atomic outcome because Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants.",
-        "Boundary check: Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants."
+        "Names the example \"A ReportService with a pluggable Formatter\": a subclass per format was fragile.",
+        "A ReportService receives a Formatter interface and delegates formatting.",
+        "Output policy changes independently of report identity.",
+        "New formats are one small class each."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A Stack wraps an ArrayDeque instead of extending it, preventing callers from using queue operations that violate the stack contract.",
+      "prompt": "Add an HtmlFormatter and a test using a fake Formatter that records the rows it received. Assert ReportService passes rows through unchanged.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Fake implements Formatter.",
+        "No real formatting in the test."
       ],
       "expectedEvidence": [
-        "Composition gives an object owned or injected collaborators and delegates focused work, allowing reuse without claiming a subtype relationship.",
-        "Composition still needs clear ownership and lifecycle, excessive forwarding can obscure an interface, circular dependencies create coupling, and shared mutable collaborators need coordination."
+        "HTML works.",
+        "Delegation verified by the fake."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Composition over inheritance, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Refactor a three-level report hierarchy (with and without email) into ReportService(Formatter, Sender) with two formatters and two senders. Show all four combinations working without any subclass of ReportService.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Sender interface with send(String).",
+        "A MemorySender for tests."
       ],
       "expectedEvidence": [
-        "Refactor a fragile hierarchy into composed collaborators with testable interfaces.",
-        "Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants."
+        "Four combinations tested.",
+        "No inheritance left."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "java.abstraction.composition.misconception",
-      "explanation": "Compose a collaborator behind a purpose-built contract and delegate only behavior that preserves the owning object's invariants.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A Stack wraps an ArrayDeque instead of extending it, preventing callers from using queue operations that violate the stack contract."
+      "explanation": "When behaviour varies, ask: **could this variation be a collaborator passed in?** If yes, define a small interface and compose instead of subclassing.",
+      "retryPrompt": "Apply this to \"The fragile base class\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to refactor a fragile hierarchy into composed collaborators with testable interfaces. Keep this boundary in view: Composition still needs clear ownership and lifecycle, excessive forwarding can obscure an interface, circular dependencies create coupling, and shared mutable collaborators need coordination.",
+    "summary": "To refactor a fragile hierarchy, identify what varies, extract it into a small interface, pass implementations into the constructor, delegate the focused work to them, expose only the operations clients need, and test with simple fake collaborators.",
     "retrievalPrompts": [
-      "Explain Composition over inheritance using canonical Java: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Composition means copying another class's methods into a wrapper and exposing all of them unchanged.",
-      "Predict this case from memory: A Stack wraps an ArrayDeque instead of extending it, preventing callers from using queue operations that violate the stack contract."
+      "What does composition model?",
+      "How do you add a new output format?",
+      "Why is a deep hierarchy fragile?"
     ],
     "nextReviewPrompt": "Next: continue to “Generic types and methods”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

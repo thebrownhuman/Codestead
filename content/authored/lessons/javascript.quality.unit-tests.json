@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Unit tests verify deterministic module contracts with controlled inputs and dependencies, including boundaries and failures.",
+    "summary": "A **unit test** calls one module's function with **controlled inputs** and checks the **output or the thrown error**, with no browser, network or clock involved. Good tests cover three kinds of case. **Normal**: a typical value. **Boundary**: zero, the exact threshold, one either side, empty lists. **Failure**: invalid input should throw the documented error. Pass fakes for dependencies such as storage or the current time so results are the same every run. **100% line coverage doesn't mean the logic is right**: a single test can run every line and still miss the threshold bug.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A price function is tested at zero, threshold, normal, and invalid input without a browser. Your goal is to create tests covering normal, boundary and failure behavior for non-DOM modules. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A shop charges ₹50 shipping, but orders of ₹500 or more ship free. One test checks a ₹200 order, coverage says 100%, and yet orders of exactly ₹500 are still charged shipping because the code uses `>` instead of `>=`. A price function is tested at zero, threshold, normal, and invalid input without a browser. In this lesson you'll create tests covering normal, boundary and failure behavior for non-DOM modules.\n\n```predict\n{\"question\": \"`shipping(total)` returns `total > 500 ? 0 : 50`. A single test `expect(shipping(200)).toBe(50)` passes. Is the rule \\\"free from ₹500\\\" verified?\", \"options\": [\"Yes, coverage is 100%\", \"No: nothing tested 500 itself, where > and >= differ\"], \"answer\": 1, \"why\": \"Boundaries are where off-by-one bugs live. Test the exact threshold and its neighbours.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Browser state and security; Dependency boundaries; Errors, throw and recovery boundaries. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Browser state and security** module, **Dependency boundaries** (pure domain modules are easy to test), and **Errors, throw and recovery boundaries**, since failure cases assert thrown errors."
       },
       {
-        "heading": "Technology rule",
-        "body": "Unit tests verify deterministic module contracts with controlled inputs and dependencies, including boundaries and failures. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: normal, boundary, failure",
+        "body": "```js\n// shipping.js.\nexport const FREE_FROM = 500;\nexport function shipping(total) {\n  if (!Number.isFinite(total) || total < 0) throw new RangeError(\"total must be >= 0\");\n  return total >= FREE_FROM ? 0 : 50;\n}\n\n// shipping.test.js (Vitest or Jest syntax).\nimport { describe, it, expect } from \"vitest\";\nimport { shipping } from \"./shipping.js\";\n\ndescribe(\"shipping\", () => {\n  it(\"charges 50 on a normal small order\", () => expect(shipping(200)).toBe(50));\n  it(\"charges 50 for an empty cart\", () => expect(shipping(0)).toBe(50));\n  it(\"charges 50 just below the threshold\", () => expect(shipping(499.99)).toBe(50));\n  it(\"is free exactly at the threshold\", () => expect(shipping(500)).toBe(0));\n  it(\"rejects negative totals\", () => expect(() => shipping(-1)).toThrow(RangeError));\n  it(\"rejects NaN\", () => expect(() => shipping(NaN)).toThrow(RangeError));\n});\n```\n\n| Case type | Examples here |\n|---|---|\n| normal. | 200. |\n| boundary. | 0, 499.99, 500. |\n| failure. | -1, NaN. |\n\n```reveal\n{\"prompt\": \"Why wrap the failing call in `() => shipping(-1)`?\", \"answer\": \"toThrow needs a function to call. Calling shipping(-1) directly would throw before expect runs.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Overmocking tests implementation, timers and randomness need control, and coverage is not correctness. This draft therefore rejects: One happy-path assertion is enough when line coverage reaches 100 percent."
+        "heading": "Control the dependencies",
+        "body": "```predict\n{\"question\": \"`isExpired(token)` uses `Date.now()` inside. Why is that hard to test?\", \"options\": [\"It isn't\", \"The result changes with the real clock; pass `now` in as a parameter instead\"], \"answer\": 1, \"why\": \"`isExpired(token, now = Date.now())` lets tests pass a fixed time.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Test deterministic domain behavior and module contracts with isolated fixtures.",
-      "Create tests covering normal, boundary and failure behavior for non-DOM modules."
+      "Write normal, boundary and failure tests for pure functions.",
+      "Make modules testable by passing dependencies such as time or storage in."
     ],
     "excludes": [
-      "Overmocking tests implementation, timers and randomness need control, and coverage is not correctness."
+      "DOM and integration tests (next lesson).",
+      "Snapshot testing."
     ]
   },
   "outcomes": [
@@ -63,133 +64,139 @@
   "examples": [
     {
       "id": "javascript.quality.unit-tests.example-a",
-      "title": "Pure and module tests: concrete case",
+      "title": "Testing the shipping price",
       "situation": "A price function is tested at zero, threshold, normal, and invalid input without a browser.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A price function is tested at zero, threshold, normal, and invalid input without a browser.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Derive tests from contract partitions and boundaries; coverage alone does not establish behavior."
+        "**Normal and zero:** tests for 200 and 0 both expect 50.",
+        "**Threshold:** the test for exactly 500 fails against the `>` version, revealing the bug; changing to `>=` makes it pass.",
+        "**Invalid input:** tests will check that -1 and NaN throw RangeError, all running in Node without a browser."
       ],
-      "result": "The result follows because Derive tests from contract partitions and boundaries; coverage alone does not establish behavior."
+      "result": "Orders of exactly ₹500 now ship free, and the tests will catch the bug if it ever returns."
     },
     {
       "id": "javascript.quality.unit-tests.example-b",
-      "title": "Pure and module tests: boundary case",
-      "situation": "Overmocking tests implementation, timers and randomness need control, and coverage is not correctness.",
+      "title": "The test that failed at midnight",
+      "situation": "A streak test passes all day but fails when the CI job runs just after midnight, because `isToday(date)` reads the real clock.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Overmocking tests implementation, timers and randomness need control, and coverage is not correctness.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: One happy-path assertion is enough when line coverage reaches 100 percent."
+        "The result depends on when the test runs.",
+        "Change the signature to `isToday(date, now = new Date())`.",
+        "Tests pass a fixed `now` for before, at and after midnight."
       ],
-      "result": "The boundary requires this correction: Derive tests from contract partitions and boundaries; coverage alone does not establish behavior."
+      "result": "The streak tests give the same result at any hour."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.quality.unit-tests.misconception",
       "mistakenBelief": "One happy-path assertion is enough when line coverage reaches 100 percent.",
-      "correction": "Derive tests from contract partitions and boundaries; coverage alone does not establish behavior.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: One happy-path assertion is enough when line coverage reaches 100 percent."
+      "correction": "Coverage only shows lines ran, not that every decision is right. Boundary and failure cases, like exactly 500 or negative totals, check the logic that a single happy-path test skips over.",
+      "diagnosticPrompt": "In the opening predict, which input would have caught the bug?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Pure and module tests, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "Unit tests are like **checking a lift's weight limit**: you test a normal load, the exact limit and just over it, and what happens when someone tries to jump. Riding it once with two people (one happy path) proves the doors open, not that the limit works.",
     "usefulFor": [
-      "Building a first mental model for Pure and module tests before using exact platform terms"
+      "remembering boundaries",
+      "failure cases = the jump test"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Overmocking tests implementation, timers and randomness need control, and coverage is not correctness."
+      "Lifts are heavy to test; pure functions run in milliseconds.",
+      "Controlling the clock is like testing the lift at a fixed time of day."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A price function is tested at zero, threshold, normal, and invalid input without a browser.",
-      "Unit tests verify deterministic module contracts with controlled inputs and dependencies, including boundaries and failures.",
-      "Derive tests from contract partitions and boundaries; coverage alone does not establish behavior."
+      "shipping(200)",
+      "shipping(500)",
+      "shipping(-1)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Normal",
         "state": {
-          "evidence": "A price function is tested at zero, threshold, normal, and invalid input without a browser."
+          "input": "200",
+          "expected": "50",
+          "result": "pass"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The normal input confirms the usual shipping charge."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Threshold",
         "state": {
-          "rule": "Unit tests verify deterministic module contracts with controlled inputs and dependencies, including boundaries and failures."
+          "input": "500",
+          "expected": "0",
+          "old code": "50, fails"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The threshold test exposes the > versus >= bug in the price function."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Invalid",
         "state": {
-          "correction": "Derive tests from contract partitions and boundaries; coverage alone does not establish behavior."
+          "input": "-1",
+          "expected": "RangeError",
+          "result": "pass"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: One happy-path assertion is enough when line coverage reaches 100 percent."
+        "explanation": "Invalid input is tested without a browser and throws the documented error."
       }
     ],
-    "textAlternative": "Starting artifact: A price function is tested at zero, threshold, normal, and invalid input without a browser. Step 1, Artifact. State: evidence: A price function is tested at zero, threshold, normal, and invalid input without a browser.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Unit tests verify deterministic module contracts with controlled inputs and dependencies, including boundaries and failures.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Derive tests from contract partitions and boundaries; coverage alone does not establish behavior.. Check the result against the boundary and reject this misconception: One happy-path assertion is enough when line coverage reaches 100 percent."
+    "textAlternative": "Running boundary tests. Step 1, Normal: input is 200; expected is 50; result is pass. The normal input confirms the usual shipping charge. Step 2, Threshold: input is 500; expected is 0; old code is 50, fails. The threshold test exposes the > versus >= bug in the price function. Step 3, Invalid: input is -1; expected is RangeError; result is pass. Invalid input is tested without a browser and throws the documented error."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Pure and module tests: concrete case”: state its starting evidence, apply the Pure and module tests rule, and give the observable result in three short lines.",
+      "prompt": "For \"Testing the shipping price\", explain how a price function is tested at zero, threshold, normal, and invalid input without a browser.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Normal and zero.",
+        "Threshold.",
+        "Invalid."
       ],
       "expectedEvidence": [
-        "Named example: Pure and module tests: concrete case.",
-        "Starting evidence: A price function is tested at zero, threshold, normal, and invalid input without a browser.",
-        "Core rule: Unit tests verify deterministic module contracts with controlled inputs and dependencies, including boundaries and failures.",
-        "Observable result: The result follows because Derive tests from contract partitions and boundaries; coverage alone does not establish behavior.",
-        "Boundary check: Derive tests from contract partitions and boundaries; coverage alone does not establish behavior."
+        "Names the example \"Testing the shipping price\": the price function is tested without a browser.",
+        "Zero and normal inputs expect 50.",
+        "The threshold test at 500 exposes the bug.",
+        "Orders of exactly ₹500 now ship free, and invalid input throws."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Overmocking tests implementation, timers and randomness need control, and coverage is not correctness.",
+      "prompt": "Write tests for `grade(score)` returning \"A\" for 90-100, \"B\" for 75-89, \"C\" below 75, and throwing for scores outside 0-100.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Test 0, 74, 75, 89, 90, 100.",
+        "Test -1 and 101."
       ],
       "expectedEvidence": [
-        "Unit tests verify deterministic module contracts with controlled inputs and dependencies, including boundaries and failures.",
-        "Overmocking tests implementation, timers and randomness need control, and coverage is not correctness."
+        "Every boundary pair covered.",
+        "Two failure tests with toThrow."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Pure and module tests and explain why the misconception fails.",
+      "prompt": "Pick a non-DOM module from your project. List its contract, write normal, boundary and failure tests, pass in any time or storage dependency, and deliberately break the code to confirm a test fails.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Write the contract first.",
+        "Mutation check: break it on purpose."
       ],
       "expectedEvidence": [
-        "Create tests covering normal, boundary and failure behavior for non-DOM modules.",
-        "Derive tests from contract partitions and boundaries; coverage alone does not establish behavior."
+        "A test list mapped to the contract.",
+        "Evidence that a broken boundary fails a test."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.quality.unit-tests.misconception",
-      "explanation": "Derive tests from contract partitions and boundaries; coverage alone does not establish behavior.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'contract partitions' and state the decisive evidence."
+      "explanation": "For each function, write down: **one normal input, every threshold and its neighbours, empty or zero, and each documented failure.** Then check whether anything reads time, randomness or storage directly, and pass it in.",
+      "retryPrompt": "Apply this to \"The test that failed at midnight\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to create tests covering normal, boundary and failure behavior for non-DOM modules. Keep this boundary in view: Overmocking tests implementation, timers and randomness need control, and coverage is not correctness.",
+    "summary": "To create tests covering normal, boundary and failure behavior for non-DOM modules, call functions with controlled inputs, test typical values, exact thresholds and their neighbours, and documented errors with toThrow, and pass in dependencies such as the clock so results are deterministic. Coverage alone doesn't prove the logic.",
     "retrievalPrompts": [
-      "Explain Pure and module tests using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: One happy-path assertion is enough when line coverage reaches 100 percent.",
-      "Apply checkpoint 'contract partitions' to a new artifact."
+      "Why isn't 100% coverage enough?",
+      "Which inputs count as boundaries?",
+      "How do you test code that reads the clock?"
     ],
     "nextReviewPrompt": "Next: continue to “DOM and asynchronous integration tests”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

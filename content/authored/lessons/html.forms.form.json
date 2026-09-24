@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A form groups controls for submission, with action, method, successful control names, and encoding determining the request.",
+    "summary": "When a form is submitted, the browser collects every **enabled control that has a `name`**, pairs it with its value (`q=html+tables`) and sends it to the form's `action` URL using its `method`. **GET** puts the pairs in the URL — great for searches you can bookmark or share. **POST** sends them in the request body — use it for anything that changes data or includes private values. A control without a name is simply not sent.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A search form uses GET so its named query appears in a bookmarkable URL. Your goal is to build and explain a form's serialized submission without exposing sensitive values in a query URL. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You search a course site for \"html tables\", like the results, and copy the URL to a friend. It works — because the search form used GET and put your query in the address. But a login form using GET would put your password in the address bar, the history and server logs! A search form uses GET so its named query appears in a bookmarkable URL. In this lesson you'll build and explain a form's serialized submission without exposing sensitive values in a query URL.\n\n```predict\n{\"question\": \"`<input type=\\\"text\\\" value=\\\"Asha\\\">` (no name) sits inside a form. Is it submitted?\", \"options\": [\"Yes, all visible inputs are sent\", \"No — controls without a name aren't submitted\"], \"answer\": 1, \"why\": \"The name is the key in each key=value pair. No name, no pair.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Paragraph and inline meaning; Relative and absolute URLs. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Paragraph and inline meaning** and **Relative and absolute URLs** — action is a URL."
       },
       {
-        "heading": "Technology rule",
-        "body": "A form groups controls for submission, with action, method, successful control names, and encoding determining the request. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: named controls → key=value pairs → action + method",
+        "body": "```html\n<form action=\"/search\" method=\"get\" role=\"search\">\n  <label for=\"q\">Search courses</label>\n  <input id=\"q\" name=\"q\" type=\"search\">\n  <button>Search</button>\n</form>\n```\n\nTyping `html tables` and submitting sends: **GET /search?q=html+tables**\n\n| Attribute | Decides |\n|---|---|\n| `action`. | where the data goes. |\n| `method=\"get\"`. | data in the URL — for reading/searching. |\n| `method=\"post\"`. | data in the body — for changes and private data. |\n| `name` on each control. | the key in the submitted pair. |\n\n```reveal\n{\"prompt\": \"Is POST data encrypted or secret?\", \"answer\": \"No. POST keeps data out of the URL, history and many logs, but only HTTPS encrypts it in transit. Always use HTTPS for private data.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "GET and POST have different semantics, disabled controls are not successful, and client validation does not secure server processing. This draft therefore rejects: The form element automatically sends every visible control even when it lacks a name."
+        "heading": "Choose the method",
+        "body": "```predict\n{\"question\": \"A form changes a user's password. Which method?\", \"options\": [\"GET\", \"POST\"], \"answer\": 1, \"why\": \"It changes data and carries secrets. GET would put the password in the URL, browser history and server logs.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use form, action, method, names and values while distinguishing GET and POST semantics.",
-      "Build and explain a form's serialized submission without exposing sensitive values in a query URL."
+      "Explain how named controls are serialized and sent to action with a method.",
+      "Choose GET for searches and POST for changes or private data."
     ],
     "excludes": [
-      "GET and POST have different semantics, disabled controls are not successful, and client validation does not secure server processing."
+      "Server-side handling of submissions.",
+      "File uploads and multipart encoding in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "html.forms.form.example-a",
-      "title": "Form submission model: concrete case",
+      "title": "A bookmarkable search",
       "situation": "A search form uses GET so its named query appears in a bookmarkable URL.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A search form uses GET so its named query appears in a bookmarkable URL.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Only successful named controls are submitted; choose method and action from request semantics and validate again on the server."
+        "**Named query:** the input has `name=\"q\"`, so its value becomes the q pair.",
+        "**Uses GET:** `method=\"get\"` and `action=\"/search\"` build `/search?q=html+tables`.",
+        "**Bookmarkable URL:** the results page can be bookmarked, shared and re-run by the browser."
       ],
-      "result": "The result follows because Only successful named controls are submitted; choose method and action from request semantics and validate again on the server."
+      "result": "The search results live at a URL that works for anyone who opens it."
     },
     {
       "id": "html.forms.form.example-b",
-      "title": "Form submission model: boundary case",
-      "situation": "GET and POST have different semantics, disabled controls are not successful, and client validation does not secure server processing.",
+      "title": "The password in the address bar",
+      "situation": "A login form has `method=\"get\"`. After signing in, the URL shows `/login?user=asha&pass=S3cret!`.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: GET and POST have different semantics, disabled controls are not successful, and client validation does not secure server processing.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: The form element automatically sends every visible control even when it lacks a name."
+        "GET serialized the password into the query string.",
+        "It's now in browser history, the server's access logs and possibly analytics.",
+        "Fix: `method=\"post\"` over HTTPS, and ask users to change the exposed password."
       ],
-      "result": "The boundary requires this correction: Only successful named controls are submitted; choose method and action from request semantics and validate again on the server."
+      "result": "Credentials no longer appear in URLs, history or logs."
     }
   ],
   "misconceptions": [
     {
       "id": "html.forms.form.misconception",
-      "mistakenBelief": "The form element automatically sends every visible control even when it lacks a name.",
-      "correction": "Only successful named controls are submitted; choose method and action from request semantics and validate again on the server.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: The form element automatically sends every visible control even when it lacks a name."
+      "mistakenBelief": "The form element automatically sends every visible control, even when it lacks a name.",
+      "correction": "Only enabled controls with a name attribute are submitted, as name=value pairs. Visibility doesn't matter; the name does.",
+      "diagnosticPrompt": "In the opening predict, why wasn't Asha's value sent?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model Form submission model, with structure carrying meaning before decoration.",
+    "example": "Submitting a form is like **filling in a courier slip**: each labelled box (name) gets a value, and the slip goes to an address (action). GET writes everything on the outside of the envelope; POST puts it inside.",
     "usefulFor": [
-      "Building a first mental model for Form submission model before using exact platform terms"
+      "remembering name = the box label",
+      "seeing GET as \"visible on the envelope\""
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "GET and POST have different semantics, disabled controls are not successful, and client validation does not secure server processing."
+      "Envelopes can still be opened; only HTTPS seals the data in transit.",
+      "An unlabelled box is thrown away — like an unnamed control."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A search form uses GET so its named query appears in a bookmarkable URL.",
-      "A form groups controls for submission, with action, method, successful control names, and encoding determining the request.",
-      "Only successful named controls are submitted; choose method and action from request semantics and validate again on the server."
+      "<input name='q' value='html tables'>",
+      "submit with method=get action=/search",
+      "GET /search?q=html+tables"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Collect",
         "state": {
-          "evidence": "A search form uses GET so its named query appears in a bookmarkable URL."
+          "q": "html tables"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The form collects the named query control and its value."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Serialize",
         "state": {
-          "rule": "A form groups controls for submission, with action, method, successful control names, and encoding determining the request."
+          "query string": "q=html+tables"
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Using GET, the pair is encoded into the URL."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Result",
         "state": {
-          "correction": "Only successful named controls are submitted; choose method and action from request semantics and validate again on the server."
+          "URL": "/search?q=html+tables",
+          "bookmarkable": "yes"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: The form element automatically sends every visible control even when it lacks a name."
+        "explanation": "The search form's named query appears in a bookmarkable URL."
       }
     ],
-    "textAlternative": "Starting artifact: A search form uses GET so its named query appears in a bookmarkable URL. Step 1, Artifact. State: evidence: A search form uses GET so its named query appears in a bookmarkable URL.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A form groups controls for submission, with action, method, successful control names, and encoding determining the request.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Only successful named controls are submitted; choose method and action from request semantics and validate again on the server.. Check the result against the boundary and reject this misconception: The form element automatically sends every visible control even when it lacks a name."
+    "textAlternative": "Submitting a GET search form. Step 1, Collect: q is html tables. The form collects the named query control and its value. Step 2, Serialize: query string is q=html+tables. Using GET, the pair is encoded into the URL. Step 3, Result: URL is /search?q=html+tables; bookmarkable is yes. The search form's named query appears in a bookmarkable URL."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Form submission model: concrete case”: state its starting evidence, apply the Form submission model rule, and give the observable result in three short lines.",
+      "prompt": "For \"A bookmarkable search\", explain how the search form uses GET so its named query appears in a bookmarkable URL, including the exact URL for \"html tables\".",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Name.",
+        "Method.",
+        "URL."
       ],
       "expectedEvidence": [
-        "Named example: Form submission model: concrete case.",
-        "Starting evidence: A search form uses GET so its named query appears in a bookmarkable URL.",
-        "Core rule: A form groups controls for submission, with action, method, successful control names, and encoding determining the request.",
-        "Observable result: The result follows because Only successful named controls are submitted; choose method and action from request semantics and validate again on the server.",
-        "Boundary check: Only successful named controls are submitted; choose method and action from request semantics and validate again on the server."
+        "Names the example \"A bookmarkable search\": a search form uses GET.",
+        "Its named query q is serialized.",
+        "It appears in a bookmarkable URL: /search?q=html+tables.",
+        "The search results live at a URL that works for anyone who opens it; private data would use POST instead."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: GET and POST have different semantics, disabled controls are not successful, and client validation does not secure server processing.",
+      "prompt": "A feedback form has fields name, email and message and saves to a database. Write the form tag with the right method and explain which fields will be sent.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Saves data → method?",
+        "Every field needs a name."
       ],
       "expectedEvidence": [
-        "A form groups controls for submission, with action, method, successful control names, and encoding determining the request.",
-        "GET and POST have different semantics, disabled controls are not successful, and client validation does not secure server processing."
+        "method=\"post\" with an action URL.",
+        "All three fields sent because each has a name."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Form submission model and explain why the misconception fails.",
+      "prompt": "Build a filter form (category select + price range) that uses GET. Submit it, bookmark the URL, and explain how the server could read each value.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Name every control.",
+        "Look at the URL after submitting."
       ],
       "expectedEvidence": [
-        "Build and explain a form's serialized submission without exposing sensitive values in a query URL.",
-        "Only successful named controls are submitted; choose method and action from request semantics and validate again on the server."
+        "Working GET form producing a readable query string.",
+        "Explanation of each key=value pair."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.forms.form.misconception",
-      "explanation": "Only successful named controls are submitted; choose method and action from request semantics and validate again on the server.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'named controls' and state the decisive evidence."
+      "explanation": "Before submitting, list each control's **name = value**. Anything without a name disappears. Then ask: **does this read or change data? Any secrets?** Read + no secrets → GET; otherwise → POST.",
+      "retryPrompt": "Apply this to \"The password in the address bar\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to build and explain a form's serialized submission without exposing sensitive values in a query URL. Keep this boundary in view: GET and POST have different semantics, disabled controls are not successful, and client validation does not secure server processing.",
+    "summary": "To build and explain a form's serialized submission, give each control a name, set action and method, and remember only named, enabled controls are sent. Use GET for bookmarkable searches and POST for changes or sensitive values — never expose secrets in a query URL.",
     "retrievalPrompts": [
-      "Explain Form submission model using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: The form element automatically sends every visible control even when it lacks a name.",
-      "Apply checkpoint 'named controls' to a new artifact."
+      "Which controls are submitted?",
+      "Where does GET put the data?",
+      "Why must passwords use POST?"
     ],
     "nextReviewPrompt": "Next: continue to “Labels and input controls”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

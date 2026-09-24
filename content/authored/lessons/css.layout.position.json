@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Positioned layout uses static, relative, absolute, fixed, or sticky positioning and a containing block that determines offsets.",
+    "summary": "`position` moves boxes in special ways. **relative**: nudges a box from its normal spot and becomes a reference for absolute children. **absolute**: removed from flow and placed relative to the **nearest positioned ancestor** (else the page). **fixed**: pinned to the viewport. **sticky**: acts normal until it reaches an offset while scrolling, then sticks inside its container. Positioned boxes don't make room for themselves — reserve space so they don't cover content or focus targets.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A badge is absolutely positioned inside a relatively positioned card whose padding reserves visual room. Your goal is to implement and debug a positioned component without covering content or focus targets. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A course card needs a \"New\" badge in its top-right corner. You add `position: absolute; top: 0; right: 0;` — and the badge flies to the top-right corner of the whole page! Then, once fixed, it covers the card's title. A badge is absolutely positioned inside a relatively positioned card whose padding reserves visual room. In this lesson you'll implement and debug a positioned component without covering content or focus targets.\n\n```predict\n{\"question\": \"An absolutely positioned badge has no positioned ancestor. What does `top: 0; right: 0` refer to?\", \"options\": [\"The card it's inside\", \"The initial containing block (roughly the page/viewport)\"], \"answer\": 1, \"why\": \"absolute uses the nearest ancestor with position other than static. Give the card `position: relative` to make it the reference.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Box model, sizing and overflow; html semantics landmarks; Normal flow and display; Overflow and containment. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Box model, sizing and overflow** module, **Sections and landmarks**, **Normal flow and display**, and **Overflow and containment**."
       },
       {
-        "heading": "Technology rule",
-        "body": "Positioned layout uses static, relative, absolute, fixed, or sticky positioning and a containing block that determines offsets. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: each position value's reference",
+        "body": "```css\n.card {\n  position: relative;          /* reference for the badge */\n  padding: 1rem;\n  padding-inline-end: 4.5rem;  /* reserve room so the title never runs under the badge */\n}\n.card__badge {\n  position: absolute;\n  top: 0.75rem;\n  right: 0.75rem;\n}\n.site-header { position: sticky; top: 0; }   /* sticks while scrolling */\n```\n\n| Value | In flow? | Positioned relative to |\n|---|---|---|\n| static (default). | yes. | — |\n| relative. | yes (space kept). | its own normal position. |\n| absolute. | no. | nearest positioned ancestor. |\n| fixed. | no. | the viewport. |\n| sticky. | yes, until it sticks. | its scroll container, within its parent. |\n\n```reveal\n{\"prompt\": \"Why might a sticky header not stick?\", \"answer\": \"Common causes: no `top` value, or an ancestor has `overflow: hidden`/`auto`, which becomes the scroll container. Sticky also stops at the end of its parent.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Transforms can create containing blocks, sticky needs a scroll context and inset, and out-of-flow elements do not reserve ordinary space. This draft therefore rejects: position:absolute always uses the viewport as its coordinate system."
+        "heading": "Don't cover things",
+        "body": "```predict\n{\"question\": \"A fixed \\\"Chat\\\" button sits over the bottom-right of the page. What can go wrong?\", \"options\": [\"Nothing\", \"It can cover content and links, and hide focused elements scrolled underneath it\"], \"answer\": 1, \"why\": \"Add padding/margin to the page bottom so content can scroll clear of it, and check focused elements stay visible.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Choose positioned layout with correct containing blocks and document-flow consequences.",
-      "Implement and debug a positioned component without covering content or focus targets."
+      "Use relative, absolute, fixed and sticky with the right reference box.",
+      "Reserve space so positioned elements don't cover content or focus targets."
     ],
     "excludes": [
-      "Transforms can create containing blocks, sticky needs a scroll context and inset, and out-of-flow elements do not reserve ordinary space."
+      "Stacking and z-index (next lesson).",
+      "Anchor positioning."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "css.layout.position.example-a",
-      "title": "Relative, absolute, fixed and sticky positioning: concrete case",
+      "title": "A badge in the card's corner",
       "situation": "A badge is absolutely positioned inside a relatively positioned card whose padding reserves visual room.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A badge is absolutely positioned inside a relatively positioned card whose padding reserves visual room.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Determine the containing block first; absolute offsets are not automatically relative to the viewport."
+        "**Relatively positioned card:** `.card { position: relative }` makes it the reference box.",
+        "**Absolutely positioned badge:** `top: 0.75rem; right: 0.75rem` places it in the card's corner, not the page's.",
+        "**Padding reserves room:** `padding-inline-end: 4.5rem` keeps long titles from running under the badge; the browser will render both without overlap."
       ],
-      "result": "The result follows because Determine the containing block first; absolute offsets are not automatically relative to the viewport."
+      "result": "The badge sits in each card's corner and never covers the title or the card's link."
     },
     {
       "id": "css.layout.position.example-b",
-      "title": "Relative, absolute, fixed and sticky positioning: boundary case",
-      "situation": "Transforms can create containing blocks, sticky needs a scroll context and inset, and out-of-flow elements do not reserve ordinary space.",
+      "title": "The sticky header that wouldn't",
+      "situation": "`header { position: sticky; top: 0 }` scrolls away with the page.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Transforms can create containing blocks, sticky needs a scroll context and inset, and out-of-flow elements do not reserve ordinary space.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: position:absolute always uses the viewport as its coordinate system."
+        "DevTools shows the header's parent wrapper has `overflow: hidden`.",
+        "That wrapper became the sticky's scroll container, but it never scrolls itself.",
+        "Fix: remove overflow: hidden from the wrapper (or move the header out of it)."
       ],
-      "result": "The boundary requires this correction: Determine the containing block first; absolute offsets are not automatically relative to the viewport."
+      "result": "The header sticks to the top of the viewport while scrolling."
     }
   ],
   "misconceptions": [
     {
       "id": "css.layout.position.misconception",
       "mistakenBelief": "position:absolute always uses the viewport as its coordinate system.",
-      "correction": "Determine the containing block first; absolute offsets are not automatically relative to the viewport.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: position:absolute always uses the viewport as its coordinate system."
+      "correction": "An absolutely positioned element is placed relative to its nearest positioned ancestor (any position except static), and only falls back to the initial containing block when none exists.",
+      "diagnosticPrompt": "In the opening predict, what did the badge's top/right refer to?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Relative, absolute, fixed and sticky positioning, where rules size, place, and paint existing content.",
+    "example": "Absolute positioning is like **pinning a note to a noticeboard**: it's placed relative to whichever board (positioned ancestor) it's pinned to. Without a board, it gets pinned to the wall of the room (the page).",
     "usefulFor": [
-      "Building a first mental model for Relative, absolute, fixed and sticky positioning before using exact platform terms"
+      "remembering the reference box",
+      "relative parent = the board"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "Transforms can create containing blocks, sticky needs a scroll context and inset, and out-of-flow elements do not reserve ordinary space."
+      "Notes on a board don't push other notes aside — neither do absolute boxes.",
+      "Sticky is like a note that slides until it hits the frame's edge."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A badge is absolutely positioned inside a relatively positioned card whose padding reserves visual room.",
-      "Positioned layout uses static, relative, absolute, fixed, or sticky positioning and a containing block that determines offsets.",
-      "Determine the containing block first; absolute offsets are not automatically relative to the viewport."
+      ".card { position: relative; padding-inline-end: 4.5rem }",
+      ".card__badge { position: absolute; top: 0.75rem; right: 0.75rem }",
+      "long title"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Reference",
         "state": {
-          "evidence": "A badge is absolutely positioned inside a relatively positioned card whose padding reserves visual room."
+          "card position": "relative"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The relatively positioned card becomes the badge's reference box."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Placement",
         "state": {
-          "rule": "Positioned layout uses static, relative, absolute, fixed, or sticky positioning and a containing block that determines offsets."
+          "badge": "card's top-right corner"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The badge is absolutely positioned inside the card."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Reserved room",
         "state": {
-          "correction": "Determine the containing block first; absolute offsets are not automatically relative to the viewport."
+          "title": "wraps before 4.5rem",
+          "overlap": "none"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: position:absolute always uses the viewport as its coordinate system."
+        "explanation": "The card's padding reserves visual room so the badge covers nothing."
       }
     ],
-    "textAlternative": "Starting artifact: A badge is absolutely positioned inside a relatively positioned card whose padding reserves visual room. Step 1, Artifact. State: evidence: A badge is absolutely positioned inside a relatively positioned card whose padding reserves visual room.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Positioned layout uses static, relative, absolute, fixed, or sticky positioning and a containing block that determines offsets.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Determine the containing block first; absolute offsets are not automatically relative to the viewport.. Check the result against the boundary and reject this misconception: position:absolute always uses the viewport as its coordinate system."
+    "textAlternative": "Positioning a badge safely. Step 1, Reference: card position is relative. The relatively positioned card becomes the badge's reference box. Step 2, Placement: badge is card's top-right corner. The badge is absolutely positioned inside the card. Step 3, Reserved room: title is wraps before 4.5rem; overlap is none. The card's padding reserves visual room so the badge covers nothing."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Relative, absolute, fixed and sticky positioning: concrete case”: state its starting evidence, apply the Relative, absolute, fixed and sticky positioning rule, and give the observable result in three short lines.",
+      "prompt": "For \"A badge in the card's corner\", explain how the badge is absolutely positioned inside a relatively positioned card whose padding reserves visual room.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Reference.",
+        "Placement.",
+        "Reserved room."
       ],
       "expectedEvidence": [
-        "Named example: Relative, absolute, fixed and sticky positioning: concrete case.",
-        "Starting evidence: A badge is absolutely positioned inside a relatively positioned card whose padding reserves visual room.",
-        "Core rule: Positioned layout uses static, relative, absolute, fixed, or sticky positioning and a containing block that determines offsets.",
-        "Observable result: The result follows because Determine the containing block first; absolute offsets are not automatically relative to the viewport.",
-        "Boundary check: Determine the containing block first; absolute offsets are not automatically relative to the viewport."
+        "Names the example \"A badge in the card's corner\": a badge is absolutely positioned.",
+        "It sits inside a relatively positioned card.",
+        "The card's padding reserves visual room.",
+        "The badge never covers the title or link."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Transforms can create containing blocks, sticky needs a scroll context and inset, and out-of-flow elements do not reserve ordinary space.",
+      "prompt": "A tooltip should appear just below a button. Which elements get which position values, and what's the risk near the screen edge?",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Wrapper relative, tooltip absolute.",
+        "Edges clip or overflow."
       ],
       "expectedEvidence": [
-        "Positioned layout uses static, relative, absolute, fixed, or sticky positioning and a containing block that determines offsets.",
-        "Transforms can create containing blocks, sticky needs a scroll context and inset, and out-of-flow elements do not reserve ordinary space."
+        "Button wrapper position: relative; tooltip position: absolute with top: 100%.",
+        "Near the edge it may overflow the viewport; test and adjust."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Relative, absolute, fixed and sticky positioning and explain why the misconception fails.",
+      "prompt": "Build a page with a sticky header, a card with a positioned badge, and a fixed help button. Tab through the page and confirm no focused element is hidden behind any of them.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Use scroll-padding-top for the sticky header.",
+        "Pad the bottom for the fixed button."
       ],
       "expectedEvidence": [
-        "Implement and debug a positioned component without covering content or focus targets.",
-        "Determine the containing block first; absolute offsets are not automatically relative to the viewport."
+        "All three positioned elements work.",
+        "Focused elements always remain visible."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.layout.position.misconception",
-      "explanation": "Determine the containing block first; absolute offsets are not automatically relative to the viewport.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'containing block' and state the decisive evidence."
+      "explanation": "For any positioned element ask: **What's its reference box? Does it cover anything? Is space reserved?** In DevTools, check the ancestor chain for position and overflow values.",
+      "retryPrompt": "Ask this about \"The sticky header that wouldn't\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and debug a positioned component without covering content or focus targets. Keep this boundary in view: Transforms can create containing blocks, sticky needs a scroll context and inset, and out-of-flow elements do not reserve ordinary space.",
+    "summary": "To implement and debug a positioned component, know each value's reference: relative (itself), absolute (nearest positioned ancestor), fixed (viewport), sticky (scroll container). Make the parent relative for absolute children and reserve space so nothing covers content or focus targets.",
     "retrievalPrompts": [
-      "Explain Relative, absolute, fixed and sticky positioning using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: position:absolute always uses the viewport as its coordinate system.",
-      "Apply checkpoint 'containing block' to a new artifact."
+      "What does absolute position relative to?",
+      "Why might sticky fail?",
+      "How do you stop a badge covering the title?"
     ],
     "nextReviewPrompt": "Next: continue to “Stacking contexts and z-order”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Useful feedback is converted into a diagnosis, an explained correction, a new exposing test, and an independent retry rather than copied as a replacement answer.",
+    "summary": "Feedback is only useful if you **turn it into learning**: diagnose what went wrong, explain the correction in your own words, add a test that would have caught it, and then solve a **new** problem on your own. Copying the correct answer teaches almost nothing.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: After an off-by-one answer fails, the learner identifies the invalid last index, corrects the bound, adds empty and one-item tests, and solves a new traversal problem. Your goal is to explain why an answer failed and demonstrate a corrected transfer attempt. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Your traversal answer fails a test, and the feedback shows the correct code. Tempting move: paste it in, see green, move on. But next week the same bug returns. Instead: after an off-by-one answer fails, the learner identifies the invalid last index, corrects the bound, adds empty and one-item tests, and solves a new traversal problem. In this lesson you'll explain why an answer failed and demonstrate a corrected transfer attempt.\n\n```predict\n{\"question\": \"You've just seen the correct answer. What proves you actually learned the skill?\", \"options\": [\"You recognise the answer as right\", \"You solve a different problem of the same kind without help\"], \"answer\": 1, \"why\": \"Recognising a right answer feels like learning, but only an independent retry on a **new** problem shows the skill transferred.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Debugging and testing loop; Reading before writing. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Debugging and testing loop** and **Reading before writing**. Feedback is extra evidence to feed into that loop."
       },
       {
-        "heading": "Operational model",
-        "body": "Useful feedback is converted into a diagnosis, an explained correction, a new exposing test, and an independent retry rather than copied as a replacement answer. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The model: diagnose, explain, test, retry",
+        "body": "| Step | What you write |\n|---|---|\n| 1. Diagnose. | \"My loop read index `len(items)`, which doesn't exist.\" |\n| 2. Explain the fix. | \"The last valid index is length − 1, so use `i < len(items)`.\" |\n| 3. Add an exposing test. | empty list and one-item list. |\n| 4. Independent retry. | a new traversal problem, solved without looking. |\n\n```reveal\n{\"prompt\": \"Why add a test *after* you've already fixed it?\", \"answer\": \"The test proves the fix works, and it stays in place so the same bug can't sneak back later.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Feedback can be incomplete or wrong, scores alone do not identify causes, and a corrected near-copy does not prove transfer to a new context. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Once the correct answer is shown, recognizing it means the underlying skill has been learned."
+        "heading": "Feedback that feels bad is still data",
+        "body": "\"Fails on empty input\" isn't a judgement of you — it's a clue pointing at the exact case you missed.\n\n```predict\n{\"question\": \"Feedback says: \\\"returns wrong total for one-item lists\\\". What's the best first move?\", \"options\": [\"Rewrite the whole function from scratch\", \"Trace the function by hand with a one-item list\"], \"answer\": 1, \"why\": \"Trace the failing case. It tells you exactly where your thinking and the code disagreed.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Convert correctness feedback into a diagnosis, correction and new test.",
-      "Explain why an answer failed and demonstrate a corrected transfer attempt."
+      "Turn feedback into a diagnosis, an explained correction and a new test.",
+      "Show transfer with an independent retry on a new problem."
     ],
     "excludes": [
-      "Feedback can be incomplete or wrong, scores alone do not identify causes, and a corrected near-copy does not prove transfer to a new context."
+      "Giving feedback to others (code review).",
+      "Grading policies."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "pf.practice.feedback.example-a",
-      "title": "Using feedback: direct case",
+      "title": "Recovering from an off-by-one answer",
       "situation": "After an off-by-one answer fails, the learner identifies the invalid last index, corrects the bound, adds empty and one-item tests, and solves a new traversal problem.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: After an off-by-one answer fails, the learner identifies the invalid last index, corrects the bound, adds empty and one-item tests, and solves a new traversal problem.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer."
+        "**Diagnose:** the loop used `i <= len(items)`, reading the invalid last index.",
+        "**Correct and test:** change the bound to `i < len(items)`; add empty and one-item tests, which now pass.",
+        "**Retry:** solve a new traversal problem (sum every other item) without looking at the old answer."
       ],
-      "result": "The case supports the declared outcome because Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer."
+      "result": "The learner can explain the off-by-one failure and passes a new traversal problem independently."
     },
     {
       "id": "pf.practice.feedback.example-b",
-      "title": "Using feedback: boundary case",
-      "situation": "A vague comment about clarity is translated into one specific naming or decomposition change and verified against the original behavior.",
+      "title": "The copied fix",
+      "situation": "A learner pastes the feedback's correct code for a max-finder. A week later, a similar min-finder has the same bug.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A vague comment about clarity is translated into one specific naming or decomposition change and verified against the original behavior.",
-        "Step 2 — Keep this boundary explicit: Feedback can be incomplete or wrong, scores alone do not identify causes, and a corrected near-copy does not prove transfer to a new context.",
-        "Step 3 — Reject the documented misconception: Once the correct answer is shown, recognizing it means the underlying skill has been learned."
+        "Copying skipped the diagnosis, so the cause (starting `best` at 0) was never understood.",
+        "Negative-number lists broke both functions for the same reason.",
+        "The real fix: explain why `best = items[0]` is correct, add a negative-numbers test, retry on min-finder."
       ],
-      "result": "This case demonstrates the declared outcome: Explain why an answer failed and demonstrate a corrected transfer attempt."
+      "result": "Only after diagnosing and retrying does the learner stop repeating the bug."
     }
   ],
   "misconceptions": [
     {
       "id": "pf.practice.feedback.misconception",
-      "mistakenBelief": "Once the correct answer is shown, recognizing it means the underlying skill has been learned.",
-      "correction": "Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Once the correct answer is shown, recognizing it means the underlying skill has been learned."
+      "mistakenBelief": "Once the correct answer is shown, recognising it means the underlying skill has been learned.",
+      "correction": "Recognising an answer isn't producing one. The skill is learned when you can explain why the original failed, add a test for it, and solve a new problem of the same kind independently.",
+      "diagnosticPrompt": "In \"The copied fix\", why did the same bug return a week later?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "Sports coaching can model Using feedback: study a play, attempt it, use specific feedback, retry independently, and credit the people or material that helped.",
+    "example": "Like a **football coach's replay**: watching the correct pass doesn't fix your pass. You spot what went wrong, practise the fix, and then try it in a new match.",
     "usefulFor": [
-      "Connecting explanation, feedback, independent transfer, assistance, and integrity"
+      "remembering that practice after feedback is what counts",
+      "treating mistakes as clues"
     ],
     "limitations": [
-      "Learning evidence and reuse permissions are governed by explicit course and software rules, not only informal coaching norms.",
-      "Feedback can be incomplete or wrong, scores alone do not identify causes, and a corrected near-copy does not prove transfer to a new context."
+      "Code gives exact, repeatable feedback; matches don't replay identically.",
+      "In code you can add a test that guards against the mistake forever."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "After an off-by-one answer fails, the learner identifies the invalid last index, corrects the bound, adds empty and one-item tests, and solves a new traversal problem.",
-      "Useful feedback is converted into a diagnosis, an explained correction, a new exposing test, and an independent retry rather than copied as a replacement answer.",
-      "Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer."
+      "for i in range(len(items) + 1): total += items[i]",
+      "test: items = [] and items = [5]",
+      "retry: sum every other item"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Failure diagnosed",
         "state": {
-          "evidence": "After an off-by-one answer fails, the learner identifies the invalid last index, corrects the bound, adds empty and one-item tests, and solves a new traversal problem."
+          "bug": "reads invalid last index"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "The learner identifies that the loop reads one index past the end."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Correct and test",
         "state": {
-          "model": "Useful feedback is converted into a diagnosis, an explained correction, a new exposing test, and an independent retry rather than copied as a replacement answer."
+          "bound": "i < len(items)",
+          "empty and one-item tests": "pass"
         },
-        "explanation": "Apply the declared Using feedback model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "The bound is corrected and new tests for empty and one item now pass."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Independent retry",
         "state": {
-          "correction": "Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer."
+          "new problem": "solved without help"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Once the correct answer is shown, recognizing it means the underlying skill has been learned."
+        "explanation": "A new traversal problem is solved without looking, showing the skill transferred."
       }
     ],
-    "textAlternative": "Starting artifact: After an off-by-one answer fails, the learner identifies the invalid last index, corrects the bound, adds empty and one-item tests, and solves a new traversal problem. Step 1, Observe. State: evidence: After an off-by-one answer fails, the learner identifies the invalid last index, corrects the bound, adds empty and one-item tests, and solves a new traversal problem.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Useful feedback is converted into a diagnosis, an explained correction, a new exposing test, and an independent retry rather than copied as a replacement answer.. Apply the declared Using feedback model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer.. Compare the observation with the correction and reject the misconception: Once the correct answer is shown, recognizing it means the underlying skill has been learned."
+    "textAlternative": "Turning off-by-one feedback into learning. Step 1, Failure diagnosed: bug is reads invalid last index. The learner identifies that the loop reads one index past the end. Step 2, Correct and test: bound is i < len(items); empty and one-item tests is pass. The bound is corrected and new tests for empty and one item now pass. Step 3, Independent retry: new problem is solved without help. A new traversal problem is solved without looking, showing the skill transferred."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Using feedback: direct case”: state its starting evidence, apply the Using feedback rule, and give the observable result in three short lines.",
+      "prompt": "For \"Recovering from an off-by-one answer\", write the four steps the learner took: the diagnosis of the invalid last index, the corrected bound, the new tests, and the new traversal problem.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Diagnosis.",
+        "Correction.",
+        "Tests.",
+        "Retry."
       ],
       "expectedEvidence": [
-        "Named example: Using feedback: direct case.",
-        "Starting evidence: After an off-by-one answer fails, the learner identifies the invalid last index, corrects the bound, adds empty and one-item tests, and solves a new traversal problem.",
-        "Core rule: Useful feedback is converted into a diagnosis, an explained correction, a new exposing test, and an independent retry rather than copied as a replacement answer.",
-        "Observable result: The case supports the declared outcome because Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer.",
-        "Boundary check: Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer."
+        "Names the example \"Recovering from an off-by-one answer\": after an off-by-one answer fails.",
+        "Identifies the invalid last index and corrects the bound to i < len(items).",
+        "Adds empty and one-item tests.",
+        "Solves a new traversal problem independently."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A vague comment about clarity is translated into one specific naming or decomposition change and verified against the original behavior.",
+      "prompt": "Feedback: \"your average function crashes on an empty list\". Write the diagnosis, the explained correction, the new test, and a related retry problem you'd attempt.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "What divides by zero?",
+        "Retry on something similar."
       ],
       "expectedEvidence": [
-        "Useful feedback is converted into a diagnosis, an explained correction, a new exposing test, and an independent retry rather than copied as a replacement answer.",
-        "Feedback can be incomplete or wrong, scores alone do not identify causes, and a corrected near-copy does not prove transfer to a new context."
+        "Diagnosis: dividing by len 0.",
+        "Correction with a guard, an empty-list test, and a new related problem."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Using feedback, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Look back at one mistake you made this week. Write the four steps for it, then actually do the independent retry and note whether it succeeded.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Be specific about the cause.",
+        "Pick a genuinely new problem."
       ],
       "expectedEvidence": [
-        "Explain why an answer failed and demonstrate a corrected transfer attempt.",
-        "Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer."
+        "Clear diagnosis and explained fix.",
+        "Evidence of an independent retry and its outcome."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "pf.practice.feedback.misconception",
-      "explanation": "Explain the failure in your own words, produce evidence that the correction works, and complete a delayed or surface-different attempt without the shown answer.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A vague comment about clarity is translated into one specific naming or decomposition change and verified against the original behavior."
+      "explanation": "Never paste a correct answer without first writing one sentence: **\"Mine failed because…\"**. Then add a test and find a new problem to retry.",
+      "retryPrompt": "Write that sentence for \"The copied fix\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to explain why an answer failed and demonstrate a corrected transfer attempt. Keep this boundary in view: Feedback can be incomplete or wrong, scores alone do not identify causes, and a corrected near-copy does not prove transfer to a new context.",
+    "summary": "To explain why an answer failed, diagnose the cause, explain the correction, and add a test that exposes it. Then demonstrate a corrected transfer attempt on a new problem. Recognising the right answer is not the same as having the skill.",
     "retrievalPrompts": [
-      "Explain Using feedback without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Once the correct answer is shown, recognizing it means the underlying skill has been learned.",
-      "Apply the model to this case from memory: A vague comment about clarity is translated into one specific naming or decomposition change and verified against the original behavior."
+      "What are the four steps for using feedback?",
+      "Why add a test after fixing?",
+      "What proves the skill transferred?"
     ],
     "nextReviewPrompt": "Next: continue to “Documentation and AI assistance”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

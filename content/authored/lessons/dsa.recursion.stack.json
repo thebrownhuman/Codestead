@@ -33,38 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Each recursive call adds a frame with parameters and locals until base cases return and frames unwind.",
+    "summary": "Every function call gets a **stack frame** holding its parameters, local variables and where to return. A recursive call pushes a new frame on top; frames **unwind** (pop) as base cases return. So recursion **uses memory**: O(depth) frames, even if each frame does tiny work. Deep recursion can hit the limit: Python stops at about 1,000 frames by default (RecursionError), and C, C++ and Java crash with a stack overflow at a depth set by the stack size. When depth grows with n (like walking a long linked list), rewrite the recursion as a **loop**, or use an explicit stack.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A depth-n linked-list recursion uses n frames even though each frame performs constant local work. Your goal is to visualize calls and convert a deeply linear recursion to iteration when appropriate. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A playlist app counts lessons in a linked list recursively: `1 + count(node.next)`. It works for 50 lessons. A learner imports a 5,000-lesson archive and the app crashes with \"maximum recursion depth exceeded\". A depth-n linked-list recursion uses n frames even though each frame performs constant local work. In this lesson you'll visualize calls and convert a deeply linear recursion to iteration when appropriate.\n\n```predict\n{\"question\": \"Recursive count on a 5,000-node list, each call storing one pointer. Extra space?\", \"options\": [\"O(1): nothing is allocated\", \"O(n): 5,000 frames are on the stack at the deepest point\"], \"answer\": 1, \"why\": \"Frames are memory too, and they all exist until the base case returns.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Readiness, algorithms and analysis; Array representation and operations; Recursive problem design; Time, space and asymptotic growth. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Readiness, algorithms and analysis** module, **Array representation and operations**, **Recursive problem design**, and **Time, space and asymptotic growth**."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Each recursive call adds a frame with parameters and locals until base cases return and frames unwind. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The model: frames pile up, then unwind",
+        "body": "```python\ndef count_recursive(node):              # O(n) time, O(n) stack space.\n    if node is None:\n        return 0\n    return 1 + count_recursive(node.next)  # this frame waits for the next one.\n\ndef count_iterative(node):              # O(n) time, O(1) extra space.\n    total = 0\n    while node is not None:\n        total += 1\n        node = node.next\n    return total\n```\n\n```text\ncount_recursive(A) for A -> B -> C.\n  frame A waits: 1 + count(B).\n    frame B waits: 1 + count(C).\n      frame C waits: 1 + count(None).\n        frame None returns 0.      <- deepest point: 4 frames.\n      frame C returns 1.\n    frame B returns 2.\n  frame A returns 3.\n```\n\n| Recursion shape | Stack depth | Safe? |\n|---|---|---|\n| linear (list, countdown). | n. | risky for large n: prefer a loop. |\n| halving (binary search). | log n. | fine. |\n| balanced tree. | log n. | fine. |\n| skewed tree. | n. | risky: use an explicit stack. |\n\n```reveal\n{\"prompt\": \"Doesn't Python optimise tail calls?\", \"answer\": \"No. Python, Java and most C/C++ builds don't guarantee tail-call optimisation, so even a tail-recursive function keeps its frames. Convert to a loop.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Stack limits vary, tail-call optimization is not portable across the four languages, and hidden large depth can fail. The draft therefore rejects: Recursive algorithms use no extra space when they allocate no heap objects."
+        "heading": "Depth, not total calls",
+        "body": "```predict\n{\"question\": \"Recursive binary search on 1,000,000 items. Maximum stack depth?\", \"options\": [\"About 1,000,000\", \"About 20: each call halves the range\"], \"answer\": 1, \"why\": \"Space is about the deepest chain of waiting frames, not the number of calls overall.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Trace frames and relate recursion depth to auxiliary space and failure risk.",
-      "Visualize calls and convert a deeply linear recursion to iteration when appropriate.",
-      "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
+      "Draw call frames and count maximum stack depth.",
+      "Convert deep linear recursion to a loop and state time and space."
     ],
     "excludes": [
-      "Stack limits vary, tail-call optimization is not portable across the four languages, and hidden large depth can fail."
+      "Changing interpreter recursion limits as a fix.",
+      "Continuation-passing style."
     ]
   },
   "outcomes": [
@@ -73,142 +69,134 @@
   "examples": [
     {
       "id": "dsa.recursion.stack.example-a",
-      "title": "Call stack and resource cost: language-neutral trace",
+      "title": "The long playlist that crashed the recursion",
       "situation": "A depth-n linked-list recursion uses n frames even though each frame performs constant local work.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: A depth-n linked-list recursion uses n frames even though each frame performs constant local work.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Count call frames as auxiliary space; depth n recursion generally uses O(n) stack space."
+        "**Visualise:** for 5,000 lessons, 5,000 frames each wait on the next call before any returns.",
+        "**Uses n frames:** the maximum depth is n, so the default Python limit of about 1,000 is exceeded.",
+        "**Convert:** count_iterative walks with a loop in O(1) extra space; a test will count a 100,000-node list without error."
       ],
-      "result": "The conceptual result follows because Count call frames as auxiliary space; depth n recursion generally uses O(n) stack space."
+      "result": "Imports of any size are counted correctly, and the app no longer crashes on long playlists."
     },
     {
       "id": "dsa.recursion.stack.example-b",
-      "title": "Call stack and resource cost: implementation transfer",
-      "situation": "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input.",
+      "title": "The folder scan that overflowed",
+      "situation": "A backup tool recursively visits folders. On a machine with a folder chain 20,000 levels deep (a symlink loop gone wrong), it crashes.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input.",
-        "Step 3 — Retest this boundary in the selected implementation: Stack limits vary, tail-call optimization is not portable across the four languages, and hidden large depth can fail."
+        "Recursion depth equals folder depth here.",
+        "Use an explicit stack (a list of folders to visit) in a loop.",
+        "Also track visited folders so a loop in the links can't repeat forever."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "The scan handles any depth without a stack overflow and stops on cycles."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.recursion.stack.misconception",
       "mistakenBelief": "Recursive algorithms use no extra space when they allocate no heap objects.",
-      "correction": "Count call frames as auxiliary space; depth n recursion generally uses O(n) stack space.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Recursive algorithms use no extra space when they allocate no heap objects."
+      "correction": "Every active call holds a stack frame, so recursion uses space proportional to its maximum depth. A linear recursion over n items uses O(n) stack even with no heap allocations.",
+      "diagnosticPrompt": "In the opening predict, where did the O(n) space come from?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Call stack and resource cost, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Recursive calls are like **a stack of sticky notes**, each saying \"when you get the answer below, add 1 and pass it up\". With 5,000 notes the pile topples. A loop is **one note you keep updating**: \"count so far: 3\".",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering one frame per waiting call",
+      "loop = one note updated in place"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Stack limits vary, tail-call optimization is not portable across the four languages, and hidden large depth can fail."
+      "Notes can be read in any order; frames must unwind top first.",
+      "A short pile (log n depth) is perfectly safe."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A depth-n linked-list recursion uses n frames even though each frame performs constant local work.",
-      "Each recursive call adds a frame with parameters and locals until base cases return and frames unwind.",
-      "Count call frames as auxiliary space; depth n recursion generally uses O(n) stack space.",
-      "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
+      "count_recursive(A) on A -> B -> C",
+      "descend to None",
+      "unwind"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Descend",
         "state": {
-          "scenario": "A depth-n linked-list recursion uses n frames even though each frame performs constant local work."
+          "frames": "A, B, C"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "Each call pushes a frame and waits for the next."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Deepest",
         "state": {
-          "invariant": "Each recursive call adds a frame with parameters and locals until base cases return and frames unwind."
+          "frames": "A, B, C, None (4)",
+          "local work per frame": "constant"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "A depth-n linked-list recursion uses n frames even though each frame performs constant local work."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Unwind",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "returns": "0, 1, 2, 3"
         },
-        "explanation": "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Count call frames as auxiliary space; depth n recursion generally uses O(n) stack space."
-        },
-        "explanation": "Verify the result and reject this misconception: Recursive algorithms use no extra space when they allocate no heap objects."
+        "explanation": "Frames pop as each call returns its result upward."
       }
     ],
-    "textAlternative": "Starting artifact: A depth-n linked-list recursion uses n frames even though each frame performs constant local work. Step 1, Specification. State: scenario: A depth-n linked-list recursion uses n frames even though each frame performs constant local work.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Each recursive call adds a frame with parameters and locals until base cases return and frames unwind.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input. Step 4, Conclusion. State: correction: Count call frames as auxiliary space; depth n recursion generally uses O(n) stack space.. Verify the result and reject this misconception: Recursive algorithms use no extra space when they allocate no heap objects."
+    "textAlternative": "Tracing frames for a list count. Step 1, Descend: frames is A, B, C. Each call pushes a frame and waits for the next. Step 2, Deepest: frames is A, B, C, None (4); local work per frame is constant. A depth-n linked-list recursion uses n frames even though each frame performs constant local work. Step 3, Unwind: returns is 0, 1, 2, 3. Frames pop as each call returns its result upward."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Call stack and resource cost: language-neutral trace”: state its starting evidence, apply the Call stack and resource cost rule, and give the observable result in three short lines.",
+      "prompt": "For \"The long playlist that crashed the recursion\", explain how a depth-n linked-list recursion uses n frames even though each frame performs constant local work.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Frames.",
+        "Depth.",
+        "Convert."
       ],
       "expectedEvidence": [
-        "Named example: Call stack and resource cost: language-neutral trace.",
-        "Starting evidence: A depth-n linked-list recursion uses n frames even though each frame performs constant local work.",
-        "Core rule: Each recursive call adds a frame with parameters and locals until base cases return and frames unwind.",
-        "Observable result: The conceptual result follows because Count call frames as auxiliary space; depth n recursion generally uses O(n) stack space.",
-        "Boundary check: Count call frames as auxiliary space; depth n recursion generally uses O(n) stack space."
+        "Names the example \"The long playlist that crashed the recursion\": 5,000 lessons crashed the recursion.",
+        "A depth-n linked-list recursion uses n frames.",
+        "Each frame performs constant local work.",
+        "Imports of any size are counted correctly with the loop."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Each recursive call adds a frame with parameters and locals until base cases return and frames unwind.",
+      "prompt": "Convert `def total(node): return 0 if node is None else node.minutes + total(node.next)` into a loop. State the time and space of both versions.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Accumulator variable.",
+        "Walk with node = node.next."
       ],
       "expectedEvidence": [
-        "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input.",
-        "Stack limits vary, tail-call optimization is not portable across the four languages, and hidden large depth can fail."
+        "Both O(n) time.",
+        "Recursive O(n) space; loop O(1)."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Call stack and resource cost case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Rewrite a recursive tree traversal (from the design lesson) with an explicit stack. Test it on a deep, skewed tree of 50,000 levels and compare maximum memory with the recursive version on a small tree.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Push children in reverse to keep order.",
+        "Build the skewed tree with a loop."
       ],
       "expectedEvidence": [
-        "Visualize calls and convert a deeply linear recursion to iteration when appropriate.",
-        "Count call frames as auxiliary space; depth n recursion generally uses O(n) stack space."
+        "No overflow at 50,000 levels.",
+        "Same output as recursion on small trees."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.recursion.stack.misconception",
-      "explanation": "Count call frames as auxiliary space; depth n recursion generally uses O(n) stack space.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'call frames', then state one implementation-specific risk in the selected language."
+      "explanation": "For any recursion, ask: **What's the longest chain of calls waiting at once?** If it grows with n, and n can be large, turn it into a loop or use an explicit stack.",
+      "retryPrompt": "Apply this to \"The folder scan that overflowed\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to visualize calls and convert a deeply linear recursion to iteration when appropriate. Keep this boundary in view: Stack limits vary, tail-call optimization is not portable across the four languages, and hidden large depth can fail.",
+    "summary": "To visualize calls and convert deep recursion to iteration, remember each active call holds a frame, so stack space equals maximum depth: n for linear recursion, log n for halving. When depth grows with large n, rewrite linear recursion as a loop or use an explicit stack, keeping O(1) or controlled extra space.",
     "retrievalPrompts": [
-      "State the Call stack and resource cost invariant and complexity without code.",
-      "Why is this claim false: Recursive algorithms use no extra space when they allocate no heap objects.",
-      "Map checkpoint 'call frames' to C, C++, Java, and Python."
+      "What does a stack frame hold?",
+      "What is the stack space of recursive list counting?",
+      "When should you convert recursion to a loop?"
     ],
     "nextReviewPrompt": "Next: continue to “Recurrence reasoning”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "An expression combines operands and operators to produce a value; evaluation follows declared grouping, precedence, short-circuit, and type rules while creating intermediate results.",
+    "summary": "An **expression** combines values and operators to produce one value. Python doesn't just read it left to right: it follows **parentheses first**, then **precedence** (× and ÷ before + and −, arithmetic before comparisons, comparisons before `and`/`or`), and `and`/`or` can **short-circuit** — stopping early once the answer is known.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: The expression 2 + 3 * 4 evaluates multiplication first to 12 and then addition to 14, while parentheses can request a different grouping. Your goal is to evaluate mixed arithmetic, comparison and Boolean expressions step by step. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A calculator app shows `2 + 3 * 4`. Is the answer 20 or 14? Reading left to right gives 20, but Python says 14. The expression 2 + 3 * 4 evaluates multiplication first to 12 and then addition to 14, while parentheses can request a different grouping. In this lesson you'll evaluate mixed arithmetic, comparison and Boolean expressions step by step, writing down each intermediate result.\n\n```predict\n{\"question\": \"What is `(2 + 3) * 4`?\", \"options\": [\"14\", \"20\"], \"answer\": 1, \"why\": \"Parentheses group first: 2 + 3 = 5, then 5 × 4 = 20. Parentheses override precedence.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Pseudocode; Variables and assignment. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Pseudocode** and **Variables and assignment** — the right side of an assignment is an expression, evaluated before the name is bound."
       },
       {
-        "heading": "Operational model",
-        "body": "An expression combines operands and operators to produce a value; evaluation follows declared grouping, precedence, short-circuit, and type rules while creating intermediate results. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The rule: grouping, precedence, then left to right",
+        "body": "| Priority (high → low) | Operators |\n|---|---|\n| 1. Parentheses. | `( … )`. |\n| 2. Power. | `**`. |\n| 3. Multiply and divide. | `*` `/` `//` `%`. |\n| 4. Add and subtract. | `+` `-`. |\n| 5. Comparisons. | `<` `>` `==` `>=`. |\n| 6. Boolean. | `not`, then `and`, then `or`. |\n\nWithin the same level, work left to right.\n\n```reveal\n{\"prompt\": \"Evaluate `10 - 4 - 3` and `10 - (4 - 3)`.\", \"answer\": \"Left to right: (10 − 4) − 3 = 3. With parentheses: 10 − 1 = 9. Grouping changes the answer.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Precedence varies by operator and language, floating-point arithmetic is not exact real arithmetic, and side effects inside expressions can make order important or unsafe. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Expressions are always evaluated strictly from left to right, regardless of parentheses or operator precedence."
+        "heading": "Comparisons and short-circuit",
+        "body": "```predict\n{\"question\": \"`age = 20; has_ticket = False`. What is `age >= 18 and has_ticket`?\", \"options\": [\"True\", \"False\"], \"answer\": 1, \"why\": \"`age >= 18` → True. Then `True and False` → False. Arithmetic and comparisons happen before `and`.\"}\n```\n\n**Short-circuit:** in `x != 0 and 10 / x > 1`, if x is 0 the left side is False, so Python **skips** the division entirely — no crash."
       }
     ]
   },
   "scope": {
     "includes": [
-      "Evaluate operations using operands, precedence and intermediate results.",
-      "Evaluate mixed arithmetic, comparison and Boolean expressions step by step."
+      "Evaluate expressions using grouping, precedence and left-to-right order.",
+      "Trace comparisons and Boolean short-circuit step by step."
     ],
     "excludes": [
-      "Precedence varies by operator and language, floating-point arithmetic is not exact real arithmetic, and side effects inside expressions can make order important or unsafe."
+      "Bitwise operators.",
+      "Floating-point rounding details."
     ]
   },
   "outcomes": [
@@ -63,133 +64,133 @@
   "examples": [
     {
       "id": "pf.state.expressions.example-a",
-      "title": "Expressions and evaluation: direct case",
+      "title": "Why 2 + 3 * 4 is 14",
       "situation": "The expression 2 + 3 * 4 evaluates multiplication first to 12 and then addition to 14, while parentheses can request a different grouping.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: The expression 2 + 3 * 4 evaluates multiplication first to 12 and then addition to 14, while parentheses can request a different grouping.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules."
+        "**Precedence:** `*` beats `+`, so evaluate `3 * 4` first → intermediate result 12.",
+        "**Then add:** `2 + 12` → 14.",
+        "**Parentheses:** `(2 + 3) * 4` requests a different grouping → 5 * 4 → 20."
       ],
-      "result": "The case supports the declared outcome because Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules."
+      "result": "2 + 3 * 4 is 14 because multiplication comes first; (2 + 3) * 4 is 20 because parentheses group first."
     },
     {
       "id": "pf.state.expressions.example-b",
-      "title": "Expressions and evaluation: boundary case",
-      "situation": "The Boolean expression hasTicket AND age >= 18 can stop after a false hasTicket in a language with short-circuit conjunction.",
+      "title": "The discount condition",
+      "situation": "`price = 800; member = True`. Evaluate `price > 500 or member and price > 1000`.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: The Boolean expression hasTicket AND age >= 18 can stop after a false hasTicket in a language with short-circuit conjunction.",
-        "Step 2 — Keep this boundary explicit: Precedence varies by operator and language, floating-point arithmetic is not exact real arithmetic, and side effects inside expressions can make order important or unsafe.",
-        "Step 3 — Reject the documented misconception: Expressions are always evaluated strictly from left to right, regardless of parentheses or operator precedence."
+        "`and` binds tighter than `or`, so group as `price > 500 or (member and price > 1000)`.",
+        "`price > 500` → True.",
+        "`True or …` short-circuits: the right side isn't evaluated. Result: True."
       ],
-      "result": "This case demonstrates the declared outcome: Evaluate mixed arithmetic, comparison and Boolean expressions step by step."
+      "result": "The expression is True after only one comparison, thanks to precedence and short-circuit."
     }
   ],
   "misconceptions": [
     {
       "id": "pf.state.expressions.misconception",
       "mistakenBelief": "Expressions are always evaluated strictly from left to right, regardless of parentheses or operator precedence.",
-      "correction": "Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Expressions are always evaluated strictly from left to right, regardless of parentheses or operator precedence."
+      "correction": "Evaluation follows grouping and precedence: parentheses first, then higher-precedence operators, and only then left to right within the same level. `and`/`or` may also skip the right side.",
+      "diagnosticPrompt": "In \"Why 2 + 3 * 4 is 14\", which part is evaluated first, and why?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled scoreboard can model Expressions and evaluation: each label exposes a current value and each recorded event produces the next visible state.",
+    "example": "Like **BODMAS/PEMDAS from school maths**: brackets first, then multiplication, then addition. Programming adds more levels — comparisons, then `and`, then `or`.",
     "usefulFor": [
-      "Reasoning about values, expressions, named state, and changes across time"
+      "recalling the maths order you already know",
+      "extending it to comparisons and logic"
     ],
     "limitations": [
-      "The scoreboard does not accurately model binary representation, scope, aliases, object identity, or language coercion.",
-      "Precedence varies by operator and language, floating-point arithmetic is not exact real arithmetic, and side effects inside expressions can make order important or unsafe."
+      "School maths has no short-circuit; code can skip part of an expression.",
+      "Some operators like `**` group right to left, unlike most."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "The expression 2 + 3 * 4 evaluates multiplication first to 12 and then addition to 14, while parentheses can request a different grouping.",
-      "An expression combines operands and operators to produce a value; evaluation follows declared grouping, precedence, short-circuit, and type rules while creating intermediate results.",
-      "Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules."
+      "2 + 3 * 4",
+      "(2 + 3) * 4"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Multiply first",
         "state": {
-          "evidence": "The expression 2 + 3 * 4 evaluates multiplication first to 12 and then addition to 14, while parentheses can request a different grouping."
+          "3 * 4": "12"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "Multiplication has higher precedence, producing the intermediate result 12."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Then add",
         "state": {
-          "model": "An expression combines operands and operators to produce a value; evaluation follows declared grouping, precedence, short-circuit, and type rules while creating intermediate results."
+          "2 + 12": "14"
         },
-        "explanation": "Apply the declared Expressions and evaluation model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "The addition uses the intermediate result, giving the final value 14."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Parentheses regroup",
         "state": {
-          "correction": "Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules."
+          "(2 + 3)": "5",
+          "5 * 4": "20"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Expressions are always evaluated strictly from left to right, regardless of parentheses or operator precedence."
+        "explanation": "Parentheses request a different grouping, so the result becomes 20."
       }
     ],
-    "textAlternative": "Starting artifact: The expression 2 + 3 * 4 evaluates multiplication first to 12 and then addition to 14, while parentheses can request a different grouping. Step 1, Observe. State: evidence: The expression 2 + 3 * 4 evaluates multiplication first to 12 and then addition to 14, while parentheses can request a different grouping.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: An expression combines operands and operators to produce a value; evaluation follows declared grouping, precedence, short-circuit, and type rules while creating intermediate results.. Apply the declared Expressions and evaluation model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules.. Compare the observation with the correction and reject the misconception: Expressions are always evaluated strictly from left to right, regardless of parentheses or operator precedence."
+    "textAlternative": "Evaluating 2 + 3  4 with and without parentheses. Step 1, Multiply first: 3 * 4 is 12. Multiplication has higher precedence, producing the intermediate result 12. Step 2, Then add: 2 + 12 is 14. The addition uses the intermediate result, giving the final value 14. Step 3, Parentheses regroup: (2 + 3) is 5; 5 * 4 is 20. Parentheses request a different grouping, so the result becomes 20."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Expressions and evaluation: direct case”: state its starting evidence, apply the Expressions and evaluation rule, and give the observable result in three short lines.",
+      "prompt": "For \"Why 2 + 3 * 4 is 14\", write each intermediate result: which operation is evaluated first, the final value, and what parentheses change.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "First operation.",
+        "Final value.",
+        "Parentheses version."
       ],
       "expectedEvidence": [
-        "Named example: Expressions and evaluation: direct case.",
-        "Starting evidence: The expression 2 + 3 * 4 evaluates multiplication first to 12 and then addition to 14, while parentheses can request a different grouping.",
-        "Core rule: An expression combines operands and operators to produce a value; evaluation follows declared grouping, precedence, short-circuit, and type rules while creating intermediate results.",
-        "Observable result: The case supports the declared outcome because Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules.",
-        "Boundary check: Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules."
+        "Names the example \"Why 2 + 3 * 4 is 14\": the expression 2 + 3 * 4.",
+        "Multiplication first gives 12.",
+        "Then addition gives 14.",
+        "Parentheses (2 + 3) * 4 request a different grouping and give 20."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: The Boolean expression hasTicket AND age >= 18 can stop after a false hasTicket in a language with short-circuit conjunction.",
+      "prompt": "Evaluate step by step: `3 + 6 / 2 > 5 and not False`.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Division before addition.",
+        "Comparison before and."
       ],
       "expectedEvidence": [
-        "An expression combines operands and operators to produce a value; evaluation follows declared grouping, precedence, short-circuit, and type rules while creating intermediate results.",
-        "Precedence varies by operator and language, floating-point arithmetic is not exact real arithmetic, and side effects inside expressions can make order important or unsafe."
+        "6 / 2 = 3.0, 3 + 3.0 = 6.0, 6.0 > 5 → True.",
+        "not False → True; True and True → True."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Expressions and evaluation, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Write an expression that is True when a year is a leap year (divisible by 4, but not by 100 unless also by 400). Evaluate it step by step for 1900 and 2000.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Use % and parentheses.",
+        "Trace both years."
       ],
       "expectedEvidence": [
-        "Evaluate mixed arithmetic, comparison and Boolean expressions step by step.",
-        "Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules."
+        "Correct expression with explicit grouping.",
+        "1900 → False, 2000 → True with intermediate results shown."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "pf.state.expressions.misconception",
-      "explanation": "Trace the syntax tree or explicit grouping, evaluate inner and higher-precedence operations first, and apply the runtime's documented order and type rules.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: The Boolean expression hasTicket AND age >= 18 can stop after a false hasTicket in a language with short-circuit conjunction."
+      "explanation": "Rewrite the expression with **full parentheses** following the precedence table, then evaluate from the innermost pair outwards, writing each intermediate result.",
+      "retryPrompt": "Do this for \"The discount condition\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to evaluate mixed arithmetic, comparison and Boolean expressions step by step. Keep this boundary in view: Precedence varies by operator and language, floating-point arithmetic is not exact real arithmetic, and side effects inside expressions can make order important or unsafe.",
+    "summary": "To evaluate mixed arithmetic, comparison and Boolean expressions step by step, apply parentheses first, then precedence (arithmetic, comparisons, not, and, or), then left to right. `and`/`or` can short-circuit and skip the rest.",
     "retrievalPrompts": [
-      "Explain Expressions and evaluation without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Expressions are always evaluated strictly from left to right, regardless of parentheses or operator precedence.",
-      "Apply the model to this case from memory: The Boolean expression hasTicket AND age >= 18 can stop after a false hasTicket in a language with short-circuit conjunction."
+      "Why is 2 + 3 * 4 equal to 14?",
+      "Which binds tighter, `and` or `or`?",
+      "How does short-circuit prevent a divide-by-zero?"
     ],
     "nextReviewPrompt": "Next: continue to “Mutation and aliases”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

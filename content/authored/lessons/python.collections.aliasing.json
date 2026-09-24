@@ -33,33 +33,37 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Python assignment copies a reference binding rather than an object; shallow copying duplicates one container shell, while nested values remain shared unless copied or rebuilt intentionally.",
+    "summary": "In Python, `b = a` doesn't copy anything — it just gives the **same list a second name**. Poke it through either name and both see the change. `.copy()` makes a new outer list, but anything *inside* it is still shared. 👀",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: After b = a, b.append changes the one shared list; b = list(a) creates a separate outer list but still aliases nested dictionaries. Your goal is to trace and repair accidental shared mutation in nested collections. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Quick story. You make a list of players, pass a \"copy\" to a test helper, and the helper adds a fake player called `GHOST`. You print your real roster and… `GHOST` is in there. 😱 Nothing crashed. Python did exactly what you asked. By the end of this lesson you'll spot these sneaky shared-list bugs on sight and fix them in one line.\n\n```predict\n{\"code\": \"roster = ['ana', 'ben']\\ntest = roster\\ntest.append('GHOST')\\nprint(roster)\", \"question\": \"What does the last line print?\", \"options\": [\"['ana', 'ben']\", \"['ana', 'ben', 'GHOST']\", \"Error\"], \"answer\": 1, \"why\": \"`test = roster` didn't make a new list — it stuck a second name on the **same** list. Appending through `test` changes the one and only list, so `roster` shows `GHOST` too.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: for, while and loop control; pf data selection; Lists, tuples and slicing; pf state mutation. If one is unfamiliar, revisit it before continuing."
+        "body": "You'll want these under your belt: **for, while and loop control**, **Data-structure choice**, **Lists, tuples and slicing** and **Mutation and aliases**. Basically: can you index a list, slice it, and `.append()` to it? Cool — you're ready. This lesson is about *what* those actions touch behind the scenes."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Python assignment copies a reference binding rather than an object; shallow copying duplicates one container shell, while nested values remain shared unless copied or rebuilt intentionally. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The mental model: names are sticky notes on objects",
+        "body": "Imagine every list lives in a box somewhere in memory. A variable is just a **sticky note** stuck on a box.\n\n```python\na = [1, 2, 3]\nb = a        # second sticky note, SAME box\nb.append(4)\nprint(a)     # [1, 2, 3, 4]\nprint(a is b)  # True — same box!\n```\n\n`is` is your X-ray: it answers *\"are these literally the same object?\"*\n\n```reveal\n{\"prompt\": \"Your turn: after `x = [0]` and `y = x`, is `x is y` True or False? What about after `y = [0]`?\", \"answer\": \"First case: **True** — `y` is a second note on the same box. Second case: **False** — `[0]` builds a brand-new box that just *looks* the same. (`x == y` would still be True: same contents, different boxes.)\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "Immutable values can be safely shared, deepcopy may copy too much or fail on resources, default arguments persist across calls, and in-place methods differ from rebinding. The learner must reject this documented misconception: Assigning one list to another name creates an independent list, and list.copy recursively detaches nested values."
+        "heading": "Shallow copy: new box, same stuff inside",
+        "body": "`list(a)`, `a.copy()` and `a[:]` all build a **new outer box**. But the things inside are the *same* inner boxes.\n\n```predict\n{\"code\": \"board = [['.', '.'], ['.', '.']]\\ntry_move = board.copy()\\ntry_move[0][0] = 'X'\\nprint(board[0][0])\", \"question\": \"The author *did* copy. What does `board[0][0]` print?\", \"options\": [\"'.'\", \"'X'\"], \"answer\": 1, \"why\": \"`.copy()` made a new outer list, but both lists point at the **same row lists**. Writing into `try_move[0]` edits a row that `board` shares. Fix: `[row.copy() for row in board]` — copy each row too.\"}\n```\n\nFor flat lists of numbers or strings a shallow copy is totally fine — those values can't be changed in place anyway. The trap only bites when the *insides* are lists or dicts."
+      },
+      {
+        "heading": "Deep copy: the big hammer (use it wisely)",
+        "body": "`copy.deepcopy(x)` copies **every level**, so nothing is shared. Perfect for plain nested data like lists of dicts.\n\n```python\nimport copy\nsafe = copy.deepcopy(board)\nsafe[0][0] = 'X'   # board is untouched ✅\n```\n\n⚠️ Don't deep-copy things that must stay one-of-a-kind — open files, database connections, a shared logger. For those, rebuild the structure yourself: copy the data, keep pointing at the service."
       }
     ]
   },
   "scope": {
     "includes": [
-      "Distinguish shared references, shallow copies and independent nested values.",
-      "Trace and repair accidental shared mutation in nested collections."
+      "Tell a shared reference, a shallow copy and a fully independent copy apart just by reading code.",
+      "Find and fix a bug caused by accidentally shared lists or dicts."
     ],
     "excludes": [
-      "Immutable values can be safely shared, deepcopy may copy too much or fail on resources, default arguments persist across calls, and in-place methods differ from rebinding."
+      "The `def f(x=[])` default-argument trap, custom `__copy__`/`__deepcopy__`, and identity quirks of small ints and strings — those get their own lessons."
     ]
   },
   "outcomes": [
@@ -68,134 +72,139 @@
   "examples": [
     {
       "id": "python.collections.aliasing.example.direct",
-      "title": "Mutability, aliases and copying: direct language case",
-      "situation": "After b = a, b.append changes the one shared list; b = list(a) creates a separate outer list but still aliases nested dictionaries.",
+      "title": "The roster that grew a ghost",
+      "situation": "```python\nroster = ['ana', 'ben']\ntest_roster = roster\ntest_roster.append('GHOST')\nprint(roster)\n```\nLet's walk it line by line.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: After b = a, b.append changes the one shared list; b = list(a) creates a separate outer list but still aliases nested dictionaries.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Trace object identity and aliases explicitly: assignment shares the object and a shallow copy duplicates only the outer container."
+        "`roster = ['ana', 'ben']` → Python builds **one** list and sticks the note `roster` on it.",
+        "`test_roster = roster` → no copy! A second note goes on the *same* list. Check it: `test_roster is roster` is `True`.",
+        "`.append('GHOST')` → edits that one shared list, so `roster` sees it too. 🔧 Fix: `test_roster = roster.copy()`."
       ],
-      "result": "The example meets the atomic outcome because Trace object identity and aliases explicitly: assignment shares the object and a shallow copy duplicates only the outer container."
+      "result": "Prints `['ana', 'ben', 'GHOST']`. With `.copy()`, `roster` stays `['ana', 'ben']` 🎉"
     },
     {
       "id": "python.collections.aliasing.example.boundary",
-      "title": "Mutability, aliases and copying: boundary and transfer case",
-      "situation": "A nested configuration is rebuilt field by field because an indiscriminate deepcopy would duplicate identity-bearing services incorrectly.",
+      "title": "The copy that still leaked",
+      "situation": "```python\nboard = [['.', '.'], ['.', '.']]\ntry_move = board.copy()\ntry_move[0][0] = 'X'\nprint(board[0][0])\n```\nThe author copied… so why is the real board changed?",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A nested configuration is rebuilt field by field because an indiscriminate deepcopy would duplicate identity-bearing services incorrectly.",
-        "Step 2 — Keep the language boundary explicit: Immutable values can be safely shared, deepcopy may copy too much or fail on resources, default arguments persist across calls, and in-place methods differ from rebinding.",
-        "Step 3 — Reject the tempting but incorrect rule: Assigning one list to another name creates an independent list, and list.copy recursively detaches nested values."
+        "`board.copy()` → a brand-new **outer** list. `try_move is board` is `False`. So far so good.",
+        "But look inside: `try_move[0] is board[0]` is `True`. Both outer lists point at the **same rows**.",
+        "`try_move[0][0] = 'X'` edits that shared row. 🔧 Fix: `[row.copy() for row in board]` or `copy.deepcopy(board)`."
       ],
-      "result": "This case demonstrates the declared outcome: Trace and repair accidental shared mutation in nested collections."
+      "result": "Prints `X`. After copying each row, `board[0][0]` stays `.` ✅"
     }
   ],
   "misconceptions": [
     {
       "id": "python.collections.aliasing.misconception",
-      "mistakenBelief": "Assigning one list to another name creates an independent list, and list.copy recursively detaches nested values.",
-      "correction": "Trace object identity and aliases explicitly: assignment shares the object and a shallow copy duplicates only the outer container.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Assigning one list to another name creates an independent list, and list.copy recursively detaches nested values."
+      "mistakenBelief": "`b = a` makes an independent copy of a list, and `a.copy()` detaches everything nested inside it too.",
+      "correction": "Assignment only adds a second name for the same object. `.copy()` duplicates just the outer container — inner lists and dicts stay shared until you copy them too.",
+      "diagnosticPrompt": "Predict what `board[0][0]` prints in \"The copy that still leaked\" before running it. Which line breaks the belief?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a flexible storeroom with ordered shelves, fixed labels, unique membership, lookup indexes, and shared nested containers can introduce Mutability, aliases and copying, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "example": "It's like a **shared Google Doc**. `b = a` is sending someone the *same link* — their edits show up in your doc. `.copy()` is like copying a folder of links: you get a new folder, but the links inside still open the original docs.",
     "usefulFor": [
-      "lists, tuples, dictionaries, sets, aliasing, and text processing"
+      "seeing why a change through one name shows up through another",
+      "remembering that a shallow copy only duplicates the outermost layer"
     ],
     "limitations": [
-      "hashability, shallow copying, Unicode normalization, and object identity require Python's exact data model",
-      "Immutable values can be safely shared, deepcopy may copy too much or fail on resources, default arguments persist across calls, and in-place methods differ from rebinding."
+      "Python has no \"view-only\" link — any name can change a mutable object.",
+      "Numbers, strings and tuples can't be edited in place, so sharing them is always safe — the doc analogy hides that."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "After b = a, b.append changes the one shared list; b = list(a) creates a separate outer list but still aliases nested dictionaries.",
-      "Python assignment copies a reference binding rather than an object; shallow copying duplicates one container shell, while nested values remain shared unless copied or rebuilt intentionally.",
-      "Trace object identity and aliases explicitly: assignment shares the object and a shallow copy duplicates only the outer container."
+      "board = [['.', '.'], ['.', '.']]",
+      "try_move = board.copy()",
+      "try_move[0][0] = 'X'",
+      "print(board[0][0])"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Build the board",
         "state": {
-          "evidence": "After b = a, b.append changes the one shared list; b = list(a) creates a separate outer list but still aliases nested dictionaries."
+          "board": "outer list L1 → [row R1, row R2]",
+          "R1": "['.', '.']"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "Three boxes exist: the outer list `L1` and two rows. `board` is the sticky note on `L1`."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Shallow copy",
         "state": {
-          "rule": "Python assignment copies a reference binding rather than an object; shallow copying duplicates one container shell, while nested values remain shared unless copied or rebuilt intentionally."
+          "try_move": "new outer list L2 → [row R1, row R2]",
+          "try_move is board": "False",
+          "try_move[0] is board[0]": "True"
         },
-        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "`.copy()` makes a new box `L2`, but only copies the *arrows* to `R1` and `R2`. Both outer lists share the rows."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Mutate through the copy",
         "state": {
-          "correction": "Trace object identity and aliases explicitly: assignment shares the object and a shallow copy duplicates only the outer container."
+          "R1": "['X', '.']",
+          "board[0][0]": "'X'"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Assigning one list to another name creates an independent list, and list.copy recursively detaches nested values."
+        "explanation": "Writing into `try_move[0]` edits `R1` itself — the same row `board` points at. 💥 That's the leak."
       }
     ],
-    "textAlternative": "Starting artifact: After b = a, b.append changes the one shared list; b = list(a) creates a separate outer list but still aliases nested dictionaries. Step 1, Observe. State: evidence: After b = a, b.append changes the one shared list; b = list(a) creates a separate outer list but still aliases nested dictionaries.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Python assignment copies a reference binding rather than an object; shallow copying duplicates one container shell, while nested values remain shared unless copied or rebuilt intentionally.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Trace object identity and aliases explicitly: assignment shares the object and a shallow copy duplicates only the outer container.. Compare the observation with the correction and explain why the misconception fails: Assigning one list to another name creates an independent list, and list.copy recursively detaches nested values."
+    "textAlternative": "Code: board is a list of two rows; try_move = board.copy(); try_move[0][0] = 'X'; print(board[0][0]). Step 1, Build the board: board labels outer list L1 holding rows R1 and R2; R1 is ['.', '.']. Step 2, Shallow copy: try_move labels a new outer list L2 holding the same rows R1 and R2, so try_move is board is False but try_move[0] is board[0] is True. Step 3, Mutate through the copy: R1 becomes ['X', '.'], so board[0][0] is 'X' and the program prints X."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Mutability, aliases and copying: direct language case”: state its starting evidence, apply the Mutability, aliases and copying rule, and give the observable result in three short lines.",
+      "prompt": "Back to \"The roster that grew a ghost\". In three quick lines: what `test_roster = roster` really does, why `GHOST` shows up in `roster`, and the fix.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Line 1: new list or new name?",
+        "Line 2: which list does `.append` change?",
+        "Line 3: the fix, and what `roster` prints after it."
       ],
       "expectedEvidence": [
-        "Named example: Mutability, aliases and copying: direct language case.",
-        "Starting evidence: After b = a, b.append changes the one shared list; b = list(a) creates a separate outer list but still aliases nested dictionaries.",
-        "Core rule: Python assignment copies a reference binding rather than an object; shallow copying duplicates one container shell, while nested values remain shared unless copied or rebuilt intentionally.",
-        "Observable result: The example meets the atomic outcome because Trace object identity and aliases explicitly: assignment shares the object and a shallow copy duplicates only the outer container.",
-        "Boundary check: Trace object identity and aliases explicitly: assignment shares the object and a shallow copy duplicates only the outer container."
+        "Names the example \"The roster that grew a ghost\".",
+        "Says `test_roster = roster` adds a second name for the same list.",
+        "Explains `.append` changes that one shared list, so `roster` prints `['ana', 'ben', 'GHOST']`.",
+        "Fixes it with `roster.copy()` (or `list(roster)`), after which `roster` stays `['ana', 'ben']`."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A nested configuration is rebuilt field by field because an indiscriminate deepcopy would duplicate identity-bearing services incorrectly.",
+      "prompt": "Settings time: `defaults = {\"theme\": \"dark\", \"keys\": [\"ctrl+s\"]}`. A user does `mine = defaults.copy()` then `mine[\"keys\"].append(\"ctrl+k\")`. Did `defaults` change? Fix it so it doesn't.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Which level did `.copy()` duplicate?",
+        "Is `mine[\"keys\"] is defaults[\"keys\"]`?"
       ],
       "expectedEvidence": [
-        "Python assignment copies a reference binding rather than an object; shallow copying duplicates one container shell, while nested values remain shared unless copied or rebuilt intentionally.",
-        "Immutable values can be safely shared, deepcopy may copy too much or fail on resources, default arguments persist across calls, and in-place methods differ from rebinding."
+        "Yes — `defaults[\"keys\"]` becomes `['ctrl+s', 'ctrl+k']` because the inner list is shared after a shallow copy.",
+        "Fix: `copy.deepcopy(defaults)`, or copy the list: `mine = {**defaults, \"keys\": defaults[\"keys\"].copy()}`."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Mutability, aliases and copying, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Write `add_bonus(scores)` that returns a new list with +5 on every score **without** touching the caller's list. Show a call that proves the original is unchanged.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Real code, no analogies.",
+        "Print the original list after calling your function."
       ],
       "expectedEvidence": [
-        "Trace and repair accidental shared mutation in nested collections.",
-        "Trace object identity and aliases explicitly: assignment shares the object and a shallow copy duplicates only the outer container."
+        "Builds a new list (e.g. `[s + 5 for s in scores]`) instead of changing `scores` in place.",
+        "Prints the caller's list afterwards to show it is unchanged, explaining no shared mutation happened."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "python.collections.aliasing.misconception",
-      "explanation": "Trace object identity and aliases explicitly: assignment shares the object and a shallow copy duplicates only the outer container.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A nested configuration is rebuilt field by field because an indiscriminate deepcopy would duplicate identity-bearing services incorrectly."
+      "explanation": "Try this in the playground: `a = [[1]]; b = a.copy(); print(a is b, a[0] is b[0])`. You'll get `False True` — new outer list, same inner one. Assignment shares *everything*; `.copy()` shares everything one level down.",
+      "retryPrompt": "Now redo \"The copy that still leaked\": predict `board[0][0]`, then write the one-line fix that copies each row."
     }
   ],
   "recap": {
-    "summary": "You should now be able to trace and repair accidental shared mutation in nested collections. Keep this boundary in view: Immutable values can be safely shared, deepcopy may copy too much or fail on resources, default arguments persist across calls, and in-place methods differ from rebinding.",
+    "summary": "`b = a` = second sticky note, same box — never a copy. `.copy()`, `list(a)`, `a[:]` copy only the outer box, so nested lists and dicts stay shared. Use `is` to X-ray what's shared, copy each inner level (or `deepcopy`) for plain nested data, and rebuild by hand when the structure holds one-of-a-kind things.",
     "retrievalPrompts": [
-      "Explain Mutability, aliases and copying using canonical Python: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Assigning one list to another name creates an independent list, and list.copy recursively detaches nested values.",
-      "Predict this case from memory: A nested configuration is rebuilt field by field because an indiscriminate deepcopy would duplicate identity-bearing services incorrectly."
+      "No peeking: after `a = [1, 2]; b = a; b += [3]`, what is `a`? Why?",
+      "What does `x is y` tell you that `x == y` doesn't?",
+      "When would `copy.deepcopy` be the wrong tool?"
     ],
-    "nextReviewPrompt": "Next: continue to “Unicode text and formatting”. Before moving on, answer one retrieval prompt without reopening the explanation."
+    "nextReviewPrompt": "Next: continue to «Unicode text and formatting». Before moving on, answer one retrieval prompt without scrolling up."
   }
 }

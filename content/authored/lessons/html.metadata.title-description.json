@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A unique concise title identifies the page and current task; a meta description can summarize content for search presentation but is not visible page labeling.",
+    "summary": "The `<title>` names the page in browser tabs, bookmarks, history, screen-reader announcements and search results — so each page needs a **unique, specific** title, most specific part first: \"Variables in C – Codestead\". The `<meta name=\"description\">` is a short summary that search engines **may** show under the link. Neither replaces the visible `<h1>`, and no tag can guarantee a ranking.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: The lesson page title reads Variables in C - Codestead rather than the same Home title used everywhere. Your goal is to author metadata for a small multi-page site without promising ranking behavior. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You have ten Codestead tabs open, and every one says \"Home\". Which is the C variables lesson? A screen-reader user switching windows hears \"Home\" ten times too. The lesson page title reads Variables in C - Codestead rather than the same Home title used everywhere. In this lesson you'll author metadata for a small multi-page site without promising ranking behavior.\n\n```predict\n{\"question\": \"Can a meta description replace the page's h1?\", \"options\": [\"Yes, it's the page summary\", \"No — it's not shown on the page; the visible h1 is still needed\"], \"answer\": 1, \"why\": \"The description lives in the head and is only (sometimes) used by search results. The h1 is the page's visible main heading.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Document foundations; Text and page semantics; Forms and native controls; Standards-mode document skeleton; Relative and absolute URLs. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Document foundations**, **Text and page semantics** and **Forms and native controls** modules, plus the **Standards-mode document skeleton** and **Relative and absolute URLs**."
       },
       {
-        "heading": "Technology rule",
-        "body": "A unique concise title identifies the page and current task; a meta description can summarize content for search presentation but is not visible page labeling. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: title names the page, description summarises it",
+        "body": "```html\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <title>Variables in C – Codestead</title>\n  <meta name=\"description\" content=\"Learn how C variables store values, how to declare and initialise them, and common beginner mistakes.\">\n  <link rel=\"canonical\" href=\"https://codestead.example/c/variables/\">\n</head>\n```\n\n| Tag | Used by | Tip |\n|---|---|---|\n| `title`. | tabs, bookmarks, screen readers, search results. | unique; specific part first. |\n| `meta description`. | possibly search snippets. | 1–2 honest sentences. |\n| `link rel=canonical`. | search engines. | the preferred URL for duplicate pages. |\n\n```reveal\n{\"prompt\": \"Will a perfect description guarantee first place in search results?\", \"answer\": \"No. Search engines decide ranking and may even rewrite snippets. Good metadata makes pages clearer — it doesn't promise rankings.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Search engines can ignore descriptions, title updates matter in client navigation, and duplicate titles make tabs and history ambiguous. This draft therefore rejects: The meta description is the page's accessible heading and replaces an h1."
+        "heading": "Specific first",
+        "body": "```predict\n{\"question\": \"Which title works best in a crowded tab bar?\", \"options\": [\"\\\"Codestead – Courses – C – Variables\\\"\", \"\\\"Variables in C – Codestead\\\"\"], \"answer\": 1, \"why\": \"Tabs truncate from the end. Put the unique, specific part first and the site name last.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Provide unique page titles and appropriate descriptive, canonical and social-preview metadata.",
-      "Author metadata for a small multi-page site without promising ranking behavior."
+      "Write unique, specific titles and honest meta descriptions for each page.",
+      "Explain what title, description and canonical are used for — without promising rankings."
     ],
     "excludes": [
-      "Search engines can ignore descriptions, title updates matter in client navigation, and duplicate titles make tabs and history ambiguous."
+      "Open Graph and social sharing tags.",
+      "Structured data (JSON-LD)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,133 @@
   "examples": [
     {
       "id": "html.metadata.title-description.example-a",
-      "title": "Title and descriptive metadata: concrete case",
+      "title": "Unique titles for every lesson",
       "situation": "The lesson page title reads Variables in C - Codestead rather than the same Home title used everywhere.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: The lesson page title reads Variables in C - Codestead rather than the same Home title used everywhere.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Provide a unique document title and visible heading; metadata descriptions do not replace in-page structure."
+        "**Before:** every page's title read \"Home\", so tabs and history were indistinguishable.",
+        "**After:** the lesson page title reads \"Variables in C – Codestead\"; the arrays lesson reads \"Arrays in C – Codestead\".",
+        "**Check:** open several tabs and the browser will render each unique title; a screen reader announces it when the page loads."
       ],
-      "result": "The result follows because Provide a unique document title and visible heading; metadata descriptions do not replace in-page structure."
+      "result": "Every page can be told apart in tabs, bookmarks, history and search results."
     },
     {
       "id": "html.metadata.title-description.example-b",
-      "title": "Title and descriptive metadata: boundary case",
-      "situation": "Search engines can ignore descriptions, title updates matter in client navigation, and duplicate titles make tabs and history ambiguous.",
+      "title": "The keyword-stuffed description",
+      "situation": "A page's description reads \"C, C programming, learn C, best C course, free C, C tutorial, C variables…\".",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Search engines can ignore descriptions, title updates matter in client navigation, and duplicate titles make tabs and history ambiguous.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: The meta description is the page's accessible heading and replaces an h1."
+        "It doesn't describe the page to a human.",
+        "Search engines often ignore or rewrite such text.",
+        "Fix: \"Learn how C variables store values, how to declare and initialise them, and common beginner mistakes.\""
       ],
-      "result": "The boundary requires this correction: Provide a unique document title and visible heading; metadata descriptions do not replace in-page structure."
+      "result": "The description now honestly summarises the page for people scanning results."
     }
   ],
   "misconceptions": [
     {
       "id": "html.metadata.title-description.misconception",
       "mistakenBelief": "The meta description is the page's accessible heading and replaces an h1.",
-      "correction": "Provide a unique document title and visible heading; metadata descriptions do not replace in-page structure.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: The meta description is the page's accessible heading and replaces an h1."
+      "correction": "The description is head metadata that search engines may use for snippets; it isn't displayed or announced as a heading. The page still needs a unique title and a visible h1.",
+      "diagnosticPrompt": "In the opening predict, why can't the description replace the h1?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model Title and descriptive metadata, with structure carrying meaning before decoration.",
+    "example": "A title is like the **spine label on a book** — you find the book on the shelf by it. The description is the **blurb on the back cover** — helpful, but the shop decides where the book goes on the shelf (ranking).",
     "usefulFor": [
-      "Building a first mental model for Title and descriptive metadata before using exact platform terms"
+      "remembering title = identification",
+      "description = honest blurb"
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "Search engines can ignore descriptions, title updates matter in client navigation, and duplicate titles make tabs and history ambiguous."
+      "Books have one spine label; web pages need one per page.",
+      "Shops (search engines) may rewrite the blurb."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "The lesson page title reads Variables in C - Codestead rather than the same Home title used everywhere.",
-      "A unique concise title identifies the page and current task; a meta description can summarize content for search presentation but is not visible page labeling.",
-      "Provide a unique document title and visible heading; metadata descriptions do not replace in-page structure."
+      "<title>Home</title> on every page",
+      "<title>Variables in C – Codestead</title>",
+      "tab bar with 10 lessons"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Duplicate titles",
         "state": {
-          "evidence": "The lesson page title reads Variables in C - Codestead rather than the same Home title used everywhere."
+          "tabs": "Home, Home, Home"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The same Home title used everywhere makes pages indistinguishable."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Unique title",
         "state": {
-          "rule": "A unique concise title identifies the page and current task; a meta description can summarize content for search presentation but is not visible page labeling."
+          "title": "Variables in C – Codestead"
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The lesson page title reads Variables in C - Codestead."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Result",
         "state": {
-          "correction": "Provide a unique document title and visible heading; metadata descriptions do not replace in-page structure."
+          "tabs": "Variables in C…, Arrays in C…"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: The meta description is the page's accessible heading and replaces an h1."
+        "explanation": "Tabs, history and screen readers now identify each page."
       }
     ],
-    "textAlternative": "Starting artifact: The lesson page title reads Variables in C - Codestead rather than the same Home title used everywhere. Step 1, Artifact. State: evidence: The lesson page title reads Variables in C - Codestead rather than the same Home title used everywhere.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A unique concise title identifies the page and current task; a meta description can summarize content for search presentation but is not visible page labeling.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Provide a unique document title and visible heading; metadata descriptions do not replace in-page structure.. Check the result against the boundary and reject this misconception: The meta description is the page's accessible heading and replaces an h1."
+    "textAlternative": "Fixing duplicate page titles. Step 1, Duplicate titles: tabs is Home, Home, Home. The same Home title used everywhere makes pages indistinguishable. Step 2, Unique title: title is Variables in C – Codestead. The lesson page title reads Variables in C - Codestead. Step 3, Result: tabs is Variables in C…, Arrays in C…. Tabs, history and screen readers now identify each page."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Title and descriptive metadata: concrete case”: state its starting evidence, apply the Title and descriptive metadata rule, and give the observable result in three short lines.",
+      "prompt": "For \"Unique titles for every lesson\", explain why the lesson page title reads Variables in C - Codestead rather than the same Home title used everywhere.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Problem.",
+        "New title.",
+        "Where it helps."
       ],
       "expectedEvidence": [
-        "Named example: Title and descriptive metadata: concrete case.",
-        "Starting evidence: The lesson page title reads Variables in C - Codestead rather than the same Home title used everywhere.",
-        "Core rule: A unique concise title identifies the page and current task; a meta description can summarize content for search presentation but is not visible page labeling.",
-        "Observable result: The result follows because Provide a unique document title and visible heading; metadata descriptions do not replace in-page structure.",
-        "Boundary check: Provide a unique document title and visible heading; metadata descriptions do not replace in-page structure."
+        "Names the example \"Unique titles for every lesson\": the lesson page title reads Variables in C - Codestead.",
+        "Rather than the same Home title used everywhere.",
+        "The specific part comes first.",
+        "Tabs, history and screen readers can tell pages apart."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Search engines can ignore descriptions, title updates matter in client navigation, and duplicate titles make tabs and history ambiguous.",
+      "prompt": "Write titles and descriptions for three pages of a bakery site: home, menu, and contact.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Specific first, site name last.",
+        "Honest summaries."
       ],
       "expectedEvidence": [
-        "A unique concise title identifies the page and current task; a meta description can summarize content for search presentation but is not visible page labeling.",
-        "Search engines can ignore descriptions, title updates matter in client navigation, and duplicate titles make tabs and history ambiguous."
+        "Unique titles like 'Menu – Sunny Bakery'.",
+        "One-to-two-sentence honest descriptions."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Title and descriptive metadata and explain why the misconception fails.",
+      "prompt": "Audit a small site's titles and descriptions. List duplicates and vague ones, rewrite them, and check the tab bar and a search-result preview tool.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Export a list of pages.",
+        "Look for repeated titles."
       ],
       "expectedEvidence": [
-        "Author metadata for a small multi-page site without promising ranking behavior.",
-        "Provide a unique document title and visible heading; metadata descriptions do not replace in-page structure."
+        "All titles unique and specific.",
+        "Descriptions rewritten honestly, without ranking promises."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.metadata.title-description.misconception",
-      "explanation": "Provide a unique document title and visible heading; metadata descriptions do not replace in-page structure.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'unique document title' and state the decisive evidence."
+      "explanation": "For each page ask: **If ten tabs were open, would this title stand out? Does the description honestly say what's on the page?**",
+      "retryPrompt": "Apply this to \"The keyword-stuffed description\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to author metadata for a small multi-page site without promising ranking behavior. Keep this boundary in view: Search engines can ignore descriptions, title updates matter in client navigation, and duplicate titles make tabs and history ambiguous.",
+    "summary": "To author metadata for a small multi-page site, give each page a unique title with the specific part first, an honest meta description, and a canonical URL where needed. The h1 is still required, and metadata never guarantees ranking behavior.",
     "retrievalPrompts": [
-      "Explain Title and descriptive metadata using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: The meta description is the page's accessible heading and replaces an h1.",
-      "Apply checkpoint 'unique document title' to a new artifact."
+      "Why must titles be unique?",
+      "Does the description replace the h1?",
+      "Can metadata guarantee search ranking?"
     ],
     "nextReviewPrompt": "Next: continue to “Linked resources and loading hints”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

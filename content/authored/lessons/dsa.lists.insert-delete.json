@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Linked-list insertion and deletion rewire a bounded number of links once the target node or predecessor is known.",
+    "summary": "Once you hold the **node just before** the spot (the predecessor, `prev`), inserting or deleting in a linked list is O(1): you **rewire one or two links**, with no shifting. Insert after prev: `new.next = prev.next; prev.next = new`. Delete after prev: `target = prev.next; prev.next = target.next`. The catch is **finding** prev: deleting \"the node with value X\" needs a search first, which is O(n). Test the three shapes that break list code: **empty**, **one node**, and **deleting the head**.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Deleting after prev stores prev.next, links around it, then releases or abandons the removed node safely. Your goal is to implement, debug and test list insertion and deletion across empty, singleton and multi-node cases. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A playlist app removes a finished lesson from the middle of a linked list. The first version sets `prev.next = None`, and every lesson after the removed one disappears too. Deleting after prev stores prev.next, links around it, then releases or abandons the removed node safely. In this lesson you'll implement, debug and test list insertion and deletion across empty, singleton and multi-node cases.\n\n```predict\n{\"question\": \"Deleting the node with value \\\"Loops\\\" from a list where you only have the head. Cost?\", \"options\": [\"O(1): linked lists delete in constant time\", \"O(n): you first search for Loops and its predecessor\"], \"answer\": 1, \"why\": \"The rewiring is O(1), but finding the right place is a traversal.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Array representation and operations; Singly linked representation; Correctness and counterexamples. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Array representation and operations**, **Singly linked representation** (nodes, head, null), and **Correctness and counterexamples**, since edge cases matter here."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Linked-list insertion and deletion rewire a bounded number of links once the target node or predecessor is known. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The rule: find the predecessor, then rewire",
+        "body": "```python\ndef insert_after(prev, value):           # O(1).\n    prev.next = Node(value, prev.next)     # new node points at the old next first.\n\ndef delete_value(lst, value):             # O(n) search + O(1) rewire.\n    if lst.head is None:                   # empty list.\n        return False\n    if lst.head.value == value:            # deleting the head.\n        lst.head = lst.head.next\n        return True\n    prev = lst.head\n    while prev.next is not None and prev.next.value != value:\n        prev = prev.next\n    if prev.next is None:                  # not found.\n        return False\n    target = prev.next\n    prev.next = target.next                # link around it.\n    target.next = None                     # detach (in C/C++, also free it).\n    return True\n```\n\n| Case | What must happen |\n|---|---|\n| empty list. | nothing to delete; return False. |\n| delete the head. | head moves to head.next. |\n| one node, deleted. | head becomes None. |\n| middle or last node. | prev.next skips over target. |\n| value missing. | list unchanged. |\n\n```reveal\n{\"prompt\": \"Why set target.next = None after unlinking?\", \"answer\": \"It stops anyone holding target from walking back into the list by mistake. In C and C++ you'd also free the node to avoid a leak.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Finding that position can still be linear, and head, tail, empty, and singleton cases need separate invariants. The draft therefore rejects: Deleting an item by value is always O(1) in a linked list."
+        "heading": "Order of assignments",
+        "body": "```predict\n{\"question\": \"Inserting after prev: `prev.next = new` then `new.next = prev.next`. What happens?\", \"options\": [\"It works\", \"new.next points at new itself, and the rest of the list is lost\"], \"answer\": 1, \"why\": \"Always connect the new node to the old next before changing prev.next.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Update links correctly at head, middle and tail while preserving ownership and size invariants.",
-      "Implement, debug and test list insertion and deletion across empty, singleton and multi-node cases.",
-      "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity."
+      "Insert and delete by rewiring links once the predecessor is known.",
+      "Test empty, single-node, head, middle, last and missing cases."
     ],
     "excludes": [
-      "Finding that position can still be linear, and head, tail, empty, and singleton cases need separate invariants."
+      "Doubly linked updates (next lesson).",
+      "Sentinel and pointer-to-pointer tricks (pointer patterns lesson)."
     ]
   },
   "outcomes": [
@@ -68,142 +64,135 @@
   "examples": [
     {
       "id": "dsa.lists.insert-delete.example-a",
-      "title": "Insertion and deletion: language-neutral trace",
+      "title": "Removing a lesson from the middle of the playlist",
       "situation": "Deleting after prev stores prev.next, links around it, then releases or abandons the removed node safely.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: Deleting after prev stores prev.next, links around it, then releases or abandons the removed node safely.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Link removal is O(1) after locating the predecessor, but locating a value is generally O(n)."
+        "**Bug:** `prev.next = None` cut the chain, dropping every node after the target.",
+        "**Stores prev.next and links around it:** `target = prev.next; prev.next = target.next` keeps the rest attached.",
+        "**Test:** delete Loops from Arrays -> Loops -> Recursion and a test will expect [Arrays, Recursion]; also test head, only node and missing value."
       ],
-      "result": "The conceptual result follows because Link removal is O(1) after locating the predecessor, but locating a value is generally O(n)."
+      "result": "Finishing a lesson removes exactly that lesson and keeps the rest of the playlist."
     },
     {
       "id": "dsa.lists.insert-delete.example-b",
-      "title": "Insertion and deletion: implementation transfer",
-      "situation": "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity.",
+      "title": "The insert that made a loop",
+      "situation": "An insert_after writes `prev.next = new_node` first, then `new_node.next = prev.next`. Printing the list now runs forever.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity.",
-        "Step 3 — Retest this boundary in the selected implementation: Finding that position can still be linear, and head, tail, empty, and singleton cases need separate invariants."
+        "The second line read prev.next after it had changed, so new_node points to itself.",
+        "The rest of the list is unreachable, and traversal loops on one node.",
+        "Fix: set new_node.next = prev.next first, then prev.next = new_node."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Inserts keep the list intact, and traversal ends at null."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.lists.insert-delete.misconception",
       "mistakenBelief": "Deleting an item by value is always O(1) in a linked list.",
-      "correction": "Link removal is O(1) after locating the predecessor, but locating a value is generally O(n).",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Deleting an item by value is always O(1) in a linked list."
+      "correction": "Only the link change is O(1). To delete by value you must first find the node and its predecessor, which is a traversal: O(n) in the worst case.",
+      "diagnosticPrompt": "In the opening predict, which part of deleting Loops costs O(n)?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Insertion and deletion, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Deleting from a linked list is like **removing a person from a line holding hands**: the person before them lets go and takes the hand of the person after. If they just let go of everyone (`prev.next = None`), the rest of the line wanders off.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering link around",
+      "insert: new person grabs the next hand first"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Finding that position can still be linear, and head, tail, empty, and singleton cases need separate invariants."
+      "People can see the whole line; code must walk to find the right person.",
+      "In C, the removed person has to be shown out (freed)."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Deleting after prev stores prev.next, links around it, then releases or abandons the removed node safely.",
-      "Linked-list insertion and deletion rewire a bounded number of links once the target node or predecessor is known.",
-      "Link removal is O(1) after locating the predecessor, but locating a value is generally O(n).",
-      "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity."
+      "Arrays -> Loops -> Recursion",
+      "find prev = Arrays",
+      "prev.next = target.next"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Search",
         "state": {
-          "scenario": "Deleting after prev stores prev.next, links around it, then releases or abandons the removed node safely."
+          "prev": "Arrays",
+          "target": "Loops"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The loop finds the predecessor of the value to delete."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Rewire",
         "state": {
-          "invariant": "Linked-list insertion and deletion rewire a bounded number of links once the target node or predecessor is known."
+          "Arrays.next": "Recursion"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "Deleting after prev stores prev.next and links around it."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Detach",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "Loops.next": "None",
+          "list": "Arrays -> Recursion"
         },
-        "explanation": "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Link removal is O(1) after locating the predecessor, but locating a value is generally O(n)."
-        },
-        "explanation": "Verify the result and reject this misconception: Deleting an item by value is always O(1) in a linked list."
+        "explanation": "The removed node is abandoned safely, and the rest stays attached."
       }
     ],
-    "textAlternative": "Starting artifact: Deleting after prev stores prev.next, links around it, then releases or abandons the removed node safely. Step 1, Specification. State: scenario: Deleting after prev stores prev.next, links around it, then releases or abandons the removed node safely.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Linked-list insertion and deletion rewire a bounded number of links once the target node or predecessor is known.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity. Step 4, Conclusion. State: correction: Link removal is O(1) after locating the predecessor, but locating a value is generally O(n).. Verify the result and reject this misconception: Deleting an item by value is always O(1) in a linked list."
+    "textAlternative": "Tracing a middle deletion. Step 1, Search: prev is Arrays; target is Loops. The loop finds the predecessor of the value to delete. Step 2, Rewire: Arrays.next is Recursion. Deleting after prev stores prev.next and links around it. Step 3, Detach: Loops.next is None; list is Arrays -> Recursion. The removed node is abandoned safely, and the rest stays attached."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Insertion and deletion: language-neutral trace”: state its starting evidence, apply the Insertion and deletion rule, and give the observable result in three short lines.",
+      "prompt": "For \"Removing a lesson from the middle of the playlist\", explain how deleting after prev stores prev.next, links around it, then releases or abandons the removed node safely.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Bug.",
+        "Rewire.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Insertion and deletion: language-neutral trace.",
-        "Starting evidence: Deleting after prev stores prev.next, links around it, then releases or abandons the removed node safely.",
-        "Core rule: Linked-list insertion and deletion rewire a bounded number of links once the target node or predecessor is known.",
-        "Observable result: The conceptual result follows because Link removal is O(1) after locating the predecessor, but locating a value is generally O(n).",
-        "Boundary check: Link removal is O(1) after locating the predecessor, but locating a value is generally O(n)."
+        "Names the example \"Removing a lesson from the middle of the playlist\": prev.next = None dropped the rest.",
+        "Deleting after prev stores prev.next and links around it.",
+        "The removed node is released or abandoned safely.",
+        "Finishing a lesson removes exactly that lesson."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Linked-list insertion and deletion rewire a bounded number of links once the target node or predecessor is known.",
+      "prompt": "Write `insert_at(lst, i, value)` that inserts so the new value ends up at index i (0 = new head). Test i = 0 on an empty list, the middle, and i = length.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "i = 0 is a head insert.",
+        "Walk to node i - 1."
       ],
       "expectedEvidence": [
-        "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity.",
-        "Finding that position can still be linear, and head, tail, empty, and singleton cases need separate invariants."
+        "Correct list for all three.",
+        "Out-of-range i raises an error."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Insertion and deletion case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Implement `remove_all(lst, value)` that deletes every matching node in one pass. Test all-matching, none-matching, matches at the head and at the end, and state its cost.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Handle leading matches first.",
+        "Don't advance prev after a deletion."
       ],
       "expectedEvidence": [
-        "Implement, debug and test list insertion and deletion across empty, singleton and multi-node cases.",
-        "Link removal is O(1) after locating the predecessor, but locating a value is generally O(n)."
+        "All edge cases pass.",
+        "O(n) time, O(1) extra space."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.lists.insert-delete.misconception",
-      "explanation": "Link removal is O(1) after locating the predecessor, but locating a value is generally O(n).",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'after locating the predecessor', then state one implementation-specific risk in the selected language."
+      "explanation": "Draw the before and after arrows. Then ask: **Which node is prev? What if the target is the head? What if the list is empty or has one node?** Write one test per question.",
+      "retryPrompt": "Apply this to \"The insert that made a loop\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement, debug and test list insertion and deletion across empty, singleton and multi-node cases. Keep this boundary in view: Finding that position can still be linear, and head, tail, empty, and singleton cases need separate invariants.",
+    "summary": "To implement and test list insertion and deletion, find the predecessor, then rewire in O(1): connect the new node to prev.next before updating prev.next, or link prev around the target. Treat the head specially, remember searching by value is O(n), and test empty, single-node, head, middle, last and missing cases.",
     "retrievalPrompts": [
-      "State the Insertion and deletion invariant and complexity without code.",
-      "Why is this claim false: Deleting an item by value is always O(1) in a linked list.",
-      "Map checkpoint 'after locating the predecessor' to C, C++, Java, and Python."
+      "Why is deleting by value O(n)?",
+      "In which order do you set links when inserting?",
+      "Which three list shapes break code most often?"
     ],
     "nextReviewPrompt": "Next: continue to “Doubly and circular lists”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

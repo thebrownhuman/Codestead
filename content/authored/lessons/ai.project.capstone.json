@@ -43,33 +43,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "An AI foundations capstone implements a modest bounded system, compares a simple baseline, preserves data/source provenance, evaluates normal and stress cases, documents limitations and risks, and supports reproducible review.",
+    "summary": "Your **capstone** brings the course together in one **modest, bounded** system, for example a search or retrieval tool over a small document set. What makes it strong isn't flashiness but **honest evidence**: a **deterministic baseline** to beat, a **versioned** corpus with provenance, **held-out** queries you didn't tune on, evaluation of **normal and stress cases**, a **failure taxonomy** (categories of mistakes with examples), a **risk register**, a **model card**, and **exact commands** so a reviewer can reproduce your numbers. Present limits as clearly as strengths. A polished demo with a good average score is not \"production-ready\"; say precisely what it can and can't do, for whom, under which conditions.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A local search or retrieval prototype includes a deterministic baseline, versioned corpus, held-out queries, failure taxonomy, risk register, model card, and exact reproduction commands. Your goal is to deliver and defend a reproducible project, evaluation report, model card and risk register without overstating capability. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner demos a slick chatbot over course notes with a 90% \"accuracy\" figure from questions they wrote while building it. Reviewers ask for a baseline, held-out questions, failure examples and how to rerun it; there are none, and the learner calls it production-ready. A local search or retrieval prototype includes a deterministic baseline, versioned corpus, held-out queries, failure taxonomy, risk register, model card, and exact reproduction commands. In this lesson you'll deliver and defend a reproducible project, evaluation report, model card and risk register without overstating capability.\n\n```predict\n{\"question\": \"Your demo impresses and averages 90% on questions you wrote while building. Is it a complete capstone?\", \"options\": [\"Yes, it works well\", \"No: it needs a baseline, held-out evaluation, failures, risks, a card and reproduction steps\"], \"answer\": 1, \"why\": \"Evidence and honesty make a capstone, not polish.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Evaluation and responsible AI; Language, perception and embodied applications; Model card and human oversight; Govern, map, measure and manage. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Evaluation and responsible AI**, **Language, perception and embodied applications**, **Model card and human oversight** and **Govern, map, measure and manage**."
       },
       {
-        "heading": "Bounded operational model",
-        "body": "An AI foundations capstone implements a modest bounded system, compares a simple baseline, preserves data/source provenance, evaluates normal and stress cases, documents limitations and risks, and supports reproducible review. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+        "heading": "The model: bounded system, honest evidence",
+        "body": "```python\ncorpus = {  # versioned corpus: id -> text.\n    \"notes-v2#1\": \"bfs uses a queue and finds fewest steps\",\n    \"notes-v2#2\": \"a star adds a heuristic to path cost\",\n    \"notes-v2#3\": \"bayes rule updates a prior with evidence\",\n}\nheld_out = [(\"which search finds fewest steps\", \"notes-v2#1\"),\n            (\"how does bayes update beliefs\", \"notes-v2#3\"),\n            (\"what is a heuristic\", \"notes-v2#2\")]\n\ndef overlap_search(q):                      # deterministic baseline.\n    words = set(q.split())\n    return max(corpus, key=lambda d: len(words & set(corpus[d].split())))\n\nhits, failures = 0, []\nfor q, gold in held_out:\n    got = overlap_search(q)\n    hits += got == gold\n    if got != gold:\n        failures.append((q, got, \"vocabulary mismatch\"))   # failure taxonomy.\nprint(f\"baseline top-1: {hits}/{len(held_out)}\")\nprint(\"failures:\", failures)\n```\n\n| Deliverable | Shows |\n|---|---|\n| baseline and held-out results. | real improvement, if any. |\n| failure taxonomy. | how and where it breaks. |\n| risk register and model card. | limits, uses, oversight. |\n| reproduction commands. | anyone can check the numbers. |\n\n```reveal\n{\"prompt\": \"How should you describe the capstone's readiness?\", \"answer\": \"Precisely and modestly: \\\"a prototype that finds the right note in 3 of 3 held-out questions from this corpus version, English only, not tested for adversarial queries\\\". Avoid production-ready.\"}\n```"
       },
       {
-        "heading": "Failure boundary and non-claim",
-        "body": "A demo is not deployment evidence, external model output is nondeterministic, test data may be small, RAG and agents add separate failure surfaces, automation may not be justified, and unfinished risks must remain visible. The learner must reject this overclaim: A polished AI demo with a strong average score is a complete capstone and can be described as production-ready."
+        "heading": "Defending your work",
+        "body": "```predict\n{\"question\": \"A reviewer finds a query type your system fails on. Best response?\", \"options\": [\"Explain it away\", \"Add it to the failure taxonomy, show its frequency, and say what you'd do next\"], \"answer\": 1, \"why\": \"Owning failures is part of a strong defence.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Implement a modest symbolic, learned or retrieval-grounded system and evaluate it against baseline, stress and risk criteria.",
-      "Deliver and defend a reproducible project, evaluation report, model card and risk register without overstating capability."
+      "Build a bounded AI system with a deterministic baseline, versioned data, held-out and stress evaluation.",
+      "Deliver a failure taxonomy, risk register, model card and exact reproduction commands, and defend limits honestly."
     ],
     "excludes": [
-      "A demo is not deployment evidence, external model output is nondeterministic, test data may be small, RAG and agents add separate failure surfaces, automation may not be justified, and unfinished risks must remain visible."
+      "Production deployment and scaling.",
+      "Large model fine-tuning."
     ]
   },
   "outcomes": [
@@ -78,133 +79,133 @@
   "examples": [
     {
       "id": "ai.project.capstone.example.direct",
-      "title": "AI foundations capstone: bounded direct case",
+      "title": "A small retrieval prototype, fully documented",
       "situation": "A local search or retrieval prototype includes a deterministic baseline, versioned corpus, held-out queries, failure taxonomy, risk register, model card, and exact reproduction commands.",
       "walkthrough": [
-        "Step 1 — Observe the exact data, state, metric, or tool behavior: A local search or retrieval prototype includes a deterministic baseline, versioned corpus, held-out queries, failure taxonomy, risk register, model card, and exact reproduction commands.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the claim boundary with: Deliver bounded implementation plus baseline, reproducibility, provenance, evaluation slices, stress failures, oversight, risk controls, and claims limited to the recorded evidence."
+        "**A deterministic baseline, versioned corpus:** overlap_search over notes-v2 documents.",
+        "**Held-out queries, failure taxonomy:** three questions not used while building, with each miss labelled by cause.",
+        "**Risk register, model card, and exact reproduction commands:** we run one command to rebuild and print the same top-1 result."
       ],
-      "result": "This example supports only the atomic outcome because Deliver bounded implementation plus baseline, reproducibility, provenance, evaluation slices, stress failures, oversight, risk controls, and claims limited to the recorded evidence."
+      "result": "Reviewers can verify every claim and see exactly where the system stops working."
     },
     {
       "id": "ai.project.capstone.example.stress",
-      "title": "AI foundations capstone: stress and transfer case",
-      "situation": "The capstone reports that evidence is insufficient for autonomous action and keeps a human confirmation step rather than overstating completion.",
+      "title": "The production-ready demo",
+      "situation": "A chatbot demo claimed 90% accuracy from build-time questions and was called production-ready.",
       "walkthrough": [
-        "Step 1 — Name the changed population, input, assumption, or failure: The capstone reports that evidence is insufficient for autonomous action and keeps a human confirmation step rather than overstating completion.",
-        "Step 2 — Keep the non-claim visible: A demo is not deployment evidence, external model output is nondeterministic, test data may be small, RAG and agents add separate failure surfaces, automation may not be justified, and unfinished risks must remain visible.",
-        "Step 3 — Reject the tempting overclaim: A polished AI demo with a strong average score is a complete capstone and can be described as production-ready."
+        "Add a baseline and a held-out question set written before tuning.",
+        "Collect failures into a taxonomy and add a risk register and model card.",
+        "Replace production-ready with a precise scope statement."
       ],
-      "result": "This case demonstrates the declared outcome: Deliver and defend a reproducible project, evaluation report, model card and risk register without overstating capability."
+      "result": "The project is credible because its claims match its evidence."
     }
   ],
   "misconceptions": [
     {
       "id": "ai.project.capstone.misconception",
       "mistakenBelief": "A polished AI demo with a strong average score is a complete capstone and can be described as production-ready.",
-      "correction": "Deliver bounded implementation plus baseline, reproducibility, provenance, evaluation slices, stress failures, oversight, risk controls, and claims limited to the recorded evidence.",
-      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: A polished AI demo with a strong average score is a complete capstone and can be described as production-ready."
+      "correction": "A capstone needs a baseline, held-out and stress evaluation, failures, risks, a model card and reproducibility, with capability stated no further than the evidence.",
+      "diagnosticPrompt": "In \"The production-ready demo\", what evidence was missing?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a reviewable experiment package containing scope, baseline, data/version manifests, evaluation, model card, risk register, and reproduction commands can introduce AI foundations capstone only after its canonical technical definition and evidence boundary are stated.",
+    "example": "A capstone is like **a science fair project judged by scientists**, not a magic show. Judges want your **control experiment** (baseline), **tests you didn't peek at** (held-out), a list of **when it didn't work**, safety notes, and a **method they can repeat**. A dazzling display with no method scores lower than a modest, well-evidenced one.",
     "usefulFor": [
-      "project design, reproducibility, oversight documentation, and capstone defense"
+      "remembering science fair, not magic show",
+      "control, held-out, failures, method"
     ],
     "limitations": [
-      "documentation and a polished demo are bounded evidence, not production authorization or proof of safe capability",
-      "A demo is not deployment evidence, external model output is nondeterministic, test data may be small, RAG and agents add separate failure surfaces, automation may not be justified, and unfinished risks must remain visible."
+      "The model card is the poster's fine print.",
+      "Overclaiming is the judges' biggest red flag."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A local search or retrieval prototype includes a deterministic baseline, versioned corpus, held-out queries, failure taxonomy, risk register, model card, and exact reproduction commands.",
-      "An AI foundations capstone implements a modest bounded system, compares a simple baseline, preserves data/source provenance, evaluates normal and stress cases, documents limitations and risks, and supports reproducible review.",
-      "Deliver bounded implementation plus baseline, reproducibility, provenance, evaluation slices, stress failures, oversight, risk controls, and claims limited to the recorded evidence."
+      "run baseline on held-out queries",
+      "record failures",
+      "package evidence"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Baseline",
         "state": {
-          "boundedEvidence": "A local search or retrieval prototype includes a deterministic baseline, versioned corpus, held-out queries, failure taxonomy, risk register, model card, and exact reproduction commands."
+          "top-1": "computed on 3 held-out queries"
         },
-        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+        "explanation": "A deterministic baseline is evaluated on held-out queries from a versioned corpus."
       },
       {
         "step": 2,
-        "focus": "Model",
+        "focus": "Failures",
         "state": {
-          "operationalRule": "An AI foundations capstone implements a modest bounded system, compares a simple baseline, preserves data/source provenance, evaluates normal and stress cases, documents limitations and risks, and supports reproducible review."
+          "taxonomy": "vocabulary mismatch, etc."
         },
-        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+        "explanation": "Misses are recorded in a failure taxonomy."
       },
       {
         "step": 3,
-        "focus": "Limit",
+        "focus": "Package",
         "state": {
-          "correction": "Deliver bounded implementation plus baseline, reproducibility, provenance, evaluation slices, stress failures, oversight, risk controls, and claims limited to the recorded evidence."
+          "deliverables": "risk register, model card, commands"
         },
-        "explanation": "State what the evidence does not establish and reject the misconception: A polished AI demo with a strong average score is a complete capstone and can be described as production-ready."
+        "explanation": "The project ships with a risk register, model card and exact reproduction commands."
       }
     ],
-    "textAlternative": "Starting artifact: A local search or retrieval prototype includes a deterministic baseline, versioned corpus, held-out queries, failure taxonomy, risk register, model card, and exact reproduction commands. Step 1, Observe. State: boundedEvidence: A local search or retrieval prototype includes a deterministic baseline, versioned corpus, held-out queries, failure taxonomy, risk register, model card, and exact reproduction commands.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: An AI foundations capstone implements a modest bounded system, compares a simple baseline, preserves data/source provenance, evaluates normal and stress cases, documents limitations and risks, and supports reproducible review.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Deliver bounded implementation plus baseline, reproducibility, provenance, evaluation slices, stress failures, oversight, risk controls, and claims limited to the recorded evidence.. State what the evidence does not establish and reject the misconception: A polished AI demo with a strong average score is a complete capstone and can be described as production-ready."
+    "textAlternative": "Tracing a capstone's evidence. Step 1, Baseline: top-1 is computed on 3 held-out queries. A deterministic baseline is evaluated on held-out queries from a versioned corpus. Step 2, Failures: taxonomy is vocabulary mismatch, etc.. Misses are recorded in a failure taxonomy. Step 3, Package: deliverables is risk register, model card, commands. The project ships with a risk register, model card and exact reproduction commands."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “AI foundations capstone: bounded direct case”: state its starting evidence, apply the AI foundations capstone rule, and give the observable result in three short lines.",
+      "prompt": "For \"A small retrieval prototype, fully documented\", explain how a local search or retrieval prototype includes a deterministic baseline, versioned corpus, held-out queries, failure taxonomy, risk register, model card, and exact reproduction commands.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Baseline.",
+        "Evaluate.",
+        "Document."
       ],
       "expectedEvidence": [
-        "Named example: AI foundations capstone: bounded direct case.",
-        "Starting evidence: A local search or retrieval prototype includes a deterministic baseline, versioned corpus, held-out queries, failure taxonomy, risk register, model card, and exact reproduction commands.",
-        "Core rule: An AI foundations capstone implements a modest bounded system, compares a simple baseline, preserves data/source provenance, evaluates normal and stress cases, documents limitations and risks, and supports reproducible review.",
-        "Observable result: This example supports only the atomic outcome because Deliver bounded implementation plus baseline, reproducibility, provenance, evaluation slices, stress failures, oversight, risk controls, and claims limited to the recorded evidence.",
-        "Boundary check: Deliver bounded implementation plus baseline, reproducibility, provenance, evaluation slices, stress failures, oversight, risk controls, and claims limited to the recorded evidence."
+        "Names the example \"A small retrieval prototype, fully documented\": a demo was overclaimed.",
+        "A local search or retrieval prototype includes a deterministic baseline, versioned corpus, and held-out queries.",
+        "It adds a failure taxonomy, risk register, model card, and exact reproduction commands.",
+        "Reviewers can verify every claim and see exactly where the system stops working."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed case: The capstone reports that evidence is insufficient for autonomous action and keeps a human confirmation step rather than overstating completion.",
+      "prompt": "Add five more documents and five held-out queries, including two stress cases (misspelling, unrelated question). Rerun the baseline and extend the failure taxonomy.",
       "scaffold": [
-        "Identify which assumption, population, input, or objective changed.",
-        "Preserve provenance and the declared failure boundary."
+        "Write queries before looking at results.",
+        "Label each failure's cause."
       ],
       "expectedEvidence": [
-        "An AI foundations capstone implements a modest bounded system, compares a simple baseline, preserves data/source provenance, evaluates normal and stress cases, documents limitations and risks, and supports reproducible review.",
-        "A demo is not deployment evidence, external model output is nondeterministic, test data may be small, RAG and agents add separate failure surfaces, automation may not be justified, and unfinished risks must remain visible."
+        "Results updated.",
+        "Taxonomy extended."
       ]
     },
     "farTransfer": {
-      "prompt": "Design a neutral-context example or evaluation for AI foundations capstone and list the evidence that would support and falsify its bounded claim.",
+      "prompt": "Complete your capstone: project card, versioned data, baseline plus one improved method, held-out and stress evaluation with intervals, failure taxonomy, risk register, model card and a README with exact commands. Present it and answer a reviewer's hardest question.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+        "Freeze the held-out set early.",
+        "Test reproduction in a clean environment."
       ],
       "expectedEvidence": [
-        "Deliver and defend a reproducible project, evaluation report, model card and risk register without overstating capability.",
-        "Deliver bounded implementation plus baseline, reproducibility, provenance, evaluation slices, stress failures, oversight, risk controls, and claims limited to the recorded evidence."
+        "All deliverables present.",
+        "Claims match evidence."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "ai.project.capstone.misconception",
-      "explanation": "Deliver bounded implementation plus baseline, reproducibility, provenance, evaluation slices, stress failures, oversight, risk controls, and claims limited to the recorded evidence.",
-      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: The capstone reports that evidence is insufficient for autonomous action and keeps a human confirmation step rather than overstating completion."
+      "explanation": "Before presenting, check each claim: **baseline compared, held-out tested, failures shown, risks and card written, reproducible by command, and no word stronger than the evidence.**",
+      "retryPrompt": "Apply this to \"The production-ready demo\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to deliver and defend a reproducible project, evaluation report, model card and risk register without overstating capability. Keep this boundary in view: A demo is not deployment evidence, external model output is nondeterministic, test data may be small, RAG and agents add separate failure surfaces, automation may not be justified, and unfinished risks must remain visible.",
+    "summary": "To deliver and defend a reproducible project, evaluation report, model card and risk register without overstating capability, build a bounded system, compare it with a deterministic baseline on held-out and stress cases, document failures, risks and limits, and provide exact reproduction commands.",
     "retrievalPrompts": [
-      "Explain AI foundations capstone with one technical mechanism, one evidence requirement, and one non-claim.",
-      "Why is this overclaim invalid: A polished AI demo with a strong average score is a complete capstone and can be described as production-ready.",
-      "Apply the boundary to: The capstone reports that evidence is insufficient for autonomous action and keeps a human confirmation step rather than overstating completion."
+      "What must a capstone compare against?",
+      "What is a failure taxonomy?",
+      "Why avoid calling it production-ready?"
     ],
     "nextReviewPrompt": "Next: use this skill in the module checkpoint and one independent practice attempt. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

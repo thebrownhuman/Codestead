@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "C for, while, and do loops repeatedly evaluate defined control expressions, and correct loops maintain an invariant while making progress toward termination.",
+    "summary": "C has three loops. `for (init; condition; step)` suits **counted** loops. `while (condition)` checks **before** each pass, so it may run zero times: good for **sentinel** and input-driven loops. `do { } while (condition);` checks **after**, so it always runs at least once. Arrays are **zero-based**: an array of `count` elements has indexes `0` to `count - 1`, so the standard loop is `for (size_t i = 0; i < count; i++)`. Writing `<=` reads one element **past the end**, which is undefined behaviour. Every loop needs **progress** toward its condition becoming false, or it never ends.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A zero-based for loop visits indexes 0 through count - 1 using i < count and performs zero iterations when count is zero. Your goal is to write and debug counted, sentinel and input-driven loops. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner sums 5 marks with `for (int i = 0; i <= 5; i++)`. The total is sometimes right, sometimes wildly off, because the loop reads a sixth \"mark\" from whatever memory follows the array. A zero-based for loop visits indexes 0 through count - 1 using i < count and performs zero iterations when count is zero. In this lesson you'll write and debug counted, sentinel and input-driven loops.\n\n```predict\n{\"question\": \"An array has 5 elements. Which condition visits each exactly once from i = 0?\", \"options\": [\"i <= 5\", \"i < 5\"], \"answer\": 1, \"why\": \"Indexes are 0 to 4. i <= 5 also touches marks[5], past the end.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Operators and precedence; pf control iteration; if and switch. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Operators and precedence**, **Iteration** and **if and switch** (conditions that choose paths)."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "C for, while, and do loops repeatedly evaluate defined control expressions, and correct loops maintain an invariant while making progress toward termination. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The invariant: i < count, and progress each pass",
+        "body": "```c\nint marks[] = {7, 9, 8, 6, 10};\nsize_t count = sizeof marks / sizeof marks[0];   /* 5. */\n\n/* Counted loop: indexes 0..count-1. */\nint total = 0;\nfor (size_t i = 0; i < count; i++) {\n    total += marks[i];\n}\n\n/* Sentinel loop: stop at the first negative value. */\nint data[] = {4, 2, 5, -1};\nsize_t j = 0;\nwhile (data[j] >= 0) {\n    j++;                       /* progress toward the sentinel. */\n}\n\n/* do-while: show the menu at least once. */\nint choice;\ndo {\n    choice = read_choice();\n} while (choice != 0);\n```\n\n| Loop | Checks | Minimum runs | Typical use |\n|---|---|---|---|\n| for. | before. | 0. | counted. |\n| while. | before. | 0. | sentinel, unknown length. |\n| do-while. | after. | 1. | menus, retry prompts. |\n\n```reveal\n{\"prompt\": \"Why does the sentinel loop rely on -1 being there?\", \"answer\": \"Without a sentinel, while (data[j] >= 0) would keep reading past the array. Sentinel loops are only safe when the sentinel is guaranteed, or when you also check j < count.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Unsigned countdown, one-past array bounds, continue paths, mutation of control state, and empty input commonly break progress or coverage. Therefore the draft explicitly rejects this beginner failure model: The condition i <= count is the normal way to visit every element of an array with count elements."
+        "heading": "Zero iterations are fine",
+        "body": "```predict\n{\"question\": \"count is 0. How many times does `for (size_t i = 0; i < count; i++)` run?\", \"options\": [\"Once\", \"Zero times: the condition is false immediately\"], \"answer\": 1, \"why\": \"A correct loop handles empty input without special cases.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Choose and implement loops with explicit progress and termination.",
-      "Write and debug counted, sentinel and input-driven loops."
+      "Write counted for loops with i < count and zero-based indexes.",
+      "Write sentinel and input-driven while and do-while loops that always make progress."
     ],
     "excludes": [
-      "Unsigned countdown, one-past array bounds, continue paths, mutation of control state, and empty input commonly break progress or coverage."
+      "break and continue (next lesson).",
+      "Loop optimisation."
     ]
   },
   "outcomes": [
@@ -63,133 +64,136 @@
   "examples": [
     {
       "id": "c.control.loops.example-a",
-      "title": "while, do and for: defined case",
+      "title": "Visiting every mark once",
       "situation": "A zero-based for loop visits indexes 0 through count - 1 using i < count and performs zero iterations when count is zero.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A zero-based for loop visits indexes 0 through count - 1 using i < count and performs zero iterations when count is zero.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: For zero-based count elements, iterate while i < count; count itself is one past the last valid index."
+        "**A zero-based for loop:** i starts at 0.",
+        "**Visits indexes 0 through count - 1 using i < count:** marks[0] to marks[4], each once; total is 40.",
+        "**Performs zero iterations when count is zero:** an empty class will give total 0 with no special case."
       ],
-      "result": "The defined result follows because For zero-based count elements, iterate while i < count; count itself is one past the last valid index."
+      "result": "The total is correct every time, and no memory past the array is read."
     },
     {
       "id": "c.control.loops.example-b",
-      "title": "while, do and for: boundary case",
-      "situation": "A do loop reads at least one menu choice before testing whether the user selected quit, matching the required first interaction.",
+      "title": "The loop that never ended",
+      "situation": "`int i = 0; while (i < 10) { printf(\"%d\\n\", i); }` prints 0 forever.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A do loop reads at least one menu choice before testing whether the user selected quit, matching the required first interaction.",
-        "Step 2 — Keep this standard boundary visible: Unsigned countdown, one-past array bounds, continue paths, mutation of control state, and empty input commonly break progress or coverage.",
-        "Step 3 — Reject the tempting rule: The condition i <= count is the normal way to visit every element of an array with count elements."
+        "The condition depends on i, but i never changes.",
+        "No progress toward i < 10 becoming false.",
+        "Add i++ inside the loop (or use a for loop)."
       ],
-      "result": "This case demonstrates the declared outcome: Write and debug counted, sentinel and input-driven loops."
+      "result": "The loop prints 0 to 9 and stops."
     }
   ],
   "misconceptions": [
     {
       "id": "c.control.loops.misconception",
       "mistakenBelief": "The condition i <= count is the normal way to visit every element of an array with count elements.",
-      "correction": "For zero-based count elements, iterate while i < count; count itself is one past the last valid index.",
-      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: The condition i <= count is the normal way to visit every element of an array with count elements."
+      "correction": "Arrays are zero-based, so valid indexes are 0 to count - 1. i <= count visits one extra element past the end, which is undefined behaviour.",
+      "diagnosticPrompt": "In the opening story, where did the sixth \"mark\" come from?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A manually managed workshop can model while, do and for: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "example": "A loop over an array is like **counting fence posts starting from post 0**. With 5 posts, the last is post 4. Walking to \"post 5\" means stepping into your neighbour's garden (someone else's memory).",
     "usefulFor": [
-      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+      "remembering the last post is count - 1",
+      "post 5 = the neighbour's garden"
     ],
     "limitations": [
-      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
-      "Unsigned countdown, one-past array bounds, continue paths, mutation of control state, and empty input commonly break progress or coverage."
+      "Real fences have a visible end; C arrays don't warn you.",
+      "A sentinel is a flag planted at the last post."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A zero-based for loop visits indexes 0 through count - 1 using i < count and performs zero iterations when count is zero.",
-      "C for, while, and do loops repeatedly evaluate defined control expressions, and correct loops maintain an invariant while making progress toward termination.",
-      "For zero-based count elements, iterate while i < count; count itself is one past the last valid index."
+      "count = 5; total = 0",
+      "for i = 0..4: total += marks[i]",
+      "i becomes 5; 5 < 5 false"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Start",
         "state": {
-          "evidence": "A zero-based for loop visits indexes 0 through count - 1 using i < count and performs zero iterations when count is zero."
+          "i": "0",
+          "total": "0"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "A zero-based for loop starts at index 0."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Iterate",
         "state": {
-          "rule": "C for, while, and do loops repeatedly evaluate defined control expressions, and correct loops maintain an invariant while making progress toward termination."
+          "i": "0..4",
+          "total": "40"
         },
-        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+        "explanation": "It visits indexes 0 through count - 1 using i < count."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Stop",
         "state": {
-          "conclusion": "For zero-based count elements, iterate while i < count; count itself is one past the last valid index."
+          "i": "5",
+          "condition": "false"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: The condition i <= count is the normal way to visit every element of an array with count elements."
+        "explanation": "The loop ends before reading past the array, and an empty array would run zero times."
       }
     ],
-    "textAlternative": "Starting artifact: A zero-based for loop visits indexes 0 through count - 1 using i < count and performs zero iterations when count is zero. Step 1, Source and state. State: evidence: A zero-based for loop visits indexes 0 through count - 1 using i < count and performs zero iterations when count is zero.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: C for, while, and do loops repeatedly evaluate defined control expressions, and correct loops maintain an invariant while making progress toward termination.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: For zero-based count elements, iterate while i < count; count itself is one past the last valid index.. Check the conclusion against the boundary and reject this misconception: The condition i <= count is the normal way to visit every element of an array with count elements."
+    "textAlternative": "Tracing a counted loop. Step 1, Start: i is 0; total is 0. A zero-based for loop starts at index 0. Step 2, Iterate: i is 0..4; total is 40. It visits indexes 0 through count - 1 using i < count. Step 3, Stop: i is 5; condition is false. The loop ends before reading past the array, and an empty array would run zero times."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “while, do and for: defined case”: state its starting evidence, apply the while, do and for rule, and give the observable result in three short lines.",
+      "prompt": "For \"Visiting every mark once\", explain how a zero-based for loop visits indexes 0 through count - 1 using i < count and performs zero iterations when count is zero.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Start.",
+        "Iterate.",
+        "Stop."
       ],
       "expectedEvidence": [
-        "Named example: while, do and for: defined case.",
-        "Starting evidence: A zero-based for loop visits indexes 0 through count - 1 using i < count and performs zero iterations when count is zero.",
-        "Core rule: C for, while, and do loops repeatedly evaluate defined control expressions, and correct loops maintain an invariant while making progress toward termination.",
-        "Observable result: The defined result follows because For zero-based count elements, iterate while i < count; count itself is one past the last valid index.",
-        "Boundary check: For zero-based count elements, iterate while i < count; count itself is one past the last valid index."
+        "Names the example \"Visiting every mark once\": i <= 5 read a sixth mark.",
+        "A zero-based for loop visits indexes 0 through count - 1 using i < count.",
+        "It performs zero iterations when count is zero.",
+        "The total is correct every time."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same C rule to this related boundary case: A do loop reads at least one menu choice before testing whether the user selected quit, matching the required first interaction.",
+      "prompt": "Write three loops: sum an array with for, count values until a 0 sentinel with while (also checking the length), and ask \"Again? (y/n)\" with do-while. Test each with empty or immediate-stop input.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Guard the sentinel loop with j < count too.",
+        "Test count = 0."
       ],
       "expectedEvidence": [
-        "C for, while, and do loops repeatedly evaluate defined control expressions, and correct loops maintain an invariant while making progress toward termination.",
-        "Unsigned countdown, one-past array bounds, continue paths, mutation of control state, and empty input commonly break progress or coverage."
+        "All three loops correct.",
+        "Edge cases tested."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new C example for while, do and for, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Find the bugs in these loops and fix them: `for (int i = 1; i <= n; i++) a[i] = 0;`, `while (x != 10) x += 3;` starting at x = 0, `for (unsigned i = n - 1; i >= 0; i--)`. Explain each bug.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "The third never ends: unsigned is always >= 0.",
+        "x skips over 10."
       ],
       "expectedEvidence": [
-        "Write and debug counted, sentinel and input-driven loops.",
-        "For zero-based count elements, iterate while i < count; count itself is one past the last valid index."
+        "Three fixed loops.",
+        "Each bug explained."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "c.control.loops.misconception",
-      "explanation": "For zero-based count elements, iterate while i < count; count itself is one past the last valid index.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'i < count' and state the decisive evidence: A do loop reads at least one menu choice before testing whether the user selected quit, matching the required first interaction."
+      "explanation": "For every loop state: **the first index, the last index, why it stops, and what happens with zero items.**",
+      "retryPrompt": "Apply this to \"The loop that never ended\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to write and debug counted, sentinel and input-driven loops. Keep this boundary in view: Unsigned countdown, one-past array bounds, continue paths, mutation of control state, and empty input commonly break progress or coverage.",
+    "summary": "To write correct loops, use for (size_t i = 0; i < count; i++) for zero-based arrays, while for sentinel and input-driven loops that may run zero times, do-while when the body must run at least once, and make sure every pass makes progress toward the condition becoming false.",
     "retrievalPrompts": [
-      "Explain while, do and for using a concrete C rule rather than the optional analogy.",
-      "Why is this claim incorrect: The condition i <= count is the normal way to visit every element of an array with count elements.",
-      "Apply the checkpoint 'i < count' to the boundary case from memory."
+      "What's the last valid index of a count-element array?",
+      "When does do-while beat while?",
+      "What makes a loop terminate?"
     ],
     "nextReviewPrompt": "Next: continue to “break, continue and return”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A table caption gives the table an accessible name or concise purpose and appears as the table's own label.",
+    "summary": "A `<caption>` is a table's **name**. It goes right after `<table>`, is visible to everyone, and is announced when a screen-reader user reaches the table — so they know what it contains before diving into cells. Keep it short and specific; put longer explanations (units, data source, how to read it) in a note nearby. The `title` attribute is not a substitute: it's hidden from most users.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: The caption Quarterly support response times distinguishes the table from two adjacent metrics tables. Your goal is to add a concise caption and contextual note to a data table. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A support dashboard shows three tables in a row: response times, ticket volumes, satisfaction scores. A screen-reader user jumping between tables hears \"table, 5 columns, 4 rows\" three times — which is which? The caption Quarterly support response times distinguishes the table from two adjacent metrics tables. In this lesson you'll add a concise caption and a contextual note to a data table.\n\n```predict\n{\"question\": \"Where must the caption element go?\", \"options\": [\"Anywhere inside the table\", \"As the first child of table\"], \"answer\": 1, \"why\": \"`<caption>` must be the first element inside `<table>`. CSS can still move it visually (caption-side).\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Heading hierarchy; Headers and scope. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Heading hierarchy** and **Headers and scope** — captions name the whole table, headers name rows and columns."
       },
       {
-        "heading": "Technology rule",
-        "body": "A table caption gives the table an accessible name or concise purpose and appears as the table's own label. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: a short name plus a nearby note",
+        "body": "```html\n<table aria-describedby=\"rt-note\">\n  <caption>Quarterly support response times</caption>\n  <thead>\n    <tr><th scope=\"col\">Quarter</th><th scope=\"col\">Median (hours)</th></tr>\n  </thead>\n  <tbody>\n    <tr><th scope=\"row\">Q1</th><td>4.2</td></tr>\n    <tr><th scope=\"row\">Q2</th><td>3.1</td></tr>\n  </tbody>\n</table>\n<p id=\"rt-note\">Median time to first reply, business hours only. Source: helpdesk export, June 2026.</p>\n```\n\n| Piece | Job |\n|---|---|\n| `caption`. | short, specific name, announced with the table. |\n| note (`aria-describedby`). | units, source, how to read. |\n| `title` attribute. | ✗ not reliably seen or announced. |\n\n```reveal\n{\"prompt\": \"Can a heading above the table replace the caption?\", \"answer\": \"A heading helps page navigation, but only caption is programmatically tied to the table. Use caption; add a heading too if the table starts a new section.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "A nearby heading can add context but does not always replace caption semantics, and captions should not repeat every cell. This draft therefore rejects: The title attribute is the preferred accessible label for every table."
+        "heading": "Specific beats generic",
+        "body": "```predict\n{\"question\": \"Best caption for the first table?\", \"options\": [\"\\\"Table 1\\\"\", \"\\\"Quarterly support response times\\\"\"], \"answer\": 1, \"why\": \"It must distinguish this table from its neighbours. \\\"Table 1\\\" says nothing about the data.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Give tables an accessible name and surrounding explanation when interpretation requires it.",
-      "Add a concise caption and contextual note to a data table."
+      "Add a concise, specific caption as the first child of table.",
+      "Provide context such as units and source in a linked note."
     ],
     "excludes": [
-      "A nearby heading can add context but does not always replace caption semantics, and captions should not repeat every cell."
+      "Summary attribute (obsolete).",
+      "Complex table alternatives (next lesson)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,133 @@
   "examples": [
     {
       "id": "html.tables.caption.example-a",
-      "title": "Captions and context: concrete case",
+      "title": "Telling three tables apart",
       "situation": "The caption Quarterly support response times distinguishes the table from two adjacent metrics tables.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: The caption Quarterly support response times distinguishes the table from two adjacent metrics tables.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Use caption to name a data table concisely and use surrounding text for additional explanation."
+        "**Problem:** three adjacent metrics tables had no names, so screen readers announced only their size.",
+        "**Caption:** `<caption>Quarterly support response times</caption>` goes first in the response-time table; the others get \"Monthly ticket volume\" and \"Customer satisfaction by channel\".",
+        "**Note:** a paragraph linked with aria-describedby will read units and source: median hours, business hours only."
       ],
-      "result": "The result follows because Use caption to name a data table concisely and use surrounding text for additional explanation."
+      "result": "Each table is announced by name, and learners know what the numbers mean."
     },
     {
       "id": "html.tables.caption.example-b",
-      "title": "Captions and context: boundary case",
-      "situation": "A nearby heading can add context but does not always replace caption semantics, and captions should not repeat every cell.",
+      "title": "The title-only table",
+      "situation": "A pricing table has `title=\"Prices for 2026 plans\"` and no caption.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: A nearby heading can add context but does not always replace caption semantics, and captions should not repeat every cell.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: The title attribute is the preferred accessible label for every table."
+        "Sighted mouse users see it only as a tooltip after hovering.",
+        "Keyboard and touch users never see it; many screen readers don't announce it consistently.",
+        "Fix: move the text into a `<caption>`."
       ],
-      "result": "The boundary requires this correction: Use caption to name a data table concisely and use surrounding text for additional explanation."
+      "result": "The table's name is visible and announced for everyone."
     }
   ],
   "misconceptions": [
     {
       "id": "html.tables.caption.misconception",
       "mistakenBelief": "The title attribute is the preferred accessible label for every table.",
-      "correction": "Use caption to name a data table concisely and use surrounding text for additional explanation.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: The title attribute is the preferred accessible label for every table."
+      "correction": "title is hidden unless hovered and inconsistently announced. A caption, as the first child of table, is visible and programmatically associated; longer context belongs in a nearby note.",
+      "diagnosticPrompt": "In \"The title-only table\", which users missed the table's name?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model Captions and context, with structure carrying meaning before decoration.",
+    "example": "A caption is like the **label on a file folder**: you read it before opening the folder. A title attribute is like writing the label on the inside cover.",
     "usefulFor": [
-      "Building a first mental model for Captions and context before using exact platform terms"
+      "remembering caption = visible name",
+      "seeing notes as the folder's cover sheet"
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "A nearby heading can add context but does not always replace caption semantics, and captions should not repeat every cell."
+      "Folders don't get announced; tables do.",
+      "A caption should stay short, like a label, not a paragraph."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "The caption Quarterly support response times distinguishes the table from two adjacent metrics tables.",
-      "A table caption gives the table an accessible name or concise purpose and appears as the table's own label.",
-      "Use caption to name a data table concisely and use surrounding text for additional explanation."
+      "<table aria-describedby='rt-note'>",
+      "<caption>Quarterly support response times</caption>",
+      "<p id='rt-note'>Median time to first reply…</p>"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Name",
         "state": {
-          "evidence": "The caption Quarterly support response times distinguishes the table from two adjacent metrics tables."
+          "caption": "Quarterly support response times"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The caption distinguishes the table from two adjacent metrics tables."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Context",
         "state": {
-          "rule": "A table caption gives the table an accessible name or concise purpose and appears as the table's own label."
+          "note": "median hours, business hours only"
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "A linked note explains units and source."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Announced",
         "state": {
-          "correction": "Use caption to name a data table concisely and use surrounding text for additional explanation."
+          "screen reader": "Quarterly support response times, table, 2 columns"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: The title attribute is the preferred accessible label for every table."
+        "explanation": "The table is announced by its caption before its cells."
       }
     ],
-    "textAlternative": "Starting artifact: The caption Quarterly support response times distinguishes the table from two adjacent metrics tables. Step 1, Artifact. State: evidence: The caption Quarterly support response times distinguishes the table from two adjacent metrics tables.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A table caption gives the table an accessible name or concise purpose and appears as the table's own label.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use caption to name a data table concisely and use surrounding text for additional explanation.. Check the result against the boundary and reject this misconception: The title attribute is the preferred accessible label for every table."
+    "textAlternative": "Naming a data table. Step 1, Name: caption is Quarterly support response times. The caption distinguishes the table from two adjacent metrics tables. Step 2, Context: note is median hours, business hours only. A linked note explains units and source. Step 3, Announced: screen reader is Quarterly support response times, table, 2 columns. The table is announced by its caption before its cells."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Captions and context: concrete case”: state its starting evidence, apply the Captions and context rule, and give the observable result in three short lines.",
+      "prompt": "For \"Telling three tables apart\", explain how the caption Quarterly support response times distinguishes the table from two adjacent metrics tables, and what the contextual note adds.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Caption.",
+        "Neighbours.",
+        "Note."
       ],
       "expectedEvidence": [
-        "Named example: Captions and context: concrete case.",
-        "Starting evidence: The caption Quarterly support response times distinguishes the table from two adjacent metrics tables.",
-        "Core rule: A table caption gives the table an accessible name or concise purpose and appears as the table's own label.",
-        "Observable result: The result follows because Use caption to name a data table concisely and use surrounding text for additional explanation.",
-        "Boundary check: Use caption to name a data table concisely and use surrounding text for additional explanation."
+        "Names the example \"Telling three tables apart\": the caption Quarterly support response times.",
+        "It distinguishes the table from two adjacent metrics tables.",
+        "The contextual note gives units and source.",
+        "Screen readers announce the table by name."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: A nearby heading can add context but does not always replace caption semantics, and captions should not repeat every cell.",
+      "prompt": "Write a caption and a note for a table of monthly rainfall (mm) in three cities, data from a weather service.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Short, specific caption.",
+        "Units and source in the note."
       ],
       "expectedEvidence": [
-        "A table caption gives the table an accessible name or concise purpose and appears as the table's own label.",
-        "A nearby heading can add context but does not always replace caption semantics, and captions should not repeat every cell."
+        "Caption like 'Monthly rainfall in Delhi, Mumbai and Chennai, 2026'.",
+        "Note stating millimetres and the data source."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Captions and context and explain why the misconception fails.",
+      "prompt": "Find a page with several tables. Add captions and notes, then check with a screen reader's table list that each is distinguishable.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "List tables with the screen reader.",
+        "Compare before and after."
       ],
       "expectedEvidence": [
-        "Add a concise caption and contextual note to a data table.",
-        "Use caption to name a data table concisely and use surrounding text for additional explanation."
+        "Every table has a distinct caption.",
+        "Screen reader table list shows meaningful names."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.tables.caption.misconception",
-      "explanation": "Use caption to name a data table concisely and use surrounding text for additional explanation.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'caption' and state the decisive evidence."
+      "explanation": "Imagine hearing only the caption, without seeing the table. Could you tell it apart from the tables around it? If not, make it more specific.",
+      "retryPrompt": "Apply this to \"The title-only table\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to add a concise caption and contextual note to a data table. Keep this boundary in view: A nearby heading can add context but does not always replace caption semantics, and captions should not repeat every cell.",
+    "summary": "To add a concise caption and a contextual note, put a short, specific caption as the first child of table and place units, source and reading guidance in a nearby note linked with aria-describedby. Don't rely on the title attribute.",
     "retrievalPrompts": [
-      "Explain Captions and context using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: The title attribute is the preferred accessible label for every table.",
-      "Apply checkpoint 'caption' to a new artifact."
+      "Where does caption go?",
+      "Why not use title?",
+      "What belongs in the note instead of the caption?"
     ],
     "nextReviewPrompt": "Next: continue to “Complex-table alternatives”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

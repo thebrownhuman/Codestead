@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Stacks, queues, and deques are selected from the ordering discipline required by the algorithm, not from surface similarity.",
+    "summary": "Choose between a stack, a queue and a deque by the **order the algorithm needs**, not because the code looks similar. A **stack** processes the newest item first: undo, bracket matching, and depth-first search (go deep, backtrack). A **queue** processes the oldest item first: fair turn-taking, simulations of waiting lines, and breadth-first search (explore level by level, which finds the fewest steps). Swap one for the other and the program still runs, but it explores in a **different order** and can give a different answer.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Breadth-first search uses a queue while depth-first iterative traversal uses a stack. Your goal is to implement a delimiter checker and one queue-driven simulation with tests. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A study-map app finds how many lessons separate \"Variables\" from \"Recursion\". One developer swaps the queue for a stack \"since both just hold nodes\", and the app starts reporting longer routes than the real shortest one. Breadth-first search uses a queue while depth-first iterative traversal uses a stack. In this lesson you'll implement a delimiter checker and one queue-driven simulation with tests.\n\n```predict\n{\"question\": \"Exploring a map from Start, which structure visits all places 1 step away before any 2 steps away?\", \"options\": [\"A stack\", \"A queue\"], \"answer\": 1, \"why\": \"A queue serves the oldest discoveries first, so it goes level by level.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Array representation and operations; Linked lists; Stack ADT; Queue and circular buffer. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Array representation and operations**, the **Linked lists** module, **Stack ADT**, and **Queue and circular buffer**."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Stacks, queues, and deques are selected from the ordering discipline required by the algorithm, not from surface similarity. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The distinction: newest-first vs oldest-first",
+        "body": "```python\nfrom collections import deque\n\nGRAPH = {\"Variables\": [\"Loops\", \"Functions\"], \"Loops\": [\"Arrays\"],\n         \"Functions\": [\"Recursion\"], \"Arrays\": [\"Recursion\"], \"Recursion\": []}\n\ndef bfs_steps(start, goal):              # queue: level by level.\n    queue, dist = deque([start]), {start: 0}\n    while queue:\n        node = queue.popleft()           # oldest first.\n        if node == goal:\n            return dist[node]\n        for nxt in GRAPH[node]:\n            if nxt not in dist:\n                dist[nxt] = dist[node] + 1\n                queue.append(nxt)\n    return None\n\ndef dfs_order(start):                    # stack: deep first.\n    stack, seen, order = [start], set(), []\n    while stack:\n        node = stack.pop()               # newest first.\n        if node in seen:\n            continue\n        seen.add(node)\n        order.append(node)\n        stack.extend(reversed(GRAPH[node]))\n    return order\n\nprint(bfs_steps(\"Variables\", \"Recursion\"))   # 2\n```\n\n| Problem | Order needed | Structure |\n|---|---|---|\n| undo, bracket matching. | newest first. | stack. |\n| help-desk line, printer jobs. | oldest first. | queue. |\n| fewest steps (BFS). | oldest first. | queue. |\n| explore deep, backtrack (DFS). | newest first. | stack. |\n\n```reveal\n{\"prompt\": \"Why does BFS give the fewest steps?\", \"answer\": \"It finishes every place at distance d before looking at distance d + 1, so the first time it reaches the goal is at the smallest distance.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "The same problem can require multiple structures, and language library adaptors expose different method names and failure rules. The draft therefore rejects: Stack and queue can be exchanged without changing traversal order."
+        "heading": "A queue-driven simulation",
+        "body": "```predict\n{\"question\": \"A tutor answers one question per minute; questions arrive at minutes 0, 0, 1 and 5. When is the question from minute 1 answered?\", \"options\": [\"Minute 1\", \"Minute 2: two earlier questions are ahead of it\"], \"answer\": 1, \"why\": \"A queue simulation serves arrivals in order: minute 0, minute 1, then minute 2.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Apply stacks to nesting or evaluation and queues to buffering or breadth-first work.",
-      "Implement a delimiter checker and one queue-driven simulation with tests.",
-      "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends."
+      "Pick stack, queue or deque from the order an algorithm needs.",
+      "Implement a delimiter checker and a queue-driven simulation with tests."
     ],
     "excludes": [
-      "The same problem can require multiple structures, and language library adaptors expose different method names and failure rules."
+      "Full graph algorithms (graphs module).",
+      "Discrete-event simulation libraries."
     ]
   },
   "outcomes": [
@@ -68,142 +64,136 @@
   "examples": [
     {
       "id": "dsa.linear.applications.example-a",
-      "title": "Stack and queue applications: language-neutral trace",
+      "title": "Same maze, two search orders",
       "situation": "Breadth-first search uses a queue while depth-first iterative traversal uses a stack.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: Breadth-first search uses a queue while depth-first iterative traversal uses a stack.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Choose LIFO for deferred most-recent work and FIFO for arrival-order work; the choice changes observable traversal."
+        "**Breadth-first uses a queue:** from Variables it visits Loops and Functions (1 step) before Arrays and Recursion (2 steps).",
+        "**Depth-first uses a stack:** the same map is visited as Variables, Loops, Arrays, Recursion, Functions, going deep first.",
+        "**Test:** bfs_steps(\"Variables\", \"Recursion\") will return 2; swapping in a stack can report a longer route."
       ],
-      "result": "The conceptual result follows because Choose LIFO for deferred most-recent work and FIFO for arrival-order work; the choice changes observable traversal."
+      "result": "The study map reports the true fewest lessons, and DFS is used only where deep exploration is wanted."
     },
     {
       "id": "dsa.linear.applications.example-b",
-      "title": "Stack and queue applications: implementation transfer",
-      "situation": "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends.",
+      "title": "Simulating the help desk",
+      "situation": "A course wants to know how long learners wait at a help desk that answers one question per minute.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends.",
-        "Step 3 — Retest this boundary in the selected implementation: The same problem can require multiple structures, and language library adaptors expose different method names and failure rules."
+        "Put arrivals into a queue in time order.",
+        "Each minute, dequeue the front question if it has arrived and record wait = now - arrival.",
+        "Test: arrivals [0, 0, 1, 5] give waits [0, 1, 1, 0]."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "The simulation reports average wait time and shows when an extra tutor is needed."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.linear.applications.misconception",
       "mistakenBelief": "Stack and queue can be exchanged without changing traversal order.",
-      "correction": "Choose LIFO for deferred most-recent work and FIFO for arrival-order work; the choice changes observable traversal.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Stack and queue can be exchanged without changing traversal order."
+      "correction": "A stack serves the newest item and a queue the oldest, so swapping them changes which items are processed first. In search that changes the route found; in simulations it changes who is served.",
+      "diagnosticPrompt": "In \"Same maze, two search orders\", what went wrong after the swap?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Stack and queue applications, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "A queue is **a fair line at a bus stop**: first to arrive, first to board. A stack is **a pile of unread letters**: you open the newest first. Exploring a city with a queue is visiting every street near home before going further; with a stack it's following one road as far as it goes before turning back.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering who gets served next",
+      "BFS = rings around home"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "The same problem can require multiple structures, and language library adaptors expose different method names and failure rules."
+      "Bus lines have manners; code needs the right structure.",
+      "Neither is \"better\": each suits a different job."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Breadth-first search uses a queue while depth-first iterative traversal uses a stack.",
-      "Stacks, queues, and deques are selected from the ordering discipline required by the algorithm, not from surface similarity.",
-      "Choose LIFO for deferred most-recent work and FIFO for arrival-order work; the choice changes observable traversal.",
-      "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends."
+      "queue = [Variables]",
+      "pop Variables, add Loops, Functions",
+      "pop Loops, Functions, ..."
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Level 0",
         "state": {
-          "scenario": "Breadth-first search uses a queue while depth-first iterative traversal uses a stack."
+          "queue": "[Variables]",
+          "dist": "Variables 0"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "Breadth-first search starts with the source in a queue."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Level 1",
         "state": {
-          "invariant": "Stacks, queues, and deques are selected from the ordering discipline required by the algorithm, not from surface similarity."
+          "queue": "[Loops, Functions]",
+          "dist": "both 1"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "Oldest-first order finishes all one-step lessons first."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Level 2",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "reached": "Recursion",
+          "dist": "2"
         },
-        "explanation": "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Choose LIFO for deferred most-recent work and FIFO for arrival-order work; the choice changes observable traversal."
-        },
-        "explanation": "Verify the result and reject this misconception: Stack and queue can be exchanged without changing traversal order."
+        "explanation": "The first time the goal appears is the fewest steps."
       }
     ],
-    "textAlternative": "Starting artifact: Breadth-first search uses a queue while depth-first iterative traversal uses a stack. Step 1, Specification. State: scenario: Breadth-first search uses a queue while depth-first iterative traversal uses a stack.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Stacks, queues, and deques are selected from the ordering discipline required by the algorithm, not from surface similarity.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends. Step 4, Conclusion. State: correction: Choose LIFO for deferred most-recent work and FIFO for arrival-order work; the choice changes observable traversal.. Verify the result and reject this misconception: Stack and queue can be exchanged without changing traversal order."
+    "textAlternative": "Tracing BFS with a queue. Step 1, Level 0: queue is [Variables]; dist is Variables 0. Breadth-first search starts with the source in a queue. Step 2, Level 1: queue is [Loops, Functions]; dist is both 1. Oldest-first order finishes all one-step lessons first. Step 3, Level 2: reached is Recursion; dist is 2. The first time the goal appears is the fewest steps."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Stack and queue applications: language-neutral trace”: state its starting evidence, apply the Stack and queue applications rule, and give the observable result in three short lines.",
+      "prompt": "For \"Same maze, two search orders\", explain why breadth-first search uses a queue while depth-first iterative traversal uses a stack.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "BFS.",
+        "DFS.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Stack and queue applications: language-neutral trace.",
-        "Starting evidence: Breadth-first search uses a queue while depth-first iterative traversal uses a stack.",
-        "Core rule: Stacks, queues, and deques are selected from the ordering discipline required by the algorithm, not from surface similarity.",
-        "Observable result: The conceptual result follows because Choose LIFO for deferred most-recent work and FIFO for arrival-order work; the choice changes observable traversal.",
-        "Boundary check: Choose LIFO for deferred most-recent work and FIFO for arrival-order work; the choice changes observable traversal."
+        "Names the example \"Same maze, two search orders\": swapping structures changed the route.",
+        "Breadth-first search uses a queue for oldest-first order.",
+        "Depth-first iterative traversal uses a stack for newest-first order.",
+        "The study map reports the true fewest lessons."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Stacks, queues, and deques are selected from the ordering discipline required by the algorithm, not from surface similarity.",
+      "prompt": "Using your Stack, extend the bracket checker to ignore brackets inside string quotes, and test `print(\"(\")` as balanced.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Track an in_string flag.",
+        "Only push and pop outside strings."
       ],
       "expectedEvidence": [
-        "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends.",
-        "The same problem can require multiple structures, and language library adaptors expose different method names and failure rules."
+        "Quoted brackets are ignored.",
+        "Previous tests still pass."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Stack and queue applications case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Write `simulate_desk(arrivals, tutors)` using a queue that returns each learner's wait time with 1 or 2 tutors. Test ties, idle gaps and a burst of 10 arrivals at once.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Queue of arrival times.",
+        "Each minute, each free tutor dequeues one."
       ],
       "expectedEvidence": [
-        "Implement a delimiter checker and one queue-driven simulation with tests.",
-        "Choose LIFO for deferred most-recent work and FIFO for arrival-order work; the choice changes observable traversal."
+        "Correct waits for both tutor counts.",
+        "Tests for gaps and bursts."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.linear.applications.misconception",
-      "explanation": "Choose LIFO for deferred most-recent work and FIFO for arrival-order work; the choice changes observable traversal.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'LIFO', then state one implementation-specific risk in the selected language."
+      "explanation": "Ask: **When two items are waiting, which must go first: the newest or the oldest?** Newest: stack. Oldest: queue. Both ends: deque.",
+      "retryPrompt": "Apply this to \"Simulating the help desk\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement a delimiter checker and one queue-driven simulation with tests. Keep this boundary in view: The same problem can require multiple structures, and language library adaptors expose different method names and failure rules.",
+    "summary": "To implement a delimiter checker and a queue-driven simulation, choose structures by the ordering discipline: a stack for newest-first work like brackets, undo and depth-first search, and a queue for oldest-first work like fair service simulations and breadth-first search, which finds fewest steps.",
     "retrievalPrompts": [
-      "State the Stack and queue applications invariant and complexity without code.",
-      "Why is this claim false: Stack and queue can be exchanged without changing traversal order.",
-      "Map checkpoint 'LIFO' to C, C++, Java, and Python."
+      "Which structure does BFS use and why?",
+      "What happens if you swap a queue for a stack?",
+      "Which structure suits a waiting-line simulation?"
     ],
     "nextReviewPrompt": "Next: continue to “Hash and equality contract”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

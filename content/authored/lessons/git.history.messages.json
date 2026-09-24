@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A useful commit message states the change's intent and reason at the granularity of one coherent snapshot, enabling review, search, and later diagnosis.",
+    "summary": "A good commit message lets someone **predict the diff before opening it**. The **subject line** (about 50 characters, imperative mood: \"Fix\", \"Add\", \"Remove\") says **what changed in behaviour**. An optional **body**, after a blank line, says **why**: the cause, the trade-off, a link to the issue. This only works if the commit has **one purpose**, so split mixed changes first. Messages like `update`, `stuff` or `wip` are useless to your future self, who will search `git log` months later trying to find when and why something changed.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Fix empty-cart total by handling zero items explains both behavior and cause more clearly than changes or update. Your goal is to split mixed changes and write messages that let a reviewer predict each commit. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner's shop app showed NaN as the total for an empty cart. They fixed it, and also tidied some CSS. Their commit message was `changes`. Two months later a bug appears in the cart, and `git log` shows forty commits all called `changes` or `update`. Fix empty-cart total by handling zero items explains both behavior and cause more clearly than changes or update. In this lesson you'll split mixed changes and write messages that let a reviewer predict each commit.\n\n```predict\n{\"question\": \"Which subject line best lets a reviewer predict the diff?\", \"options\": [\"Update cart.js\", \"Fix empty-cart total by handling zero items\"], \"answer\": 1, \"why\": \"It names the behaviour and the cause. \\\"Update cart.js\\\" repeats what the file list already shows.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Selective staging and first commit. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Selective staging and first commit** (staging one purpose, reviewing the staged diff)."
       },
       {
-        "heading": "Operational model",
-        "body": "A useful commit message states the change's intent and reason at the granularity of one coherent snapshot, enabling review, search, and later diagnosis. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The rule: subject says what, body says why",
+        "body": "```text\nFix empty-cart total by handling zero items\n\nreduce() on an empty array with no initial value threw, and the\ncatch block rendered NaN. Pass 0 as the initial value so an empty\ncart totals 0.00.\n\nFixes #42\n```\n\n```bash\ngit add -p               # stage only the cart fix.\ngit commit               # opens an editor for subject + body.\ngit add styles.css\ngit commit -m \"Align cart buttons on narrow screens\"\ngit log --oneline -2     # two commits, two clear purposes.\n```\n\n| Weak | Strong |\n|---|---|\n| `fix bug`. | `Fix login redirect loop after token expiry`. |\n| `update`. | `Add retry to payment webhook on 503`. |\n| `stuff`. | two commits, each with its own purpose. |\n\n```reveal\n{\"prompt\": \"Why imperative mood (\\\"Fix\\\", not \\\"Fixed\\\")?\", \"answer\": \"It reads as what the commit does when applied, matching Git's own messages like \\\"Merge branch\\\" and \\\"Revert\\\". Consistency makes logs easier to scan.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Message conventions vary by project, and a perfect message cannot compensate for a mixed, untested, or secret-containing commit. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Commit messages only matter for large teams, so generic labels such as stuff are sufficient for personal work."
+        "heading": "Split first, then describe",
+        "body": "```predict\n{\"question\": \"Your staged diff contains a bug fix and unrelated renames. What's the best message?\", \"options\": [\"Fix bug and rename variables\", \"Unstage the renames, commit the fix alone, then commit the renames separately\"], \"answer\": 1, \"why\": \"If the message needs \\\"and\\\", the commit usually has two purposes.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Write concise imperative subjects and include rationale when it is not obvious from the diff.",
-      "Split mixed changes and write messages that let a reviewer predict each commit."
+      "Write imperative subject lines that state behaviour and a body that explains why.",
+      "Split mixed changes so each commit has one describable purpose."
     ],
     "excludes": [
-      "Message conventions vary by project, and a perfect message cannot compensate for a mixed, untested, or secret-containing commit."
+      "Conventional Commits and changelog tooling in depth.",
+      "Rewriting old messages (recovery module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "git.history.messages.example-a",
-      "title": "Commit messages and scope: direct case",
+      "title": "The empty-cart total",
       "situation": "Fix empty-cart total by handling zero items explains both behavior and cause more clearly than changes or update.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: Fix empty-cart total by handling zero items explains both behavior and cause more clearly than changes or update.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Write a concise imperative summary and necessary why context so future you and collaborators can understand the snapshot without reconstructing intent from every line."
+        "**Split:** git add -p stages only the cart fix; the CSS tidy waits.",
+        "**Subject explains behavior and cause:** \"Fix empty-cart total by handling zero items\" says more than changes or update.",
+        "**Body:** reduce() without an initial value failed on zero items; git log --grep cart will find it in seconds."
       ],
-      "result": "The case supports the declared outcome because Write a concise imperative summary and necessary why context so future you and collaborators can understand the snapshot without reconstructing intent from every line."
+      "result": "Anyone reading the log can predict the diff, and later searches land on the right commit."
     },
     {
       "id": "git.history.messages.example-b",
-      "title": "Commit messages and scope: boundary case",
-      "situation": "A dependency bump message names the affected package and security or compatibility reason rather than listing regenerated files.",
+      "title": "The review that took an hour",
+      "situation": "A pull request has one commit, \"misc\", touching auth, styles and a dependency bump. The reviewer can't tell which lines are meant to change behaviour.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A dependency bump message names the affected package and security or compatibility reason rather than listing regenerated files.",
-        "Step 2 — Keep this boundary explicit: Message conventions vary by project, and a perfect message cannot compensate for a mixed, untested, or secret-containing commit.",
-        "Step 3 — Reject the documented misconception: Commit messages only matter for large teams, so generic labels such as stuff are sufficient for personal work."
+        "Split into three commits: auth fix, style tweak, dependency bump.",
+        "Give each a subject a reviewer can check against its diff.",
+        "Put the reason for the auth change in its body."
       ],
-      "result": "This case demonstrates the declared outcome: Split mixed changes and write messages that let a reviewer predict each commit."
+      "result": "The reviewer checks each small commit against its message in minutes."
     }
   ],
   "misconceptions": [
     {
       "id": "git.history.messages.misconception",
       "mistakenBelief": "Commit messages only matter for large teams, so generic labels such as stuff are sufficient for personal work.",
-      "correction": "Write a concise imperative summary and necessary why context so future you and collaborators can understand the snapshot without reconstructing intent from every line.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Commit messages only matter for large teams, so generic labels such as stuff are sufficient for personal work."
+      "correction": "Your future self is the main reader. Searching log, bisecting a bug or reverting a change all depend on messages that say what changed and why, even in a one-person project.",
+      "diagnosticPrompt": "In \"The empty-cart total\", what made forty commits useless?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A signed lab notebook can model Commit messages and scope: stable entries record why a change happened, named markers identify milestones, and comparisons expose differences.",
+    "example": "Commit messages are like **labels on storage boxes**. \"Stuff\" means opening every box to find the winter coats. \"Winter coats, kids' sizes, packed Oct 2026\" means you grab the right box at once. And a box packed with coats **and** cables deserves two boxes.",
     "usefulFor": [
-      "Inspecting immutable records, messages, selected versions, differences, and milestone names"
+      "remembering label for future you",
+      "one purpose per box"
     ],
     "limitations": [
-      "Git history is a directed graph with movable references, merges, and content-addressed objects, not a single bound notebook.",
-      "Message conventions vary by project, and a perfect message cannot compensate for a mixed, untested, or secret-containing commit."
+      "Boxes can be relabelled easily; published commit messages usually can't.",
+      "A good label also says why it was packed."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Fix empty-cart total by handling zero items explains both behavior and cause more clearly than changes or update.",
-      "A useful commit message states the change's intent and reason at the granularity of one coherent snapshot, enabling review, search, and later diagnosis.",
-      "Write a concise imperative summary and necessary why context so future you and collaborators can understand the snapshot without reconstructing intent from every line."
+      "git add -p (cart fix)",
+      "git commit (subject + body)",
+      "git log --oneline"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Split",
         "state": {
-          "evidence": "Fix empty-cart total by handling zero items explains both behavior and cause more clearly than changes or update."
+          "staged": "cart.js fix",
+          "unstaged": "styles.css"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "Mixed changes are split into single purposes first."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Describe",
         "state": {
-          "model": "A useful commit message states the change's intent and reason at the granularity of one coherent snapshot, enabling review, search, and later diagnosis."
+          "subject": "Fix empty-cart total by handling zero items"
         },
-        "explanation": "Apply the declared Commit messages and scope model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "The subject explains both behavior and cause clearly."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Search",
         "state": {
-          "correction": "Write a concise imperative summary and necessary why context so future you and collaborators can understand the snapshot without reconstructing intent from every line."
+          "git log --grep cart": "finds the commit"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Commit messages only matter for large teams, so generic labels such as stuff are sufficient for personal work."
+        "explanation": "Clear messages make later diagnosis fast."
       }
     ],
-    "textAlternative": "Starting artifact: Fix empty-cart total by handling zero items explains both behavior and cause more clearly than changes or update. Step 1, Observe. State: evidence: Fix empty-cart total by handling zero items explains both behavior and cause more clearly than changes or update.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A useful commit message states the change's intent and reason at the granularity of one coherent snapshot, enabling review, search, and later diagnosis.. Apply the declared Commit messages and scope model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Write a concise imperative summary and necessary why context so future you and collaborators can understand the snapshot without reconstructing intent from every line.. Compare the observation with the correction and reject the misconception: Commit messages only matter for large teams, so generic labels such as stuff are sufficient for personal work."
+    "textAlternative": "Tracing a focused, well-described commit. Step 1, Split: staged is cart.js fix; unstaged is styles.css. Mixed changes are split into single purposes first. Step 2, Describe: subject is Fix empty-cart total by handling zero items. The subject explains both behavior and cause clearly. Step 3, Search: git log --grep cart is finds the commit. Clear messages make later diagnosis fast."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Commit messages and scope: direct case”: state its starting evidence, apply the Commit messages and scope rule, and give the observable result in three short lines.",
+      "prompt": "For \"The empty-cart total\", explain why \"Fix empty-cart total by handling zero items\" explains both behavior and cause more clearly than changes or update.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Split.",
+        "Subject.",
+        "Body."
       ],
       "expectedEvidence": [
-        "Named example: Commit messages and scope: direct case.",
-        "Starting evidence: Fix empty-cart total by handling zero items explains both behavior and cause more clearly than changes or update.",
-        "Core rule: A useful commit message states the change's intent and reason at the granularity of one coherent snapshot, enabling review, search, and later diagnosis.",
-        "Observable result: The case supports the declared outcome because Write a concise imperative summary and necessary why context so future you and collaborators can understand the snapshot without reconstructing intent from every line.",
-        "Boundary check: Write a concise imperative summary and necessary why context so future you and collaborators can understand the snapshot without reconstructing intent from every line."
+        "Names the example \"The empty-cart total\": forty vague commits hid the fix.",
+        "Fix empty-cart total by handling zero items explains both behavior and cause.",
+        "It does so more clearly than changes or update.",
+        "Anyone reading the log can predict the diff."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A dependency bump message names the affected package and security or compatibility reason rather than listing regenerated files.",
+      "prompt": "Rewrite these subjects so a reviewer could predict the diff: \"fix\", \"updates\", \"final version\", \"misc changes to login\". Invent plausible changes for each.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Imperative verb + behaviour.",
+        "Under ~50 characters."
       ],
       "expectedEvidence": [
-        "A useful commit message states the change's intent and reason at the granularity of one coherent snapshot, enabling review, search, and later diagnosis.",
-        "Message conventions vary by project, and a perfect message cannot compensate for a mixed, untested, or secret-containing commit."
+        "Four specific subjects.",
+        "Each names one behaviour."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Commit messages and scope, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "In a disposable repo, make a working tree with three unrelated changes in two files. Split them into three commits with git add -p, write subject and body for each, and ask a partner to predict each diff from git log alone.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Use the body for the why.",
+        "git log then git show to check."
       ],
       "expectedEvidence": [
-        "Split mixed changes and write messages that let a reviewer predict each commit.",
-        "Write a concise imperative summary and necessary why context so future you and collaborators can understand the snapshot without reconstructing intent from every line."
+        "Three single-purpose commits.",
+        "The partner's predictions match the diffs."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.history.messages.misconception",
-      "explanation": "Write a concise imperative summary and necessary why context so future you and collaborators can understand the snapshot without reconstructing intent from every line.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A dependency bump message names the affected package and security or compatibility reason rather than listing regenerated files."
+      "explanation": "Before committing, write the subject **first**. If it needs \"and\", split the commit. If it doesn't say a behaviour, rewrite it.",
+      "retryPrompt": "Apply this to \"The review that took an hour\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to split mixed changes and write messages that let a reviewer predict each commit. Keep this boundary in view: Message conventions vary by project, and a perfect message cannot compensate for a mixed, untested, or secret-containing commit.",
+    "summary": "To split mixed changes and write predictable messages, give each commit one purpose, write an imperative subject that states the behaviour change, add a body that explains why, and avoid generic labels, because future searches, reviews and reverts depend on them.",
     "retrievalPrompts": [
-      "Explain Commit messages and scope without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Commit messages only matter for large teams, so generic labels such as stuff are sufficient for personal work.",
-      "Apply the model to this case from memory: A dependency bump message names the affected package and security or compatibility reason rather than listing regenerated files."
+      "What goes in the subject vs the body?",
+      "What does \"and\" in a subject suggest?",
+      "Who reads messages in a personal project?"
     ],
     "nextReviewPrompt": "Next: continue to “Log, show and graph”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

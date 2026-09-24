@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "An anchor with href creates navigation, and its accessible name should describe the destination or action in context.",
+    "summary": "A real link is `<a href=\"…\">` with text that names its **destination**. Anchors come with free powers: keyboard focus, Enter to follow, open in a new tab, copy the address, and correct announcements by screen readers. Link text like \"click here\" means nothing out of context, and a `div` with a click handler has none of those powers. Mark the current page in a menu with `aria-current=\"page\"`.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A link named Read the C arrays lesson communicates its destination without surrounding visual context. Your goal is to improve a navigation set so destinations and current context are understandable. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Screen-reader users can pull up a list of every link on a page. On many sites that list reads: \"click here, click here, read more, read more\". Useless! A link named Read the C arrays lesson communicates its destination without surrounding visual context. In this lesson you'll improve a navigation set so destinations and the current context are understandable — and learn why a clickable div isn't a link.\n\n```predict\n{\"question\": \"`<div onclick=\\\"location='/courses'\\\">Courses</div>` — can a keyboard user open it?\", \"options\": [\"Yes, with Enter\", \"No — a div isn't focusable or activatable by keyboard\"], \"answer\": 1, \"why\": \"Only real links and buttons get focus and keyboard activation for free. Use `<a href=\\\"/courses\\\">Courses</a>`.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Sections and landmarks; pf tools files; Relative and absolute URLs; Paragraph and inline meaning. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Sections and landmarks**, **Files, folders and paths**, **Relative and absolute URLs**, and **Paragraph and inline meaning**."
       },
       {
-        "heading": "Technology rule",
-        "body": "An anchor with href creates navigation, and its accessible name should describe the destination or action in context. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: a real anchor with destination text",
+        "body": "```html\n<nav aria-label=\"Courses\">\n  <ul>\n    <li><a href=\"/c/\" aria-current=\"page\">C programming</a></li>\n    <li><a href=\"/c/arrays/\">Read the C arrays lesson</a></li>\n    <li><a href=\"/c/pointers/\">Read the C pointers lesson</a></li>\n  </ul>\n</nav>\n```\n\n| Anchor gives you | A clickable div doesn't |\n|---|---|\n| Tab focus and Enter to follow. | ✗. |\n| open in new tab, copy link. | ✗. |\n| announced as \"link\". | ✗. |\n| works without JavaScript. | ✗. |\n\n```reveal\n{\"prompt\": \"Link or button — how do you choose?\", \"answer\": \"Link: goes somewhere (a URL). Button: does something on this page (submit, open a menu, toggle).\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Placeholder anchors, click-only spans, repeated vague names, and invalid nested interactive controls undermine keyboard and assistive use. This draft therefore rejects: Any element with a click handler is automatically equivalent to an anchor."
+        "heading": "Text that stands alone",
+        "body": "```predict\n{\"question\": \"Which link text works best in a screen reader's links list?\", \"options\": [\"\\\"Read more\\\"\", \"\\\"Read more about data tables\\\"\"], \"answer\": 1, \"why\": \"Out of context, only the second tells users where it leads. Make every link's text unique and descriptive.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Write link text that identifies purpose in and out of context and avoid fake-button anchors.",
-      "Improve a navigation set so destinations and current context are understandable."
+      "Use real anchors with descriptive, unique link text.",
+      "Mark the current page with aria-current and choose links vs buttons correctly."
     ],
     "excludes": [
-      "Placeholder anchors, click-only spans, repeated vague names, and invalid nested interactive controls undermine keyboard and assistive use."
+      "External link safety (next lesson).",
+      "Styling links with CSS."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "html.navigation.links.example-a",
-      "title": "Meaningful links: concrete case",
+      "title": "A link that says where it goes",
       "situation": "A link named Read the C arrays lesson communicates its destination without surrounding visual context.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A link named Read the C arrays lesson communicates its destination without surrounding visual context.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Use an anchor with href for navigation and give it a destination-specific accessible name."
+        "**Before:** a card's link said \"Click here\", relying on the card's picture to explain it.",
+        "**After:** `<a href=\"/c/arrays/\">Read the C arrays lesson</a>` names the destination in the link itself.",
+        "**Check:** open the screen reader's links list and read each link without surrounding visual context."
       ],
-      "result": "The result follows because Use an anchor with href for navigation and give it a destination-specific accessible name."
+      "result": "Every link in the list tells users exactly where it goes."
     },
     {
       "id": "html.navigation.links.example-b",
-      "title": "Meaningful links: boundary case",
-      "situation": "Placeholder anchors, click-only spans, repeated vague names, and invalid nested interactive controls undermine keyboard and assistive use.",
+      "title": "The menu that lost its place",
+      "situation": "A course menu highlights the current page only with a CSS class `active` on a `span` (not a link).",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Placeholder anchors, click-only spans, repeated vague names, and invalid nested interactive controls undermine keyboard and assistive use.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Any element with a click handler is automatically equivalent to an anchor."
+        "Screen readers can't tell which item is current.",
+        "The current item isn't a link, so the menu is inconsistent for keyboard users.",
+        "Fix: keep all items as links and add `aria-current=\"page\"` to the current one; style it with `[aria-current=page]` in CSS."
       ],
-      "result": "The boundary requires this correction: Use an anchor with href for navigation and give it a destination-specific accessible name."
+      "result": "Users hear \"current page\" on the right item, and the menu behaves the same everywhere."
     }
   ],
   "misconceptions": [
     {
       "id": "html.navigation.links.misconception",
       "mistakenBelief": "Any element with a click handler is automatically equivalent to an anchor.",
-      "correction": "Use an anchor with href for navigation and give it a destination-specific accessible name.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: Any element with a click handler is automatically equivalent to an anchor."
+      "correction": "Only a real `<a href>` provides focus, keyboard activation, new-tab and copy-link options, link semantics and no-JavaScript behaviour. A clickable div has none of these unless you rebuild them all.",
+      "diagnosticPrompt": "In the opening predict, why couldn't the keyboard user open the div?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model Meaningful links, with structure carrying meaning before decoration.",
+    "example": "Link text is like **road signs**: \"Airport 5 km\" helps; a sign reading \"This way\" helps nobody who didn't see the map. A clickable div is a painted door on a wall — it looks like a door but doesn't open.",
     "usefulFor": [
-      "Building a first mental model for Meaningful links before using exact platform terms"
+      "remembering descriptive destinations",
+      "seeing divs as fake doors"
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "Placeholder anchors, click-only spans, repeated vague names, and invalid nested interactive controls undermine keyboard and assistive use."
+      "Signs are read in place; link lists are read out of context.",
+      "aria-current is the \"You are here\" marker on a map."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A link named Read the C arrays lesson communicates its destination without surrounding visual context.",
-      "An anchor with href creates navigation, and its accessible name should describe the destination or action in context.",
-      "Use an anchor with href for navigation and give it a destination-specific accessible name."
+      "<a href='/c/arrays/'>Read the C arrays lesson</a>",
+      "Tab to the link",
+      "screen reader links list"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Real anchor",
         "state": {
-          "evidence": "A link named Read the C arrays lesson communicates its destination without surrounding visual context."
+          "element": "a",
+          "href": "/c/arrays/"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The link is a real anchor with an href."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Keyboard",
         "state": {
-          "rule": "An anchor with href creates navigation, and its accessible name should describe the destination or action in context."
+          "focus": "yes",
+          "Enter": "navigates"
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Tab focuses it and Enter follows it without any script."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Links list",
         "state": {
-          "correction": "Use an anchor with href for navigation and give it a destination-specific accessible name."
+          "announced": "Read the C arrays lesson, link"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Any element with a click handler is automatically equivalent to an anchor."
+        "explanation": "The link named Read the C arrays lesson communicates its destination without surrounding visual context."
       }
     ],
-    "textAlternative": "Starting artifact: A link named Read the C arrays lesson communicates its destination without surrounding visual context. Step 1, Artifact. State: evidence: A link named Read the C arrays lesson communicates its destination without surrounding visual context.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: An anchor with href creates navigation, and its accessible name should describe the destination or action in context.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use an anchor with href for navigation and give it a destination-specific accessible name.. Check the result against the boundary and reject this misconception: Any element with a click handler is automatically equivalent to an anchor."
+    "textAlternative": "A descriptive, keyboard-friendly link. Step 1, Real anchor: element is a; href is /c/arrays/. The link is a real anchor with an href. Step 2, Keyboard: focus is yes; Enter is navigates. Tab focuses it and Enter follows it without any script. Step 3, Links list: announced is Read the C arrays lesson, link. The link named Read the C arrays lesson communicates its destination without surrounding visual context."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Meaningful links: concrete case”: state its starting evidence, apply the Meaningful links rule, and give the observable result in three short lines.",
+      "prompt": "For \"A link that says where it goes\", explain how the link named Read the C arrays lesson communicates its destination without surrounding visual context, and what a keyboard user can do with it.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Text.",
+        "Out of context.",
+        "Keyboard."
       ],
       "expectedEvidence": [
-        "Named example: Meaningful links: concrete case.",
-        "Starting evidence: A link named Read the C arrays lesson communicates its destination without surrounding visual context.",
-        "Core rule: An anchor with href creates navigation, and its accessible name should describe the destination or action in context.",
-        "Observable result: The result follows because Use an anchor with href for navigation and give it a destination-specific accessible name.",
-        "Boundary check: Use an anchor with href for navigation and give it a destination-specific accessible name."
+        "Names the example \"A link that says where it goes\": a link named Read the C arrays lesson.",
+        "It communicates its destination without surrounding visual context.",
+        "It's a real anchor, so Tab and Enter work.",
+        "It reads clearly in a links list."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Placeholder anchors, click-only spans, repeated vague names, and invalid nested interactive controls undermine keyboard and assistive use.",
+      "prompt": "Rewrite a card grid whose links all say \"Learn more\" for courses HTML, CSS and JavaScript. Mark HTML as the current page.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Unique text per link.",
+        "aria-current on one."
       ],
       "expectedEvidence": [
-        "An anchor with href creates navigation, and its accessible name should describe the destination or action in context.",
-        "Placeholder anchors, click-only spans, repeated vague names, and invalid nested interactive controls undermine keyboard and assistive use."
+        "Links like 'Learn more about HTML'.",
+        "aria-current=\"page\" on the HTML link only."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Meaningful links and explain why the misconception fails.",
+      "prompt": "Audit a page's links list (screen reader or a bookmarklet). Fix every vague or duplicate link text and replace any clickable non-links with real anchors or buttons.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Destination = link; action = button.",
+        "Test with keyboard only."
       ],
       "expectedEvidence": [
-        "Improve a navigation set so destinations and current context are understandable.",
-        "Use an anchor with href for navigation and give it a destination-specific accessible name."
+        "All link texts unique and descriptive.",
+        "No clickable divs remain; keyboard test passes."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.navigation.links.misconception",
-      "explanation": "Use an anchor with href for navigation and give it a destination-specific accessible name.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'anchor with href' and state the decisive evidence."
+      "explanation": "Read each link's text alone, out loud. If you can't tell where it goes, rewrite it. Then Tab through the page: anything you can click but can't reach by keyboard is a fake link.",
+      "retryPrompt": "Do both checks on \"The menu that lost its place\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to improve a navigation set so destinations and current context are understandable. Keep this boundary in view: Placeholder anchors, click-only spans, repeated vague names, and invalid nested interactive controls undermine keyboard and assistive use.",
+    "summary": "To improve a navigation set, use real `<a href>` links whose text names the destination on its own, mark the current page with aria-current=\"page\", and use buttons for actions — never clickable divs.",
     "retrievalPrompts": [
-      "Explain Meaningful links using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: Any element with a click handler is automatically equivalent to an anchor.",
-      "Apply checkpoint 'anchor with href' to a new artifact."
+      "What does an anchor give you that a clickable div doesn't?",
+      "Why is \"click here\" poor link text?",
+      "How do you mark the current page?"
     ],
     "nextReviewPrompt": "Next: continue to “External navigation safety”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

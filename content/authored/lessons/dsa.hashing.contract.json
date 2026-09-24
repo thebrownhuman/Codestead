@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Hash tables require equality and hashing to agree so equal keys produce equal hashes and stable key state while stored.",
+    "summary": "A hash table finds a key fast by computing `hash(key)` and jumping to a bucket. That only works if **hashing and equality agree**: whenever `a == b`, `hash(a)` must equal `hash(b)`. If equality ignores case but hashing doesn't, \"Asha\" and \"ASHA\" are \"equal\" yet land in different buckets, so lookups miss. The reverse isn't required: different keys may share a hash (a **collision**), and the table handles that. Also, a key must **not change** while it's stored, or its hash changes and the table loses it. In Java that means overriding both `equals` and `hashCode`; in Python, `__eq__` and `__hash__`; in C++, a matching hash and `==` for `unordered_map`.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A case-insensitive key hashes the same normalized representation used by equality. Your goal is to design and test a key equality and hashing policy in the selected language. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A course site stores usernames in a hash set and treats \"Asha\" and \"asha\" as the same person. The equality check lowercases both names, but the hash uses the original text. Now \"ASHA\" can register even though \"Asha\" exists. A case-insensitive key hashes the same normalized representation used by equality. In this lesson you'll design and test a key equality and hashing policy in the selected language.\n\n```predict\n{\"question\": \"Does a good hash function guarantee two different keys never share a hash value?\", \"options\": [\"Yes\", \"No: there are far more possible keys than hash values, so collisions are expected\"], \"answer\": 1, \"why\": \"Good hashing spreads keys evenly and the table resolves collisions. It can't eliminate them.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Array representation and operations; Linked lists; Correctness and counterexamples. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Array representation and operations** (buckets are array slots), the **Linked lists** module (chains in buckets), and **Correctness and counterexamples**, since you'll test the contract."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Hash tables require equality and hashing to agree so equal keys produce equal hashes and stable key state while stored. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The rule: equal keys, equal hashes",
+        "body": "```python\nclass Username:\n    def __init__(self, text):\n        self._text = text\n        self._key = text.casefold()          # one normalised form.\n\n    def __eq__(self, other):\n        return isinstance(other, Username) and self._key == other._key\n\n    def __hash__(self):\n        return hash(self._key)                # hash the SAME normalised form.\n\n    def __repr__(self):\n        return self._text\n\ntaken = {Username(\"Asha\")}\nassert Username(\"ASHA\") in taken           # equal, same hash: found.\n```\n\n| Rule | Consequence if broken |\n|---|---|\n| a == b implies hash(a) == hash(b). | equal keys land in different buckets; lookups miss. |\n| hash of a stored key never changes. | the key is stranded in the wrong bucket. |\n| unequal keys may share a hash. | fine: the table resolves collisions. |\n\n| Language | Methods that must agree |\n|---|---|\n| Java. | `equals` and `hashCode`. |\n| Python. | `__eq__` and `__hash__`. |\n| C++. | `operator==` and the hash functor. |\n\n```reveal\n{\"prompt\": \"Why store _key instead of recomputing casefold each time?\", \"answer\": \"It guarantees equality and hashing use exactly the same normalised value, and the key never changes after creation.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Collisions are expected, mutable keys can become unreachable, and iteration order is generally not a sorting guarantee. The draft therefore rejects: A good hash function eliminates every collision."
+        "heading": "Mutable keys",
+        "body": "```predict\n{\"question\": \"A list-like key is stored in a set, then an item is appended to it. Can the set still find it?\", \"options\": [\"Yes\", \"Often no: its hash changed, so the set looks in a different bucket\"], \"answer\": 1, \"why\": \"That's why Python refuses lists as set keys. Keep stored keys immutable.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Map equal keys to equal hashes and keep keys stable while stored.",
-      "Design and test a key equality and hashing policy in the selected language.",
-      "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
+      "Make equality and hashing use the same normalised key.",
+      "Keep stored keys immutable and test the contract with equal and colliding keys."
     ],
     "excludes": [
-      "Collisions are expected, mutable keys can become unreachable, and iteration order is generally not a sorting guarantee."
+      "Designing cryptographic hash functions.",
+      "Perfect hashing."
     ]
   },
   "outcomes": [
@@ -68,142 +64,136 @@
   "examples": [
     {
       "id": "dsa.hashing.contract.example-a",
-      "title": "Hash and equality contract: language-neutral trace",
+      "title": "Usernames that ignore capital letters",
       "situation": "A case-insensitive key hashes the same normalized representation used by equality.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: A case-insensitive key hashes the same normalized representation used by equality.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Collisions remain possible; the essential contract is that equal keys have equal hashes."
+        "**Bug:** equality lowercased names but hashing used the original text, so \"ASHA\" landed in another bucket.",
+        "**Same normalized representation:** Username stores `casefold()` once and uses it in both __eq__ and __hash__.",
+        "**Test:** a test will check Username(\"ASHA\") == Username(\"Asha\"), equal hashes, and that registering \"ASHA\" is refused."
       ],
-      "result": "The conceptual result follows because Collisions remain possible; the essential contract is that equal keys have equal hashes."
+      "result": "Usernames are unique regardless of capitalisation, and lookups always find existing names."
     },
     {
       "id": "dsa.hashing.contract.example-b",
-      "title": "Hash and equality contract: implementation transfer",
-      "situation": "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__.",
+      "title": "The lost cart item",
+      "situation": "A shop stores cart items in a set keyed by an object whose `quantity` field is part of its hash. Changing the quantity makes `item in cart` return False.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__.",
-        "Step 3 — Retest this boundary in the selected implementation: Collisions are expected, mutable keys can become unreachable, and iteration order is generally not a sorting guarantee."
+        "Mutating a field used by hash moved the key's correct bucket.",
+        "The set still has the item, but in the old bucket.",
+        "Fix: hash only immutable identity fields (like product id), or remove, change and re-add."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Changing quantities never loses items from the cart."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.hashing.contract.misconception",
       "mistakenBelief": "A good hash function eliminates every collision.",
-      "correction": "Collisions remain possible; the essential contract is that equal keys have equal hashes.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: A good hash function eliminates every collision."
+      "correction": "There are more possible keys than buckets, so some unequal keys must share a hash. A good hash spreads them evenly; the table's collision handling keeps them apart using equality.",
+      "diagnosticPrompt": "In the opening predict, why are collisions unavoidable?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Hash and equality contract, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "A hash table is like **a library shelving books by the first letter of the title**. The rule for choosing a shelf (hash) must match the rule for deciding two titles are the same (equality). If \"The Loops\" and \"the loops\" are the same book, both must go on the same shelf, or you'll never find the second copy.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering equal means same shelf",
+      "collision = many books on shelf T"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Collisions are expected, mutable keys can become unreachable, and iteration order is generally not a sorting guarantee."
+      "Libraries can reshelve; a key that changes after shelving gets lost.",
+      "Sharing a shelf is normal; you still check titles on it."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A case-insensitive key hashes the same normalized representation used by equality.",
-      "Hash tables require equality and hashing to agree so equal keys produce equal hashes and stable key state while stored.",
-      "Collisions remain possible; the essential contract is that equal keys have equal hashes.",
-      "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
+      "taken = {Username('Asha')}",
+      "lookup Username('ASHA')",
+      "result"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Store",
         "state": {
-          "scenario": "A case-insensitive key hashes the same normalized representation used by equality."
+          "key": "asha",
+          "bucket": "hash('asha') % size"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The stored username hashes its normalised form."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Lookup",
         "state": {
-          "invariant": "Hash tables require equality and hashing to agree so equal keys produce equal hashes and stable key state while stored."
+          "key": "asha",
+          "same bucket": "yes"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "A case-insensitive key hashes the same normalized representation used by equality."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Compare",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "__eq__": "True",
+          "found": "yes"
         },
-        "explanation": "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Collisions remain possible; the essential contract is that equal keys have equal hashes."
-        },
-        "explanation": "Verify the result and reject this misconception: A good hash function eliminates every collision."
+        "explanation": "Equality confirms the match, so ASHA is refused."
       }
     ],
-    "textAlternative": "Starting artifact: A case-insensitive key hashes the same normalized representation used by equality. Step 1, Specification. State: scenario: A case-insensitive key hashes the same normalized representation used by equality.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Hash tables require equality and hashing to agree so equal keys produce equal hashes and stable key state while stored.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__. Step 4, Conclusion. State: correction: Collisions remain possible; the essential contract is that equal keys have equal hashes.. Verify the result and reject this misconception: A good hash function eliminates every collision."
+    "textAlternative": "Tracing a case-insensitive lookup. Step 1, Store: key is asha; bucket is hash('asha') % size. The stored username hashes its normalised form. Step 2, Lookup: key is asha; same bucket is yes. A case-insensitive key hashes the same normalized representation used by equality. Step 3, Compare: __eq__ is True; found is yes. Equality confirms the match, so ASHA is refused."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Hash and equality contract: language-neutral trace”: state its starting evidence, apply the Hash and equality contract rule, and give the observable result in three short lines.",
+      "prompt": "For \"Usernames that ignore capital letters\", explain how a case-insensitive key hashes the same normalized representation used by equality.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Bug.",
+        "Normalise once.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Hash and equality contract: language-neutral trace.",
-        "Starting evidence: A case-insensitive key hashes the same normalized representation used by equality.",
-        "Core rule: Hash tables require equality and hashing to agree so equal keys produce equal hashes and stable key state while stored.",
-        "Observable result: The conceptual result follows because Collisions remain possible; the essential contract is that equal keys have equal hashes.",
-        "Boundary check: Collisions remain possible; the essential contract is that equal keys have equal hashes."
+        "Names the example \"Usernames that ignore capital letters\": equality and hashing disagreed.",
+        "A case-insensitive key hashes the same normalized representation used by equality.",
+        "Equal usernames always share a bucket.",
+        "Usernames are unique regardless of capitalisation."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Hash tables require equality and hashing to agree so equal keys produce equal hashes and stable key state while stored.",
+      "prompt": "Design a `Point(x, y)` key for a grid map where equality compares x and y. Write __eq__ and __hash__ (or equals/hashCode) and tests for equal points and a collision.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "hash((x, y)).",
+        "Make fields read-only."
       ],
       "expectedEvidence": [
-        "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__.",
-        "Collisions are expected, mutable keys can become unreachable, and iteration order is generally not a sorting guarantee."
+        "Equal points share a hash.",
+        "Unequal points can still be told apart."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Hash and equality contract case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Create an `Email` key where equality ignores case in the domain but not in the local part (before @). Implement the contract in your language and test mixed-case addresses and invalid input.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Normalise to local + '@' + domain.lower().",
+        "Reject missing @."
       ],
       "expectedEvidence": [
-        "Design and test a key equality and hashing policy in the selected language.",
-        "Collisions remain possible; the essential contract is that equal keys have equal hashes."
+        "Contract holds for all tests.",
+        "Normalised form documented."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.hashing.contract.misconception",
-      "explanation": "Collisions remain possible; the essential contract is that equal keys have equal hashes.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'equal keys have equal hashes', then state one implementation-specific risk in the selected language."
+      "explanation": "Write the key's **normalised form** in one line. Make equality compare it and hashing hash it. Then ask: **can any field used by hash change while stored?** If so, make it immutable.",
+      "retryPrompt": "Apply this to \"The lost cart item\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to design and test a key equality and hashing policy in the selected language. Keep this boundary in view: Collisions are expected, mutable keys can become unreachable, and iteration order is generally not a sorting guarantee.",
+    "summary": "To design and test a key equality and hashing policy, make equal keys produce equal hashes by hashing the same normalised representation that equality compares, keep stored keys immutable, accept that unequal keys may collide, and test equal, unequal and colliding keys.",
     "retrievalPrompts": [
-      "State the Hash and equality contract invariant and complexity without code.",
-      "Why is this claim false: A good hash function eliminates every collision.",
-      "Map checkpoint 'equal keys have equal hashes' to C, C++, Java, and Python."
+      "What must be true about hashes of equal keys?",
+      "Can a good hash eliminate collisions?",
+      "Why must stored keys not change?"
     ],
     "nextReviewPrompt": "Next: continue to “Collision resolution”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

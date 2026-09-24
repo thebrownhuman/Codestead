@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "React DevTools inspect component trees, props, state, context, and profiling for a particular development render.",
+    "summary": "The React DevTools browser extension adds two panels. **Components** shows the component tree with each one's current **props, state and context**, so you can see where a wrong value first appears. **Profiler** records an interaction and shows which components rendered, **why**, and **how long** each took. A highlighted re-render isn't automatically a problem: re-rendering is how React works. Only optimise when the profiler shows something is actually **slow**, then measure again to prove the fix helped.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A profiler shows an expensive list rerender before memoization is considered and measured again. Your goal is to locate and explain a component data-flow defect using developer-tool evidence. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Typing in a lesson search box feels laggy. A teammate turns on \"highlight updates\", sees the whole page flash, and wants to wrap every component in memo. You open the Profiler first. A profiler shows an expensive list rerender before memoization is considered and measured again. In this lesson you'll locate and explain a component data-flow defect using developer-tool evidence.\n\n```predict\n{\"question\": \"\\\"Highlight updates\\\" shows 20 components flashing on each keypress. What should you do first?\", \"options\": [\"Wrap all 20 in memo\", \"Record in the Profiler to see which renders actually take time\"], \"answer\": 1, \"why\": \"Most re-renders are cheap. Measure to find the one that's slow.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: javascript project browser app; Declarative UI and re-rendering; javascript runtime devtools. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Modular browser application**, **Declarative UI and re-rendering** (why components run again), and **Sources, console and debugger** (the browser's own panels)."
       },
       {
-        "heading": "Technology rule",
-        "body": "React DevTools inspect component trees, props, state, context, and profiling for a particular development render. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: inspect data, then measure time",
+        "body": "| Question | Panel | What to look at |\n|---|---|---|\n| Why is this value wrong? | Components. | select the component; read props and state, then its parent's. |\n| Where does the value come from? | Components. | walk up the tree until the value is first wrong. |\n| Why did it re-render? | Profiler, with \"record why\" on. | \"props changed: items\" or \"parent rendered\". |\n| Is it slow? | Profiler flame chart. | render duration in milliseconds per component. |\n\n```text\nProfiler recording: typed \"arr\" (3 commits).\n  SearchPage     0.4 ms   why: state changed (query)\n  SearchBox      0.2 ms   why: props changed (value)\n  LessonList    38.0 ms   why: parent rendered      <- the slow one.\n    LessonRow x 900  (each ~0.04 ms)\n```\n\n```reveal\n{\"prompt\": \"What does \\\"why: parent rendered\\\" tell you?\", \"answer\": \"LessonList's own props didn't change; it re-rendered only because SearchPage did. That's the case memo can skip, if it's worth it.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Inspection can expose personal data, profiling changes timing, and observed rerenders are not automatically performance defects. This draft therefore rejects: Every highlighted rerender must be removed with memoization."
+        "heading": "Find a data-flow defect",
+        "body": "```predict\n{\"question\": \"A LessonCard shows the wrong title. In Components you see its `title` prop is wrong, and its parent's `lesson.title` is right. Where's the bug?\", \"options\": [\"In LessonCard's rendering\", \"In the parent, where it passes the prop to LessonCard\"], \"answer\": 1, \"why\": \"The first place a value goes wrong in the tree is where the defect lives.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Inspect component trees, props, state and render causes without editing production state as a fix.",
-      "Locate and explain a component data-flow defect using developer-tool evidence."
+      "Inspect props, state and context in the Components panel to trace data flow.",
+      "Record and read a Profiler session before and after an optimisation."
     ],
     "excludes": [
-      "Inspection can expose personal data, profiling changes timing, and observed rerenders are not automatically performance defects."
+      "Chrome performance panel in depth.",
+      "Production profiling builds."
     ]
   },
   "outcomes": [
@@ -63,133 +64,136 @@
   "examples": [
     {
       "id": "react.model.devtools.example-a",
-      "title": "React developer tools: concrete case",
+      "title": "Measuring before memoizing",
       "situation": "A profiler shows an expensive list rerender before memoization is considered and measured again.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A profiler shows an expensive list rerender before memoization is considered and measured again.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence."
+        "**Record:** typing \"arr\" in the Profiler shows LessonList taking 38 ms per keypress, marked \"parent rendered\".",
+        "**Consider memoization:** wrapping LessonList in memo, with a stable lessons array, lets React skip it when only the query changes.",
+        "**Measure again:** a second recording will show LessonList skipped and each commit under 2 ms."
       ],
-      "result": "The result follows because Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence."
+      "result": "Typing feels instant, and the change is backed by before-and-after profiler evidence rather than guesswork."
     },
     {
       "id": "react.model.devtools.example-b",
-      "title": "React developer tools: boundary case",
-      "situation": "Inspection can expose personal data, profiling changes timing, and observed rerenders are not automatically performance defects.",
+      "title": "The avatar that showed the wrong person",
+      "situation": "On a class page, each student's card shows the teacher's avatar.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Inspection can expose personal data, profiling changes timing, and observed rerenders are not automatically performance defects.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Every highlighted rerender must be removed with memoization."
+        "In Components, StudentCard's avatarUrl prop holds the teacher's URL.",
+        "Its parent, ClassList, passes `avatarUrl={teacher.avatar}` by mistake.",
+        "Fix the prop in ClassList to `student.avatar` and confirm the prop in DevTools."
       ],
-      "result": "The boundary requires this correction: Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence."
+      "result": "Every card shows the right student's avatar, and the fix was found by following props up the tree."
     }
   ],
   "misconceptions": [
     {
       "id": "react.model.devtools.misconception",
       "mistakenBelief": "Every highlighted rerender must be removed with memoization.",
-      "correction": "Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Every highlighted rerender must be removed with memoization."
+      "correction": "Re-rendering is normal and usually cheap. Memoization adds complexity and only helps when a render is measurably slow; use the Profiler to find that render and to confirm the fix.",
+      "diagnosticPrompt": "In \"Measuring before memoizing\", which component was actually slow?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model React developer tools, where inputs and state produce a UI description.",
+    "example": "DevTools is like a **mechanic's diagnostic tool**. The Components panel reads each part's current values (props and state). The Profiler is the **stopwatch on each part** while the engine runs. You don't replace every part that moves; you replace the one that's slow.",
     "usefulFor": [
-      "Building a first mental model for React developer tools before using exact platform terms"
+      "remembering inspect then measure",
+      "why rendered = the part's log"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Inspection can expose personal data, profiling changes timing, and observed rerenders are not automatically performance defects."
+      "Cars have one engine; apps have many components rendering in commits.",
+      "Always test-drive again after the repair: measure twice."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A profiler shows an expensive list rerender before memoization is considered and measured again.",
-      "React DevTools inspect component trees, props, state, context, and profiling for a particular development render.",
-      "Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence."
+      "Profiler: record, type 'arr', stop",
+      "read flame chart and why",
+      "apply memo, record again"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Record",
         "state": {
-          "evidence": "A profiler shows an expensive list rerender before memoization is considered and measured again."
+          "commits": "3",
+          "LessonList": "38 ms each"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The profiler shows an expensive list rerender while typing."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Diagnose",
         "state": {
-          "rule": "React DevTools inspect component trees, props, state, context, and profiling for a particular development render."
+          "why": "parent rendered",
+          "props changed": "none"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The list re-renders only because its parent did, so memoization is considered."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Measure again",
         "state": {
-          "correction": "Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence."
+          "LessonList": "skipped",
+          "commit": "< 2 ms"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Every highlighted rerender must be removed with memoization."
+        "explanation": "A second recording confirms the change helped."
       }
     ],
-    "textAlternative": "Starting artifact: A profiler shows an expensive list rerender before memoization is considered and measured again. Step 1, Artifact. State: evidence: A profiler shows an expensive list rerender before memoization is considered and measured again.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: React DevTools inspect component trees, props, state, context, and profiling for a particular development render.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence.. Check the result against the boundary and reject this misconception: Every highlighted rerender must be removed with memoization."
+    "textAlternative": "Profiling a slow list. Step 1, Record: commits is 3; LessonList is 38 ms each. The profiler shows an expensive list rerender while typing. Step 2, Diagnose: why is parent rendered; props changed is none. The list re-renders only because its parent did, so memoization is considered. Step 3, Measure again: LessonList is skipped; commit is < 2 ms. A second recording confirms the change helped."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “React developer tools: concrete case”: state its starting evidence, apply the React developer tools rule, and give the observable result in three short lines.",
+      "prompt": "For \"Measuring before memoizing\", explain how a profiler shows an expensive list rerender before memoization is considered and measured again.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Record.",
+        "Diagnose.",
+        "Measure again."
       ],
       "expectedEvidence": [
-        "Named example: React developer tools: concrete case.",
-        "Starting evidence: A profiler shows an expensive list rerender before memoization is considered and measured again.",
-        "Core rule: React DevTools inspect component trees, props, state, context, and profiling for a particular development render.",
-        "Observable result: The result follows because Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence.",
-        "Boundary check: Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence."
+        "Names the example \"Measuring before memoizing\": the profiler shows an expensive list rerender.",
+        "Why rendered says parent rendered.",
+        "Memoization is considered only after measuring.",
+        "Typing feels instant, backed by before-and-after evidence."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Inspection can expose personal data, profiling changes timing, and observed rerenders are not automatically performance defects.",
+      "prompt": "A cart total shows 0 even though items are listed. Describe how you'd use the Components panel to find which component first has the wrong value.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Start at CartTotal's props.",
+        "Walk up to where items are stored."
       ],
       "expectedEvidence": [
-        "React DevTools inspect component trees, props, state, context, and profiling for a particular development render.",
-        "Inspection can expose personal data, profiling changes timing, and observed rerenders are not automatically performance defects."
+        "Find the first component with a wrong value.",
+        "Name the prop or state to fix."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for React developer tools and explain why the misconception fails.",
+      "prompt": "Profile one interaction in your React app. Record it, identify the slowest component and why it rendered, try one fix, and write a before/after note with the numbers.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Turn on \"record why each component rendered\".",
+        "Change one thing at a time."
       ],
       "expectedEvidence": [
-        "Locate and explain a component data-flow defect using developer-tool evidence.",
-        "Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence."
+        "Before and after timings.",
+        "A clear explanation of the cause."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.model.devtools.misconception",
-      "explanation": "Use DevTools measurements to find costly work; rerendering itself is normal and memoization needs evidence.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'measurements' and state the decisive evidence."
+      "explanation": "For wrong values: **walk up the Components tree to the first wrong prop or state.** For slowness: **record, find the biggest bar, read why, change one thing, record again.**",
+      "retryPrompt": "Apply this to \"The avatar that showed the wrong person\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to locate and explain a component data-flow defect using developer-tool evidence. Keep this boundary in view: Inspection can expose personal data, profiling changes timing, and observed rerenders are not automatically performance defects.",
+    "summary": "To locate and explain a component defect using developer-tool evidence, use the Components panel to follow props, state and context up the tree to where a value first goes wrong, and use the Profiler to find which render is actually slow and why, optimising only with before-and-after measurements.",
     "retrievalPrompts": [
-      "Explain React developer tools using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: Every highlighted rerender must be removed with memoization.",
-      "Apply checkpoint 'measurements' to a new artifact."
+      "Which panel shows props and state?",
+      "What does the Profiler measure?",
+      "Should every re-render be memoized?"
     ],
     "nextReviewPrompt": "Next: continue to “Function components”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

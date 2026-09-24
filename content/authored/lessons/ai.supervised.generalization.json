@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Generalization is performance on relevant unseen data; underfitting reflects insufficient useful fit, overfitting reflects adaptation to sample noise, and regularization or data changes trade bias and variance.",
+    "summary": "**Generalisation** is how well a model does on **new data** that matters, not the data it trained on. Compare **training error** with **validation error**. **Both high**: the model is **underfitting** (high **bias**): too simple, or missing useful features. Stronger regularisation would make it worse; give it more capacity or better features. **Training low, validation much higher**: **overfitting** (high **variance**): it memorised noise. Remedies: **regularisation** (penalising complexity), simpler models, more data, or less noisy features. Tune these choices with validation or cross-validation, **never the test set**: every peek at the test to pick a setting makes its score more optimistic.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Training and cross-validation curves show both errors high for an overly simple model, motivating features or capacity rather than stronger regularization. Your goal is to interpret learning or validation results and justify a regularization or data response. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner's linear model has 30% error on both training and validation data, so they add stronger regularisation, and it gets worse. Another learner's deep tree has 1% training error and 25% validation error; they check the test set after every change until it looks good, then report that number. Training and cross-validation curves show both errors high for an overly simple model, motivating features or capacity rather than stronger regularization. In this lesson you'll interpret learning or validation results and justify a regularization or data response.\n\n```predict\n{\"question\": \"Training error 30%, validation error 31%. What's the likely problem?\", \"options\": [\"Overfitting: add regularisation\", \"Underfitting: the model is too simple or lacks useful features\"], \"answer\": 1, \"why\": \"A small gap with high error points to bias.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Data and experimental workflow; Conditional probability and Bayes rule; Linear, neighbor and tree models; Train, validation, test and leakage. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Data and experimental workflow**, **Conditional probability and Bayes rule**, **Linear, neighbor and tree models** and **Train, validation, test and leakage**."
       },
       {
-        "heading": "Bounded operational model",
-        "body": "Generalization is performance on relevant unseen data; underfitting reflects insufficient useful fit, overfitting reflects adaptation to sample noise, and regularization or data changes trade bias and variance. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+        "heading": "The model: read the gap and the level",
+        "body": "```python\ndef diagnose(train_err, val_err, target=0.10):\n    gap = val_err - train_err\n    if train_err > target and gap < 0.05:\n        return \"underfitting: add features or capacity\"\n    if gap >= 0.05:\n        return \"overfitting: regularise, simplify, or get more data\"\n    return \"good fit for the target\"\n\n# Polynomial degree vs errors from cross-validation (illustrative numbers).\ncurve = {1: (0.30, 0.31), 3: (0.09, 0.10), 9: (0.01, 0.24)}\nfor degree, (tr, va) in curve.items():\n    print(degree, diagnose(tr, va))\n# 1 underfitting. 3 good fit. 9 overfitting.\n\n# Regularisation: penalise large weights. Stronger lambda = simpler model.\ndef ridge_loss(errors, weights, lam):\n    return sum(e * e for e in errors) + lam * sum(w * w for w in weights)\nprint(ridge_loss([1, -1], [3, 4], 0.1), ridge_loss([1, -1], [3, 4], 1.0))   # 4.5 27.0\n```\n\n| Pattern | Diagnosis | Try |\n|---|---|---|\n| both high, small gap. | underfit (bias). | features, capacity, less regularisation. |\n| low train, high val. | overfit (variance). | regularise, simplify, more data. |\n| both low. | good fit. | check the test set once. |\n\n```reveal\n{\"prompt\": \"Does a big gap always mean you need more data?\", \"answer\": \"More data often helps variance, but so can regularisation, a simpler model, or removing noisy or leaky features. Try cheap fixes and check with validation curves.\"}\n```"
       },
       {
-        "heading": "Failure boundary and non-claim",
-        "body": "Train-validation gaps are diagnostic but not unique causes, more data may preserve bias, regularization parameters must avoid test tuning, distribution shift differs from variance, and one split gives noisy evidence. The learner must reject this overclaim: A large train-validation gap always means the model needs more data, and the test set can be checked repeatedly to choose regularization."
+        "heading": "Protect the test set",
+        "body": "```predict\n{\"question\": \"You check the test score after each regularisation setting and keep the best. Is that score trustworthy?\", \"options\": [\"Yes, it's still test data\", \"No: you've selected on it, so it's optimistic\"], \"answer\": 1, \"why\": \"Tune on validation or cross-validation; test once at the end.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Diagnose underfitting and overfitting from learning evidence and control complexity without test-set tuning.",
-      "Interpret learning or validation results and justify a regularization or data response."
+      "Diagnose underfitting and overfitting from training and validation errors.",
+      "Choose regularisation, capacity or data responses and tune without touching the test set."
     ],
     "excludes": [
-      "Train-validation gaps are diagnostic but not unique causes, more data may preserve bias, regularization parameters must avoid test tuning, distribution shift differs from variance, and one split gives noisy evidence."
+      "Bias-variance decomposition mathematics.",
+      "Double descent."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "ai.supervised.generalization.example.direct",
-      "title": "Bias, variance and regularization: bounded direct case",
+      "title": "Reading train and validation curves",
       "situation": "Training and cross-validation curves show both errors high for an overly simple model, motivating features or capacity rather than stronger regularization.",
       "walkthrough": [
-        "Step 1 — Observe the exact data, state, metric, or tool behavior: Training and cross-validation curves show both errors high for an overly simple model, motivating features or capacity rather than stronger regularization.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the claim boundary with: Diagnose underfit, variance, leakage, and shift with learning/validation evidence; tune without the test set and report variability across valid splits."
+        "**Training and cross-validation curves:** degree 1 has 30% train and 31% validation error.",
+        "**Show both errors high for an overly simple model:** a small gap with high error means underfitting.",
+        "**Motivating features or capacity rather than stronger regularization:** we try degree 3 and compute 9% and 10%."
       ],
-      "result": "This example supports only the atomic outcome because Diagnose underfit, variance, leakage, and shift with learning/validation evidence; tune without the test set and report variability across valid splits."
+      "result": "The fix targets the real problem, and validation error drops."
     },
     {
       "id": "ai.supervised.generalization.example.stress",
-      "title": "Bias, variance and regularization: stress and transfer case",
-      "situation": "Near-zero train error with unstable validation performance leads to simpler capacity and repeated grouped folds while the test stays untouched.",
+      "title": "The peeking tuner",
+      "situation": "A learner tried ten regularisation settings, checking the test score each time, and reported the best one.",
       "walkthrough": [
-        "Step 1 — Name the changed population, input, assumption, or failure: Near-zero train error with unstable validation performance leads to simpler capacity and repeated grouped folds while the test stays untouched.",
-        "Step 2 — Keep the non-claim visible: Train-validation gaps are diagnostic but not unique causes, more data may preserve bias, regularization parameters must avoid test tuning, distribution shift differs from variance, and one split gives noisy evidence.",
-        "Step 3 — Reject the tempting overclaim: A large train-validation gap always means the model needs more data, and the test set can be checked repeatedly to choose regularization."
+        "The test set was used for selection, so its score is inflated.",
+        "Redo the tuning with cross-validation on training data.",
+        "Evaluate the final chosen model on the test set once."
       ],
-      "result": "This case demonstrates the declared outcome: Interpret learning or validation results and justify a regularization or data response."
+      "result": "The reported score honestly estimates new-data performance."
     }
   ],
   "misconceptions": [
     {
       "id": "ai.supervised.generalization.misconception",
       "mistakenBelief": "A large train-validation gap always means the model needs more data, and the test set can be checked repeatedly to choose regularization.",
-      "correction": "Diagnose underfit, variance, leakage, and shift with learning/validation evidence; tune without the test set and report variability across valid splits.",
-      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: A large train-validation gap always means the model needs more data, and the test set can be checked repeatedly to choose regularization."
+      "correction": "A gap can be addressed by regularisation, simplification or better features too, and repeated test checks turn the test set into validation data.",
+      "diagnosticPrompt": "In \"The peeking tuner\", why was the reported score too high?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a measured prediction workshop that compares a simple baseline with several fitted rules on held-out outcomes can introduce Bias, variance and regularization only after its canonical technical definition and evidence boundary are stated.",
+    "example": "Generalisation is like **studying for an exam**. **Underfitting** is skimming the chapter titles: you fail practice and real tests alike. **Overfitting** is memorising last year's answers word for word: perfect on practice, lost on new questions. **Regularisation** is forcing yourself to explain ideas in simple terms. Peeking at the real exam while studying makes your \"score\" meaningless.",
     "usefulFor": [
-      "regression, classification, model assumptions, and generalization"
+      "remembering skim vs memorise",
+      "explain simply = regularise"
     ],
     "limitations": [
-      "prediction evidence does not establish causation, fairness, or unchanged performance after deployment",
-      "Train-validation gaps are diagnostic but not unique causes, more data may preserve bias, regularization parameters must avoid test tuning, distribution shift differs from variance, and one split gives noisy evidence."
+      "Practice tests are validation; the real exam is test.",
+      "More practice questions is more data."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Training and cross-validation curves show both errors high for an overly simple model, motivating features or capacity rather than stronger regularization.",
-      "Generalization is performance on relevant unseen data; underfitting reflects insufficient useful fit, overfitting reflects adaptation to sample noise, and regularization or data changes trade bias and variance.",
-      "Diagnose underfit, variance, leakage, and shift with learning/validation evidence; tune without the test set and report variability across valid splits."
+      "degree 1",
+      "degree 9",
+      "degree 3"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Underfit",
         "state": {
-          "boundedEvidence": "Training and cross-validation curves show both errors high for an overly simple model, motivating features or capacity rather than stronger regularization."
+          "train": "0.30",
+          "val": "0.31"
         },
-        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+        "explanation": "Both errors high for an overly simple model motivate features or capacity."
       },
       {
         "step": 2,
-        "focus": "Model",
+        "focus": "Overfit",
         "state": {
-          "operationalRule": "Generalization is performance on relevant unseen data; underfitting reflects insufficient useful fit, overfitting reflects adaptation to sample noise, and regularization or data changes trade bias and variance."
+          "train": "0.01",
+          "val": "0.24"
         },
-        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+        "explanation": "A big gap means the model adapted to noise, so regularise or simplify."
       },
       {
         "step": 3,
-        "focus": "Limit",
+        "focus": "Choose",
         "state": {
-          "correction": "Diagnose underfit, variance, leakage, and shift with learning/validation evidence; tune without the test set and report variability across valid splits."
+          "train": "0.09",
+          "val": "0.10"
         },
-        "explanation": "State what the evidence does not establish and reject the misconception: A large train-validation gap always means the model needs more data, and the test set can be checked repeatedly to choose regularization."
+        "explanation": "Cross-validation picks the setting before one final test check."
       }
     ],
-    "textAlternative": "Starting artifact: Training and cross-validation curves show both errors high for an overly simple model, motivating features or capacity rather than stronger regularization. Step 1, Observe. State: boundedEvidence: Training and cross-validation curves show both errors high for an overly simple model, motivating features or capacity rather than stronger regularization.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Generalization is performance on relevant unseen data; underfitting reflects insufficient useful fit, overfitting reflects adaptation to sample noise, and regularization or data changes trade bias and variance.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Diagnose underfit, variance, leakage, and shift with learning/validation evidence; tune without the test set and report variability across valid splits.. State what the evidence does not establish and reject the misconception: A large train-validation gap always means the model needs more data, and the test set can be checked repeatedly to choose regularization."
+    "textAlternative": "Tracing a validation curve. Step 1, Underfit: train is 0.30; val is 0.31. Both errors high for an overly simple model motivate features or capacity. Step 2, Overfit: train is 0.01; val is 0.24. A big gap means the model adapted to noise, so regularise or simplify. Step 3, Choose: train is 0.09; val is 0.10. Cross-validation picks the setting before one final test check."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Bias, variance and regularization: bounded direct case”: state its starting evidence, apply the Bias, variance and regularization rule, and give the observable result in three short lines.",
+      "prompt": "For \"Reading train and validation curves\", explain how training and cross-validation curves show both errors high for an overly simple model, motivating features or capacity rather than stronger regularization.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Level.",
+        "Gap.",
+        "Response."
       ],
       "expectedEvidence": [
-        "Named example: Bias, variance and regularization: bounded direct case.",
-        "Starting evidence: Training and cross-validation curves show both errors high for an overly simple model, motivating features or capacity rather than stronger regularization.",
-        "Core rule: Generalization is performance on relevant unseen data; underfitting reflects insufficient useful fit, overfitting reflects adaptation to sample noise, and regularization or data changes trade bias and variance.",
-        "Observable result: This example supports only the atomic outcome because Diagnose underfit, variance, leakage, and shift with learning/validation evidence; tune without the test set and report variability across valid splits.",
-        "Boundary check: Diagnose underfit, variance, leakage, and shift with learning/validation evidence; tune without the test set and report variability across valid splits."
+        "Names the example \"Reading train and validation curves\": regularising an underfit model made it worse.",
+        "Training and cross-validation curves show both errors high for an overly simple model.",
+        "That motivates features or capacity rather than stronger regularization.",
+        "The fix targets the real problem, and validation error drops."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed case: Near-zero train error with unstable validation performance leads to simpler capacity and repeated grouped folds while the test stays untouched.",
+      "prompt": "Given four (train, validation) error pairs, diagnose each and propose one response. Justify with the gap and the level.",
       "scaffold": [
-        "Identify which assumption, population, input, or objective changed.",
-        "Preserve provenance and the declared failure boundary."
+        "Use the diagnose rules.",
+        "One sentence each."
       ],
       "expectedEvidence": [
-        "Generalization is performance on relevant unseen data; underfitting reflects insufficient useful fit, overfitting reflects adaptation to sample noise, and regularization or data changes trade bias and variance.",
-        "Train-validation gaps are diagnostic but not unique causes, more data may preserve bias, regularization parameters must avoid test tuning, distribution shift differs from variance, and one split gives noisy evidence."
+        "Four diagnoses.",
+        "Responses match diagnoses."
       ]
     },
     "farTransfer": {
-      "prompt": "Design a neutral-context example or evaluation for Bias, variance and regularization and list the evidence that would support and falsify its bounded claim.",
+      "prompt": "Fit polynomials of degree 1 to 10 on noisy data, record train and cross-validation error, find the best degree, then repeat with ridge regularisation at degree 10 over several lambdas. Test once at the end.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+        "Plot or tabulate both curves.",
+        "Test set untouched until the end."
       ],
       "expectedEvidence": [
-        "Interpret learning or validation results and justify a regularization or data response.",
-        "Diagnose underfit, variance, leakage, and shift with learning/validation evidence; tune without the test set and report variability across valid splits."
+        "Best settings found by CV.",
+        "One final test score."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "ai.supervised.generalization.misconception",
-      "explanation": "Diagnose underfit, variance, leakage, and shift with learning/validation evidence; tune without the test set and report variability across valid splits.",
-      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: Near-zero train error with unstable validation performance leads to simpler capacity and repeated grouped folds while the test stays untouched."
+      "explanation": "Look at **two numbers**: training error (level) and the validation gap. High level: add capacity. Big gap: regularise, simplify or add data. Tune on **validation only**.",
+      "retryPrompt": "Apply this to \"The peeking tuner\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to interpret learning or validation results and justify a regularization or data response. Keep this boundary in view: Train-validation gaps are diagnostic but not unique causes, more data may preserve bias, regularization parameters must avoid test tuning, distribution shift differs from variance, and one split gives noisy evidence.",
+    "summary": "To interpret learning or validation results and justify a regularization or data response, compare training and validation error, treat high error with a small gap as underfitting and a large gap as overfitting, respond with capacity, features, regularisation or data accordingly, and tune without touching the test set.",
     "retrievalPrompts": [
-      "Explain Bias, variance and regularization with one technical mechanism, one evidence requirement, and one non-claim.",
-      "Why is this overclaim invalid: A large train-validation gap always means the model needs more data, and the test set can be checked repeatedly to choose regularization.",
-      "Apply the boundary to: Near-zero train error with unstable validation performance leads to simpler capacity and repeated grouped folds while the test stays untouched."
+      "What does high train and validation error mean?",
+      "What does a large gap mean?",
+      "Why not tune on the test set?"
     ],
     "nextReviewPrompt": "Next: continue to “Clustering”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

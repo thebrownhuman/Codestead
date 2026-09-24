@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Native audio and video controls provide playback semantics, while captions, transcripts, and audio description address different access needs.",
+    "summary": "`<video>` and `<audio>` with the `controls` attribute give everyone play, pause, volume and seeking — including by keyboard. But controls don't make **speech** accessible: add **captions** with `<track kind=\"captions\">` (a WebVTT file) and link a **transcript**. Third-party embeds (`<iframe>` from video sites) load another company's code and cookies — give them a `title`, and prefer privacy-friendly embed options.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A lesson video includes native controls, synchronized captions, and a linked transcript. Your goal is to embed accessible time-based media and explain cross-origin or third-party privacy concerns. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Your lesson video is great — unless you're deaf, in a noisy train, or can't play sound at work. Then it's silent moving pictures. And the embedded player may start tracking visitors before they even press play. A lesson video includes native controls, synchronized captions, and a linked transcript. In this lesson you'll embed accessible time-based media and explain cross-origin or third-party privacy concerns.\n\n```predict\n{\"question\": \"A video has `controls`. Can a deaf learner follow the spoken explanation?\", \"options\": [\"Yes, controls make it accessible\", \"No — they need captions or a transcript\"], \"answer\": 1, \"why\": \"Controls help with operating the player. Understanding speech needs captions (in sync) or a transcript (to read at their own pace).\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Relative and absolute URLs; Paragraph and inline meaning; Images and alternative text; External navigation safety. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Relative and absolute URLs**, **Paragraph and inline meaning**, **Images and alternative text**, and **External navigation safety** (third-party content)."
       },
       {
-        "heading": "Technology rule",
-        "body": "Native audio and video controls provide playback semantics, while captions, transcripts, and audio description address different access needs. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: native player + captions + transcript",
+        "body": "```html\n<figure>\n  <video controls width=\"640\" preload=\"metadata\" poster=\"intro-poster.jpg\">\n    <source src=\"intro.mp4\" type=\"video/mp4\">\n    <track kind=\"captions\" src=\"intro.en.vtt\" srclang=\"en\" label=\"English\" default>\n    Your browser can't play this video. <a href=\"intro.mp4\">Download it (MP4, 18 MB)</a>.\n  </video>\n  <figcaption>Intro to HTML — <a href=\"intro-transcript.html\">read the transcript</a></figcaption>\n</figure>\n```\n\n```text\nintro.en.vtt\nWEBVTT\n\n00:00:01.000 --> 00:00:04.000\nWelcome! Today we build our first web page.\n```\n\n| Need | Provide |\n|---|---|\n| operate the player. | `controls` (keyboard-accessible). |\n| hear speech. | captions via `<track>`. |\n| read at own pace, search. | transcript link. |\n| no autoplay surprises. | don't autoplay with sound. |\n\n```reveal\n{\"prompt\": \"Captions vs subtitles — what's the difference?\", \"answer\": \"Subtitles translate dialogue for people who can hear. Captions also include sound cues like \\\"[door slams]\\\" for people who can't.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Autoplay can be blocked or harmful, captions are not the same as transcripts, and custom controls need complete keyboard and name/state support. This draft therefore rejects: Adding controls makes spoken video content accessible without captions or transcript."
+        "heading": "Third-party embeds and privacy",
+        "body": "```predict\n{\"question\": \"An embedded video iframe from a big platform loads on page open. What can happen before anyone presses play?\", \"options\": [\"Nothing\", \"The platform can set cookies and learn who visited your page\"], \"answer\": 1, \"why\": \"Embeds are other sites running inside yours. Use privacy-enhanced embed modes, a click-to-load placeholder, and a `title` on the iframe.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Provide controls, captions or transcripts and meaningful fallback while avoiding unsolicited playback.",
-      "Embed accessible time-based media and explain cross-origin or third-party privacy concerns."
+      "Embed video/audio with controls, captions via track, and a transcript.",
+      "Explain privacy concerns of third-party embeds and mitigate them."
     ],
     "excludes": [
-      "Autoplay can be blocked or harmful, captions are not the same as transcripts, and custom controls need complete keyboard and name/state support."
+      "Streaming formats like HLS and DASH.",
+      "Audio description tracks in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,133 @@
   "examples": [
     {
       "id": "html.media.audio-video.example-a",
-      "title": "Audio, video, tracks and embeds: concrete case",
+      "title": "An accessible lesson video",
       "situation": "A lesson video includes native controls, synchronized captions, and a linked transcript.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A lesson video includes native controls, synchronized captions, and a linked transcript.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Provide controls plus synchronized captions for speech and a transcript or other alternatives appropriate to the media."
+        "**Native controls:** `<video controls>` gives keyboard-operable play, pause and seeking.",
+        "**Synchronized captions:** `<track kind=\"captions\" src=\"intro.en.vtt\" default>` shows the speech in time with the video.",
+        "**Linked transcript:** the figcaption links to a full transcript page learners can read and search."
       ],
-      "result": "The result follows because Provide controls plus synchronized captions for speech and a transcript or other alternatives appropriate to the media."
+      "result": "Learners who can't hear, or can't play sound, can still follow the whole lesson video."
     },
     {
       "id": "html.media.audio-video.example-b",
-      "title": "Audio, video, tracks and embeds: boundary case",
-      "situation": "Autoplay can be blocked or harmful, captions are not the same as transcripts, and custom controls need complete keyboard and name/state support.",
+      "title": "The embed that tracked everyone",
+      "situation": "A course homepage embeds three videos with standard iframes. Privacy tools show third-party cookies set on every visit.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Autoplay can be blocked or harmful, captions are not the same as transcripts, and custom controls need complete keyboard and name/state support.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Adding controls makes spoken video content accessible without captions or transcript."
+        "Each iframe loads the platform's scripts immediately.",
+        "Visitors are tracked even if they never play a video.",
+        "Fix: use the platform's privacy-enhanced domain or a click-to-load thumbnail, add `title=\"Intro to HTML video\"`, and mention it in the privacy notice."
       ],
-      "result": "The boundary requires this correction: Provide controls plus synchronized captions for speech and a transcript or other alternatives appropriate to the media."
+      "result": "Videos load only when a visitor chooses to play, and each iframe has an accessible name."
     }
   ],
   "misconceptions": [
     {
       "id": "html.media.audio-video.misconception",
-      "mistakenBelief": "Adding controls makes spoken video content accessible without captions or transcript.",
-      "correction": "Provide controls plus synchronized captions for speech and a transcript or other alternatives appropriate to the media.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: Adding controls makes spoken video content accessible without captions or transcript."
+      "mistakenBelief": "Adding controls makes spoken video content accessible without captions or a transcript.",
+      "correction": "Controls make the player operable, but spoken content is only accessible to deaf and hard-of-hearing users through synchronized captions and a transcript. Both are needed alongside native controls.",
+      "diagnosticPrompt": "In \"An accessible lesson video\", which two additions serve people who can't hear?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model Audio, video, tracks and embeds, with structure carrying meaning before decoration.",
+    "example": "A video without captions is like a **TV show in a noisy airport**: you see the screen but miss everything said. Captions are the text on screen; a transcript is the printed script you can read later.",
     "usefulFor": [
-      "Building a first mental model for Audio, video, tracks and embeds before using exact platform terms"
+      "remembering controls ≠ understanding",
+      "seeing captions and transcript as different tools"
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "Autoplay can be blocked or harmful, captions are not the same as transcripts, and custom controls need complete keyboard and name/state support."
+      "TV captions are often burned in; web captions can be switched on and off.",
+      "An embed is like a TV that also watches who's in the room."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A lesson video includes native controls, synchronized captions, and a linked transcript.",
-      "Native audio and video controls provide playback semantics, while captions, transcripts, and audio description address different access needs.",
-      "Provide controls plus synchronized captions for speech and a transcript or other alternatives appropriate to the media."
+      "<video controls>",
+      "<track kind='captions' src='intro.en.vtt' default>",
+      "<a href='intro-transcript.html'>read the transcript</a>"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Native controls",
         "state": {
-          "evidence": "A lesson video includes native controls, synchronized captions, and a linked transcript."
+          "keyboard": "play, pause, seek"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The lesson video includes native controls usable by keyboard."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Captions",
         "state": {
-          "rule": "Native audio and video controls provide playback semantics, while captions, transcripts, and audio description address different access needs."
+          "00:00:01": "Welcome! Today we build our first web page."
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Synchronized captions show speech in time with the video."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Transcript",
         "state": {
-          "correction": "Provide controls plus synchronized captions for speech and a transcript or other alternatives appropriate to the media."
+          "link": "intro-transcript.html"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Adding controls makes spoken video content accessible without captions or transcript."
+        "explanation": "A linked transcript lets learners read and search at their own pace."
       }
     ],
-    "textAlternative": "Starting artifact: A lesson video includes native controls, synchronized captions, and a linked transcript. Step 1, Artifact. State: evidence: A lesson video includes native controls, synchronized captions, and a linked transcript.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Native audio and video controls provide playback semantics, while captions, transcripts, and audio description address different access needs.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Provide controls plus synchronized captions for speech and a transcript or other alternatives appropriate to the media.. Check the result against the boundary and reject this misconception: Adding controls makes spoken video content accessible without captions or transcript."
+    "textAlternative": "An accessible video embed. Step 1, Native controls: keyboard is play, pause, seek. The lesson video includes native controls usable by keyboard. Step 2, Captions: 00:00:01 is Welcome! Today we build our first web page.. Synchronized captions show speech in time with the video. Step 3, Transcript: link is intro-transcript.html. A linked transcript lets learners read and search at their own pace."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Audio, video, tracks and embeds: concrete case”: state its starting evidence, apply the Audio, video, tracks and embeds rule, and give the observable result in three short lines.",
+      "prompt": "For \"An accessible lesson video\", explain how the lesson video includes native controls, synchronized captions, and a linked transcript, and who each one helps.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Controls.",
+        "Captions.",
+        "Transcript."
       ],
       "expectedEvidence": [
-        "Named example: Audio, video, tracks and embeds: concrete case.",
-        "Starting evidence: A lesson video includes native controls, synchronized captions, and a linked transcript.",
-        "Core rule: Native audio and video controls provide playback semantics, while captions, transcripts, and audio description address different access needs.",
-        "Observable result: The result follows because Provide controls plus synchronized captions for speech and a transcript or other alternatives appropriate to the media.",
-        "Boundary check: Provide controls plus synchronized captions for speech and a transcript or other alternatives appropriate to the media."
+        "Names the example \"An accessible lesson video\": a lesson video includes native controls.",
+        "Synchronized captions via a track element.",
+        "A linked transcript to read and search.",
+        "Learners who can't hear can follow the lesson."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Autoplay can be blocked or harmful, captions are not the same as transcripts, and custom controls need complete keyboard and name/state support.",
+      "prompt": "Write the markup for a podcast episode with an audio player and a transcript link. Should it autoplay?",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "audio controls.",
+        "Transcript for deaf users."
       ],
       "expectedEvidence": [
-        "Native audio and video controls provide playback semantics, while captions, transcripts, and audio description address different access needs.",
-        "Autoplay can be blocked or harmful, captions are not the same as transcripts, and custom controls need complete keyboard and name/state support."
+        "`<audio controls src=\"ep1.mp3\">` plus a transcript link.",
+        "No autoplay."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Audio, video, tracks and embeds and explain why the misconception fails.",
+      "prompt": "Add captions to a short video you have: write a WebVTT file with at least 5 cues, attach it with track, add a transcript page, and test with the keyboard only.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Timestamps HH:MM:SS.mmm.",
+        "Include sound cues."
       ],
       "expectedEvidence": [
-        "Embed accessible time-based media and explain cross-origin or third-party privacy concerns.",
-        "Provide controls plus synchronized captions for speech and a transcript or other alternatives appropriate to the media."
+        "Working captions displayed in sync.",
+        "Transcript linked and keyboard-only playback works."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.media.audio-video.misconception",
-      "explanation": "Provide controls plus synchronized captions for speech and a transcript or other alternatives appropriate to the media.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'synchronized captions' and state the decisive evidence."
+      "explanation": "Checklist for media: **controls? captions track? transcript link? no autoplay with sound? third-party embed titled and privacy-safe?**",
+      "retryPrompt": "Run the checklist on \"The embed that tracked everyone\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to embed accessible time-based media and explain cross-origin or third-party privacy concerns. Keep this boundary in view: Autoplay can be blocked or harmful, captions are not the same as transcripts, and custom controls need complete keyboard and name/state support.",
+    "summary": "To embed accessible time-based media, use native controls, synchronized captions with track, and a linked transcript, and avoid autoplay with sound. Third-party embeds load another origin's code and cookies — title them and use privacy-friendly loading.",
     "retrievalPrompts": [
-      "Explain Audio, video, tracks and embeds using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: Adding controls makes spoken video content accessible without captions or transcript.",
-      "Apply checkpoint 'synchronized captions' to a new artifact."
+      "Do controls make speech accessible?",
+      "What's the difference between captions and a transcript?",
+      "What privacy risk do embeds bring?"
     ],
     "nextReviewPrompt": "Next: continue to “Rows, cells and sections”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -3,6 +3,7 @@ export type StatusTone = "good" | "warning" | "danger" | "neutral" | "info";
 const GOOD_STATUSES = new Set([
   "active",
   "approved",
+  "reviewed",
   "complete",
   "completed",
   "graded",

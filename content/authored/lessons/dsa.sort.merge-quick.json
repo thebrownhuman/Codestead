@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Merge sort divides and merges with predictable O(n log n) time and extra storage, while quicksort partitions and has input-dependent recursion.",
+    "summary": "Two classic O(n log n) sorts split the work differently. **Merge sort** splits the array in half, sorts each half recursively, then **merges** two sorted halves by repeatedly taking the smaller front item. It's always O(n log n), **stable** if ties take from the left half first, and needs O(n) extra space. **Quicksort** picks a **pivot**, **partitions** so smaller items go left and larger go right, then sorts each side. It works in place and is usually very fast, but a bad pivot (like always the first item on sorted data) makes it **O(n²)**. Random or median-of-three pivots make that rare.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A merge step combines two sorted half-ranges while preserving their combined order invariant. Your goal is to implement and test merge sort and partition logic and compare their space and case behavior. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Two teachers each hand you a class list already sorted by score, and you need one combined sorted list for the year group. Re-sorting everything from scratch wastes work, and the naive combine loses students when one list runs out. A merge step combines two sorted half-ranges while preserving their combined order invariant. In this lesson you'll implement and test merge sort and partition logic and compare their space and case behavior.\n\n```predict\n{\"question\": \"Quicksort always picks the first element as the pivot. The input is already sorted. How does it behave?\", \"options\": [\"O(n log n) as usual\", \"O(n²): every partition puts everything on one side\"], \"answer\": 1, \"why\": \"Pivot choice and input shape decide quicksort's cost.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Arrays, strings and matrices; Time, space and asymptotic growth; Selection and insertion sort; Divide-and-conquer strategy. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Arrays, strings and matrices** module, **Time, space and asymptotic growth**, **Selection and insertion sort**, and **Divide-and-conquer strategy** (split, solve, combine)."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Merge sort divides and merges with predictable O(n log n) time and extra storage, while quicksort partitions and has input-dependent recursion. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The invariant: merge keeps the output sorted",
+        "body": "```python\ndef merge(left, right):\n    out, i, j = [], 0, 0\n    while i < len(left) and j < len(right):\n        # Invariant: out is sorted and holds the smallest i + j items.\n        if left[i] <= right[j]:          # <= takes left on ties: stable.\n            out.append(left[i]); i += 1\n        else:\n            out.append(right[j]); j += 1\n    out.extend(left[i:])                 # one side may have leftovers.\n    out.extend(right[j:])\n    return out\n\ndef merge_sort(a):                       # O(n log n) time, O(n) extra space.\n    if len(a) <= 1:\n        return a\n    mid = len(a) // 2\n    return merge(merge_sort(a[:mid]), merge_sort(a[mid:]))\n\ndef partition(a, lo, hi):                # Lomuto: pivot = a[hi].\n    pivot, i = a[hi], lo\n    for j in range(lo, hi):\n        if a[j] < pivot:                 # a[lo:i] < pivot <= a[i:j].\n            a[i], a[j] = a[j], a[i]; i += 1\n    a[i], a[hi] = a[hi], a[i]\n    return i                             # pivot's final position.\n```\n\n| Property | Merge sort | Quicksort |\n|---|---|---|\n| worst time. | O(n log n). | O(n²) with bad pivots. |\n| extra space. | O(n). | O(log n) stack, in place. |\n| stable. | yes. | no. |\n\n```reveal\n{\"prompt\": \"Why are there leftovers after the merge loop?\", \"answer\": \"The loop stops when one side runs out. The other side's remaining items are all larger than everything in out, so they're appended in order.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Pivot policy, stability, stack depth, in-place meaning, and worst-case behavior affect selection. The draft therefore rejects: Quicksort is always O(n log n) regardless of pivot and input."
+        "heading": "Pivot matters",
+        "body": "```predict\n{\"question\": \"How do libraries avoid quicksort's worst case?\", \"options\": [\"They can't\", \"Random or median-of-three pivots, or switching to heapsort when recursion gets too deep (introsort)\"], \"answer\": 1, \"why\": \"C++ std::sort uses introsort for exactly this reason.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Apply divide-and-conquer to stable merging and partition-based sorting with worst-case awareness.",
-      "Implement and test merge sort and partition logic and compare their space and case behavior.",
-      "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics."
+      "Implement merge with leftovers and a stable tie rule, and merge sort.",
+      "Implement partition and compare time, space and stability of merge sort and quicksort."
     ],
     "excludes": [
-      "Pivot policy, stability, stack depth, in-place meaning, and worst-case behavior affect selection."
+      "Three-way partitioning in depth.",
+      "External (disk-based) merge sort."
     ]
   },
   "outcomes": [
@@ -68,142 +64,133 @@
   "examples": [
     {
       "id": "dsa.sort.merge-quick.example-a",
-      "title": "Merge sort and quicksort: language-neutral trace",
+      "title": "Merging two sorted class lists",
       "situation": "A merge step combines two sorted half-ranges while preserving their combined order invariant.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: A merge step combines two sorted half-ranges while preserving their combined order invariant.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Quicksort has quadratic worst cases; pivot strategy and introspective fallback manage that risk."
+        "**Take the smaller front:** from [55, 70, 90] and [60, 70, 85], take 55, then 60, then the left 70 first on the tie.",
+        "**Preserve the invariant:** after each step, out holds the smallest items so far in sorted order.",
+        "**Leftovers and test:** when one list ends, the rest is appended; a test will check the merged list equals sorted(left + right) and that ties keep left-first order."
       ],
-      "result": "The conceptual result follows because Quicksort has quadratic worst cases; pivot strategy and introspective fallback manage that risk."
+      "result": "The year group list contains every student once, in score order, with ties kept in class order."
     },
     {
       "id": "dsa.sort.merge-quick.example-b",
-      "title": "Merge sort and quicksort: implementation transfer",
-      "situation": "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics.",
+      "title": "The quicksort that stalled",
+      "situation": "A course catalog uses a textbook quicksort with the first item as pivot. Sorting an already sorted list of 50,000 ids is very slow and even hits the recursion limit.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics.",
-        "Step 3 — Retest this boundary in the selected implementation: Pivot policy, stability, stack depth, in-place meaning, and worst-case behavior affect selection."
+        "Each partition leaves 0 items on one side and n - 1 on the other.",
+        "That's n levels of recursion and about n²/2 comparisons.",
+        "Fix: choose a random pivot, or use the language's library sort."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Sorting sorted or random catalogues takes the expected O(n log n) time."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.sort.merge-quick.misconception",
       "mistakenBelief": "Quicksort is always O(n log n) regardless of pivot and input.",
-      "correction": "Quicksort has quadratic worst cases; pivot strategy and introspective fallback manage that risk.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Quicksort is always O(n log n) regardless of pivot and input."
+      "correction": "Quicksort is O(n log n) on average, but a pivot that repeatedly splits badly, such as the first element of sorted input, gives O(n²). Pivot strategy decides how likely that is.",
+      "diagnosticPrompt": "In the opening predict, why did sorted input hurt?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Merge sort and quicksort, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Merging is like **two queues of students, each already in height order, forming one line**: at each step the shorter of the two front students steps forward. Quicksort is like **a PE teacher saying \"shorter than Asha to the left, taller to the right\"**, then repeating in each group; if Asha is always the shortest, the groups never shrink much.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering take the smaller front",
+      "pivot = the reference student"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Pivot policy, stability, stack depth, in-place meaning, and worst-case behavior affect selection."
+      "Real lines don't need extra space; merge sort does.",
+      "A random reference student usually splits groups fairly."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A merge step combines two sorted half-ranges while preserving their combined order invariant.",
-      "Merge sort divides and merges with predictable O(n log n) time and extra storage, while quicksort partitions and has input-dependent recursion.",
-      "Quicksort has quadratic worst cases; pivot strategy and introspective fallback manage that risk.",
-      "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics."
+      "left [55, 70, 90], right [60, 70, 85]",
+      "merge loop",
+      "leftovers"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "First picks",
         "state": {
-          "scenario": "A merge step combines two sorted half-ranges while preserving their combined order invariant."
+          "out": "[55, 60]"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The merge step takes the smaller front item each time."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Tie",
         "state": {
-          "invariant": "Merge sort divides and merges with predictable O(n log n) time and extra storage, while quicksort partitions and has input-dependent recursion."
+          "out": "[55, 60, 70(left), 70(right)]"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "On equal scores it takes left first, preserving their combined order invariant."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Finish",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "out": "[55, 60, 70, 70, 85, 90]"
         },
-        "explanation": "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Quicksort has quadratic worst cases; pivot strategy and introspective fallback manage that risk."
-        },
-        "explanation": "Verify the result and reject this misconception: Quicksort is always O(n log n) regardless of pivot and input."
+        "explanation": "When one side empties, leftovers are appended in order."
       }
     ],
-    "textAlternative": "Starting artifact: A merge step combines two sorted half-ranges while preserving their combined order invariant. Step 1, Specification. State: scenario: A merge step combines two sorted half-ranges while preserving their combined order invariant.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Merge sort divides and merges with predictable O(n log n) time and extra storage, while quicksort partitions and has input-dependent recursion.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics. Step 4, Conclusion. State: correction: Quicksort has quadratic worst cases; pivot strategy and introspective fallback manage that risk.. Verify the result and reject this misconception: Quicksort is always O(n log n) regardless of pivot and input."
+    "textAlternative": "Tracing a merge. Step 1, First picks: out is [55, 60]. The merge step takes the smaller front item each time. Step 2, Tie: out is [55, 60, 70(left), 70(right)]. On equal scores it takes left first, preserving their combined order invariant. Step 3, Finish: out is [55, 60, 70, 70, 85, 90]. When one side empties, leftovers are appended in order."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Merge sort and quicksort: language-neutral trace”: state its starting evidence, apply the Merge sort and quicksort rule, and give the observable result in three short lines.",
+      "prompt": "For \"Merging two sorted class lists\", explain how a merge step combines two sorted half-ranges while preserving their combined order invariant.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Take.",
+        "Invariant.",
+        "Leftovers."
       ],
       "expectedEvidence": [
-        "Named example: Merge sort and quicksort: language-neutral trace.",
-        "Starting evidence: A merge step combines two sorted half-ranges while preserving their combined order invariant.",
-        "Core rule: Merge sort divides and merges with predictable O(n log n) time and extra storage, while quicksort partitions and has input-dependent recursion.",
-        "Observable result: The conceptual result follows because Quicksort has quadratic worst cases; pivot strategy and introspective fallback manage that risk.",
-        "Boundary check: Quicksort has quadratic worst cases; pivot strategy and introspective fallback manage that risk."
+        "Names the example \"Merging two sorted class lists\": two sorted class lists are combined.",
+        "A merge step combines two sorted half-ranges.",
+        "It preserves their combined order invariant.",
+        "The year group list contains every student once, in score order."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Merge sort divides and merges with predictable O(n log n) time and extra storage, while quicksort partitions and has input-dependent recursion.",
+      "prompt": "Trace partition on [7, 2, 9, 4, 5] with pivot 5 (the last item). Show the array after partitioning and the pivot's index.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Items < 5 move to the front.",
+        "Swap pivot into position i."
       ],
       "expectedEvidence": [
-        "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics.",
-        "Pivot policy, stability, stack depth, in-place meaning, and worst-case behavior affect selection."
+        "[2, 4, 5, 7, 9] with pivot at index 2.",
+        "Left side < 5, right side ≥ 5."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Merge sort and quicksort case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Implement merge sort and randomised quicksort with comparison counters. Test both on random, sorted, reversed and all-equal lists of 10,000 items, check stability with (score, name) pairs, and summarise.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "random.randrange for the pivot.",
+        "Compare with sorted() for correctness."
       ],
       "expectedEvidence": [
-        "Implement and test merge sort and partition logic and compare their space and case behavior.",
-        "Quicksort has quadratic worst cases; pivot strategy and introspective fallback manage that risk."
+        "Both correct on every input.",
+        "Stability and counts summarised."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.sort.merge-quick.misconception",
-      "explanation": "Quicksort has quadratic worst cases; pivot strategy and introspective fallback manage that risk.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'quadratic worst cases', then state one implementation-specific risk in the selected language."
+      "explanation": "For merge: **what's the invariant on out, and what happens when one side is empty?** For quicksort: **what's true about each region during partition, and could the pivot split badly?**",
+      "retryPrompt": "Apply this to \"The quicksort that stalled\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test merge sort and partition logic and compare their space and case behavior. Keep this boundary in view: Pivot policy, stability, stack depth, in-place meaning, and worst-case behavior affect selection.",
+    "summary": "To implement and compare merge sort and quicksort, merge two sorted halves by taking the smaller front item (left first on ties) and appending leftovers, giving stable O(n log n) with O(n) extra space; partition around a pivot for in-place quicksort, whose O(n log n) average needs good pivots to avoid O(n²).",
     "retrievalPrompts": [
-      "State the Merge sort and quicksort invariant and complexity without code.",
-      "Why is this claim false: Quicksort is always O(n log n) regardless of pivot and input.",
-      "Map checkpoint 'quadratic worst cases' to C, C++, Java, and Python."
+      "What invariant does merge keep?",
+      "When is quicksort O(n²)?",
+      "Which is stable, and which uses O(n) extra space?"
     ],
     "nextReviewPrompt": "Next: continue to “Sorting properties and selection”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

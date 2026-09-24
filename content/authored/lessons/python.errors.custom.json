@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A custom Python exception names a domain failure that callers can handle distinctly, normally inherits from Exception, and carries safe structured context without replacing ordinary result alternatives.",
+    "summary": "A good module tells callers **how it fails** as clearly as how it succeeds. Define a **small** set of custom exceptions (often one base class plus a few specific ones), put useful data in **attributes** (like `field`), chain the underlying cause with `from`, and let callers decide recovery by exception **type** — never by parsing the message text.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A parse_order function raises InvalidOrderError with a safe field name and chains the underlying ValueError for diagnostics. Your goal is to design and test failure behavior for a small module API. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "An online shop receives orders as text like `\"SKU-12, qty=three\"`. When parsing fails, the checkout page needs to know which field was wrong so it can highlight it — without scraping English error messages. A parse_order function raises InvalidOrderError with a safe field name and chains the underlying ValueError for diagnostics. In this lesson you'll design and test failure behavior for a small module API.\n\n```predict\n{\"question\": \"A caller checks `if \\\"quantity\\\" in str(err):` to decide what to highlight. Someone rewords the message to \\\"qty invalid\\\". What happens?\", \"options\": [\"Still works\", \"The check silently fails and nothing is highlighted\"], \"answer\": 1, \"why\": \"Message text is for humans and changes freely. Put the data callers need in an attribute like `err.field`.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Function contracts and returns; Unicode text and formatting; Exception handling and propagation; Modules and imports. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Function contracts and returns**, **Unicode text and formatting**, **Exception handling and propagation**, and **Modules and imports**."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "A custom Python exception names a domain failure that callers can handle distinctly, normally inherits from Exception, and carries safe structured context without replacing ordinary result alternatives. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: one base class, typed data, chained cause",
+        "body": "```python\nclass OrderError(Exception):\n    \"\"\"Base for all order problems.\"\"\"\n\nclass InvalidOrderError(OrderError):\n    def __init__(self, field: str, message: str):\n        super().__init__(message)\n        self.field = field\n\ndef parse_order(text: str) -> tuple[str, int]:\n    sku, _, qty_text = text.partition(\", qty=\")\n    try:\n        qty = int(qty_text)\n    except ValueError as err:\n        raise InvalidOrderError(\"quantity\", \"quantity must be a whole number\") from err\n    return sku, qty\n```\n\n| Callers can… | Using |\n|---|---|\n| catch any order problem. | `except OrderError`. |\n| highlight the bad field. | `err.field`. |\n| debug the root cause. | `err.__cause__` (the ValueError). |\n\n```reveal\n{\"prompt\": \"Should every `if` check get its own exception class?\", \"answer\": \"No. Create a new class only when callers would **handle it differently**. Otherwise, one class with a field attribute is clearer.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "Too many exception types burden callers, messages are not stable machine APIs, secrets must not enter attributes, exception chaining matters, and expected absence may be better represented explicitly. The learner must reject this documented misconception: Every validation branch deserves a separate custom exception, and callers should parse exception message text to decide recovery."
+        "heading": "Test the failure path too",
+        "body": "```python\nimport pytest\n\ndef test_bad_quantity():\n    with pytest.raises(InvalidOrderError) as info:\n        parse_order(\"SKU-12, qty=three\")\n    assert info.value.field == \"quantity\"\n    assert isinstance(info.value.__cause__, ValueError)\n```\n\n```predict\n{\"question\": \"Why assert on `info.value.field` instead of the message?\", \"options\": [\"Messages are longer\", \"The field is the stable contract; wording may change\"], \"answer\": 1, \"why\": \"Tests should check what callers rely on — the type and attributes — so rewording a message never breaks them.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Validate contracts and define domain exceptions only when callers benefit from the distinction.",
-      "Design and test failure behavior for a small module API."
+      "Design a small exception hierarchy with useful attributes.",
+      "Raise with chained causes and test failure behaviour by type and attribute."
     ],
     "excludes": [
-      "Too many exception types burden callers, messages are not stable machine APIs, secrets must not enter attributes, exception chaining matters, and expected absence may be better represented explicitly."
+      "Warnings and the warnings module.",
+      "Logging exceptions (quality module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "python.errors.custom.example.direct",
-      "title": "Raising and custom exceptions: direct language case",
+      "title": "The order parser's error",
       "situation": "A parse_order function raises InvalidOrderError with a safe field name and chains the underlying ValueError for diagnostics.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A parse_order function raises InvalidOrderError with a safe field name and chains the underlying ValueError for diagnostics.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Define a custom exception only for a useful caller-visible failure category, expose stable safe attributes, and preserve the original cause with chaining."
+        "**Failure:** `int(\"three\")` raises ValueError inside parse_order.",
+        "**Raise with a safe field name:** parse_order raises `InvalidOrderError(\"quantity\", ...)` — no raw customer data in the message.",
+        "**Chain:** `from err` keeps the underlying ValueError as `__cause__` for diagnostics."
       ],
-      "result": "The example meets the atomic outcome because Define a custom exception only for a useful caller-visible failure category, expose stable safe attributes, and preserve the original cause with chaining."
+      "result": "The checkout page highlights the quantity field using err.field, and developers still see the original ValueError."
     },
     {
       "id": "python.errors.custom.example.boundary",
-      "title": "Raising and custom exceptions: boundary and transfer case",
-      "situation": "A lookup returns None for documented optional absence but raises RepositoryUnavailable when it cannot determine whether data exists.",
+      "title": "One class per if-statement",
+      "situation": "A module defines `QtyTooLowError`, `QtyTooHighError`, `QtyNotNumberError`, `SkuEmptyError`, `SkuTooLongError` — and every caller catches all five the same way.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A lookup returns None for documented optional absence but raises RepositoryUnavailable when it cannot determine whether data exists.",
-        "Step 2 — Keep the language boundary explicit: Too many exception types burden callers, messages are not stable machine APIs, secrets must not enter attributes, exception chaining matters, and expected absence may be better represented explicitly.",
-        "Step 3 — Reject the tempting but incorrect rule: Every validation branch deserves a separate custom exception, and callers should parse exception message text to decide recovery."
+        "Callers never treat them differently, so five classes add noise without value.",
+        "Adding a sixth check forces every caller to update its except list.",
+        "Fix: one `InvalidOrderError(field, message)` under an `OrderError` base."
       ],
-      "result": "This case demonstrates the declared outcome: Design and test failure behavior for a small module API."
+      "result": "Callers catch one type and read `field`; new checks don't break them."
     }
   ],
   "misconceptions": [
     {
       "id": "python.errors.custom.misconception",
       "mistakenBelief": "Every validation branch deserves a separate custom exception, and callers should parse exception message text to decide recovery.",
-      "correction": "Define a custom exception only for a useful caller-visible failure category, expose stable safe attributes, and preserve the original cause with chaining.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Every validation branch deserves a separate custom exception, and callers should parse exception message text to decide recovery."
+      "correction": "Create distinct exception types only where callers recover differently, and carry decision data in attributes. Message text is for humans and may change; callers should branch on type and attributes.",
+      "diagnosticPrompt": "In \"One class per if-statement\", why were five classes a burden?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a records office that escalates named failures, validates decoded forms, and returns borrowed resources on every exit can introduce Raising and custom exceptions, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "example": "Custom exceptions are like **labelled return slips** at a shop: \"wrong size — item: shoes\". The label (type) and the item field let the clerk act without reading the customer's handwritten note (the message).",
     "usefulFor": [
-      "exceptions, custom failure categories, files, JSON, and contexts"
+      "remembering type + attributes drive decisions",
+      "seeing messages as notes for humans"
     ],
     "limitations": [
-      "exception chaining, suppression, path resolution, encoding, partial writes, and protocol methods are software rules",
-      "Too many exception types burden callers, messages are not stable machine APIs, secrets must not enter attributes, exception chaining matters, and expected absence may be better represented explicitly."
+      "Return slips are paper; exceptions also carry a cause chain.",
+      "Too many slip types confuse clerks — like too many classes."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A parse_order function raises InvalidOrderError with a safe field name and chains the underlying ValueError for diagnostics.",
-      "A custom Python exception names a domain failure that callers can handle distinctly, normally inherits from Exception, and carries safe structured context without replacing ordinary result alternatives.",
-      "Define a custom exception only for a useful caller-visible failure category, expose stable safe attributes, and preserve the original cause with chaining."
+      "parse_order('SKU-12, qty=three')",
+      "int('three') raises ValueError",
+      "raise InvalidOrderError('quantity', ...) from err"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Underlying failure",
         "state": {
-          "evidence": "A parse_order function raises InvalidOrderError with a safe field name and chains the underlying ValueError for diagnostics."
+          "ValueError": "invalid literal for int()"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "Converting the quantity text raises the underlying ValueError."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Raise custom",
         "state": {
-          "rule": "A custom Python exception names a domain failure that callers can handle distinctly, normally inherits from Exception, and carries safe structured context without replacing ordinary result alternatives."
+          "type": "InvalidOrderError",
+          "field": "quantity"
         },
-        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "parse_order raises InvalidOrderError with a safe field name."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Chained",
         "state": {
-          "correction": "Define a custom exception only for a useful caller-visible failure category, expose stable safe attributes, and preserve the original cause with chaining."
+          "__cause__": "ValueError"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Every validation branch deserves a separate custom exception, and callers should parse exception message text to decide recovery."
+        "explanation": "The underlying ValueError is chained for diagnostics while callers use the field."
       }
     ],
-    "textAlternative": "Starting artifact: A parse_order function raises InvalidOrderError with a safe field name and chains the underlying ValueError for diagnostics. Step 1, Observe. State: evidence: A parse_order function raises InvalidOrderError with a safe field name and chains the underlying ValueError for diagnostics.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A custom Python exception names a domain failure that callers can handle distinctly, normally inherits from Exception, and carries safe structured context without replacing ordinary result alternatives.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Define a custom exception only for a useful caller-visible failure category, expose stable safe attributes, and preserve the original cause with chaining.. Compare the observation with the correction and explain why the misconception fails: Every validation branch deserves a separate custom exception, and callers should parse exception message text to decide recovery."
+    "textAlternative": "Raising a custom exception from parse_order. Step 1, Underlying failure: ValueError is invalid literal for int(). Converting the quantity text raises the underlying ValueError. Step 2, Raise custom: type is InvalidOrderError; field is quantity. parse_order raises InvalidOrderError with a safe field name. Step 3, Chained: __cause__ is ValueError. The underlying ValueError is chained for diagnostics while callers use the field."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Raising and custom exceptions: direct language case”: state its starting evidence, apply the Raising and custom exceptions rule, and give the observable result in three short lines.",
+      "prompt": "For \"The order parser's error\", explain what parse_order raises, why it carries a safe field name, and how it chains the underlying ValueError for diagnostics.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Type.",
+        "Field.",
+        "Chain."
       ],
       "expectedEvidence": [
-        "Named example: Raising and custom exceptions: direct language case.",
-        "Starting evidence: A parse_order function raises InvalidOrderError with a safe field name and chains the underlying ValueError for diagnostics.",
-        "Core rule: A custom Python exception names a domain failure that callers can handle distinctly, normally inherits from Exception, and carries safe structured context without replacing ordinary result alternatives.",
-        "Observable result: The example meets the atomic outcome because Define a custom exception only for a useful caller-visible failure category, expose stable safe attributes, and preserve the original cause with chaining.",
-        "Boundary check: Define a custom exception only for a useful caller-visible failure category, expose stable safe attributes, and preserve the original cause with chaining."
+        "Names the example \"The order parser's error\": parse_order raises InvalidOrderError.",
+        "It carries a safe field name, quantity.",
+        "It chains the underlying ValueError for diagnostics with from err.",
+        "Callers use err.field, not message text."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A lookup returns None for documented optional absence but raises RepositoryUnavailable when it cannot determine whether data exists.",
+      "prompt": "Design exceptions for a `transfer(amount, from_acct, to_acct)` function. Which failures would callers handle differently? Write the classes and one raise.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Insufficient funds vs invalid input.",
+        "Use attributes for amounts or ids."
       ],
       "expectedEvidence": [
-        "A custom Python exception names a domain failure that callers can handle distinctly, normally inherits from Exception, and carries safe structured context without replacing ordinary result alternatives.",
-        "Too many exception types burden callers, messages are not stable machine APIs, secrets must not enter attributes, exception chaining matters, and expected absence may be better represented explicitly."
+        "A base class plus 1–2 subclasses where handling differs.",
+        "A raise with attributes and, where relevant, a chained cause."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Raising and custom exceptions, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Add a custom exception to one of your modules. Replace any message-text checks in callers with type/attribute checks, and write pytest tests for two failure paths.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Base class first.",
+        "Test type, attribute and __cause__."
       ],
       "expectedEvidence": [
-        "Design and test failure behavior for a small module API.",
-        "Define a custom exception only for a useful caller-visible failure category, expose stable safe attributes, and preserve the original cause with chaining."
+        "Callers branch on type and attributes only.",
+        "Two passing failure-path tests."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "python.errors.custom.misconception",
-      "explanation": "Define a custom exception only for a useful caller-visible failure category, expose stable safe attributes, and preserve the original cause with chaining.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A lookup returns None for documented optional absence but raises RepositoryUnavailable when it cannot determine whether data exists."
+      "explanation": "For each failure ask: **Would a caller do something different here?** If not, reuse an existing class and add an attribute. Then write a test that checks the type and attribute.",
+      "retryPrompt": "Apply this to \"One class per if-statement\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to design and test failure behavior for a small module API. Keep this boundary in view: Too many exception types burden callers, messages are not stable machine APIs, secrets must not enter attributes, exception chaining matters, and expected absence may be better represented explicitly.",
+    "summary": "To design and test failure behavior for a small module API, define a base exception and only the subclasses callers treat differently, carry decision data in attributes, chain causes with `from`, and test failures by type and attribute — not message text.",
     "retrievalPrompts": [
-      "Explain Raising and custom exceptions using canonical Python: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Every validation branch deserves a separate custom exception, and callers should parse exception message text to decide recovery.",
-      "Predict this case from memory: A lookup returns None for documented optional absence but raises RepositoryUnavailable when it cannot determine whether data exists."
+      "Why shouldn't callers parse error messages?",
+      "When does a new exception class earn its place?",
+      "What does `__cause__` hold after `raise … from err`?"
     ],
     "nextReviewPrompt": "Next: continue to “Files, paths and JSON”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

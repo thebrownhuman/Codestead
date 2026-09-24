@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "NIST AI RMF organizes continuous risk work through Govern, Map, Measure, and Manage: assign accountability, understand context, assess prioritized risks, apply controls, monitor, respond, and document residual risk.",
+    "summary": "The **NIST AI Risk Management Framework** organises AI risk work into four ongoing functions. **Govern**: decide who is **accountable**, set policies, and make sure people have authority to act. **Map**: understand the **context**: who uses the system, who is affected, what could go wrong. **Measure**: assess the **prioritised risks** with evidence (tests, audits, monitoring). **Manage**: apply **controls**, respond to incidents, and decide what **residual risk** is acceptable. It's a cycle, not a one-off. A practical tool is a **risk register**: one row per risk with stakeholders, owner, scenario, likelihood and impact evidence, **preventive and detective controls**, residual risk, a monitor and a **stop criterion** (when to pause the system). Completing a checklist doesn't make a system safe or move responsibility onto the framework.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A risk register names affected stakeholders, owner, scenario, likelihood/impact evidence, preventive and detective controls, residual risk, monitor, and stop criterion. Your goal is to produce a concise AI risk register with owners, evidence, controls, residual risk and stop criteria. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner's team fills in an AI risk checklist, ticks every box, and announces the chatbot is \"certified safe\". Months later it gives harmful advice to a vulnerable user; nobody owns the problem, there's no monitor that would have caught it, and no rule says when to switch it off. A risk register names affected stakeholders, owner, scenario, likelihood/impact evidence, preventive and detective controls, residual risk, monitor, and stop criterion. In this lesson you'll produce a concise AI risk register with owners, evidence, controls, residual risk and stop criteria.\n\n```predict\n{\"question\": \"The team completed an AI risk framework checklist. Is the system now certified safe?\", \"options\": [\"Yes, the framework certifies it\", \"No: the framework guides ongoing work; the organisation stays responsible\"], \"answer\": 1, \"why\": \"Frameworks structure risk work; they don't transfer accountability.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Supervised learning; Generative AI, LLMs and retrieval; Robustness, drift and adversarial cases; Fairness and explainability; API, tool and prompt-injection boundaries. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Supervised learning**, **Generative AI, LLMs and retrieval**, **Robustness, drift and adversarial cases**, **Fairness and explainability** and **API, tool and prompt-injection boundaries**."
       },
       {
-        "heading": "Bounded operational model",
-        "body": "NIST AI RMF organizes continuous risk work through Govern, Map, Measure, and Manage: assign accountability, understand context, assess prioritized risks, apply controls, monitor, respond, and document residual risk. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+        "heading": "The model: govern, map, measure, manage, repeat",
+        "body": "```python\nregister = [{\n    \"risk\": \"harmful advice to a vulnerable user\",\n    \"stakeholders\": [\"users in crisis\", \"support staff\"],\n    \"owner\": \"Head of Support\",                                 # govern.\n    \"scenario\": \"user describes self-harm; bot gives generic tips\",   # map.\n    \"evidence\": \"red-team: 3/50 unsafe replies\",                  # measure.\n    \"preventive\": \"crisis keywords route to a human\",             # manage.\n    \"detective\": \"daily review of flagged chats\",\n    \"residual\": \"medium\",\n    \"monitor\": \"unsafe-reply rate in weekly sample\",\n    \"stop_if\": \"unsafe-reply rate > 1% in any week\",\n}]\n\nrequired = [\"owner\", \"evidence\", \"preventive\", \"detective\", \"residual\", \"monitor\", \"stop_if\"]\nfor row in register:\n    missing = [k for k in required if not row.get(k)]\n    print(row[\"risk\"], \"->\", \"complete\" if not missing else f\"missing {missing}\")\n```\n\n| Function | Question |\n|---|---|\n| govern. | who is accountable, with what authority? |\n| map. | what context, who's affected, what could go wrong? |\n| measure. | how likely and how bad, on what evidence? |\n| manage. | which controls, what's left, when do we stop? |\n\n```reveal\n{\"prompt\": \"What's the difference between preventive and detective controls?\", \"answer\": \"Preventive controls stop a problem happening (routing crisis messages to people). Detective controls notice when it happens anyway (reviewing flagged chats). You usually need both.\"}\n```"
       },
       {
-        "heading": "Failure boundary and non-claim",
-        "body": "The functions are not a one-time checklist or ordered certification, risk tolerance is contextual, measurement can be incomplete, third parties share responsibility, and controls need owners and evidence. The learner must reject this overclaim: Completing an AI RMF checklist certifies an AI system as safe and transfers responsibility to the framework."
+        "heading": "Stop criteria",
+        "body": "```predict\n{\"question\": \"Why write a stop criterion in advance?\", \"options\": [\"It's paperwork\", \"So the decision to pause is clear and fast when a threshold is crossed, not argued afterwards\"], \"answer\": 1, \"why\": \"Pre-agreed triggers beat debate during an incident.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Assign ownership, document context, measure prioritized risks and implement proportionate controls and incident response.",
-      "Produce a concise AI risk register with owners, evidence, controls, residual risk and stop criteria."
+      "Apply Govern, Map, Measure and Manage as a continuing cycle.",
+      "Write risk-register rows with owners, evidence, controls, residual risk, monitors and stop criteria."
     ],
     "excludes": [
-      "The functions are not a one-time checklist or ordered certification, risk tolerance is contextual, measurement can be incomplete, third parties share responsibility, and controls need owners and evidence."
+      "Legal regulation details.",
+      "Full NIST AI RMF profiles."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "ai.risk.lifecycle.example.direct",
-      "title": "Govern, map, measure and manage: bounded direct case",
+      "title": "A risk register with owners and stop criteria",
       "situation": "A risk register names affected stakeholders, owner, scenario, likelihood/impact evidence, preventive and detective controls, residual risk, monitor, and stop criterion.",
       "walkthrough": [
-        "Step 1 — Observe the exact data, state, metric, or tool behavior: A risk register names affected stakeholders, owner, scenario, likelihood/impact evidence, preventive and detective controls, residual risk, monitor, and stop criterion.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the claim boundary with: Use Govern, Map, Measure, and Manage as continuous context-specific functions with accountable owners, evidence, controls, residual risk, and stop decisions."
+        "**Names affected stakeholders, owner, scenario:** users in crisis, Head of Support, generic tips to self-harm messages.",
+        "**Likelihood/impact evidence, preventive and detective controls:** 3/50 unsafe in red-teaming, crisis routing, daily review.",
+        "**Residual risk, monitor, and stop criterion:** we check the row is complete, with a stop at more than 1% unsafe replies."
       ],
-      "result": "This example supports only the atomic outcome because Use Govern, Map, Measure, and Manage as continuous context-specific functions with accountable owners, evidence, controls, residual risk, and stop decisions."
+      "result": "Everyone knows who acts, on what signal, and when the system pauses."
     },
     {
       "id": "ai.risk.lifecycle.example.stress",
-      "title": "Govern, map, measure and manage: stress and transfer case",
-      "situation": "A model metric remains strong but a new incident crosses an impact stop threshold, so use pauses under the governance policy.",
+      "title": "The certified-safe chatbot",
+      "situation": "A team ticked a risk checklist, called the chatbot certified, and had no owner or monitor when it gave harmful advice.",
       "walkthrough": [
-        "Step 1 — Name the changed population, input, assumption, or failure: A model metric remains strong but a new incident crosses an impact stop threshold, so use pauses under the governance policy.",
-        "Step 2 — Keep the non-claim visible: The functions are not a one-time checklist or ordered certification, risk tolerance is contextual, measurement can be incomplete, third parties share responsibility, and controls need owners and evidence.",
-        "Step 3 — Reject the tempting overclaim: Completing an AI RMF checklist certifies an AI system as safe and transfers responsibility to the framework."
+        "The checklist replaced ongoing work instead of structuring it.",
+        "Assign an owner and write register rows with evidence and controls.",
+        "Add monitors and a stop criterion, and review the register regularly."
       ],
-      "result": "This case demonstrates the declared outcome: Produce a concise AI risk register with owners, evidence, controls, residual risk and stop criteria."
+      "result": "Harm is detected quickly and someone has authority to stop it."
     }
   ],
   "misconceptions": [
     {
       "id": "ai.risk.lifecycle.misconception",
       "mistakenBelief": "Completing an AI RMF checklist certifies an AI system as safe and transfers responsibility to the framework.",
-      "correction": "Use Govern, Map, Measure, and Manage as continuous context-specific functions with accountable owners, evidence, controls, residual risk, and stop decisions.",
-      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: Completing an AI RMF checklist certifies an AI system as safe and transfers responsibility to the framework."
+      "correction": "The framework organises continuous risk work. Accountability stays with named people, and risks need ongoing measurement and management.",
+      "diagnosticPrompt": "In \"The certified-safe chatbot\", what was missing after the checklist?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "an evidence and risk register linking metrics, stress cases, affected slices, accountable owners, controls, monitors, and stop decisions can introduce Govern, map, measure and manage only after its canonical technical definition and evidence boundary are stated.",
+    "example": "AI risk management is like **running a swimming pool**. **Govern**: a named manager is responsible. **Map**: who swims here, children, elderly, where is the deep end? **Measure**: incident logs and water tests. **Manage**: lifeguards (preventive), cameras (detective), and a rule to **close the pool** if the water fails a test (stop criterion). Passing one inspection doesn't mean you can fire the lifeguards.",
     "usefulFor": [
-      "evaluation, robustness, fairness, explanations, and lifecycle governance"
+      "remembering manager, map swimmers, test water, lifeguards",
+      "close the pool rule"
     ],
     "limitations": [
-      "no metric suite or framework checklist certifies safety, fairness, causality, or future robustness",
-      "The functions are not a one-time checklist or ordered certification, risk tolerance is contextual, measurement can be incomplete, third parties share responsibility, and controls need owners and evidence."
+      "The risk register is the safety log on the wall.",
+      "Residual risk is the danger left even with lifeguards on duty."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A risk register names affected stakeholders, owner, scenario, likelihood/impact evidence, preventive and detective controls, residual risk, monitor, and stop criterion.",
-      "NIST AI RMF organizes continuous risk work through Govern, Map, Measure, and Manage: assign accountability, understand context, assess prioritized risks, apply controls, monitor, respond, and document residual risk.",
-      "Use Govern, Map, Measure, and Manage as continuous context-specific functions with accountable owners, evidence, controls, residual risk, and stop decisions."
+      "assign owner",
+      "record evidence and controls",
+      "check completeness"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Govern",
         "state": {
-          "boundedEvidence": "A risk register names affected stakeholders, owner, scenario, likelihood/impact evidence, preventive and detective controls, residual risk, monitor, and stop criterion."
+          "owner": "Head of Support"
         },
-        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+        "explanation": "The risk register names an accountable owner for each risk."
       },
       {
         "step": 2,
-        "focus": "Model",
+        "focus": "Measure",
         "state": {
-          "operationalRule": "NIST AI RMF organizes continuous risk work through Govern, Map, Measure, and Manage: assign accountability, understand context, assess prioritized risks, apply controls, monitor, respond, and document residual risk."
+          "evidence": "3/50 unsafe replies"
         },
-        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+        "explanation": "Likelihood and impact are backed by evidence from red-teaming."
       },
       {
         "step": 3,
-        "focus": "Limit",
+        "focus": "Manage",
         "state": {
-          "correction": "Use Govern, Map, Measure, and Manage as continuous context-specific functions with accountable owners, evidence, controls, residual risk, and stop decisions."
+          "stop_if": "unsafe rate > 1% weekly",
+          "status": "complete"
         },
-        "explanation": "State what the evidence does not establish and reject the misconception: Completing an AI RMF checklist certifies an AI system as safe and transfers responsibility to the framework."
+        "explanation": "Controls, residual risk, monitor and stop criterion are recorded."
       }
     ],
-    "textAlternative": "Starting artifact: A risk register names affected stakeholders, owner, scenario, likelihood/impact evidence, preventive and detective controls, residual risk, monitor, and stop criterion. Step 1, Observe. State: boundedEvidence: A risk register names affected stakeholders, owner, scenario, likelihood/impact evidence, preventive and detective controls, residual risk, monitor, and stop criterion.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: NIST AI RMF organizes continuous risk work through Govern, Map, Measure, and Manage: assign accountability, understand context, assess prioritized risks, apply controls, monitor, respond, and document residual risk.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Use Govern, Map, Measure, and Manage as continuous context-specific functions with accountable owners, evidence, controls, residual risk, and stop decisions.. State what the evidence does not establish and reject the misconception: Completing an AI RMF checklist certifies an AI system as safe and transfers responsibility to the framework."
+    "textAlternative": "Tracing a risk-register row. Step 1, Govern: owner is Head of Support. The risk register names an accountable owner for each risk. Step 2, Measure: evidence is 3/50 unsafe replies. Likelihood and impact are backed by evidence from red-teaming. Step 3, Manage: stop_if is unsafe rate > 1% weekly; status is complete. Controls, residual risk, monitor and stop criterion are recorded."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Govern, map, measure and manage: bounded direct case”: state its starting evidence, apply the Govern, map, measure and manage rule, and give the observable result in three short lines.",
+      "prompt": "For \"A risk register with owners and stop criteria\", explain how a risk register names affected stakeholders, owner, scenario, likelihood/impact evidence, preventive and detective controls, residual risk, monitor, and stop criterion.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Govern.",
+        "Measure.",
+        "Manage."
       ],
       "expectedEvidence": [
-        "Named example: Govern, map, measure and manage: bounded direct case.",
-        "Starting evidence: A risk register names affected stakeholders, owner, scenario, likelihood/impact evidence, preventive and detective controls, residual risk, monitor, and stop criterion.",
-        "Core rule: NIST AI RMF organizes continuous risk work through Govern, Map, Measure, and Manage: assign accountability, understand context, assess prioritized risks, apply controls, monitor, respond, and document residual risk.",
-        "Observable result: This example supports only the atomic outcome because Use Govern, Map, Measure, and Manage as continuous context-specific functions with accountable owners, evidence, controls, residual risk, and stop decisions.",
-        "Boundary check: Use Govern, Map, Measure, and Manage as continuous context-specific functions with accountable owners, evidence, controls, residual risk, and stop decisions."
+        "Names the example \"A risk register with owners and stop criteria\": a checklist was treated as certification.",
+        "A risk register names affected stakeholders, owner, scenario, and likelihood/impact evidence.",
+        "It records preventive and detective controls, residual risk, monitor, and stop criterion.",
+        "Everyone knows who acts, on what signal, and when the system pauses."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed case: A model metric remains strong but a new incident crosses an impact stop threshold, so use pauses under the governance policy.",
+      "prompt": "Add two more register rows for the same chatbot: leaking personal data and prompt injection. Fill every field and run the completeness check.",
       "scaffold": [
-        "Identify which assumption, population, input, or objective changed.",
-        "Preserve provenance and the declared failure boundary."
+        "One preventive and one detective control each.",
+        "Measurable stop criteria."
       ],
       "expectedEvidence": [
-        "NIST AI RMF organizes continuous risk work through Govern, Map, Measure, and Manage: assign accountability, understand context, assess prioritized risks, apply controls, monitor, respond, and document residual risk.",
-        "The functions are not a one-time checklist or ordered certification, risk tolerance is contextual, measurement can be incomplete, third parties share responsibility, and controls need owners and evidence."
+        "Three complete rows.",
+        "Stop criteria measurable."
       ]
     },
     "farTransfer": {
-      "prompt": "Design a neutral-context example or evaluation for Govern, map, measure and manage and list the evidence that would support and falsify its bounded claim.",
+      "prompt": "Write a five-row risk register for an AI system you know (e.g. an exam proctoring tool), covering at least one fairness, one security and one robustness risk, and describe how often it will be reviewed and by whom.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+        "Name real stakeholder groups.",
+        "Evidence must be something you can collect."
       ],
       "expectedEvidence": [
-        "Produce a concise AI risk register with owners, evidence, controls, residual risk and stop criteria.",
-        "Use Govern, Map, Measure, and Manage as continuous context-specific functions with accountable owners, evidence, controls, residual risk, and stop decisions."
+        "Five complete rows.",
+        "Review cycle defined."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "ai.risk.lifecycle.misconception",
-      "explanation": "Use Govern, Map, Measure, and Manage as continuous context-specific functions with accountable owners, evidence, controls, residual risk, and stop decisions.",
-      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A model metric remains strong but a new incident crosses an impact stop threshold, so use pauses under the governance policy."
+      "explanation": "For each risk ask: **who owns it, what evidence says how likely and bad it is, what prevents and detects it, what's left, and when do we stop?**",
+      "retryPrompt": "Apply this to \"The certified-safe chatbot\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to produce a concise AI risk register with owners, evidence, controls, residual risk and stop criteria. Keep this boundary in view: The functions are not a one-time checklist or ordered certification, risk tolerance is contextual, measurement can be incomplete, third parties share responsibility, and controls need owners and evidence.",
+    "summary": "To produce a concise AI risk register with owners, evidence, controls, residual risk and stop criteria, cycle through Govern, Map, Measure and Manage, write one row per risk naming stakeholders, owner, scenario, evidence, preventive and detective controls, residual risk, monitor and stop criterion, and keep responsibility with people.",
     "retrievalPrompts": [
-      "Explain Govern, map, measure and manage with one technical mechanism, one evidence requirement, and one non-claim.",
-      "Why is this overclaim invalid: Completing an AI RMF checklist certifies an AI system as safe and transfers responsibility to the framework.",
-      "Apply the boundary to: A model metric remains strong but a new incident crosses an impact stop threshold, so use pauses under the governance policy."
+      "What are the four RMF functions?",
+      "What's a stop criterion?",
+      "Does a checklist certify safety?"
     ],
     "nextReviewPrompt": "Next: continue to “Project card and experiment plan”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

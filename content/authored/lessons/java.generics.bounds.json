@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Bounds and wildcards express which types an API accepts: extends supports safe production, super supports safe consumption, and a named type parameter relates multiple positions.",
+    "summary": "Generic types are **invariant**: even though Integer is a Number, `List<Integer>` is **not** a `List<Number>` (otherwise you could add a Double to a list of Integers). **Wildcards** loosen this safely. `List<? extends Number>` accepts a list of Integers or Doubles and lets you **read** Numbers out (a **producer**), but you can't add to it. `List<? super Integer>` accepts a list of Integer, Number or Object and lets you **add** Integers (a **consumer**). The memory aid is **PECS: Producer Extends, Consumer Super**. Use a **named, bounded type parameter** like `<T extends Comparable<T>>` when two positions must share the same type.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A sum method accepts List<? extends Number> because it reads Numbers without inserting values into the caller's collection. Your goal is to choose extends, super or a type parameter for a collection-processing API and explain why. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner writes `static double sum(List<Number> xs)` and can't call it with a `List<Integer>`: compile error. They try a cast and make things worse. A sum method accepts List<? extends Number> because it reads Numbers without inserting values into the caller's collection. In this lesson you'll choose extends, super or a type parameter for a collection-processing API and explain why.\n\n```predict\n{\"question\": \"Is `List<Integer>` a subtype of `List<Number>`?\", \"options\": [\"Yes, Integer extends Number\", \"No: generics are invariant, or you could add a Double to a list of Integers\"], \"answer\": 1, \"why\": \"Use List<? extends Number> to accept both.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Interfaces; Arrays and multidimensional arrays; Generic types and methods; Class inheritance. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Interfaces**, **Arrays and multidimensional arrays**, **Generic types and methods** and **Class inheritance** (subtype relationships)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Bounds and wildcards express which types an API accepts: extends supports safe production, super supports safe consumption, and a named type parameter relates multiple positions. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The rule: producer extends, consumer super",
+        "body": "```java\nimport java.util.ArrayList;\nimport java.util.Collections;\nimport java.util.List;\n\npublic class Bounds {\n    static double sum(List<? extends Number> xs) {        // producer: we only read.\n        double total = 0;\n        for (Number n : xs) total += n.doubleValue();\n        return total;\n    }\n\n    static void addSquares(List<? super Integer> out, int n) {   // consumer: we only add.\n        for (int i = 1; i <= n; i++) out.add(i * i);\n    }\n\n    static <T extends Comparable<T>> T max(List<T> xs) {  // one T in two positions.\n        return Collections.max(xs);\n    }\n\n    public static void main(String[] args) {\n        System.out.println(sum(List.of(1, 2, 3)));        // 6.0\n        System.out.println(sum(List.of(1.5, 2.5)));        // 4.0\n        List<Number> nums = new ArrayList<>();\n        addSquares(nums, 3);\n        System.out.println(nums);                          // [1, 4, 9]\n        System.out.println(max(List.of(\"pear\", \"apple\")));   // pear\n    }\n}\n```\n\n| Need | Signature |\n|---|---|\n| read items as Number. | List<? extends Number>. |\n| add Integers. | List<? super Integer>. |\n| relate input and output types. | <T extends Bound>. |\n\n```reveal\n{\"prompt\": \"Why can't sum add to xs?\", \"answer\": \"xs might be a List<Double>. The compiler can't prove any value you add fits the unknown element type, so add is rejected (except null).\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "Generic types are invariant, wildcard capture limits writing, null remains writable to many producer views, and PECS is guidance rather than a substitute for the exact contract. The learner must reject this documented misconception: Because Integer extends Number, List<Integer> is automatically a subtype of List<Number>."
+        "heading": "Choosing the tool",
+        "body": "```predict\n{\"question\": \"copy(src, dest) reads from src and writes into dest. Best signature?\", \"options\": [\"<T> void copy(List<T> src, List<T> dest)\", \"<T> void copy(List<? extends T> src, List<? super T> dest)\"], \"answer\": 1, \"why\": \"src produces, dest consumes: PECS lets more calls compile.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Express producer, consumer and subtype constraints without assuming invariant generic types are covariant.",
-      "Choose extends, super or a type parameter for a collection-processing API and explain why."
+      "Apply PECS to choose extends or super wildcards.",
+      "Use a bounded type parameter when positions must share one type."
     ],
     "excludes": [
-      "Generic types are invariant, wildcard capture limits writing, null remains writable to many producer views, and PECS is guidance rather than a substitute for the exact contract."
+      "Wildcard capture helpers in depth.",
+      "Recursive generics beyond Comparable."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "java.generics.bounds.example.direct",
-      "title": "Bounds and wildcards: direct language case",
+      "title": "A sum over List<? extends Number>",
       "situation": "A sum method accepts List<? extends Number> because it reads Numbers without inserting values into the caller's collection.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A sum method accepts List<? extends Number> because it reads Numbers without inserting values into the caller's collection.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Java generics are invariant; use ? extends for a producer, ? super for a consumer, or a named type parameter when positions must share one type."
+        "**A sum method accepts List<? extends Number>:** both List<Integer> and List<Double> compile.",
+        "**Because it reads Numbers:** each element is used through doubleValue().",
+        "**Without inserting values into the caller's collection:** add is rejected, so we check the caller's list will stay unchanged."
       ],
-      "result": "The example meets the atomic outcome because Java generics are invariant; use ? extends for a producer, ? super for a consumer, or a named type parameter when positions must share one type."
+      "result": "One sum method works for every numeric list, safely."
     },
     {
       "id": "java.generics.bounds.example.boundary",
-      "title": "Bounds and wildcards: boundary and transfer case",
-      "situation": "A copy method writes Integer values into List<? super Integer> and uses a named T only when source and destination element relationships must be shared.",
+      "title": "The filler that couldn't fill",
+      "situation": "A learner's fill(List<Integer> out) method can't be called with a List<Number> or List<Object>.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A copy method writes Integer values into List<? super Integer> and uses a named T only when source and destination element relationships must be shared.",
-        "Step 2 — Keep the language boundary explicit: Generic types are invariant, wildcard capture limits writing, null remains writable to many producer views, and PECS is guidance rather than a substitute for the exact contract.",
-        "Step 3 — Reject the tempting but incorrect rule: Because Integer extends Number, List<Integer> is automatically a subtype of List<Number>."
+        "The method only adds Integers, so it's a consumer.",
+        "Change the parameter to List<? super Integer>.",
+        "Now lists of Integer, Number and Object are all accepted."
       ],
-      "result": "This case demonstrates the declared outcome: Choose extends, super or a type parameter for a collection-processing API and explain why."
+      "result": "The method serves every list that can hold Integers."
     }
   ],
   "misconceptions": [
     {
       "id": "java.generics.bounds.misconception",
       "mistakenBelief": "Because Integer extends Number, List<Integer> is automatically a subtype of List<Number>.",
-      "correction": "Java generics are invariant; use ? extends for a producer, ? super for a consumer, or a named type parameter when positions must share one type.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Because Integer extends Number, List<Integer> is automatically a subtype of List<Number>."
+      "correction": "Generic types are invariant. List<Integer> is a List<? extends Number>, but not a List<Number>, which would allow adding Doubles.",
+      "diagnosticPrompt": "In the opening predict, what could go wrong if List<Integer> were a List<Number>?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a typed storage service whose labels constrain accepted contents and whose containers promise order, uniqueness, lookup, or removal policy can introduce Bounds and wildcards, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "example": "Think of a **fruit basket**. A basket of \"**some kind of** fruit\" (`? extends Fruit`) is fine for **taking fruit out**, but you can't put an apple in: it might be the banana basket. A basket that holds \"**apples or anything broader**\" (`? super Apple`) is safe for **putting apples in**, but what you pull out is only known as \"something\".",
     "usefulFor": [
-      "generic relationships, wildcard direction, and collection choice"
+      "remembering take out from extends",
+      "put in to super"
     ],
     "limitations": [
-      "type erasure, variance, hashing, iterator validity, and complexity guarantees are not visible in physical bins",
-      "Generic types are invariant, wildcard capture limits writing, null remains writable to many producer views, and PECS is guidance rather than a substitute for the exact contract."
+      "PECS: Producer Extends, Consumer Super.",
+      "A named T is one labelled basket used in two places."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A sum method accepts List<? extends Number> because it reads Numbers without inserting values into the caller's collection.",
-      "Bounds and wildcards express which types an API accepts: extends supports safe production, super supports safe consumption, and a named type parameter relates multiple positions.",
-      "Java generics are invariant; use ? extends for a producer, ? super for a consumer, or a named type parameter when positions must share one type."
+      "sum(List.of(1, 2, 3))",
+      "addSquares(nums, 3)",
+      "max(List.of(\"pear\", \"apple\"))"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Read",
         "state": {
-          "evidence": "A sum method accepts List<? extends Number> because it reads Numbers without inserting values into the caller's collection."
+          "accepts": "List<Integer>",
+          "result": "6.0"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "The sum method accepts List<? extends Number> because it only reads Numbers."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Write",
         "state": {
-          "rule": "Bounds and wildcards express which types an API accepts: extends supports safe production, super supports safe consumption, and a named type parameter relates multiple positions."
+          "accepts": "List<Number>",
+          "nums": "[1, 4, 9]"
         },
-        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "A super wildcard lets the method add Integers into a broader list."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Relate",
         "state": {
-          "correction": "Java generics are invariant; use ? extends for a producer, ? super for a consumer, or a named type parameter when positions must share one type."
+          "T": "String",
+          "result": "pear"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Because Integer extends Number, List<Integer> is automatically a subtype of List<Number>."
+        "explanation": "A named bounded type parameter links the input element type to the result."
       }
     ],
-    "textAlternative": "Starting artifact: A sum method accepts List<? extends Number> because it reads Numbers without inserting values into the caller's collection. Step 1, Observe. State: evidence: A sum method accepts List<? extends Number> because it reads Numbers without inserting values into the caller's collection.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Bounds and wildcards express which types an API accepts: extends supports safe production, super supports safe consumption, and a named type parameter relates multiple positions.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Java generics are invariant; use ? extends for a producer, ? super for a consumer, or a named type parameter when positions must share one type.. Compare the observation with the correction and explain why the misconception fails: Because Integer extends Number, List<Integer> is automatically a subtype of List<Number>."
+    "textAlternative": "Tracing wildcard choices. Step 1, Read: accepts is List<Integer>; result is 6.0. The sum method accepts List<? extends Number> because it only reads Numbers. Step 2, Write: accepts is List<Number>; nums is [1, 4, 9]. A super wildcard lets the method add Integers into a broader list. Step 3, Relate: T is String; result is pear. A named bounded type parameter links the input element type to the result."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Bounds and wildcards: direct language case”: state its starting evidence, apply the Bounds and wildcards rule, and give the observable result in three short lines.",
+      "prompt": "For \"A sum over List<? extends Number>\", explain why a sum method accepts List<? extends Number> because it reads Numbers without inserting values into the caller's collection.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Producer.",
+        "Read.",
+        "No insert."
       ],
       "expectedEvidence": [
-        "Named example: Bounds and wildcards: direct language case.",
-        "Starting evidence: A sum method accepts List<? extends Number> because it reads Numbers without inserting values into the caller's collection.",
-        "Core rule: Bounds and wildcards express which types an API accepts: extends supports safe production, super supports safe consumption, and a named type parameter relates multiple positions.",
-        "Observable result: The example meets the atomic outcome because Java generics are invariant; use ? extends for a producer, ? super for a consumer, or a named type parameter when positions must share one type.",
-        "Boundary check: Java generics are invariant; use ? extends for a producer, ? super for a consumer, or a named type parameter when positions must share one type."
+        "Names the example \"A sum over List<? extends Number>\": List<Number> rejected List<Integer>.",
+        "A sum method accepts List<? extends Number>.",
+        "It reads Numbers without inserting values into the caller's collection.",
+        "One method works for every numeric list."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A copy method writes Integer values into List<? super Integer> and uses a named T only when source and destination element relationships must be shared.",
+      "prompt": "Write static void addAll(List<? super Integer> out, int... values) and static double average(List<? extends Number> xs). Call each with two different list types.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "PECS.",
+        "Handle an empty list in average."
       ],
       "expectedEvidence": [
-        "Bounds and wildcards express which types an API accepts: extends supports safe production, super supports safe consumption, and a named type parameter relates multiple positions.",
-        "Generic types are invariant, wildcard capture limits writing, null remains writable to many producer views, and PECS is guidance rather than a substitute for the exact contract."
+        "Both compile with two types.",
+        "Results tested."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Bounds and wildcards, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Design a static <T> void transfer(List<? extends T> src, List<? super T> dest, Predicate<? super T> keep) utility. Show it working for Integer into Number with a Predicate<Object>, and explain each wildcard.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Predicate consumes T, so super.",
+        "Three call sites."
       ],
       "expectedEvidence": [
-        "Choose extends, super or a type parameter for a collection-processing API and explain why.",
-        "Java generics are invariant; use ? extends for a producer, ? super for a consumer, or a named type parameter when positions must share one type."
+        "Every wildcard justified.",
+        "Tests pass."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "java.generics.bounds.misconception",
-      "explanation": "Java generics are invariant; use ? extends for a producer, ? super for a consumer, or a named type parameter when positions must share one type.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A copy method writes Integer values into List<? super Integer> and uses a named T only when source and destination element relationships must be shared."
+      "explanation": "For each generic parameter ask: **does my method take items out (extends), put items in (super), or both (exact type)?** Add a named T only when two positions must match.",
+      "retryPrompt": "Apply this to \"The filler that couldn't fill\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to choose extends, super or a type parameter for a collection-processing API and explain why. Keep this boundary in view: Generic types are invariant, wildcard capture limits writing, null remains writable to many producer views, and PECS is guidance rather than a substitute for the exact contract.",
+    "summary": "To choose extends, super or a type parameter for a collection-processing API, remember generics are invariant, use ? extends for producers you read from, ? super for consumers you add to, and a named bounded type parameter when input and output types must be linked.",
     "retrievalPrompts": [
-      "Explain Bounds and wildcards using canonical Java: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Because Integer extends Number, List<Integer> is automatically a subtype of List<Number>.",
-      "Predict this case from memory: A copy method writes Integer values into List<? super Integer> and uses a named T only when source and destination element relationships must be shared."
+      "Is List<Integer> a List<Number>?",
+      "What does PECS stand for?",
+      "When use a named type parameter?"
     ],
     "nextReviewPrompt": "Next: continue to “List, Set, Map and Queue”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

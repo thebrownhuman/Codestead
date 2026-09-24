@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Cascade origin, importance, layer, specificity, scoping proximity, and source order resolve competing declarations in a defined priority sequence.",
+    "summary": "When several declarations target the same property of the same element, the **cascade** picks a winner by checking, in order: (1) **origin and importance** — browser defaults, user styles, author styles, and `!important` flipping that order; (2) **cascade layers** (`@layer`) — later layers beat earlier ones; (3) **specificity**; (4) **source order**. Specificity only matters when the earlier steps tie.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A low-specificity rule in a later author layer can beat a highly specific rule in an earlier layer. Your goal is to determine the winning declaration in a layered multi-origin example. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A design system puts reset styles, base styles and component styles in layers. A developer writes a super-specific selector in the base layer — and a plain class in the components layer still beats it. Surprising, until you know the order of the cascade. A low-specificity rule in a later author layer can beat a highly specific rule in an earlier layer. In this lesson you'll determine the winning declaration in a layered multi-origin example.\n\n```predict\n{\"question\": \"`@layer base, components;` — `#nav a.link` (base) vs `.link` (components). Which colour wins?\", \"options\": [\"The #nav rule — it's more specific\", \"The .link rule — its layer comes later\"], \"answer\": 1, \"why\": \"Layer order is checked before specificity. A later layer wins even with a weaker selector (for normal, non-important declarations).\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: html document syntax; Rules, declarations and values. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Elements, attributes and nesting** and **Rules, declarations and values** — how a rule matches elements and how declarations are written."
       },
       {
-        "heading": "Technology rule",
-        "body": "Cascade origin, importance, layer, specificity, scoping proximity, and source order resolve competing declarations in a defined priority sequence. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The rule: the cascade's order of checks",
+        "body": "```css\n@layer reset, base, components;   /* declared order: reset < base < components */\n\n@layer base {\n  #nav a.link { color: gray; }      /* very specific */\n}\n@layer components {\n  .link { color: navy; }            /* weak, but later layer */\n}\n```\n\n| Step | Question | Winner |\n|---|---|---|\n| 1. origin & importance. | author vs user vs browser; !important? | normal: author > user > browser. |\n| 2. layers. | which @layer? | later layer (unlayered beats all layers). |\n| 3. specificity. | how specific is the selector? | higher. |\n| 4. order. | which came last? | later. |\n\nResult: `.link` is **navy**.\n\n```reveal\n{\"prompt\": \"What happens with `!important` and layers?\", \"answer\": \"Importance reverses the layer order: an !important declaration in an *earlier* layer beats one in a later layer. That's why !important is best kept for rare, deliberate overrides.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Transitions and animations have special positions, user important styles protect preferences, and layers reorder author rules before specificity. This draft therefore rejects: Specificity is always the first and strongest cascade factor."
+        "heading": "Styles outside layers",
+        "body": "```predict\n{\"question\": \"A rule written outside any @layer vs a rule in `@layer components` — which wins (both normal)?\", \"options\": [\"The layered rule\", \"The unlayered rule\"], \"answer\": 1, \"why\": \"Unlayered author styles act like the last, strongest layer for normal declarations.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Predict precedence across user-agent, user and author origins, importance and cascade layers.",
-      "Determine the winning declaration in a layered multi-origin example."
+      "Apply the cascade order: origin/importance, layers, specificity, source order.",
+      "Predict winners in layered, multi-origin examples."
     ],
     "excludes": [
-      "Transitions and animations have special positions, user important styles protect preferences, and layers reorder author rules before specificity."
+      "Specificity calculation details (next lesson).",
+      "Shadow DOM style scoping."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "css.cascade.sources.example-a",
-      "title": "Origins, importance and layers: concrete case",
+      "title": "A later layer beats a specific selector",
       "situation": "A low-specificity rule in a later author layer can beat a highly specific rule in an earlier layer.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A low-specificity rule in a later author layer can beat a highly specific rule in an earlier layer.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Compare origin, importance, layer, specificity, and order in sequence; specificity is not the first universal factor."
+        "**Layers:** `@layer reset, base, components;` declares the order.",
+        "**Compare:** `#nav a.link` sits in base (earlier); `.link` sits in components (later). Both are normal author declarations.",
+        "**Check order:** origin ties, so layers decide before specificity — the browser will render `.link` as navy."
       ],
-      "result": "The result follows because Compare origin, importance, layer, specificity, and order in sequence; specificity is not the first universal factor."
+      "result": "The link is navy: the later layer wins before specificity is even considered."
     },
     {
       "id": "css.cascade.sources.example-b",
-      "title": "Origins, importance and layers: boundary case",
-      "situation": "Transitions and animations have special positions, user important styles protect preferences, and layers reorder author rules before specificity.",
+      "title": "The user's large-text setting",
+      "situation": "A user stylesheet sets `body { font-size: 24px !important; }`; the site sets `body { font-size: 14px !important; }`.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Transitions and animations have special positions, user important styles protect preferences, and layers reorder author rules before specificity.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Specificity is always the first and strongest cascade factor."
+        "Both are !important, so importance flips origin order.",
+        "Important user styles beat important author styles.",
+        "The user's 24px wins — protecting users who need larger text."
       ],
-      "result": "The boundary requires this correction: Compare origin, importance, layer, specificity, and order in sequence; specificity is not the first universal factor."
+      "result": "The page renders at 24px because important user declarations outrank important author ones."
     }
   ],
   "misconceptions": [
     {
       "id": "css.cascade.sources.misconception",
       "mistakenBelief": "Specificity is always the first and strongest cascade factor.",
-      "correction": "Compare origin, importance, layer, specificity, and order in sequence; specificity is not the first universal factor.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: Specificity is always the first and strongest cascade factor."
+      "correction": "The cascade checks origin and importance first, then cascade layers, and only then specificity, with source order last. A weak selector in a later layer can beat a very specific one in an earlier layer.",
+      "diagnosticPrompt": "In \"A later layer beats a specific selector\", which step decided the winner?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Origins, importance and layers, where rules size, place, and paint existing content.",
+    "example": "The cascade is like a **tournament with rounds**: first by league (origin/importance), then by division (layer), then by score (specificity), then by who played last (order). A top scorer in a lower division never faces the division winner.",
     "usefulFor": [
-      "Building a first mental model for Origins, importance and layers before using exact platform terms"
+      "remembering the order of rounds",
+      "seeing specificity as a later round"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "Transitions and animations have special positions, user important styles protect preferences, and layers reorder author rules before specificity."
+      "Tournaments have one winner overall; the cascade runs per property per element.",
+      "!important is like a rule that reverses league rankings."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A low-specificity rule in a later author layer can beat a highly specific rule in an earlier layer.",
-      "Cascade origin, importance, layer, specificity, scoping proximity, and source order resolve competing declarations in a defined priority sequence.",
-      "Compare origin, importance, layer, specificity, and order in sequence; specificity is not the first universal factor."
+      "@layer base { #nav a.link { color: gray } }",
+      "@layer components { .link { color: navy } }",
+      "resolve color"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Origin",
         "state": {
-          "evidence": "A low-specificity rule in a later author layer can beat a highly specific rule in an earlier layer."
+          "both": "author, normal"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "Origin and importance tie, so the next step decides."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Layers",
         "state": {
-          "rule": "Cascade origin, importance, layer, specificity, scoping proximity, and source order resolve competing declarations in a defined priority sequence."
+          "base": "earlier",
+          "components": "later → wins"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The later author layer wins before specificity is compared."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Result",
         "state": {
-          "correction": "Compare origin, importance, layer, specificity, and order in sequence; specificity is not the first universal factor."
+          "color": "navy"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Specificity is always the first and strongest cascade factor."
+        "explanation": "A low-specificity rule in a later author layer beats a highly specific rule in an earlier layer."
       }
     ],
-    "textAlternative": "Starting artifact: A low-specificity rule in a later author layer can beat a highly specific rule in an earlier layer. Step 1, Artifact. State: evidence: A low-specificity rule in a later author layer can beat a highly specific rule in an earlier layer.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Cascade origin, importance, layer, specificity, scoping proximity, and source order resolve competing declarations in a defined priority sequence.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Compare origin, importance, layer, specificity, and order in sequence; specificity is not the first universal factor.. Check the result against the boundary and reject this misconception: Specificity is always the first and strongest cascade factor."
+    "textAlternative": "Resolving a layered conflict. Step 1, Origin: both is author, normal. Origin and importance tie, so the next step decides. Step 2, Layers: base is earlier; components is later → wins. The later author layer wins before specificity is compared. Step 3, Result: color is navy. A low-specificity rule in a later author layer beats a highly specific rule in an earlier layer."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Origins, importance and layers: concrete case”: state its starting evidence, apply the Origins, importance and layers rule, and give the observable result in three short lines.",
+      "prompt": "For \"A later layer beats a specific selector\", explain how a low-specificity rule in a later author layer can beat a highly specific rule in an earlier layer, naming each cascade step.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Origin.",
+        "Layers.",
+        "Specificity."
       ],
       "expectedEvidence": [
-        "Named example: Origins, importance and layers: concrete case.",
-        "Starting evidence: A low-specificity rule in a later author layer can beat a highly specific rule in an earlier layer.",
-        "Core rule: Cascade origin, importance, layer, specificity, scoping proximity, and source order resolve competing declarations in a defined priority sequence.",
-        "Observable result: The result follows because Compare origin, importance, layer, specificity, and order in sequence; specificity is not the first universal factor.",
-        "Boundary check: Compare origin, importance, layer, specificity, and order in sequence; specificity is not the first universal factor."
+        "Names the example \"A later layer beats a specific selector\": a low-specificity rule in a later author layer.",
+        "Origin and importance tie.",
+        "The later layer beats a highly specific rule in an earlier layer.",
+        "Specificity is never reached; the link is navy."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Transitions and animations have special positions, user important styles protect preferences, and layers reorder author rules before specificity.",
+      "prompt": "With `@layer a, b;`, which wins for `p`: `@layer a { p { color: red !important } }` or `@layer b { p { color: blue !important } }`?",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Importance flips layer order.",
+        "Earlier layer wins for !important."
       ],
       "expectedEvidence": [
-        "Cascade origin, importance, layer, specificity, scoping proximity, and source order resolve competing declarations in a defined priority sequence.",
-        "Transitions and animations have special positions, user important styles protect preferences, and layers reorder author rules before specificity."
+        "Red wins.",
+        "Because !important reverses layer precedence, layer a beats layer b."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Origins, importance and layers and explain why the misconception fails.",
+      "prompt": "Build a tiny page with reset, base and components layers plus one unlayered rule. Predict the winner for three properties, then verify each in DevTools' Styles pane.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Write predictions first.",
+        "DevTools shows layer names."
       ],
       "expectedEvidence": [
-        "Determine the winning declaration in a layered multi-origin example.",
-        "Compare origin, importance, layer, specificity, and order in sequence; specificity is not the first universal factor."
+        "Three written predictions.",
+        "DevTools confirmation or an explained mismatch."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.cascade.sources.misconception",
-      "explanation": "Compare origin, importance, layer, specificity, and order in sequence; specificity is not the first universal factor.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'importance, layer, specificity' and state the decisive evidence."
+      "explanation": "Walk the checklist in order and stop at the first difference: **origin/importance → layer → specificity → source order**.",
+      "retryPrompt": "Walk it for \"The user's large-text setting\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to determine the winning declaration in a layered multi-origin example. Keep this boundary in view: Transitions and animations have special positions, user important styles protect preferences, and layers reorder author rules before specificity.",
+    "summary": "To determine the winning declaration in a layered multi-origin example, compare origin and importance first, then cascade layer order, then specificity, then source order. Later layers beat earlier ones for normal declarations; !important reverses that.",
     "retrievalPrompts": [
-      "Explain Origins, importance and layers using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: Specificity is always the first and strongest cascade factor.",
-      "Apply checkpoint 'importance, layer, specificity' to a new artifact."
+      "What does the cascade check before specificity?",
+      "Which wins: a later layer or a more specific selector in an earlier layer?",
+      "How does !important affect layer order?"
     ],
     "nextReviewPrompt": "Next: continue to “Specificity and source order”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Interval algorithms first define endpoint semantics, then sort or sweep to merge, schedule, count overlap, or answer coverage.",
+    "summary": "Interval problems start with one decision: what do the **endpoints mean**? **Half-open** `[start, end)` includes start but not end, so `[1, 3)` and `[3, 5)` **don't overlap**: a session ending at 3 and one starting at 3 are back to back. **Closed** `[start, end]` includes both, so `[1, 3]` and `[3, 5]` **touch at 3** and count as overlapping. Then **sort by start** and sweep: to **merge**, extend the current interval while the next one overlaps. To count the **most overlapping at once**, sweep sorted start and end events. Most time-slot code uses half-open intervals, because back-to-back slots should be allowed.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Half-open intervals [1,3) and [3,5) do not overlap, while closed intervals would touch at three. Your goal is to implement and test interval merging or scheduling with touching-boundary cases. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A tutoring calendar merges busy slots to show free time. A tutor has sessions 13:00-14:00 and 14:00-15:00. The calendar merges them and also refuses to let a learner book 14:00-15:00 right after 13:00-14:00, calling them overlapping. Half-open intervals [1,3) and [3,5) do not overlap, while closed intervals would touch at three. In this lesson you'll implement and test interval merging or scheduling with touching-boundary cases.\n\n```predict\n{\"question\": \"Using half-open slots, do [13, 14) and [14, 15) overlap?\", \"options\": [\"Yes, they share 14\", \"No: the first ends before 14 begins\"], \"answer\": 1, \"why\": \"With half-open intervals, back-to-back slots don't conflict.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Arrays, strings and matrices; Hash tables, sets and maps; Stacks, queues and deques; Sorting properties and selection; Greedy choice and counterexamples. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Arrays, strings and matrices** module, the **Hash tables, sets and maps** module, the **Stacks, queues and deques** module, **Sorting properties and selection**, and **Greedy choice and counterexamples**."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Interval algorithms first define endpoint semantics, then sort or sweep to merge, schedule, count overlap, or answer coverage. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The rule: fix endpoint meaning, then sort and sweep",
+        "body": "```python\ndef overlaps(a, b):                        # half-open [start, end).\n    return a[0] < b[1] and b[0] < a[1]\n\ndef merge_busy(slots, touching_merges=False):\n    merged = []\n    for start, end in sorted(slots):           # sort by start.\n        if merged and (start < merged[-1][1] or (touching_merges and start == merged[-1][1])):\n            merged[-1][1] = max(merged[-1][1], end)   # extend.\n        else:\n            merged.append([start, end])\n    return merged\n\ndef max_rooms(slots):                       # most sessions at the same time.\n    events = sorted([(s, 1) for s, _ in slots] + [(e, -1) for _, e in slots])\n    # (t, -1) sorts before (t, 1): an ending slot frees its room first.\n    current = best = 0\n    for _, change in events:\n        current += change\n        best = max(best, current)\n    return best\n\nsessions = [(13, 14), (14, 15), (9, 11), (10, 12)]\nprint(merge_busy(sessions))                # [[9, 12], [13, 14], [14, 15]]\nprint(max_rooms(sessions))                 # 2\n```\n\n| Endpoint rule | [1, 3] vs [3, 5] | Use when |\n|---|---|---|\n| half-open [s, e). | no overlap. | time slots, array ranges. |\n| closed [s, e]. | overlap at 3. | inclusive ranges like page 1 to 3. |\n\n```reveal\n{\"prompt\": \"Why sort ends before starts at the same time in max_rooms?\", \"answer\": \"With half-open slots, a session ending at 14 frees its room before one starting at 14 needs it, so they share a room.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Closed versus half-open boundaries, touching intervals, and tie ordering change results. The draft therefore rejects: Intervals that share an endpoint always overlap."
+        "heading": "Touching and merging",
+        "body": "```predict\n{\"question\": \"Showing free time, should busy [13, 14) and [14, 15) merge into [13, 15)?\", \"options\": [\"Never\", \"Yes for display, since no free gap exists, but they still don't conflict for booking\"], \"answer\": 1, \"why\": \"Merging for display and checking conflicts are different questions; decide per feature.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Sort interval events to merge, select or count overlaps under explicit boundary semantics.",
-      "Implement and test interval merging or scheduling with touching-boundary cases.",
-      "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+      "State endpoint semantics before comparing intervals.",
+      "Merge, schedule and count overlaps with sort and sweep, testing touching boundaries."
     ],
     "excludes": [
-      "Closed versus half-open boundaries, touching intervals, and tie ordering change results."
+      "Interval trees and segment trees.",
+      "Time zones and calendar recurrence rules."
     ]
   },
   "outcomes": [
@@ -68,142 +64,133 @@
   "examples": [
     {
       "id": "dsa.patterns.interval.example-a",
-      "title": "Intervals and sweep ordering: language-neutral trace",
+      "title": "Back-to-back tutoring slots",
       "situation": "Half-open intervals [1,3) and [3,5) do not overlap, while closed intervals would touch at three.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: Half-open intervals [1,3) and [3,5) do not overlap, while closed intervals would touch at three.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Declare endpoint semantics before comparison; touching half-open intervals are nonoverlapping."
+        "**Choose semantics:** the calendar treats slots as half-open, so 13:00-14:00 and 14:00-15:00 are back to back.",
+        "**Half-open intervals don't overlap:** overlaps((13, 14), (14, 15)) returns False, so booking is allowed; closed intervals would touch at 14.",
+        "**Test:** tests will cover touching, nested, identical, fully separate and unsorted slots, for both merge and booking."
       ],
-      "result": "The conceptual result follows because Declare endpoint semantics before comparison; touching half-open intervals are nonoverlapping."
+      "result": "Learners can book back-to-back sessions, and busy periods still display correctly."
     },
     {
       "id": "dsa.patterns.interval.example-b",
-      "title": "Intervals and sweep ordering: implementation transfer",
-      "situation": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
+      "title": "The page ranges that lost a page",
+      "situation": "A reading tracker stores \"pages 1-3\" and \"pages 3-5\" as closed ranges, but merges them with half-open logic and reports page 3 twice in the total.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
-        "Step 3 — Retest this boundary in the selected implementation: Closed versus half-open boundaries, touching intervals, and tie ordering change results."
+        "Page ranges are naturally closed: both ends are read.",
+        "Closed [1, 3] and [3, 5] share page 3, so merged they cover 1-5: 5 pages, not 6.",
+        "Use closed semantics for overlap and length (end - start + 1)."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Reading totals count every page exactly once."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.patterns.interval.misconception",
       "mistakenBelief": "Intervals that share an endpoint always overlap.",
-      "correction": "Declare endpoint semantics before comparison; touching half-open intervals are nonoverlapping.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Intervals that share an endpoint always overlap."
+      "correction": "It depends on the endpoint rule. Half-open intervals [1, 3) and [3, 5) don't share any point; closed intervals [1, 3] and [3, 5] share 3. Decide the semantics first, then write comparisons to match.",
+      "diagnosticPrompt": "In the opening predict, why didn't [13, 14) and [14, 15) conflict?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Intervals and sweep ordering, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Half-open time slots are like **train platform bookings**: one train leaves at 14:00 exactly as the next arrives at 14:00, and that's fine. Closed ranges are like **pages you've read**: reading pages 1-3 and 3-5 means page 3 was read in both.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering decide the endpoint rule",
+      "sweep = walking along the timeline"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Closed versus half-open boundaries, touching intervals, and tie ordering change results."
+      "Real trains need a gap; your spec decides whether zero gap is allowed.",
+      "Sorting first is like laying bookings on a timeline."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Half-open intervals [1,3) and [3,5) do not overlap, while closed intervals would touch at three.",
-      "Interval algorithms first define endpoint semantics, then sort or sweep to merge, schedule, count overlap, or answer coverage.",
-      "Declare endpoint semantics before comparison; touching half-open intervals are nonoverlapping.",
-      "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+      "slots (13,14), (14,15), (9,11), (10,12)",
+      "sort and merge",
+      "result"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Sort",
         "state": {
-          "scenario": "Half-open intervals [1,3) and [3,5) do not overlap, while closed intervals would touch at three."
+          "order": "(9,11), (10,12), (13,14), (14,15)"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "Sorting by start puts overlapping slots next to each other."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Merge",
         "state": {
-          "invariant": "Interval algorithms first define endpoint semantics, then sort or sweep to merge, schedule, count overlap, or answer coverage."
+          "(9,11)+(10,12)": "[9, 12]"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "The two overlapping half-open slots are merged into one."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Touching",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "(13,14) and (14,15)": "kept separate"
         },
-        "explanation": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Declare endpoint semantics before comparison; touching half-open intervals are nonoverlapping."
-        },
-        "explanation": "Verify the result and reject this misconception: Intervals that share an endpoint always overlap."
+        "explanation": "Half-open intervals [1,3) and [3,5) do not overlap, while closed ones would touch."
       }
     ],
-    "textAlternative": "Starting artifact: Half-open intervals [1,3) and [3,5) do not overlap, while closed intervals would touch at three. Step 1, Specification. State: scenario: Half-open intervals [1,3) and [3,5) do not overlap, while closed intervals would touch at three.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Interval algorithms first define endpoint semantics, then sort or sweep to merge, schedule, count overlap, or answer coverage.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees. Step 4, Conclusion. State: correction: Declare endpoint semantics before comparison; touching half-open intervals are nonoverlapping.. Verify the result and reject this misconception: Intervals that share an endpoint always overlap."
+    "textAlternative": "Tracing an interval merge. Step 1, Sort: order is (9,11), (10,12), (13,14), (14,15). Sorting by start puts overlapping slots next to each other. Step 2, Merge: (9,11)+(10,12) is [9, 12]. The two overlapping half-open slots are merged into one. Step 3, Touching: (13,14) and (14,15) is kept separate. Half-open intervals [1,3) and [3,5) do not overlap, while closed ones would touch."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Intervals and sweep ordering: language-neutral trace”: state its starting evidence, apply the Intervals and sweep ordering rule, and give the observable result in three short lines.",
+      "prompt": "For \"Back-to-back tutoring slots\", explain why half-open intervals [1,3) and [3,5) do not overlap, while closed intervals would touch at three.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Semantics.",
+        "Comparison.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Intervals and sweep ordering: language-neutral trace.",
-        "Starting evidence: Half-open intervals [1,3) and [3,5) do not overlap, while closed intervals would touch at three.",
-        "Core rule: Interval algorithms first define endpoint semantics, then sort or sweep to merge, schedule, count overlap, or answer coverage.",
-        "Observable result: The conceptual result follows because Declare endpoint semantics before comparison; touching half-open intervals are nonoverlapping.",
-        "Boundary check: Declare endpoint semantics before comparison; touching half-open intervals are nonoverlapping."
+        "Names the example \"Back-to-back tutoring slots\": back-to-back sessions were rejected.",
+        "Half-open intervals [1,3) and [3,5) do not overlap.",
+        "Closed intervals would touch at three.",
+        "Learners can book back-to-back sessions."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Interval algorithms first define endpoint semantics, then sort or sweep to merge, schedule, count overlap, or answer coverage.",
+      "prompt": "Write `can_book(existing, new)` for half-open slots that returns False only on a real overlap. Test touching on both sides, nested, identical and an empty calendar.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Use the overlaps() rule.",
+        "Check against every existing slot."
       ],
       "expectedEvidence": [
-        "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
-        "Closed versus half-open boundaries, touching intervals, and tie ordering change results."
+        "Touching slots bookable.",
+        "Nested and identical rejected."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Intervals and sweep ordering case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Build a free-time finder: given tutors' busy half-open slots within a day [9, 18), return the free gaps, merging touching busy slots for display. Test unsorted input, a fully booked day and a day with no bookings.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Merge with touching_merges=True.",
+        "Gaps between merged busy slots."
       ],
       "expectedEvidence": [
-        "Implement and test interval merging or scheduling with touching-boundary cases.",
-        "Declare endpoint semantics before comparison; touching half-open intervals are nonoverlapping."
+        "Correct free gaps in all tests.",
+        "Semantics documented in the code."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.patterns.interval.misconception",
-      "explanation": "Declare endpoint semantics before comparison; touching half-open intervals are nonoverlapping.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'endpoint semantics', then state one implementation-specific risk in the selected language."
+      "explanation": "Write the endpoint rule in a comment: **half-open [s, e) or closed [s, e]?** Then test the touching case explicitly. Most bugs live exactly at shared endpoints.",
+      "retryPrompt": "Apply this to \"The page ranges that lost a page\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test interval merging or scheduling with touching-boundary cases. Keep this boundary in view: Closed versus half-open boundaries, touching intervals, and tie ordering change results.",
+    "summary": "To implement interval merging or scheduling, first define endpoint semantics (half-open [1, 3) and [3, 5) don't overlap; closed ones touch at 3), then sort by start and sweep to merge or count overlaps, and always test touching, nested and identical intervals.",
     "retrievalPrompts": [
-      "State the Intervals and sweep ordering invariant and complexity without code.",
-      "Why is this claim false: Intervals that share an endpoint always overlap.",
-      "Map checkpoint 'endpoint semantics' to C, C++, Java, and Python."
+      "Do half-open intervals that share an endpoint overlap?",
+      "Why sort intervals by start?",
+      "Which boundary case must every interval test include?"
     ],
     "nextReviewPrompt": "Next: continue to “Language representation map”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

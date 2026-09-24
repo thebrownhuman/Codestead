@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Named and default exports form explicit module interfaces, and imports are statically analyzable live bindings.",
+    "summary": "A module decides what the outside world can use with `export`. **Named exports** (`export function parse`) can be many per file and are imported by exact name: `import { parse } from \"./dates.js\"`. A module may have **at most one default export**, imported under any name you choose. Imports are **live, read-only bindings**: if the exporting module changes a value, importers see the new value, but they can't assign to it. Modules that import each other in a loop form a **cycle**, which can expose a binding before it's initialised.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A utility module exports parse and format by name so callers import only the declared interface. Your goal is to organize a feature into modules and diagnose an import or cycle problem. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A dates.js file has twenty helper functions, and every page imports the whole thing through one big default object. Nobody knows which helpers are meant for public use. A utility module exports parse and format by name so callers import only the declared interface. In this lesson you'll organize a feature into modules and diagnose an import or cycle problem.\n\n```predict\n{\"question\": \"dates.js has `export function parse() {}` and `export default function format() {}`. Which import is correct?\", \"options\": [\"import { parse, format } from \\\"./dates.js\\\"\", \"import format, { parse } from \\\"./dates.js\\\"\"], \"answer\": 1, \"why\": \"The default export is imported without braces, under any name. Named exports go in braces with their exact names.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Control flow and functions; Module loading baseline; Lexical scope and temporal dead zone. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Control flow and functions** module, **Module loading baseline** (type=\"module\" scripts), and **Lexical scope and temporal dead zone**, which explains the cycle error."
       },
       {
-        "heading": "Technology rule",
-        "body": "Named and default exports form explicit module interfaces, and imports are statically analyzable live bindings. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: exports are the module's public interface",
+        "body": "```js\n// dates.js.\nconst MS_PER_DAY = 86_400_000;           // private: not exported.\nexport function parse(text) { return new Date(`${text}T00:00:00Z`); }\nexport function format(date) { return date.toISOString().slice(0, 10); }\nexport function daysBetween(a, b) { return Math.round((b - a) / MS_PER_DAY); }\n\n// streak.js.\nimport { parse, daysBetween } from \"./dates.js\";\nexport function streakLength(first, last) {\n  return daysBetween(parse(first), parse(last)) + 1;\n}\n```\n\n| Form | Rule |\n|---|---|\n| `export function x`. | named; import as `{ x }`. |\n| `export default ...`. | one per module; import as any name. |\n| `import { x as y }`. | rename a named import locally. |\n| `import * as dates`. | namespace object of all named exports. |\n| not exported. | private to the module. |\n\n```reveal\n{\"prompt\": \"Can streak.js write `parse = null`?\", \"answer\": \"No. Imported bindings are read-only in the importing module; the assignment throws TypeError.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Default naming is local, re-exports can cause cycles, and dynamic import returns a promise. This draft therefore rejects: A module may have several default exports with different names."
+        "heading": "Diagnose a cycle",
+        "body": "```predict\n{\"question\": \"a.js imports b.js, and b.js runs `console.log(config)` at top level where config is a `const` exported from a.js. Loading a.js gives…\", \"options\": [\"the config value\", \"ReferenceError: b.js runs first, before a.js has initialised config\"], \"answer\": 1, \"why\": \"In a cycle, one module runs before the other finishes. Break the cycle by moving shared values to a third module.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Create explicit named or default exports and understand live bindings and cycles conceptually.",
-      "Organize a feature into modules and diagnose an import or cycle problem."
+      "Organize a feature into modules with named exports as the interface.",
+      "Diagnose wrong import forms and circular imports."
     ],
     "excludes": [
-      "Default naming is local, re-exports can cause cycles, and dynamic import returns a promise."
+      "Bundler configuration.",
+      "CommonJS require interop in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "javascript.modules.import-export.example-a",
-      "title": "Imports, exports and module graph: concrete case",
+      "title": "A utility module with a clear interface",
       "situation": "A utility module exports parse and format by name so callers import only the declared interface.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A utility module exports parse and format by name so callers import only the declared interface.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: A module has at most one default export; use named exports for multiple explicit interface members."
+        "**Declare the interface:** dates.js writes `export function parse` and `export function format`; MS_PER_DAY stays private.",
+        "**Import by name:** a page writes `import { format } from \"./dates.js\"` and reads only what it needs.",
+        "**Check:** a typo such as `import { fromat }` will fail at load time with a clear SyntaxError, instead of undefined later."
       ],
-      "result": "The result follows because A module has at most one default export; use named exports for multiple explicit interface members."
+      "result": "Callers use only parse and format, and the module's private helpers can change without breaking them."
     },
     {
       "id": "javascript.modules.import-export.example-b",
-      "title": "Imports, exports and module graph: boundary case",
-      "situation": "Default naming is local, re-exports can cause cycles, and dynamic import returns a promise.",
+      "title": "The circular settings import",
+      "situation": "settings.js imports ui.js to refresh the page, while ui.js imports settings.js to read the theme at top level. The page fails with \"Cannot access 'theme' before initialization\".",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Default naming is local, re-exports can cause cycles, and dynamic import returns a promise.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: A module may have several default exports with different names."
+        "The two modules form a cycle, so ui.js runs before settings.js finishes.",
+        "theme is still in its temporal dead zone when ui.js reads it.",
+        "Fix: move theme into theme.js, imported by both, so the cycle disappears."
       ],
-      "result": "The boundary requires this correction: A module has at most one default export; use named exports for multiple explicit interface members."
+      "result": "Both modules load in a clear order and the page reads the theme correctly."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.modules.import-export.misconception",
       "mistakenBelief": "A module may have several default exports with different names.",
-      "correction": "A module has at most one default export; use named exports for multiple explicit interface members.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: A module may have several default exports with different names."
+      "correction": "A module has at most one default export. For several public values use named exports; the importer's chosen name for a default doesn't create more defaults.",
+      "diagnosticPrompt": "In the opening predict, why did format need no braces?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Imports, exports and module graph, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "A module is like a **shop with a counter**: exported items are on the counter for anyone to take by name; everything in the back room stays private. The default export is the **one featured item** in the window, and you can call it whatever you like when you carry it home.",
     "usefulFor": [
-      "Building a first mental model for Imports, exports and module graph before using exact platform terms"
+      "remembering named vs default",
+      "private = back room"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Default naming is local, re-exports can cause cycles, and dynamic import returns a promise."
+      "Shop items are copies; imports are live views of the shop's shelf.",
+      "Two shops that each wait on the other's delivery = a cycle."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A utility module exports parse and format by name so callers import only the declared interface.",
-      "Named and default exports form explicit module interfaces, and imports are statically analyzable live bindings.",
-      "A module has at most one default export; use named exports for multiple explicit interface members."
+      "import { format } from './dates.js'",
+      "dates.js runs, defines format",
+      "page calls format(date)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Resolve",
         "state": {
-          "evidence": "A utility module exports parse and format by name so callers import only the declared interface."
+          "requested": "format",
+          "exists": "yes"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The loader checks the named import against the declared interface."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Evaluate",
         "state": {
-          "rule": "Named and default exports form explicit module interfaces, and imports are statically analyzable live bindings."
+          "dates.js": "evaluated once"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "dates.js runs first, so format is initialised before the page uses it."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Use",
         "state": {
-          "correction": "A module has at most one default export; use named exports for multiple explicit interface members."
+          "format(date)": "'2026-09-23'"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: A module may have several default exports with different names."
+        "explanation": "The page calls the live, read-only format binding."
       }
     ],
-    "textAlternative": "Starting artifact: A utility module exports parse and format by name so callers import only the declared interface. Step 1, Artifact. State: evidence: A utility module exports parse and format by name so callers import only the declared interface.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Named and default exports form explicit module interfaces, and imports are statically analyzable live bindings.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: A module has at most one default export; use named exports for multiple explicit interface members.. Check the result against the boundary and reject this misconception: A module may have several default exports with different names."
+    "textAlternative": "Loading a named import. Step 1, Resolve: requested is format; exists is yes. The loader checks the named import against the declared interface. Step 2, Evaluate: dates.js is evaluated once. dates.js runs first, so format is initialised before the page uses it. Step 3, Use: format(date) is '2026-09-23'. The page calls the live, read-only format binding."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Imports, exports and module graph: concrete case”: state its starting evidence, apply the Imports, exports and module graph rule, and give the observable result in three short lines.",
+      "prompt": "For \"A utility module with a clear interface\", explain how a utility module exports parse and format by name so callers import only the declared interface.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Exports.",
+        "Imports.",
+        "Private helpers."
       ],
       "expectedEvidence": [
-        "Named example: Imports, exports and module graph: concrete case.",
-        "Starting evidence: A utility module exports parse and format by name so callers import only the declared interface.",
-        "Core rule: Named and default exports form explicit module interfaces, and imports are statically analyzable live bindings.",
-        "Observable result: The result follows because A module has at most one default export; use named exports for multiple explicit interface members.",
-        "Boundary check: A module has at most one default export; use named exports for multiple explicit interface members."
+        "Names the example \"A utility module with a clear interface\": parse and format are exported by name.",
+        "Callers import only the declared interface.",
+        "Unexported helpers stay private.",
+        "A misspelt import fails at load time."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Default naming is local, re-exports can cause cycles, and dynamic import returns a promise.",
+      "prompt": "Split a 60-line `cart.js` into `money.js` (formatPrice), `cart-state.js` (add, remove, total) and `cart-view.js` (render). Write each module's import and export lines.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Named exports only.",
+        "View imports state; state doesn't import view."
       ],
       "expectedEvidence": [
-        "Named and default exports form explicit module interfaces, and imports are statically analyzable live bindings.",
-        "Default naming is local, re-exports can cause cycles, and dynamic import returns a promise."
+        "Three modules with explicit interfaces.",
+        "No import from state back to view."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Imports, exports and module graph and explain why the misconception fails.",
+      "prompt": "Take a feature with a circular import. Draw its module graph, break the cycle by extracting a shared module, and add a test that imports each module on its own.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Arrows for imports.",
+        "Shared values move down."
       ],
       "expectedEvidence": [
-        "Organize a feature into modules and diagnose an import or cycle problem.",
-        "A module has at most one default export; use named exports for multiple explicit interface members."
+        "An acyclic graph diagram.",
+        "Tests that load each module without errors."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.modules.import-export.misconception",
-      "explanation": "A module has at most one default export; use named exports for multiple explicit interface members.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'one default export' and state the decisive evidence."
+      "explanation": "For each import ask: **named or default?** Braces for named, none for default. When loading fails with \"before initialization\", draw the import arrows and look for a loop.",
+      "retryPrompt": "Apply this to \"The circular settings import\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to organize a feature into modules and diagnose an import or cycle problem. Keep this boundary in view: Default naming is local, re-exports can cause cycles, and dynamic import returns a promise.",
+    "summary": "To organize a feature into modules, export a small named interface and keep helpers private; import named values in braces and a single default without braces. Imports are live and read-only. Diagnose an import or cycle problem by drawing the graph and moving shared values into their own module.",
     "retrievalPrompts": [
-      "Explain Imports, exports and module graph using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: A module may have several default exports with different names.",
-      "Apply checkpoint 'one default export' to a new artifact."
+      "How many default exports can a module have?",
+      "Can an importer reassign an imported binding?",
+      "How do you break an import cycle?"
     ],
     "nextReviewPrompt": "Next: continue to “Dependency boundaries”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

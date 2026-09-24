@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Read-only inspection commands establish location, directory contents, file content, status, and differences before any command changes filesystem or repository state.",
+    "summary": "Before changing anything, **look**. Read-only commands tell you where you are and what's there, and they can't break anything. `pwd` prints the current folder. `ls -la` (or `dir /a` / `Get-ChildItem -Force` on Windows) lists files **including hidden ones** like `.env` or `.gitignore`. `cat` or `less` show a file's contents. `git status` shows what's changed. To search, `grep -rn \"text\" src/` (or `rg`, ripgrep) finds content, and `find . -name \"*.json\"` finds file names. Limit searches to the folder you mean, so results stay readable and fast.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Before editing, a learner prints the working directory, lists hidden entries, checks Git status, and opens the exact target file. Your goal is to locate a configuration or symbol in a project without modifying files. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner is told to change the API URL in the project's config. They open `config.json` in the editor, edit it, and nothing changes: the app actually reads `.env.local`, a hidden file their file browser doesn't show. Before editing, a learner prints the working directory, lists hidden entries, checks Git status, and opens the exact target file. In this lesson you'll locate a configuration or symbol in a project without modifying files.\n\n```predict\n{\"question\": \"Does `ls` (no options) show files whose names start with a dot, like .env?\", \"options\": [\"Yes, all files\", \"No: dot-files are hidden unless you use ls -a\"], \"answer\": 1, \"why\": \"Configuration often lives in hidden dot-files. List with -a to see them.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: pf tools files; Paths and project trees. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Files, folders and paths** and **Paths and project trees** (pwd, relative and absolute paths)."
       },
       {
-        "heading": "Operational model",
-        "body": "Read-only inspection commands establish location, directory contents, file content, status, and differences before any command changes filesystem or repository state. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The model: locate, list, read, search, then edit",
+        "body": "```bash\npwd                              # where am I?\nls -la                           # every entry, including hidden dot-files.\ngit status                       # what has changed here?\ncat .env.local                   # read a small file.\nless src/config.js               # page through a long file (q to quit).\n\ngrep -rn \"API_URL\" --include=\"*.js\" src/   # which lines mention API_URL?\nrg \"API_URL\" src/                # the same with ripgrep (skips .gitignored files).\nfind . -name \"*.env*\" -not -path \"./node_modules/*\"   # files by name.\n```\n\n| Question | Read-only command |\n|---|---|\n| where am I? | `pwd`. |\n| what's here, including hidden? | `ls -la` / `Get-ChildItem -Force`. |\n| what's in this file? | `cat`, `less`, `head`, `tail`. |\n| which files mention X? | `grep -rn`, `rg`. |\n| which files are named X? | `find . -name`. |\n| what have I changed? | `git status`, `git diff`. |\n\n```reveal\n{\"prompt\": \"Why exclude node_modules from searches?\", \"answer\": \"It can hold hundreds of thousands of files you didn't write. Searching it is slow and buries the one result you need.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Hidden files, ignored files, permissions, binary content, pager behavior, and large output can make one inspection command incomplete. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Inspection is unnecessary because command prompts and editor tabs always identify the active directory and file accurately."
+        "heading": "Scope your search",
+        "body": "```predict\n{\"question\": \"`grep -r \\\"password\\\" /` on your laptop. Good idea?\", \"options\": [\"Yes, thorough\", \"No: it searches the whole disk, is slow, and floods you with irrelevant results; search the project folder\"], \"answer\": 1, \"why\": \"Start from the smallest folder that could contain the answer.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "List hidden files, inspect text and search names or content with bounded commands.",
-      "Locate a configuration or symbol in a project without modifying files."
+      "Use pwd, ls -la, cat/less and git status to inspect before changing anything.",
+      "Search names and contents with find, grep or rg, scoped to the right folder."
     ],
     "excludes": [
-      "Hidden files, ignored files, permissions, binary content, pager behavior, and large output can make one inspection command incomplete."
+      "Editing files (next lessons).",
+      "Regular expressions in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,133 @@
   "examples": [
     {
       "id": "git.shell.inspect.example-a",
-      "title": "List, read and search: direct case",
+      "title": "Look before you edit",
       "situation": "Before editing, a learner prints the working directory, lists hidden entries, checks Git status, and opens the exact target file.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: Before editing, a learner prints the working directory, lists hidden entries, checks Git status, and opens the exact target file.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Collect cheap read-only evidence before mutation so later commands operate on the intended path, file, branch, and repository state."
+        "**Prints the working directory and lists hidden entries:** pwd shows the repo root and ls -la reveals .env.local next to config.json.",
+        "**Search:** `grep -rn \"API_URL\" src/` shows the app reads process.env.API_URL, which comes from .env.local.",
+        "**Checks Git status and opens the exact target file:** git status is clean, so the learner will edit .env.local, not config.json, and nothing else changed yet."
       ],
-      "result": "The case supports the declared outcome because Collect cheap read-only evidence before mutation so later commands operate on the intended path, file, branch, and repository state."
+      "result": "The learner changes the setting the app actually uses, on the first try."
     },
     {
       "id": "git.shell.inspect.example-b",
-      "title": "List, read and search: boundary case",
-      "situation": "After a surprising build failure, file metadata and a diff reveal that the edited file is a similarly named copy outside the repository.",
+      "title": "Where is this function defined?",
+      "situation": "A bug report mentions `formatScore`, and the learner can't find it by clicking around folders.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: After a surprising build failure, file metadata and a diff reveal that the edited file is a similarly named copy outside the repository.",
-        "Step 2 — Keep this boundary explicit: Hidden files, ignored files, permissions, binary content, pager behavior, and large output can make one inspection command incomplete.",
-        "Step 3 — Reject the documented misconception: Inspection is unnecessary because command prompts and editor tabs always identify the active directory and file accurately."
+        "Search contents: rg \"function formatScore|formatScore =\" src/.",
+        "The result shows src/utils/score.js, line 12.",
+        "Open that exact file and line before changing anything."
       ],
-      "result": "This case demonstrates the declared outcome: Locate a configuration or symbol in a project without modifying files."
+      "result": "The definition is found in seconds, without guessing."
     }
   ],
   "misconceptions": [
     {
       "id": "git.shell.inspect.misconception",
       "mistakenBelief": "Inspection is unnecessary because command prompts and editor tabs always identify the active directory and file accurately.",
-      "correction": "Collect cheap read-only evidence before mutation so later commands operate on the intended path, file, branch, and repository state.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Inspection is unnecessary because command prompts and editor tabs always identify the active directory and file accurately."
+      "correction": "Prompts can be abbreviated, editors hide dot-files, and the editor's folder can differ from the terminal's. Read-only checks show the real location, hidden files and changes before you act.",
+      "diagnosticPrompt": "In \"Look before you edit\", which file did the editor hide?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled filing room can model List, read and search: current location changes how relative directions resolve, and moving differs from copying a folder.",
+    "example": "Inspecting before editing is like **reading the labels in a medicine cabinet before taking anything**. You check which cabinet you're at (pwd), see every bottle including the ones at the back (ls -la), and read the exact label (cat) before acting.",
     "usefulFor": [
-      "Reasoning about exact locations, inspection, file operations, and destructive scope"
+      "remembering read-only first",
+      "hidden files = bottles at the back"
     ],
     "limitations": [
-      "Shell expansion, permissions, links, filesystem rules, and command execution can behave unlike physical folders.",
-      "Hidden files, ignored files, permissions, binary content, pager behavior, and large output can make one inspection command incomplete."
+      "Cabinets are small; projects need search tools.",
+      "Reading never changes anything, so it's always safe."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Before editing, a learner prints the working directory, lists hidden entries, checks Git status, and opens the exact target file.",
-      "Read-only inspection commands establish location, directory contents, file content, status, and differences before any command changes filesystem or repository state.",
-      "Collect cheap read-only evidence before mutation so later commands operate on the intended path, file, branch, and repository state."
+      "pwd",
+      "ls -la",
+      "grep -rn API_URL src/"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Locate",
         "state": {
-          "evidence": "Before editing, a learner prints the working directory, lists hidden entries, checks Git status, and opens the exact target file."
+          "pwd": "/home/asha/repo"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "The learner prints the working directory first."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "List",
         "state": {
-          "model": "Read-only inspection commands establish location, directory contents, file content, status, and differences before any command changes filesystem or repository state."
+          "entries": "config.json, .env.local, src/, ..."
         },
-        "explanation": "Apply the declared List, read and search model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "Listing hidden entries reveals the .env.local file."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Search",
         "state": {
-          "correction": "Collect cheap read-only evidence before mutation so later commands operate on the intended path, file, branch, and repository state."
+          "match": "src/api.js:3 process.env.API_URL"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Inspection is unnecessary because command prompts and editor tabs always identify the active directory and file accurately."
+        "explanation": "The search confirms the exact target file before editing."
       }
     ],
-    "textAlternative": "Starting artifact: Before editing, a learner prints the working directory, lists hidden entries, checks Git status, and opens the exact target file. Step 1, Observe. State: evidence: Before editing, a learner prints the working directory, lists hidden entries, checks Git status, and opens the exact target file.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Read-only inspection commands establish location, directory contents, file content, status, and differences before any command changes filesystem or repository state.. Apply the declared List, read and search model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Collect cheap read-only evidence before mutation so later commands operate on the intended path, file, branch, and repository state.. Compare the observation with the correction and reject the misconception: Inspection is unnecessary because command prompts and editor tabs always identify the active directory and file accurately."
+    "textAlternative": "Inspecting a project safely. Step 1, Locate: pwd is /home/asha/repo. The learner prints the working directory first. Step 2, List: entries is config.json, .env.local, src/, .... Listing hidden entries reveals the .env.local file. Step 3, Search: match is src/api.js:3 process.env.API_URL. The search confirms the exact target file before editing."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “List, read and search: direct case”: state its starting evidence, apply the List, read and search rule, and give the observable result in three short lines.",
+      "prompt": "For \"Look before you edit\", explain how before editing, a learner prints the working directory, lists hidden entries, checks Git status, and opens the exact target file.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Locate and list.",
+        "Search.",
+        "Target."
       ],
       "expectedEvidence": [
-        "Named example: List, read and search: direct case.",
-        "Starting evidence: Before editing, a learner prints the working directory, lists hidden entries, checks Git status, and opens the exact target file.",
-        "Core rule: Read-only inspection commands establish location, directory contents, file content, status, and differences before any command changes filesystem or repository state.",
-        "Observable result: The case supports the declared outcome because Collect cheap read-only evidence before mutation so later commands operate on the intended path, file, branch, and repository state.",
-        "Boundary check: Collect cheap read-only evidence before mutation so later commands operate on the intended path, file, branch, and repository state."
+        "Names the example \"Look before you edit\": editing config.json changed nothing.",
+        "The learner prints the working directory and lists hidden entries.",
+        "They check Git status and open the exact target file.",
+        "The learner changes the setting the app actually uses."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: After a surprising build failure, file metadata and a diff reveal that the edited file is a similarly named copy outside the repository.",
+      "prompt": "In a project, find (a) every file named package.json outside node_modules, and (b) every line mentioning FIXME in src. Write the commands and explain why each is read-only.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "find with -not -path.",
+        "grep -rn or rg."
       ],
       "expectedEvidence": [
-        "Read-only inspection commands establish location, directory contents, file content, status, and differences before any command changes filesystem or repository state.",
-        "Hidden files, ignored files, permissions, binary content, pager behavior, and large output can make one inspection command incomplete."
+        "Two scoped commands.",
+        "Neither changes files."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of List, read and search, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Given an unfamiliar repository, locate where the port number is configured, where it's read, and whether any uncommitted change touches it, using only read-only commands. Record each command and what it told you.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Start with pwd, ls -la, git status.",
+        "Search for the port value and the variable name."
       ],
       "expectedEvidence": [
-        "Locate a configuration or symbol in a project without modifying files.",
-        "Collect cheap read-only evidence before mutation so later commands operate on the intended path, file, branch, and repository state."
+        "The config file and reading code located.",
+        "A log of read-only commands."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.shell.inspect.misconception",
-      "explanation": "Collect cheap read-only evidence before mutation so later commands operate on the intended path, file, branch, and repository state.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: After a surprising build failure, file metadata and a diff reveal that the edited file is a similarly named copy outside the repository."
+      "explanation": "Run the four-look routine before editing: **pwd, ls -la, git status, then search for the exact target.** Only open the editor once you know which file matters.",
+      "retryPrompt": "Apply this to \"Where is this function defined?\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to locate a configuration or symbol in a project without modifying files. Keep this boundary in view: Hidden files, ignored files, permissions, binary content, pager behavior, and large output can make one inspection command incomplete.",
+    "summary": "To locate a configuration or symbol without modifying files, print the working directory, list entries including hidden dot-files, check git status, read files with cat or less, and search contents or names with grep, rg or find scoped to the project folder, before opening the exact target to edit.",
     "retrievalPrompts": [
-      "Explain List, read and search without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Inspection is unnecessary because command prompts and editor tabs always identify the active directory and file accurately.",
-      "Apply the model to this case from memory: After a surprising build failure, file metadata and a diff reveal that the edited file is a similarly named copy outside the repository."
+      "Which option shows hidden files?",
+      "How do you search file contents in a folder?",
+      "Why inspect before editing?"
     ],
     "nextReviewPrompt": "Next: continue to “Create, copy, move and rename”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -6,6 +6,29 @@ async function expectNoDocumentOverflow(page: Page) {
   )).toBe(true);
 }
 
+async function expectFloatingMenuShell(page: Page, width: number) {
+  await expect(page.locator('nav[aria-label="Mobile navigation"]')).toHaveCount(0);
+  await expect(page.locator("#app-content-column > header")).toHaveCount(0);
+  const menuButton = page.getByRole("button", { name: "Open navigation" });
+  await expect(menuButton).toBeVisible();
+  const heading = page.locator("#main-content").getByRole("heading").first();
+  await expect(heading).toBeVisible();
+
+  const menuBox = await menuButton.boundingBox();
+  const headingBox = await heading.boundingBox();
+  expect(menuBox).not.toBeNull();
+  expect(headingBox).not.toBeNull();
+  if (!menuBox || !headingBox) return;
+  expect(menuBox.x).toBeGreaterThanOrEqual(0);
+  expect(menuBox.x + menuBox.width).toBeLessThanOrEqual(width + 1);
+  const overlaps =
+    menuBox.x < headingBox.x + headingBox.width &&
+    headingBox.x < menuBox.x + menuBox.width &&
+    menuBox.y < headingBox.y + headingBox.height &&
+    headingBox.y < menuBox.y + menuBox.height;
+  expect(overlaps, `menu ${JSON.stringify(menuBox)} overlaps heading ${JSON.stringify(headingBox)}`).toBe(false);
+}
+
 async function applyTextSize(page: Page, size: "150" | "200") {
   await page.evaluate((preference) => {
     document.documentElement.dataset.textSize = preference;
@@ -164,17 +187,7 @@ test.describe("responsive UI regressions", () => {
     expect(rowBox ? rowBox.x + rowBox.width : 376).toBeLessThanOrEqual(376);
     expect(linkBox?.width ?? 0).toBeGreaterThan(0);
 
-    const clearance = await page.evaluate(() => {
-      const main = document.querySelector<HTMLElement>("#main-content");
-      const navigation = document.querySelector<HTMLElement>('nav[aria-label="Mobile navigation"]');
-      if (!main || !navigation) throw new Error("Mobile shell structure is missing.");
-      const navigationBox = navigation.getBoundingClientRect();
-      return {
-        paddingBottom: Number.parseFloat(getComputedStyle(main).paddingBottom),
-        requiredClearance: navigationBox.height + (window.innerHeight - navigationBox.bottom),
-      };
-    });
-    expect(clearance.paddingBottom).toBeGreaterThanOrEqual(clearance.requiredClearance);
+    await expectFloatingMenuShell(page, 375);
     await expectNoDocumentOverflow(page);
   });
 
@@ -185,32 +198,7 @@ test.describe("responsive UI regressions", () => {
         await page.goto("/learn");
         await applyTextSize(page, size);
 
-        const geometry = await page.evaluate(() => {
-          const header = document.querySelector<HTMLElement>("#app-content-column > header");
-          const main = document.querySelector<HTMLElement>("#main-content");
-          const navigation = document.querySelector<HTMLElement>('nav[aria-label="Mobile navigation"]');
-          if (!header || !main || !navigation) throw new Error("Mobile shell structure is missing.");
-          const headerBox = header.getBoundingClientRect();
-          const mainBox = main.getBoundingClientRect();
-          const navigationBox = navigation.getBoundingClientRect();
-          return {
-            headerBottom: headerBox.bottom,
-            mainTop: mainBox.top,
-            navigationLeft: navigationBox.left,
-            navigationRight: navigationBox.right,
-            navigationHeight: navigationBox.height,
-            navigationBottomGap: window.innerHeight - navigationBox.bottom,
-            mainPaddingBottom: Number.parseFloat(getComputedStyle(main).paddingBottom),
-          };
-        });
-
-        expect(geometry.mainTop).toBeGreaterThanOrEqual(geometry.headerBottom - 1);
-        expect(geometry.navigationLeft).toBeGreaterThanOrEqual(0);
-        expect(geometry.navigationRight).toBeLessThanOrEqual(width + 1);
-        expect(geometry.navigationHeight).toBeGreaterThan(0);
-        expect(geometry.mainPaddingBottom).toBeGreaterThanOrEqual(
-          geometry.navigationHeight + geometry.navigationBottomGap,
-        );
+        await expectFloatingMenuShell(page, width);
         await expectNoDocumentOverflow(page);
       }
     }

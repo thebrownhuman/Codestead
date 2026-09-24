@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Optional represents possible absence in a return contract and supports explicit transformation or fallback without using a magic sentinel value.",
+    "summary": "`Optional<T>` is a **return type** that says out loud: \"there may be no result\". Instead of returning `null` or a magic value like `-1` or `\"\"`, `findUser(id)` returns `Optional<User>`, and the caller must decide what absence means. Transform with **`map`**, keep only matches with **`filter`**, and fall back with **`orElse`** (value computed every time), **`orElseGet`** (computed only when empty, good for expensive defaults) or **`orElseThrow`**. Avoid calling **`get()`** blindly: on an empty Optional it throws, which is just a null bug with a new name. Optional is meant for **return values**. Don't use it for fields, parameters or collections: return an empty list instead of `Optional<List>`.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A lookup returns Optional<User>; the caller maps the name or uses orElseGet for an expensive fallback without calling get blindly. Your goal is to refactor sentinel or unsafe null-return logic into an appropriate explicit-absence contract. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner's findUser returns null when no user exists, and three callers forget to check, causing NullPointerExceptions. They switch to Optional everywhere, including fields and parameters, then call `.get()` without checking, and the crashes come back as NoSuchElementException. A lookup returns Optional<User>; the caller maps the name or uses orElseGet for an expensive fallback without calling get blindly. In this lesson you'll refactor sentinel or unsafe null-return logic into an appropriate explicit-absence contract.\n\n```predict\n{\"question\": \"Optional.empty().get() does what?\", \"options\": [\"Returns null\", \"Throws NoSuchElementException\"], \"answer\": 1, \"why\": \"Use map, orElse, orElseGet or orElseThrow instead.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Iteration, mutation and immutability; Interfaces; Functional interfaces and lambdas; References, identity and equality. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Iteration, mutation and immutability**, **Interfaces**, **Functional interfaces and lambdas** and **References, identity and equality** (null references)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Optional represents possible absence in a return contract and supports explicit transformation or fallback without using a magic sentinel value. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: absence in the return contract",
+        "body": "```java\nimport java.util.*;\n\npublic class Lookup {\n    record User(int id, String name) {}\n    static final Map<Integer, User> USERS = Map.of(1, new User(1, \"Ada\"));\n\n    static Optional<User> findUser(int id) {\n        return Optional.ofNullable(USERS.get(id));      // no null escapes.\n    }\n\n    static String expensiveGuestName() {\n        System.out.println(\"(computing guest)\");\n        return \"guest\";\n    }\n\n    public static void main(String[] args) {\n        String a = findUser(1).map(User::name).orElseGet(Lookup::expensiveGuestName);\n        System.out.println(a);                           // Ada (no computing line)\n        String b = findUser(9).map(User::name).orElseGet(Lookup::expensiveGuestName);\n        System.out.println(b);                           // (computing guest) then guest\n    }\n}\n```\n\n| Use | Avoid |\n|---|---|\n| Optional return for maybe-missing results. | Optional fields and parameters. |\n| map, filter, orElseGet, orElseThrow. | get() without a check. |\n| empty collections for \"no items\". | Optional<List<T>>. |\n\n```reveal\n{\"prompt\": \"orElse versus orElseGet?\", \"answer\": \"orElse(x) evaluates x every time, even when a value is present. orElseGet(supplier) only calls the supplier when the Optional is empty, so it's better for expensive defaults.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "Optional is not a universal field/parameter replacement, get can throw, orElse evaluates its fallback eagerly, null inside Optional is prohibited, and absence may need a richer error result. The learner must reject this documented misconception: Wrapping every nullable field and parameter in Optional automatically removes null problems and is always the preferred API."
+        "heading": "Where Optional doesn't belong",
+        "body": "```predict\n{\"question\": \"A method returns all orders for a customer, possibly none. Best return type?\", \"options\": [\"Optional<List<Order>>\", \"List<Order>, empty when there are none\"], \"answer\": 1, \"why\": \"An empty collection already expresses \\\"nothing\\\".\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use Optional for return-value absence without replacing every nullable field or parameter.",
-      "Refactor sentinel or unsafe null-return logic into an appropriate explicit-absence contract."
+      "Return Optional for maybe-missing results and handle it with map and fallbacks.",
+      "Avoid Optional for fields, parameters and collections, and avoid blind get()."
     ],
     "excludes": [
-      "Optional is not a universal field/parameter replacement, get can throw, orElse evaluates its fallback eagerly, null inside Optional is prohibited, and absence may need a richer error result."
+      "OptionalInt and friends in depth.",
+      "Null-checking annotations."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "java.functional.optional.example.direct",
-      "title": "Optional and explicit absence: direct language case",
+      "title": "A user lookup that might find nobody",
       "situation": "A lookup returns Optional<User>; the caller maps the name or uses orElseGet for an expensive fallback without calling get blindly.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A lookup returns Optional<User>; the caller maps the name or uses orElseGet for an expensive fallback without calling get blindly.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Use Optional primarily for an explicit possibly-absent return, consume it with mapping or deliberate fallback, and keep required state required."
+        "**A lookup returns Optional<User>:** findUser wraps the map result with ofNullable.",
+        "**The caller maps the name:** map(User::name) turns a User into its name when present.",
+        "**Uses orElseGet for an expensive fallback without calling get blindly:** we run the guest computation only for id 9."
       ],
-      "result": "The example meets the atomic outcome because Use Optional primarily for an explicit possibly-absent return, consume it with mapping or deliberate fallback, and keep required state required."
+      "result": "Missing users are handled explicitly, with no NullPointerException."
     },
     {
       "id": "java.functional.optional.example.boundary",
-      "title": "Optional and explicit absence: boundary and transfer case",
-      "situation": "A required constructor parameter remains a validated User rather than Optional<User>, keeping invalid object state unrepresentable.",
+      "title": "The -1 that became a price",
+      "situation": "indexOfProduct returns -1 when not found, and a caller uses it as an array index, crashing far from the lookup.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A required constructor parameter remains a validated User rather than Optional<User>, keeping invalid object state unrepresentable.",
-        "Step 2 — Keep the language boundary explicit: Optional is not a universal field/parameter replacement, get can throw, orElse evaluates its fallback eagerly, null inside Optional is prohibited, and absence may need a richer error result.",
-        "Step 3 — Reject the tempting but incorrect rule: Wrapping every nullable field and parameter in Optional automatically removes null problems and is always the preferred API."
+        "-1 is a sentinel the caller had to remember.",
+        "Return OptionalInt or Optional<Product> instead.",
+        "Callers now must choose what absence means."
       ],
-      "result": "This case demonstrates the declared outcome: Refactor sentinel or unsafe null-return logic into an appropriate explicit-absence contract."
+      "result": "The missing-product case can't be forgotten."
     }
   ],
   "misconceptions": [
     {
       "id": "java.functional.optional.misconception",
       "mistakenBelief": "Wrapping every nullable field and parameter in Optional automatically removes null problems and is always the preferred API.",
-      "correction": "Use Optional primarily for an explicit possibly-absent return, consume it with mapping or deliberate fallback, and keep required state required.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Wrapping every nullable field and parameter in Optional automatically removes null problems and is always the preferred API."
+      "correction": "Optional is for return values that may be absent. Fields, parameters and collections have better tools, and calling get() blindly just moves the crash.",
+      "diagnosticPrompt": "In the opening story, why did the crashes come back?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a one-pass processing line that transforms, filters, combines, or explicitly reports a missing result can introduce Optional and explicit absence, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "example": "An Optional is like **a gift box that might be empty**, clearly labelled \"may be empty\". You don't reach in blindly (get). You say \"if there's something, gift-wrap it\" (map), or \"otherwise give them a voucher\" (orElseGet, where the voucher is only printed when needed). Returning null is **handing over a box with no label**.",
     "usefulFor": [
-      "lambdas, stream stages, reduction, and Optional"
+      "remembering labelled maybe-empty box",
+      "print voucher only when needed"
     ],
     "limitations": [
-      "laziness, target typing, associativity, parallel regrouping, and single-use traversal have no complete conveyor analogy",
-      "Optional is not a universal field/parameter replacement, get can throw, orElse evaluates its fallback eagerly, null inside Optional is prohibited, and absence may need a richer error result."
+      "An empty shopping bag already means \"nothing bought\": no box needed around it.",
+      "orElse prints the voucher every time."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A lookup returns Optional<User>; the caller maps the name or uses orElseGet for an expensive fallback without calling get blindly.",
-      "Optional represents possible absence in a return contract and supports explicit transformation or fallback without using a magic sentinel value.",
-      "Use Optional primarily for an explicit possibly-absent return, consume it with mapping or deliberate fallback, and keep required state required."
+      "findUser(1).map(name).orElseGet(guest)",
+      "findUser(9).map(name).orElseGet(guest)",
+      "Optional.empty().get()"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Present",
         "state": {
-          "evidence": "A lookup returns Optional<User>; the caller maps the name or uses orElseGet for an expensive fallback without calling get blindly."
+          "result": "Ada",
+          "guest computed": "no"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "A lookup returns Optional<User>, and the caller maps the name."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Absent",
         "state": {
-          "rule": "Optional represents possible absence in a return contract and supports explicit transformation or fallback without using a magic sentinel value."
+          "result": "guest",
+          "guest computed": "yes"
         },
-        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "The caller uses orElseGet for an expensive fallback only when empty."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Blind get",
         "state": {
-          "correction": "Use Optional primarily for an explicit possibly-absent return, consume it with mapping or deliberate fallback, and keep required state required."
+          "exception": "NoSuchElementException"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Wrapping every nullable field and parameter in Optional automatically removes null problems and is always the preferred API."
+        "explanation": "Calling get blindly on an empty Optional fails, so we avoid it."
       }
     ],
-    "textAlternative": "Starting artifact: A lookup returns Optional<User>; the caller maps the name or uses orElseGet for an expensive fallback without calling get blindly. Step 1, Observe. State: evidence: A lookup returns Optional<User>; the caller maps the name or uses orElseGet for an expensive fallback without calling get blindly.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Optional represents possible absence in a return contract and supports explicit transformation or fallback without using a magic sentinel value.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Use Optional primarily for an explicit possibly-absent return, consume it with mapping or deliberate fallback, and keep required state required.. Compare the observation with the correction and explain why the misconception fails: Wrapping every nullable field and parameter in Optional automatically removes null problems and is always the preferred API."
+    "textAlternative": "Tracing explicit absence. Step 1, Present: result is Ada; guest computed is no. A lookup returns Optional<User>, and the caller maps the name. Step 2, Absent: result is guest; guest computed is yes. The caller uses orElseGet for an expensive fallback only when empty. Step 3, Blind get: exception is NoSuchElementException. Calling get blindly on an empty Optional fails, so we avoid it."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Optional and explicit absence: direct language case”: state its starting evidence, apply the Optional and explicit absence rule, and give the observable result in three short lines.",
+      "prompt": "For \"A user lookup that might find nobody\", explain how a lookup returns Optional<User>; the caller maps the name or uses orElseGet for an expensive fallback without calling get blindly.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Return.",
+        "Map.",
+        "Fall back."
       ],
       "expectedEvidence": [
-        "Named example: Optional and explicit absence: direct language case.",
-        "Starting evidence: A lookup returns Optional<User>; the caller maps the name or uses orElseGet for an expensive fallback without calling get blindly.",
-        "Core rule: Optional represents possible absence in a return contract and supports explicit transformation or fallback without using a magic sentinel value.",
-        "Observable result: The example meets the atomic outcome because Use Optional primarily for an explicit possibly-absent return, consume it with mapping or deliberate fallback, and keep required state required.",
-        "Boundary check: Use Optional primarily for an explicit possibly-absent return, consume it with mapping or deliberate fallback, and keep required state required."
+        "Names the example \"A user lookup that might find nobody\": null returns caused crashes.",
+        "A lookup returns Optional<User>.",
+        "The caller maps the name or uses orElseGet for an expensive fallback without calling get blindly.",
+        "Absence is handled explicitly."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A required constructor parameter remains a validated User rather than Optional<User>, keeping invalid object state unrepresentable.",
+      "prompt": "Refactor String findEmail(String user) that returns null into Optional<String>. Update two callers: one uses a default, one throws a clear exception with orElseThrow.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Optional.ofNullable at the source.",
+        "No get() calls."
       ],
       "expectedEvidence": [
-        "Optional represents possible absence in a return contract and supports explicit transformation or fallback without using a magic sentinel value.",
-        "Optional is not a universal field/parameter replacement, get can throw, orElse evaluates its fallback eagerly, null inside Optional is prohibited, and absence may need a richer error result."
+        "Both callers tested with missing users.",
+        "No null returned."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Optional and explicit absence, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Audit a small service for sentinel values (-1, \"\", null) and Optional misuse (fields, parameters, Optional<List>). Fix each, choosing Optional, empty collections or exceptions, and document why.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "One decision per case.",
+        "Tests for the absent path."
       ],
       "expectedEvidence": [
-        "Refactor sentinel or unsafe null-return logic into an appropriate explicit-absence contract.",
-        "Use Optional primarily for an explicit possibly-absent return, consume it with mapping or deliberate fallback, and keep required state required."
+        "No sentinels left.",
+        "Choices documented."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "java.functional.optional.misconception",
-      "explanation": "Use Optional primarily for an explicit possibly-absent return, consume it with mapping or deliberate fallback, and keep required state required.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A required constructor parameter remains a validated User rather than Optional<User>, keeping invalid object state unrepresentable."
+      "explanation": "For every \"not found\" case ask: **is this a return value that may be missing?** Then return Optional and handle it with map and a fallback. For collections, return **empty**.",
+      "retryPrompt": "Apply this to \"The -1 that became a price\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to refactor sentinel or unsafe null-return logic into an appropriate explicit-absence contract. Keep this boundary in view: Optional is not a universal field/parameter replacement, get can throw, orElse evaluates its fallback eagerly, null inside Optional is prohibited, and absence may need a richer error result.",
+    "summary": "To refactor sentinel or unsafe null-return logic into an appropriate explicit-absence contract, return Optional for maybe-missing results, transform with map, fall back with orElseGet or orElseThrow, never call get blindly, and use empty collections instead of Optional-wrapped ones.",
     "retrievalPrompts": [
-      "Explain Optional and explicit absence using canonical Java: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Wrapping every nullable field and parameter in Optional automatically removes null problems and is always the preferred API.",
-      "Predict this case from memory: A required constructor parameter remains a validated User rather than Optional<User>, keeping invalid object state unrepresentable."
+      "What does Optional communicate?",
+      "When is orElseGet better than orElse?",
+      "Should fields be Optional?"
     ],
     "nextReviewPrompt": "Next: continue to “Packages and access control”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

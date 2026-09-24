@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Move operations transfer or reuse resources from an expiring object, after which the source remains valid but its state is generally unspecified unless the type documents more.",
+    "summary": "Copying a vector of a million items copies a million items. **Moving** instead **transfers** its internal buffer, which is just a few pointer swaps. A move happens when the source is an **rvalue**: a temporary, or something you've marked with `std::move(x)`. `std::move` itself **moves nothing**: it's a cast that says \"you may take my resources\". Afterwards the source is in a **valid but unspecified** state: you may destroy it or assign a new value, but don't rely on its contents (unless the type documents them). Use `std::move` only when you're **done with** the source, and never on something you'll read again.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Moving a vector into an owning object allows its buffer to be transferred, while the source vector remains valid for destruction or assignment. Your goal is to trace copy versus move operations and use standard moves only when ownership transfer is intended. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner builds a vector of 1,000,000 readings, then stores it with `report.set_data(readings);`, which copies all of it. A teammate suggests `std::move`, and the learner then prints readings.size() afterwards, expecting it to be 0, and relies on that in a later check. Moving a vector into an owning object allows its buffer to be transferred, while the source vector remains valid for destruction or assignment. In this lesson you'll trace copy versus move operations and use standard moves only when ownership transfer is intended.\n\n```predict\n{\"question\": \"Does `std::move(v);` on its own line change v?\", \"options\": [\"Yes, it empties v\", \"No: it's only a cast; nothing moves until something uses the result\"], \"answer\": 1, \"why\": \"The move happens in the constructor or assignment that receives the rvalue.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Constructors and initialization; Value, reference and const-reference parameters; Copy and assignment semantics; RAII and deterministic cleanup. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Constructors and initialization**, **Value, reference and const-reference parameters**, **Copy and assignment semantics** and **RAII and deterministic cleanup**."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "Move operations transfer or reuse resources from an expiring object, after which the source remains valid but its state is generally unspecified unless the type documents more. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The model: transfer resources from an expiring source",
+        "body": "```cpp\n#include <string>\n#include <utility>\n#include <vector>\n\nclass Report {\npublic:\n    void set_data(std::vector<double> d) { data_ = std::move(d); }  // sink: by value + move.\nprivate:\n    std::vector<double> data_;\n};\n\nstd::vector<double> load();                 // returned values move automatically.\n\nint main() {\n    std::vector<double> readings(1'000'000, 0.5);\n    Report r;\n    r.set_data(readings);                   // COPY: readings still needed later.\n    r.set_data(std::move(readings));        // MOVE: buffer transferred; we're done with it.\n    readings = {1.0, 2.0};                  // fine: assign a fresh value.\n    // readings.size() before the assignment: valid but unspecified. Don't rely on it.\n\n    r.set_data(load());                     // temporary: moved without std::move.\n    std::string a = \"long text...\";\n    std::string b = std::move(a);           // a is valid but unspecified now.\n}\n```\n\n| Expression | Copy or move? |\n|---|---|\n| `f(x)` with a named x. | copy. |\n| `f(std::move(x))`. | move (x is expiring). |\n| `f(make_thing())`. | move (temporary). |\n| `return local;`. | move or elided (no std::move needed). |\n\n```reveal\n{\"prompt\": \"Should you write return std::move(local);?\", \"answer\": \"No. Returning a local already moves or elides the copy entirely. Adding std::move can prevent elision and make it slower.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "std::move is a cast and performs no transfer itself, const objects often cannot move resources, and self-move or exception guarantees need type-specific care. Therefore the draft explicitly rejects this beginner failure model: std::move immediately empties an object and guarantees exactly which value remains in the source."
+        "heading": "After the move",
+        "body": "```predict\n{\"question\": \"After `std::string b = std::move(a);`, what can you safely do with a?\", \"options\": [\"Read its old text\", \"Destroy it or assign a new value (valid but unspecified state)\"], \"answer\": 1, \"why\": \"Treat a moved-from object as needing a fresh value before use.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Recognize moved-from valid states and allow efficient resource transfer without premature optimization.",
-      "Trace copy versus move operations and use standard moves only when ownership transfer is intended."
+      "Trace when copies and moves happen for named values, std::move and temporaries.",
+      "Use std::move only when finished with the source, and treat moved-from objects as valid but unspecified."
     ],
     "excludes": [
-      "std::move is a cast and performs no transfer itself, const objects often cannot move resources, and self-move or exception guarantees need type-specific care."
+      "Writing custom move constructors in depth (Rule of Five).",
+      "Perfect forwarding."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "cpp.resources.move.example-a",
-      "title": "Move semantics basics: defined case",
+      "title": "Moving a big vector into a Report",
       "situation": "Moving a vector into an owning object allows its buffer to be transferred, while the source vector remains valid for destruction or assignment.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: Moving a vector into an owning object allows its buffer to be transferred, while the source vector remains valid for destruction or assignment.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: std::move only enables move overload selection; after an actual move, rely only on the source being valid unless a stronger state is documented."
+        "**Moving a vector into an owning object:** r.set_data(std::move(readings)) after the learner is done with readings.",
+        "**Allows its buffer to be transferred:** no million-element copy happens.",
+        "**While the source vector remains valid for destruction or assignment:** readings = {1.0, 2.0} works, but its size before that will not be relied on."
       ],
-      "result": "The defined result follows because std::move only enables move overload selection; after an actual move, rely only on the source being valid unless a stronger state is documented."
+      "result": "The report gets the data cheaply, and no code depends on a moved-from state."
     },
     {
       "id": "cpp.resources.move.example-b",
-      "title": "Move semantics basics: boundary case",
-      "situation": "Calling std::move on a const string selects a copy because ordinary move construction requires a non-const rvalue source.",
+      "title": "The move that wasn't",
+      "situation": "`const std::vector<int> v = build(); store(std::move(v));` is still slow.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: Calling std::move on a const string selects a copy because ordinary move construction requires a non-const rvalue source.",
-        "Step 2 — Keep this standard boundary visible: std::move is a cast and performs no transfer itself, const objects often cannot move resources, and self-move or exception guarantees need type-specific care.",
-        "Step 3 — Reject the tempting rule: std::move immediately empties an object and guarantees exactly which value remains in the source."
+        "std::move on a const object produces a const rvalue.",
+        "The move constructor can't take const, so the copy constructor is chosen.",
+        "Don't make objects const if you intend to move from them."
       ],
-      "result": "This case demonstrates the declared outcome: Trace copy versus move operations and use standard moves only when ownership transfer is intended."
+      "result": "The data is moved as intended."
     }
   ],
   "misconceptions": [
     {
       "id": "cpp.resources.move.misconception",
       "mistakenBelief": "std::move immediately empties an object and guarantees exactly which value remains in the source.",
-      "correction": "std::move only enables move overload selection; after an actual move, rely only on the source being valid unless a stronger state is documented.",
-      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: std::move immediately empties an object and guarantees exactly which value remains in the source."
+      "correction": "std::move is only a cast; the receiving operation performs any transfer, and afterwards the source is valid but its value is unspecified unless the type documents it.",
+      "diagnosticPrompt": "In the opening story, why was relying on readings.size() afterwards a mistake?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A system of self-managing components can model Move semantics basics: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "example": "Moving is like **handing over a moving truck instead of copying every box**. std::move is **signing the handover form**: nothing moves until the new owner drives off. Afterwards, your garage is still a garage (valid), but don't assume what's left in it; restock it before use.",
     "usefulFor": [
-      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+      "remembering hand over the truck",
+      "the form alone moves nothing"
     ],
     "limitations": [
-      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
-      "std::move is a cast and performs no transfer itself, const objects often cannot move resources, and self-move or exception guarantees need type-specific care."
+      "Real trucks leave the garage empty; moved-from objects are unspecified.",
+      "A locked truck (const) can't be handed over, only copied."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Moving a vector into an owning object allows its buffer to be transferred, while the source vector remains valid for destruction or assignment.",
-      "Move operations transfer or reuse resources from an expiring object, after which the source remains valid but its state is generally unspecified unless the type documents more.",
-      "std::move only enables move overload selection; after an actual move, rely only on the source being valid unless a stronger state is documented."
+      "readings (1,000,000 items)",
+      "r.set_data(std::move(readings))",
+      "readings = {1.0, 2.0}"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Build",
         "state": {
-          "evidence": "Moving a vector into an owning object allows its buffer to be transferred, while the source vector remains valid for destruction or assignment."
+          "readings": "1,000,000 items"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "The vector owns a large buffer before any transfer."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Move",
         "state": {
-          "rule": "Move operations transfer or reuse resources from an expiring object, after which the source remains valid but its state is generally unspecified unless the type documents more."
+          "data_": "owns the buffer",
+          "copies": "0"
         },
-        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+        "explanation": "Moving the vector into an owning object allows its buffer to be transferred."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Reuse",
         "state": {
-          "conclusion": "std::move only enables move overload selection; after an actual move, rely only on the source being valid unless a stronger state is documented."
+          "readings": "{1.0, 2.0}"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: std::move immediately empties an object and guarantees exactly which value remains in the source."
+        "explanation": "The source vector remains valid for destruction or assignment."
       }
     ],
-    "textAlternative": "Starting artifact: Moving a vector into an owning object allows its buffer to be transferred, while the source vector remains valid for destruction or assignment. Step 1, Source and state. State: evidence: Moving a vector into an owning object allows its buffer to be transferred, while the source vector remains valid for destruction or assignment.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: Move operations transfer or reuse resources from an expiring object, after which the source remains valid but its state is generally unspecified unless the type documents more.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: std::move only enables move overload selection; after an actual move, rely only on the source being valid unless a stronger state is documented.. Check the conclusion against the boundary and reject this misconception: std::move immediately empties an object and guarantees exactly which value remains in the source."
+    "textAlternative": "Tracing a move. Step 1, Build: readings is 1,000,000 items. The vector owns a large buffer before any transfer. Step 2, Move: data_ is owns the buffer; copies is 0. Moving the vector into an owning object allows its buffer to be transferred. Step 3, Reuse: readings is {1.0, 2.0}. The source vector remains valid for destruction or assignment."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Move semantics basics: defined case”: state its starting evidence, apply the Move semantics basics rule, and give the observable result in three short lines.",
+      "prompt": "For \"Moving a big vector into a Report\", explain how moving a vector into an owning object allows its buffer to be transferred, while the source vector remains valid for destruction or assignment.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Build.",
+        "Move.",
+        "Reuse."
       ],
       "expectedEvidence": [
-        "Named example: Move semantics basics: defined case.",
-        "Starting evidence: Moving a vector into an owning object allows its buffer to be transferred, while the source vector remains valid for destruction or assignment.",
-        "Core rule: Move operations transfer or reuse resources from an expiring object, after which the source remains valid but its state is generally unspecified unless the type documents more.",
-        "Observable result: The defined result follows because std::move only enables move overload selection; after an actual move, rely only on the source being valid unless a stronger state is documented.",
-        "Boundary check: std::move only enables move overload selection; after an actual move, rely only on the source being valid unless a stronger state is documented."
+        "Names the example \"Moving a big vector into a Report\": set_data(readings) copied a million items.",
+        "Moving a vector into an owning object allows its buffer to be transferred.",
+        "The source vector remains valid for destruction or assignment.",
+        "No code depends on a moved-from state."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same CPP rule to this related boundary case: Calling std::move on a const string selects a copy because ordinary move construction requires a non-const rvalue source.",
+      "prompt": "Write a Noisy type that prints on copy and move. Predict and then check the output for: passing a named Noisy, passing std::move of it, passing a temporary, and returning a local from a function.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Print in copy and move constructors.",
+        "Return may be elided (no print)."
       ],
       "expectedEvidence": [
-        "Move operations transfer or reuse resources from an expiring object, after which the source remains valid but its state is generally unspecified unless the type documents more.",
-        "std::move is a cast and performs no transfer itself, const objects often cannot move resources, and self-move or exception guarantees need type-specific care."
+        "Predictions checked.",
+        "Each case explained."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CPP example for Move semantics basics, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Profile copying versus moving a vector of 5 million strings into a class, using std::chrono timings. Then find and fix two places in a small codebase where std::move is misused (on const objects, or where the source is read afterwards).",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Time with steady_clock.",
+        "Search for std::move uses."
       ],
       "expectedEvidence": [
-        "Trace copy versus move operations and use standard moves only when ownership transfer is intended.",
-        "std::move only enables move overload selection; after an actual move, rely only on the source being valid unless a stronger state is documented."
+        "Timing difference shown.",
+        "Two misuses fixed."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "cpp.resources.move.misconception",
-      "explanation": "std::move only enables move overload selection; after an actual move, rely only on the source being valid unless a stronger state is documented.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'valid' and state the decisive evidence: Calling std::move on a const string selects a copy because ordinary move construction requires a non-const rvalue source."
+      "explanation": "Before each std::move ask: **am I finished with this object?** If not, copy. If yes, move, and **never read it again** without assigning a new value.",
+      "retryPrompt": "Apply this to \"The move that wasn't\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to trace copy versus move operations and use standard moves only when ownership transfer is intended. Keep this boundary in view: std::move is a cast and performs no transfer itself, const objects often cannot move resources, and self-move or exception guarantees need type-specific care.",
+    "summary": "To use moves correctly, remember moves transfer resources from expiring sources (temporaries or std::move-cast objects), std::move itself is only a cast, returned locals move automatically, const objects can't be moved from, and moved-from objects are valid but unspecified until given a new value.",
     "retrievalPrompts": [
-      "Explain Move semantics basics using a concrete CPP rule rather than the optional analogy.",
-      "Why is this claim incorrect: std::move immediately empties an object and guarantees exactly which value remains in the source.",
-      "Apply the checkpoint 'valid' to the boundary case from memory."
+      "Does std::move move anything by itself?",
+      "What state is a moved-from object in?",
+      "Why not std::move a local in a return?"
     ],
     "nextReviewPrompt": "Next: continue to “Composition and delegation”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

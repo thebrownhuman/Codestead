@@ -43,33 +43,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A browser app integrates modules, semantic UI, state, async boundaries, security, tests, build, and deployment paths into one traceable product flow.",
+    "summary": "A finished browser app isn't just the happy path. It combines what you've learned: **modules** with inward dependencies, **semantic HTML** and CSS, one clear **state** model, safe **async** requests with cancellation, **security** (textContent, no secrets), and **tests**. The real check is whether every **state** a learner can meet works: loading, empty, success, validation error, server failure with retry, a stale request, keyboard-only use, and a narrow phone screen. Describe the flow in a short README so someone else can trace it.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A small tracker handles loading, empty, success, validation, server failure, retry, keyboard, and narrow-screen states. Your goal is to deliver and explain a keyboard-usable modular browser application with tested loading, empty, success, error and stale-request states. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Your study tracker looks great in the demo: add a subject, see it in the list. Then a tester opens it on a phone with slow internet, presses Tab through the page, submits an empty form and switches the Wi-Fi off. Half the screens are blank or stuck. A small tracker handles loading, empty, success, validation, server failure, retry, keyboard, and narrow-screen states. In this lesson you'll deliver and explain a keyboard-usable modular browser application with tested loading, empty, success, error and stale-request states.\n\n```predict\n{\"question\": \"The success screen works. Is the app ready to ship?\", \"options\": [\"Yes\", \"Not yet: loading, empty, error, retry, stale and keyboard states still need checking\"], \"answer\": 1, \"why\": \"Learners meet the unhappy states far more often than demos do.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Browser state and security; Dependency boundaries; DOM and asynchronous integration tests; DOM injection prevention; css project system. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Browser state and security** module, **Dependency boundaries**, **DOM and asynchronous integration tests**, **DOM injection prevention**, and your **Responsive site design system** for layout and tokens."
       },
       {
-        "heading": "Technology rule",
-        "body": "A browser app integrates modules, semantic UI, state, async boundaries, security, tests, build, and deployment paths into one traceable product flow. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The state model: one status, one render",
+        "body": "```js\n// tracker-state.js: domain, no DOM.\nexport const initial = { status: \"idle\", items: [], error: null };\n\nexport function reduce(state, event) {\n  switch (event.type) {\n    case \"load\":    return { ...state, status: \"loading\", error: null };\n    case \"loaded\":  return { status: event.items.length ? \"ready\" : \"empty\", items: event.items, error: null };\n    case \"failed\":  return { ...state, status: \"error\", error: event.message };\n    default:        return state;\n  }\n}\n\n// tracker-view.js: renders every status, text only via textContent.\nexport function render(root, state) {\n  root.setAttribute(\"aria-busy\", String(state.status === \"loading\"));\n  const message = {\n    loading: \"Loading your subjects...\",\n    empty: \"No subjects yet. Add your first one above.\",\n    error: `Couldn't load subjects. ${state.error ?? \"\"}`,\n  }[state.status];\n  root.querySelector(\"[data-status]\").textContent = message ?? \"\";\n  root.querySelector(\"[data-retry]\").hidden = state.status !== \"error\";\n  // ready: rebuild the list with createElement + textContent.\n}\n```\n\n| State | What the learner gets |\n|---|---|\n| loading. | message plus aria-busy. |\n| empty. | a prompt to add a subject. |\n| ready. | the list, keyboard-reachable. |\n| validation error. | field message, aria-invalid, focus. |\n| server error. | message plus a Retry button. |\n| stale request. | aborted, never shown. |\n\n```reveal\n{\"prompt\": \"Why keep reduce free of DOM code?\", \"answer\": \"It becomes a pure function you can unit-test for every state change, while the view gets DOM tests.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "A working local happy path can hide offline, empty, error, stale, accessibility, privacy, and subpath failures. This draft therefore rejects: Completing the primary success screen means a browser project is production-ready."
+        "heading": "Ship checklist",
+        "body": "```predict\n{\"question\": \"Which check is most often forgotten?\", \"options\": [\"The success screen\", \"Keyboard-only use and a 360px-wide screen\"], \"answer\": 1, \"why\": \"Tab through everything and test at phone width before calling it done.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Integrate semantic HTML, modules, state, DOM, forms, fetch, errors, security and tests.",
-      "Deliver and explain a keyboard-usable modular browser application with tested loading, empty, success, error and stale-request states."
+      "Integrate modules, state, async, security and tests into one app.",
+      "Handle and test loading, empty, success, error, retry, stale, keyboard and narrow-screen states."
     ],
     "excludes": [
-      "A working local happy path can hide offline, empty, error, stale, accessibility, privacy, and subpath failures."
+      "Framework-based apps (React course).",
+      "Backend and database implementation."
     ]
   },
   "outcomes": [
@@ -78,133 +79,136 @@
   "examples": [
     {
       "id": "javascript.project.browser-app.example-a",
-      "title": "Modular browser application: concrete case",
-      "situation": "A small tracker handles loading, empty, success, validation, server failure, retry, keyboard, and narrow-screen states.",
+      "title": "The study tracker, every state",
+      "situation": "A small study tracker handles loading, empty, success, validation, server failure, retry, keyboard, and narrow-screen states.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A small tracker handles loading, empty, success, validation, server failure, retry, keyboard, and narrow-screen states.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Verify the complete state model, failure and recovery paths, accessibility, security, tests, and deployed base paths."
+        "**Model states:** reduce turns load, loaded and failed events into one status, and render has a message for each.",
+        "**Handle failure and retry:** an offline fetch sets status error, shows the Retry button, and retrying aborts any older request.",
+        "**Check keyboard and narrow screens:** a DOM test will Tab to Add, submit with Enter, and a manual check at 360px confirms nothing overflows."
       ],
-      "result": "The result follows because Verify the complete state model, failure and recovery paths, accessibility, security, tests, and deployed base paths."
+      "result": "Every state shows something useful, the app works with a keyboard and on a phone, and tests prove it."
     },
     {
       "id": "javascript.project.browser-app.example-b",
-      "title": "Modular browser application: boundary case",
-      "situation": "A working local happy path can hide offline, empty, error, stale, accessibility, privacy, and subpath failures.",
+      "title": "The retry that doubled the list",
+      "situation": "After a failed load, clicking Retry twice quickly shows every subject twice.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: A working local happy path can hide offline, empty, error, stale, accessibility, privacy, and subpath failures.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Completing the primary success screen means a browser project is production-ready."
+        "Both retry requests succeeded and each appended its items.",
+        "Fix: abort the previous request on each load, and replace the items instead of appending.",
+        "Add a DOM test with two controlled responses that asserts each subject appears once."
       ],
-      "result": "The boundary requires this correction: Verify the complete state model, failure and recovery paths, accessibility, security, tests, and deployed base paths."
+      "result": "However fast Retry is clicked, the list shows each subject exactly once."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.project.browser-app.misconception",
       "mistakenBelief": "Completing the primary success screen means a browser project is production-ready.",
-      "correction": "Verify the complete state model, failure and recovery paths, accessibility, security, tests, and deployed base paths.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: Completing the primary success screen means a browser project is production-ready."
+      "correction": "Learners meet loading, empty, error, retry, stale and keyboard situations constantly. A project is ready when each of those states is designed, implemented and tested, not just the success path.",
+      "diagnosticPrompt": "In \"The study tracker, every state\", which states did the tester find broken?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Modular browser application, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "Shipping an app is like **opening a restaurant**: the signature dish (success screen) matters, but so do the waiting area (loading), the empty-table sign (empty state), apologising when the kitchen fails (error and retry), the ramp for wheelchairs (keyboard access) and the takeaway menu that fits a small bag (narrow screens).",
     "usefulFor": [
-      "Building a first mental model for Modular browser application before using exact platform terms"
+      "remembering every state",
+      "retry = offering to cook it again"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "A working local happy path can hide offline, empty, error, stale, accessibility, privacy, and subpath failures."
+      "Restaurants can't abort orders mid-cook; apps can abort requests.",
+      "A README is like the menu that explains how things work."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A small tracker handles loading, empty, success, validation, server failure, retry, keyboard, and narrow-screen states.",
-      "A browser app integrates modules, semantic UI, state, async boundaries, security, tests, build, and deployment paths into one traceable product flow.",
-      "Verify the complete state model, failure and recovery paths, accessibility, security, tests, and deployed base paths."
+      "dispatch load",
+      "fetch fails, dispatch failed",
+      "Retry, dispatch load, fetch succeeds with []"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Loading",
         "state": {
-          "evidence": "A small tracker handles loading, empty, success, validation, server failure, retry, keyboard, and narrow-screen states."
+          "status": "loading",
+          "aria-busy": "true"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The tracker shows a loading message instead of a blank screen."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Failure",
         "state": {
-          "rule": "A browser app integrates modules, semantic UI, state, async boundaries, security, tests, build, and deployment paths into one traceable product flow."
+          "status": "error",
+          "Retry visible": "yes"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Server failure shows a message and a retry button."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Empty",
         "state": {
-          "correction": "Verify the complete state model, failure and recovery paths, accessibility, security, tests, and deployed base paths."
+          "status": "empty",
+          "message": "No subjects yet..."
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Completing the primary success screen means a browser project is production-ready."
+        "explanation": "After retry, the empty state guides the learner to add a subject."
       }
     ],
-    "textAlternative": "Starting artifact: A small tracker handles loading, empty, success, validation, server failure, retry, keyboard, and narrow-screen states. Step 1, Artifact. State: evidence: A small tracker handles loading, empty, success, validation, server failure, retry, keyboard, and narrow-screen states.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A browser app integrates modules, semantic UI, state, async boundaries, security, tests, build, and deployment paths into one traceable product flow.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Verify the complete state model, failure and recovery paths, accessibility, security, tests, and deployed base paths.. Check the result against the boundary and reject this misconception: Completing the primary success screen means a browser project is production-ready."
+    "textAlternative": "Walking the tracker through its states. Step 1, Loading: status is loading; aria-busy is true. The tracker shows a loading message instead of a blank screen. Step 2, Failure: status is error; Retry visible is yes. Server failure shows a message and a retry button. Step 3, Empty: status is empty; message is No subjects yet.... After retry, the empty state guides the learner to add a subject."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Modular browser application: concrete case”: state its starting evidence, apply the Modular browser application rule, and give the observable result in three short lines.",
+      "prompt": "For \"The study tracker, every state\", explain how a small tracker handles loading, empty, success, validation, server failure, retry, keyboard, and narrow-screen states.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "States.",
+        "Failure and retry.",
+        "Keyboard and narrow screen."
       ],
       "expectedEvidence": [
-        "Named example: Modular browser application: concrete case.",
-        "Starting evidence: A small tracker handles loading, empty, success, validation, server failure, retry, keyboard, and narrow-screen states.",
-        "Core rule: A browser app integrates modules, semantic UI, state, async boundaries, security, tests, build, and deployment paths into one traceable product flow.",
-        "Observable result: The result follows because Verify the complete state model, failure and recovery paths, accessibility, security, tests, and deployed base paths.",
-        "Boundary check: Verify the complete state model, failure and recovery paths, accessibility, security, tests, and deployed base paths."
+        "Names the example \"The study tracker, every state\": the tracker handles loading, empty and success states.",
+        "Validation and server failure show messages; retry aborts older requests.",
+        "Keyboard and narrow-screen use are tested.",
+        "Every state shows something useful."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: A working local happy path can hide offline, empty, error, stale, accessibility, privacy, and subpath failures.",
+      "prompt": "List every state for a \"notes\" app and write the message or UI each shows, plus which test (unit or DOM) covers it.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Start from the table above.",
+        "Include stale and keyboard."
       ],
       "expectedEvidence": [
-        "A browser app integrates modules, semantic UI, state, async boundaries, security, tests, build, and deployment paths into one traceable product flow.",
-        "A working local happy path can hide offline, empty, error, stale, accessibility, privacy, and subpath failures."
+        "At least eight states with UI.",
+        "A test named for each."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Modular browser application and explain why the misconception fails.",
+      "prompt": "Build and ship your study tracker: modules with inward dependencies, a reducer, safe rendering, fetch with abort and retry, unit and DOM tests, a check at 360px, and a README tracing one action from click to screen.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Test each state.",
+        "No innerHTML with data, no secrets."
       ],
       "expectedEvidence": [
-        "Deliver and explain a keyboard-usable modular browser application with tested loading, empty, success, error and stale-request states.",
-        "Verify the complete state model, failure and recovery paths, accessibility, security, tests, and deployed base paths."
+        "A working app with all states tested.",
+        "A README flow someone else can follow."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.project.browser-app.misconception",
-      "explanation": "Verify the complete state model, failure and recovery paths, accessibility, security, tests, and deployed base paths.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'complete state model' and state the decisive evidence."
+      "explanation": "Before calling it done, walk the list: **loading, empty, success, validation, server error, retry, stale, keyboard, narrow screen.** For each, ask: what does the learner see, and which test proves it?",
+      "retryPrompt": "Apply this to \"The retry that doubled the list\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to deliver and explain a keyboard-usable modular browser application with tested loading, empty, success, error and stale-request states. Keep this boundary in view: A working local happy path can hide offline, empty, error, stale, accessibility, privacy, and subpath failures.",
+    "summary": "To deliver and explain a keyboard-usable modular browser application, integrate modules with clear boundaries, one state model rendered safely, fetch with abort and retry, and unit plus DOM tests, then check loading, empty, success, error and stale-request states, keyboard use and narrow screens before shipping.",
     "retrievalPrompts": [
-      "Explain Modular browser application using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: Completing the primary success screen means a browser project is production-ready.",
-      "Apply checkpoint 'complete state model' to a new artifact."
+      "Why isn't the success screen enough?",
+      "Why keep the reducer free of DOM code?",
+      "How do you stop Retry from duplicating data?"
     ],
     "nextReviewPrompt": "Next: use this skill in the module checkpoint and one independent practice attempt. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "C source passes through preprocessing, translation to object code, and linking with required definitions before the operating environment can load an executable.",
+    "summary": "`gcc area.c -o area` looks like one step, but it's four. **1. Preprocess:** `#include` pastes header text in and `#define` macros are substituted (`gcc -E`). **2. Compile:** the expanded C is checked for syntax and types and translated to assembly (`-S`). **3. Assemble:** assembly becomes an **object file** of machine code with unresolved names (`-c` gives `area.o`). **4. Link:** the linker joins your object files with libraries (like the C library that provides `printf`) and resolves every name into one **executable**. Knowing the phase tells you where to look when something fails.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A macro and include directive are handled before the compiler checks expressions and emits an object file, then the linker resolves printf from the C library. Your goal is to diagnose whether a supplied failure occurs during preprocessing, compilation or linking. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner's two-file project compiles each .c file without a single error, then fails with `undefined reference to 'area'`. They keep re-reading the syntax of main.c, which is fine. A macro and include directive are handled before the compiler checks expressions and emits an object file, then the linker resolves printf from the C library. In this lesson you'll diagnose whether a supplied failure occurs during preprocessing, compilation or linking.\n\n```predict\n{\"question\": \"`undefined reference to 'area'` appears. Which phase failed?\", \"options\": [\"Compilation\", \"Linking: a definition for area wasn't found among the object files and libraries\"], \"answer\": 1, \"why\": \"\\\"undefined reference\\\" is the linker's message. The code compiled; a piece is missing.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: pf computing execution; pf tools terminal editor; Translation unit and main. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Source-to-execution models**, **Editor and terminal workflow** and **Translation unit and main** (int main and exit status)."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "C source passes through preprocessing, translation to object code, and linking with required definitions before the operating environment can load an executable. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The model: four phases, four kinds of error",
+        "body": "```c\n/* area.c */\n#include <stdio.h>\n#define PI 3.14159\nint main(void) {\n    double r = 2.0;\n    printf(\"%.2f\\n\", PI * r * r);\n    return 0;\n}\n```\n\n```bash\ngcc -E area.c -o area.i     # 1. preprocessed: stdio.h pasted in, PI replaced.\ngcc -S area.i -o area.s     # 2. compiled to assembly.\ngcc -c area.s -o area.o     # 3. assembled: object file, printf still unresolved.\ngcc area.o -o area          # 4. linked with the C library: printf resolved.\n./area                      # 12.57\n```\n\n| Error looks like | Phase |\n|---|---|\n| `fatal error: stdio.hh: No such file`. | preprocess. |\n| `expected ';' before 'return'`. | compile. |\n| `undefined reference to 'area'`. | link. |\n\n```reveal\n{\"prompt\": \"Why can each .c file compile but the program still fail?\", \"answer\": \"Compilation checks one translation unit at a time and only needs declarations. The linker is the first step that needs every definition, from all files and libraries, together.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Toolchains can combine phases, perform link-time optimization, or emit intermediate forms, but preprocessing and translation rules still determine observable program meaning. Therefore the draft explicitly rejects this beginner failure model: If every .c file compiles without error, the complete program must already be executable."
+        "heading": "Find the missing piece",
+        "body": "```predict\n{\"question\": \"main.c calls area(), declared in area.h and defined in shapes.c. You run `gcc main.c -o app`. What happens?\", \"options\": [\"It works, the header is included\", \"Link error: shapes.c was never compiled and linked\"], \"answer\": 1, \"why\": \"Headers only declare. Build with gcc main.c shapes.c -o app.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Relate source, object files, libraries and executable output.",
-      "Diagnose whether a supplied failure occurs during preprocessing, compilation or linking."
+      "Name the four phases: preprocess, compile, assemble and link, and inspect each with gcc flags.",
+      "Classify errors by phase to know where to look."
     ],
     "excludes": [
-      "Toolchains can combine phases, perform link-time optimization, or emit intermediate forms, but preprocessing and translation rules still determine observable program meaning."
+      "Build systems like make (modular module).",
+      "Dynamic versus static linking in depth."
     ]
   },
   "outcomes": [
@@ -63,133 +64,136 @@
   "examples": [
     {
       "id": "c.toolchain.phases.example-a",
-      "title": "Preprocess, compile, assemble and link: defined case",
+      "title": "From area.c to ./area",
       "situation": "A macro and include directive are handled before the compiler checks expressions and emits an object file, then the linker resolves printf from the C library.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A macro and include directive are handled before the compiler checks expressions and emits an object file, then the linker resolves printf from the C library.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Successful compilation produces translation-unit objects; the linker must still resolve every required external definition before an executable exists."
+        "**A macro and include directive are handled:** gcc -E replaces PI with 3.14159 and pastes stdio.h.",
+        "**Before the compiler checks expressions and emits an object file:** gcc -c produces area.o with printf unresolved.",
+        "**Then the linker resolves printf from the C library:** gcc area.o -o area succeeds, and ./area will print 12.57."
       ],
-      "result": "The defined result follows because Successful compilation produces translation-unit objects; the linker must still resolve every required external definition before an executable exists."
+      "result": "The learner can point at each phase and what it produced."
     },
     {
       "id": "c.toolchain.phases.example-b",
-      "title": "Preprocess, compile, assemble and link: boundary case",
-      "situation": "Each source file compiles successfully, but the final link fails because one declared function has no definition in any linked object.",
+      "title": "The two-file link error",
+      "situation": "`gcc main.c -o app` fails with undefined reference to 'area'.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: Each source file compiles successfully, but the final link fails because one declared function has no definition in any linked object.",
-        "Step 2 — Keep this standard boundary visible: Toolchains can combine phases, perform link-time optimization, or emit intermediate forms, but preprocessing and translation rules still determine observable program meaning.",
-        "Step 3 — Reject the tempting rule: If every .c file compiles without error, the complete program must already be executable."
+        "The message comes from the linker, so the syntax is fine.",
+        "area is defined in shapes.c, which wasn't part of the build.",
+        "gcc main.c shapes.c -o app links both object files."
       ],
-      "result": "This case demonstrates the declared outcome: Diagnose whether a supplied failure occurs during preprocessing, compilation or linking."
+      "result": "The program builds, and the learner stops editing correct code."
     }
   ],
   "misconceptions": [
     {
       "id": "c.toolchain.phases.misconception",
       "mistakenBelief": "If every .c file compiles without error, the complete program must already be executable.",
-      "correction": "Successful compilation produces translation-unit objects; the linker must still resolve every required external definition before an executable exists.",
-      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: If every .c file compiles without error, the complete program must already be executable."
+      "correction": "Compiling only checks each translation unit separately. The linker still has to find one definition for every function and object used, across all files and libraries.",
+      "diagnosticPrompt": "In the opening predict, which phase reported the error?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A manually managed workshop can model Preprocess, compile, assemble and link: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "example": "Building C is like **making a book**. Preprocessing is **pasting in quoted passages**; compiling is **translating each chapter**; assembling is **printing each chapter**; linking is **binding chapters together and filling in \"see page X\" references**. A chapter can print fine and still point to a page that doesn't exist.",
     "usefulFor": [
-      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+      "remembering paste, translate, print, bind",
+      "undefined reference = missing page"
     ],
     "limitations": [
-      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
-      "Toolchains can combine phases, perform link-time optimization, or emit intermediate forms, but preprocessing and translation rules still determine observable program meaning."
+      "Books don't have libraries of standard chapters; C does.",
+      "Binding errors only appear when everything is put together."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A macro and include directive are handled before the compiler checks expressions and emits an object file, then the linker resolves printf from the C library.",
-      "C source passes through preprocessing, translation to object code, and linking with required definitions before the operating environment can load an executable.",
-      "Successful compilation produces translation-unit objects; the linker must still resolve every required external definition before an executable exists."
+      "gcc -E area.c",
+      "gcc -c area.c",
+      "gcc area.o -o area"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Preprocess",
         "state": {
-          "evidence": "A macro and include directive are handled before the compiler checks expressions and emits an object file, then the linker resolves printf from the C library."
+          "PI": "3.14159",
+          "stdio.h": "pasted"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "The macro and include directive are handled first."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Compile",
         "state": {
-          "rule": "C source passes through preprocessing, translation to object code, and linking with required definitions before the operating environment can load an executable."
+          "area.o": "machine code",
+          "printf": "unresolved"
         },
-        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+        "explanation": "The compiler checks expressions and emits an object file."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Link",
         "state": {
-          "conclusion": "Successful compilation produces translation-unit objects; the linker must still resolve every required external definition before an executable exists."
+          "printf": "from C library",
+          "area": "executable"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: If every .c file compiles without error, the complete program must already be executable."
+        "explanation": "The linker resolves printf from the C library."
       }
     ],
-    "textAlternative": "Starting artifact: A macro and include directive are handled before the compiler checks expressions and emits an object file, then the linker resolves printf from the C library. Step 1, Source and state. State: evidence: A macro and include directive are handled before the compiler checks expressions and emits an object file, then the linker resolves printf from the C library.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: C source passes through preprocessing, translation to object code, and linking with required definitions before the operating environment can load an executable.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Successful compilation produces translation-unit objects; the linker must still resolve every required external definition before an executable exists.. Check the conclusion against the boundary and reject this misconception: If every .c file compiles without error, the complete program must already be executable."
+    "textAlternative": "Tracing the four phases. Step 1, Preprocess: PI is 3.14159; stdio.h is pasted. The macro and include directive are handled first. Step 2, Compile: area.o is machine code; printf is unresolved. The compiler checks expressions and emits an object file. Step 3, Link: printf is from C library; area is executable. The linker resolves printf from the C library."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Preprocess, compile, assemble and link: defined case”: state its starting evidence, apply the Preprocess, compile, assemble and link rule, and give the observable result in three short lines.",
+      "prompt": "For \"From area.c to ./area\", explain how a macro and include directive are handled before the compiler checks expressions and emits an object file, then the linker resolves printf from the C library.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Preprocess.",
+        "Compile.",
+        "Link."
       ],
       "expectedEvidence": [
-        "Named example: Preprocess, compile, assemble and link: defined case.",
-        "Starting evidence: A macro and include directive are handled before the compiler checks expressions and emits an object file, then the linker resolves printf from the C library.",
-        "Core rule: C source passes through preprocessing, translation to object code, and linking with required definitions before the operating environment can load an executable.",
-        "Observable result: The defined result follows because Successful compilation produces translation-unit objects; the linker must still resolve every required external definition before an executable exists.",
-        "Boundary check: Successful compilation produces translation-unit objects; the linker must still resolve every required external definition before an executable exists."
+        "Names the example \"From area.c to ./area\": each file compiled but linking failed.",
+        "A macro and include directive are handled before the compiler checks expressions and emits an object file.",
+        "Then the linker resolves printf from the C library.",
+        "The learner can point at each phase and what it produced."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same C rule to this related boundary case: Each source file compiles successfully, but the final link fails because one declared function has no definition in any linked object.",
+      "prompt": "Classify each error by phase: (a) `fatal error: mathh.h: No such file or directory`, (b) `error: expected ';' before '}'`, (c) `undefined reference to 'sqrt'`. Explain where to look for each.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Missing file = preprocess.",
+        "sqrt may need -lm on Linux."
       ],
       "expectedEvidence": [
-        "C source passes through preprocessing, translation to object code, and linking with required definitions before the operating environment can load an executable.",
-        "Toolchains can combine phases, perform link-time optimization, or emit intermediate forms, but preprocessing and translation rules still determine observable program meaning."
+        "Three phases named.",
+        "A fix for each."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new C example for Preprocess, compile, assemble and link, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Build a two-file program phase by phase with -E, -S, -c and a final link. Then remove one file from the link command and explain the exact error and why each earlier phase still succeeded.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Inspect the .i file size.",
+        "Use nm on the .o files to list symbols."
       ],
       "expectedEvidence": [
-        "Diagnose whether a supplied failure occurs during preprocessing, compilation or linking.",
-        "Successful compilation produces translation-unit objects; the linker must still resolve every required external definition before an executable exists."
+        "Each phase's output shown.",
+        "Link error explained."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "c.toolchain.phases.misconception",
-      "explanation": "Successful compilation produces translation-unit objects; the linker must still resolve every required external definition before an executable exists.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'linker' and state the decisive evidence: Each source file compiles successfully, but the final link fails because one declared function has no definition in any linked object."
+      "explanation": "Read the first error and ask: **is it about a file (preprocess), code (compile), or a missing definition (link)?** Then look in that place only.",
+      "retryPrompt": "Apply this to \"The two-file link error\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to diagnose whether a supplied failure occurs during preprocessing, compilation or linking. Keep this boundary in view: Toolchains can combine phases, perform link-time optimization, or emit intermediate forms, but preprocessing and translation rules still determine observable program meaning.",
+    "summary": "To diagnose where a build fails, remember C passes through preprocessing (includes and macros), compilation (syntax and types to assembly), assembling (object files) and linking (resolving definitions from all objects and libraries), and use the error's wording to identify the phase.",
     "retrievalPrompts": [
-      "Explain Preprocess, compile, assemble and link using a concrete C rule rather than the optional analogy.",
-      "Why is this claim incorrect: If every .c file compiles without error, the complete program must already be executable.",
-      "Apply the checkpoint 'linker' to the boundary case from memory."
+      "What does the preprocessor do?",
+      "What does an object file still lack?",
+      "Which phase reports undefined reference?"
     ],
     "nextReviewPrompt": "Next: continue to “Warnings and diagnostics”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

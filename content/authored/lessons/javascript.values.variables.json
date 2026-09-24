@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "let and const create block-scoped bindings, while const prevents rebinding but does not freeze referenced objects.",
+    "summary": "`let` and `const` create **block-scoped bindings** — a name attached to a value inside the nearest `{ }`. `const` means the **binding** can't be reassigned; it does **not** freeze the value. A `const` array or object can still be changed with `push` or property assignment. Default to `const`, and use `let` only when you really reassign. Avoid `var`: it ignores blocks and is hoisted in confusing ways.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A const array can receive push because its binding stays fixed while the array object mutates. Your goal is to trace bindings through blocks and choose const unless reassignment is intended. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You declare `const cart = []` and a teammate says \"you can't add to a const!\". Then `cart.push(\"book\")` works fine — but `cart = []` throws. What exactly is constant? A const array can receive push because its binding stays fixed while the array object mutates. In this lesson you'll trace bindings through blocks and choose const unless reassignment is intended.\n\n```predict\n{\"question\": \"`const cart = []; cart.push(\\\"book\\\"); console.log(cart.length);` Output?\", \"options\": [\"TypeError: Assignment to constant variable\", \"1\"], \"answer\": 1, \"why\": \"push mutates the array object. The binding `cart` still points to the same array, so const is satisfied.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Scripts and console; pf state expressions; Primitive values and typeof; pf state variables. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Scripts and console**, **Expressions and evaluation**, **Primitive values and typeof**, and **Variables and assignment** (names bound to values)."
       },
       {
-        "heading": "Technology rule",
-        "body": "let and const create block-scoped bindings, while const prevents rebinding but does not freeze referenced objects. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: bindings live in blocks; const locks the binding",
+        "body": "```js\nconst cart = [];          // binding locked to this array\ncart.push(\"book\");        // ✓ mutates the object\n// cart = [];             // ✗ TypeError: reassignment\n\nlet total = 0;            // will be reassigned\nfor (const price of [100, 250]) {\n  total += price;         // ✓ let can be reassigned\n}\n\nif (true) {\n  const message = \"inside\";\n}\n// console.log(message);  // ✗ ReferenceError: not defined outside the block\n```\n\n| Keyword | Reassign? | Scope | Use |\n|---|---|---|---|\n| `const`. | no. | block. | default choice. |\n| `let`. | yes. | block. | counters, accumulators. |\n| `var`. | yes. | function (ignores blocks). | avoid in new code. |\n\n```reveal\n{\"prompt\": \"How do you make an object truly unchangeable?\", \"answer\": \"`Object.freeze(obj)` prevents changes to its own properties (shallow — nested objects can still change).\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Temporal dead zones, var function scope, global bindings, and closure capture affect visibility and lifetime. This draft therefore rejects: const makes every nested property of an object immutable."
+        "heading": "The temporal dead zone",
+        "body": "```predict\n{\"question\": \"`console.log(x); let x = 5;` Output?\", \"options\": [\"undefined\", \"ReferenceError — x exists but can't be used before its declaration line\"], \"answer\": 1, \"why\": \"let/const bindings are in a \\\"temporal dead zone\\\" until their declaration runs. (var would print undefined.)\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use block-scoped declarations and distinguish binding reassignment from object mutation.",
-      "Trace bindings through blocks and choose const unless reassignment is intended."
+      "Trace let and const bindings through blocks.",
+      "Choose const by default and explain what const does and doesn't prevent."
     ],
     "excludes": [
-      "Temporal dead zones, var function scope, global bindings, and closure capture affect visibility and lifetime."
+      "Closures (scope module).",
+      "Object.freeze in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,133 @@
   "examples": [
     {
       "id": "javascript.values.variables.example-a",
-      "title": "let, const and binding: concrete case",
+      "title": "A const array that still grows",
       "situation": "A const array can receive push because its binding stays fixed while the array object mutates.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A const array can receive push because its binding stays fixed while the array object mutates.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: const prevents rebinding; use freezing or immutable updates when object mutation must also be prevented."
+        "**Declare:** `const cart = []` binds the name cart to one array object.",
+        "**Mutate:** `cart.push(\"book\")` changes the array object; the binding is untouched, so no error.",
+        "**Reassign:** `cart = []` will throw TypeError — that would change the binding itself."
       ],
-      "result": "The result follows because const prevents rebinding; use freezing or immutable updates when object mutation must also be prevented."
+      "result": "The cart grows to one item, and only reassigning the name is forbidden."
     },
     {
       "id": "javascript.values.variables.example-b",
-      "title": "let, const and binding: boundary case",
-      "situation": "Temporal dead zones, var function scope, global bindings, and closure capture affect visibility and lifetime.",
+      "title": "The loop counter that leaked",
+      "situation": "Old code uses `for (var i = 0; i < 3; i++) {}` and later `console.log(i)` prints 3, confusing a reviewer.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Temporal dead zones, var function scope, global bindings, and closure capture affect visibility and lifetime.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: const makes every nested property of an object immutable."
+        "var ignores the for block, so i exists after the loop.",
+        "With let, i would only exist inside the loop.",
+        "Fix: `for (let i = 0; i < 3; i++)`; now `console.log(i)` outside throws ReferenceError, revealing the leak."
       ],
-      "result": "The boundary requires this correction: const prevents rebinding; use freezing or immutable updates when object mutation must also be prevented."
+      "result": "The counter is scoped to its loop, as readers expect."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.values.variables.misconception",
       "mistakenBelief": "const makes every nested property of an object immutable.",
-      "correction": "const prevents rebinding; use freezing or immutable updates when object mutation must also be prevented.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: const makes every nested property of an object immutable."
+      "correction": "const only prevents reassigning the binding. The object or array it refers to can still be mutated; use Object.freeze for shallow immutability of the object itself.",
+      "diagnosticPrompt": "In \"A const array that still grows\", which operation threw and which didn't?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model let, const and binding, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "A const binding is like a **name tag glued to one box**: you can't move the tag to another box, but you can still put things into the box and take them out.",
     "usefulFor": [
-      "Building a first mental model for let, const and binding before using exact platform terms"
+      "remembering const = fixed tag, not frozen contents",
+      "blocks are rooms where tags exist"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Temporal dead zones, var function scope, global bindings, and closure capture affect visibility and lifetime."
+      "Real glue can be scraped off; const can't be reassigned at all.",
+      "Object.freeze is like taping the box shut (only the top layer)."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A const array can receive push because its binding stays fixed while the array object mutates.",
-      "let and const create block-scoped bindings, while const prevents rebinding but does not freeze referenced objects.",
-      "const prevents rebinding; use freezing or immutable updates when object mutation must also be prevented."
+      "const cart = []",
+      "cart.push('book')",
+      "cart = []"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Bind",
         "state": {
-          "evidence": "A const array can receive push because its binding stays fixed while the array object mutates."
+          "cart": "→ array #1 []"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The const binding points at one array object."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Mutate",
         "state": {
-          "rule": "let and const create block-scoped bindings, while const prevents rebinding but does not freeze referenced objects."
+          "cart": "→ array #1 ['book']"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "A const array can receive push because its binding stays fixed."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Reassign",
         "state": {
-          "correction": "const prevents rebinding; use freezing or immutable updates when object mutation must also be prevented."
+          "error": "TypeError: Assignment to constant variable"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: const makes every nested property of an object immutable."
+        "explanation": "Trying to point cart at a new array changes the binding, which const forbids."
       }
     ],
-    "textAlternative": "Starting artifact: A const array can receive push because its binding stays fixed while the array object mutates. Step 1, Artifact. State: evidence: A const array can receive push because its binding stays fixed while the array object mutates.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: let and const create block-scoped bindings, while const prevents rebinding but does not freeze referenced objects.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: const prevents rebinding; use freezing or immutable updates when object mutation must also be prevented.. Check the result against the boundary and reject this misconception: const makes every nested property of an object immutable."
+    "textAlternative": "const binding vs object mutation. Step 1, Bind: cart is → array #1 []. The const binding points at one array object. Step 2, Mutate: cart is → array #1 ['book']. A const array can receive push because its binding stays fixed. Step 3, Reassign: error is TypeError: Assignment to constant variable. Trying to point cart at a new array changes the binding, which const forbids."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “let, const and binding: concrete case”: state its starting evidence, apply the let, const and binding rule, and give the observable result in three short lines.",
+      "prompt": "For \"A const array that still grows\", explain why a const array can receive push because its binding stays fixed while the array object mutates, and what reassignment does.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Binding.",
+        "push.",
+        "Reassign."
       ],
       "expectedEvidence": [
-        "Named example: let, const and binding: concrete case.",
-        "Starting evidence: A const array can receive push because its binding stays fixed while the array object mutates.",
-        "Core rule: let and const create block-scoped bindings, while const prevents rebinding but does not freeze referenced objects.",
-        "Observable result: The result follows because const prevents rebinding; use freezing or immutable updates when object mutation must also be prevented.",
-        "Boundary check: const prevents rebinding; use freezing or immutable updates when object mutation must also be prevented."
+        "Names the example \"A const array that still grows\": a const array can receive push.",
+        "Its binding stays fixed while the array object mutates.",
+        "cart.length becomes 1.",
+        "Reassigning cart throws TypeError."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Temporal dead zones, var function scope, global bindings, and closure capture affect visibility and lifetime.",
+      "prompt": "Choose let or const for: a user's name read once, a running score, a config object you'll add keys to, and a loop index.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Is the binding reassigned?",
+        "Mutation isn't reassignment."
       ],
       "expectedEvidence": [
-        "let and const create block-scoped bindings, while const prevents rebinding but does not freeze referenced objects.",
-        "Temporal dead zones, var function scope, global bindings, and closure capture affect visibility and lifetime."
+        "name: const; score: let.",
+        "config: const (mutated, not reassigned); loop index: let."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for let, const and binding and explain why the misconception fails.",
+      "prompt": "Refactor a file that uses var everywhere to let/const. Note every place where scoping behaviour changes, and add a test that would have caught one var-related bug.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Start with const.",
+        "Watch loops with callbacks."
       ],
       "expectedEvidence": [
-        "Trace bindings through blocks and choose const unless reassignment is intended.",
-        "const prevents rebinding; use freezing or immutable updates when object mutation must also be prevented."
+        "No var remains; const by default.",
+        "Documented behaviour changes and a regression test."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.values.variables.misconception",
-      "explanation": "const prevents rebinding; use freezing or immutable updates when object mutation must also be prevented.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'prevents rebinding' and state the decisive evidence."
+      "explanation": "For each variable ask: **Is the name ever assigned again (=, +=, ++)?** No → const. Yes → let. Mutation (push, obj.x = …) doesn't count as reassignment.",
+      "retryPrompt": "Apply this to every variable in \"The loop counter that leaked\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to trace bindings through blocks and choose const unless reassignment is intended. Keep this boundary in view: Temporal dead zones, var function scope, global bindings, and closure capture affect visibility and lifetime.",
+    "summary": "To trace bindings through blocks and choose declarations, remember let and const are block-scoped, const locks the binding (not the object's contents), let allows reassignment, and var ignores blocks. Choose const unless reassignment is intended.",
     "retrievalPrompts": [
-      "Explain let, const and binding using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: const makes every nested property of an object immutable.",
-      "Apply checkpoint 'prevents rebinding' to a new artifact."
+      "Can you push to a const array?",
+      "What does const prevent?",
+      "Why avoid var?"
     ],
     "nextReviewPrompt": "Next: continue to “Equality, truthiness and coercion”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

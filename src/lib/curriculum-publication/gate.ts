@@ -10,6 +10,7 @@ import {
   curriculumReviewChecklistSchema,
 } from "./contracts";
 import { aggregateArtifactHash, hashCurriculumValue } from "./hash";
+import { listOwnerReviewedArtifactIds } from "./owner-review";
 
 type Queryable = Pick<PoolClient, "query">;
 
@@ -34,6 +35,22 @@ export interface PublicationGateReport {
     readonly releaseEvidenceVersion: number | null;
   };
   readonly reportHash: string;
+}
+
+// Local-only escape hatch so AI-drafted curriculum can be exercised end to end
+// before human review exists. Never honored outside NODE_ENV=development, and
+// only waives review/attestation blockers; integrity and coverage still apply.
+const DEV_WAIVABLE_REVIEW_CODES = new Set([
+  "ARTIFACT_STAGE_UNAPPROVED",
+  "HUMAN_REVIEW_MISSING",
+  "RUNTIME_LESSON_STAGE",
+  // Nothing materializes runtime lesson rows yet; lesson pages read authored files.
+  "RUNTIME_LESSON_MISSING",
+  "RELEASE_EVIDENCE_MISSING",
+]);
+
+export function unreviewedCurriculumWaived(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.NODE_ENV === "development" && env.ALLOW_UNREVIEWED_CURRICULUM === "true";
 }
 
 function exactSet(actual: readonly string[], expected: readonly string[]): boolean {
@@ -285,6 +302,23 @@ export async function evaluateCurriculumPublicationGate(input: {
     if (!exactSet(release.data.codeExecution.executedItemIds, codeItems.map((item) => item.id))) issue({ code: "EXECUTION_REPORT_MISMATCH", message: "Execution evidence does not exactly cover every code item." });
     const dbRuntimeDigests = codeItems.map((item) => bundleByItem.get(item.id)?.runtime_image_digest ?? "").filter(Boolean);
     if (!exactSet(release.data.codeExecution.runtimeImageDigests, dbRuntimeDigests)) issue({ code: "RUNTIME_DIGEST_MISMATCH", message: "Execution evidence runtime digests do not match verified test bundles." });
+  }
+  if (unreviewedCurriculumWaived()) {
+    // Beta: drafts may be tried locally as-is. Verified: only once the owner has
+    // marked every artifact of this version reviewed (owner-review.ts), so the
+    // local "verified" badge still means a person read the whole course.
+    const ownerReviewed = input.targetStage === "verified"
+      ? new Set(await listOwnerReviewedArtifactIds(input.courseVersionId))
+      : null;
+    const ownerReviewComplete = ownerReviewed === null
+      || artifacts.every((artifact) => ownerReviewed.has(artifact.id));
+    if (ownerReviewComplete) {
+      for (let index = issues.length - 1; index >= 0; index -= 1) {
+        if (DEV_WAIVABLE_REVIEW_CODES.has(issues[index]!.code)) issues.splice(index, 1);
+      }
+    } else {
+      issue({ code: "OWNER_REVIEW_INCOMPLETE", message: "Mark every artifact of this course reviewed before publishing it as verified locally." });
+    }
   }
   if (truncated) issues.push({ code: "ISSUES_TRUNCATED", message: "Additional publication blockers were omitted from this bounded response." });
   const reportWithoutHash = {

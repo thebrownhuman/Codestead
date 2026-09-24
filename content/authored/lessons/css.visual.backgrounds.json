@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Background layers paint behind content and can combine color, images, gradients, size, position, and repeat without adding semantic content.",
+    "summary": "Borders, shadows, gradients and background images make surfaces feel polished — but they're **decoration**. Layer them safely: set a **solid background-color first** as a fallback, add gradients or images on top, and keep text contrast measured against the worst case. Never put required information (instructions, prices, labels) inside a background image: it can't be read by screen readers, translated, selected or zoomed cleanly, and it ignores users' forced high-contrast colours.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A decorative gradient sits over a solid fallback color while all instructional text remains real HTML. Your goal is to implement a visual surface treatment that degrades safely and preserves readability. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A promo banner's instructions — \"Use code WELCOME10 at checkout\" — are baked into its background image. Screen readers skip it, translation tools can't see it, and on a slow network the image hasn't loaded, leaving an empty coloured box. A decorative gradient sits over a solid fallback colour, while all instructional text remains real HTML. In this lesson you'll implement a visual surface treatment that degrades safely and preserves readability.\n\n```predict\n{\"question\": \"Text that's part of a CSS background-image — can a screen reader read it?\", \"options\": [\"Yes\", \"No — background images have no text alternative\"], \"answer\": 1, \"why\": \"Background images are decoration only. Important text must be real HTML text.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Lengths, percentages and viewport units; html semantics text; Color and contrast; Content, padding, border and margin. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Lengths, percentages and viewport units**, **Paragraph and inline meaning**, **Color and contrast**, and **Content, padding, border and margin**."
       },
       {
-        "heading": "Technology rule",
-        "body": "Background layers paint behind content and can combine color, images, gradients, size, position, and repeat without adding semantic content. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: solid base, decorative layers, real text on top",
+        "body": "```css\n.banner {\n  background-color: #1e3a8a;                          /* fallback: always present */\n  background-image:\n    linear-gradient(135deg, rgb(30 58 138 / 0.9), rgb(124 58 237 / 0.85)),\n    url(\"/img/waves.svg\");                              /* decorative */\n  background-size: cover;\n  color: #ffffff;                                     /* measured vs darkest AND lightest spot */\n  border-radius: 12px;\n  box-shadow: 0 4px 12px rgb(0 0 0 / 0.15);\n  border: 1px solid transparent;                      /* visible in forced-colours mode */\n}\n```\n\n```html\n<section class=\"banner\">\n  <h2>Welcome offer</h2>\n  <p>Use code <strong>WELCOME10</strong> at checkout.</p>\n</section>\n```\n\n| Layer | Role |\n|---|---|\n| background-color. | shown if images fail or before they load. |\n| gradient/image. | decoration. |\n| real text. | readable, translatable, selectable. |\n| transparent border. | keeps an outline in high-contrast modes. |\n\n```reveal\n{\"prompt\": \"Why a transparent border?\", \"answer\": \"In Windows forced-colours (high contrast) mode, background colours, gradients and shadows are replaced or removed, but borders get the system colour — so the box's edge stays visible.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Background images can fail, disappear in forced colors, increase contrast problems, and should not carry indispensable information. This draft therefore rejects: A background image is an appropriate place for required instructions because it cannot be selected."
+        "heading": "Shadows and borders carry no meaning alone",
+        "body": "```predict\n{\"question\": \"A selected card is indicated only by a subtle shadow. Problem?\", \"options\": [\"No\", \"Yes — add a visible border or icon and text/state (like aria-pressed or 'Selected')\"], \"answer\": 1, \"why\": \"Shadows disappear in forced-colours mode and are hard to see for many users. Show state in more than one way.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use decorative layers without obscuring content, focus or contrast.",
-      "Implement a visual surface treatment that degrades safely and preserves readability."
+      "Layer backgrounds, gradients, borders and shadows over a solid fallback colour.",
+      "Keep instructional text in HTML and check readability when images fail or colours are forced."
     ],
     "excludes": [
-      "Background images can fail, disappear in forced colors, increase contrast problems, and should not carry indispensable information."
+      "CSS filters and blend modes.",
+      "SVG illustration techniques."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "css.visual.backgrounds.example-a",
-      "title": "Borders, shadows, gradients and backgrounds: concrete case",
+      "title": "A gradient over a solid fallback",
       "situation": "A decorative gradient sits over a solid fallback color while all instructional text remains real HTML.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A decorative gradient sits over a solid fallback color while all instructional text remains real HTML.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Keep essential information in semantic content and use backgrounds decoratively with resilient color and contrast fallbacks."
+        "**Solid fallback colour:** `background-color: #1e3a8a` renders immediately, even before or without images.",
+        "**Decorative gradient:** layered on top through background-image, purely for looks.",
+        "**Real HTML text:** \"Use code WELCOME10 at checkout\" is a paragraph, measured at 4.5:1+ against both gradient ends; images disabled, the browser will still render readable text."
       ],
-      "result": "The result follows because Keep essential information in semantic content and use backgrounds decoratively with resilient color and contrast fallbacks."
+      "result": "The banner looks rich when everything loads, and stays readable and usable when it doesn't."
     },
     {
       "id": "css.visual.backgrounds.example-b",
-      "title": "Borders, shadows, gradients and backgrounds: boundary case",
-      "situation": "Background images can fail, disappear in forced colors, increase contrast problems, and should not carry indispensable information.",
+      "title": "The image-only price tag",
+      "situation": "A sale badge is a PNG containing \"50% OFF — today only\" set as a background image on an empty span.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Background images can fail, disappear in forced colors, increase contrast problems, and should not carry indispensable information.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: A background image is an appropriate place for required instructions because it cannot be selected."
+        "Screen readers, search engines and translation tools get nothing.",
+        "Zooming makes the text blurry, and the PNG ignores a user's forced high-contrast colours.",
+        "Fix: real text in the span (`<span class=\"badge\">50% off — today only</span>`) styled with CSS colours and borders."
       ],
-      "result": "The boundary requires this correction: Keep essential information in semantic content and use backgrounds decoratively with resilient color and contrast fallbacks."
+      "result": "The badge is readable by everyone and scales crisply."
     }
   ],
   "misconceptions": [
     {
       "id": "css.visual.backgrounds.misconception",
-      "mistakenBelief": "A background image is an appropriate place for required instructions because it cannot be selected.",
-      "correction": "Keep essential information in semantic content and use backgrounds decoratively with resilient color and contrast fallbacks.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: A background image is an appropriate place for required instructions because it cannot be selected."
+      "mistakenBelief": "A background image is an appropriate place for required instructions, because it cannot be selected.",
+      "correction": "Background images have no text alternative, can't be translated or zoomed cleanly, may not load, and don't adapt to forced-colours mode. Required information must be real HTML text; backgrounds are decoration.",
+      "diagnosticPrompt": "In \"The image-only price tag\", who missed the sale information?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Borders, shadows, gradients and backgrounds, where rules size, place, and paint existing content.",
+    "example": "A background is like **wallpaper**: nice, but you don't write the fire-exit instructions on it in faint pattern. The instructions go on a proper sign (HTML text) that everyone can read even if the wallpaper is torn down.",
     "usefulFor": [
-      "Building a first mental model for Borders, shadows, gradients and backgrounds before using exact platform terms"
+      "remembering decoration vs information",
+      "solid colour as the wall underneath"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "Background images can fail, disappear in forced colors, increase contrast problems, and should not carry indispensable information."
+      "Wallpaper can't fail to load; images can.",
+      "Forced-colours mode is like painting over the wallpaper."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A decorative gradient sits over a solid fallback color while all instructional text remains real HTML.",
-      "Background layers paint behind content and can combine color, images, gradients, size, position, and repeat without adding semantic content.",
-      "Keep essential information in semantic content and use backgrounds decoratively with resilient color and contrast fallbacks."
+      "background-color: #1e3a8a",
+      "background-image: linear-gradient(...), url(waves.svg)",
+      "<p>Use code <strong>WELCOME10</strong> at checkout.</p>"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Fallback",
         "state": {
-          "evidence": "A decorative gradient sits over a solid fallback color while all instructional text remains real HTML."
+          "images": "not loaded",
+          "background": "#1e3a8a",
+          "text": "readable"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The solid fallback colour appears first."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Decoration",
         "state": {
-          "rule": "Background layers paint behind content and can combine color, images, gradients, size, position, and repeat without adding semantic content."
+          "gradient": "over fallback"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "A decorative gradient sits over the solid fallback colour."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Text",
         "state": {
-          "correction": "Keep essential information in semantic content and use backgrounds decoratively with resilient color and contrast fallbacks."
+          "instructions": "real HTML",
+          "contrast": "≥ 4.5:1 on both ends"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: A background image is an appropriate place for required instructions because it cannot be selected."
+        "explanation": "All instructional text remains real HTML and is measured against the gradient."
       }
     ],
-    "textAlternative": "Starting artifact: A decorative gradient sits over a solid fallback color while all instructional text remains real HTML. Step 1, Artifact. State: evidence: A decorative gradient sits over a solid fallback color while all instructional text remains real HTML.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Background layers paint behind content and can combine color, images, gradients, size, position, and repeat without adding semantic content.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Keep essential information in semantic content and use backgrounds decoratively with resilient color and contrast fallbacks.. Check the result against the boundary and reject this misconception: A background image is an appropriate place for required instructions because it cannot be selected."
+    "textAlternative": "Layering a banner safely. Step 1, Fallback: images is not loaded; background is #1e3a8a; text is readable. The solid fallback colour appears first. Step 2, Decoration: gradient is over fallback. A decorative gradient sits over the solid fallback colour. Step 3, Text: instructions is real HTML; contrast is ≥ 4.5:1 on both ends. All instructional text remains real HTML and is measured against the gradient."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Borders, shadows, gradients and backgrounds: concrete case”: state its starting evidence, apply the Borders, shadows, gradients and backgrounds rule, and give the observable result in three short lines.",
+      "prompt": "For \"A gradient over a solid fallback\", explain why a decorative gradient sits over a solid fallback color while all instructional text remains real HTML.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Fallback.",
+        "Gradient.",
+        "Text."
       ],
       "expectedEvidence": [
-        "Named example: Borders, shadows, gradients and backgrounds: concrete case.",
-        "Starting evidence: A decorative gradient sits over a solid fallback color while all instructional text remains real HTML.",
-        "Core rule: Background layers paint behind content and can combine color, images, gradients, size, position, and repeat without adding semantic content.",
-        "Observable result: The result follows because Keep essential information in semantic content and use backgrounds decoratively with resilient color and contrast fallbacks.",
-        "Boundary check: Keep essential information in semantic content and use backgrounds decoratively with resilient color and contrast fallbacks."
+        "Names the example \"A gradient over a solid fallback\": a decorative gradient sits over a solid fallback color.",
+        "The fallback shows if images fail or are slow.",
+        "All instructional text remains real HTML.",
+        "Text contrast is measured against both gradient ends, so the banner looks rich when everything loads and stays readable when it doesn't."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Background images can fail, disappear in forced colors, increase contrast problems, and should not carry indispensable information.",
+      "prompt": "A card uses a photo background with white text. List three things you'd add so the text stays readable.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Fallback, overlay, measurement.",
+        "Forced colours?"
       ],
       "expectedEvidence": [
-        "Background layers paint behind content and can combine color, images, gradients, size, position, and repeat without adding semantic content.",
-        "Background images can fail, disappear in forced colors, increase contrast problems, and should not carry indispensable information."
+        "A dark background-color fallback and a translucent overlay gradient.",
+        "Measure text against the lightest area; transparent border for forced colours."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Borders, shadows, gradients and backgrounds and explain why the misconception fails.",
+      "prompt": "Style a hero section with a gradient, image and shadow. Test with images blocked, in forced-colours mode (DevTools emulation) and at 200% zoom; fix anything unreadable.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "DevTools → Rendering → forced-colors.",
+        "Block images in the Network panel."
       ],
       "expectedEvidence": [
-        "Implement a visual surface treatment that degrades safely and preserves readability.",
-        "Keep essential information in semantic content and use backgrounds decoratively with resilient color and contrast fallbacks."
+        "Hero readable in all three tests.",
+        "Notes on what changed to make it robust."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.visual.backgrounds.misconception",
-      "explanation": "Keep essential information in semantic content and use backgrounds decoratively with resilient color and contrast fallbacks.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'semantic content' and state the decisive evidence."
+      "explanation": "Turn off images and emulate forced colours. Anything that disappears was decoration — check that no information went with it.",
+      "retryPrompt": "Test \"The image-only price tag\" this way."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement a visual surface treatment that degrades safely and preserves readability. Keep this boundary in view: Background images can fail, disappear in forced colors, increase contrast problems, and should not carry indispensable information.",
+    "summary": "To implement a visual surface treatment that degrades safely, set a solid fallback background-color, layer gradients and images as decoration, keep all instructional text in real HTML with measured contrast, and add borders that survive forced-colours mode.",
     "retrievalPrompts": [
-      "Explain Borders, shadows, gradients and backgrounds using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: A background image is an appropriate place for required instructions because it cannot be selected.",
-      "Apply checkpoint 'semantic content' to a new artifact."
+      "Why set background-color under a gradient?",
+      "Why must instructions not be in background images?",
+      "What survives forced-colours mode?"
     ],
     "nextReviewPrompt": "Next: continue to “Normal flow and display”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

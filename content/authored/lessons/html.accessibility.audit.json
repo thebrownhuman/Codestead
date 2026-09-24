@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "An HTML accessibility audit combines DOM and accessibility-tree inspection, keyboard use, names and states, zoom, content review, and automated checks.",
+    "summary": "An accessibility audit combines **manual checks** with **automated scanners**. Automated tools catch maybe a third of issues (missing alt, low contrast, unlabelled inputs). The rest needs people: complete the task with the **keyboard only**, watch that **focus** is always visible and logical, and inspect the **accessibility tree** to confirm names, roles and states. Record each finding with where, what, who it affects, and the fix.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A learner completes a form using only keyboard, inspects labels and errors, then uses an automated scanner to find additional issues. Your goal is to record and repair findings from a manual keyboard and accessibility-tree review. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "The automated scanner says \"0 errors\" — ship it? Then a keyboard user reports they can't close a pop-up, and the error messages aren't read aloud. The scanner couldn't know. A learner completes a form using only the keyboard, inspects labels and errors, then uses an automated scanner to find additional issues. In this lesson you'll record and repair findings from a manual keyboard and accessibility-tree review.\n\n```predict\n{\"question\": \"An automated scanner reports zero errors. Is the page accessible?\", \"options\": [\"Yes, certified\", \"Not necessarily — scanners miss keyboard traps, confusing order, unclear text and more\"], \"answer\": 1, \"why\": \"Tools check what can be computed. Whether a task is actually usable needs manual testing.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Document foundations; Text and page semantics; Forms and native controls; Native semantics before ARIA; Keyboard navigation and skip links. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Document foundations**, **Text and page semantics** and **Forms and native controls** modules, plus **Native semantics before ARIA** and **Keyboard navigation and skip links**."
       },
       {
-        "heading": "Technology rule",
-        "body": "An HTML accessibility audit combines DOM and accessibility-tree inspection, keyboard use, names and states, zoom, content review, and automated checks. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: manual task test → tree inspection → scanner → record",
+        "body": "| Step | Check |\n|---|---|\n| 1. Keyboard only. | Can you reach, operate and finish every part with Tab, Shift+Tab, Enter, Space, arrows, Esc? |\n| 2. Focus. | Always visible? Order matches the layout? No traps? |\n| 3. Accessibility tree. | Does each control have the right name, role and state? |\n| 4. Errors. | Are messages text, linked to fields, announced? |\n| 5. Scanner (axe, Lighthouse). | catches extra issues like contrast and missing alt. |\n\n**Finding record:** *Where* (page, element) · *What* happened · *Who* it affects · *Fix* · *Retest result*.\n\n```reveal\n{\"prompt\": \"Where do you see the accessibility tree?\", \"answer\": \"DevTools → Elements → Accessibility pane (Chrome/Edge), or Firefox's Accessibility inspector. It shows each node's computed name, role and states.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Automated tools detect only a subset, passing rules is not proof, and screen-reader testing needs task-focused interpretation. This draft therefore rejects: A zero-error automated accessibility report certifies that the page is accessible."
+        "heading": "Manual beats automatic for tasks",
+        "body": "```predict\n{\"question\": \"Which issue would only a manual keyboard test find?\", \"options\": [\"An image with no alt\", \"A modal you can't close or leave with the keyboard\"], \"answer\": 1, \"why\": \"Keyboard traps depend on behaviour, not markup that a scanner can read.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Inspect headings, landmarks, names, roles, states, focus order and browser zoom behavior.",
-      "Record and repair findings from a manual keyboard and accessibility-tree review."
+      "Complete a task keyboard-only and inspect names, roles and states in the accessibility tree.",
+      "Combine manual checks with an automated scan and record findings with fixes."
     ],
     "excludes": [
-      "Automated tools detect only a subset, passing rules is not proof, and screen-reader testing needs task-focused interpretation."
+      "Full WCAG conformance reports.",
+      "Screen-reader testing on every platform."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "html.accessibility.audit.example-a",
-      "title": "Keyboard and accessibility-tree audit: concrete case",
+      "title": "Auditing a sign-up form",
       "situation": "A learner completes a form using only keyboard, inspects labels and errors, then uses an automated scanner to find additional issues.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A learner completes a form using only keyboard, inspects labels and errors, then uses an automated scanner to find additional issues.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Treat automation as bounded evidence and combine it with keyboard, structure, name/state, visual, and task-based human checks."
+        "**Using only keyboard:** Tab through the sign-up form; the \"Create account\" div can't be reached — finding #1 (fix: use a button).",
+        "**Inspect labels and errors:** the accessibility tree shows the password field's name is empty and the error isn't linked — findings #2 and #3.",
+        "**Automated scanner:** axe reports low contrast on the hint text — finding #4. Fix all four and retest."
       ],
-      "result": "The result follows because Treat automation as bounded evidence and combine it with keyboard, structure, name/state, visual, and task-based human checks."
+      "result": "Four recorded findings are fixed, and the form can be completed by keyboard with every field named."
     },
     {
       "id": "html.accessibility.audit.example-b",
-      "title": "Keyboard and accessibility-tree audit: boundary case",
-      "situation": "Automated tools detect only a subset, passing rules is not proof, and screen-reader testing needs task-focused interpretation.",
+      "title": "The zero-error launch",
+      "situation": "A team ships after Lighthouse scores 100 for accessibility. Users then report a date picker that traps keyboard focus.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Automated tools detect only a subset, passing rules is not proof, and screen-reader testing needs task-focused interpretation.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: A zero-error automated accessibility report certifies that the page is accessible."
+        "Lighthouse can't operate widgets, so it didn't detect the trap.",
+        "No manual keyboard pass was done.",
+        "Fix: add a manual keyboard check to the release checklist; replace the widget with `<input type=\"date\">` or fix its Esc handling."
       ],
-      "result": "The boundary requires this correction: Treat automation as bounded evidence and combine it with keyboard, structure, name/state, visual, and task-based human checks."
+      "result": "The trap is removed, and manual testing now runs before every release."
     }
   ],
   "misconceptions": [
     {
       "id": "html.accessibility.audit.misconception",
       "mistakenBelief": "A zero-error automated accessibility report certifies that the page is accessible.",
-      "correction": "Treat automation as bounded evidence and combine it with keyboard, structure, name/state, visual, and task-based human checks.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: A zero-error automated accessibility report certifies that the page is accessible."
+      "correction": "Automated tools detect only issues they can compute from code. Keyboard operability, focus order, meaningful names and understandable errors need manual testing with the keyboard and the accessibility tree.",
+      "diagnosticPrompt": "In \"The zero-error launch\", why did the scanner miss the trap?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model Keyboard and accessibility-tree audit, with structure carrying meaning before decoration.",
+    "example": "An automated scan is like a **spell-checker**: it catches typos, but it can't tell you if your essay makes sense. A manual audit is **reading the essay aloud** to someone who has to follow it.",
     "usefulFor": [
-      "Building a first mental model for Keyboard and accessibility-tree audit before using exact platform terms"
+      "remembering tools catch only some issues",
+      "seeing manual testing as using the page"
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "Automated tools detect only a subset, passing rules is not proof, and screen-reader testing needs task-focused interpretation."
+      "Essays don't have keyboard traps.",
+      "Record findings like an editor's margin notes — with a fix."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A learner completes a form using only keyboard, inspects labels and errors, then uses an automated scanner to find additional issues.",
-      "An HTML accessibility audit combines DOM and accessibility-tree inspection, keyboard use, names and states, zoom, content review, and automated checks.",
-      "Treat automation as bounded evidence and combine it with keyboard, structure, name/state, visual, and task-based human checks."
+      "Tab through the sign-up form",
+      "inspect accessibility tree",
+      "run axe scan"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Keyboard pass",
         "state": {
-          "evidence": "A learner completes a form using only keyboard, inspects labels and errors, then uses an automated scanner to find additional issues."
+          "finding 1": "Create account div not focusable"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The learner completes the form using only the keyboard and finds an unreachable control."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Tree inspection",
         "state": {
-          "rule": "An HTML accessibility audit combines DOM and accessibility-tree inspection, keyboard use, names and states, zoom, content review, and automated checks."
+          "finding 2": "password has no name",
+          "finding 3": "error not linked"
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Inspecting labels and errors in the accessibility tree reveals missing names."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Scanner",
         "state": {
-          "correction": "Treat automation as bounded evidence and combine it with keyboard, structure, name/state, visual, and task-based human checks."
+          "finding 4": "hint text contrast 3.1:1"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: A zero-error automated accessibility report certifies that the page is accessible."
+        "explanation": "An automated scanner finds additional issues the manual pass missed."
       }
     ],
-    "textAlternative": "Starting artifact: A learner completes a form using only keyboard, inspects labels and errors, then uses an automated scanner to find additional issues. Step 1, Artifact. State: evidence: A learner completes a form using only keyboard, inspects labels and errors, then uses an automated scanner to find additional issues.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: An HTML accessibility audit combines DOM and accessibility-tree inspection, keyboard use, names and states, zoom, content review, and automated checks.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Treat automation as bounded evidence and combine it with keyboard, structure, name/state, visual, and task-based human checks.. Check the result against the boundary and reject this misconception: A zero-error automated accessibility report certifies that the page is accessible."
+    "textAlternative": "A combined manual and automated audit. Step 1, Keyboard pass: finding 1 is Create account div not focusable. The learner completes the form using only the keyboard and finds an unreachable control. Step 2, Tree inspection: finding 2 is password has no name; finding 3 is error not linked. Inspecting labels and errors in the accessibility tree reveals missing names. Step 3, Scanner: finding 4 is hint text contrast 3.1:1. An automated scanner finds additional issues the manual pass missed."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Keyboard and accessibility-tree audit: concrete case”: state its starting evidence, apply the Keyboard and accessibility-tree audit rule, and give the observable result in three short lines.",
+      "prompt": "For \"Auditing a sign-up form\", describe how the learner completes the form using only the keyboard, what they inspect for labels and errors, and what the automated scanner adds.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Keyboard.",
+        "Labels and errors.",
+        "Scanner."
       ],
       "expectedEvidence": [
-        "Named example: Keyboard and accessibility-tree audit: concrete case.",
-        "Starting evidence: A learner completes a form using only keyboard, inspects labels and errors, then uses an automated scanner to find additional issues.",
-        "Core rule: An HTML accessibility audit combines DOM and accessibility-tree inspection, keyboard use, names and states, zoom, content review, and automated checks.",
-        "Observable result: The result follows because Treat automation as bounded evidence and combine it with keyboard, structure, name/state, visual, and task-based human checks.",
-        "Boundary check: Treat automation as bounded evidence and combine it with keyboard, structure, name/state, visual, and task-based human checks."
+        "Names the example \"Auditing a sign-up form\": the learner completes a form using only the keyboard.",
+        "They inspect labels and errors in the accessibility tree.",
+        "An automated scanner finds additional issues like contrast.",
+        "Each finding is recorded, fixed and retested."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Automated tools detect only a subset, passing rules is not proof, and screen-reader testing needs task-focused interpretation.",
+      "prompt": "Write a finding record for: \"Search button is an icon with no accessible name\".",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Where, what, who, fix, retest.",
+        "Name the fix concretely."
       ],
       "expectedEvidence": [
-        "An HTML accessibility audit combines DOM and accessibility-tree inspection, keyboard use, names and states, zoom, content review, and automated checks.",
-        "Automated tools detect only a subset, passing rules is not proof, and screen-reader testing needs task-focused interpretation."
+        "Record with location, problem and affected users (screen-reader users).",
+        "Fix: add visible text or aria-label=\"Search\"; retest in the tree."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Keyboard and accessibility-tree audit and explain why the misconception fails.",
+      "prompt": "Audit one real page end to end: keyboard pass, accessibility-tree check of all controls, automated scan. Record at least five findings, fix them, and retest.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Start with the main task.",
+        "Retest after each fix."
       ],
       "expectedEvidence": [
-        "Record and repair findings from a manual keyboard and accessibility-tree review.",
-        "Treat automation as bounded evidence and combine it with keyboard, structure, name/state, visual, and task-based human checks."
+        "At least five recorded findings with fixes.",
+        "Retest results confirming the repairs."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.accessibility.audit.misconception",
-      "explanation": "Treat automation as bounded evidence and combine it with keyboard, structure, name/state, visual, and task-based human checks.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'bounded evidence' and state the decisive evidence."
+      "explanation": "Order matters: **do the task with the keyboard first**, then inspect the tree, then scan. Write every issue as Where · What · Who · Fix · Retest.",
+      "retryPrompt": "Write the record for \"The zero-error launch\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to record and repair findings from a manual keyboard and accessibility-tree review. Keep this boundary in view: Automated tools detect only a subset, passing rules is not proof, and screen-reader testing needs task-focused interpretation.",
+    "summary": "To record and repair findings, complete tasks keyboard-only, check focus visibility and order, inspect names, roles and states in the accessibility tree, then run an automated scanner for extra issues. A zero-error scan isn't certification — record, fix and retest each finding.",
     "retrievalPrompts": [
-      "Explain Keyboard and accessibility-tree audit using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: A zero-error automated accessibility report certifies that the page is accessible.",
-      "Apply checkpoint 'bounded evidence' to a new artifact."
+      "What can automated scanners not detect?",
+      "What does the accessibility tree show?",
+      "What should a finding record include?"
     ],
     "nextReviewPrompt": "Next: continue to “Markup conformance”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

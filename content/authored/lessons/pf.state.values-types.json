@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A value's conceptual type determines which operations are meaningful, such as arithmetic for numbers, logical operations for truth values, and ordered character operations for text.",
+    "summary": "Every value has a **type**, and the type decides what you can do with it. Numbers do arithmetic, text (strings) joins and compares letter by letter, and true/false values (booleans) combine with `and`/`or`. Two values can look identical on screen — like `12` and `\"12\"` — and still behave completely differently.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: The text value 12 can be joined with kg to display 12kg, while the numeric value 12 can be added to 3 to produce 15. Your goal is to choose a suitable conceptual type and reject invalid operations for a value. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A shop app shows a weight: `12kg`. Another screen needs the total weight: 12 + 3. If 12 is stored as text, `\"12\" + \"3\"` gives `\"123\"` — not 15! The text value 12 can be joined with kg to display 12kg, while the numeric value 12 can be added to 3 to produce 15. Same look, different type, different rules. In this lesson you'll choose a suitable conceptual type and reject invalid operations for a value.\n\n```predict\n{\"question\": \"What is `\\\"12\\\" + \\\"3\\\"` in Python?\", \"options\": [\"15\", \"\\\"123\\\"\"], \"answer\": 1, \"why\": \"Both are **text**, so `+` joins them. Only numbers add arithmetically.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Pseudocode. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Pseudocode** — writing precise steps. Now we look at the values those steps work on."
       },
       {
-        "heading": "Operational model",
-        "body": "A value's conceptual type determines which operations are meaningful, such as arithmetic for numbers, logical operations for truth values, and ordered character operations for text. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The model: type decides meaningful operations",
+        "body": "| Type | Examples | Meaningful operations |\n|---|---|---|\n| int / float (number). | `12`, `3.5`. | + − × ÷, compare size. |\n| str (text). | `\"12\"`, `\"kg\"`. | join with +, length, upper/lower, compare letters. |\n| bool (truth value). | `True`, `False`. | and, or, not. |\n\n```python\n12 + 3          # 15\n\"12\" + \"kg\"     # \"12kg\"\n\"12\" + 3        # TypeError: can't join text and a number\n```\n\n```reveal\n{\"prompt\": \"How do you add the text \\\"12\\\" to the number 3?\", \"answer\": \"Convert first: `int(\\\"12\\\") + 3` gives 15. `int(\\\"abc\\\")` would fail, so only convert text you've checked.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Concrete languages differ in numeric ranges, coercion, representation, nullability, and collection types, so conceptual compatibility does not guarantee identical runtime behavior. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Values that look similar on screen always support the same operations, so text 12 and number 12 are interchangeable."
+        "heading": "Choosing the right type",
+        "body": "```predict\n{\"question\": \"Which type fits a phone number like `09876 54321`?\", \"options\": [\"Number (int)\", \"Text (str)\"], \"answer\": 1, \"why\": \"You never do arithmetic on phone numbers, and an int would drop the leading 0 and the space. Choose by the **operations** you need, not by \\\"it has digits\\\".\"}\n```\n\nSame for PIN codes and roll numbers: digits, but text."
       }
     ]
   },
   "scope": {
     "includes": [
-      "Distinguish numbers, truth values, text and collections by valid operations.",
-      "Choose a suitable conceptual type and reject invalid operations for a value."
+      "Pick a suitable type for a value based on the operations it needs.",
+      "Spot and reject operations that don't make sense for a type."
     ],
     "excludes": [
-      "Concrete languages differ in numeric ranges, coercion, representation, nullability, and collection types, so conceptual compatibility does not guarantee identical runtime behavior."
+      "How types are stored in memory.",
+      "Type annotations and static typing."
     ]
   },
   "outcomes": [
@@ -63,133 +64,134 @@
   "examples": [
     {
       "id": "pf.state.values-types.example-a",
-      "title": "Values and types: direct case",
+      "title": "Text 12 vs number 12",
       "situation": "The text value 12 can be joined with kg to display 12kg, while the numeric value 12 can be added to 3 to produce 15.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: The text value 12 can be joined with kg to display 12kg, while the numeric value 12 can be added to 3 to produce 15.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Choose and validate a type from the intended operations; convert representations explicitly when moving between text, numbers, truth values, and collections."
+        "**Text:** `\"12\" + \"kg\"` joins characters to display `\"12kg\"`.",
+        "**Number:** `12 + 3` does arithmetic to produce `15`.",
+        "**Mixing:** `\"12\" + 3` is an invalid operation → TypeError; convert with `int(\"12\")` first."
       ],
-      "result": "The case supports the declared outcome because Choose and validate a type from the intended operations; convert representations explicitly when moving between text, numbers, truth values, and collections."
+      "result": "Text 12 joins to 12kg, number 12 adds to 15, and mixing them without converting is rejected."
     },
     {
       "id": "pf.state.values-types.example-b",
-      "title": "Values and types: boundary case",
-      "situation": "A truth value records whether access is allowed, while a collection records several permissions that must be searched or traversed.",
+      "title": "The scores that sorted wrong",
+      "situation": "Scores read from a file are text: `[\"9\", \"10\", \"100\"]`. Sorting them gives `[\"10\", \"100\", \"9\"]`.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A truth value records whether access is allowed, while a collection records several permissions that must be searched or traversed.",
-        "Step 2 — Keep this boundary explicit: Concrete languages differ in numeric ranges, coercion, representation, nullability, and collection types, so conceptual compatibility does not guarantee identical runtime behavior.",
-        "Step 3 — Reject the documented misconception: Values that look similar on screen always support the same operations, so text 12 and number 12 are interchangeable."
+        "Text compares character by character: \"1\" comes before \"9\".",
+        "So \"100\" sorts before \"9\", which is wrong for scores.",
+        "Fix: convert each to int before sorting → `[9, 10, 100]`."
       ],
-      "result": "This case demonstrates the declared outcome: Choose a suitable conceptual type and reject invalid operations for a value."
+      "result": "Choosing the number type for scores makes sorting and arithmetic correct."
     }
   ],
   "misconceptions": [
     {
       "id": "pf.state.values-types.misconception",
       "mistakenBelief": "Values that look similar on screen always support the same operations, so text 12 and number 12 are interchangeable.",
-      "correction": "Choose and validate a type from the intended operations; convert representations explicitly when moving between text, numbers, truth values, and collections.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Values that look similar on screen always support the same operations, so text 12 and number 12 are interchangeable."
+      "correction": "The type, not the look, decides the operations. Text 12 joins and compares letter by letter; number 12 adds and compares by size. Convert explicitly when you need the other behaviour.",
+      "diagnosticPrompt": "In \"The scores that sorted wrong\", why did \"100\" come before \"9\"?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled scoreboard can model Values and types: each label exposes a current value and each recorded event produces the next visible state.",
+    "example": "Types are like **containers in a kitchen**: a measuring jug (number) can add volumes, a label maker (text) can join words, a light switch (boolean) is on or off. They can show the same digits and still do very different jobs.",
     "usefulFor": [
-      "Reasoning about values, expressions, named state, and changes across time"
+      "remembering that the container decides the operation",
+      "seeing why converting is needed"
     ],
     "limitations": [
-      "The scoreboard does not accurately model binary representation, scope, aliases, object identity, or language coercion.",
-      "Concrete languages differ in numeric ranges, coercion, representation, nullability, and collection types, so conceptual compatibility does not guarantee identical runtime behavior."
+      "Python refuses some mixes outright, like text + number; a kitchen wouldn't stop you.",
+      "Some languages convert automatically, which can hide bugs."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "The text value 12 can be joined with kg to display 12kg, while the numeric value 12 can be added to 3 to produce 15.",
-      "A value's conceptual type determines which operations are meaningful, such as arithmetic for numbers, logical operations for truth values, and ordered character operations for text.",
-      "Choose and validate a type from the intended operations; convert representations explicitly when moving between text, numbers, truth values, and collections."
+      "a = '12'; b = 12",
+      "a + 'kg'",
+      "b + 3",
+      "a + 3"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Text join",
         "state": {
-          "evidence": "The text value 12 can be joined with kg to display 12kg, while the numeric value 12 can be added to 3 to produce 15."
+          "a + 'kg'": "12kg"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "The text value 12 joins with kg to display 12kg."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Number add",
         "state": {
-          "model": "A value's conceptual type determines which operations are meaningful, such as arithmetic for numbers, logical operations for truth values, and ordered character operations for text."
+          "b + 3": "15"
         },
-        "explanation": "Apply the declared Values and types model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "The numeric value 12 adds to 3 to produce 15."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Invalid mix",
         "state": {
-          "correction": "Choose and validate a type from the intended operations; convert representations explicitly when moving between text, numbers, truth values, and collections."
+          "a + 3": "TypeError"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Values that look similar on screen always support the same operations, so text 12 and number 12 are interchangeable."
+        "explanation": "Adding text to a number is rejected until the text is converted."
       }
     ],
-    "textAlternative": "Starting artifact: The text value 12 can be joined with kg to display 12kg, while the numeric value 12 can be added to 3 to produce 15. Step 1, Observe. State: evidence: The text value 12 can be joined with kg to display 12kg, while the numeric value 12 can be added to 3 to produce 15.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A value's conceptual type determines which operations are meaningful, such as arithmetic for numbers, logical operations for truth values, and ordered character operations for text.. Apply the declared Values and types model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Choose and validate a type from the intended operations; convert representations explicitly when moving between text, numbers, truth values, and collections.. Compare the observation with the correction and reject the misconception: Values that look similar on screen always support the same operations, so text 12 and number 12 are interchangeable."
+    "textAlternative": "Operations on text 12 and number 12. Step 1, Text join: a + 'kg' is 12kg. The text value 12 joins with kg to display 12kg. Step 2, Number add: b + 3 is 15. The numeric value 12 adds to 3 to produce 15. Step 3, Invalid mix: a + 3 is TypeError. Adding text to a number is rejected until the text is converted."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Values and types: direct case”: state its starting evidence, apply the Values and types rule, and give the observable result in three short lines.",
+      "prompt": "For \"Text 12 vs number 12\", explain what joining the text value 12 with kg produces, what adding the numeric value 12 to 3 produces, and what happens if you mix them.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Text.",
+        "Number.",
+        "Mixing."
       ],
       "expectedEvidence": [
-        "Named example: Values and types: direct case.",
-        "Starting evidence: The text value 12 can be joined with kg to display 12kg, while the numeric value 12 can be added to 3 to produce 15.",
-        "Core rule: A value's conceptual type determines which operations are meaningful, such as arithmetic for numbers, logical operations for truth values, and ordered character operations for text.",
-        "Observable result: The case supports the declared outcome because Choose and validate a type from the intended operations; convert representations explicitly when moving between text, numbers, truth values, and collections.",
-        "Boundary check: Choose and validate a type from the intended operations; convert representations explicitly when moving between text, numbers, truth values, and collections."
+        "Names the example \"Text 12 vs number 12\": text value 12 joined with kg displays 12kg.",
+        "Numeric value 12 added to 3 produces 15.",
+        "Mixing text and a number is an invalid operation that raises TypeError.",
+        "Convert with int() first."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A truth value records whether access is allowed, while a collection records several permissions that must be searched or traversed.",
+      "prompt": "Choose a type for each and give one reason: age, name, is_member, pin_code, price.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Which need arithmetic?",
+        "Which have leading zeros?"
       ],
       "expectedEvidence": [
-        "A value's conceptual type determines which operations are meaningful, such as arithmetic for numbers, logical operations for truth values, and ordered character operations for text.",
-        "Concrete languages differ in numeric ranges, coercion, representation, nullability, and collection types, so conceptual compatibility does not guarantee identical runtime behavior."
+        "age int, price float or decimal, is_member bool.",
+        "name str, pin_code str (no arithmetic, keeps leading zeros)."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Values and types, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Write code that reads two numbers typed by a user (input gives text), adds them, and prints the sum. Handle a user typing a word instead of a number.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "`input()` returns str.",
+        "Use try/except around int()."
       ],
       "expectedEvidence": [
-        "Choose a suitable conceptual type and reject invalid operations for a value.",
-        "Choose and validate a type from the intended operations; convert representations explicitly when moving between text, numbers, truth values, and collections."
+        "Converts text to numbers before adding.",
+        "Rejects non-numeric input with a clear message."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "pf.state.values-types.misconception",
-      "explanation": "Choose and validate a type from the intended operations; convert representations explicitly when moving between text, numbers, truth values, and collections.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A truth value records whether access is allowed, while a collection records several permissions that must be searched or traversed."
+      "explanation": "For any value, ask: **what will I do with it?** Arithmetic → number. Join/display/letters → text. Yes/no → boolean. Then check each operation against the table.",
+      "retryPrompt": "Ask this for the scores in \"The scores that sorted wrong\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to choose a suitable conceptual type and reject invalid operations for a value. Keep this boundary in view: Concrete languages differ in numeric ranges, coercion, representation, nullability, and collection types, so conceptual compatibility does not guarantee identical runtime behavior.",
+    "summary": "To choose a suitable type, look at the operations the value needs: numbers for arithmetic, text for joining and displaying, booleans for yes/no. Reject invalid operations like text + number; convert explicitly when you need the other type.",
     "retrievalPrompts": [
-      "Explain Values and types without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Values that look similar on screen always support the same operations, so text 12 and number 12 are interchangeable.",
-      "Apply the model to this case from memory: A truth value records whether access is allowed, while a collection records several permissions that must be searched or traversed."
+      "What is `\"12\" + \"3\"`?",
+      "Why store a phone number as text?",
+      "How do you add text \"12\" to 3?"
     ],
     "nextReviewPrompt": "Next: continue to “Variables and assignment”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

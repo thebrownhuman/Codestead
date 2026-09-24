@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A reproducible AI pipeline records code, environment, data and split versions, preprocessing, configuration, seeds, fit artifacts, evaluation outputs, and commands while separating fit, evaluation, and reporting.",
+    "summary": "An experiment is **reproducible** when someone else, on a clean machine, can rerun it and get the same results **within a stated tolerance**. That needs more than a random seed. Record the **code version** (git commit), the **environment** (pinned library versions), the **data version** (a checksum proving the file is identical), the **split manifest** (which rows went where), preprocessing, **configuration**, **seeds**, fitted **artifacts** with their hashes, evaluation outputs, and the **exact commands**. Keep **fit, evaluate and report** as separate steps so a report can't quietly re-train. Some nondeterminism may remain (parallel maths, GPU kernels): **measure it** and declare a tolerance rather than pretending it's zero.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A clean environment rebuilds a pinned pipeline from a data checksum and split manifest, reproduces metrics within a declared tolerance, and stores the report with artifact hashes. Your goal is to reproduce a recorded experiment from a clean environment and explain remaining nondeterminism. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner reports 0.87 F1 and moves on. A month later a reviewer asks for a rerun: the data file has been edited since, a library update changed a default, and nobody recorded which rows were in the test set. The rerun gives 0.81 and nobody can say why. A clean environment rebuilds a pinned pipeline from a data checksum and split manifest, reproduces metrics within a declared tolerance, and stores the report with artifact hashes. In this lesson you'll reproduce a recorded experiment from a clean environment and explain remaining nondeterminism.\n\n```predict\n{\"question\": \"You set random_state=42. Will the experiment reproduce exactly on another machine?\", \"options\": [\"Yes, the seed fixes everything\", \"Not necessarily: data, library versions, splits and hardware can still differ\"], \"answer\": 1, \"why\": \"Record everything the result depends on.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Evaluation and responsible AI; Language, perception and embodied applications; Project card and experiment plan; git tools dependencies; Train, validation, test and leakage. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Evaluation and responsible AI**, **Language, perception and embodied applications**, **Project card and experiment plan**, **Dependency manifests and lockfiles** and **Train, validation, test and leakage**."
       },
       {
-        "heading": "Bounded operational model",
-        "body": "A reproducible AI pipeline records code, environment, data and split versions, preprocessing, configuration, seeds, fit artifacts, evaluation outputs, and commands while separating fit, evaluation, and reporting. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+        "heading": "The model: record every input, separate every stage",
+        "body": "```python\nimport hashlib, json\n\ndef sha(text):\n    return hashlib.sha256(text.encode()).hexdigest()[:12]\n\ndata = \"id,text,label\\n1,site down,urgent\\n2,update email,normal\\n\"\nmanifest = {\"train\": [1], \"test\": [2]}\nrun = {                                          # the run record.\n    \"commit\": \"a1b2c3d\", \"python\": \"3.12\", \"packages\": {\"scikit-learn\": \"1.5.2\"},\n    \"data_sha\": sha(data), \"split_sha\": sha(json.dumps(manifest)),\n    # Settings and results.\n    \"config\": {\"model\": \"logistic\", \"C\": 1.0}, \"seed\": 42,\n    \"metrics\": {\"f1\": 0.870}, \"tolerance\": 0.005,\n    \"commands\": [\"make fit\", \"make evaluate\", \"make report\"],\n}\n\ndef verify(record, data_now, rerun_f1):\n    if sha(data_now) != record[\"data_sha\"]:\n        return \"data changed: stop\"\n    ok = abs(rerun_f1 - record[\"metrics\"][\"f1\"]) <= record[\"tolerance\"]\n    return \"reproduced\" if ok else \"outside tolerance: investigate\"\n\nprint(verify(run, data, 0.868))                          # reproduced\nprint(verify(run, data + \"3,new,normal\\n\", 0.868))      # data changed: stop\n```\n\n```reveal\n{\"prompt\": \"Why keep fit, evaluate and report separate?\", \"answer\": \"So each can be rerun alone. A report step that silently re-trains could produce different numbers from the ones evaluated, and nobody would notice.\"}\n```"
       },
       {
-        "heading": "Failure boundary and non-claim",
-        "body": "Hardware and parallel libraries can remain nondeterministic, external data changes, seeds do not capture every source, cached state can hide steps, and exact repeatability differs from independently consistent results. The learner must reject this overclaim: Setting random_state once is sufficient to reproduce any ML experiment on another machine."
+        "heading": "Declared tolerance",
+        "body": "```predict\n{\"question\": \"A clean rerun gives 0.868 instead of 0.870. Failure?\", \"options\": [\"Yes, it's different\", \"No, if it's within the declared tolerance and the remaining nondeterminism is explained\"], \"answer\": 1, \"why\": \"Measure variation; don't pretend it's zero.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Pin environment and data version, seed stochastic components and separate fit, evaluation and reporting steps.",
-      "Reproduce a recorded experiment from a clean environment and explain remaining nondeterminism."
+      "Record code, environment, data checksum, split manifest, config, seeds, artifacts, outputs and commands.",
+      "Rerun from a clean environment, compare within tolerance and explain remaining nondeterminism."
     ],
     "excludes": [
-      "Hardware and parallel libraries can remain nondeterministic, external data changes, seeds do not capture every source, cached state can hide steps, and exact repeatability differs from independently consistent results."
+      "Container orchestration.",
+      "Experiment-tracking platforms in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "ai.project.reproducibility.example.direct",
-      "title": "Reproducible pipeline: bounded direct case",
+      "title": "Rebuilding an experiment from a clean environment",
       "situation": "A clean environment rebuilds a pinned pipeline from a data checksum and split manifest, reproduces metrics within a declared tolerance, and stores the report with artifact hashes.",
       "walkthrough": [
-        "Step 1 — Observe the exact data, state, metric, or tool behavior: A clean environment rebuilds a pinned pipeline from a data checksum and split manifest, reproduces metrics within a declared tolerance, and stores the report with artifact hashes.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the claim boundary with: Version code, environment, data, split, configuration, and artifacts, record all controllable seeds, and report remaining platform or algorithmic nondeterminism."
+        "**Rebuilds a pinned pipeline from a data checksum and split manifest:** data_sha and split_sha match before running.",
+        "**Reproduces metrics within a declared tolerance:** 0.868 is within 0.005 of 0.870.",
+        "**Stores the report with artifact hashes:** we check a changed data file stops the run instead of silently continuing."
       ],
-      "result": "This example supports only the atomic outcome because Version code, environment, data, split, configuration, and artifacts, record all controllable seeds, and report remaining platform or algorithmic nondeterminism."
+      "result": "Anyone can verify the result, and changed inputs are caught immediately."
     },
     {
       "id": "ai.project.reproducibility.example.stress",
-      "title": "Reproducible pipeline: stress and transfer case",
-      "situation": "Two GPU runs differ slightly despite one seed, so versions, deterministic settings, and variation are recorded rather than claiming bitwise identity.",
+      "title": "The 0.87 that became 0.81",
+      "situation": "A rerun a month later gave 0.81 instead of 0.87, and nobody could explain the difference.",
       "walkthrough": [
-        "Step 1 — Name the changed population, input, assumption, or failure: Two GPU runs differ slightly despite one seed, so versions, deterministic settings, and variation are recorded rather than claiming bitwise identity.",
-        "Step 2 — Keep the non-claim visible: Hardware and parallel libraries can remain nondeterministic, external data changes, seeds do not capture every source, cached state can hide steps, and exact repeatability differs from independently consistent results.",
-        "Step 3 — Reject the tempting overclaim: Setting random_state once is sufficient to reproduce any ML experiment on another machine."
+        "Data was edited, a library default changed, and the test rows weren't recorded.",
+        "Pin versions, checksum the data and save the split manifest.",
+        "Rerun from a clean environment and compare within tolerance."
       ],
-      "result": "This case demonstrates the declared outcome: Reproduce a recorded experiment from a clean environment and explain remaining nondeterminism."
+      "result": "Future reruns either reproduce or clearly show what changed."
     }
   ],
   "misconceptions": [
     {
       "id": "ai.project.reproducibility.misconception",
       "mistakenBelief": "Setting random_state once is sufficient to reproduce any ML experiment on another machine.",
-      "correction": "Version code, environment, data, split, configuration, and artifacts, record all controllable seeds, and report remaining platform or algorithmic nondeterminism.",
-      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: Setting random_state once is sufficient to reproduce any ML experiment on another machine."
+      "correction": "Seeds control only some randomness. Data, splits, library versions, configuration and hardware must be recorded, and remaining variation measured.",
+      "diagnosticPrompt": "In \"The 0.87 that became 0.81\", what three things changed?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a reviewable experiment package containing scope, baseline, data/version manifests, evaluation, model card, risk register, and reproduction commands can introduce Reproducible pipeline only after its canonical technical definition and evidence boundary are stated.",
+    "example": "Reproducibility is like **a lab notebook for a chemistry experiment**. It records the exact batch of chemicals (data checksum), the equipment and its settings (environment, config), which samples went where (split manifest), and every step in order (commands). Another lab should get the same result **within measurement error**, and the notebook says how big that error is.",
     "usefulFor": [
-      "project design, reproducibility, oversight documentation, and capstone defense"
+      "remembering batch numbers, equipment, steps",
+      "same result within measurement error"
     ],
     "limitations": [
-      "documentation and a polished demo are bounded evidence, not production authorization or proof of safe capability",
-      "Hardware and parallel libraries can remain nondeterministic, external data changes, seeds do not capture every source, cached state can hide steps, and exact repeatability differs from independently consistent results."
+      "A seed is just noting the room temperature.",
+      "Separate fit, evaluate, report = separate lab stages."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A clean environment rebuilds a pinned pipeline from a data checksum and split manifest, reproduces metrics within a declared tolerance, and stores the report with artifact hashes.",
-      "A reproducible AI pipeline records code, environment, data and split versions, preprocessing, configuration, seeds, fit artifacts, evaluation outputs, and commands while separating fit, evaluation, and reporting.",
-      "Version code, environment, data, split, configuration, and artifacts, record all controllable seeds, and report remaining platform or algorithmic nondeterminism."
+      "record run",
+      "verify unchanged data",
+      "verify changed data"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Record",
         "state": {
-          "boundedEvidence": "A clean environment rebuilds a pinned pipeline from a data checksum and split manifest, reproduces metrics within a declared tolerance, and stores the report with artifact hashes."
+          "data_sha": "stored",
+          "tolerance": "0.005"
         },
-        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+        "explanation": "A pinned pipeline stores a data checksum, split manifest and tolerance."
       },
       {
         "step": 2,
-        "focus": "Model",
+        "focus": "Reproduce",
         "state": {
-          "operationalRule": "A reproducible AI pipeline records code, environment, data and split versions, preprocessing, configuration, seeds, fit artifacts, evaluation outputs, and commands while separating fit, evaluation, and reporting."
+          "rerun f1": "0.868",
+          "result": "reproduced"
         },
-        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+        "explanation": "Metrics are reproduced within the declared tolerance."
       },
       {
         "step": 3,
-        "focus": "Limit",
+        "focus": "Detect",
         "state": {
-          "correction": "Version code, environment, data, split, configuration, and artifacts, record all controllable seeds, and report remaining platform or algorithmic nondeterminism."
+          "result": "data changed: stop"
         },
-        "explanation": "State what the evidence does not establish and reject the misconception: Setting random_state once is sufficient to reproduce any ML experiment on another machine."
+        "explanation": "A changed data file is detected by its checksum before evaluation."
       }
     ],
-    "textAlternative": "Starting artifact: A clean environment rebuilds a pinned pipeline from a data checksum and split manifest, reproduces metrics within a declared tolerance, and stores the report with artifact hashes. Step 1, Observe. State: boundedEvidence: A clean environment rebuilds a pinned pipeline from a data checksum and split manifest, reproduces metrics within a declared tolerance, and stores the report with artifact hashes.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: A reproducible AI pipeline records code, environment, data and split versions, preprocessing, configuration, seeds, fit artifacts, evaluation outputs, and commands while separating fit, evaluation, and reporting.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Version code, environment, data, split, configuration, and artifacts, record all controllable seeds, and report remaining platform or algorithmic nondeterminism.. State what the evidence does not establish and reject the misconception: Setting random_state once is sufficient to reproduce any ML experiment on another machine."
+    "textAlternative": "Tracing a reproducibility check. Step 1, Record: data_sha is stored; tolerance is 0.005. A pinned pipeline stores a data checksum, split manifest and tolerance. Step 2, Reproduce: rerun f1 is 0.868; result is reproduced. Metrics are reproduced within the declared tolerance. Step 3, Detect: result is data changed: stop. A changed data file is detected by its checksum before evaluation."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Reproducible pipeline: bounded direct case”: state its starting evidence, apply the Reproducible pipeline rule, and give the observable result in three short lines.",
+      "prompt": "For \"Rebuilding an experiment from a clean environment\", explain how a clean environment rebuilds a pinned pipeline from a data checksum and split manifest, reproduces metrics within a declared tolerance, and stores the report with artifact hashes.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Record.",
+        "Rebuild.",
+        "Compare."
       ],
       "expectedEvidence": [
-        "Named example: Reproducible pipeline: bounded direct case.",
-        "Starting evidence: A clean environment rebuilds a pinned pipeline from a data checksum and split manifest, reproduces metrics within a declared tolerance, and stores the report with artifact hashes.",
-        "Core rule: A reproducible AI pipeline records code, environment, data and split versions, preprocessing, configuration, seeds, fit artifacts, evaluation outputs, and commands while separating fit, evaluation, and reporting.",
-        "Observable result: This example supports only the atomic outcome because Version code, environment, data, split, configuration, and artifacts, record all controllable seeds, and report remaining platform or algorithmic nondeterminism.",
-        "Boundary check: Version code, environment, data, split, configuration, and artifacts, record all controllable seeds, and report remaining platform or algorithmic nondeterminism."
+        "Names the example \"Rebuilding an experiment from a clean environment\": a rerun couldn't be explained.",
+        "A clean environment rebuilds a pinned pipeline from a data checksum and split manifest.",
+        "It reproduces metrics within a declared tolerance and stores the report with artifact hashes.",
+        "Anyone can verify the result, and changed inputs are caught immediately."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed case: Two GPU runs differ slightly despite one seed, so versions, deterministic settings, and variation are recorded rather than claiming bitwise identity.",
+      "prompt": "Extend verify to also check split_sha and the package versions of the current environment, returning a clear message for each mismatch.",
       "scaffold": [
-        "Identify which assumption, population, input, or objective changed.",
-        "Preserve provenance and the declared failure boundary."
+        "Pass current versions in.",
+        "One check at a time."
       ],
       "expectedEvidence": [
-        "A reproducible AI pipeline records code, environment, data and split versions, preprocessing, configuration, seeds, fit artifacts, evaluation outputs, and commands while separating fit, evaluation, and reporting.",
-        "Hardware and parallel libraries can remain nondeterministic, external data changes, seeds do not capture every source, cached state can hide steps, and exact repeatability differs from independently consistent results."
+        "Three kinds of mismatch detected.",
+        "Messages clear."
       ]
     },
     "farTransfer": {
-      "prompt": "Design a neutral-context example or evaluation for Reproducible pipeline and list the evidence that would support and falsify its bounded claim.",
+      "prompt": "Take one of your earlier experiments, write its full run record, rebuild it in a fresh virtual environment from the record alone, and report the difference, the tolerance and any remaining nondeterminism.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+        "python -m venv for a clean start.",
+        "Pin every package."
       ],
       "expectedEvidence": [
-        "Reproduce a recorded experiment from a clean environment and explain remaining nondeterminism.",
-        "Version code, environment, data, split, configuration, and artifacts, record all controllable seeds, and report remaining platform or algorithmic nondeterminism."
+        "Rerun completed.",
+        "Nondeterminism explained."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "ai.project.reproducibility.misconception",
-      "explanation": "Version code, environment, data, split, configuration, and artifacts, record all controllable seeds, and report remaining platform or algorithmic nondeterminism.",
-      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: Two GPU runs differ slightly despite one seed, so versions, deterministic settings, and variation are recorded rather than claiming bitwise identity."
+      "explanation": "For every reported number, ask: **could a stranger regenerate it from what I saved?** If any input isn't recorded, record it.",
+      "retryPrompt": "Apply this to \"The 0.87 that became 0.81\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to reproduce a recorded experiment from a clean environment and explain remaining nondeterminism. Keep this boundary in view: Hardware and parallel libraries can remain nondeterministic, external data changes, seeds do not capture every source, cached state can hide steps, and exact repeatability differs from independently consistent results.",
+    "summary": "To reproduce a recorded experiment from a clean environment and explain remaining nondeterminism, record code, environment, data checksum, split manifest, configuration, seeds, artifacts and commands, separate fit, evaluate and report, and compare reruns within a declared tolerance.",
     "retrievalPrompts": [
-      "Explain Reproducible pipeline with one technical mechanism, one evidence requirement, and one non-claim.",
-      "Why is this overclaim invalid: Setting random_state once is sufficient to reproduce any ML experiment on another machine.",
-      "Apply the boundary to: Two GPU runs differ slightly despite one seed, so versions, deterministic settings, and variation are recorded rather than claiming bitwise identity."
+      "Is a seed enough for reproducibility?",
+      "What is a split manifest?",
+      "Why declare a tolerance?"
     ],
     "nextReviewPrompt": "Next: continue to “Model card and human oversight”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

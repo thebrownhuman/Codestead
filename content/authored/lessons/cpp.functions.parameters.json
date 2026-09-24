@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "C++ parameter choice communicates copying, borrowing, mutation, optionality, and ownership through values, references, pointers, forwarding references, and smart pointers.",
+    "summary": "How you pass a parameter tells callers what happens to their data. **By value** (`int x`, `std::string s`): the function gets its own copy; ideal for small types, and for things it will **keep** (take by value, then `std::move` into storage). **By const reference** (`const std::string& s`): borrow to **read** without copying; the usual choice for large inputs. **By reference** (`std::string& s`): the function will **modify the caller's object**. **By pointer** (`T*`): like a reference but may be **null**, meaning \"optional\". Smart pointers express **ownership** (next module). There's no single \"fastest\" form: choose by intent.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A setter takes std::string by value and moves it into storage, supporting both lvalues and rvalues with one ownership-taking interface. Your goal is to choose and justify parameter forms for scalar and class-type values. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner writes every parameter as `const std::string&`, including `void set_name(const std::string& n) { name_ = n; }`. Callers passing temporaries like `set_name(first + \" \" + last)` pay for a copy that could have been a cheap move. A setter takes std::string by value and moves it into storage, supporting both lvalues and rvalues with one ownership-taking interface. In this lesson you'll choose and justify parameter forms for scalar and class-type values.\n\n```predict\n{\"question\": \"`void grow(std::vector<int> v) { v.push_back(1); }` Does the caller's vector change?\", \"options\": [\"Yes\", \"No: v is the function's own copy\"], \"answer\": 1, \"why\": \"Use std::vector<int>& to modify the caller's.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Loops and range iteration; pf abstraction calls; Function contracts and return values. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Loops and range iteration**, **Calls, parameters and returns** and **Function contracts and return values** (ownership and side effects)."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "C++ parameter choice communicates copying, borrowing, mutation, optionality, and ownership through values, references, pointers, forwarding references, and smart pointers. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The rule: the parameter form states the intent",
+        "body": "```cpp\n#include <string>\n#include <utility>\n#include <vector>\n\nclass Profile {\npublic:\n    void set_name(std::string n) { name_ = std::move(n); }   // KEEPS: by value + move.\n    const std::string& name() const { return name_; }\nprivate:\n    std::string name_;\n};\n\nint total(const std::vector<int>& v) {        // READS: const reference, no copy.\n    int sum = 0;\n    for (int x : v) sum += x;                  // int is small: copy is fine.\n    return sum;\n}\n\nvoid add_bonus(std::vector<int>& v, int bonus) {   // MODIFIES: reference.\n    for (int& x : v) x += bonus;\n}\n\nvoid log_to(const std::string& msg, std::string* extra = nullptr) {  // OPTIONAL: pointer.\n    if (extra) *extra += msg;\n}\n```\n\n| Intent | Form |\n|---|---|\n| small value (int, double). | `T`. |\n| read a large object. | `const T&`. |\n| modify the caller's object. | `T&`. |\n| keep a copy (sink). | `T` then `std::move`. |\n| optional, may be absent. | `T*` (or `std::optional<T>` for values). |\n\n```reveal\n{\"prompt\": \"How does set_name(std::string n) help both kinds of caller?\", \"answer\": \"With a named string (lvalue), n is copied once and moved into name_. With a temporary (rvalue), n is moved in, then moved again: no copy at all.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Small value types can be cheaper than references, const reference can extend some temporary lifetimes, and forwarding references require constrained perfect-forwarding design. Therefore the draft explicitly rejects this beginner failure model: Passing every object by const reference is always fastest and always communicates the correct ownership contract."
+        "heading": "Not always const&",
+        "body": "```predict\n{\"question\": \"Is `void f(const int& x)` better than `void f(int x)`?\", \"options\": [\"Yes, references are always faster\", \"No: for small types a copy is as cheap or cheaper, and simpler\"], \"answer\": 1, \"why\": \"const& shines for large objects you only read.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Select parameter passing from ownership, optionality, mutation and cost requirements.",
-      "Choose and justify parameter forms for scalar and class-type values."
+      "Choose value, const reference, reference, pointer or sink-by-value parameters by intent.",
+      "Use std::move to transfer a by-value parameter into storage."
     ],
     "excludes": [
-      "Small value types can be cheaper than references, const reference can extend some temporary lifetimes, and forwarding references require constrained perfect-forwarding design."
+      "Forwarding references and perfect forwarding.",
+      "Smart pointer parameters (resources module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "cpp.functions.parameters.example-a",
-      "title": "Value, reference and const-reference parameters: defined case",
+      "title": "A setter that takes by value and moves",
       "situation": "A setter takes std::string by value and moves it into storage, supporting both lvalues and rvalues with one ownership-taking interface.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A setter takes std::string by value and moves it into storage, supporting both lvalues and rvalues with one ownership-taking interface.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Choose by value for ownership or cheap copies and references or views for borrowing; parameter form should express semantics before assumed micro-optimization."
+        "**A setter takes std::string by value:** set_name(std::string n).",
+        "**Moves it into storage:** name_ = std::move(n) transfers the buffer instead of copying it again.",
+        "**Supporting both lvalues and rvalues with one ownership-taking interface:** set_name(saved) copies once, set_name(first + \" \" + last) will copy nothing."
       ],
-      "result": "The defined result follows because Choose by value for ownership or cheap copies and references or views for borrowing; parameter form should express semantics before assumed micro-optimization."
+      "result": "One setter handles every caller efficiently, and its signature says \"I keep this\"."
     },
     {
       "id": "cpp.functions.parameters.example-b",
-      "title": "Value, reference and const-reference parameters: boundary case",
-      "situation": "A read-only algorithm takes std::span<const int> to borrow a bounded sequence without owning or copying it.",
+      "title": "The accidental copy loop",
+      "situation": "`int count_long(std::vector<std::string> words)` is called in a hot loop with a 50,000-word vector.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A read-only algorithm takes std::span<const int> to borrow a bounded sequence without owning or copying it.",
-        "Step 2 — Keep this standard boundary visible: Small value types can be cheaper than references, const reference can extend some temporary lifetimes, and forwarding references require constrained perfect-forwarding design.",
-        "Step 3 — Reject the tempting rule: Passing every object by const reference is always fastest and always communicates the correct ownership contract."
+        "Each call copies the whole vector.",
+        "The function only reads, so use const std::vector<std::string>&.",
+        "Inside, loop with const auto& too."
       ],
-      "result": "This case demonstrates the declared outcome: Choose and justify parameter forms for scalar and class-type values."
+      "result": "The function reads the words with no copying at all."
     }
   ],
   "misconceptions": [
     {
       "id": "cpp.functions.parameters.misconception",
       "mistakenBelief": "Passing every object by const reference is always fastest and always communicates the correct ownership contract.",
-      "correction": "Choose by value for ownership or cheap copies and references or views for borrowing; parameter form should express semantics before assumed micro-optimization.",
-      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: Passing every object by const reference is always fastest and always communicates the correct ownership contract."
+      "correction": "const& is right for reading large objects, but small types are cheaper by value, and functions that keep a copy are better as by-value-then-move. The form should match the intent.",
+      "diagnosticPrompt": "In the opening story, what did set_name(const std::string&) cost callers passing temporaries?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A system of self-managing components can model Value, reference and const-reference parameters: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "example": "Parameter forms are like **ways to share a document**. By value: **give a photocopy**. const&: **let them read over your shoulder**. &: **hand them your pen and the original**. Pointer: **\"here's the original, if I have one\"**. By-value-then-move: **\"give me a copy to keep, or the original if you're done with it\"**.",
     "usefulFor": [
-      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+      "remembering copy, look, edit, maybe, keep",
+      "match the form to the intent"
     ],
     "limitations": [
-      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
-      "Small value types can be cheaper than references, const reference can extend some temporary lifetimes, and forwarding references require constrained perfect-forwarding design."
+      "Photocopies of a sticky note are free; copying ints is too.",
+      "Reading over a shoulder requires the owner to stay (lifetime)."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A setter takes std::string by value and moves it into storage, supporting both lvalues and rvalues with one ownership-taking interface.",
-      "C++ parameter choice communicates copying, borrowing, mutation, optionality, and ownership through values, references, pointers, forwarding references, and smart pointers.",
-      "Choose by value for ownership or cheap copies and references or views for borrowing; parameter form should express semantics before assumed micro-optimization."
+      "Profile p; std::string saved = \"Asha\";",
+      "p.set_name(saved);",
+      "p.set_name(first + \" \" + last);"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Setup",
         "state": {
-          "evidence": "A setter takes std::string by value and moves it into storage, supporting both lvalues and rvalues with one ownership-taking interface."
+          "saved": "\"Asha\""
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "The caller has a named string it still needs afterwards."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Lvalue call",
         "state": {
-          "rule": "C++ parameter choice communicates copying, borrowing, mutation, optionality, and ownership through values, references, pointers, forwarding references, and smart pointers."
+          "copies": "1",
+          "saved": "unchanged"
         },
-        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+        "explanation": "The setter takes std::string by value and moves it into storage."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Rvalue call",
         "state": {
-          "conclusion": "Choose by value for ownership or cheap copies and references or views for borrowing; parameter form should express semantics before assumed micro-optimization."
+          "copies": "0",
+          "moves": "2"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: Passing every object by const reference is always fastest and always communicates the correct ownership contract."
+        "explanation": "One ownership-taking interface supports both lvalues and rvalues efficiently."
       }
     ],
-    "textAlternative": "Starting artifact: A setter takes std::string by value and moves it into storage, supporting both lvalues and rvalues with one ownership-taking interface. Step 1, Source and state. State: evidence: A setter takes std::string by value and moves it into storage, supporting both lvalues and rvalues with one ownership-taking interface.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: C++ parameter choice communicates copying, borrowing, mutation, optionality, and ownership through values, references, pointers, forwarding references, and smart pointers.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Choose by value for ownership or cheap copies and references or views for borrowing; parameter form should express semantics before assumed micro-optimization.. Check the conclusion against the boundary and reject this misconception: Passing every object by const reference is always fastest and always communicates the correct ownership contract."
+    "textAlternative": "Tracing a sink parameter. Step 1, Setup: saved is \"Asha\". The caller has a named string it still needs afterwards. Step 2, Lvalue call: copies is 1; saved is unchanged. The setter takes std::string by value and moves it into storage. Step 3, Rvalue call: copies is 0; moves is 2. One ownership-taking interface supports both lvalues and rvalues efficiently."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Value, reference and const-reference parameters: defined case”: state its starting evidence, apply the Value, reference and const-reference parameters rule, and give the observable result in three short lines.",
+      "prompt": "For \"A setter that takes by value and moves\", explain how a setter takes std::string by value and moves it into storage, supporting both lvalues and rvalues with one ownership-taking interface.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "By value.",
+        "Move.",
+        "Both callers."
       ],
       "expectedEvidence": [
-        "Named example: Value, reference and const-reference parameters: defined case.",
-        "Starting evidence: A setter takes std::string by value and moves it into storage, supporting both lvalues and rvalues with one ownership-taking interface.",
-        "Core rule: C++ parameter choice communicates copying, borrowing, mutation, optionality, and ownership through values, references, pointers, forwarding references, and smart pointers.",
-        "Observable result: The defined result follows because Choose by value for ownership or cheap copies and references or views for borrowing; parameter form should express semantics before assumed micro-optimization.",
-        "Boundary check: Choose by value for ownership or cheap copies and references or views for borrowing; parameter form should express semantics before assumed micro-optimization."
+        "Names the example \"A setter that takes by value and moves\": const& forced copies of temporaries.",
+        "A setter takes std::string by value and moves it into storage.",
+        "It supports both lvalues and rvalues with one ownership-taking interface.",
+        "One setter handles every caller efficiently."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same CPP rule to this related boundary case: A read-only algorithm takes std::span<const int> to borrow a bounded sequence without owning or copying it.",
+      "prompt": "Choose and justify the parameter form for: a function printing a long report string, one doubling every element of a vector in place, one taking an age, one storing a label in an object, and one that may receive no logger.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Read, modify, small, keep, optional.",
+        "One sentence each."
       ],
       "expectedEvidence": [
-        "C++ parameter choice communicates copying, borrowing, mutation, optionality, and ownership through values, references, pointers, forwarding references, and smart pointers.",
-        "Small value types can be cheaper than references, const reference can extend some temporary lifetimes, and forwarding references require constrained perfect-forwarding design."
+        "Five forms chosen.",
+        "Each justified by intent."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CPP example for Value, reference and const-reference parameters, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Write a small Playlist class with add(std::string title), a const& accessor, a function that renames all titles in place, and a statistics function taking const Playlist&. Count copies with a custom type that prints on copy and move, and confirm no unnecessary copies.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "A struct with noisy copy and move constructors.",
+        "Try both lvalue and temporary arguments."
       ],
       "expectedEvidence": [
-        "Choose and justify parameter forms for scalar and class-type values.",
-        "Choose by value for ownership or cheap copies and references or views for borrowing; parameter form should express semantics before assumed micro-optimization."
+        "Copies only where intended.",
+        "Output explained."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "cpp.functions.parameters.misconception",
-      "explanation": "Choose by value for ownership or cheap copies and references or views for borrowing; parameter form should express semantics before assumed micro-optimization.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'borrowing' and state the decisive evidence: A read-only algorithm takes std::span<const int> to borrow a bounded sequence without owning or copying it."
+      "explanation": "For each parameter ask: **will the function read, modify, keep, or maybe-receive it?** Then pick const&, &, by-value-and-move, or pointer. Small types: just by value.",
+      "retryPrompt": "Apply this to \"The accidental copy loop\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to choose and justify parameter forms for scalar and class-type values. Keep this boundary in view: Small value types can be cheaper than references, const reference can extend some temporary lifetimes, and forwarding references require constrained perfect-forwarding design.",
+    "summary": "To choose parameter forms, pass small types by value, large read-only inputs by const reference, objects to modify by reference, optional ones by pointer, and values the function will keep by value followed by std::move, so each signature communicates copying, borrowing, mutation and ownership.",
     "retrievalPrompts": [
-      "Explain Value, reference and const-reference parameters using a concrete CPP rule rather than the optional analogy.",
-      "Why is this claim incorrect: Passing every object by const reference is always fastest and always communicates the correct ownership contract.",
-      "Apply the checkpoint 'borrowing' to the boundary case from memory."
+      "When use const T&?",
+      "Why take a sink parameter by value?",
+      "What does T& tell the caller?"
     ],
     "nextReviewPrompt": "Next: continue to “Overloading and default arguments”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

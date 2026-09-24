@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A Python script is parsed with indentation defining suites and executes top-level statements in order; an if __name__ == '__main__' guard separates importable definitions from command entry behavior.",
+    "summary": "A **script** is a saved `.py` file that Python runs top to bottom. **Indentation is part of the syntax**: it decides which lines belong to a function, `if` or loop. And every top-level line runs when the file is run **or imported** — so we put the \"do the work\" call under `if __name__ == \"__main__\":`.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A file defines main(), keeps helpers importable, and calls main only under the conventional name guard so tests can import it without running the command. Your goal is to write and run a saved script while explaining its top-level execution. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You write a handy script, `greet.py`. Later a test file does `import greet` to reuse one helper — and the whole program runs, asking for input in the middle of your tests! The fix is a tiny, famous pattern. A file defines main(), keeps helpers importable, and calls main only under the conventional name guard, so tests can import it without running the command. In this lesson you'll write and run a saved script while explaining its top-level execution.\n\n```predict\n{\"code\": \"print(\\\"loaded\\\")\\n\\ndef main():\\n    print(\\\"Hi!\\\")\\n\\nif __name__ == \\\"__main__\\\":\\n    main()\", \"question\": \"Which line prints when `greet.py` is **imported** (not run)?\", \"options\": [\"Only `loaded`\", \"`loaded` and `Hi!`\"], \"answer\": 0, \"why\": \"Top-level lines always run on import. The `main()` call is guarded, so it runs only when the file is executed directly.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: pf computing execution; pf tools terminal editor; Interactive interpreter. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Source-to-execution models**, **Editor and terminal workflow** (saving and running files), and the **Interactive interpreter** (the REPL)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "A Python script is parsed with indentation defining suites and executes top-level statements in order; an if __name__ == '__main__' guard separates importable definitions from command entry behavior. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: top to bottom, blocks by indentation",
+        "body": "```python\ndef shout(text):          # defines, doesn't run\n    return text.upper() + \"!\"   # indented: inside shout\n\ndef main():\n    print(shout(\"hello\"))\n\nif __name__ == \"__main__\":  # True only when run directly\n    main()\n```\n\n| How the file is used | `__name__` is | `main()` runs? |\n|---|---|---|\n| `python greet.py`. | `\"__main__\"`. | yes. |\n| `import greet`. | `\"greet\"`. | no. |\n\n```reveal\n{\"prompt\": \"What happens if you un-indent `return text.upper() + \\\"!\\\"`?\", \"answer\": \"It's no longer inside `shout`, so Python reports an `IndentationError` (or a `return` outside a function). Indentation isn't decoration — it's structure.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "The guard does not create a function scope, importing executes unguarded top-level code once per module object, whitespace mixing can fail, and direct versus module launch changes package context. The learner must reject this documented misconception: Python ignores indentation once code is syntactically valid and importing a script never executes its top-level statements."
+        "heading": "Run it",
+        "body": "```predict\n{\"question\": \"In the terminal, in the file's folder, you type `python greet.py`. What prints?\", \"options\": [\"HELLO!\", \"Nothing — functions need calling\"], \"answer\": 0, \"why\": \"Running directly sets `__name__` to `\\\"__main__\\\"`, so the guard calls `main()`, which prints `HELLO!`.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Create executable modules with meaningful layout, indentation and optional entry-point guard.",
-      "Write and run a saved script while explaining its top-level execution."
+      "Write a script with functions, a main() and a name guard.",
+      "Explain what runs on execute versus import, and why indentation matters."
     ],
     "excludes": [
-      "The guard does not create a function scope, importing executes unguarded top-level code once per module object, whitespace mixing can fail, and direct versus module launch changes package context."
+      "Command-line argument parsing libraries.",
+      "Packaging scripts as installed commands."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "python.toolchain.script.example.direct",
-      "title": "Scripts, indentation and main guard: direct language case",
+      "title": "A script with a main guard",
       "situation": "A file defines main(), keeps helpers importable, and calls main only under the conventional name guard so tests can import it without running the command.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A file defines main(), keeps helpers importable, and calls main only under the conventional name guard so tests can import it without running the command.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Indentation is part of Python block syntax, and import executes top-level code; keep reusable definitions at module level and put command effects behind an explicit main guard."
+        "**Define:** `shout()` is a helper and `main()` does the command's work; defining them runs nothing.",
+        "**Guard:** `if __name__ == \"__main__\": main()` calls main only when the file is run directly.",
+        "**Import in tests:** `from greet import shout` loads the file, but main isn't called, so the test runs cleanly."
       ],
-      "result": "The example meets the atomic outcome because Indentation is part of Python block syntax, and import executes top-level code; keep reusable definitions at module level and put command effects behind an explicit main guard."
+      "result": "Running the script prints HELLO!, while tests can import shout without running the command."
     },
     {
       "id": "python.toolchain.script.example.boundary",
-      "title": "Scripts, indentation and main guard: boundary and transfer case",
-      "situation": "A module with an unguarded network call performs that call during import, so the side effect is moved behind an explicit function and entry guard.",
+      "title": "The script that ran during tests",
+      "situation": "`report.py` ends with a bare `main()` call. A test does `from report import total`.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A module with an unguarded network call performs that call during import, so the side effect is moved behind an explicit function and entry guard.",
-        "Step 2 — Keep the language boundary explicit: The guard does not create a function scope, importing executes unguarded top-level code once per module object, whitespace mixing can fail, and direct versus module launch changes package context.",
-        "Step 3 — Reject the tempting but incorrect rule: Python ignores indentation once code is syntactically valid and importing a script never executes its top-level statements."
+        "Import executes every top-level line, including `main()`.",
+        "main asks for input, so the test run hangs waiting for the keyboard.",
+        "Fix: replace the bare call with the `if __name__ == \"__main__\":` guard."
       ],
-      "result": "This case demonstrates the declared outcome: Write and run a saved script while explaining its top-level execution."
+      "result": "With the guard, importing report no longer runs main, and the tests finish."
     }
   ],
   "misconceptions": [
     {
       "id": "python.toolchain.script.misconception",
-      "mistakenBelief": "Python ignores indentation once code is syntactically valid and importing a script never executes its top-level statements.",
-      "correction": "Indentation is part of Python block syntax, and import executes top-level code; keep reusable definitions at module level and put command effects behind an explicit main guard.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Python ignores indentation once code is syntactically valid and importing a script never executes its top-level statements."
+      "mistakenBelief": "Python ignores indentation once code is syntactically valid, and importing a script never executes its top-level statements.",
+      "correction": "Indentation defines which block each line belongs to, so it changes meaning. Importing a module executes all its top-level statements once; the name guard is what stops the main command from running on import.",
+      "diagnosticPrompt": "In \"The script that ran during tests\", why did main run?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "an experiment notebook that becomes a saved procedure executed by one identified interpreter in a known workspace can introduce Scripts, indentation and main guard, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "example": "A script is like a **stage play**: all top-level lines are performed in order. `def` blocks are rehearsed scenes waiting to be called. The name guard is the note: \"perform the finale only on opening night, not at rehearsals\" (imports).",
     "usefulFor": [
-      "REPL experiments, scripts, environments, and tracebacks"
+      "remembering top-level lines always run",
+      "picturing the guard as a condition for the finale"
     ],
     "limitations": [
-      "import caching, module paths, display hooks, indentation grammar, and traceback chaining are Python-specific",
-      "The guard does not create a function scope, importing executes unguarded top-level code once per module object, whitespace mixing can fail, and direct versus module launch changes package context."
+      "Plays don't get imported by other plays; scripts do.",
+      "Indentation has no stage equivalent — it's pure structure."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A file defines main(), keeps helpers importable, and calls main only under the conventional name guard so tests can import it without running the command.",
-      "A Python script is parsed with indentation defining suites and executes top-level statements in order; an if __name__ == '__main__' guard separates importable definitions from command entry behavior.",
-      "Indentation is part of Python block syntax, and import executes top-level code; keep reusable definitions at module level and put command effects behind an explicit main guard."
+      "print('loaded')",
+      "def main(): print('Hi!')",
+      "if __name__ == '__main__': main()"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Top-level line",
         "state": {
-          "evidence": "A file defines main(), keeps helpers importable, and calls main only under the conventional name guard so tests can import it without running the command."
+          "printed": "loaded"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "The first top-level statement runs whether the file is run or imported."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Define main",
         "state": {
-          "rule": "A Python script is parsed with indentation defining suites and executes top-level statements in order; an if __name__ == '__main__' guard separates importable definitions from command entry behavior."
+          "main": "function defined",
+          "printed": "nothing new"
         },
-        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "Defining main stores the function without running its body."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Name guard",
         "state": {
-          "correction": "Indentation is part of Python block syntax, and import executes top-level code; keep reusable definitions at module level and put command effects behind an explicit main guard."
+          "__name__ when run": "__main__",
+          "printed": "Hi!"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Python ignores indentation once code is syntactically valid and importing a script never executes its top-level statements."
+        "explanation": "Run directly, the conventional name guard is true, so main prints Hi!."
       }
     ],
-    "textAlternative": "Starting artifact: A file defines main(), keeps helpers importable, and calls main only under the conventional name guard so tests can import it without running the command. Step 1, Observe. State: evidence: A file defines main(), keeps helpers importable, and calls main only under the conventional name guard so tests can import it without running the command.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A Python script is parsed with indentation defining suites and executes top-level statements in order; an if __name__ == '__main__' guard separates importable definitions from command entry behavior.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Indentation is part of Python block syntax, and import executes top-level code; keep reusable definitions at module level and put command effects behind an explicit main guard.. Compare the observation with the correction and explain why the misconception fails: Python ignores indentation once code is syntactically valid and importing a script never executes its top-level statements."
+    "textAlternative": "Executing a script with a main guard. Step 1, Top-level line: printed is loaded. The first top-level statement runs whether the file is run or imported. Step 2, Define main: main is function defined; printed is nothing new. Defining main stores the function without running its body. Step 3, Name guard: __name__ when run is __main__; printed is Hi!. Run directly, the conventional name guard is true, so main prints Hi!."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Scripts, indentation and main guard: direct language case”: state its starting evidence, apply the Scripts, indentation and main guard rule, and give the observable result in three short lines.",
+      "prompt": "For \"A script with a main guard\", explain what defining main() does, when the conventional name guard calls it, and why tests can import the file without running the command.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Define.",
+        "Guard.",
+        "Import."
       ],
       "expectedEvidence": [
-        "Named example: Scripts, indentation and main guard: direct language case.",
-        "Starting evidence: A file defines main(), keeps helpers importable, and calls main only under the conventional name guard so tests can import it without running the command.",
-        "Core rule: A Python script is parsed with indentation defining suites and executes top-level statements in order; an if __name__ == '__main__' guard separates importable definitions from command entry behavior.",
-        "Observable result: The example meets the atomic outcome because Indentation is part of Python block syntax, and import executes top-level code; keep reusable definitions at module level and put command effects behind an explicit main guard.",
-        "Boundary check: Indentation is part of Python block syntax, and import executes top-level code; keep reusable definitions at module level and put command effects behind an explicit main guard."
+        "Names the example \"A script with a main guard\": a file defines main() and keeps helpers importable.",
+        "Defining main runs nothing.",
+        "The conventional name guard calls main only when run directly.",
+        "Tests can import it without running the command."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A module with an unguarded network call performs that call during import, so the side effect is moved behind an explicit function and entry guard.",
+      "prompt": "Write `tip.py` with `tip(amount, percent)` returning the tip, a `main()` that prints the tip for 500 at 10%, and a name guard. What prints when run? When imported?",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Helper returns, main prints.",
+        "Guard at the bottom."
       ],
       "expectedEvidence": [
-        "A Python script is parsed with indentation defining suites and executes top-level statements in order; an if __name__ == '__main__' guard separates importable definitions from command entry behavior.",
-        "The guard does not create a function scope, importing executes unguarded top-level code once per module object, whitespace mixing can fail, and direct versus module launch changes package context."
+        "Run: prints 50.0.",
+        "Import: prints nothing, but tip is usable."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Scripts, indentation and main guard, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Take a script you've written without a guard. Restructure it into helpers + main + guard, then write a separate test file that imports and checks one helper.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Move top-level work into main().",
+        "The test imports, never runs main."
       ],
       "expectedEvidence": [
-        "Write and run a saved script while explaining its top-level execution.",
-        "Indentation is part of Python block syntax, and import executes top-level code; keep reusable definitions at module level and put command effects behind an explicit main guard."
+        "Restructured script that still works when run.",
+        "A test file that imports it without triggering main."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "python.toolchain.script.misconception",
-      "explanation": "Indentation is part of Python block syntax, and import executes top-level code; keep reusable definitions at module level and put command effects behind an explicit main guard.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A module with an unguarded network call performs that call during import, so the side effect is moved behind an explicit function and entry guard."
+      "explanation": "Read a script like Python: mark each **top-level** line (no indentation). Those all run on import. Anything you don't want on import must go inside `main()` under the guard.",
+      "retryPrompt": "Mark the top-level lines in \"The script that ran during tests\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to write and run a saved script while explaining its top-level execution. Keep this boundary in view: The guard does not create a function scope, importing executes unguarded top-level code once per module object, whitespace mixing can fail, and direct versus module launch changes package context.",
+    "summary": "To write and run a saved script, define helpers and main(), and call main under `if __name__ == \"__main__\":`. Top-level execution happens on both run and import; indentation decides which block each line belongs to.",
     "retrievalPrompts": [
-      "Explain Scripts, indentation and main guard using canonical Python: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Python ignores indentation once code is syntactically valid and importing a script never executes its top-level statements.",
-      "Predict this case from memory: A module with an unguarded network call performs that call during import, so the side effect is moved behind an explicit function and entry guard."
+      "What does `__name__` equal when a file is run directly?",
+      "What runs when a module is imported?",
+      "Why does indentation matter in Python?"
     ],
     "nextReviewPrompt": "Next: continue to “Interpreter and environment”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

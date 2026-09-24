@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Log traverses commit history and references, while show inspects one selected object's metadata and patch; filters narrow evidence without changing history.",
+    "summary": "`git log` **walks history**: it lists commits reachable from where you are, newest first. Filters narrow it down: a path (`-- parser.ts`), text in messages (`--grep`), text in the code (`-S \"token\"`), an author, or a date. `--oneline --graph --all` draws branches. `git show <commit>` then **inspects one commit**: its full hash, author, date, message and exact patch. None of these commands change anything. And careful: the **newest** commit touching a file is not necessarily the one that introduced a particular line; search for the line itself.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A learner searches log for changes to parser.ts, selects a full commit identity, and uses show to inspect that commit's exact patch. Your goal is to locate and explain the commit that introduced a supplied change. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "The parser has started rejecting empty strings, and a learner wants to know which commit changed that. They look at the top of `git log`, blame the most recent commit, and are wrong: that commit only fixed a typo. A learner searches log for changes to parser.ts, selects a full commit identity, and uses show to inspect that commit's exact patch. In this lesson you'll locate and explain the commit that introduced a supplied change.\n\n```predict\n{\"question\": \"Does running git log, git show or git log --graph ever change your repository?\", \"options\": [\"Sometimes, if you use filters\", \"Never: they only read history\"], \"answer\": 1, \"why\": \"They're read-only, so explore freely.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Selective staging and first commit; Commit messages and scope. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Selective staging and first commit** and **Commit messages and scope**."
       },
       {
-        "heading": "Operational model",
-        "body": "Log traverses commit history and references, while show inspects one selected object's metadata and patch; filters narrow evidence without changing history. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The model: log walks history, show inspects one object",
+        "body": "```bash\ngit log --oneline -- src/parser.ts          # commits touching this file.\ngit log -S \"if (!input)\" -- src/parser.ts  # commits that added or removed this text.\ngit log --grep \"empty\" --oneline            # search messages.\ngit log --oneline --graph --all -15         # branch shape.\n\ngit show 4c1e2f9                            # metadata + full patch.\ngit show --stat 4c1e2f9                     # just the files changed.\ngit rev-parse 4c1e2f9                       # the full 40-character identity.\n```\n\n| Question | Command |\n|---|---|\n| which commits touched this file? | `git log -- path`. |\n| which commit added this text? | `git log -S \"text\"`. |\n| what exactly did that commit do? | `git show <hash>`. |\n| which commit last changed each line? | `git blame path`. |\n\n```reveal\n{\"prompt\": \"Why record the full hash rather than 4c1e2f9 in a bug report?\", \"answer\": \"Short hashes can become ambiguous as a repository grows. The full identity always names exactly one commit.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Default history can omit unreachable commits, merges have multiple parents, path filtering changes traversal, and abbreviated hashes can become ambiguous. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: The newest log entry is always the commit that introduced a particular line or behavior."
+        "heading": "Newest isn't guilty",
+        "body": "```predict\n{\"question\": \"git log -- parser.ts shows five commits. Which one introduced the empty-string check?\", \"options\": [\"The newest one\", \"Whichever git log -S \\\"the check's text\\\" finds, confirmed with git show\"], \"answer\": 1, \"why\": \"Search for the change itself, then read its patch as proof.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Inspect commits, parents, authorship, patches and branch topology.",
-      "Locate and explain the commit that introduced a supplied change."
+      "Filter git log by path, message text and code text, and draw history with --graph.",
+      "Inspect one commit's metadata and patch with git show and record its full identity."
     ],
     "excludes": [
-      "Default history can omit unreachable commits, merges have multiple parents, path filtering changes traversal, and abbreviated hashes can become ambiguous."
+      "git blame options in depth.",
+      "Reflog (recovery module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "git.history.log-show.example-a",
-      "title": "Log, show and graph: direct case",
+      "title": "Who changed the parser?",
       "situation": "A learner searches log for changes to parser.ts, selects a full commit identity, and uses show to inspect that commit's exact patch.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A learner searches log for changes to parser.ts, selects a full commit identity, and uses show to inspect that commit's exact patch.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Use relevant path, author, text, graph, or date filters and inspect candidate commits directly instead of inferring origin from recency alone."
+        "**Searches log for changes to parser.ts:** `git log -S \"if (!input)\" -- src/parser.ts` returns a single commit, 4c1e2f9.",
+        "**Selects a full commit identity:** git rev-parse 4c1e2f9 prints the 40-character hash for the report.",
+        "**Uses show to inspect that commit's exact patch:** git show will display the added `if (!input) throw` line and its message."
       ],
-      "result": "The case supports the declared outcome because Use relevant path, author, text, graph, or date filters and inspect candidate commits directly instead of inferring origin from recency alone."
+      "result": "The learner names the right commit, with the patch as evidence, instead of blaming the newest one."
     },
     {
       "id": "git.history.log-show.example-b",
-      "title": "Log, show and graph: boundary case",
-      "situation": "A graph view reveals that a merge commit joins two parent lines rather than representing an ordinary single-parent step.",
+      "title": "Finding when a feature appeared",
+      "situation": "A teammate asks when dark mode was added. The file theme.css has 60 commits.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A graph view reveals that a merge commit joins two parent lines rather than representing an ordinary single-parent step.",
-        "Step 2 — Keep this boundary explicit: Default history can omit unreachable commits, merges have multiple parents, path filtering changes traversal, and abbreviated hashes can become ambiguous.",
-        "Step 3 — Reject the documented misconception: The newest log entry is always the commit that introduced a particular line or behavior."
+        "git log --grep \"dark mode\" --oneline finds three candidates by message.",
+        "git log -S \"prefers-color-scheme\" confirms which one added the code.",
+        "git show --stat on it lists every file the feature touched."
       ],
-      "result": "This case demonstrates the declared outcome: Locate and explain the commit that introduced a supplied change."
+      "result": "The answer comes with a date, author and patch, not a guess."
     }
   ],
   "misconceptions": [
     {
       "id": "git.history.log-show.misconception",
       "mistakenBelief": "The newest log entry is always the commit that introduced a particular line or behavior.",
-      "correction": "Use relevant path, author, text, graph, or date filters and inspect candidate commits directly instead of inferring origin from recency alone.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: The newest log entry is always the commit that introduced a particular line or behavior."
+      "correction": "Later commits may only touch nearby code. Search for the specific text or behaviour with -S or blame, then confirm with git show.",
+      "diagnosticPrompt": "In \"Who changed the parser?\", what did the newest commit actually change?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A signed lab notebook can model Log, show and graph: stable entries record why a change happened, named markers identify milestones, and comparisons expose differences.",
+    "example": "git log is **a library catalogue**: you filter by author, subject or keyword to get a shortlist. git show is **taking one book off the shelf and reading it**. Neither rearranges the library.",
     "usefulFor": [
-      "Inspecting immutable records, messages, selected versions, differences, and milestone names"
+      "remembering catalogue then book",
+      "read-only browsing"
     ],
     "limitations": [
-      "Git history is a directed graph with movable references, merges, and content-addressed objects, not a single bound notebook.",
-      "Default history can omit unreachable commits, merges have multiple parents, path filtering changes traversal, and abbreviated hashes can become ambiguous."
+      "Catalogues list books; log can also search inside them with -S.",
+      "Books keep their exact identity number (hash) forever."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A learner searches log for changes to parser.ts, selects a full commit identity, and uses show to inspect that commit's exact patch.",
-      "Log traverses commit history and references, while show inspects one selected object's metadata and patch; filters narrow evidence without changing history.",
-      "Use relevant path, author, text, graph, or date filters and inspect candidate commits directly instead of inferring origin from recency alone."
+      "git log -S \"if (!input)\" -- src/parser.ts",
+      "git rev-parse 4c1e2f9",
+      "git show 4c1e2f9"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Search",
         "state": {
-          "evidence": "A learner searches log for changes to parser.ts, selects a full commit identity, and uses show to inspect that commit's exact patch."
+          "matches": "4c1e2f9 only"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "The learner searches log for changes to parser.ts."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Identify",
         "state": {
-          "model": "Log traverses commit history and references, while show inspects one selected object's metadata and patch; filters narrow evidence without changing history."
+          "full hash": "4c1e2f9a7b...(40 chars)"
         },
-        "explanation": "Apply the declared Log, show and graph model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "They select a full commit identity for the record."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Inspect",
         "state": {
-          "correction": "Use relevant path, author, text, graph, or date filters and inspect candidate commits directly instead of inferring origin from recency alone."
+          "patch": "+ if (!input) throw ...",
+          "author": "Ravi"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: The newest log entry is always the commit that introduced a particular line or behavior."
+        "explanation": "Show displays that commit's exact patch as evidence."
       }
     ],
-    "textAlternative": "Starting artifact: A learner searches log for changes to parser.ts, selects a full commit identity, and uses show to inspect that commit's exact patch. Step 1, Observe. State: evidence: A learner searches log for changes to parser.ts, selects a full commit identity, and uses show to inspect that commit's exact patch.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Log traverses commit history and references, while show inspects one selected object's metadata and patch; filters narrow evidence without changing history.. Apply the declared Log, show and graph model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Use relevant path, author, text, graph, or date filters and inspect candidate commits directly instead of inferring origin from recency alone.. Compare the observation with the correction and reject the misconception: The newest log entry is always the commit that introduced a particular line or behavior."
+    "textAlternative": "Tracing a history search. Step 1, Search: matches is 4c1e2f9 only. The learner searches log for changes to parser.ts. Step 2, Identify: full hash is 4c1e2f9a7b...(40 chars). They select a full commit identity for the record. Step 3, Inspect: patch is + if (!input) throw ...; author is Ravi. Show displays that commit's exact patch as evidence."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Log, show and graph: direct case”: state its starting evidence, apply the Log, show and graph rule, and give the observable result in three short lines.",
+      "prompt": "For \"Who changed the parser?\", explain how a learner searches log for changes to parser.ts, selects a full commit identity, and uses show to inspect that commit's exact patch.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Search.",
+        "Identify.",
+        "Inspect."
       ],
       "expectedEvidence": [
-        "Named example: Log, show and graph: direct case.",
-        "Starting evidence: A learner searches log for changes to parser.ts, selects a full commit identity, and uses show to inspect that commit's exact patch.",
-        "Core rule: Log traverses commit history and references, while show inspects one selected object's metadata and patch; filters narrow evidence without changing history.",
-        "Observable result: The case supports the declared outcome because Use relevant path, author, text, graph, or date filters and inspect candidate commits directly instead of inferring origin from recency alone.",
-        "Boundary check: Use relevant path, author, text, graph, or date filters and inspect candidate commits directly instead of inferring origin from recency alone."
+        "Names the example \"Who changed the parser?\": the newest commit was the wrong suspect.",
+        "A learner searches log for changes to parser.ts and selects a full commit identity.",
+        "They use show to inspect that commit's exact patch.",
+        "The learner names the right commit, with the patch as evidence."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A graph view reveals that a merge commit joins two parent lines rather than representing an ordinary single-parent step.",
+      "prompt": "In any repository, find the commit that first added a given function name. Record the command, the full hash, and one sentence explaining the patch.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "git log -S \"functionName\".",
+        "The oldest match usually added it."
       ],
       "expectedEvidence": [
-        "Log traverses commit history and references, while show inspects one selected object's metadata and patch; filters narrow evidence without changing history.",
-        "Default history can omit unreachable commits, merges have multiple parents, path filtering changes traversal, and abbreviated hashes can become ambiguous."
+        "Full hash recorded.",
+        "Explanation matches git show output."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Log, show and graph, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Given a behaviour change described in a bug report, locate the introducing commit using log filters, confirm it with show, and write a short report with hash, author, date, patch summary and the reasoning that ruled out other candidates.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Combine -- path and -S.",
+        "Explain why newer commits are innocent."
       ],
       "expectedEvidence": [
-        "Locate and explain the commit that introduced a supplied change.",
-        "Use relevant path, author, text, graph, or date filters and inspect candidate commits directly instead of inferring origin from recency alone."
+        "Correct commit identified.",
+        "Evidence from show included."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.history.log-show.misconception",
-      "explanation": "Use relevant path, author, text, graph, or date filters and inspect candidate commits directly instead of inferring origin from recency alone.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A graph view reveals that a merge commit joins two parent lines rather than representing an ordinary single-parent step."
+      "explanation": "Always go **narrow then prove**: filter log by path and text until one or two commits remain, then read each with git show before naming it.",
+      "retryPrompt": "Apply this to \"Finding when a feature appeared\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to locate and explain the commit that introduced a supplied change. Keep this boundary in view: Default history can omit unreachable commits, merges have multiple parents, path filtering changes traversal, and abbreviated hashes can become ambiguous.",
+    "summary": "To locate and explain the commit that introduced a change, filter git log by path, message or code text, record the full commit identity, and inspect the exact patch with git show, remembering these commands only read history and the newest commit isn't automatically responsible.",
     "retrievalPrompts": [
-      "Explain Log, show and graph without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: The newest log entry is always the commit that introduced a particular line or behavior.",
-      "Apply the model to this case from memory: A graph view reveals that a merge commit joins two parent lines rather than representing an ordinary single-parent step."
+      "What does git log -S search for?",
+      "What does git show display?",
+      "Why not blame the newest commit?"
     ],
     "nextReviewPrompt": "Next: continue to “Diffs and patch review”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

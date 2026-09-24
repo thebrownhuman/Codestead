@@ -237,19 +237,21 @@ describe("active exam lockdown overlay", () => {
 
     render(<><aside id="app-sidebar">Navigation</aside><div id="app-content-column">Tutor lesson assistance</div><ExamLockdownOverlay /></>);
 
-    expect(screen.getByRole("alertdialog", { name: /Cannot verify exam status/i }))
-      .toHaveTextContent(/ordinary learning remains locked/i);
+    // While the first check is in flight learning is locked but no failure is claimed.
+    expect(screen.getByText(/Checking exam status/i)).toBeInTheDocument();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     expect(document.getElementById("app-content-column")).toHaveAttribute("inert");
     expect(mocks.purgeDraftRecoveryData).not.toHaveBeenCalled();
 
     await act(async () => { pending.resolve(new Response(null, { status: 503 })); });
-    expect(screen.getByRole("alertdialog", { name: /Cannot verify exam status/i }))
-      .toBeInTheDocument();
+    expect(await screen.findByRole("alertdialog", { name: /Cannot verify exam status/i }))
+      .toHaveTextContent(/ordinary learning remains locked/i);
+    expect(document.getElementById("app-content-column")).toHaveAttribute("inert");
     expect(mocks.purgeDraftRecoveryData).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: /Check exam status again/i }));
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
-    expect(screen.getByRole("alertdialog", { name: /Cannot verify exam status/i }))
+    expect(await screen.findByRole("alertdialog", { name: /Cannot verify exam status/i }))
       .toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Check exam status again/i }));
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3));
@@ -277,8 +279,7 @@ describe("active exam lockdown overlay", () => {
 
     render(<><div id="app-content-column">Tutor lesson assistance</div><ExamLockdownOverlay /></>);
 
-    expect(screen.getByRole("alertdialog", { name: /Cannot verify exam status/i }))
-      .toBeInTheDocument();
+    expect(screen.getByText(/Checking exam status/i)).toBeInTheDocument();
     expect(document.getElementById("app-content-column")).toHaveAttribute("inert");
     expect(mocks.purgeDraftRecoveryData).not.toHaveBeenCalled();
 

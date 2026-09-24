@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "React data fetching needs ownership, cache and freshness policy, cancellation, race handling, and explicit UI states.",
+    "summary": "Fetching in a component means deciding a few things on purpose. **Who owns the data**: which component's state holds it. **When to fetch**: when the inputs it depends on change, such as learnerId. **Cancellation**: abort or ignore the previous request when inputs change or the component unmounts, so a slow old response can't overwrite new data. **Status**: loading, success, empty and error. **Retry**: let the learner try again. For caching and freshness across screens, real apps usually add a data library such as TanStack Query, but the same rules apply underneath.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Changing learnerId aborts or ignores the prior request before its stale response can update current state. Your goal is to implement a fetch-backed component with cancellation and retry behavior. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A teacher dashboard shows a learner's profile. The teacher clicks Asha, then quickly Ben. Ben's name appears, then Asha's slower response arrives and replaces it, so Ben's page shows Asha's progress. Changing learnerId aborts or ignores the prior request before its stale response can update current state. In this lesson you'll implement a fetch-backed component with cancellation and retry behavior.\n\n```predict\n{\"question\": \"The learnerId prop changes while the old request is still running. Without cleanup, can the old response still call setState?\", \"options\": [\"No, React ignores it\", \"Yes: the old promise resolves and its .then still runs\"], \"answer\": 1, \"why\": \"React doesn't cancel your requests. Abort in the effect's cleanup.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Cleanup and race prevention; javascript network fetch; Loading, empty, success and failure states. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Cleanup and race prevention**, **Fetch and HTTP responses**, and **Loading, empty, success and failure states**."
       },
       {
-        "heading": "Technology rule",
-        "body": "React data fetching needs ownership, cache and freshness policy, cancellation, race handling, and explicit UI states. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: fetch per input, cancel the old, expose retry",
+        "body": "```jsx\nimport { useEffect, useState } from \"react\";\n\nexport function LearnerProfile({ learnerId }) {\n  const [result, setResult] = useState({ status: \"loading\" });\n  const [attempt, setAttempt] = useState(0);            // bump to retry.\n\n  useEffect(() => {\n    const controller = new AbortController();\n    setResult({ status: \"loading\" });\n    fetch(`/api/learners/${encodeURIComponent(learnerId)}`, { signal: controller.signal })\n      .then((r) => {\n        if (!r.ok) throw new Error(`HTTP ${r.status}`);\n        return r.json();\n      })\n      .then((data) => setResult({ status: \"success\", data }))\n      .catch((e) => {\n        if (e.name !== \"AbortError\") setResult({ status: \"error\", message: e.message });\n      });\n    return () => controller.abort();                   // old request can't win.\n  }, [learnerId, attempt]);\n\n  if (result.status === \"loading\") return <p role=\"status\">Loading profile...</p>;\n  if (result.status === \"error\")\n    return <p role=\"alert\">Couldn't load. <button type=\"button\" onClick={() => setAttempt((n) => n + 1)}>Retry</button></p>;\n  return <h2>{result.data.name}</h2>;\n}\n```\n\n```reveal\n{\"prompt\": \"Why does bumping `attempt` retry?\", \"answer\": \"attempt is a dependency, so changing it re-runs the effect, which starts a fresh request.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Effects can duplicate requests, frameworks may fetch elsewhere, and later responses can overwrite newer intent. This draft therefore rejects: A fetch effect needs no cleanup because React ignores every response after props change."
+        "heading": "Ownership and caching",
+        "body": "```predict\n{\"question\": \"Three components on one page each fetch the same learner. Problem?\", \"options\": [\"No problem\", \"Three identical requests; fetch once in a shared owner or use a caching library\"], \"answer\": 1, \"why\": \"Decide one owner for each piece of remote data, or share a cache.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Trigger bounded requests, validate responses and prevent obsolete results from winning.",
-      "Implement a fetch-backed component with cancellation and retry behavior."
+      "Fetch in an effect keyed by its inputs, with abort in cleanup.",
+      "Expose loading, error and retry states and decide data ownership."
     ],
     "excludes": [
-      "Effects can duplicate requests, frameworks may fetch elsewhere, and later responses can overwrite newer intent."
+      "Server components and SSR data loading.",
+      "Building a cache yourself."
     ]
   },
   "outcomes": [
@@ -63,133 +64,136 @@
   "examples": [
     {
       "id": "react.data.fetch.example-a",
-      "title": "Client fetch lifecycle: concrete case",
+      "title": "The learner profile that showed the wrong learner",
       "situation": "Changing learnerId aborts or ignores the prior request before its stale response can update current state.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: Changing learnerId aborts or ignores the prior request before its stale response can update current state.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Cancel or ignore obsolete requests and prevent stale responses from updating state for newer inputs."
+        "**Race:** Asha's slow request finished after Ben's and overwrote the state.",
+        "**Abort the prior request:** each effect run creates an AbortController, and cleanup aborts it when learnerId changes.",
+        "**Test:** with controlled fake fetches, resolve Ben first, then Asha, and a test will assert the heading still says Ben."
       ],
-      "result": "The result follows because Cancel or ignore obsolete requests and prevent stale responses from updating state for newer inputs."
+      "result": "The profile always matches the learner that was clicked last."
     },
     {
       "id": "react.data.fetch.example-b",
-      "title": "Client fetch lifecycle: boundary case",
-      "situation": "Effects can duplicate requests, frameworks may fetch elsewhere, and later responses can overwrite newer intent.",
+      "title": "The profile with no way back",
+      "situation": "When the learners API times out, the profile shows \"Something went wrong\" forever until the teacher reloads the whole page.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Effects can duplicate requests, frameworks may fetch elsewhere, and later responses can overwrite newer intent.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: A fetch effect needs no cleanup because React ignores every response after props change."
+        "The error state had no retry.",
+        "Add an attempt counter to the effect's dependencies.",
+        "A Retry button bumps attempt, which re-runs the fetch."
       ],
-      "result": "The boundary requires this correction: Cancel or ignore obsolete requests and prevent stale responses from updating state for newer inputs."
+      "result": "Teachers can retry a failed load in place."
     }
   ],
   "misconceptions": [
     {
       "id": "react.data.fetch.misconception",
       "mistakenBelief": "A fetch effect needs no cleanup because React ignores every response after props change.",
-      "correction": "Cancel or ignore obsolete requests and prevent stale responses from updating state for newer inputs.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: A fetch effect needs no cleanup because React ignores every response after props change."
+      "correction": "React doesn't know about your fetch. An old promise still resolves and calls setState unless you abort it or ignore it in cleanup.",
+      "diagnosticPrompt": "In \"The learner profile that showed the wrong learner\", which response arrived last?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Client fetch lifecycle, where inputs and state produce a UI description.",
+    "example": "Fetching per learner is like **ordering at a counter by ticket number**. If you change your order, you cancel the old ticket (abort), or the kitchen may hand you the first meal after the second. Retry is asking the kitchen to make it again when it burns.",
     "usefulFor": [
-      "Building a first mental model for Client fetch lifecycle before using exact platform terms"
+      "remembering cancel the old ticket",
+      "retry = remake the order"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Effects can duplicate requests, frameworks may fetch elsewhere, and later responses can overwrite newer intent."
+      "Kitchens remember orders; components forget unless state holds them.",
+      "Three people ordering the same dish separately = duplicate fetches."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Changing learnerId aborts or ignores the prior request before its stale response can update current state.",
-      "React data fetching needs ownership, cache and freshness policy, cancellation, race handling, and explicit UI states.",
-      "Cancel or ignore obsolete requests and prevent stale responses from updating state for newer inputs."
+      "learnerId = asha: request A",
+      "learnerId = ben: cleanup aborts A, request B",
+      "B resolves, A rejects"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Request A",
         "state": {
-          "evidence": "Changing learnerId aborts or ignores the prior request before its stale response can update current state."
+          "status": "loading",
+          "in flight": "A"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The first request starts for Asha."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Change",
         "state": {
-          "rule": "React data fetching needs ownership, cache and freshness policy, cancellation, race handling, and explicit UI states."
+          "A": "aborted",
+          "in flight": "B"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Changing learnerId aborts the prior request before its stale response can update state."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Settle",
         "state": {
-          "correction": "Cancel or ignore obsolete requests and prevent stale responses from updating state for newer inputs."
+          "heading": "Ben",
+          "A": "AbortError ignored"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: A fetch effect needs no cleanup because React ignores every response after props change."
+        "explanation": "Only the current request updates the profile."
       }
     ],
-    "textAlternative": "Starting artifact: Changing learnerId aborts or ignores the prior request before its stale response can update current state. Step 1, Artifact. State: evidence: Changing learnerId aborts or ignores the prior request before its stale response can update current state.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: React data fetching needs ownership, cache and freshness policy, cancellation, race handling, and explicit UI states.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Cancel or ignore obsolete requests and prevent stale responses from updating state for newer inputs.. Check the result against the boundary and reject this misconception: A fetch effect needs no cleanup because React ignores every response after props change."
+    "textAlternative": "Tracing a learner switch. Step 1, Request A: status is loading; in flight is A. The first request starts for Asha. Step 2, Change: A is aborted; in flight is B. Changing learnerId aborts the prior request before its stale response can update state. Step 3, Settle: heading is Ben; A is AbortError ignored. Only the current request updates the profile."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Client fetch lifecycle: concrete case”: state its starting evidence, apply the Client fetch lifecycle rule, and give the observable result in three short lines.",
+      "prompt": "For \"The learner profile that showed the wrong learner\", explain how changing learnerId aborts or ignores the prior request before its stale response can update current state.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Race.",
+        "Abort.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Client fetch lifecycle: concrete case.",
-        "Starting evidence: Changing learnerId aborts or ignores the prior request before its stale response can update current state.",
-        "Core rule: React data fetching needs ownership, cache and freshness policy, cancellation, race handling, and explicit UI states.",
-        "Observable result: The result follows because Cancel or ignore obsolete requests and prevent stale responses from updating state for newer inputs.",
-        "Boundary check: Cancel or ignore obsolete requests and prevent stale responses from updating state for newer inputs."
+        "Names the example \"The learner profile that showed the wrong learner\": an old response overwrote the new learner.",
+        "Changing learnerId aborts the prior request.",
+        "Its stale response can't update current state.",
+        "The profile always matches the learner that was clicked last."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Effects can duplicate requests, frameworks may fetch elsewhere, and later responses can overwrite newer intent.",
+      "prompt": "Write `LessonComments({ lessonId })` that fetches comments with abort on change, shows loading, empty, list and error with retry.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Dependencies: lessonId and attempt.",
+        "Ignore AbortError."
       ],
       "expectedEvidence": [
-        "React data fetching needs ownership, cache and freshness policy, cancellation, race handling, and explicit UI states.",
-        "Effects can duplicate requests, frameworks may fetch elsewhere, and later responses can overwrite newer intent."
+        "No stale comments after switching lessons.",
+        "Retry works."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Client fetch lifecycle and explain why the misconception fails.",
+      "prompt": "Build a learner search with fetch-per-query, abort, retry and every data state. Write tests with out-of-order fake responses and a failing then succeeding retry.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Control resolution order.",
+        "findBy for async assertions."
       ],
       "expectedEvidence": [
-        "Implement a fetch-backed component with cancellation and retry behavior.",
-        "Cancel or ignore obsolete requests and prevent stale responses from updating state for newer inputs."
+        "Latest results always shown.",
+        "Retry test passes."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.data.fetch.misconception",
-      "explanation": "Cancel or ignore obsolete requests and prevent stale responses from updating state for newer inputs.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'stale responses' and state the decisive evidence."
+      "explanation": "For every fetch effect check: **Are all inputs dependencies? Does cleanup abort? Is AbortError ignored? Is there a retry path?**",
+      "retryPrompt": "Apply this to \"The profile with no way back\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement a fetch-backed component with cancellation and retry behavior. Keep this boundary in view: Effects can duplicate requests, frameworks may fetch elsewhere, and later responses can overwrite newer intent.",
+    "summary": "To implement a fetch-backed component with cancellation and retry, fetch in an effect that depends on its inputs, abort the request in cleanup so stale responses can't win, ignore AbortError, show loading, error and success states, add a retry that re-runs the effect, and choose one owner for each piece of data.",
     "retrievalPrompts": [
-      "Explain Client fetch lifecycle using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: A fetch effect needs no cleanup because React ignores every response after props change.",
-      "Apply checkpoint 'stale responses' to a new artifact."
+      "Does React cancel your fetch when props change?",
+      "How do you retry a failed fetch effect?",
+      "Why choose one owner for remote data?"
     ],
     "nextReviewPrompt": "Next: continue to “Mutations and pending UI”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

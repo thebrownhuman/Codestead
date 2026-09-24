@@ -33,7 +33,7 @@ export async function validateProviderCredential(input: {
   const model =
     policy?.model ??
     (input.provider === "nvidia_nim"
-      ? process.env.NVIDIA_NIM_VALIDATION_MODEL ?? "meta/llama-3.1-8b-instruct"
+      ? process.env.NVIDIA_NIM_VALIDATION_MODEL ?? "mistralai/mistral-nemotron"
       : null);
 
   if (!model) {
@@ -53,8 +53,9 @@ export async function validateProviderCredential(input: {
       apiKey: input.secret,
       model,
       messages: [{ role: "user", content: "Reply with exactly OK." }],
-      maxOutputTokens: 4,
-      timeoutMs: policy?.timeoutMs ?? 15_000,
+      // gpt-oss is a reasoning model: a tiny budget is spent thinking and returns no text.
+      maxOutputTokens: 256,
+      timeoutMs: policy?.timeoutMs ?? 60_000,
     });
   } catch (error) {
     const providerError = error instanceof ProviderError ? error : null;

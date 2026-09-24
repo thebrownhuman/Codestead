@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Lexical scope resolves names from nested source structure, with block scope for let and const and function scope for var.",
+    "summary": "JavaScript finds a name by looking at **where the code is written**, not who called it: first the current block, then each enclosing block and function outward, up to the module. That's **lexical scope**. `let` and `const` belong to the nearest `{ }` block; `var` belongs to the whole function. An inner `let count` **shadows** an outer `count` only inside its block. And a `let`/`const` exists from the start of its block but can't be used before its declaration line: that gap is the **temporal dead zone** (TDZ).",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: An inner block shadows outer count without changing it after the block ends. Your goal is to trace name resolution and repair shadowing or use-before-initialization defects. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A score loop declares `let count = 0` inside an if block, adds points, and then prints the outer count, which is still 0. Nothing is broken; there are two different variables. An inner block shadows outer count without changing it after the block ends. In this lesson you'll trace name resolution and repair shadowing or use-before-initialization defects.\n\n```predict\n{\"question\": \"`let count = 1; { let count = 5; count += 1; } console.log(count);` Output?\", \"options\": [\"6\", \"1: the inner count was a separate binding\"], \"answer\": 1, \"why\": \"The block's let count shadows the outer one. When the block ends, the outer count (1) is visible again.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Control flow and functions; Module loading baseline; let, const and binding; Function declarations, expressions and arrows. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Control flow and functions** module, **Module loading baseline** (each module has its own top scope), **let, const and binding**, and **Function declarations, expressions and arrows**."
       },
       {
-        "heading": "Technology rule",
-        "body": "Lexical scope resolves names from nested source structure, with block scope for let and const and function scope for var. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The rule: look outward from where the code is written",
+        "body": "```js\nconst label = \"module\";          // module scope.\n\nfunction report() {\n  const label = \"function\";      // shadows module label here.\n  if (true) {\n    const label = \"block\";       // shadows again, only in this block.\n    console.log(label);          // \"block\"\n  }\n  console.log(label);            // \"function\"\n}\nreport();\nconsole.log(label);              // \"module\"\n\n// Temporal dead zone.\n{\n  // console.log(total);  ReferenceError: before initialization.\n  let total = 10;\n  console.log(total);            // 10\n}\n```\n\n| Keyword | Scope | Use before declaration |\n|---|---|---|\n| `let` / `const`. | nearest block. | ReferenceError (TDZ). |\n| `var`. | whole function. | undefined (hoisted). |\n| function declaration. | enclosing block/function. | callable (hoisted). |\n\n```reveal\n{\"prompt\": \"Does calling a function from somewhere else change what names it sees?\", \"answer\": \"No. A function sees the names around where it was written. The caller's local variables are invisible to it.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Temporal dead zones, shadowing, modules, eval, and closures affect availability. This draft therefore rejects: JavaScript resolves a variable from whichever caller function invoked the current function."
+        "heading": "Caller vs writer",
+        "body": "```predict\n{\"question\": \"`const x = \\\"outer\\\"; function show() { return x; } function run() { const x = \\\"run\\\"; return show(); } run();` returns…\", \"options\": [\"\\\"run\\\"\", \"\\\"outer\\\": show looks where it was written\"], \"answer\": 1, \"why\": \"Lexical scope: show was written at module level, so it finds the module x.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Resolve names through nested blocks and functions without relying on var hoisting.",
-      "Trace name resolution and repair shadowing or use-before-initialization defects."
+      "Trace which binding a name resolves to in nested blocks and functions.",
+      "Repair accidental shadowing and TDZ ReferenceErrors."
     ],
     "excludes": [
-      "Temporal dead zones, shadowing, modules, eval, and closures affect availability."
+      "Closures keeping scopes alive (next lesson).",
+      "with and eval scope rules."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "javascript.scope.lexical.example-a",
-      "title": "Lexical scope and temporal dead zone: concrete case",
+      "title": "The count inside the block",
       "situation": "An inner block shadows outer count without changing it after the block ends.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: An inner block shadows outer count without changing it after the block ends.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: JavaScript uses lexical scope: name resolution follows where functions and blocks are defined, not their caller."
+        "**Code:** `let count = 0; if (bonus) { let count = 0; count += 10; } console.log(count);`.",
+        "**Inner block shadows outer count:** the `let` inside the block creates a second count that receives the 10.",
+        "**Repair:** remove the inner `let` so the block will update the outer count, and a check reads 10."
       ],
-      "result": "The result follows because JavaScript uses lexical scope: name resolution follows where functions and blocks are defined, not their caller."
+      "result": "The outer count shows 10 after the bonus because only one count binding exists."
     },
     {
       "id": "javascript.scope.lexical.example-b",
-      "title": "Lexical scope and temporal dead zone: boundary case",
-      "situation": "Temporal dead zones, shadowing, modules, eval, and closures affect availability.",
+      "title": "The config used too early",
+      "situation": "A module calls `setup()` at the top, and setup reads `settings`, declared with `const settings = {...}` further down. Loading the page throws \"Cannot access 'settings' before initialization\".",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Temporal dead zones, shadowing, modules, eval, and closures affect availability.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: JavaScript resolves a variable from whichever caller function invoked the current function."
+        "settings is in its temporal dead zone until the const line runs.",
+        "setup() runs before that line, so reading settings throws ReferenceError.",
+        "Fix: move the setup() call below the const declaration."
       ],
-      "result": "The boundary requires this correction: JavaScript uses lexical scope: name resolution follows where functions and blocks are defined, not their caller."
+      "result": "setup reads the initialised settings and the page loads without a ReferenceError."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.scope.lexical.misconception",
       "mistakenBelief": "JavaScript resolves a variable from whichever caller function invoked the current function.",
-      "correction": "JavaScript uses lexical scope: name resolution follows where functions and blocks are defined, not their caller.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: JavaScript resolves a variable from whichever caller function invoked the current function."
+      "correction": "Names resolve from the nested structure of the source code where the function was written. A caller's local variables are never visible to the function it calls.",
+      "diagnosticPrompt": "In the \"Caller vs writer\" predict, why did show return \"outer\"?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Lexical scope and temporal dead zone, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "Lexical scope is like **nested rooms in a house**: from the kitchen you can see labels on the kitchen shelves, then the hallway, then the front hall, but never into the neighbour's house, even if the neighbour is the one who asked you a question.",
     "usefulFor": [
-      "Building a first mental model for Lexical scope and temporal dead zone before using exact platform terms"
+      "remembering look outward from where you stand",
+      "shadowing = a same-named label on a nearer shelf"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Temporal dead zones, shadowing, modules, eval, and closures affect availability."
+      "Rooms don't have a dead zone; let has one before its line.",
+      "var ignores room walls inside a function."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "An inner block shadows outer count without changing it after the block ends.",
-      "Lexical scope resolves names from nested source structure, with block scope for let and const and function scope for var.",
-      "JavaScript uses lexical scope: name resolution follows where functions and blocks are defined, not their caller."
+      "let count = 0",
+      "if (bonus) { let count = 0; count += 10; }",
+      "console.log(count)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Outer binding",
         "state": {
-          "evidence": "An inner block shadows outer count without changing it after the block ends."
+          "outer count": "0"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The module creates the outer count binding set to 0."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Inner block",
         "state": {
-          "rule": "Lexical scope resolves names from nested source structure, with block scope for let and const and function scope for var."
+          "inner count": "10",
+          "outer count": "0"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The inner block shadows outer count and updates only its own binding."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "After block",
         "state": {
-          "correction": "JavaScript uses lexical scope: name resolution follows where functions and blocks are defined, not their caller."
+          "printed": "0"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: JavaScript resolves a variable from whichever caller function invoked the current function."
+        "explanation": "Without changing it after the block ends, the outer count still reads 0."
       }
     ],
-    "textAlternative": "Starting artifact: An inner block shadows outer count without changing it after the block ends. Step 1, Artifact. State: evidence: An inner block shadows outer count without changing it after the block ends.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Lexical scope resolves names from nested source structure, with block scope for let and const and function scope for var.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: JavaScript uses lexical scope: name resolution follows where functions and blocks are defined, not their caller.. Check the result against the boundary and reject this misconception: JavaScript resolves a variable from whichever caller function invoked the current function."
+    "textAlternative": "Resolving count through nested scopes. Step 1, Outer binding: outer count is 0. The module creates the outer count binding set to 0. Step 2, Inner block: inner count is 10; outer count is 0. The inner block shadows outer count and updates only its own binding. Step 3, After block: printed is 0. Without changing it after the block ends, the outer count still reads 0."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Lexical scope and temporal dead zone: concrete case”: state its starting evidence, apply the Lexical scope and temporal dead zone rule, and give the observable result in three short lines.",
+      "prompt": "For \"The count inside the block\", explain how an inner block shadows outer count without changing it after the block ends, and how to repair it.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Two bindings.",
+        "Shadowing.",
+        "Repair."
       ],
       "expectedEvidence": [
-        "Named example: Lexical scope and temporal dead zone: concrete case.",
-        "Starting evidence: An inner block shadows outer count without changing it after the block ends.",
-        "Core rule: Lexical scope resolves names from nested source structure, with block scope for let and const and function scope for var.",
-        "Observable result: The result follows because JavaScript uses lexical scope: name resolution follows where functions and blocks are defined, not their caller.",
-        "Boundary check: JavaScript uses lexical scope: name resolution follows where functions and blocks are defined, not their caller."
+        "Names the example \"The count inside the block\": the inner let creates a second count.",
+        "The inner block shadows outer count.",
+        "The outer count is unchanged after the block ends.",
+        "Removing the inner let fixes it."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Temporal dead zones, shadowing, modules, eval, and closures affect availability.",
+      "prompt": "Predict each log: `var a = 1; let b = 1; function f() { console.log(a, b); var a = 2; let b = 2; } f();`",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "var hoists as undefined.",
+        "let is in its TDZ."
       ],
       "expectedEvidence": [
-        "Lexical scope resolves names from nested source structure, with block scope for let and const and function scope for var.",
-        "Temporal dead zones, shadowing, modules, eval, and closures affect availability."
+        "Inside f, a is the hoisted var (undefined) and b is the inner let, still in its TDZ.",
+        "Evaluating b throws ReferenceError, so nothing is logged."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Lexical scope and temporal dead zone and explain why the misconception fails.",
+      "prompt": "Take a 30-line script with at least two shadowing bugs and one TDZ error. Draw its scope boxes, fix each defect, and add a test for the corrected values.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Draw a box per block and function.",
+        "Rename or remove inner declarations."
       ],
       "expectedEvidence": [
-        "Trace name resolution and repair shadowing or use-before-initialization defects.",
-        "JavaScript uses lexical scope: name resolution follows where functions and blocks are defined, not their caller."
+        "Scope diagram with each name's binding.",
+        "Tests showing fixed values."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.scope.lexical.misconception",
-      "explanation": "JavaScript uses lexical scope: name resolution follows where functions and blocks are defined, not their caller.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'lexical scope' and state the decisive evidence."
+      "explanation": "For any confusing name, **point at where the code is written** and walk outward box by box until you find its declaration. If there are two declarations, ask which one you meant.",
+      "retryPrompt": "Apply this to \"The config used too early\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to trace name resolution and repair shadowing or use-before-initialization defects. Keep this boundary in view: Temporal dead zones, shadowing, modules, eval, and closures affect availability.",
+    "summary": "To trace name resolution, look outward from where code is written: block, function, module. let and const are block-scoped and throw in their temporal dead zone; var is function-scoped. Repair shadowing by removing or renaming inner declarations, and fix use-before-initialization by moving the use below the declaration.",
     "retrievalPrompts": [
-      "Explain Lexical scope and temporal dead zone using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: JavaScript resolves a variable from whichever caller function invoked the current function.",
-      "Apply checkpoint 'lexical scope' to a new artifact."
+      "Does the caller's scope affect name lookup?",
+      "What is the temporal dead zone?",
+      "How do you fix accidental shadowing?"
     ],
     "nextReviewPrompt": "Next: continue to “Closures and lifetime”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

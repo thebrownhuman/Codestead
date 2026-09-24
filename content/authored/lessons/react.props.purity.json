@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Pure render returns the same description for the same inputs and avoids mutation, subscriptions, network calls, and DOM writes.",
+    "summary": "Rendering must be **pure**: given the same props and state, a component returns the same JSX and **changes nothing outside itself**. No mutating props or shared arrays, no fetch, no timers or subscriptions, no DOM writes. Those belong in event handlers or effects. React relies on this because it may render a component **more than once**, pause, or throw a render away. In development, **StrictMode renders every component twice** on purpose, so impure code shows up as doubled items, doubled requests or changing output.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A component computes filtered items from props during render without pushing into the original array. Your goal is to find and remove a render-time mutation revealed by Strict Mode. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A lesson list shows only published lessons. It does `lessons.sort(...)` and pushes a \"Featured\" lesson into the props array before filtering. In development the featured lesson appears twice, and other screens using the same array start showing it too. A component computes filtered items from props during render without pushing into the original array. In this lesson you'll find and remove a render-time mutation revealed by Strict Mode.\n\n```predict\n{\"question\": \"A component calls `fetch(\\\"/api/log\\\")` in its body. With StrictMode in development, how many requests are sent on the first load?\", \"options\": [\"1\", \"2: StrictMode renders twice, and every render sends one\"], \"answer\": 1, \"why\": \"Side effects in render run on every render. Move them to a handler or an effect.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Components and JSX; Props and one-way data flow; javascript scope closures. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Components and JSX** module, **Props and one-way data flow** (props are read-only), and **Closures and lifetime**, since handlers close over render values."
       },
       {
-        "heading": "Technology rule",
-        "body": "Pure render returns the same description for the same inputs and avoids mutation, subscriptions, network calls, and DOM writes. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The rule: compute new values, change nothing",
+        "body": "```jsx\nexport function LessonList({ lessons, featured }) {\n  // Pure: every step makes new arrays; lessons is untouched.\n  const shown = [featured, ...lessons]\n    .filter((l) => l.published)\n    .toSorted((a, b) => a.order - b.order);\n\n  return (\n    <ul>\n      {shown.map((l) => <li key={l.id}>{l.title}</li>)}\n    </ul>\n  );\n}\n\n// Impure version, for comparison: don't do this.\n// lessons.push(featured);          mutates the parent's array.\n// lessons.sort(byOrder);           sort changes it in place too.\n// fetch(\"/api/log\");               side effect on every render.\n```\n\n| During render | Belongs in |\n|---|---|\n| compute filtered or sorted copies. | render (pure). |\n| change shared data. | nowhere; create new values instead. |\n| respond to a click. | event handler. |\n| sync with a server or timer. | effect (later module). |\n\n```reveal\n{\"prompt\": \"Is creating a local array and pushing into it impure?\", \"answer\": \"No. Mutating a value you created during this render is fine; nobody else can see it. The problem is changing props, state or anything shared.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Time, randomness, module mutation, and id generation can make output unstable unless managed through supported mechanisms. This draft therefore rejects: A fetch call during render runs once because React renders components only once."
+        "heading": "Let StrictMode find it",
+        "body": "```predict\n{\"question\": \"An item appears twice only in development. Most likely cause?\", \"options\": [\"A React bug\", \"A render-time mutation that StrictMode's second render exposed\"], \"answer\": 1, \"why\": \"StrictMode double-renders to reveal exactly this.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Avoid side effects during render and use development double invocation to expose impurities.",
-      "Find and remove a render-time mutation revealed by Strict Mode."
+      "Keep render pure: no mutation of shared data, no side effects.",
+      "Use StrictMode's double render to find and remove impurity."
     ],
     "excludes": [
-      "Time, randomness, module mutation, and id generation can make output unstable unless managed through supported mechanisms."
+      "Effects (useEffect module).",
+      "Concurrent rendering internals."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "react.props.purity.example-a",
-      "title": "Render purity and Strict Mode: concrete case",
+      "title": "Filtering without touching the original",
       "situation": "A component computes filtered items from props during render without pushing into the original array.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A component computes filtered items from props during render without pushing into the original array.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Render can repeat or be discarded; keep side effects out of render and synchronize external systems in events or effects."
+        "**Spot the mutation:** `lessons.push(featured)` and `lessons.sort()` changed the parent's array on every render.",
+        "**Computes filtered items:** `[featured, ...lessons].filter(...).toSorted(...)` builds a new array from props.",
+        "**Check under StrictMode:** a test will render twice and assert the featured lesson appears once and the original array's length is unchanged."
       ],
-      "result": "The result follows because Render can repeat or be discarded; keep side effects out of render and synchronize external systems in events or effects."
+      "result": "The list shows the featured lesson once, and other screens using the same data are unaffected."
     },
     {
       "id": "react.props.purity.example-b",
-      "title": "Render purity and Strict Mode: boundary case",
-      "situation": "Time, randomness, module mutation, and id generation can make output unstable unless managed through supported mechanisms.",
+      "title": "The view counter that counted double",
+      "situation": "A LessonPage increments a module-level `views` counter in its body to show \"Viewed N times this session\". In development it jumps by 2 on every visit.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Time, randomness, module mutation, and id generation can make output unstable unless managed through supported mechanisms.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: A fetch call during render runs once because React renders components only once."
+        "The increment is a side effect during render.",
+        "StrictMode rendered twice, so it ran twice.",
+        "Fix: count the view in an effect or when the learner navigates, and keep the counter in state."
       ],
-      "result": "The boundary requires this correction: Render can repeat or be discarded; keep side effects out of render and synchronize external systems in events or effects."
+      "result": "The counter increases by exactly one per visit in development and production."
     }
   ],
   "misconceptions": [
     {
       "id": "react.props.purity.misconception",
       "mistakenBelief": "A fetch call during render runs once because React renders components only once.",
-      "correction": "Render can repeat or be discarded; keep side effects out of render and synchronize external systems in events or effects.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: A fetch call during render runs once because React renders components only once."
+      "correction": "React may render a component many times: on every state or prop change, twice in StrictMode development, and during interrupted renders. Side effects in render repeat each time.",
+      "diagnosticPrompt": "In the opening predict, how many requests were sent?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Render purity and Strict Mode, where inputs and state produce a UI description.",
+    "example": "Rendering is like **a calculator showing a result**: press the same keys and you get the same number, and the calculator never edits your bank balance while it calculates. StrictMode is **pressing = twice** to make sure nothing sneaky happens in between.",
     "usefulFor": [
-      "Building a first mental model for Render purity and Strict Mode before using exact platform terms"
+      "remembering same input, same output",
+      "StrictMode = the double-check"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Time, randomness, module mutation, and id generation can make output unstable unless managed through supported mechanisms."
+      "Calculators don't have handlers; components do, and that's where changes belong.",
+      "Local scratch values are like the calculator's memory: private and fine."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A component computes filtered items from props during render without pushing into the original array.",
-      "Pure render returns the same description for the same inputs and avoids mutation, subscriptions, network calls, and DOM writes.",
-      "Render can repeat or be discarded; keep side effects out of render and synchronize external systems in events or effects."
+      "StrictMode render #1",
+      "StrictMode render #2",
+      "compare output and props"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "First render",
         "state": {
-          "evidence": "A component computes filtered items from props during render without pushing into the original array."
+          "shown": "[Featured, A, B]",
+          "lessons.length": "2"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The component computes filtered items from props into a new array."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Second render",
         "state": {
-          "rule": "Pure render returns the same description for the same inputs and avoids mutation, subscriptions, network calls, and DOM writes."
+          "shown": "[Featured, A, B]",
+          "lessons.length": "2"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Rendering again gives the same output without pushing into the original array."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Result",
         "state": {
-          "correction": "Render can repeat or be discarded; keep side effects out of render and synchronize external systems in events or effects."
+          "featured count": "1",
+          "shared data changed": "no"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: A fetch call during render runs once because React renders components only once."
+        "explanation": "StrictMode reveals no mutation, so the render is pure."
       }
     ],
-    "textAlternative": "Starting artifact: A component computes filtered items from props during render without pushing into the original array. Step 1, Artifact. State: evidence: A component computes filtered items from props during render without pushing into the original array.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Pure render returns the same description for the same inputs and avoids mutation, subscriptions, network calls, and DOM writes.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Render can repeat or be discarded; keep side effects out of render and synchronize external systems in events or effects.. Check the result against the boundary and reject this misconception: A fetch call during render runs once because React renders components only once."
+    "textAlternative": "Double-rendering a pure component. Step 1, First render: shown is [Featured, A, B]; lessons.length is 2. The component computes filtered items from props into a new array. Step 2, Second render: shown is [Featured, A, B]; lessons.length is 2. Rendering again gives the same output without pushing into the original array. Step 3, Result: featured count is 1; shared data changed is no. StrictMode reveals no mutation, so the render is pure."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Render purity and Strict Mode: concrete case”: state its starting evidence, apply the Render purity and Strict Mode rule, and give the observable result in three short lines.",
+      "prompt": "For \"Filtering without touching the original\", explain how a component computes filtered items from props during render without pushing into the original array.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Mutation.",
+        "New array.",
+        "StrictMode check."
       ],
       "expectedEvidence": [
-        "Named example: Render purity and Strict Mode: concrete case.",
-        "Starting evidence: A component computes filtered items from props during render without pushing into the original array.",
-        "Core rule: Pure render returns the same description for the same inputs and avoids mutation, subscriptions, network calls, and DOM writes.",
-        "Observable result: The result follows because Render can repeat or be discarded; keep side effects out of render and synchronize external systems in events or effects.",
-        "Boundary check: Render can repeat or be discarded; keep side effects out of render and synchronize external systems in events or effects."
+        "Names the example \"Filtering without touching the original\": push and sort mutated the props array.",
+        "The component computes filtered items from props during render.",
+        "It never pushes into the original array.",
+        "The list shows the featured lesson once."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Time, randomness, module mutation, and id generation can make output unstable unless managed through supported mechanisms.",
+      "prompt": "Rewrite `function Top({ scores }) { scores.sort((a, b) => b - a); return <ol>{scores.slice(0, 3).map(...)}</ol>; }` as a pure component.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "toSorted or a copy.",
+        "Keys on li."
       ],
       "expectedEvidence": [
-        "Pure render returns the same description for the same inputs and avoids mutation, subscriptions, network calls, and DOM writes.",
-        "Time, randomness, module mutation, and id generation can make output unstable unless managed through supported mechanisms."
+        "scores is never changed.",
+        "Output identical across renders."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Render purity and Strict Mode and explain why the misconception fails.",
+      "prompt": "Search a React project for render-time side effects (push, sort, splice, fetch, Date.now, Math.random in render). Fix each, and add a StrictMode test that renders twice and checks output and inputs.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "List each finding.",
+        "Move effects out of render."
       ],
       "expectedEvidence": [
-        "Find and remove a render-time mutation revealed by Strict Mode.",
-        "Render can repeat or be discarded; keep side effects out of render and synchronize external systems in events or effects."
+        "Every impure line fixed or moved.",
+        "StrictMode tests pass."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.props.purity.misconception",
-      "explanation": "Render can repeat or be discarded; keep side effects out of render and synchronize external systems in events or effects.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'side effects out of render' and state the decisive evidence."
+      "explanation": "Read the component body top to bottom and ask for each line: **Does this change anything that existed before this render started?** If yes, compute a new value instead, or move it to a handler or effect.",
+      "retryPrompt": "Apply this to \"The view counter that counted double\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to find and remove a render-time mutation revealed by Strict Mode. Keep this boundary in view: Time, randomness, module mutation, and id generation can make output unstable unless managed through supported mechanisms.",
+    "summary": "To find and remove a render-time mutation revealed by Strict Mode, keep render pure: compute new arrays and values from props and state, never mutate shared data, and move fetches, timers and DOM writes to handlers or effects. StrictMode's double render makes impurity visible in development.",
     "retrievalPrompts": [
-      "Explain Render purity and Strict Mode using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: A fetch call during render runs once because React renders components only once.",
-      "Apply checkpoint 'side effects out of render' to a new artifact."
+      "Why does React need pure renders?",
+      "What does StrictMode do in development?",
+      "Is mutating a local array created in render impure?"
     ],
     "nextReviewPrompt": "Next: continue to “useState and snapshots”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

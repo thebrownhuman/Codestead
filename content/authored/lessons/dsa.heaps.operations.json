@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Heap insertion bubbles a new element upward, removal replaces the root and restores order downward, and heap construction can run in linear time bottom-up.",
+    "summary": "Three heap operations keep both rules (complete shape, parent ≤ child in a min-heap). **Insert**: append at the end (keeps the shape), then **sift up**, swapping with the parent while it's smaller: O(log n). **Extract-min**: the answer is at the root; move the **last** item to the root (keeps the shape), then **sift down**, swapping with the **smaller child** while a child is smaller: O(log n). **Build a heap** from n items: sift down every non-leaf from the last one back to the root. Surprisingly, that's **O(n)**, not O(n log n), because most nodes are near the bottom and move only a little.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: After removing the minimum, the last element moves to root and sifts down toward the appropriate child. Your goal is to implement and test heap construction, insertion and root extraction. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A reminder app keeps due times in a min-heap. Removing the soonest reminder by just deleting index 0 and shifting the array breaks the heap, and the next \"soonest\" is wrong. After removing the minimum, the last element moves to root and sifts down toward the appropriate child. In this lesson you'll implement and test heap construction, insertion and root extraction.\n\n```predict\n{\"question\": \"Sifting down from the root, the children hold 5 and 3. Which child do you swap with?\", \"options\": [\"5, the left one\", \"3, the smaller child\"], \"answer\": 1, \"why\": \"Swapping with the smaller child makes it the new parent, and it's ≤ the other child.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Array representation and operations; Tree terminology and representation; Heap property and array layout; Correctness and counterexamples. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Array representation and operations**, **Tree terminology and representation**, **Heap property and array layout**, and **Correctness and counterexamples**."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Heap insertion bubbles a new element upward, removal replaces the root and restores order downward, and heap construction can run in linear time bottom-up. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The model: fix shape first, then restore order",
+        "body": "```python\ndef sift_up(a, i):\n    while i > 0 and a[i] < a[(i - 1) // 2]:\n        p = (i - 1) // 2\n        a[i], a[p] = a[p], a[i]\n        i = p\n\ndef sift_down(a, i, size):\n    while True:\n        smallest, l, r = i, 2 * i + 1, 2 * i + 2\n        if l < size and a[l] < a[smallest]: smallest = l\n        if r < size and a[r] < a[smallest]: smallest = r\n        if smallest == i:\n            return\n        a[i], a[smallest] = a[smallest], a[i]\n        i = smallest\n\ndef push(a, x):                          # O(log n).\n    a.append(x)\n    sift_up(a, len(a) - 1)\n\ndef pop_min(a):                          # O(log n).\n    top, last = a[0], a.pop()\n    if a:\n        a[0] = last                      # last item to the root.\n        sift_down(a, 0, len(a))\n    return top\n\ndef build_heap(a):                       # O(n) bottom-up.\n    for i in range(len(a) // 2 - 1, -1, -1):\n        sift_down(a, i, len(a))\n```\n\n| Operation | Order step | Cost |\n|---|---|---|\n| push. | sift up. | O(log n). |\n| pop_min. | sift down. | O(log n). |\n| build_heap. | sift down each non-leaf. | O(n). |\n\n```reveal\n{\"prompt\": \"Why is build_heap O(n)?\", \"answer\": \"Half the nodes are leaves and never move; a quarter move at most 1 level, an eighth at most 2, and so on. That sum stays under 2n.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Comparator consistency, index bounds, and mutable priorities can invalidate the structure. The draft therefore rejects: Building a heap by bottom-up sifting is O(n log n)."
+        "heading": "Why not shift the array?",
+        "body": "```predict\n{\"question\": \"Removing a[0] with pop(0) from a heap array. What breaks?\", \"options\": [\"Nothing\", \"Every index shifts, so parent-child relationships are scrambled\"], \"answer\": 1, \"why\": \"Move the last item to the root instead; only one path needs repairing.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Restore heap order upward or downward after structural changes.",
-      "Implement and test heap construction, insertion and root extraction.",
-      "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+      "Implement push with sift-up and pop_min with sift-down.",
+      "Build a heap bottom-up in O(n) and test operations with a heap validator."
     ],
     "excludes": [
-      "Comparator consistency, index bounds, and mutable priorities can invalidate the structure."
+      "decrease-key and indexed heaps.",
+      "Library heap internals."
     ]
   },
   "outcomes": [
@@ -68,142 +64,137 @@
   "examples": [
     {
       "id": "dsa.heaps.operations.example-a",
-      "title": "Heapify, insert and extract: language-neutral trace",
+      "title": "Taking the soonest reminder",
       "situation": "After removing the minimum, the last element moves to root and sifts down toward the appropriate child.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: After removing the minimum, the last element moves to root and sifts down toward the appropriate child.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Bottom-up heap construction is O(n); repeated insertion is the O(n log n) alternative."
+        "**Remove the minimum:** in [2, 5, 3, 9, 6, 4], take 2 from the root and move the last element, 4, to the root: [4, 5, 3, 9, 6].",
+        "**Sift down toward the appropriate child:** 4's children are 5 and 3; swap with the smaller, 3, giving [3, 5, 4, 9, 6].",
+        "**Test:** repeated pop_min will return 2, 3, 4, 5, 6, 9, and is_min_heap passes after every step."
       ],
-      "result": "The conceptual result follows because Bottom-up heap construction is O(n); repeated insertion is the O(n log n) alternative."
+      "result": "The app always takes the truly soonest reminder, and the heap stays valid after every removal."
     },
     {
       "id": "dsa.heaps.operations.example-b",
-      "title": "Heapify, insert and extract: implementation transfer",
-      "situation": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
+      "title": "Loading a day of reminders",
+      "situation": "At startup the app inserts 100,000 saved reminders one by one with push, taking O(n log n).",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
-        "Step 3 — Retest this boundary in the selected implementation: Comparator consistency, index bounds, and mutable priorities can invalidate the structure."
+        "All items are available up front.",
+        "build_heap sifts down non-leaves bottom-up in O(n).",
+        "Test: after build_heap, is_min_heap is True and pop_min returns items in sorted order."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Startup loading is faster, and the heap is valid from the first extract."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.heaps.operations.misconception",
       "mistakenBelief": "Building a heap by bottom-up sifting is O(n log n).",
-      "correction": "Bottom-up heap construction is O(n); repeated insertion is the O(n log n) alternative.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Building a heap by bottom-up sifting is O(n log n)."
+      "correction": "Bottom-up building does most of its work on low nodes that move only a level or two; summing the maximum moves per level gives O(n). Inserting items one by one is the O(n log n) way.",
+      "diagnosticPrompt": "In \"Loading a day of reminders\", which method was O(n)?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Heapify, insert and extract, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Extracting from a heap is like **replacing the team captain**: the captain leaves, the newest recruit (last item) is put in the captain's seat to keep the team shape, then keeps swapping places with the stronger of their two direct reports until nobody below is stronger.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering shape first, then order",
+      "smaller child = the stronger report in a min-heap"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Comparator consistency, index bounds, and mutable priorities can invalidate the structure."
+      "Real teams would pick the best person directly; the heap repairs one path to stay O(log n).",
+      "Insert is the recruit climbing up past weaker bosses."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "After removing the minimum, the last element moves to root and sifts down toward the appropriate child.",
-      "Heap insertion bubbles a new element upward, removal replaces the root and restores order downward, and heap construction can run in linear time bottom-up.",
-      "Bottom-up heap construction is O(n); repeated insertion is the O(n log n) alternative.",
-      "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+      "heap [2, 5, 3, 9, 6, 4]",
+      "pop_min",
+      "sift down"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Remove",
         "state": {
-          "scenario": "After removing the minimum, the last element moves to root and sifts down toward the appropriate child."
+          "returned": "2",
+          "a": "[4, 5, 3, 9, 6]"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "After removing the minimum, the last element moves to root."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Sift",
         "state": {
-          "invariant": "Heap insertion bubbles a new element upward, removal replaces the root and restores order downward, and heap construction can run in linear time bottom-up."
+          "children of 4": "5, 3",
+          "swap with": "3",
+          "a": "[3, 5, 4, 9, 6]"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "It sifts down toward the appropriate child, the smaller one."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Stop",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "4 at index 2": "no children",
+          "valid": "yes"
         },
-        "explanation": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Bottom-up heap construction is O(n); repeated insertion is the O(n log n) alternative."
-        },
-        "explanation": "Verify the result and reject this misconception: Building a heap by bottom-up sifting is O(n log n)."
+        "explanation": "The heap property is restored along one path."
       }
     ],
-    "textAlternative": "Starting artifact: After removing the minimum, the last element moves to root and sifts down toward the appropriate child. Step 1, Specification. State: scenario: After removing the minimum, the last element moves to root and sifts down toward the appropriate child.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Heap insertion bubbles a new element upward, removal replaces the root and restores order downward, and heap construction can run in linear time bottom-up.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged. Step 4, Conclusion. State: correction: Bottom-up heap construction is O(n); repeated insertion is the O(n log n) alternative.. Verify the result and reject this misconception: Building a heap by bottom-up sifting is O(n log n)."
+    "textAlternative": "Tracing pop_min. Step 1, Remove: returned is 2; a is [4, 5, 3, 9, 6]. After removing the minimum, the last element moves to root. Step 2, Sift: children of 4 is 5, 3; swap with is 3; a is [3, 5, 4, 9, 6]. It sifts down toward the appropriate child, the smaller one. Step 3, Stop: 4 at index 2 is no children; valid is yes. The heap property is restored along one path."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Heapify, insert and extract: language-neutral trace”: state its starting evidence, apply the Heapify, insert and extract rule, and give the observable result in three short lines.",
+      "prompt": "For \"Taking the soonest reminder\", explain how after removing the minimum, the last element moves to root and sifts down toward the appropriate child.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Remove.",
+        "Sift down.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Heapify, insert and extract: language-neutral trace.",
-        "Starting evidence: After removing the minimum, the last element moves to root and sifts down toward the appropriate child.",
-        "Core rule: Heap insertion bubbles a new element upward, removal replaces the root and restores order downward, and heap construction can run in linear time bottom-up.",
-        "Observable result: The conceptual result follows because Bottom-up heap construction is O(n); repeated insertion is the O(n log n) alternative.",
-        "Boundary check: Bottom-up heap construction is O(n); repeated insertion is the O(n log n) alternative."
+        "Names the example \"Taking the soonest reminder\": deleting index 0 broke the heap.",
+        "After removing the minimum, the last element moves to root.",
+        "It sifts down toward the appropriate child.",
+        "The app always takes the truly soonest reminder."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Heap insertion bubbles a new element upward, removal replaces the root and restores order downward, and heap construction can run in linear time bottom-up.",
+      "prompt": "Push 1 into the min-heap [2, 5, 3, 9, 6, 4]. Show each sift-up swap and the final array.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Append at index 6; parent is 2.",
+        "Keep swapping while smaller."
       ],
       "expectedEvidence": [
-        "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
-        "Comparator consistency, index bounds, and mutable priorities can invalidate the structure."
+        "1 swaps with 3, then with 2.",
+        "Final: [1, 5, 2, 9, 6, 4, 3]."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Heapify, insert and extract case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Implement a MinHeap class with push, pop_min, peek, len and a from_list constructor using build_heap. Test against sorted() on 1,000 random lists and validate the heap after every operation.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Raise on pop from empty.",
+        "Validate with is_min_heap."
       ],
       "expectedEvidence": [
-        "Implement and test heap construction, insertion and root extraction.",
-        "Bottom-up heap construction is O(n); repeated insertion is the O(n log n) alternative."
+        "pop order matches sorted().",
+        "Heap valid after every operation."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.heaps.operations.misconception",
-      "explanation": "Bottom-up heap construction is O(n); repeated insertion is the O(n log n) alternative.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'O(n)', then state one implementation-specific risk in the selected language."
+      "explanation": "For every heap change, do two steps in order: **keep the shape** (append at the end, or move the last item to the root), then **restore order along one path** (sift up or sift down to the smaller child).",
+      "retryPrompt": "Apply this to \"Loading a day of reminders\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test heap construction, insertion and root extraction. Keep this boundary in view: Comparator consistency, index bounds, and mutable priorities can invalidate the structure.",
+    "summary": "To implement and test heap operations, insert by appending and sifting up, extract by moving the last item to the root and sifting down toward the smaller child, both O(log n), and build a heap from n items by sifting down non-leaves bottom-up in O(n), validating the heap after each operation.",
     "retrievalPrompts": [
-      "State the Heapify, insert and extract invariant and complexity without code.",
-      "Why is this claim false: Building a heap by bottom-up sifting is O(n log n).",
-      "Map checkpoint 'O(n)' to C, C++, Java, and Python."
+      "Which child does sift-down swap with?",
+      "Why move the last item to the root?",
+      "Why is bottom-up build O(n)?"
     ],
     "nextReviewPrompt": "Next: continue to “Priority queue applications”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

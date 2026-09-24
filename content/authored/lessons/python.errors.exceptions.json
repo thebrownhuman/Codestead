@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Python exceptions propagate through frames until a matching except clause; responsible boundaries catch specific failures they can recover from, translate, or enrich while preserving the original cause.",
+    "summary": "When something fails, Python **raises** an exception that travels up the call stack until a matching `except` catches it — or the program stops with a traceback. Catch **narrowly**: only the exception types you can actually handle, at the boundary where you know what to do. Use `raise NewError(...) from err` to add context without losing the original cause.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A configuration boundary catches JSONDecodeError and raises ConfigurationError from the original exception with the affected safe path. Your goal is to trace exception propagation and implement a narrow recovery policy. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Your app reads `settings.json` at startup. A user edits it by hand and leaves a trailing comma. Should the app crash with a cryptic JSON traceback, silently carry on with no settings, or say clearly \"settings.json line 4 is invalid\"? A configuration boundary catches JSONDecodeError and raises ConfigurationError from the original exception with the affected safe path. In this lesson you'll trace exception propagation and implement a narrow recovery policy.\n\n```predict\n{\"question\": \"`try: data = json.loads(text)` / `except Exception: data = {}`. The text has a typo. What does the user see?\", \"options\": [\"A clear error message\", \"Nothing — the app runs with empty settings, silently\"], \"answer\": 1, \"why\": \"A broad except swallowed the problem. The app now behaves strangely later, and nobody knows why. Catch narrowly and report clearly.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Function contracts and returns; Unicode text and formatting; Tracebacks and error categories. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Function contracts and returns**, **Unicode text and formatting**, and **Tracebacks and error categories**."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Python exceptions propagate through frames until a matching except clause; responsible boundaries catch specific failures they can recover from, translate, or enrich while preserving the original cause. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: raise, propagate, catch at the boundary",
+        "body": "```python\nimport json\nfrom pathlib import Path\n\nclass ConfigurationError(Exception):\n    pass\n\ndef load_config(path: Path) -> dict:\n    try:\n        return json.loads(path.read_text(encoding=\"utf-8\"))\n    except json.JSONDecodeError as err:\n        raise ConfigurationError(f\"{path.name}: invalid JSON at line {err.lineno}\") from err\n```\n\n| Block | Runs when |\n|---|---|\n| `try`. | always first. |\n| `except X as err`. | an X (or subclass) was raised inside try. |\n| `else`. | try finished without an exception. |\n| `finally`. | always, even after return or raise. |\n\n```reveal\n{\"prompt\": \"What does `from err` add?\", \"answer\": \"It chains the exceptions: the traceback shows the original JSONDecodeError as the direct cause, so debugging details aren't lost.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "except Exception excludes some control exceptions but is still broad, finally always runs during unwinding, else separates success-only work, and handlers can accidentally mask a second failure. The learner must reject this documented misconception: A bare except around a whole function is robust because it prevents all crashes and lets execution continue."
+        "heading": "Propagation",
+        "body": "```predict\n{\"question\": \"`main()` calls `start()`, which calls `load_config()`, which raises ConfigurationError. Only `main` has `except ConfigurationError`. What happens?\", \"options\": [\"The program crashes inside load_config\", \"The exception travels up through start to main, which handles it\"], \"answer\": 1, \"why\": \"Uncaught exceptions propagate up the stack, skipping the rest of each function, until a matching handler catches them.\"}\n```\n\nNever write bare `except:` — it even catches Ctrl+C (KeyboardInterrupt) and hides real bugs."
       }
     ]
   },
   "scope": {
     "includes": [
-      "Catch specific exceptions at responsible boundaries and preserve causal context.",
-      "Trace exception propagation and implement a narrow recovery policy."
+      "Trace how an exception propagates up the call stack to a handler.",
+      "Catch specific exceptions at a boundary and chain them with raise … from."
     ],
     "excludes": [
-      "except Exception excludes some control exceptions but is still broad, finally always runs during unwinding, else separates success-only work, and handlers can accidentally mask a second failure."
+      "Designing exception hierarchies (next lesson).",
+      "Exception groups and except*."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "python.errors.exceptions.example.direct",
-      "title": "Exception handling and propagation: direct language case",
+      "title": "Translating a bad config file",
       "situation": "A configuration boundary catches JSONDecodeError and raises ConfigurationError from the original exception with the affected safe path.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A configuration boundary catches JSONDecodeError and raises ConfigurationError from the original exception with the affected safe path.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Catch specific exceptions at a responsible boundary, keep the try block narrow, preserve causal context, and recover only when a valid next state exists."
+        "**Failure:** `json.loads` raises JSONDecodeError because of a trailing comma on line 4.",
+        "**Configuration boundary:** `load_config` catches only JSONDecodeError and raises ConfigurationError from the original exception.",
+        "**Safe path in the message:** it shows `settings.json: invalid JSON at line 4` — the file name, not secret contents."
       ],
-      "result": "The example meets the atomic outcome because Catch specific exceptions at a responsible boundary, keep the try block narrow, preserve causal context, and recover only when a valid next state exists."
+      "result": "main catches ConfigurationError and prints a clear message; the chained traceback keeps the original JSON details for debugging."
     },
     {
       "id": "python.errors.exceptions.example.boundary",
-      "title": "Exception handling and propagation: boundary and transfer case",
-      "situation": "A narrow ValueError handler covers user parsing but lets an unrelated programming TypeError propagate to the application error policy.",
+      "title": "The except that hid a typo",
+      "situation": "```python\ntry:\n    total = sum(prces)\nexcept Exception:\n    total = 0\n```\nThe report always shows a total of 0.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A narrow ValueError handler covers user parsing but lets an unrelated programming TypeError propagate to the application error policy.",
-        "Step 2 — Keep the language boundary explicit: except Exception excludes some control exceptions but is still broad, finally always runs during unwinding, else separates success-only work, and handlers can accidentally mask a second failure.",
-        "Step 3 — Reject the tempting but incorrect rule: A bare except around a whole function is robust because it prevents all crashes and lets execution continue."
+        "`prces` is a typo, so Python raises NameError.",
+        "`except Exception` catches that too and quietly sets total to 0.",
+        "Fix: remove the broad except (the NameError should surface), and catch only errors you can really handle."
       ],
-      "result": "This case demonstrates the declared outcome: Trace exception propagation and implement a narrow recovery policy."
+      "result": "Without the broad except, the typo shows up at once and gets fixed."
     }
   ],
   "misconceptions": [
     {
       "id": "python.errors.exceptions.misconception",
-      "mistakenBelief": "A bare except around a whole function is robust because it prevents all crashes and lets execution continue.",
-      "correction": "Catch specific exceptions at a responsible boundary, keep the try block narrow, preserve causal context, and recover only when a valid next state exists.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: A bare except around a whole function is robust because it prevents all crashes and lets execution continue."
+      "mistakenBelief": "A bare except around a whole function is robust, because it prevents all crashes and lets execution continue.",
+      "correction": "Catching everything hides bugs and leaves the program in an unknown state. Catch specific exceptions where you can recover or add context, and let unexpected ones propagate so they're seen.",
+      "diagnosticPrompt": "In \"The except that hid a typo\", what error was being hidden?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a records office that escalates named failures, validates decoded forms, and returns borrowed resources on every exit can introduce Exception handling and propagation, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "example": "An exception is like a **fire alarm** passed up the chain of command: the worker who notices it can't fix it, so it goes to the floor manager, then the building manager — until someone with the right plan acts. A bare except is cutting the alarm wire.",
     "usefulFor": [
-      "exceptions, custom failure categories, files, JSON, and contexts"
+      "remembering propagation up the chain",
+      "seeing narrow catches as \"the right person responds\""
     ],
     "limitations": [
-      "exception chaining, suppression, path resolution, encoding, partial writes, and protocol methods are software rules",
-      "except Exception excludes some control exceptions but is still broad, finally always runs during unwinding, else separates success-only work, and handlers can accidentally mask a second failure."
+      "Alarms are rare; exceptions are routine control flow in some code.",
+      "`finally` is like the evacuation checklist that runs no matter what."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A configuration boundary catches JSONDecodeError and raises ConfigurationError from the original exception with the affected safe path.",
-      "Python exceptions propagate through frames until a matching except clause; responsible boundaries catch specific failures they can recover from, translate, or enrich while preserving the original cause.",
-      "Catch specific exceptions at a responsible boundary, keep the try block narrow, preserve causal context, and recover only when a valid next state exists."
+      "main() → start() → load_config(path)",
+      "json.loads raises JSONDecodeError",
+      "raise ConfigurationError(...) from err; main catches it"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Raised",
         "state": {
-          "evidence": "A configuration boundary catches JSONDecodeError and raises ConfigurationError from the original exception with the affected safe path."
+          "exception": "JSONDecodeError",
+          "where": "json.loads"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "Parsing the bad file raises JSONDecodeError inside load_config."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Translated",
         "state": {
-          "rule": "Python exceptions propagate through frames until a matching except clause; responsible boundaries catch specific failures they can recover from, translate, or enrich while preserving the original cause."
+          "raised": "ConfigurationError",
+          "__cause__": "JSONDecodeError"
         },
-        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "The configuration boundary catches it and raises ConfigurationError from the original exception."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Propagated and caught",
         "state": {
-          "correction": "Catch specific exceptions at a responsible boundary, keep the try block narrow, preserve causal context, and recover only when a valid next state exists."
+          "skipped": "rest of start()",
+          "handled in": "main"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: A bare except around a whole function is robust because it prevents all crashes and lets execution continue."
+        "explanation": "The exception propagates through start to main, which prints the safe path message."
       }
     ],
-    "textAlternative": "Starting artifact: A configuration boundary catches JSONDecodeError and raises ConfigurationError from the original exception with the affected safe path. Step 1, Observe. State: evidence: A configuration boundary catches JSONDecodeError and raises ConfigurationError from the original exception with the affected safe path.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Python exceptions propagate through frames until a matching except clause; responsible boundaries catch specific failures they can recover from, translate, or enrich while preserving the original cause.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Catch specific exceptions at a responsible boundary, keep the try block narrow, preserve causal context, and recover only when a valid next state exists.. Compare the observation with the correction and explain why the misconception fails: A bare except around a whole function is robust because it prevents all crashes and lets execution continue."
+    "textAlternative": "Exception propagation from a config loader. Step 1, Raised: exception is JSONDecodeError; where is json.loads. Parsing the bad file raises JSONDecodeError inside load_config. Step 2, Translated: raised is ConfigurationError; __cause__ is JSONDecodeError. The configuration boundary catches it and raises ConfigurationError from the original exception. Step 3, Propagated and caught: skipped is rest of start(); handled in is main. The exception propagates through start to main, which prints the safe path message."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Exception handling and propagation: direct language case”: state its starting evidence, apply the Exception handling and propagation rule, and give the observable result in three short lines.",
+      "prompt": "For \"Translating a bad config file\", explain which exception the configuration boundary catches, how it raises ConfigurationError from the original exception, and why the message uses the affected safe path.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Caught type.",
+        "Chaining.",
+        "Message."
       ],
       "expectedEvidence": [
-        "Named example: Exception handling and propagation: direct language case.",
-        "Starting evidence: A configuration boundary catches JSONDecodeError and raises ConfigurationError from the original exception with the affected safe path.",
-        "Core rule: Python exceptions propagate through frames until a matching except clause; responsible boundaries catch specific failures they can recover from, translate, or enrich while preserving the original cause.",
-        "Observable result: The example meets the atomic outcome because Catch specific exceptions at a responsible boundary, keep the try block narrow, preserve causal context, and recover only when a valid next state exists.",
-        "Boundary check: Catch specific exceptions at a responsible boundary, keep the try block narrow, preserve causal context, and recover only when a valid next state exists."
+        "Names the example \"Translating a bad config file\": a configuration boundary catches JSONDecodeError.",
+        "It raises ConfigurationError from the original exception, keeping the cause.",
+        "The message names the affected safe path, like settings.json and the line.",
+        "main handles ConfigurationError clearly."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A narrow ValueError handler covers user parsing but lets an unrelated programming TypeError propagate to the application error policy.",
+      "prompt": "Write `read_age(text)` that returns an int, and a caller that catches only ValueError to ask again. What happens if `text` is None?",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "int(None) raises TypeError.",
+        "Should that be caught?"
       ],
       "expectedEvidence": [
-        "Python exceptions propagate through frames until a matching except clause; responsible boundaries catch specific failures they can recover from, translate, or enrich while preserving the original cause.",
-        "except Exception excludes some control exceptions but is still broad, finally always runs during unwinding, else separates success-only work, and handlers can accidentally mask a second failure."
+        "Caller catches ValueError only and re-prompts.",
+        "None raises TypeError, which propagates — a bug to fix, not a retry."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Exception handling and propagation, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Take a script with a broad `except Exception`. Replace it with specific handlers, add `from err` chaining where you translate errors, and write a test for one failure path.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "List what can really fail.",
+        "Test with pytest.raises."
       ],
       "expectedEvidence": [
-        "Trace exception propagation and implement a narrow recovery policy.",
-        "Catch specific exceptions at a responsible boundary, keep the try block narrow, preserve causal context, and recover only when a valid next state exists."
+        "Only specific exceptions caught, with context added via chaining.",
+        "A passing test for a failure path."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "python.errors.exceptions.misconception",
-      "explanation": "Catch specific exceptions at a responsible boundary, keep the try block narrow, preserve causal context, and recover only when a valid next state exists.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A narrow ValueError handler covers user parsing but lets an unrelated programming TypeError propagate to the application error policy."
+      "explanation": "For each `except`, ask: **Which exact error? Can I recover here, or add useful context? If not — let it propagate.**",
+      "retryPrompt": "Ask this about \"The except that hid a typo\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to trace exception propagation and implement a narrow recovery policy. Keep this boundary in view: except Exception excludes some control exceptions but is still broad, finally always runs during unwinding, else separates success-only work, and handlers can accidentally mask a second failure.",
+    "summary": "To trace exception propagation, follow the raised exception up the call stack until a matching handler. Implement a narrow recovery policy: catch specific types at a boundary, translate with `raise … from err` to keep the cause, and let unexpected errors surface.",
     "retrievalPrompts": [
-      "Explain Exception handling and propagation using canonical Python: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: A bare except around a whole function is robust because it prevents all crashes and lets execution continue.",
-      "Predict this case from memory: A narrow ValueError handler covers user parsing but lets an unrelated programming TypeError propagate to the application error policy."
+      "What happens to an uncaught exception?",
+      "Why is bare except harmful?",
+      "What does `raise X from err` preserve?"
     ],
     "nextReviewPrompt": "Next: continue to “Raising and custom exceptions”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

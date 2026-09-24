@@ -33,38 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Correctness connects a precondition, invariant or inductive claim, termination, and postcondition for every permitted input.",
+    "summary": "Tests show an algorithm works **for the inputs you tried**; an argument shows it works **for every allowed input**. For a loop, the argument has four parts. **Precondition**: what's true about the input (non-empty list). **Invariant**: a claim true before and after every iteration. **Termination**: the loop must end. **Postcondition**: when it ends, the invariant plus the exit condition gives the promised result. To break a wrong algorithm, hunt for a **counterexample**: a single allowed input where it fails, usually at an edge such as empty, one item, all equal or all negative.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A loop invariant states that the retained maximum equals the maximum of all elements already visited. Your goal is to find a counterexample to an incorrect algorithm and explain a corrected invariant. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A weather app finds the biggest temperature change of the day with `best = 0` and a loop that keeps larger values. Hundreds of random tests with positive numbers pass. On a winter day when every change is negative, it reports 0, a value that isn't even in the list.A loop invariant states that the retained maximum equals the maximum of all elements already visited. In this lesson you'll find a counterexample to an incorrect algorithm and explain a corrected invariant.\n\n```predict\n{\"question\": \"`best = 0; for x in values: if x > best: best = x`. Which input is a counterexample for \\\"return the maximum\\\"?\", \"options\": [\"[3, 9, 4]\", \"[-5, -2, -8]\"], \"answer\": 1, \"why\": \"It returns 0, which isn't in the list. Starting from 0 breaks when every value is negative.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: pf problem pseudocode; pf tools debug test; Algorithm specification and invariants; pf problem examples. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Pseudocode**, **Debugging and testing loop**, **Algorithm specification and invariants**, and **Examples and edge cases** (choosing edge-case inputs)."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Correctness connects a precondition, invariant or inductive claim, termination, and postcondition for every permitted input. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The invariant argument: before, during, after",
+        "body": "```python\ndef maximum(values):\n    # Precondition: values is non-empty.\n    best = values[0]\n    for i in range(1, len(values)):\n        # Invariant (before this step): best == max(values[0:i]).\n        if values[i] > best:\n            best = values[i]\n        # Still true: best == max(values[0:i+1]).\n    # Loop ends when i reaches len(values), so best == max(values[0:n]).\n    return best\n```\n\n| Part | For maximum |\n|---|---|\n| precondition. | at least one value. |\n| initialisation. | best = values[0] is the max of values[0:1]. |\n| maintenance. | comparing one more value keeps best the max so far. |\n| termination. | i increases each step and stops at n. |\n| postcondition. | best is the max of all n values. |\n\n```reveal\n{\"prompt\": \"Why does best = 0 break the invariant?\", \"answer\": \"Before any step, best must equal the max of the elements visited. With 0 and no elements visited, 0 isn't the max of anything in the list, so the claim is false from the start.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Passing tests supplies evidence but cannot cover an unbounded input domain or repair an invalid invariant. The draft therefore rejects: Many passing random tests prove an algorithm correct for all inputs."
+        "heading": "Tests vs arguments",
+        "body": "```predict\n{\"question\": \"1,000 random tests with values from 1 to 100 all pass. Is the best = 0 version correct?\", \"options\": [\"Yes, 1,000 tests is plenty\", \"No: the tests never included all-negative input\"], \"answer\": 1, \"why\": \"Random tests miss edge regions. The invariant argument, or targeted edge tests, catch it.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use cases, invariants and counterexamples to distinguish plausible code from a correct algorithm.",
-      "Find a counterexample to an incorrect algorithm and explain a corrected invariant.",
-      "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
+      "Find counterexamples at edges: empty, one item, all equal, all negative.",
+      "Explain a correct loop invariant with initialisation, maintenance and termination."
     ],
     "excludes": [
-      "Passing tests supplies evidence but cannot cover an unbounded input domain or repair an invalid invariant."
+      "Formal proof assistants.",
+      "Induction proofs for recursive algorithms in depth."
     ]
   },
   "outcomes": [
@@ -73,142 +69,136 @@
   "examples": [
     {
       "id": "dsa.analysis.correctness.example-a",
-      "title": "Correctness and counterexamples: language-neutral trace",
+      "title": "The maximum that started at zero",
       "situation": "A loop invariant states that the retained maximum equals the maximum of all elements already visited.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: A loop invariant states that the retained maximum equals the maximum of all elements already visited.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Use tests plus a correctness argument showing invariant preservation, termination, and the required postcondition."
+        "**Counterexample:** for [-5, -2, -8], the version starting at 0 returns 0, which isn't in the list.",
+        "**Corrected invariant:** start with best = values[0], so best equals the maximum of all elements already visited.",
+        "**Check the argument:** it holds at the start, each comparison keeps it true, and at the end it will cover all n values."
       ],
-      "result": "The conceptual result follows because Use tests plus a correctness argument showing invariant preservation, termination, and the required postcondition."
+      "result": "The function returns -2 for the winter data and is correct for every non-empty list."
     },
     {
       "id": "dsa.analysis.correctness.example-b",
-      "title": "Correctness and counterexamples: implementation transfer",
-      "situation": "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics.",
+      "title": "The average that divided by zero",
+      "situation": "`def average(xs): return sum(xs) / len(xs)` passes every test in the file.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics.",
-        "Step 3 — Retest this boundary in the selected implementation: Passing tests supplies evidence but cannot cover an unbounded input domain or repair an invalid invariant."
+        "Look for an edge input the tests skipped: the empty list.",
+        "average([]) raises ZeroDivisionError.",
+        "Fix the contract (require non-empty, or return None for empty) and add that test."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "The behaviour for empty input is defined and tested."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.analysis.correctness.misconception",
       "mistakenBelief": "Many passing random tests prove an algorithm correct for all inputs.",
-      "correction": "Use tests plus a correctness argument showing invariant preservation, termination, and the required postcondition.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Many passing random tests prove an algorithm correct for all inputs."
+      "correction": "Tests only cover the inputs they try, and random ones often miss edges. A correctness argument covers every allowed input, and a single counterexample disproves a claim.",
+      "diagnosticPrompt": "In the \"Tests vs arguments\" predict, which input region did the tests miss?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Correctness and counterexamples, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "An invariant is like **a relay baton rule**: \"whoever holds the baton has the fastest time so far\". It's true when the race starts, stays true at each handover, and so it's true at the finish. A counterexample is **the one runner who proves the rule wrong**.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering true before, during, after",
+      "counterexample = one runner breaks it"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Passing tests supplies evidence but cannot cover an unbounded input domain or repair an invalid invariant."
+      "Relays have a fixed length; loops need a termination argument.",
+      "Starting the baton with a made-up time (0) breaks the rule immediately."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A loop invariant states that the retained maximum equals the maximum of all elements already visited.",
-      "Correctness connects a precondition, invariant or inductive claim, termination, and postcondition for every permitted input.",
-      "Use tests plus a correctness argument showing invariant preservation, termination, and the required postcondition.",
-      "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
+      "values = [-5, -2, -8]",
+      "i = 1, 2",
+      "return best"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Initialise",
         "state": {
-          "scenario": "A loop invariant states that the retained maximum equals the maximum of all elements already visited."
+          "best": "-5",
+          "visited": "[-5]"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The invariant holds: best is the maximum of all elements already visited."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Maintain",
         "state": {
-          "invariant": "Correctness connects a precondition, invariant or inductive claim, termination, and postcondition for every permitted input."
+          "i = 1": "best = -2",
+          "i = 2": "best stays -2"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "Each step keeps the retained maximum equal to the maximum so far."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Terminate",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "i": "3 = n",
+          "return": "-2"
         },
-        "explanation": "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Use tests plus a correctness argument showing invariant preservation, termination, and the required postcondition."
-        },
-        "explanation": "Verify the result and reject this misconception: Many passing random tests prove an algorithm correct for all inputs."
+        "explanation": "The loop ends and the invariant gives the true maximum."
       }
     ],
-    "textAlternative": "Starting artifact: A loop invariant states that the retained maximum equals the maximum of all elements already visited. Step 1, Specification. State: scenario: A loop invariant states that the retained maximum equals the maximum of all elements already visited.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Correctness connects a precondition, invariant or inductive claim, termination, and postcondition for every permitted input.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics. Step 4, Conclusion. State: correction: Use tests plus a correctness argument showing invariant preservation, termination, and the required postcondition.. Verify the result and reject this misconception: Many passing random tests prove an algorithm correct for all inputs."
+    "textAlternative": "Tracing the corrected maximum. Step 1, Initialise: best is -5; visited is [-5]. The invariant holds: best is the maximum of all elements already visited. Step 2, Maintain: i = 1 is best = -2; i = 2 is best stays -2. Each step keeps the retained maximum equal to the maximum so far. Step 3, Terminate: i is 3 = n; return is -2. The loop ends and the invariant gives the true maximum."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Correctness and counterexamples: language-neutral trace”: state its starting evidence, apply the Correctness and counterexamples rule, and give the observable result in three short lines.",
+      "prompt": "For \"The maximum that started at zero\", explain how a loop invariant states that the retained maximum equals the maximum of all elements already visited.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Counterexample.",
+        "Invariant.",
+        "Argument."
       ],
       "expectedEvidence": [
-        "Named example: Correctness and counterexamples: language-neutral trace.",
-        "Starting evidence: A loop invariant states that the retained maximum equals the maximum of all elements already visited.",
-        "Core rule: Correctness connects a precondition, invariant or inductive claim, termination, and postcondition for every permitted input.",
-        "Observable result: The conceptual result follows because Use tests plus a correctness argument showing invariant preservation, termination, and the required postcondition.",
-        "Boundary check: Use tests plus a correctness argument showing invariant preservation, termination, and the required postcondition."
+        "Names the example \"The maximum that started at zero\": starting at zero failed on all-negative input.",
+        "The loop invariant states the retained maximum equals the maximum of all elements already visited.",
+        "Starting from values[0] makes it true at the start.",
+        "The function returns -2 for the winter data."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Correctness connects a precondition, invariant or inductive claim, termination, and postcondition for every permitted input.",
+      "prompt": "This claims to return True if a list is sorted ascending: `for i in range(len(a) - 1): if a[i] > a[i + 1]: return True; return False`. Find a counterexample and fix it.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Try an unsorted list.",
+        "What should return when a pair is out of order?"
       ],
       "expectedEvidence": [
-        "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics.",
-        "Passing tests supplies evidence but cannot cover an unbounded input domain or repair an invalid invariant."
+        "[2, 1] returns True: wrong.",
+        "Return False on a bad pair, True at the end."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Correctness and counterexamples case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Write `count_less_than(values, t)` with a loop invariant in comments, argue initialisation, maintenance and termination, and write edge tests that would catch a wrong initial count.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Invariant about the prefix count.",
+        "Empty and all-less inputs."
       ],
       "expectedEvidence": [
-        "Find a counterexample to an incorrect algorithm and explain a corrected invariant.",
-        "Use tests plus a correctness argument showing invariant preservation, termination, and the required postcondition."
+        "Invariant stated and argued.",
+        "Edge tests pass."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.analysis.correctness.misconception",
-      "explanation": "Use tests plus a correctness argument showing invariant preservation, termination, and the required postcondition.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'correctness argument', then state one implementation-specific risk in the selected language."
+      "explanation": "Write the invariant as a sentence about **the part of the input already processed**. Check it before the first step. Then try the edges: **empty, one item, all equal, all negative, largest values.**",
+      "retryPrompt": "Apply this to \"The average that divided by zero\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to find a counterexample to an incorrect algorithm and explain a corrected invariant. Keep this boundary in view: Passing tests supplies evidence but cannot cover an unbounded input domain or repair an invalid invariant.",
+    "summary": "To find a counterexample to an incorrect algorithm, test edge inputs like all-negative or empty lists; to explain a corrected invariant, show it's true at the start, stays true after each step, and together with termination gives the postcondition, such as the retained maximum equalling the maximum of everything visited.",
     "retrievalPrompts": [
-      "State the Correctness and counterexamples invariant and complexity without code.",
-      "Why is this claim false: Many passing random tests prove an algorithm correct for all inputs.",
-      "Map checkpoint 'correctness argument' to C, C++, Java, and Python."
+      "Why can't many passing tests prove correctness?",
+      "What are the parts of an invariant argument?",
+      "Which edge inputs are worth trying first?"
     ],
     "nextReviewPrompt": "Next: continue to “Time, space and asymptotic growth”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

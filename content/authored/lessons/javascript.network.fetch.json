@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "fetch resolves for HTTP error statuses and rejects mainly for network-level failures, so code checks response.ok before parsing.",
+    "summary": "`fetch(url)` returns a promise of a **Response**. It **fulfils for any HTTP answer**, including 404 and 500. It **rejects only when no answer arrives**: offline, DNS failure, CORS block or abort. So always check `response.ok` (true for status 200-299) before reading the body. Then `await response.json()` can itself fail if the body isn't valid JSON, and even valid JSON may have the wrong shape. Treat these as three separate cases so learners get the right message.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A request checks response.ok, validates JSON shape, and presents separate HTTP, parse, and network errors. Your goal is to implement and test a JSON request that distinguishes HTTP failure from network rejection. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A lesson page calls `fetch(\"/api/lessons/42\").then(r => r.json())`. When lesson 42 is deleted, the server sends a 404 HTML page, and the learner sees \"Unexpected token '<'\" instead of \"Lesson not found\". A request checks response.ok, validates JSON shape, and presents separate HTTP, parse, and network errors. In this lesson you'll implement and test a JSON request that distinguishes HTTP failure from network rejection.\n\n```predict\n{\"question\": \"The server replies 500. What does `await fetch(url)` do?\", \"options\": [\"Throws an error\", \"Returns a Response with ok === false and status 500\"], \"answer\": 1, \"why\": \"A 500 is still an HTTP answer. fetch only rejects when no answer arrives.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Call stack and event loop model; Closures and lifetime; async and await; Object records and property access. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Call stack and event loop model**, **Closures and lifetime**, **async and await** (with try/catch), and **Object records and property access** for checking the JSON shape."
       },
       {
-        "heading": "Technology rule",
-        "body": "fetch resolves for HTTP error statuses and rejects mainly for network-level failures, so code checks response.ok before parsing. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The rule: check ok, parse, validate shape",
+        "body": "```js\nclass HttpError extends Error {\n  constructor(status) { super(`HTTP ${status}`); this.status = status; }\n}\n\nasync function getLesson(id) {\n  let response;\n  try {\n    response = await fetch(`/api/lessons/${encodeURIComponent(id)}`, {\n      headers: { Accept: \"application/json\" },\n    });\n  } catch (error) {\n    throw new Error(\"Network problem. Check your connection.\", { cause: error });\n  }\n  if (!response.ok) throw new HttpError(response.status);   // 404, 500...\n\n  const data = await response.json();                        // may throw SyntaxError.\n  if (typeof data?.title !== \"string\") throw new TypeError(\"Unexpected lesson format\");\n  return data;\n}\n```\n\n| What happened | How it shows up | Message |\n|---|---|---|\n| no answer (offline, CORS). | fetch rejects (TypeError). | \"Check your connection.\" |\n| HTTP error status. | `response.ok === false`. | 404: \"Lesson not found\". |\n| body not JSON. | `response.json()` rejects. | \"The server sent an unexpected reply.\" |\n| JSON, wrong shape. | your check fails. | same, and log it. |\n\n```reveal\n{\"prompt\": \"Why read `response.status` instead of only `ok`?\", \"answer\": \"ok tells you it failed; status tells you how. 404 means \\\"not found\\\", 401 means \\\"sign in again\\\", 500 means \\\"try later\\\".\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Bodies are one-use streams, parsing can fail, CORS controls access, and credentials and timeouts need explicit policy. This draft therefore rejects: fetch rejects automatically for every 404 or 500 response."
+        "heading": "Sending JSON",
+        "body": "```predict\n{\"question\": \"`fetch(\\\"/api/notes\\\", { method: \\\"POST\\\", body: { text: \\\"hi\\\" } })` sends…\", \"options\": [\"the JSON {\\\"text\\\":\\\"hi\\\"}\", \"the string \\\"[object Object]\\\"\"], \"answer\": 1, \"why\": \"Use `body: JSON.stringify(note)` with `headers: { \\\"Content-Type\\\": \\\"application/json\\\" }`.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Construct requests and handle status, headers, body parsing, network failures and cross-origin constraints.",
-      "Implement and test a JSON request that distinguishes HTTP failure from network rejection."
+      "Check response.ok and status before parsing.",
+      "Separate network, HTTP, parse and shape errors, and send JSON correctly."
     ],
     "excludes": [
-      "Bodies are one-use streams, parsing can fail, CORS controls access, and credentials and timeouts need explicit policy."
+      "Cancellation and timeouts (later lesson).",
+      "CORS server configuration."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "javascript.network.fetch.example-a",
-      "title": "Fetch and HTTP responses: concrete case",
-      "situation": "A request checks response.ok, validates JSON shape, and presents separate HTTP, parse, and network errors.",
+      "title": "Three different ways a request can fail",
+      "situation": "A request checks response.ok, validates JSON shape, and presents separate HTTP, parse, and network errors for lesson 42.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A request checks response.ok, validates JSON shape, and presents separate HTTP, parse, and network errors.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: fetch can fulfill with an HTTP error response; check response.ok or status before treating it as success."
+        "**Check response.ok:** a deleted lesson returns 404, so getLesson throws HttpError(404) before parsing.",
+        "**Validate JSON shape:** a reply without a string title throws TypeError instead of breaking the page later.",
+        "**Test:** a fake fetch that rejects will produce the network message, and one returning 404 will show \"Lesson not found\"."
       ],
-      "result": "The result follows because fetch can fulfill with an HTTP error response; check response.ok or status before treating it as success."
+      "result": "Learners see \"Lesson not found\", \"Check your connection\" or \"Unexpected reply\" depending on what actually failed."
     },
     {
       "id": "javascript.network.fetch.example-b",
-      "title": "Fetch and HTTP responses: boundary case",
-      "situation": "Bodies are one-use streams, parsing can fail, CORS controls access, and credentials and timeouts need explicit policy.",
+      "title": "The note that saved as [object Object]",
+      "situation": "A notes app POSTs `body: note`, and the server stores the text \"[object Object]\" for every note.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Bodies are one-use streams, parsing can fail, CORS controls access, and credentials and timeouts need explicit policy.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: fetch rejects automatically for every 404 or 500 response."
+        "fetch turned the object into a string with its default conversion.",
+        "The server never received JSON.",
+        "Fix: `body: JSON.stringify(note)` with a Content-Type of application/json."
       ],
-      "result": "The boundary requires this correction: fetch can fulfill with an HTTP error response; check response.ok or status before treating it as success."
+      "result": "The server receives {\"text\":\"hi\"} and stores the real note."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.network.fetch.misconception",
       "mistakenBelief": "fetch rejects automatically for every 404 or 500 response.",
-      "correction": "fetch can fulfill with an HTTP error response; check response.ok or status before treating it as success.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: fetch rejects automatically for every 404 or 500 response."
+      "correction": "fetch fulfils whenever the server sends an HTTP response, whatever its status. You must check response.ok or response.status; rejection is mainly for network-level failures.",
+      "diagnosticPrompt": "In \"Three different ways a request can fail\", where is the 404 detected?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Fetch and HTTP responses, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "fetch is like **posting a letter**. If the post office can't deliver it at all, you get it back unopened (rejection). If the reply says \"No such person here\" (404), the letter was still delivered and answered; you have to read the reply to know it's bad news.",
     "usefulFor": [
-      "Building a first mental model for Fetch and HTTP responses before using exact platform terms"
+      "remembering delivered vs undeliverable",
+      "response.ok = reading the reply"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Bodies are one-use streams, parsing can fail, CORS controls access, and credentials and timeouts need explicit policy."
+      "Letters don't come back in HTML; servers sometimes do.",
+      "Checking the shape = checking the reply is from who you expected."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A request checks response.ok, validates JSON shape, and presents separate HTTP, parse, and network errors.",
-      "fetch resolves for HTTP error statuses and rejects mainly for network-level failures, so code checks response.ok before parsing.",
-      "fetch can fulfill with an HTTP error response; check response.ok or status before treating it as success."
+      "await fetch('/api/lessons/42')",
+      "check response.ok",
+      "await response.json() and validate"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Request",
         "state": {
-          "evidence": "A request checks response.ok, validates JSON shape, and presents separate HTTP, parse, and network errors."
+          "response.status": "404",
+          "fetch": "fulfilled"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The request completes because the server sent an HTTP answer."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Check ok",
         "state": {
-          "rule": "fetch resolves for HTTP error statuses and rejects mainly for network-level failures, so code checks response.ok before parsing."
+          "response.ok": "false",
+          "thrown": "HttpError(404)"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Checking response.ok catches the HTTP error before parsing."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Present",
         "state": {
-          "correction": "fetch can fulfill with an HTTP error response; check response.ok or status before treating it as success."
+          "message": "Lesson not found"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: fetch rejects automatically for every 404 or 500 response."
+        "explanation": "Separate HTTP, parse, and network errors get their own messages."
       }
     ],
-    "textAlternative": "Starting artifact: A request checks response.ok, validates JSON shape, and presents separate HTTP, parse, and network errors. Step 1, Artifact. State: evidence: A request checks response.ok, validates JSON shape, and presents separate HTTP, parse, and network errors.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: fetch resolves for HTTP error statuses and rejects mainly for network-level failures, so code checks response.ok before parsing.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: fetch can fulfill with an HTTP error response; check response.ok or status before treating it as success.. Check the result against the boundary and reject this misconception: fetch rejects automatically for every 404 or 500 response."
+    "textAlternative": "Tracing a failed lesson request. Step 1, Request: response.status is 404; fetch is fulfilled. The request completes because the server sent an HTTP answer. Step 2, Check ok: response.ok is false; thrown is HttpError(404). Checking response.ok catches the HTTP error before parsing. Step 3, Present: message is Lesson not found. Separate HTTP, parse, and network errors get their own messages."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Fetch and HTTP responses: concrete case”: state its starting evidence, apply the Fetch and HTTP responses rule, and give the observable result in three short lines.",
+      "prompt": "For \"Three different ways a request can fail\", explain how a request checks response.ok, validates JSON shape, and presents separate HTTP, parse, and network errors.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Network.",
+        "HTTP.",
+        "Parse and shape."
       ],
       "expectedEvidence": [
-        "Named example: Fetch and HTTP responses: concrete case.",
-        "Starting evidence: A request checks response.ok, validates JSON shape, and presents separate HTTP, parse, and network errors.",
-        "Core rule: fetch resolves for HTTP error statuses and rejects mainly for network-level failures, so code checks response.ok before parsing.",
-        "Observable result: The result follows because fetch can fulfill with an HTTP error response; check response.ok or status before treating it as success.",
-        "Boundary check: fetch can fulfill with an HTTP error response; check response.ok or status before treating it as success."
+        "Names the example \"Three different ways a request can fail\": the request checks response.ok for lesson 42.",
+        "Network failures reject fetch itself.",
+        "It validates JSON shape after parsing.",
+        "Learners see \"Lesson not found\" or \"Check your connection\" depending on what actually failed."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Bodies are one-use streams, parsing can fail, CORS controls access, and credentials and timeouts need explicit policy.",
+      "prompt": "Write `postNote(text)` that POSTs JSON to /api/notes, throws HttpError for non-ok statuses, and returns the created note's id after checking it's a string.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "JSON.stringify and Content-Type.",
+        "Check ok before json()."
       ],
       "expectedEvidence": [
-        "fetch resolves for HTTP error statuses and rejects mainly for network-level failures, so code checks response.ok before parsing.",
-        "Bodies are one-use streams, parsing can fail, CORS controls access, and credentials and timeouts need explicit policy."
+        "Correct body and headers.",
+        "Throws for 400 and for a missing id."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Fetch and HTTP responses and explain why the misconception fails.",
+      "prompt": "Write tests for getLesson with a fake fetch covering: network rejection, 404, 500, invalid JSON and wrong shape. Assert each produces a distinct error type or message.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Replace globalThis.fetch in tests.",
+        "Return new Response(body, { status })."
       ],
       "expectedEvidence": [
-        "Implement and test a JSON request that distinguishes HTTP failure from network rejection.",
-        "fetch can fulfill with an HTTP error response; check response.ok or status before treating it as success."
+        "Five passing tests.",
+        "Messages shown to learners match the failure."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.network.fetch.misconception",
-      "explanation": "fetch can fulfill with an HTTP error response; check response.ok or status before treating it as success.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'response.ok' and state the decisive evidence."
+      "explanation": "After every fetch, ask three questions in order: **Did it reach the server (rejection)? Did the server say yes (ok/status)? Is the body what I expect (parse and shape)?**",
+      "retryPrompt": "Apply this to \"The note that saved as [object Object]\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test a JSON request that distinguishes HTTP failure from network rejection. Keep this boundary in view: Bodies are one-use streams, parsing can fail, CORS controls access, and credentials and timeouts need explicit policy.",
+    "summary": "To implement and test a JSON request that distinguishes HTTP failure from network rejection, treat fetch rejection as a network problem, check response.ok and status before parsing, handle JSON parse errors, validate the data's shape, and send JSON with JSON.stringify and the right Content-Type.",
     "retrievalPrompts": [
-      "Explain Fetch and HTTP responses using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: fetch rejects automatically for every 404 or 500 response.",
-      "Apply checkpoint 'response.ok' to a new artifact."
+      "Does fetch reject for a 404?",
+      "What should you check before response.json()?",
+      "How do you send an object as JSON?"
     ],
     "nextReviewPrompt": "Next: continue to “Cancellation, timeout and stale results”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

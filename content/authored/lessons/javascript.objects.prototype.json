@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Objects delegate missing property lookup through a prototype chain, and constructor prototype properties can be shared by instances.",
+    "summary": "Every object has a hidden link to another object, its **prototype**. When you read `obj.x` and obj has no own `x`, JavaScript follows the link and looks there, then that object's prototype, and so on: the **prototype chain**. Class instances keep their **data as own properties** while **methods live once on the class prototype** and are shared. Assigning `obj.x = ...` creates an own property that **shadows** the inherited one; it never edits the prototype.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: An instance method is found on the class prototype while instance data remains an own property. Your goal is to inspect and explain a short prototype chain and a shadowed property. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You create 1,000 `Lesson` objects and worry that each one carries its own copy of the `summary()` method. Open DevTools and the instance shows only `title` and `minutes`. So where is summary? An instance method is found on the class prototype, while instance data remains an own property. In this lesson you'll inspect and explain a short prototype chain and a shadowed property.\n\n```predict\n{\"question\": \"`class Lesson { constructor(t) { this.title = t; } summary() { return this.title; } } const a = new Lesson(\\\"A\\\"); const b = new Lesson(\\\"B\\\");` Is `a.summary === b.summary`?\", \"options\": [\"false, each has its own copy\", \"true, both find the same function on Lesson.prototype\"], \"answer\": 1, \"why\": \"Methods defined in a class body are stored once on Lesson.prototype. Both instances reach them through the chain.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Object records and property access; Function declarations, expressions and arrows; Method calls and this. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Object records and property access**, **Function declarations, expressions and arrows**, and **Method calls and this**, because inherited methods still get this from the call site."
       },
       {
-        "heading": "Technology rule",
-        "body": "Objects delegate missing property lookup through a prototype chain, and constructor prototype properties can be shared by instances. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: own first, then follow the chain",
+        "body": "```js\nclass Lesson {\n  constructor(title) { this.title = title; }   // own data.\n  summary() { return `Lesson: ${this.title}`; } // shared method.\n}\nconst a = new Lesson(\"Loops\");\n\nObject.hasOwn(a, \"title\");                       // true\nObject.hasOwn(a, \"summary\");                     // false\nObject.getPrototypeOf(a) === Lesson.prototype;   // true\na.summary();                                     // \"Lesson: Loops\"\n\na.summary = () => \"custom\";                      // own property shadows it.\na.summary();                                     // \"custom\"\nnew Lesson(\"Maps\").summary();                    // still \"Lesson: Maps\"\n```\n\n| Lookup of `a.summary` | Found? |\n|---|---|\n| 1. own properties of a. | no (until shadowed). |\n| 2. Lesson.prototype. | yes, summary. |\n| 3. Object.prototype. | only reached for toString and friends. |\n| 4. null. | end of chain: undefined. |\n\n```reveal\n{\"prompt\": \"Does `a.summary = ...` change Lesson.prototype?\", \"answer\": \"No. Assignment creates or updates an own property on a. Other instances keep using the prototype method.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Shadowing, mutation of shared prototypes, null prototypes, and pollution from untrusted keys require care. This draft therefore rejects: Every object contains a private copied version of all prototype methods."
+        "heading": "Reading vs writing",
+        "body": "```predict\n{\"question\": \"`const base = { level: 1 }; const child = Object.create(base); child.level = 5;` What is `base.level`?\", \"options\": [\"5\", \"1: the write made an own property on child\"], \"answer\": 1, \"why\": \"Reads walk the chain; writes land on the object itself. child.level shadows base.level.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Trace own and inherited property lookup without treating prototypes as class copies.",
-      "Inspect and explain a short prototype chain and a shadowed property."
+      "Inspect a prototype chain with Object.getPrototypeOf and Object.hasOwn.",
+      "Explain shared methods and a shadowed property."
     ],
     "excludes": [
-      "Shadowing, mutation of shared prototypes, null prototypes, and pollution from untrusted keys require care."
+      "Setting prototypes manually in production code.",
+      "Property descriptors and getters in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "javascript.objects.prototype.example-a",
-      "title": "Prototype delegation: concrete case",
-      "situation": "An instance method is found on the class prototype while instance data remains an own property.",
+      "title": "Where the method really lives",
+      "situation": "An instance method is found on the class prototype while instance data remains an own property of each Lesson.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: An instance method is found on the class prototype while instance data remains an own property.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Prototype methods are shared and found by delegated lookup, not copied into every instance."
+        "**Inspect own data:** `Object.keys(a)` returns [\"title\"], so instance data remains an own property.",
+        "**Check the prototype:** `Object.hasOwn(Lesson.prototype, \"summary\")` is true, so the instance method is found on the class prototype.",
+        "**Compare instances:** `a.summary === b.summary` will read true because both follow the same link."
       ],
-      "result": "The result follows because Prototype methods are shared and found by delegated lookup, not copied into every instance."
+      "result": "One summary function serves every Lesson, and each instance stores only its own title."
     },
     {
       "id": "javascript.objects.prototype.example-b",
-      "title": "Prototype delegation: boundary case",
-      "situation": "Shadowing, mutation of shared prototypes, null prototypes, and pollution from untrusted keys require care.",
+      "title": "The shadowed price",
+      "situation": "A shop object inherits `discount: 0` from a defaults prototype. Code sets `item.discount = 10` for one item and a teammate fears every item now has a 10 discount.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Shadowing, mutation of shared prototypes, null prototypes, and pollution from untrusted keys require care.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Every object contains a private copied version of all prototype methods."
+        "The write creates an own discount property on that item only.",
+        "Other items still read discount 0 from the defaults prototype.",
+        "Check with `Object.hasOwn(item, \"discount\")`: true for the edited item, false for the others."
       ],
-      "result": "The boundary requires this correction: Prototype methods are shared and found by delegated lookup, not copied into every instance."
+      "result": "Only the edited item shows a discount of 10; the shared default stays 0."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.objects.prototype.misconception",
       "mistakenBelief": "Every object contains a private copied version of all prototype methods.",
-      "correction": "Prototype methods are shared and found by delegated lookup, not copied into every instance.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: Every object contains a private copied version of all prototype methods."
+      "correction": "Instances hold only their own properties. Methods live once on the prototype and are found by following the chain at lookup time, which is why a.summary === b.summary.",
+      "diagnosticPrompt": "In \"Where the method really lives\", which keys did Object.keys(a) show?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Prototype delegation, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "A prototype chain is like asking for a stapler at work: first you check **your own desk**, then the **team cupboard**, then the **office store room**. You don't each own a stapler; you borrow the shared one. Putting your own stapler on your desk means you stop looking further.",
     "usefulFor": [
-      "Building a first mental model for Prototype delegation before using exact platform terms"
+      "remembering lookup order",
+      "shadowing = your own stapler on your desk"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Shadowing, mutation of shared prototypes, null prototypes, and pollution from untrusted keys require care."
+      "Borrowed staplers move; prototype methods stay put and run with your this.",
+      "The chain ends at null, like a store room with no door beyond it."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "An instance method is found on the class prototype while instance data remains an own property.",
-      "Objects delegate missing property lookup through a prototype chain, and constructor prototype properties can be shared by instances.",
-      "Prototype methods are shared and found by delegated lookup, not copied into every instance."
+      "const a = new Lesson('Loops')",
+      "a.summary()",
+      "a.summary = () => 'custom'"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Create",
         "state": {
-          "evidence": "An instance method is found on the class prototype while instance data remains an own property."
+          "own keys of a": "['title']"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The constructor stores title as instance data on a."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Lookup",
         "state": {
-          "rule": "Objects delegate missing property lookup through a prototype chain, and constructor prototype properties can be shared by instances."
+          "a has summary?": "no",
+          "found on": "Lesson.prototype"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The instance method is found on the class prototype."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Shadow",
         "state": {
-          "correction": "Prototype methods are shared and found by delegated lookup, not copied into every instance."
+          "own keys of a": "['title', 'summary']",
+          "Lesson.prototype.summary": "unchanged"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Every object contains a private copied version of all prototype methods."
+        "explanation": "Assigning creates an own property that shadows the shared method."
       }
     ],
-    "textAlternative": "Starting artifact: An instance method is found on the class prototype while instance data remains an own property. Step 1, Artifact. State: evidence: An instance method is found on the class prototype while instance data remains an own property.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Objects delegate missing property lookup through a prototype chain, and constructor prototype properties can be shared by instances.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Prototype methods are shared and found by delegated lookup, not copied into every instance.. Check the result against the boundary and reject this misconception: Every object contains a private copied version of all prototype methods."
+    "textAlternative": "Following a short prototype chain. Step 1, Create: own keys of a is ['title']. The constructor stores title as instance data on a. Step 2, Lookup: a has summary? is no; found on is Lesson.prototype. The instance method is found on the class prototype. Step 3, Shadow: own keys of a is ['title', 'summary']; Lesson.prototype.summary is unchanged. Assigning creates an own property that shadows the shared method."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Prototype delegation: concrete case”: state its starting evidence, apply the Prototype delegation rule, and give the observable result in three short lines.",
+      "prompt": "For \"Where the method really lives\", explain how an instance method is found on the class prototype while instance data remains an own property.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Own data.",
+        "Prototype lookup.",
+        "Shared function."
       ],
       "expectedEvidence": [
-        "Named example: Prototype delegation: concrete case.",
-        "Starting evidence: An instance method is found on the class prototype while instance data remains an own property.",
-        "Core rule: Objects delegate missing property lookup through a prototype chain, and constructor prototype properties can be shared by instances.",
-        "Observable result: The result follows because Prototype methods are shared and found by delegated lookup, not copied into every instance.",
-        "Boundary check: Prototype methods are shared and found by delegated lookup, not copied into every instance."
+        "Names the example \"Where the method really lives\": instance data remains an own property.",
+        "The instance method is found on the class prototype.",
+        "Object.hasOwn(a, \"summary\") is false.",
+        "a.summary === b.summary is true."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Shadowing, mutation of shared prototypes, null prototypes, and pollution from untrusted keys require care.",
+      "prompt": "Given `const defaults = { theme: \"light\" }; const user = Object.create(defaults);`, predict `user.theme`, then `user.theme = \"dark\"`, then `defaults.theme` and `Object.hasOwn(user, \"theme\")`.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Reads follow the chain.",
+        "Writes create own properties."
       ],
       "expectedEvidence": [
-        "Objects delegate missing property lookup through a prototype chain, and constructor prototype properties can be shared by instances.",
-        "Shadowing, mutation of shared prototypes, null prototypes, and pollution from untrusted keys require care."
+        "\"light\", then own \"dark\".",
+        "defaults.theme is still \"light\"; hasOwn is true."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Prototype delegation and explain why the misconception fails.",
+      "prompt": "Write a function `describeChain(obj)` that returns the list of own keys at each level of the prototype chain until null. Test it on a class instance and on `Object.create(null)`.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Loop with Object.getPrototypeOf.",
+        "Object.getOwnPropertyNames for each level."
       ],
       "expectedEvidence": [
-        "Inspect and explain a short prototype chain and a shadowed property.",
-        "Prototype methods are shared and found by delegated lookup, not copied into every instance."
+        "Correct levels for a Lesson instance.",
+        "Tests including an object with a null prototype."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.objects.prototype.misconception",
-      "explanation": "Prototype methods are shared and found by delegated lookup, not copied into every instance.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'delegated lookup' and state the decisive evidence."
+      "explanation": "For any property read ask: **Is it own? If not, which prototype has it?** For any write: **it lands on the object itself.** Use Object.hasOwn and Object.getPrototypeOf to check instead of guessing.",
+      "retryPrompt": "Apply this to \"The shadowed price\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to inspect and explain a short prototype chain and a shadowed property. Keep this boundary in view: Shadowing, mutation of shared prototypes, null prototypes, and pollution from untrusted keys require care.",
+    "summary": "To inspect and explain a short prototype chain, remember that reads check own properties first and then follow the prototype link, class methods live once on the prototype, and a write creates an own property that shadows the inherited one without changing the prototype.",
     "retrievalPrompts": [
-      "Explain Prototype delegation using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: Every object contains a private copied version of all prototype methods.",
-      "Apply checkpoint 'delegated lookup' to a new artifact."
+      "Where do class methods live?",
+      "What does a write to an inherited name do?",
+      "Which two functions help you inspect a chain?"
     ],
     "nextReviewPrompt": "Next: continue to “Classes and private state”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

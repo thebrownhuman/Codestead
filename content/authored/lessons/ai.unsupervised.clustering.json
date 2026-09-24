@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Clustering groups examples according to a chosen representation, distance or density model, and algorithm parameters; quality is relative to the intended exploratory or operational use rather than hidden true labels by default.",
+    "summary": "**Clustering** groups examples that are **similar**, with no labels to learn from. What counts as similar is **your choice**: which features, how they're **scaled**, and which **distance** you use. **k-means** is the classic method: pick k centres, assign each point to its nearest centre, move each centre to the mean of its points, and repeat. Its answer depends on **k** and on the **random starting centres** (the seed), so try several of each. A score like **silhouette** says how tidy the groups are, not whether they're **real categories** in the world. Judge clusters by whether they're **useful for your purpose** and describe them in **original units** (\"mostly young, low-spend customers\"), not as discovered truths.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Numeric features are scaled, a k-means result is compared across k and seeds, and clusters are described by original features without treating numbers as discovered human categories. Your goal is to apply and critique a clustering result under at least two parameter or representation choices. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner runs k-means with k = 4 on unscaled customer data, where spend is in rupees and visits are single digits. The clusters split purely by spend. They name them \"the four customer personalities\" and present them as facts found in the data. Numeric features are scaled, a k-means result is compared across k and seeds, and clusters are described by original features without treating numbers as discovered human categories. In this lesson you'll apply and critique a clustering result under at least two parameter or representation choices.\n\n```predict\n{\"question\": \"k-means finds 4 tidy clusters with a high silhouette score. Has it discovered 4 real customer types?\", \"options\": [\"Yes, the score proves it\", \"No: it found a grouping under your features and k; usefulness must be judged separately\"], \"answer\": 1, \"why\": \"Clusters are a lens, not a discovery of truth.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Data and experimental workflow; Bias, variance and regularization; Features and preprocessing. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Data and experimental workflow**, **Bias, variance and regularization** and **Features and preprocessing** (scaling)."
       },
       {
-        "heading": "Bounded operational model",
-        "body": "Clustering groups examples according to a chosen representation, distance or density model, and algorithm parameters; quality is relative to the intended exploratory or operational use rather than hidden true labels by default. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+        "heading": "The model: groups under a chosen representation",
+        "body": "```python\nimport random\n\npoints = [(1, 1), (1.5, 2), (2, 1), (8, 8), (9, 8.5), (8.5, 9), (5, 1), (5.5, 1.5)]\n\ndef kmeans(pts, k, seed, steps=10):\n    random.seed(seed)\n    centres = random.sample(pts, k)\n    for _ in range(steps):\n        groups = [[] for _ in range(k)]\n        for p in pts:                              # assign to nearest centre.\n            i = min(range(k), key=lambda j: (p[0] - centres[j][0]) ** 2 + (p[1] - centres[j][1]) ** 2)\n            groups[i].append(p)\n        centres = [(sum(x for x, _ in g) / len(g), sum(y for _, y in g) / len(g)) if g else centres[i]\n                   for i, g in enumerate(groups)]  # move centre to the mean.\n    return sorted(len(g) for g in groups)\n\nfor k in (2, 3):\n    print(k, [kmeans(points, k, seed) for seed in (0, 1, 2)])\n```\n\nCompare group sizes across k and seeds. If results change a lot with the seed, don't trust a single run.\n\n```reveal\n{\"prompt\": \"Why must features be scaled first?\", \"answer\": \"k-means uses distance. A feature measured in thousands dominates one measured in single digits, so clusters would reflect units, not meaningful similarity.\"}\n```"
       },
       {
-        "heading": "Failure boundary and non-claim",
-        "body": "Scaling changes distances, k-means favors centroid-shaped groups, density methods depend on neighborhood parameters, hierarchical cuts are choices, and visually separated clusters may be unstable or meaningless. The learner must reject this overclaim: A clustering algorithm discovers the natural categories already present in data, and a high silhouette score proves those categories are real."
+        "heading": "Describing clusters honestly",
+        "body": "```predict\n{\"question\": \"How should you present a cluster to a manager?\", \"options\": [\"As a discovered persona with a catchy name\", \"By its average original features and size, as one useful grouping among possible ones\"], \"answer\": 1, \"why\": \"Say what the numbers are, and what choices produced them.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Compare centroid, density and hierarchical concepts and the role of scaling and distance.",
-      "Apply and critique a clustering result under at least two parameter or representation choices."
+      "Run k-means with scaled features and compare results across k and seeds.",
+      "Describe clusters in original units and critique claims that clusters are real categories."
     ],
     "excludes": [
-      "Scaling changes distances, k-means favors centroid-shaped groups, density methods depend on neighborhood parameters, hierarchical cuts are choices, and visually separated clusters may be unstable or meaningless."
+      "Hierarchical and density-based clustering in depth.",
+      "Cluster validity index theory."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "ai.unsupervised.clustering.example.direct",
-      "title": "Clustering: bounded direct case",
+      "title": "k-means across k and seeds",
       "situation": "Numeric features are scaled, a k-means result is compared across k and seeds, and clusters are described by original features without treating numbers as discovered human categories.",
       "walkthrough": [
-        "Step 1 — Observe the exact data, state, metric, or tool behavior: Numeric features are scaled, a k-means result is compared across k and seeds, and clusters are described by original features without treating numbers as discovered human categories.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the claim boundary with: Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning."
+        "**Numeric features are scaled:** each feature is put on a similar range before distances are computed.",
+        "**A k-means result is compared across k and seeds:** we run k = 2 and 3 with three seeds each.",
+        "**Described by original features without treating numbers as discovered human categories:** we report average spend and visits per group."
       ],
-      "result": "This example supports only the atomic outcome because Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning."
+      "result": "The team sees how stable the grouping is and what it actually contains."
     },
     {
       "id": "ai.unsupervised.clustering.example.stress",
-      "title": "Clustering: stress and transfer case",
-      "situation": "A density method marks sparse points as noise under one radius but changes sharply under another, so sensitivity and domain review are reported.",
+      "title": "The four personalities",
+      "situation": "A k-means run on unscaled spend and visits produced four clusters that were presented as real customer personalities.",
       "walkthrough": [
-        "Step 1 — Name the changed population, input, assumption, or failure: A density method marks sparse points as noise under one radius but changes sharply under another, so sensitivity and domain review are reported.",
-        "Step 2 — Keep the non-claim visible: Scaling changes distances, k-means favors centroid-shaped groups, density methods depend on neighborhood parameters, hierarchical cuts are choices, and visually separated clusters may be unstable or meaningless.",
-        "Step 3 — Reject the tempting overclaim: A clustering algorithm discovers the natural categories already present in data, and a high silhouette score proves those categories are real."
+        "Unscaled spend dominated, so clusters were just spend bands.",
+        "Scale features and rerun with several k and seeds.",
+        "Present clusters as groupings with their feature averages, not personalities."
       ],
-      "result": "This case demonstrates the declared outcome: Apply and critique a clustering result under at least two parameter or representation choices."
+      "result": "Stakeholders get a useful, honestly described segmentation."
     }
   ],
   "misconceptions": [
     {
       "id": "ai.unsupervised.clustering.misconception",
       "mistakenBelief": "A clustering algorithm discovers the natural categories already present in data, and a high silhouette score proves those categories are real.",
-      "correction": "Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning.",
-      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: A clustering algorithm discovers the natural categories already present in data, and a high silhouette score proves those categories are real."
+      "correction": "Clusters depend on features, scaling, distance, k and seeds. Scores measure tidiness under those choices, not real-world truth.",
+      "diagnosticPrompt": "In the opening predict, what did the silhouette score actually measure?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "an exploratory sorting table whose representation, distance, projection, reference population, and exposure policy determine visible patterns can introduce Clustering only after its canonical technical definition and evidence boundary are stated.",
+    "example": "Clustering is like **sorting a box of buttons**. Sort by colour and you get one set of piles; sort by size and you get another. Both are valid, neither is \"the true sorting\". Tidy piles only tell you the sorting was neat, not that buttons **really come in** those kinds. Pick the sorting that helps your sewing project.",
     "usefulFor": [
-      "clustering, dimensionality reduction, anomaly scoring, and recommendation"
+      "remembering colour piles vs size piles",
+      "tidy isn't true"
     ],
     "limitations": [
-      "algorithmic groups and outliers are parameter-dependent summaries rather than discovered human categories or harms",
-      "Scaling changes distances, k-means favors centroid-shaped groups, density methods depend on neighborhood parameters, hierarchical cuts are choices, and visually separated clusters may be unstable or meaningless."
+      "Measuring size in millimetres vs metres changes the piles: scaling.",
+      "Shaking the box first is a different random seed."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Numeric features are scaled, a k-means result is compared across k and seeds, and clusters are described by original features without treating numbers as discovered human categories.",
-      "Clustering groups examples according to a chosen representation, distance or density model, and algorithm parameters; quality is relative to the intended exploratory or operational use rather than hidden true labels by default.",
-      "Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning."
+      "scale features",
+      "run k = 2 and 3 with three seeds",
+      "describe clusters"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Scale",
         "state": {
-          "boundedEvidence": "Numeric features are scaled, a k-means result is compared across k and seeds, and clusters are described by original features without treating numbers as discovered human categories."
+          "features": "similar ranges"
         },
-        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+        "explanation": "Numeric features are scaled before measuring distance."
       },
       {
         "step": 2,
-        "focus": "Model",
+        "focus": "Compare",
         "state": {
-          "operationalRule": "Clustering groups examples according to a chosen representation, distance or density model, and algorithm parameters; quality is relative to the intended exploratory or operational use rather than hidden true labels by default."
+          "k": "2 and 3",
+          "seeds": "0, 1, 2"
         },
-        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+        "explanation": "A k-means result is compared across k and seeds to check stability."
       },
       {
         "step": 3,
-        "focus": "Limit",
+        "focus": "Describe",
         "state": {
-          "correction": "Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning."
+          "report": "size and feature means"
         },
-        "explanation": "State what the evidence does not establish and reject the misconception: A clustering algorithm discovers the natural categories already present in data, and a high silhouette score proves those categories are real."
+        "explanation": "Clusters are described by original features without treating numbers as human categories."
       }
     ],
-    "textAlternative": "Starting artifact: Numeric features are scaled, a k-means result is compared across k and seeds, and clusters are described by original features without treating numbers as discovered human categories. Step 1, Observe. State: boundedEvidence: Numeric features are scaled, a k-means result is compared across k and seeds, and clusters are described by original features without treating numbers as discovered human categories.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Clustering groups examples according to a chosen representation, distance or density model, and algorithm parameters; quality is relative to the intended exploratory or operational use rather than hidden true labels by default.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning.. State what the evidence does not establish and reject the misconception: A clustering algorithm discovers the natural categories already present in data, and a high silhouette score proves those categories are real."
+    "textAlternative": "Tracing a clustering critique. Step 1, Scale: features is similar ranges. Numeric features are scaled before measuring distance. Step 2, Compare: k is 2 and 3; seeds is 0, 1, 2. A k-means result is compared across k and seeds to check stability. Step 3, Describe: report is size and feature means. Clusters are described by original features without treating numbers as human categories."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Clustering: bounded direct case”: state its starting evidence, apply the Clustering rule, and give the observable result in three short lines.",
+      "prompt": "For \"k-means across k and seeds\", explain how numeric features are scaled, a k-means result is compared across k and seeds, and clusters are described by original features without treating numbers as discovered human categories.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Scale.",
+        "Compare.",
+        "Describe."
       ],
       "expectedEvidence": [
-        "Named example: Clustering: bounded direct case.",
-        "Starting evidence: Numeric features are scaled, a k-means result is compared across k and seeds, and clusters are described by original features without treating numbers as discovered human categories.",
-        "Core rule: Clustering groups examples according to a chosen representation, distance or density model, and algorithm parameters; quality is relative to the intended exploratory or operational use rather than hidden true labels by default.",
-        "Observable result: This example supports only the atomic outcome because Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning.",
-        "Boundary check: Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning."
+        "Names the example \"k-means across k and seeds\": clusters were sold as personalities.",
+        "Numeric features are scaled, and a k-means result is compared across k and seeds.",
+        "Clusters are described by original features without treating numbers as discovered human categories.",
+        "The team sees how stable the grouping is and what it actually contains."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed case: A density method marks sparse points as noise under one radius but changes sharply under another, so sensitivity and domain review are reported.",
+      "prompt": "Run the k-means code on the same points with a feature multiplied by 100. Compare the groups with the original and explain the change.",
       "scaffold": [
-        "Identify which assumption, population, input, or objective changed.",
-        "Preserve provenance and the declared failure boundary."
+        "Only one feature scaled up.",
+        "Same k and seeds."
       ],
       "expectedEvidence": [
-        "Clustering groups examples according to a chosen representation, distance or density model, and algorithm parameters; quality is relative to the intended exploratory or operational use rather than hidden true labels by default.",
-        "Scaling changes distances, k-means favors centroid-shaped groups, density methods depend on neighborhood parameters, hierarchical cuts are choices, and visually separated clusters may be unstable or meaningless."
+        "Differences shown.",
+        "Scaling effect explained."
       ]
     },
     "farTransfer": {
-      "prompt": "Design a neutral-context example or evaluation for Clustering and list the evidence that would support and falsify its bounded claim.",
+      "prompt": "Cluster a small customer dataset two ways (different feature sets or scalings), compare stability across seeds, and write a half-page note on which grouping is more useful for a stated marketing decision.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+        "Name the decision first.",
+        "Report feature averages per cluster."
       ],
       "expectedEvidence": [
-        "Apply and critique a clustering result under at least two parameter or representation choices.",
-        "Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning."
+        "Two representations compared.",
+        "Usefulness argued."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "ai.unsupervised.clustering.misconception",
-      "explanation": "Treat clusters as representation- and parameter-dependent summaries; test stability, sensitivity, usefulness, and harms before assigning real-world meaning.",
-      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A density method marks sparse points as noise under one radius but changes sharply under another, so sensitivity and domain review are reported."
+      "explanation": "Before trusting clusters, ask: **which features and scaling, which k, how stable across seeds, and useful for what?**",
+      "retryPrompt": "Apply this to \"The four personalities\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to apply and critique a clustering result under at least two parameter or representation choices. Keep this boundary in view: Scaling changes distances, k-means favors centroid-shaped groups, density methods depend on neighborhood parameters, hierarchical cuts are choices, and visually separated clusters may be unstable or meaningless.",
+    "summary": "To apply and critique a clustering result under at least two parameter or representation choices, scale features, run k-means across several k and seeds, describe clusters by original features, and judge them by usefulness rather than treating them as discovered categories.",
     "retrievalPrompts": [
-      "Explain Clustering with one technical mechanism, one evidence requirement, and one non-claim.",
-      "Why is this overclaim invalid: A clustering algorithm discovers the natural categories already present in data, and a high silhouette score proves those categories are real.",
-      "Apply the boundary to: A density method marks sparse points as noise under one radius but changes sharply under another, so sensitivity and domain review are reported."
+      "Why scale before k-means?",
+      "Why try several seeds?",
+      "Does a high silhouette prove real categories?"
     ],
     "nextReviewPrompt": "Next: continue to “Dimensionality reduction”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

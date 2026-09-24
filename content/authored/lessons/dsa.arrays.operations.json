@@ -33,38 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Arrays support constant-time indexed access while insertion or deletion away from the end usually shifts a linear suffix.",
+    "summary": "An **array** stores items side by side in memory, so the computer can jump straight to position i: **reading or writing `a[i]` is O(1)**. But the items are packed with no gaps, so **inserting or deleting in the middle** means **shifting** every item after that spot, which is O(n) in the worst case. Adding or removing **at the end** is O(1) (amortised, for growable arrays like Python lists, C++ `vector` or Java `ArrayList`). Searching an unsorted array for a value is O(n).",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Inserting at index two of five values shifts three existing values before writing the new one. Your goal is to implement and test core array operations and explain their complexity. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A class register keeps learner names in an array in joining order. When a late joiner must go in at position 2 of 5, the code writes `a[2] = name` and one learner vanishes from the register. Inserting at index two of five values shifts three existing values before writing the new one. In this lesson you'll implement and test core array operations and explain their complexity.\n\n```predict\n{\"question\": \"`a = [10, 20, 30, 40, 50]`. To insert 99 at index 2 keeping every value, how many existing values move?\", \"options\": [\"0: just write a[2] = 99\", \"3: 30, 40 and 50 each shift one place right\"], \"answer\": 1, \"why\": \"Writing a[2] overwrites 30. Insertion shifts the suffix right first.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Readiness, algorithms and analysis; Time, space and asymptotic growth; Selected-language readiness. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Readiness, algorithms and analysis** module, **Time, space and asymptotic growth**, and **Selected-language readiness** (safe indexing in your language)."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Arrays support constant-time indexed access while insertion or deletion away from the end usually shifts a linear suffix. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The distinction: jump to a slot vs shift a suffix",
+        "body": "```python\ndef insert_at(a, index, value):\n    # Precondition: 0 <= index <= len(a).\n    a.append(None)                        # make room at the end.\n    for k in range(len(a) - 1, index, -1):   # shift right, back to front.\n        a[k] = a[k - 1]\n    a[index] = value\n\ndef delete_at(a, index):\n    # Precondition: 0 <= index < len(a).\n    removed = a[index]\n    for k in range(index, len(a) - 1):    # shift left, front to back.\n        a[k] = a[k + 1]\n    a.pop()                               # drop the duplicate last slot.\n    return removed\n\nregister = [\"Asha\", \"Ben\", \"Chen\", \"Dev\", \"Ema\"]\ninsert_at(register, 2, \"Farah\")         # Chen, Dev, Ema shift right.\n```\n\n| Operation | Cost |\n|---|---|\n| read or write a[i]. | O(1). |\n| append / pop at end. | O(1) amortised. |\n| insert or delete at i. | O(n - i) shifts, O(n) worst. |\n| find a value (unsorted). | O(n). |\n\n```reveal\n{\"prompt\": \"Why shift from the back when inserting?\", \"answer\": \"Shifting front to back would copy a[2] into a[3], then that same value into a[4], and so on, overwriting everything with one value.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Dynamic arrays add capacity and amortized append, while bounds, element size, and language representation differ. The draft therefore rejects: Every array operation is constant time because indexing is constant time."
+        "heading": "Indexing isn't everything",
+        "body": "```predict\n{\"question\": \"Deleting the first element of a 1,000,000-item array. Cost?\", \"options\": [\"O(1), since indexing is O(1)\", \"O(n): 999,999 items shift left\"], \"answer\": 1, \"why\": \"Fast access doesn't make every operation fast. If you often remove from the front, use a queue or deque.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Analyze indexed access, traversal, insertion, deletion, resizing and copying costs.",
-      "Implement and test core array operations and explain their complexity.",
-      "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead."
+      "Implement read, write, insert, delete and search on arrays.",
+      "Explain O(1) indexing versus O(n) shifting and test edge positions."
     ],
     "excludes": [
-      "Dynamic arrays add capacity and amortized append, while bounds, element size, and language representation differ."
+      "Linked lists (next module).",
+      "Memory allocation details of dynamic arrays in depth."
     ]
   },
   "outcomes": [
@@ -73,142 +69,134 @@
   "examples": [
     {
       "id": "dsa.arrays.operations.example-a",
-      "title": "Array representation and operations: language-neutral trace",
+      "title": "Squeezing a value into the middle",
       "situation": "Inserting at index two of five values shifts three existing values before writing the new one.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: Inserting at index two of five values shifts three existing values before writing the new one.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Separate indexed access from structural updates; middle insertion and deletion require linear movement in an array."
+        "**Make room:** append a placeholder so the array has six slots.",
+        "**Shift three existing values:** Ema, Dev, then Chen move one place right, working from the back.",
+        "**Write and test:** Farah goes into index 2; tests will check inserting at 0, at 2 and at the end."
       ],
-      "result": "The conceptual result follows because Separate indexed access from structural updates; middle insertion and deletion require linear movement in an array."
+      "result": "The register holds all six learners in the right order, and nobody is overwritten."
     },
     {
       "id": "dsa.arrays.operations.example-b",
-      "title": "Array representation and operations: implementation transfer",
-      "situation": "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead.",
+      "title": "The delete that left a copy",
+      "situation": "A delete function shifts values left but forgets to shrink the array, so [1, 2, 3] minus index 0 becomes [2, 3, 3].",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead.",
-        "Step 3 — Retest this boundary in the selected implementation: Dynamic arrays add capacity and amortized append, while bounds, element size, and language representation differ."
+        "After shifting, the last slot still holds the old last value.",
+        "The array must shrink by one (pop in Python, size-- in C, remove in Java lists).",
+        "Test: delete_at([1, 2, 3], 0) returns 1 and leaves [2, 3]."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Deleting leaves exactly n - 1 values with no duplicate at the end."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.arrays.operations.misconception",
       "mistakenBelief": "Every array operation is constant time because indexing is constant time.",
-      "correction": "Separate indexed access from structural updates; middle insertion and deletion require linear movement in an array.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Every array operation is constant time because indexing is constant time."
+      "correction": "Only reading or writing a known index is O(1). Inserting or deleting away from the end shifts the following items, which costs time proportional to how many move: O(n) in the worst case.",
+      "diagnosticPrompt": "In \"Squeezing a value into the middle\", how many values moved?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Array representation and operations, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "An array is like **a row of numbered theatre seats**. Finding seat 7 is instant. But if someone must sit in seat 3 and everyone must stay in order, the people in seats 3, 4 and 5 each shuffle one seat right, starting from the end of the row.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering jump vs shuffle",
+      "shift from the back when inserting"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Dynamic arrays add capacity and amortized append, while bounds, element size, and language representation differ."
+      "Real rows have fixed length; dynamic arrays grow by moving to a bigger row.",
+      "Adding someone at the empty end seat needs no shuffling."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Inserting at index two of five values shifts three existing values before writing the new one.",
-      "Arrays support constant-time indexed access while insertion or deletion away from the end usually shifts a linear suffix.",
-      "Separate indexed access from structural updates; middle insertion and deletion require linear movement in an array.",
-      "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead."
+      "a = [Asha, Ben, Chen, Dev, Ema]",
+      "insert_at(a, 2, Farah)",
+      "result"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Room",
         "state": {
-          "scenario": "Inserting at index two of five values shifts three existing values before writing the new one."
+          "length": "6",
+          "a[5]": "None"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "Appending a placeholder gives one free slot at the end."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Shift",
         "state": {
-          "invariant": "Arrays support constant-time indexed access while insertion or deletion away from the end usually shifts a linear suffix."
+          "moves": "Ema→5, Dev→4, Chen→3"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "Inserting at index two of five values shifts three existing values."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Write",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "a": "[Asha, Ben, Farah, Chen, Dev, Ema]"
         },
-        "explanation": "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Separate indexed access from structural updates; middle insertion and deletion require linear movement in an array."
-        },
-        "explanation": "Verify the result and reject this misconception: Every array operation is constant time because indexing is constant time."
+        "explanation": "The new value is written only after the shift."
       }
     ],
-    "textAlternative": "Starting artifact: Inserting at index two of five values shifts three existing values before writing the new one. Step 1, Specification. State: scenario: Inserting at index two of five values shifts three existing values before writing the new one.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Arrays support constant-time indexed access while insertion or deletion away from the end usually shifts a linear suffix.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead. Step 4, Conclusion. State: correction: Separate indexed access from structural updates; middle insertion and deletion require linear movement in an array.. Verify the result and reject this misconception: Every array operation is constant time because indexing is constant time."
+    "textAlternative": "Tracing an array insertion. Step 1, Room: length is 6; a[5] is None. Appending a placeholder gives one free slot at the end. Step 2, Shift: moves is Ema→5, Dev→4, Chen→3. Inserting at index two of five values shifts three existing values. Step 3, Write: a is [Asha, Ben, Farah, Chen, Dev, Ema]. The new value is written only after the shift."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Array representation and operations: language-neutral trace”: state its starting evidence, apply the Array representation and operations rule, and give the observable result in three short lines.",
+      "prompt": "For \"Squeezing a value into the middle\", explain how inserting at index two of five values shifts three existing values before writing the new one.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Room.",
+        "Shift.",
+        "Write."
       ],
       "expectedEvidence": [
-        "Named example: Array representation and operations: language-neutral trace.",
-        "Starting evidence: Inserting at index two of five values shifts three existing values before writing the new one.",
-        "Core rule: Arrays support constant-time indexed access while insertion or deletion away from the end usually shifts a linear suffix.",
-        "Observable result: The conceptual result follows because Separate indexed access from structural updates; middle insertion and deletion require linear movement in an array.",
-        "Boundary check: Separate indexed access from structural updates; middle insertion and deletion require linear movement in an array."
+        "Names the example \"Squeezing a value into the middle\": inserting at index two of five values.",
+        "It shifts three existing values from the back.",
+        "The new one is written after shifting.",
+        "The register holds all six learners in the right order."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Arrays support constant-time indexed access while insertion or deletion away from the end usually shifts a linear suffix.",
+      "prompt": "Implement `index_of(a, value)` returning the first index or -1, and `remove_value(a, value)` that deletes the first match using delete_at. State both costs.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Linear scan.",
+        "Reuse delete_at."
       ],
       "expectedEvidence": [
-        "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead.",
-        "Dynamic arrays add capacity and amortized append, while bounds, element size, and language representation differ."
+        "Both O(n).",
+        "Tests for missing value, first, last."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Array representation and operations case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Build a fixed-capacity array class with get, set, insert_at, delete_at and len, raising errors for out-of-range indexes and a full array. Test every edge position and state each operation's complexity.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Track size separately from capacity.",
+        "Test index 0, size - 1 and size."
       ],
       "expectedEvidence": [
-        "Implement and test core array operations and explain their complexity.",
-        "Separate indexed access from structural updates; middle insertion and deletion require linear movement in an array."
+        "All operations correct at edges.",
+        "Complexity table matches the code."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.arrays.operations.misconception",
-      "explanation": "Separate indexed access from structural updates; middle insertion and deletion require linear movement in an array.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'linear movement', then state one implementation-specific risk in the selected language."
+      "explanation": "For each operation ask: **Do I know the index and just read or write it? (O(1)) Or do items after it have to move? (O(n))** Then test positions 0, middle and end.",
+      "retryPrompt": "Apply this to \"The delete that left a copy\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test core array operations and explain their complexity. Keep this boundary in view: Dynamic arrays add capacity and amortized append, while bounds, element size, and language representation differ.",
+    "summary": "To implement and test core array operations, remember indexing reads or writes in O(1), appending at the end is O(1) amortised, and inserting or deleting in the middle shifts the suffix in O(n). Shift from the back when inserting, shrink after deleting, and test the first, middle and last positions.",
     "retrievalPrompts": [
-      "State the Array representation and operations invariant and complexity without code.",
-      "Why is this claim false: Every array operation is constant time because indexing is constant time.",
-      "Map checkpoint 'linear movement' to C, C++, Java, and Python."
+      "Why is a[i] O(1)?",
+      "Why is inserting in the middle O(n)?",
+      "Which direction do you shift when inserting?"
     ],
     "nextReviewPrompt": "Next: continue to “Two-dimensional arrays and matrices”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

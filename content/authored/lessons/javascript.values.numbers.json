@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "JavaScript number uses IEEE-754 binary floating point, so safe integers and decimal fractions have finite precision limits.",
+    "summary": "JavaScript `number` is a 64-bit binary float: great for most maths, but decimals like 0.1 aren't stored exactly, so `0.1 + 0.2 === 0.3` is **false**. Compare such results within a small **tolerance**, or work in whole units (cents). **NaN** (\"not a number\") is the result of failed maths or parsing, and it's the only value not equal to itself — test it with `Number.isNaN()`. Integers are exact only up to `Number.MAX_SAFE_INTEGER`.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: 0.1 + 0.2 is compared with a tolerance instead of exact equality to 0.3. Your goal is to implement and test numeric validation without relying on misleading NaN comparisons. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A shopping cart checks `if (total === 0.3)` to apply a coupon. Items cost 0.1 and 0.2 — and the coupon never applies. The maths is off by 0.00000000000000004. 0.1 + 0.2 is compared with a tolerance instead of exact equality to 0.3. In this lesson you'll implement and test numeric validation without relying on misleading NaN comparisons.\n\n```predict\n{\"question\": \"`const n = Number(\\\"abc\\\"); console.log(n === NaN);` Output?\", \"options\": [\"true\", \"false — NaN is never equal to anything, even itself\"], \"answer\": 1, \"why\": \"Use `Number.isNaN(n)` to detect NaN.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Scripts and console; pf state expressions; Equality, truthiness and coercion. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Scripts and console**, **Expressions and evaluation**, and **Equality, truthiness and coercion**."
       },
       {
-        "heading": "Technology rule",
-        "body": "JavaScript number uses IEEE-754 binary floating point, so safe integers and decimal fractions have finite precision limits. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: binary floats, NaN, safe integers",
+        "body": "```js\n0.1 + 0.2                                  // 0.30000000000000004\nMath.abs((0.1 + 0.2) - 0.3) < Number.EPSILON  // true — tolerance compare\n\n// money: work in whole paise/cents\nconst totalPaise = 10 + 20;                // 30 → display (totalPaise / 100).toFixed(2)\n\nNumber(\"abc\")          // NaN\nNumber.isNaN(NaN)      // true\nNaN === NaN            // false\nNumber.isFinite(1 / 0) // false (Infinity)\nNumber.isInteger(2.5)  // false\nNumber.MAX_SAFE_INTEGER // 9007199254740991\n```\n\n| Need | Use |\n|---|---|\n| compare decimals. | `Math.abs(a - b) < tolerance`. |\n| money. | integer cents/paise (or a decimal library). |\n| detect NaN. | `Number.isNaN(x)`. |\n| valid finite number. | `Number.isFinite(x)`. |\n| huge integers. | `BigInt` (e.g. `10n`). |\n\n```reveal\n{\"prompt\": \"Why not use the global `isNaN(\\\"hello\\\")`?\", \"answer\": \"The global isNaN converts first, so isNaN(\\\"hello\\\") is true even though \\\"hello\\\" isn't the NaN value. Number.isNaN doesn't convert.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "NaN is unequal to itself, -0 exists, and bigint is a separate exact-integer type. This draft therefore rejects: All decimal arithmetic is exact because number displays familiar decimal text."
+        "heading": "Validate input",
+        "body": "```predict\n{\"question\": \"Which check accepts only real, finite numbers from `Number(text)`?\", \"options\": [\"`if (n)`\", \"`if (Number.isFinite(n))`\"], \"answer\": 1, \"why\": \"`if (n)` rejects 0 and accepts Infinity. Number.isFinite rejects NaN and ±Infinity but accepts 0.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Handle finite checks, safe integers, floating approximation and bigint boundaries.",
-      "Implement and test numeric validation without relying on misleading NaN comparisons."
+      "Explain float precision and compare with a tolerance or integer units.",
+      "Validate numbers with Number.isNaN, Number.isFinite and Number.isInteger."
     ],
     "excludes": [
-      "NaN is unequal to itself, -0 exists, and bigint is a separate exact-integer type."
+      "Math library functions in depth.",
+      "Currency formatting with Intl (browser module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,133 @@
   "examples": [
     {
       "id": "javascript.values.numbers.example-a",
-      "title": "Numbers, NaN and precision: concrete case",
+      "title": "Comparing money with a tolerance",
       "situation": "0.1 + 0.2 is compared with a tolerance instead of exact equality to 0.3.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: 0.1 + 0.2 is compared with a tolerance instead of exact equality to 0.3.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Binary floating-point decimals can round; use tolerance or domain-appropriate decimal representation."
+        "**Bug:** `0.1 + 0.2 === 0.3` evaluates to false because the sum is 0.30000000000000004.",
+        "**Tolerance:** `Math.abs(sum - 0.3) < 1e-9` compares with a tolerance instead of exact equality.",
+        "**Better for money:** store 10 and 20 paise as integers; 30 === 30 is exact, and display with `(30 / 100).toFixed(2)`."
       ],
-      "result": "The result follows because Binary floating-point decimals can round; use tolerance or domain-appropriate decimal representation."
+      "result": "The coupon applies correctly, and money totals stay exact by working in whole units."
     },
     {
       "id": "javascript.values.numbers.example-b",
-      "title": "Numbers, NaN and precision: boundary case",
-      "situation": "NaN is unequal to itself, -0 exists, and bigint is a separate exact-integer type.",
+      "title": "The NaN that slipped through",
+      "situation": "`const qty = Number(input.value); if (qty !== NaN) addToCart(qty);` Typing \"abc\" adds NaN items to the cart.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: NaN is unequal to itself, -0 exists, and bigint is a separate exact-integer type.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: All decimal arithmetic is exact because number displays familiar decimal text."
+        "`qty !== NaN` is always true — even when qty is NaN.",
+        "The cart total becomes NaN and breaks the page.",
+        "Fix: `if (Number.isInteger(qty) && qty > 0) addToCart(qty);`."
       ],
-      "result": "The boundary requires this correction: Binary floating-point decimals can round; use tolerance or domain-appropriate decimal representation."
+      "result": "Invalid input is rejected; only positive whole quantities are added."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.values.numbers.misconception",
-      "mistakenBelief": "All decimal arithmetic is exact because number displays familiar decimal text.",
-      "correction": "Binary floating-point decimals can round; use tolerance or domain-appropriate decimal representation.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: All decimal arithmetic is exact because number displays familiar decimal text."
+      "mistakenBelief": "All decimal arithmetic is exact, because numbers display familiar decimal text.",
+      "correction": "Numbers are binary floating point; many decimals are approximated, so results like 0.1 + 0.2 differ slightly from 0.3. Compare within a tolerance, use integer units for money, and detect NaN with Number.isNaN.",
+      "diagnosticPrompt": "In \"Comparing money with a tolerance\", why did the exact comparison fail?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Numbers, NaN and precision, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "Floats are like **measuring with a ruler marked in 1/1024ths**: 0.1 falls between marks, so it's rounded to the nearest mark. Add two rounded measurements and the tiny errors show. Counting whole paise is like counting coins — exact.",
     "usefulFor": [
-      "Building a first mental model for Numbers, NaN and precision before using exact platform terms"
+      "remembering decimals are approximated",
+      "integers for money"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "NaN is unequal to itself, -0 exists, and bigint is a separate exact-integer type."
+      "Rulers are visible; float rounding is hidden until you compare.",
+      "NaN is like a ruler reading of \"broken\" — it doesn't equal anything."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "0.1 + 0.2 is compared with a tolerance instead of exact equality to 0.3.",
-      "JavaScript number uses IEEE-754 binary floating point, so safe integers and decimal fractions have finite precision limits.",
-      "Binary floating-point decimals can round; use tolerance or domain-appropriate decimal representation."
+      "const sum = 0.1 + 0.2",
+      "sum === 0.3",
+      "Math.abs(sum - 0.3) < 1e-9"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Sum",
         "state": {
-          "evidence": "0.1 + 0.2 is compared with a tolerance instead of exact equality to 0.3."
+          "sum": "0.30000000000000004"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The binary float sum is slightly above 0.3."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Exact compare",
         "state": {
-          "rule": "JavaScript number uses IEEE-754 binary floating point, so safe integers and decimal fractions have finite precision limits."
+          "sum === 0.3": "false"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Exact equality to 0.3 fails because of the tiny error."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Tolerance",
         "state": {
-          "correction": "Binary floating-point decimals can round; use tolerance or domain-appropriate decimal representation."
+          "within 1e-9": "true"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: All decimal arithmetic is exact because number displays familiar decimal text."
+        "explanation": "0.1 + 0.2 is compared with a tolerance instead of exact equality."
       }
     ],
-    "textAlternative": "Starting artifact: 0.1 + 0.2 is compared with a tolerance instead of exact equality to 0.3. Step 1, Artifact. State: evidence: 0.1 + 0.2 is compared with a tolerance instead of exact equality to 0.3.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: JavaScript number uses IEEE-754 binary floating point, so safe integers and decimal fractions have finite precision limits.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Binary floating-point decimals can round; use tolerance or domain-appropriate decimal representation.. Check the result against the boundary and reject this misconception: All decimal arithmetic is exact because number displays familiar decimal text."
+    "textAlternative": "Comparing floats safely. Step 1, Sum: sum is 0.30000000000000004. The binary float sum is slightly above 0.3. Step 2, Exact compare: sum === 0.3 is false. Exact equality to 0.3 fails because of the tiny error. Step 3, Tolerance: within 1e-9 is true. 0.1 + 0.2 is compared with a tolerance instead of exact equality."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Numbers, NaN and precision: concrete case”: state its starting evidence, apply the Numbers, NaN and precision rule, and give the observable result in three short lines.",
+      "prompt": "For \"Comparing money with a tolerance\", explain why 0.1 + 0.2 is compared with a tolerance instead of exact equality to 0.3, and how integer units help for money.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Bug.",
+        "Tolerance.",
+        "Integers."
       ],
       "expectedEvidence": [
-        "Named example: Numbers, NaN and precision: concrete case.",
-        "Starting evidence: 0.1 + 0.2 is compared with a tolerance instead of exact equality to 0.3.",
-        "Core rule: JavaScript number uses IEEE-754 binary floating point, so safe integers and decimal fractions have finite precision limits.",
-        "Observable result: The result follows because Binary floating-point decimals can round; use tolerance or domain-appropriate decimal representation.",
-        "Boundary check: Binary floating-point decimals can round; use tolerance or domain-appropriate decimal representation."
+        "Names the example \"Comparing money with a tolerance\": 0.1 + 0.2 is compared with a tolerance.",
+        "Exact equality to 0.3 fails.",
+        "Math.abs(sum - 0.3) < 1e-9 passes.",
+        "Integer paise make money totals exact."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: NaN is unequal to itself, -0 exists, and bigint is a separate exact-integer type.",
+      "prompt": "Predict: `Number(\"\")`, `Number(\" 42 \")`, `Number.isNaN(\"x\")`, `isNaN(\"x\")`, `Number.isFinite(\"5\")`.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Empty string is a trap.",
+        "Number.* doesn't convert."
       ],
       "expectedEvidence": [
-        "JavaScript number uses IEEE-754 binary floating point, so safe integers and decimal fractions have finite precision limits.",
-        "NaN is unequal to itself, -0 exists, and bigint is a separate exact-integer type."
+        "0, 42, false.",
+        "true, false."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Numbers, NaN and precision and explain why the misconception fails.",
+      "prompt": "Write `addPrices(a, b)` that takes prices as strings like \"19.99\" and returns an exact string total like \"39.98\", working in integer cents. Test with 0.1 + 0.2 style inputs.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Parse to cents with Math.round(Number(x) * 100).",
+        "Format with toFixed(2)."
       ],
       "expectedEvidence": [
-        "Implement and test numeric validation without relying on misleading NaN comparisons.",
-        "Binary floating-point decimals can round; use tolerance or domain-appropriate decimal representation."
+        "Exact totals for tricky decimals.",
+        "Tests including \"0.10\" + \"0.20\" → \"0.30\"."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.values.numbers.misconception",
-      "explanation": "Binary floating-point decimals can round; use tolerance or domain-appropriate decimal representation.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'can round' and state the decisive evidence."
+      "explanation": "Before comparing numbers ask: **Could either be a non-integer? → tolerance or integer units. Could it be NaN? → Number.isNaN / isFinite first.** Never write `=== NaN`.",
+      "retryPrompt": "Apply this to \"The NaN that slipped through\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test numeric validation without relying on misleading NaN comparisons. Keep this boundary in view: NaN is unequal to itself, -0 exists, and bigint is a separate exact-integer type.",
+    "summary": "To implement and test numeric validation, remember decimals are approximate binary floats — compare within a tolerance or use integer units for money — and detect invalid values with Number.isNaN, Number.isFinite and Number.isInteger, never with === NaN.",
     "retrievalPrompts": [
-      "Explain Numbers, NaN and precision using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: All decimal arithmetic is exact because number displays familiar decimal text.",
-      "Apply checkpoint 'can round' to a new artifact."
+      "Why is 0.1 + 0.2 !== 0.3?",
+      "How do you detect NaN?",
+      "Why store money in cents?"
     ],
     "nextReviewPrompt": "Next: continue to “Conditions and switch”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

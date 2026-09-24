@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "prefers-reduced-motion lets authors reduce or replace nonessential movement while preserving content, state change, and control.",
+    "summary": "Some people get dizzy, nauseous or distracted by motion. When they turn on **Reduce motion** in their OS, browsers expose `prefers-reduced-motion: reduce`. Honour it by **removing large or decorative movement** (parallax, zooming, sliding backgrounds) and replacing essential transitions with **instant or gentle** alternatives like a quick fade — but still show every state change. Also check your experience at **200% zoom** and **keyboard only**.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A reduced-motion query removes parallax and uses an instant opacity state change for the same revealed content. Your goal is to verify and repair an experience under reduced-motion, zoom and keyboard-only settings. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A course landing page has parallax backgrounds and cards that slide in from the side as you scroll. A learner with a vestibular disorder feels sick within seconds. Their OS has \"Reduce motion\" on, but the site ignores it. A reduced-motion query removes parallax and uses an instant opacity state change for the same revealed content. In this lesson you'll verify and repair an experience under reduced-motion, zoom and keyboard-only settings.\n\n```predict\n{\"question\": \"Under reduced motion, should revealed content simply never appear?\", \"options\": [\"Yes, remove everything that moves\", \"No — show the same content, just without the movement\"], \"answer\": 1, \"why\": \"Reduced motion means less movement, not less information or feedback.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Flexbox and Grid; Typography, color and visual treatment; Transforms, transitions and animations; Media and feature queries. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Flexbox and Grid** and **Typography, color and visual treatment** modules, plus **Transforms, transitions and animations** and **Media and feature queries**."
       },
       {
-        "heading": "Technology rule",
-        "body": "prefers-reduced-motion lets authors reduce or replace nonessential movement while preserving content, state change, and control. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: same states, less movement",
+        "body": "```css\n.hero__bg { transform: translateY(calc(var(--scroll) * -0.3px)); }   /* parallax */\n.card.reveal { animation: slide-in 600ms ease-out both; }\n\n@media (prefers-reduced-motion: reduce) {\n  .hero__bg { transform: none; }                 /* remove decorative motion */\n  .card.reveal { animation: fade-in 1ms both; }  /* instant state change */\n  html { scroll-behavior: auto; }\n}\n@keyframes slide-in { from { opacity: 0; transform: translateX(-2rem); } to { opacity: 1; transform: none; } }\n@keyframes fade-in  { from { opacity: 0; } to { opacity: 1; } }\n```\n\n| Motion | Under reduce |\n|---|---|\n| parallax, large slides, zooms. | remove. |\n| essential state feedback. | keep, as instant or subtle opacity. |\n| auto-playing carousels/video. | pause by default. |\n\n```reveal\n{\"prompt\": \"Is `* { animation: none !important; }` a good universal reduce rule?\", \"answer\": \"It's a blunt tool: it can hide content that starts at opacity: 0 waiting for an animation, and removes useful feedback. Prefer targeted overrides that keep final states visible.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Reduced does not always mean zero, vestibular triggers vary, and autoplay or canvas motion may need JavaScript coordination. This draft therefore rejects: Reduced-motion users should receive no state feedback because every transition must be removed."
+        "heading": "Test the whole experience",
+        "body": "```predict\n{\"question\": \"Which set of checks best verifies the page?\", \"options\": [\"Only the default settings\", \"Reduced motion emulated, 200% zoom, and a full keyboard-only pass\"], \"answer\": 1, \"why\": \"Preferences, zoom and input methods each reveal different problems — test all three.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Respect reduced-motion and other user preferences with equivalent non-motion feedback.",
-      "Verify and repair an experience under reduced-motion, zoom and keyboard-only settings."
+      "Honour prefers-reduced-motion by removing decorative motion while keeping state changes.",
+      "Verify pages under reduced motion, 200% zoom and keyboard-only use."
     ],
     "excludes": [
-      "Reduced does not always mean zero, vestibular triggers vary, and autoplay or canvas motion may need JavaScript coordination."
+      "Vestibular disorder medical details.",
+      "JavaScript animation control APIs in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "css.motion.preferences.example-a",
-      "title": "Reduced motion and input preferences: concrete case",
+      "title": "Parallax off, content still revealed",
       "situation": "A reduced-motion query removes parallax and uses an instant opacity state change for the same revealed content.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A reduced-motion query removes parallax and uses an instant opacity state change for the same revealed content.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Preserve equivalent state feedback while removing or minimizing nonessential spatial and continuous motion."
+        "**Emulate:** DevTools → Rendering → prefers-reduced-motion: reduce.",
+        "**Removes parallax:** `.hero__bg { transform: none }` inside the query.",
+        "**Instant opacity state change:** the card reveal becomes a 1ms fade, so the same revealed content still appears; the browser will render every card, just without sliding."
       ],
-      "result": "The result follows because Preserve equivalent state feedback while removing or minimizing nonessential spatial and continuous motion."
+      "result": "Learners who reduce motion see all the same content and feedback without movement that could make them unwell."
     },
     {
       "id": "css.motion.preferences.example-b",
-      "title": "Reduced motion and input preferences: boundary case",
-      "situation": "Reduced does not always mean zero, vestibular triggers vary, and autoplay or canvas motion may need JavaScript coordination.",
+      "title": "The content that never appeared",
+      "situation": "A global reduce rule sets `animation: none !important` on everything. Cards that start at `opacity: 0` and rely on a fade-in animation now stay invisible.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Reduced does not always mean zero, vestibular triggers vary, and autoplay or canvas motion may need JavaScript coordination.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Reduced-motion users should receive no state feedback because every transition must be removed."
+        "Removing the animation left the starting state (opacity 0) in place.",
+        "Reduced-motion users can't see the cards at all.",
+        "Fix: in the reduce query, set the final state directly (`opacity: 1; transform: none`) or use an instant animation."
       ],
-      "result": "The boundary requires this correction: Preserve equivalent state feedback while removing or minimizing nonessential spatial and continuous motion."
+      "result": "Cards are visible for everyone; only the movement is removed."
     }
   ],
   "misconceptions": [
     {
       "id": "css.motion.preferences.misconception",
-      "mistakenBelief": "Reduced-motion users should receive no state feedback because every transition must be removed.",
-      "correction": "Preserve equivalent state feedback while removing or minimizing nonessential spatial and continuous motion.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: Reduced-motion users should receive no state feedback because every transition must be removed."
+      "mistakenBelief": "Reduced-motion users should receive no state feedback, because every transition must be removed.",
+      "correction": "Reduced motion asks for less movement, not less information. Remove large or decorative motion, and keep state changes visible through instant or subtle alternatives like a short opacity change.",
+      "diagnosticPrompt": "In \"The content that never appeared\", what went wrong with the blanket rule?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Reduced motion and input preferences, where rules size, place, and paint existing content.",
+    "example": "Reduced motion is like **turning off a theatre's moving set pieces for an audience member who gets seasick**: the play (content and story) continues; the scenery just stops swinging.",
     "usefulFor": [
-      "Building a first mental model for Reduced motion and input preferences before using exact platform terms"
+      "remembering content stays, movement goes",
+      "feedback remains"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "Reduced does not always mean zero, vestibular triggers vary, and autoplay or canvas motion may need JavaScript coordination."
+      "Theatres can't personalise per seat; browsers can per user.",
+      "Some cues (a light change) still help — like a quick fade."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A reduced-motion query removes parallax and uses an instant opacity state change for the same revealed content.",
-      "prefers-reduced-motion lets authors reduce or replace nonessential movement while preserving content, state change, and control.",
-      "Preserve equivalent state feedback while removing or minimizing nonessential spatial and continuous motion."
+      "@media (prefers-reduced-motion: reduce) { .hero__bg { transform: none } .card.reveal { animation: fade-in 1ms both } }",
+      "emulate reduce",
+      "scroll the page"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Preference",
         "state": {
-          "evidence": "A reduced-motion query removes parallax and uses an instant opacity state change for the same revealed content."
+          "prefers-reduced-motion": "reduce"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The user's setting activates the reduced-motion query."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Parallax removed",
         "state": {
-          "rule": "prefers-reduced-motion lets authors reduce or replace nonessential movement while preserving content, state change, and control."
+          "hero background": "static"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Inside it, the reduced-motion query removes the decorative parallax."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Content revealed",
         "state": {
-          "correction": "Preserve equivalent state feedback while removing or minimizing nonessential spatial and continuous motion."
+          "cards": "visible, no slide",
+          "state change": "instant opacity"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Reduced-motion users should receive no state feedback because every transition must be removed."
+        "explanation": "An instant opacity state change shows the same revealed content."
       }
     ],
-    "textAlternative": "Starting artifact: A reduced-motion query removes parallax and uses an instant opacity state change for the same revealed content. Step 1, Artifact. State: evidence: A reduced-motion query removes parallax and uses an instant opacity state change for the same revealed content.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: prefers-reduced-motion lets authors reduce or replace nonessential movement while preserving content, state change, and control.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Preserve equivalent state feedback while removing or minimizing nonessential spatial and continuous motion.. Check the result against the boundary and reject this misconception: Reduced-motion users should receive no state feedback because every transition must be removed."
+    "textAlternative": "Honouring reduced motion. Step 1, Preference: prefers-reduced-motion is reduce. The user's setting activates the reduced-motion query. Step 2, Parallax removed: hero background is static. Inside it, the reduced-motion query removes the decorative parallax. Step 3, Content revealed: cards is visible, no slide; state change is instant opacity. An instant opacity state change shows the same revealed content."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Reduced motion and input preferences: concrete case”: state its starting evidence, apply the Reduced motion and input preferences rule, and give the observable result in three short lines.",
+      "prompt": "For \"Parallax off, content still revealed\", explain how the reduced-motion query removes parallax and uses an instant opacity state change for the same revealed content.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Preference.",
+        "Parallax.",
+        "Reveal."
       ],
       "expectedEvidence": [
-        "Named example: Reduced motion and input preferences: concrete case.",
-        "Starting evidence: A reduced-motion query removes parallax and uses an instant opacity state change for the same revealed content.",
-        "Core rule: prefers-reduced-motion lets authors reduce or replace nonessential movement while preserving content, state change, and control.",
-        "Observable result: The result follows because Preserve equivalent state feedback while removing or minimizing nonessential spatial and continuous motion.",
-        "Boundary check: Preserve equivalent state feedback while removing or minimizing nonessential spatial and continuous motion."
+        "Names the example \"Parallax off, content still revealed\": a reduced-motion query removes parallax.",
+        "It uses an instant opacity state change.",
+        "The same revealed content still appears.",
+        "Only the movement is removed."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Reduced does not always mean zero, vestibular triggers vary, and autoplay or canvas motion may need JavaScript coordination.",
+      "prompt": "A \"Back to top\" link uses smooth scrolling. What should happen under reduced motion, and which CSS does it?",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "scroll-behavior.",
+        "Still works, just instantly."
       ],
       "expectedEvidence": [
-        "prefers-reduced-motion lets authors reduce or replace nonessential movement while preserving content, state change, and control.",
-        "Reduced does not always mean zero, vestibular triggers vary, and autoplay or canvas motion may need JavaScript coordination."
+        "Jump instantly instead of scrolling smoothly.",
+        "`@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }`."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Reduced motion and input preferences and explain why the misconception fails.",
+      "prompt": "Audit a page with motion: emulate reduced motion, zoom to 200%, and complete its main task keyboard-only. Record and fix every problem, including hidden content and lost focus.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "DevTools Rendering tab.",
+        "Unplug the mouse."
       ],
       "expectedEvidence": [
-        "Verify and repair an experience under reduced-motion, zoom and keyboard-only settings.",
-        "Preserve equivalent state feedback while removing or minimizing nonessential spatial and continuous motion."
+        "Findings for all three settings.",
+        "Fixes that keep content visible and focus reachable."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.motion.preferences.misconception",
-      "explanation": "Preserve equivalent state feedback while removing or minimizing nonessential spatial and continuous motion.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'equivalent state feedback' and state the decisive evidence."
+      "explanation": "For every animation ask: **Is it decorative (remove under reduce) or feedback (make it instant)? What's its final state — is that state still applied when the animation is removed?**",
+      "retryPrompt": "Apply this to \"The content that never appeared\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to verify and repair an experience under reduced-motion, zoom and keyboard-only settings. Keep this boundary in view: Reduced does not always mean zero, vestibular triggers vary, and autoplay or canvas motion may need JavaScript coordination.",
+    "summary": "To verify and repair an experience under reduced-motion, zoom and keyboard-only settings, honour prefers-reduced-motion by removing decorative movement and making feedback instant while keeping final states visible, then test at 200% zoom and with the keyboard alone.",
     "retrievalPrompts": [
-      "Explain Reduced motion and input preferences using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: Reduced-motion users should receive no state feedback because every transition must be removed.",
-      "Apply checkpoint 'equivalent state feedback' to a new artifact."
+      "What does prefers-reduced-motion ask for?",
+      "Why can `animation: none` hide content?",
+      "Which three settings should you test together?"
     ],
     "nextReviewPrompt": "Next: continue to “Computed styles and layout inspectors”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

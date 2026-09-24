@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Reducer plus context can share state and dispatch across a bounded subtree without threading every prop.",
+    "summary": "When many components deep in one feature need the same state and actions, passing props through every layer gets noisy (\"prop drilling\"). **Context** lets a parent **provide** a value and any descendant **read** it with `useContext`. Pair it with a reducer: provide `state` and `dispatch` from one **provider component** placed at the top of the **feature's subtree**, not the whole app. Split rarely-changing values (dispatch, services) from often-changing state into separate contexts, and wrap them in small hooks like `useEditorState()` that throw a clear error when used outside the provider.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A course editor provides state and dispatch only to its editing subtree and splits stable services from changing data. Your goal is to design and test a provider boundary for a multi-component feature. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A course editor has a sidebar, a lesson list, a lesson form and a preview. The editor state is passed as props through four layers that don't use it. Someone suggests putting all app state into one global context. A course editor provides state and dispatch only to its editing subtree and splits stable services from changing data. In this lesson you'll design and test a provider boundary for a multi-component feature.\n\n```predict\n{\"question\": \"Should the course editor's state live in a context wrapping the entire app?\", \"options\": [\"Yes, then everything can reach it\", \"No: provide it around the editor subtree only\"], \"answer\": 1, \"why\": \"A narrow boundary keeps the rest of the app independent and avoids needless re-renders.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: State and events; html forms; useReducer; Component API design. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **State and events** module, **Forms and native controls**, **useReducer**, and **Component API design**, because the provider and hooks form the feature's public interface."
       },
       {
-        "heading": "Technology rule",
-        "body": "Reducer plus context can share state and dispatch across a bounded subtree without threading every prop. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: one provider around one feature",
+        "body": "```jsx\nimport { createContext, useContext, useReducer } from \"react\";\nimport { editorReducer, initial } from \"./editor-reducer.js\";\n\nconst EditorState = createContext(null);\nconst EditorDispatch = createContext(null);   // stable: dispatch never changes.\n\nexport function CourseEditorProvider({ children }) {\n  const [state, dispatch] = useReducer(editorReducer, initial);\n  return (\n    <EditorDispatch.Provider value={dispatch}>\n      <EditorState.Provider value={state}>{children}</EditorState.Provider>\n    </EditorDispatch.Provider>\n  );\n}\n\nexport function useEditorState() {\n  const value = useContext(EditorState);\n  if (value === null) throw new Error(\"useEditorState must be used inside CourseEditorProvider\");\n  return value;\n}\nexport function useEditorDispatch() {\n  const value = useContext(EditorDispatch);\n  if (value === null) throw new Error(\"useEditorDispatch must be used inside CourseEditorProvider\");\n  return value;\n}\n\n// Page: only the editor subtree is wrapped.\n<CourseEditorProvider>\n  <Sidebar /> <LessonForm /> <Preview />\n</CourseEditorProvider>\n```\n\n```reveal\n{\"prompt\": \"Why two contexts?\", \"answer\": \"Components that only dispatch (like an Add button) read the stable dispatch context and don't re-render when state changes.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "One global context rerenders broad consumers, default values can hide missing providers, and server/client boundaries matter. This draft therefore rejects: Context should replace all props and local state throughout an application."
+        "heading": "Context isn't for everything",
+        "body": "```predict\n{\"question\": \"A Card's `title` prop is used by its direct child only. Move it to context?\", \"options\": [\"Yes, context is cleaner\", \"No: one level of props is clear and explicit\"], \"answer\": 1, \"why\": \"Use context for values many distant components need, not to replace ordinary props.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Share a reducer-backed feature state through a focused provider without making all state global.",
-      "Design and test a provider boundary for a multi-component feature."
+      "Provide reducer state and dispatch to a bounded subtree with context.",
+      "Wrap context in hooks with clear errors and test the provider boundary."
     ],
     "excludes": [
-      "One global context rerenders broad consumers, default values can hide missing providers, and server/client boundaries matter."
+      "Global state libraries.",
+      "Context selectors and performance tuning in depth."
     ]
   },
   "outcomes": [
@@ -63,133 +64,136 @@
   "examples": [
     {
       "id": "react.state.reducer-context.example-a",
-      "title": "Reducer and context boundary: concrete case",
+      "title": "The course editor's provider",
       "situation": "A course editor provides state and dispatch only to its editing subtree and splits stable services from changing data.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A course editor provides state and dispatch only to its editing subtree and splits stable services from changing data.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Use context for genuinely cross-cutting subtree data, keep local state local, and split contexts by change pattern."
+        "**Bound the feature:** CourseEditorProvider wraps Sidebar, LessonForm and Preview, and nothing else.",
+        "**Split contexts:** dispatch goes in its own stable context, while state goes in another, so buttons that only dispatch don't re-render.",
+        "**Test:** a test will render LessonForm inside the provider, type a title, and check Preview shows it; rendering outside will throw the clear error."
       ],
-      "result": "The result follows because Use context for genuinely cross-cutting subtree data, keep local state local, and split contexts by change pattern."
+      "result": "Editor components talk through one boundary without prop drilling, and the rest of the app is unaffected."
     },
     {
       "id": "react.state.reducer-context.example-b",
-      "title": "Reducer and context boundary: boundary case",
-      "situation": "One global context rerenders broad consumers, default values can hide missing providers, and server/client boundaries matter.",
+      "title": "The context that re-rendered the whole app",
+      "situation": "A team puts user, theme, cart and editor state in one AppContext at the root. Typing in the lesson form re-renders the header, footer and every page.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: One global context rerenders broad consumers, default values can hide missing providers, and server/client boundaries matter.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Context should replace all props and local state throughout an application."
+        "Every consumer of AppContext re-renders when any part of its value changes.",
+        "Editor state changes on each keystroke.",
+        "Fix: move editor state into CourseEditorProvider around the editor only, and split unrelated contexts."
       ],
-      "result": "The boundary requires this correction: Use context for genuinely cross-cutting subtree data, keep local state local, and split contexts by change pattern."
+      "result": "Typing re-renders only editor components, and the header stays still."
     }
   ],
   "misconceptions": [
     {
       "id": "react.state.reducer-context.misconception",
       "mistakenBelief": "Context should replace all props and local state throughout an application.",
-      "correction": "Use context for genuinely cross-cutting subtree data, keep local state local, and split contexts by change pattern.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Context should replace all props and local state throughout an application."
+      "correction": "Context is for values many components in a subtree need. Ordinary props are clearer for direct parent-child data, local state stays local, and one giant context re-renders every consumer on any change.",
+      "diagnosticPrompt": "In \"The context that re-rendered the whole app\", what caused the extra re-renders?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Reducer and context boundary, where inputs and state produce a UI description.",
+    "example": "A provider is like **the Wi-Fi in one office**. Anyone in that office can connect without running a cable from the router to each desk (prop drilling). You don't broadcast one office's network across the whole building, and the guest network (dispatch) is kept separate from the busy one (state).",
     "usefulFor": [
-      "Building a first mental model for Reducer and context boundary before using exact platform terms"
+      "remembering a bounded provider",
+      "split contexts = separate networks"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "One global context rerenders broad consumers, default values can hide missing providers, and server/client boundaries matter."
+      "Wi-Fi doesn't re-render desks; context changes do re-render consumers.",
+      "A desk next to the router still uses a cable: short props are fine."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A course editor provides state and dispatch only to its editing subtree and splits stable services from changing data.",
-      "Reducer plus context can share state and dispatch across a bounded subtree without threading every prop.",
-      "Use context for genuinely cross-cutting subtree data, keep local state local, and split contexts by change pattern."
+      "<CourseEditorProvider> renders",
+      "LessonForm: dispatch({ type: 'titleChanged', title })",
+      "Preview reads state"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Provide",
         "state": {
-          "evidence": "A course editor provides state and dispatch only to its editing subtree and splits stable services from changing data."
+          "EditorState": "initial",
+          "EditorDispatch": "dispatch"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The course editor provides state and dispatch only to its editing subtree."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Dispatch",
         "state": {
-          "rule": "Reducer plus context can share state and dispatch across a bounded subtree without threading every prop."
+          "action": "titleChanged",
+          "new title": "Loops"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "LessonForm reads the stable dispatch context and sends an action."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Consume",
         "state": {
-          "correction": "Use context for genuinely cross-cutting subtree data, keep local state local, and split contexts by change pattern."
+          "Preview shows": "Loops",
+          "Header re-rendered": "no"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Context should replace all props and local state throughout an application."
+        "explanation": "Changing data flows through state context without touching the rest of the app."
       }
     ],
-    "textAlternative": "Starting artifact: A course editor provides state and dispatch only to its editing subtree and splits stable services from changing data. Step 1, Artifact. State: evidence: A course editor provides state and dispatch only to its editing subtree and splits stable services from changing data.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Reducer plus context can share state and dispatch across a bounded subtree without threading every prop.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use context for genuinely cross-cutting subtree data, keep local state local, and split contexts by change pattern.. Check the result against the boundary and reject this misconception: Context should replace all props and local state throughout an application."
+    "textAlternative": "Tracing an update through a provider. Step 1, Provide: EditorState is initial; EditorDispatch is dispatch. The course editor provides state and dispatch only to its editing subtree. Step 2, Dispatch: action is titleChanged; new title is Loops. LessonForm reads the stable dispatch context and sends an action. Step 3, Consume: Preview shows is Loops; Header re-rendered is no. Changing data flows through state context without touching the rest of the app."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Reducer and context boundary: concrete case”: state its starting evidence, apply the Reducer and context boundary rule, and give the observable result in three short lines.",
+      "prompt": "For \"The course editor's provider\", explain how a course editor provides state and dispatch only to its editing subtree and splits stable services from changing data.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Boundary.",
+        "Split.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Reducer and context boundary: concrete case.",
-        "Starting evidence: A course editor provides state and dispatch only to its editing subtree and splits stable services from changing data.",
-        "Core rule: Reducer plus context can share state and dispatch across a bounded subtree without threading every prop.",
-        "Observable result: The result follows because Use context for genuinely cross-cutting subtree data, keep local state local, and split contexts by change pattern.",
-        "Boundary check: Use context for genuinely cross-cutting subtree data, keep local state local, and split contexts by change pattern."
+        "Names the example \"The course editor's provider\": the provider wraps only the editing subtree.",
+        "It provides state and dispatch.",
+        "It splits stable dispatch from changing data.",
+        "Editor components talk without prop drilling, and the rest of the app is unaffected."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: One global context rerenders broad consumers, default values can hide missing providers, and server/client boundaries matter.",
+      "prompt": "Create a `QuizProvider` around a quiz page with separate state and dispatch contexts and `useQuiz()` / `useQuizDispatch()` hooks that throw outside the provider.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "createContext(null).",
+        "Null check in each hook."
       ],
       "expectedEvidence": [
-        "Reducer plus context can share state and dispatch across a bounded subtree without threading every prop.",
-        "One global context rerenders broad consumers, default values can hide missing providers, and server/client boundaries matter."
+        "Provider wraps only the quiz.",
+        "Hooks give clear errors outside."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Reducer and context boundary and explain why the misconception fails.",
+      "prompt": "Refactor a feature that drills props through 3+ levels into a reducer + context boundary. Write tests for: a consumer updating state, another consumer seeing it, and the hook error outside the provider.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Keep the boundary as small as possible.",
+        "Keep direct props where they're clearer."
       ],
       "expectedEvidence": [
-        "Design and test a provider boundary for a multi-component feature.",
-        "Use context for genuinely cross-cutting subtree data, keep local state local, and split contexts by change pattern."
+        "No drilling through unrelated layers.",
+        "Three passing boundary tests."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.state.reducer-context.misconception",
-      "explanation": "Use context for genuinely cross-cutting subtree data, keep local state local, and split contexts by change pattern.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'keep local state local' and state the decisive evidence."
+      "explanation": "Before adding context ask: **Which components need this, and what's their closest shared parent?** Put the provider there, not at the root. **Does anything only dispatch?** Give dispatch its own context.",
+      "retryPrompt": "Apply this to \"The context that re-rendered the whole app\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to design and test a provider boundary for a multi-component feature. Keep this boundary in view: One global context rerenders broad consumers, default values can hide missing providers, and server/client boundaries matter.",
+    "summary": "To design and test a provider boundary for a multi-component feature, keep state in a reducer, provide state and dispatch in separate contexts from a provider around just that feature's subtree, expose them through hooks with clear errors, and keep ordinary props and local state where they're simpler.",
     "retrievalPrompts": [
-      "Explain Reducer and context boundary using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: Context should replace all props and local state throughout an application.",
-      "Apply checkpoint 'keep local state local' to a new artifact."
+      "Where should a feature's provider go?",
+      "Why split state and dispatch contexts?",
+      "When are plain props better than context?"
     ],
     "nextReviewPrompt": "Next: continue to “When an effect is needed”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

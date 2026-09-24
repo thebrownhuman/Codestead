@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "The DOM is the browser's object-tree representation of the parsed document, not the original source text itself.",
+    "summary": "When a browser reads your HTML file, it builds a live tree of objects called the **DOM** (Document Object Model). The DOM is what gets displayed, styled and scripted — and it's **not** identical to your file. The parser follows fixed rules to repair mistakes: it adds missing elements, closes open ones, and moves misplaced content. DevTools' Elements panel shows the DOM, not your source.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A missing table wrapper is inserted by parsing rules, so the inspected DOM contains nodes absent from typed source. Your goal is to draw or inspect the element tree for a supplied document and diagnose a parser repair. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You write a table without `<tbody>`. In DevTools, a `<tbody>` is there anyway. Your CSS selector `table > tr` matches nothing, and you can't see why. The browser changed your tree. A missing table wrapper is inserted by parsing rules, so the inspected DOM contains nodes absent from the typed source. In this lesson you'll draw or inspect the element tree for a supplied document and diagnose a parser repair.\n\n```predict\n{\"question\": \"Source: `<table><tr><td>1</td></tr></table>`. In the DOM, what is the parent of `<tr>`?\", \"options\": [\"table\", \"tbody (inserted by the parser)\"], \"answer\": 1, \"why\": \"Parsing rules require table rows to live in a row group, so the parser inserts a tbody element.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Elements, attributes and nesting. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Elements, attributes and nesting** — the DOM is the tree those elements form after parsing."
       },
       {
-        "heading": "Technology rule",
-        "body": "The DOM is the browser's object-tree representation of the parsed document, not the original source text itself. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: source text → parser → DOM tree",
+        "body": "```html\n<!-- typed source -->\n<table>\n  <tr><td>1</td></tr>\n</table>\n<p>Hi <b>there</p>\n```\n\n```text\nDOM after parsing:\ntable\n└── tbody        ← inserted\n    └── tr\n        └── td → \"1\"\np\n└── \"Hi \"\n└── b → \"there\"   ← b closed automatically at </p>\n```\n\n| Source | DOM |\n|---|---|\n| text you saved. | tree the browser built. |\n| unchanged by scripts. | changed by scripts and repairs. |\n| View Source shows it. | Elements panel shows it. |\n\n```reveal\n{\"prompt\": \"Why does this matter for CSS?\", \"answer\": \"Selectors match the DOM. `table > tr` fails because tr's parent is tbody. Use `table tr` or `tbody > tr`.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Parser repair, script mutation, templates, and developer tools can make the live DOM differ from view-source text. This draft therefore rejects: The DOM and the saved HTML file are always byte-for-byte identical."
+        "heading": "Inspect, don't assume",
+        "body": "```predict\n{\"question\": \"A script adds a paragraph with JavaScript. Does View Source show it?\", \"options\": [\"Yes\", \"No — only the Elements panel (the DOM) shows it\"], \"answer\": 1, \"why\": \"View Source shows the file the server sent. The DOM includes everything added later.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Relate nested source elements to parent, child and sibling nodes exposed to browser tools.",
-      "Draw or inspect the element tree for a supplied document and diagnose a parser repair."
+      "Draw the DOM tree for a small document.",
+      "Spot parser repairs by comparing source and DOM in DevTools."
     ],
     "excludes": [
-      "Parser repair, script mutation, templates, and developer tools can make the live DOM differ from view-source text."
+      "Manipulating the DOM with JavaScript (JavaScript course).",
+      "Shadow DOM."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "html.document.dom.example-a",
-      "title": "Document tree and DOM concept: concrete case",
+      "title": "The table the parser fixed",
       "situation": "A missing table wrapper is inserted by parsing rules, so the inspected DOM contains nodes absent from typed source.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A missing table wrapper is inserted by parsing rules, so the inspected DOM contains nodes absent from typed source.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Treat the DOM as the live parsed tree; inspect it when reasoning about structure because it can differ from source text."
+        "**Typed source:** `<table><tr><td>1</td></tr></table>` — no tbody.",
+        "**Parsing rules:** rows must be in a row group, so the parser inserts a missing table wrapper (tbody).",
+        "**Inspect:** the Elements panel shows table → tbody → tr → td, nodes absent from the typed source."
       ],
-      "result": "The result follows because Treat the DOM as the live parsed tree; inspect it when reasoning about structure because it can differ from source text."
+      "result": "The DOM contains a tbody that the file never had, explaining why `table > tr` doesn't match."
     },
     {
       "id": "html.document.dom.example-b",
-      "title": "Document tree and DOM concept: boundary case",
-      "situation": "Parser repair, script mutation, templates, and developer tools can make the live DOM differ from view-source text.",
+      "title": "The runaway bold",
+      "situation": "`<p>Price: <b>₹99</p><p>Offer ends today</p>` — both paragraphs look bold.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Parser repair, script mutation, templates, and developer tools can make the live DOM differ from view-source text.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: The DOM and the saved HTML file are always byte-for-byte identical."
+        "The b element was never closed in the source.",
+        "The parser closes b at `</p>` but reopens formatting for the next paragraph (the adoption agency rules).",
+        "Fix: close `</b>` before `</p>`, then re-inspect the DOM."
       ],
-      "result": "The boundary requires this correction: Treat the DOM as the live parsed tree; inspect it when reasoning about structure because it can differ from source text."
+      "result": "With b closed properly, only the price is bold."
     }
   ],
   "misconceptions": [
     {
       "id": "html.document.dom.misconception",
       "mistakenBelief": "The DOM and the saved HTML file are always byte-for-byte identical.",
-      "correction": "Treat the DOM as the live parsed tree; inspect it when reasoning about structure because it can differ from source text.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: The DOM and the saved HTML file are always byte-for-byte identical."
+      "correction": "The DOM is a tree built by parsing rules that insert, close and move elements, and it keeps changing as scripts run. Inspect the DOM to see what the browser actually uses.",
+      "diagnosticPrompt": "In \"The table the parser fixed\", which element exists in the DOM but not the source?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model Document tree and DOM concept, with structure carrying meaning before decoration.",
+    "example": "Your HTML file is a **handwritten recipe**; the DOM is the **typed version** a careful editor produced — adding missing headings, fixing unclosed brackets. The kitchen (browser) cooks from the typed version.",
     "usefulFor": [
-      "Building a first mental model for Document tree and DOM concept before using exact platform terms"
+      "remembering the browser uses the repaired tree",
+      "seeing DevTools as the typed copy"
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "Parser repair, script mutation, templates, and developer tools can make the live DOM differ from view-source text."
+      "An editor might ask you; the parser silently follows rules.",
+      "The typed copy can keep changing when scripts edit it."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A missing table wrapper is inserted by parsing rules, so the inspected DOM contains nodes absent from typed source.",
-      "The DOM is the browser's object-tree representation of the parsed document, not the original source text itself.",
-      "Treat the DOM as the live parsed tree; inspect it when reasoning about structure because it can differ from source text."
+      "<table>",
+      "<tr><td>1</td></tr>",
+      "</table>"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Open table",
         "state": {
-          "evidence": "A missing table wrapper is inserted by parsing rules, so the inspected DOM contains nodes absent from typed source."
+          "open": "table"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The parser opens the table element from the typed source."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Row arrives",
         "state": {
-          "rule": "The DOM is the browser's object-tree representation of the parsed document, not the original source text itself."
+          "inserted": "tbody",
+          "path": "table > tbody > tr"
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "A missing table wrapper is inserted by parsing rules before the row."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Inspect",
         "state": {
-          "correction": "Treat the DOM as the live parsed tree; inspect it when reasoning about structure because it can differ from source text."
+          "DOM": "table > tbody > tr > td",
+          "source": "no tbody"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: The DOM and the saved HTML file are always byte-for-byte identical."
+        "explanation": "The inspected DOM contains nodes absent from the typed source."
       }
     ],
-    "textAlternative": "Starting artifact: A missing table wrapper is inserted by parsing rules, so the inspected DOM contains nodes absent from typed source. Step 1, Artifact. State: evidence: A missing table wrapper is inserted by parsing rules, so the inspected DOM contains nodes absent from typed source.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: The DOM is the browser's object-tree representation of the parsed document, not the original source text itself.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Treat the DOM as the live parsed tree; inspect it when reasoning about structure because it can differ from source text.. Check the result against the boundary and reject this misconception: The DOM and the saved HTML file are always byte-for-byte identical."
+    "textAlternative": "Parser repair of a table. Step 1, Open table: open is table. The parser opens the table element from the typed source. Step 2, Row arrives: inserted is tbody; path is table > tbody > tr. A missing table wrapper is inserted by parsing rules before the row. Step 3, Inspect: DOM is table > tbody > tr > td; source is no tbody. The inspected DOM contains nodes absent from the typed source."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Document tree and DOM concept: concrete case”: state its starting evidence, apply the Document tree and DOM concept rule, and give the observable result in three short lines.",
+      "prompt": "For \"The table the parser fixed\", explain what the typed source contains, which missing table wrapper is inserted by parsing rules, and what the inspected DOM shows.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Source.",
+        "Inserted node.",
+        "Inspected DOM."
       ],
       "expectedEvidence": [
-        "Named example: Document tree and DOM concept: concrete case.",
-        "Starting evidence: A missing table wrapper is inserted by parsing rules, so the inspected DOM contains nodes absent from typed source.",
-        "Core rule: The DOM is the browser's object-tree representation of the parsed document, not the original source text itself.",
-        "Observable result: The result follows because Treat the DOM as the live parsed tree; inspect it when reasoning about structure because it can differ from source text.",
-        "Boundary check: Treat the DOM as the live parsed tree; inspect it when reasoning about structure because it can differ from source text."
+        "Names the example \"The table the parser fixed\": the typed source has no tbody.",
+        "A missing table wrapper, tbody, is inserted by parsing rules.",
+        "The inspected DOM contains nodes absent from typed source.",
+        "table > tr selectors therefore don't match."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Parser repair, script mutation, templates, and developer tools can make the live DOM differ from view-source text.",
+      "prompt": "Predict the DOM for `<ul><li>One<li>Two</ul>` and check it in DevTools.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "li end tags are optional.",
+        "Where does each li end?"
       ],
       "expectedEvidence": [
-        "The DOM is the browser's object-tree representation of the parsed document, not the original source text itself.",
-        "Parser repair, script mutation, templates, and developer tools can make the live DOM differ from view-source text."
+        "ul with two li children, each with its text.",
+        "The parser closes the first li when the second starts."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Document tree and DOM concept and explain why the misconception fails.",
+      "prompt": "Write a page with three deliberate mistakes (unclosed element, missing tbody, a p inside a p). Predict each repair, then compare with DevTools and explain any surprises.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "A p can't contain a p.",
+        "Compare View Source vs Elements."
       ],
       "expectedEvidence": [
-        "Draw or inspect the element tree for a supplied document and diagnose a parser repair.",
-        "Treat the DOM as the live parsed tree; inspect it when reasoning about structure because it can differ from source text."
+        "Three predictions written before inspecting.",
+        "Explained comparison with the actual DOM."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.document.dom.misconception",
-      "explanation": "Treat the DOM as the live parsed tree; inspect it when reasoning about structure because it can differ from source text.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'live parsed tree' and state the decisive evidence."
+      "explanation": "When something looks wrong, open **Elements**, not View Source. Draw the tree you expected next to the tree shown. The first difference is your parser repair.",
+      "retryPrompt": "Do this for \"The runaway bold\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to draw or inspect the element tree for a supplied document and diagnose a parser repair. Keep this boundary in view: Parser repair, script mutation, templates, and developer tools can make the live DOM differ from view-source text.",
+    "summary": "To diagnose a parser repair, draw or inspect the element tree for the document: the DOM is built by parsing rules that insert, close and move nodes, and it can differ from the source. CSS and scripts work on the DOM, so inspect it in DevTools.",
     "retrievalPrompts": [
-      "Explain Document tree and DOM concept using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: The DOM and the saved HTML file are always byte-for-byte identical.",
-      "Apply checkpoint 'live parsed tree' to a new artifact."
+      "Is the DOM identical to your file?",
+      "Why did tbody appear?",
+      "Which DevTools panel shows the DOM?"
     ],
     "nextReviewPrompt": "Next: continue to “Comments and character references”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

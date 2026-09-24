@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A prefix array precomputes cumulative values for constant-time range queries, while a difference array records boundary changes for batch range updates.",
+    "summary": "If you'll ask many **range-sum** questions about an array that doesn't change, build a **prefix array** once: `prefix[0] = 0` and `prefix[i + 1] = prefix[i] + a[i]`. Then the sum of `a[l..r]` (inclusive) is `prefix[r + 1] - prefix[l]`, in O(1) per query after O(n) setup. The opposite trick, a **difference array**, handles many \"add x to every item from l to r\" updates: record `+x` at l and `-x` at r + 1, then one prefix pass rebuilds the final values. The trade-off: prefix sums need rebuilding after an update, and difference arrays only give values after that final pass.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Prefix[r+1]-prefix[l] returns the sum of the half-open range [l,r+1). Your goal is to recognize, implement and analyze one-dimensional and two-dimensional prefix-sum problems. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A study tracker stores minutes studied each day for a year. The dashboard asks hundreds of times \"how many minutes between day l and day r?\", and summing the range each time makes it sluggish. Prefix[r+1]-prefix[l] returns the sum of the half-open range [l,r+1). In this lesson you'll recognize, implement and analyze one-dimensional and two-dimensional prefix-sum problems.\n\n```predict\n{\"question\": \"a = [5, 3, 8, 6]. prefix = [0, 5, 8, 16, 22]. What's the sum of a[1..2] (3 + 8)?\", \"options\": [\"prefix[2] - prefix[1] = 3\", \"prefix[3] - prefix[1] = 11\"], \"answer\": 1, \"why\": \"The sum of a[l..r] is prefix[r + 1] - prefix[l]: 16 - 5 = 11.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Readiness, algorithms and analysis; Two-dimensional arrays and matrices; Time, space and asymptotic growth. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Readiness, algorithms and analysis** module, **Two-dimensional arrays and matrices** (for 2D prefix sums), and **Time, space and asymptotic growth**."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "A prefix array precomputes cumulative values for constant-time range queries, while a difference array records boundary changes for batch range updates. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The model: precompute once, answer fast",
+        "body": "```python\ndef build_prefix(a):\n    prefix = [0] * (len(a) + 1)       # prefix[i] = sum of a[0:i].\n    for i, x in enumerate(a):\n        prefix[i + 1] = prefix[i] + x\n    return prefix\n\ndef range_sum(prefix, l, r):          # inclusive l..r, O(1).\n    return prefix[r + 1] - prefix[l]\n\ndef apply_range_adds(n, updates):     # updates: (l, r, x), inclusive.\n    diff = [0] * (n + 1)\n    for l, r, x in updates:\n        diff[l] += x\n        diff[r + 1] -= x\n    result, running = [], 0\n    for i in range(n):                  # one prefix pass rebuilds values.\n        running += diff[i]\n        result.append(running)\n    return result\n```\n\n| Task | Naive | With the trick |\n|---|---|---|\n| q range sums. | O(n × q). | O(n) build + O(1) each. |\n| u range adds, then read all. | O(n × u). | O(u) + O(n) final pass. |\n| 2D rectangle sums. | O(R × C) each. | O(R × C) build + O(1) each. |\n\n```reveal\n{\"prompt\": \"Why does prefix have n + 1 slots starting with 0?\", \"answer\": \"prefix[0] = 0 means \\\"sum of nothing\\\", so ranges starting at index 0 need no special case: sum of a[0..r] is prefix[r + 1] - prefix[0].\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Index conventions, inclusive endpoints, overflow, and inverse reconstruction must remain consistent. The draft therefore rejects: Prefix sums make both arbitrary updates and queries constant time without tradeoffs."
+        "heading": "The trade-off",
+        "body": "```predict\n{\"question\": \"After building prefix, day 3's minutes change. Is prefix still correct?\", \"options\": [\"Yes\", \"No: every prefix from index 4 onward is now wrong and must be rebuilt (O(n))\"], \"answer\": 1, \"why\": \"Prefix sums suit data that rarely changes. For frequent updates and queries, a Fenwick or segment tree is the next tool.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Precompute cumulative information or range deltas to answer or apply repeated interval operations efficiently.",
-      "Recognize, implement and analyze one-dimensional and two-dimensional prefix-sum problems.",
-      "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead."
+      "Build prefix arrays and answer inclusive range sums in O(1).",
+      "Use difference arrays for batched range updates, and extend prefix sums to 2D."
     ],
     "excludes": [
-      "Index conventions, inclusive endpoints, overflow, and inverse reconstruction must remain consistent."
+      "Fenwick and segment trees.",
+      "Prefix XOR and other operators in depth."
     ]
   },
   "outcomes": [
@@ -68,142 +64,133 @@
   "examples": [
     {
       "id": "dsa.arrays.prefix-difference.example-a",
-      "title": "Prefix and difference representations: language-neutral trace",
-      "situation": "Prefix[r+1]-prefix[l] returns the sum of the half-open range [l,r+1).",
+      "title": "Total study minutes between two days",
+      "situation": "Prefix[r+1]-prefix[l] returns the sum of the half-open range [l,r+1) for the study tracker.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: Prefix[r+1]-prefix[l] returns the sum of the half-open range [l,r+1).",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Prefix sums accelerate static range queries; updates usually require rebuilding unless a different structure is chosen."
+        "**Build once:** from minutes [5, 3, 8, 6] the tracker computes prefix [0, 5, 8, 16, 22] in O(n).",
+        "**Half-open range:** days 1 to 2 inclusive are the half-open range [1, 3), so the sum is prefix[3] - prefix[1] = 16 - 5 = 11.",
+        "**Test:** a test will compare range_sum with a plain loop sum for every l ≤ r on random data."
       ],
-      "result": "The conceptual result follows because Prefix sums accelerate static range queries; updates usually require rebuilding unless a different structure is chosen."
+      "result": "Each dashboard question is answered in constant time, and the answers match a straightforward sum."
     },
     {
       "id": "dsa.arrays.prefix-difference.example-b",
-      "title": "Prefix and difference representations: implementation transfer",
-      "situation": "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead.",
+      "title": "The discount that covered a range",
+      "situation": "A course store applies 3 promotions: +10 off for days 2-5, +5 off for days 0-3, +20 off for day 4 only. Applying each by looping over its days is slow for long promotions.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead.",
-        "Step 3 — Retest this boundary in the selected implementation: Index conventions, inclusive endpoints, overflow, and inverse reconstruction must remain consistent."
+        "Record each promotion in a difference array: diff[l] += x, diff[r + 1] -= x.",
+        "One running-sum pass over diff gives each day's total discount.",
+        "Check: day 3 gets 10 + 5 = 15; day 4 gets 10 + 20 = 30."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "All promotions are applied in O(u + n), and each day's discount is correct."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.arrays.prefix-difference.misconception",
       "mistakenBelief": "Prefix sums make both arbitrary updates and queries constant time without tradeoffs.",
-      "correction": "Prefix sums accelerate static range queries; updates usually require rebuilding unless a different structure is chosen.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Prefix sums make both arbitrary updates and queries constant time without tradeoffs."
+      "correction": "Prefix sums make queries O(1) only for data that doesn't change; a single update can force an O(n) rebuild. Difference arrays make range updates cheap but need a pass before reading values.",
+      "diagnosticPrompt": "In \"The trade-off\" predict, what happened after one day changed?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Prefix and difference representations, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "A prefix array is like **the odometer readings in a car log**: to know the distance between two stops, subtract the readings instead of re-driving the route. A difference array is like **marking \"+10\" where a toll zone starts and \"-10\" where it ends**, then adding up once at the end of the trip.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering subtract two readings",
+      "difference = start and end markers"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Index conventions, inclusive endpoints, overflow, and inverse reconstruction must remain consistent."
+      "Odometers never go back; fixing an old entry means rewriting the rest of the log.",
+      "The marks mean nothing until you total them."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Prefix[r+1]-prefix[l] returns the sum of the half-open range [l,r+1).",
-      "A prefix array precomputes cumulative values for constant-time range queries, while a difference array records boundary changes for batch range updates.",
-      "Prefix sums accelerate static range queries; updates usually require rebuilding unless a different structure is chosen.",
-      "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead."
+      "a = [5, 3, 8, 6]",
+      "build prefix",
+      "range_sum(prefix, 1, 2)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Input",
         "state": {
-          "scenario": "Prefix[r+1]-prefix[l] returns the sum of the half-open range [l,r+1)."
+          "a": "[5, 3, 8, 6]"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The tracker has four days of minutes."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Build",
         "state": {
-          "invariant": "A prefix array precomputes cumulative values for constant-time range queries, while a difference array records boundary changes for batch range updates."
+          "prefix": "[0, 5, 8, 16, 22]"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "Each prefix entry is the total of all days before it."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Query",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "prefix[3] - prefix[1]": "16 - 5 = 11"
         },
-        "explanation": "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Prefix sums accelerate static range queries; updates usually require rebuilding unless a different structure is chosen."
-        },
-        "explanation": "Verify the result and reject this misconception: Prefix sums make both arbitrary updates and queries constant time without tradeoffs."
+        "explanation": "Prefix[r+1]-prefix[l] returns the sum of the half-open range [l,r+1)."
       }
     ],
-    "textAlternative": "Starting artifact: Prefix[r+1]-prefix[l] returns the sum of the half-open range [l,r+1). Step 1, Specification. State: scenario: Prefix[r+1]-prefix[l] returns the sum of the half-open range [l,r+1).. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: A prefix array precomputes cumulative values for constant-time range queries, while a difference array records boundary changes for batch range updates.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead. Step 4, Conclusion. State: correction: Prefix sums accelerate static range queries; updates usually require rebuilding unless a different structure is chosen.. Verify the result and reject this misconception: Prefix sums make both arbitrary updates and queries constant time without tradeoffs."
+    "textAlternative": "Tracing a prefix-sum query. Step 1, Input: a is [5, 3, 8, 6]. The tracker has four days of minutes. Step 2, Build: prefix is [0, 5, 8, 16, 22]. Each prefix entry is the total of all days before it. Step 3, Query: prefix[3] - prefix[1] is 16 - 5 = 11. Prefix[r+1]-prefix[l] returns the sum of the half-open range [l,r+1)."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Prefix and difference representations: language-neutral trace”: state its starting evidence, apply the Prefix and difference representations rule, and give the observable result in three short lines.",
+      "prompt": "For \"Total study minutes between two days\", explain how prefix[r+1]-prefix[l] returns the sum of the half-open range [l,r+1).",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Build.",
+        "Query.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Prefix and difference representations: language-neutral trace.",
-        "Starting evidence: Prefix[r+1]-prefix[l] returns the sum of the half-open range [l,r+1).",
-        "Core rule: A prefix array precomputes cumulative values for constant-time range queries, while a difference array records boundary changes for batch range updates.",
-        "Observable result: The conceptual result follows because Prefix sums accelerate static range queries; updates usually require rebuilding unless a different structure is chosen.",
-        "Boundary check: Prefix sums accelerate static range queries; updates usually require rebuilding unless a different structure is chosen."
+        "Names the example \"Total study minutes between two days\": the tracker builds a prefix array once.",
+        "prefix[r+1]-prefix[l] returns the sum of the half-open range [l,r+1).",
+        "For days 1 to 2 that's 16 - 5 = 11.",
+        "Each dashboard question is answered in constant time."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: A prefix array precomputes cumulative values for constant-time range queries, while a difference array records boundary changes for batch range updates.",
+      "prompt": "Build a 2D prefix `P` with an extra row and column of zeros, and write `rect_sum(P, r1, c1, r2, c2)` using four lookups. Test it on a 3 × 3 grid against a loop.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "P[r+1][c+1] = grid[r][c] + P[r][c+1] + P[r+1][c] - P[r][c].",
+        "Inclusion-exclusion for the query."
       ],
       "expectedEvidence": [
-        "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead.",
-        "Index conventions, inclusive endpoints, overflow, and inverse reconstruction must remain consistent."
+        "rect_sum matches the loop for all rectangles.",
+        "O(1) per query."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Prefix and difference representations case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "A dashboard needs \"average minutes over any date range\" and \"add bonus minutes to a range of days\" in separate batch jobs. Design which structure each job uses, implement both, and test against brute force.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Queries: prefix sums.",
+        "Batch updates: difference array, then rebuild prefix."
       ],
       "expectedEvidence": [
-        "Recognize, implement and analyze one-dimensional and two-dimensional prefix-sum problems.",
-        "Prefix sums accelerate static range queries; updates usually require rebuilding unless a different structure is chosen."
+        "Both jobs correct vs brute force.",
+        "Costs stated for each."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.arrays.prefix-difference.misconception",
-      "explanation": "Prefix sums accelerate static range queries; updates usually require rebuilding unless a different structure is chosen.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'static range queries', then state one implementation-specific risk in the selected language."
+      "explanation": "Ask: **Many range queries, few updates? Prefix. Many range updates, read at the end? Difference.** Write prefix with n + 1 slots and test ranges that start at 0 and end at n - 1.",
+      "retryPrompt": "Apply this to \"The discount that covered a range\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to recognize, implement and analyze one-dimensional and two-dimensional prefix-sum problems. Keep this boundary in view: Index conventions, inclusive endpoints, overflow, and inverse reconstruction must remain consistent.",
+    "summary": "To recognize and implement prefix-sum problems, build prefix[i + 1] = prefix[i] + a[i] once and answer inclusive ranges with prefix[r + 1] - prefix[l] in O(1); use difference arrays for batched range updates; extend both to 2D with inclusion-exclusion; and remember updates force rebuilds.",
     "retrievalPrompts": [
-      "State the Prefix and difference representations invariant and complexity without code.",
-      "Why is this claim false: Prefix sums make both arbitrary updates and queries constant time without tradeoffs.",
-      "Map checkpoint 'static range queries' to C, C++, Java, and Python."
+      "How do you get the sum of a[l..r] from prefix?",
+      "Why start prefix with 0?",
+      "What does a difference array make cheap?"
     ],
     "nextReviewPrompt": "Next: continue to “Singly linked representation”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

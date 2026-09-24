@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Documentation and AI assistance should answer a bounded question, expose assumptions, cite applicable versions, and be verified against the problem, authoritative sources, and executable tests.",
+    "summary": "Docs and AI tools are great helpers, but they can be **confidently wrong** or answer for a different version. Use them well: ask one **bounded question**, notice the assumptions in the answer, check it against **official versioned docs**, and prove it with **tests** before you rely on it.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A learner asks for the documented return behavior of one library call, checks official versioned docs, then writes boundary tests before using the suggestion. Your goal is to evaluate an assisted answer against a source, tests and the stated problem. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You ask an AI tool: \"What does `list.sort()` return in Python?\" It answers smoothly that it returns the sorted list. It sounds right. It's wrong — `sort()` returns `None`. A careful learner asks for the documented return behavior of one library call, checks official versioned docs, then writes boundary tests before using the suggestion. In this lesson you'll evaluate an assisted answer against a source, tests and the stated problem.\n\n```predict\n{\"code\": \"nums = [3, 1, 2]\\nresult = nums.sort()\\nprint(result)\", \"question\": \"What does this print?\", \"options\": [\"[1, 2, 3]\", \"None\"], \"answer\": 1, \"why\": \"`sort()` sorts the list **in place** and returns `None`. `sorted(nums)` is the one that returns a new list. A fluent answer isn't proof.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Debugging and testing loop; Using feedback. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Debugging and testing loop** and **Using feedback**. AI answers are one more piece of evidence to test, not a final answer."
       },
       {
-        "heading": "Operational model",
-        "body": "Documentation and AI assistance should answer a bounded question, expose assumptions, cite applicable versions, and be verified against the problem, authoritative sources, and executable tests. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The model: bounded question, source, tests",
+        "body": "| Step | Example |\n|---|---|\n| 1. Ask a bounded question. | \"What does `list.sort()` return in Python 3.12?\" |\n| 2. Spot assumptions. | Which version? In place or new list? |\n| 3. Check an authoritative source. | docs.python.org for your version. |\n| 4. Test it. | run it on `[]`, `[1]`, and `[3, 1, 2]`. |\n| 5. Check it fits your problem. | do you need the original order kept? |\n\n```reveal\n{\"prompt\": \"Why ask a *bounded* question instead of \\\"write my whole program\\\"?\", \"answer\": \"A small question gives a small answer you can actually verify. A whole program hides many unchecked assumptions at once.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Confident wording is not evidence, generated code can leak secrets or violate constraints, and a correct snippet in one version or context may be wrong in another. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: A fluent answer from documentation search or an AI tool can be submitted without verification if it looks conventional."
+        "heading": "Fluent isn't the same as correct",
+        "body": "```predict\n{\"question\": \"An AI answer uses a function that exists only in a newer library version than yours. What should catch this?\", \"options\": [\"Checking the versioned docs and running a test\", \"Reading the answer twice\"], \"answer\": 0, \"why\": \"Only the source for **your** version, plus a test run, reveals the mismatch. Re-reading fluent text doesn't.\"}\n```\n\nIf your course has rules about AI use, follow them — and say when you used it."
       }
     ]
   },
   "scope": {
     "includes": [
-      "Ask bounded questions, verify claims and retain ownership of reasoning and submitted work.",
-      "Evaluate an assisted answer against a source, tests and the stated problem."
+      "Ask bounded questions and spot assumptions in an assisted answer.",
+      "Verify an answer against versioned docs, tests and the stated problem."
     ],
     "excludes": [
-      "Confident wording is not evidence, generated code can leak secrets or violate constraints, and a correct snippet in one version or context may be wrong in another."
+      "Prompt engineering techniques.",
+      "Academic integrity policy details (next lesson)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "pf.practice.assistance.example-a",
-      "title": "Documentation and AI assistance: direct case",
+      "title": "Checking an AI suggestion",
       "situation": "A learner asks for the documented return behavior of one library call, checks official versioned docs, then writes boundary tests before using the suggestion.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A learner asks for the documented return behavior of one library call, checks official versioned docs, then writes boundary tests before using the suggestion.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Retain ownership by narrowing the request, checking source and version, testing normal and boundary behavior, and explaining every submitted decision."
+        "**Bounded question:** \"What does `list.sort()` return in Python 3.12?\" The tool says \"the sorted list\".",
+        "**Check official versioned docs:** docs.python.org says sort works in place and returns None.",
+        "**Boundary tests:** run it on an empty list, a one-item list and `[3, 1, 2]`; each returns None and sorts in place."
       ],
-      "result": "The case supports the declared outcome because Retain ownership by narrowing the request, checking source and version, testing normal and boundary behavior, and explaining every submitted decision."
+      "result": "The learner catches the wrong suggestion and uses `sorted()` where a new list is needed."
     },
     {
       "id": "pf.practice.assistance.example-b",
-      "title": "Documentation and AI assistance: boundary case",
-      "situation": "An AI-proposed fix is compared with the assignment constraints and rejected because it imports a forbidden library despite passing one example.",
+      "title": "The fake parameter",
+      "situation": "An AI suggests `round(2.675, digits=2)` to round money values in a report.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: An AI-proposed fix is compared with the assignment constraints and rejected because it imports a forbidden library despite passing one example.",
-        "Step 2 — Keep this boundary explicit: Confident wording is not evidence, generated code can leak secrets or violate constraints, and a correct snippet in one version or context may be wrong in another.",
-        "Step 3 — Reject the documented misconception: A fluent answer from documentation search or an AI tool can be submitted without verification if it looks conventional."
+        "Checking the docs shows the parameter is called `ndigits`, not `digits` — the call would raise TypeError.",
+        "A test on 2.675 shows it gives 2.67, not 2.68, because of floating-point representation.",
+        "For the stated problem (money), the docs point to `decimal.Decimal` instead."
       ],
-      "result": "This case demonstrates the declared outcome: Evaluate an assisted answer against a source, tests and the stated problem."
+      "result": "Verification catches a wrong name and a subtle problem that fluent text hid."
     }
   ],
   "misconceptions": [
     {
       "id": "pf.practice.assistance.misconception",
       "mistakenBelief": "A fluent answer from documentation search or an AI tool can be submitted without verification if it looks conventional.",
-      "correction": "Retain ownership by narrowing the request, checking source and version, testing normal and boundary behavior, and explaining every submitted decision.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: A fluent answer from documentation search or an AI tool can be submitted without verification if it looks conventional."
+      "correction": "Fluent answers can be wrong, out of date, or for a different version or problem. Verify against authoritative versioned docs, run tests including edge cases, and check that it fits the stated problem before using it.",
+      "diagnosticPrompt": "In \"The fake parameter\", what two problems did verification uncover?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "Sports coaching can model Documentation and AI assistance: study a play, attempt it, use specific feedback, retry independently, and credit the people or material that helped.",
+    "example": "An AI tool is like a **confident friend giving directions**: often right, sometimes sure about a road that closed last year. You still check the map and watch the signs.",
     "usefulFor": [
-      "Connecting explanation, feedback, independent transfer, assistance, and integrity"
+      "remembering that confidence isn't proof",
+      "checking the map = checking official docs"
     ],
     "limitations": [
-      "Learning evidence and reuse permissions are governed by explicit course and software rules, not only informal coaching norms.",
-      "Confident wording is not evidence, generated code can leak secrets or violate constraints, and a correct snippet in one version or context may be wrong in another."
+      "Code can be tested instantly; directions often can't until you're lost.",
+      "Docs are versioned — the right map depends on your version."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A learner asks for the documented return behavior of one library call, checks official versioned docs, then writes boundary tests before using the suggestion.",
-      "Documentation and AI assistance should answer a bounded question, expose assumptions, cite applicable versions, and be verified against the problem, authoritative sources, and executable tests.",
-      "Retain ownership by narrowing the request, checking source and version, testing normal and boundary behavior, and explaining every submitted decision."
+      "nums = [3, 1, 2]",
+      "result = nums.sort()",
+      "print(result, nums)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Suggestion",
         "state": {
-          "evidence": "A learner asks for the documented return behavior of one library call, checks official versioned docs, then writes boundary tests before using the suggestion."
+          "claimed": "sort() returns sorted list"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "The AI tool claims that sort returns the sorted list."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Check docs",
         "state": {
-          "model": "Documentation and AI assistance should answer a bounded question, expose assumptions, cite applicable versions, and be verified against the problem, authoritative sources, and executable tests."
+          "docs": "sorts in place, returns None"
         },
-        "explanation": "Apply the declared Documentation and AI assistance model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "The official versioned docs say sort changes the list and returns None."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Run test",
         "state": {
-          "correction": "Retain ownership by narrowing the request, checking source and version, testing normal and boundary behavior, and explaining every submitted decision."
+          "result": "None",
+          "nums": "[1, 2, 3]"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: A fluent answer from documentation search or an AI tool can be submitted without verification if it looks conventional."
+        "explanation": "The test confirms the docs: result is None while nums is sorted in place."
       }
     ],
-    "textAlternative": "Starting artifact: A learner asks for the documented return behavior of one library call, checks official versioned docs, then writes boundary tests before using the suggestion. Step 1, Observe. State: evidence: A learner asks for the documented return behavior of one library call, checks official versioned docs, then writes boundary tests before using the suggestion.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Documentation and AI assistance should answer a bounded question, expose assumptions, cite applicable versions, and be verified against the problem, authoritative sources, and executable tests.. Apply the declared Documentation and AI assistance model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Retain ownership by narrowing the request, checking source and version, testing normal and boundary behavior, and explaining every submitted decision.. Compare the observation with the correction and reject the misconception: A fluent answer from documentation search or an AI tool can be submitted without verification if it looks conventional."
+    "textAlternative": "Verifying an AI claim about list.sort. Step 1, Suggestion: claimed is sort() returns sorted list. The AI tool claims that sort returns the sorted list. Step 2, Check docs: docs is sorts in place, returns None. The official versioned docs say sort changes the list and returns None. Step 3, Run test: result is None; nums is [1, 2, 3]. The test confirms the docs: result is None while nums is sorted in place."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Documentation and AI assistance: direct case”: state its starting evidence, apply the Documentation and AI assistance rule, and give the observable result in three short lines.",
+      "prompt": "For \"Checking an AI suggestion\", describe how the learner asked a bounded question about the return behavior, which official versioned docs they checked, and which boundary tests they wrote.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "The question.",
+        "The source.",
+        "The tests."
       ],
       "expectedEvidence": [
-        "Named example: Documentation and AI assistance: direct case.",
-        "Starting evidence: A learner asks for the documented return behavior of one library call, checks official versioned docs, then writes boundary tests before using the suggestion.",
-        "Core rule: Documentation and AI assistance should answer a bounded question, expose assumptions, cite applicable versions, and be verified against the problem, authoritative sources, and executable tests.",
-        "Observable result: The case supports the declared outcome because Retain ownership by narrowing the request, checking source and version, testing normal and boundary behavior, and explaining every submitted decision.",
-        "Boundary check: Retain ownership by narrowing the request, checking source and version, testing normal and boundary behavior, and explaining every submitted decision."
+        "Names the example \"Checking an AI suggestion\": asking for the documented return behavior of one library call.",
+        "Checks official versioned docs at docs.python.org.",
+        "Writes boundary tests on an empty list and a one-item list.",
+        "Catches the wrong suggestion and uses sorted() when a new list is needed."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: An AI-proposed fix is compared with the assignment constraints and rejected because it imports a forbidden library despite passing one example.",
+      "prompt": "An AI tells you `\"a,b,,c\".split(\",\")` returns `[\"a\", \"b\", \"c\"]`. Write how you'd verify it (source + test) and what you expect to find.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Look at str.split docs.",
+        "Test the empty field."
       ],
       "expectedEvidence": [
-        "Documentation and AI assistance should answer a bounded question, expose assumptions, cite applicable versions, and be verified against the problem, authoritative sources, and executable tests.",
-        "Confident wording is not evidence, generated code can leak secrets or violate constraints, and a correct snippet in one version or context may be wrong in another."
+        "Checks the docs and runs the code.",
+        "Finds the result is ['a', 'b', '', 'c'] — the empty field is kept."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Documentation and AI assistance, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Ask an AI tool one bounded question about a library you use. Record its answer, the version you're on, what the official docs say, and a test you ran. Did it hold up?",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Record the version.",
+        "Include one edge case test."
       ],
       "expectedEvidence": [
-        "Evaluate an assisted answer against a source, tests and the stated problem.",
-        "Retain ownership by narrowing the request, checking source and version, testing normal and boundary behavior, and explaining every submitted decision."
+        "A complete verification record.",
+        "An honest verdict on whether the answer was correct for your version and problem."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "pf.practice.assistance.misconception",
-      "explanation": "Retain ownership by narrowing the request, checking source and version, testing normal and boundary behavior, and explaining every submitted decision.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: An AI-proposed fix is compared with the assignment constraints and rejected because it imports a forbidden library despite passing one example."
+      "explanation": "Before using any suggestion, fill in: **Question… Version… Source says… Test result… Fits my problem? yes/no.** If a blank is empty, don't use it yet.",
+      "retryPrompt": "Fill it in for \"The fake parameter\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to evaluate an assisted answer against a source, tests and the stated problem. Keep this boundary in view: Confident wording is not evidence, generated code can leak secrets or violate constraints, and a correct snippet in one version or context may be wrong in another.",
+    "summary": "To evaluate an assisted answer, ask a bounded question, notice its assumptions, check it against an authoritative versioned source, run tests including edge cases, and confirm it solves the stated problem. Fluent doesn't mean correct.",
     "retrievalPrompts": [
-      "Explain Documentation and AI assistance without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: A fluent answer from documentation search or an AI tool can be submitted without verification if it looks conventional.",
-      "Apply the model to this case from memory: An AI-proposed fix is compared with the assignment constraints and rejected because it imports a forbidden library despite passing one example."
+      "What does `list.sort()` return?",
+      "Why check versioned docs?",
+      "What makes a question bounded?"
     ],
     "nextReviewPrompt": "Next: continue to “Integrity and attribution”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

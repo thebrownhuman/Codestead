@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Flex layout distributes items along a main axis and aligns them along a cross axis chosen by flex-direction and writing mode.",
+    "summary": "Flexbox lays items out along one **main axis**, set by `flex-direction`: `row` (inline direction) or `column` (block direction). The other direction is the **cross axis**. `justify-content` distributes items along the **main** axis; `align-items` aligns them on the **cross** axis. So in a column, justify-content is vertical. Item sizing comes from `flex: grow shrink basis` — e.g. `flex: 1 1 12rem`.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A column flex container uses justify-content for vertical distribution and align-items for horizontal cross-axis alignment. Your goal is to implement and explain a resilient one-dimensional component layout. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You turn a sidebar into `flex-direction: column` and use `justify-content: center` to center the buttons horizontally — and they jump to the vertical middle instead! The axes swapped. A column flex container uses justify-content for vertical distribution and align-items for horizontal cross-axis alignment. In this lesson you'll implement and explain a resilient one-dimensional component layout.\n\n```predict\n{\"question\": \"In `display: flex; flex-direction: column;`, which property centers items horizontally?\", \"options\": [\"justify-content: center\", \"align-items: center\"], \"answer\": 1, \"why\": \"In a column, the main axis is vertical, so horizontal is the cross axis → align-items.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Normal flow and display; Intrinsic sizing and constraints. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Normal flow and display** and **Intrinsic sizing and constraints** — flex items still have min-content minimums."
       },
       {
-        "heading": "Technology rule",
-        "body": "Flex layout distributes items along a main axis and aligns them along a cross axis chosen by flex-direction and writing mode. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: main axis vs cross axis",
+        "body": "| flex-direction | Main axis | justify-content moves items | align-items moves items |\n|---|---|---|---|\n| `row` (default). | horizontal (in LTR). | left–right. | up–down. |\n| `column`. | vertical. | up–down. | left–right. |\n\n```css\n.toolbar { display: flex; gap: 0.5rem; align-items: center; }\n.toolbar__search { flex: 1 1 12rem; min-width: 0; }  /* grow, shrink, start at 12rem */\n\n.sidebar { display: flex; flex-direction: column; justify-content: space-between; align-items: center; min-height: 100vh; }\n```\n\n| flex shorthand | Means |\n|---|---|\n| `flex: 1`. | grow 1, shrink 1, basis 0. |\n| `flex: none`. | don't grow or shrink. |\n| `flex: 1 1 12rem`. | start at 12rem, then grow/shrink. |\n\n```reveal\n{\"prompt\": \"What does `gap` do in a flex container?\", \"answer\": \"It adds space between items (not at the outer edges), replacing margin hacks.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Row is not always physical horizontal, wrapping creates multiple lines, and order changes visual placement without changing DOM order. This draft therefore rejects: justify-content always controls horizontal alignment."
+        "heading": "Resilient sizing",
+        "body": "```predict\n{\"question\": \"A toolbar has a search input and three buttons. On a narrow phone, what keeps it from overflowing?\", \"options\": [\"Fixed widths on everything\", \"`flex-wrap: wrap` and a flexible basis with min-width: 0 on the input\"], \"answer\": 1, \"why\": \"Let the flexible item grow and shrink, and allow wrapping when there isn't room for everything.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use flex containers, direction, basis, growth, shrinkage and wrapping deliberately.",
-      "Implement and explain a resilient one-dimensional component layout."
+      "Identify main and cross axes for row and column flex containers.",
+      "Use justify-content, align-items, gap, flex and wrapping for resilient one-dimensional layouts."
     ],
     "excludes": [
-      "Row is not always physical horizontal, wrapping creates multiple lines, and order changes visual placement without changing DOM order."
+      "Alignment of individual items and order (next lesson).",
+      "Grid (two-dimensional layout)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "css.flex.axes.example-a",
-      "title": "Flex axes and sizing: concrete case",
+      "title": "Centering in a column",
       "situation": "A column flex container uses justify-content for vertical distribution and align-items for horizontal cross-axis alignment.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A column flex container uses justify-content for vertical distribution and align-items for horizontal cross-axis alignment.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Name the current main and cross axes first; justify-content acts on the main axis, not a fixed physical direction."
+        "**Column container:** `.sidebar { display: flex; flex-direction: column; }` — main axis is vertical.",
+        "**Vertical distribution:** `justify-content: space-between` puts the nav at the top and the account button at the bottom.",
+        "**Horizontal cross-axis alignment:** `align-items: center` centers the buttons left–right; the browser will render them centered in the sidebar."
       ],
-      "result": "The result follows because Name the current main and cross axes first; justify-content acts on the main axis, not a fixed physical direction."
+      "result": "The sidebar spreads its groups vertically and centers them horizontally, as intended."
     },
     {
       "id": "css.flex.axes.example-b",
-      "title": "Flex axes and sizing: boundary case",
-      "situation": "Row is not always physical horizontal, wrapping creates multiple lines, and order changes visual placement without changing DOM order.",
+      "title": "The toolbar that overflowed",
+      "situation": "`.toolbar { display: flex }` holds a search input with `width: 300px` and three buttons. On a 320px phone it overflows.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Row is not always physical horizontal, wrapping creates multiple lines, and order changes visual placement without changing DOM order.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: justify-content always controls horizontal alignment."
+        "The fixed 300px width plus buttons exceeds the container.",
+        "Flex items don't wrap by default.",
+        "Fix: `flex-wrap: wrap`, search `flex: 1 1 12rem; min-width: 0`, remove the fixed width."
       ],
-      "result": "The boundary requires this correction: Name the current main and cross axes first; justify-content acts on the main axis, not a fixed physical direction."
+      "result": "The toolbar fits on phones by shrinking and wrapping, and stretches on wide screens."
     }
   ],
   "misconceptions": [
     {
       "id": "css.flex.axes.misconception",
       "mistakenBelief": "justify-content always controls horizontal alignment.",
-      "correction": "Name the current main and cross axes first; justify-content acts on the main axis, not a fixed physical direction.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: justify-content always controls horizontal alignment."
+      "correction": "justify-content controls the main axis, which depends on flex-direction. In a column container the main axis is vertical, so justify-content distributes items vertically and align-items handles horizontal alignment.",
+      "diagnosticPrompt": "In \"Centering in a column\", which property centered the buttons horizontally?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Flex axes and sizing, where rules size, place, and paint existing content.",
+    "example": "Flexbox is like **beads on a string**: the string's direction is the main axis. justify-content slides beads along the string; align-items moves them up or down off it. Turn the string vertical (column) and the moves swap.",
     "usefulFor": [
-      "Building a first mental model for Flex axes and sizing before using exact platform terms"
+      "remembering main axis = string direction",
+      "cross axis = perpendicular"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "Row is not always physical horizontal, wrapping creates multiple lines, and order changes visual placement without changing DOM order."
+      "Beads don't grow; flex items can.",
+      "Wrapping is like starting a second string."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A column flex container uses justify-content for vertical distribution and align-items for horizontal cross-axis alignment.",
-      "Flex layout distributes items along a main axis and aligns them along a cross axis chosen by flex-direction and writing mode.",
-      "Name the current main and cross axes first; justify-content acts on the main axis, not a fixed physical direction."
+      ".sidebar { display: flex; flex-direction: column }",
+      "justify-content: space-between",
+      "align-items: center"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Axes",
         "state": {
-          "evidence": "A column flex container uses justify-content for vertical distribution and align-items for horizontal cross-axis alignment."
+          "main": "vertical",
+          "cross": "horizontal"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "A column flex container makes the main axis vertical."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Main axis",
         "state": {
-          "rule": "Flex layout distributes items along a main axis and aligns them along a cross axis chosen by flex-direction and writing mode."
+          "justify-content": "space-between",
+          "effect": "top and bottom groups"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "In this column, justify-content handles the vertical distribution."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Cross axis",
         "state": {
-          "correction": "Name the current main and cross axes first; justify-content acts on the main axis, not a fixed physical direction."
+          "align-items": "center",
+          "effect": "centered left–right"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: justify-content always controls horizontal alignment."
+        "explanation": "In this column, align-items handles the horizontal cross-axis alignment."
       }
     ],
-    "textAlternative": "Starting artifact: A column flex container uses justify-content for vertical distribution and align-items for horizontal cross-axis alignment. Step 1, Artifact. State: evidence: A column flex container uses justify-content for vertical distribution and align-items for horizontal cross-axis alignment.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Flex layout distributes items along a main axis and aligns them along a cross axis chosen by flex-direction and writing mode.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Name the current main and cross axes first; justify-content acts on the main axis, not a fixed physical direction.. Check the result against the boundary and reject this misconception: justify-content always controls horizontal alignment."
+    "textAlternative": "Aligning items in a column flex container. Step 1, Axes: main is vertical; cross is horizontal. A column flex container makes the main axis vertical. Step 2, Main axis: justify-content is space-between; effect is top and bottom groups. In this column, justify-content handles the vertical distribution. Step 3, Cross axis: align-items is center; effect is centered left–right. In this column, align-items handles the horizontal cross-axis alignment."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Flex axes and sizing: concrete case”: state its starting evidence, apply the Flex axes and sizing rule, and give the observable result in three short lines.",
+      "prompt": "For \"Centering in a column\", explain why the column flex container uses justify-content for vertical distribution and align-items for horizontal cross-axis alignment.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Axes.",
+        "justify-content.",
+        "align-items."
       ],
       "expectedEvidence": [
-        "Named example: Flex axes and sizing: concrete case.",
-        "Starting evidence: A column flex container uses justify-content for vertical distribution and align-items for horizontal cross-axis alignment.",
-        "Core rule: Flex layout distributes items along a main axis and aligns them along a cross axis chosen by flex-direction and writing mode.",
-        "Observable result: The result follows because Name the current main and cross axes first; justify-content acts on the main axis, not a fixed physical direction.",
-        "Boundary check: Name the current main and cross axes first; justify-content acts on the main axis, not a fixed physical direction."
+        "Names the example \"Centering in a column\": a column flex container.",
+        "It uses justify-content for vertical distribution.",
+        "It uses align-items for horizontal cross-axis alignment.",
+        "The sidebar spreads its groups vertically and centers them horizontally, as intended."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Row is not always physical horizontal, wrapping creates multiple lines, and order changes visual placement without changing DOM order.",
+      "prompt": "Center a single icon both vertically and horizontally inside a 3rem square button using flexbox.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Row or column — both work.",
+        "Two properties."
       ],
       "expectedEvidence": [
-        "Flex layout distributes items along a main axis and aligns them along a cross axis chosen by flex-direction and writing mode.",
-        "Row is not always physical horizontal, wrapping creates multiple lines, and order changes visual placement without changing DOM order."
+        "`display: flex; justify-content: center; align-items: center;`",
+        "Works because both axes are centered."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Flex axes and sizing and explain why the misconception fails.",
+      "prompt": "Build a card footer with a price on one side and two buttons on the other that wraps gracefully at 320px and supports long translated labels. Test both.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "space-between plus wrap.",
+        "Flexible basis."
       ],
       "expectedEvidence": [
-        "Implement and explain a resilient one-dimensional component layout.",
-        "Name the current main and cross axes first; justify-content acts on the main axis, not a fixed physical direction."
+        "Footer layout that wraps without overflow.",
+        "Long labels tested at 320px."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.flex.axes.misconception",
-      "explanation": "Name the current main and cross axes first; justify-content acts on the main axis, not a fixed physical direction.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'main axis' and state the decisive evidence."
+      "explanation": "Write the flex-direction first, then draw an arrow for the main axis. justify-content moves along the arrow; align-items moves across it.",
+      "retryPrompt": "Draw it for \"The toolbar that overflowed\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and explain a resilient one-dimensional component layout. Keep this boundary in view: Row is not always physical horizontal, wrapping creates multiple lines, and order changes visual placement without changing DOM order.",
+    "summary": "To implement a resilient one-dimensional layout, set flex-direction to define the main axis, use justify-content along it and align-items across it, space items with gap, and size items with flexible basis, min-width: 0 and wrapping instead of fixed widths.",
     "retrievalPrompts": [
-      "Explain Flex axes and sizing using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: justify-content always controls horizontal alignment.",
-      "Apply checkpoint 'main axis' to a new artifact."
+      "Which property aligns items on the cross axis?",
+      "What does flex: 1 1 12rem mean?",
+      "What does justify-content do in a column?"
     ],
     "nextReviewPrompt": "Next: continue to “Flex alignment and order”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

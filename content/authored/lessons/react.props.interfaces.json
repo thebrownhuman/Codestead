@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A component interface defines required and optional props, callbacks, controlled values, defaults, and semantic constraints.",
+    "summary": "A component's props are its **public interface**, like a function signature. A good interface is **small**: **required** props that it can't work without, a few **optional** props with **documented defaults**, **callbacks** named `onSomething`, and **constraints** it enforces itself, such as rendering a real `<button>` so keyboard and screen readers work. Prefer a `variant` prop with a few allowed values over five booleans that can conflict. Types, from TypeScript or JSDoc, catch wrong prop shapes, but they **can't guarantee** accessible or semantic behaviour; the component must build that in and tests must check it.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A Button requires children and onPress while variant has a documented default and disabled behavior. Your goal is to review and simplify a component interface while documenting its contract. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "The app's Button takes 14 props: `isPrimary`, `isDanger`, `isSmall`, `isLink`, `clickHandler`, `onClick`, `label`, `text`... Two teams pass different ones, some combinations look broken, and one version renders a div that keyboard users can't reach. A Button requires children and onPress while variant has a documented default and disabled behavior. In this lesson you'll review and simplify a component interface while documenting its contract.\n\n```predict\n{\"question\": \"`isPrimary` and `isDanger` are both true. What should the Button look like?\", \"options\": [\"Whatever CSS wins\", \"Nobody knows, which is why one `variant` prop with allowed values is better\"], \"answer\": 1, \"why\": \"Booleans that can conflict make impossible states possible. A single variant makes them impossible.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Components and JSX; Children and composition; javascript modules architecture. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Components and JSX** module, **Children and composition** (content passed as children), and **Dependency boundaries** (small public interfaces)."
       },
       {
-        "heading": "Technology rule",
-        "body": "A component interface defines required and optional props, callbacks, controlled values, defaults, and semantic constraints. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: required, optional with defaults, callbacks, constraints",
+        "body": "```jsx\n/**\n * Button: an accessible action.\n * @param {object} props\n * @param {React.ReactNode} props.children   Visible label. Required.\n * @param {() => void} props.onPress          Called on click, Enter or Space. Required.\n * @param {\"primary\" | \"secondary\" | \"danger\"} [props.variant=\"secondary\"]\n * @param {boolean} [props.disabled=false]    Disabled buttons can't be pressed or focused.\n */\nexport function Button({ children, onPress, variant = \"secondary\", disabled = false }) {\n  return (\n    <button\n      type=\"button\"                          // constraint: a real button, not a div.\n      className={`btn btn--${variant}`}\n      onClick={onPress}\n      disabled={disabled}\n    >\n      {children}\n    </button>\n  );\n}\n\n<Button onPress={save} variant=\"primary\">Save lesson</Button>\n```\n\n| Part | This Button |\n|---|---|\n| required. | children, onPress. |\n| optional + default. | variant = \"secondary\", disabled = false. |\n| callback naming. | onPress. |\n| built-in constraint. | native button element, type=\"button\". |\n\n```reveal\n{\"prompt\": \"Why not also accept `label` as an alternative to children?\", \"answer\": \"Two ways to do one thing split usage and confuse readers. One way, documented, is easier to maintain.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Type checking cannot prove accessible labels, callback effects, or valid combinations without deliberate design. This draft therefore rejects: TypeScript prop types automatically guarantee the component is accessible and semantically valid."
+        "heading": "Types aren't accessibility",
+        "body": "```predict\n{\"question\": \"TypeScript accepts `<IconButton onPress={close} icon={<XIcon />} />` with no text. Is it accessible?\", \"options\": [\"Yes, it type-checks\", \"No: a screen reader hears \\\"button\\\" with no name; require an accessible label\"], \"answer\": 1, \"why\": \"Make `label` required for icon-only buttons and render it as aria-label.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Keep component props minimal, cohesive, serializable where practical and semantically named.",
-      "Review and simplify a component interface while documenting its contract."
+      "Design small props interfaces with required values, defaults, callbacks and constraints.",
+      "Document the contract and simplify a bloated interface."
     ],
     "excludes": [
-      "Type checking cannot prove accessible labels, callback effects, or valid combinations without deliberate design."
+      "TypeScript generics for components.",
+      "Design-system tooling like Storybook."
     ]
   },
   "outcomes": [
@@ -63,133 +64,137 @@
   "examples": [
     {
       "id": "react.props.interfaces.example-a",
-      "title": "Component API design: concrete case",
+      "title": "A Button with a clear contract",
       "situation": "A Button requires children and onPress while variant has a documented default and disabled behavior.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A Button requires children and onPress while variant has a documented default and disabled behavior.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Types check shapes; document and test semantic contracts, accessibility, state, and callback behavior separately."
+        "**Review:** 14 props collapse into children, onPress, variant and disabled; conflicting booleans become one variant.",
+        "**Documented default:** variant defaults to \"secondary\", and disabled buttons can't be pressed.",
+        "**Check the contract:** a test will render Button, find it by role and name, press it with Enter, and confirm onPress runs once."
       ],
-      "result": "The result follows because Types check shapes; document and test semantic contracts, accessibility, state, and callback behavior separately."
+      "result": "Every team uses the same four props, impossible style combinations are gone, and keyboard users can always press it."
     },
     {
       "id": "react.props.interfaces.example-b",
-      "title": "Component API design: boundary case",
-      "situation": "Type checking cannot prove accessible labels, callback effects, or valid combinations without deliberate design.",
+      "title": "The icon button nobody could name",
+      "situation": "A close button shows only an X icon. Screen-reader users hear \"button\" and can't tell what it does.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Type checking cannot prove accessible labels, callback effects, or valid combinations without deliberate design.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: TypeScript prop types automatically guarantee the component is accessible and semantically valid."
+        "The interface allowed an icon without any text.",
+        "Make `label` a required prop for IconButton.",
+        "Render it as `aria-label={label}` and add a test that finds the button by that name."
       ],
-      "result": "The boundary requires this correction: Types check shapes; document and test semantic contracts, accessibility, state, and callback behavior separately."
+      "result": "Screen-reader users hear \"Close dialog, button\"."
     }
   ],
   "misconceptions": [
     {
       "id": "react.props.interfaces.misconception",
       "mistakenBelief": "TypeScript prop types automatically guarantee the component is accessible and semantically valid.",
-      "correction": "Types check shapes; document and test semantic contracts, accessibility, state, and callback behavior separately.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: TypeScript prop types automatically guarantee the component is accessible and semantically valid."
+      "correction": "Types check the shape of props, not behaviour. Accessibility comes from the component's own markup (real buttons, labels, roles) and should be verified with tests.",
+      "diagnosticPrompt": "In \"The icon button nobody could name\", what did the types allow?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Component API design, where inputs and state produce a UI description.",
+    "example": "A props interface is like **the controls on a microwave**: a couple of buttons you must use (start, time), a few with sensible defaults (power level), and built-in safety (it won't run with the door open). Fourteen unlabelled buttons that can fight each other would make it unusable.",
     "usefulFor": [
-      "Building a first mental model for Component API design before using exact platform terms"
+      "remembering small, clear controls",
+      "constraint = built-in safety"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Type checking cannot prove accessible labels, callback effects, or valid combinations without deliberate design."
+      "Microwaves come with manuals; document your props too.",
+      "A label printed on a button is like aria-label for icon buttons."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A Button requires children and onPress while variant has a documented default and disabled behavior.",
-      "A component interface defines required and optional props, callbacks, controlled values, defaults, and semantic constraints.",
-      "Types check shapes; document and test semantic contracts, accessibility, state, and callback behavior separately."
+      "<Button onPress={save}>Save</Button>",
+      "defaults applied",
+      "learner presses Enter"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Call",
         "state": {
-          "evidence": "A Button requires children and onPress while variant has a documented default and disabled behavior."
+          "children": "Save",
+          "onPress": "save",
+          "variant": "(missing)"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The Button requires children and onPress."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Defaults",
         "state": {
-          "rule": "A component interface defines required and optional props, callbacks, controlled values, defaults, and semantic constraints."
+          "variant": "secondary",
+          "disabled": "false"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "variant has a documented default and disabled behavior."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Use",
         "state": {
-          "correction": "Types check shapes; document and test semantic contracts, accessibility, state, and callback behavior separately."
+          "element": "native button",
+          "onPress calls": "1"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: TypeScript prop types automatically guarantee the component is accessible and semantically valid."
+        "explanation": "The built-in constraint makes it keyboard-usable."
       }
     ],
-    "textAlternative": "Starting artifact: A Button requires children and onPress while variant has a documented default and disabled behavior. Step 1, Artifact. State: evidence: A Button requires children and onPress while variant has a documented default and disabled behavior.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A component interface defines required and optional props, callbacks, controlled values, defaults, and semantic constraints.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Types check shapes; document and test semantic contracts, accessibility, state, and callback behavior separately.. Check the result against the boundary and reject this misconception: TypeScript prop types automatically guarantee the component is accessible and semantically valid."
+    "textAlternative": "Rendering Button through its contract. Step 1, Call: children is Save; onPress is save; variant is (missing). The Button requires children and onPress. Step 2, Defaults: variant is secondary; disabled is false. variant has a documented default and disabled behavior. Step 3, Use: element is native button; onPress calls is 1. The built-in constraint makes it keyboard-usable."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Component API design: concrete case”: state its starting evidence, apply the Component API design rule, and give the observable result in three short lines.",
+      "prompt": "For \"A Button with a clear contract\", explain how a Button requires children and onPress while variant has a documented default and disabled behavior.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Required.",
+        "Defaults.",
+        "Constraint."
       ],
       "expectedEvidence": [
-        "Named example: Component API design: concrete case.",
-        "Starting evidence: A Button requires children and onPress while variant has a documented default and disabled behavior.",
-        "Core rule: A component interface defines required and optional props, callbacks, controlled values, defaults, and semantic constraints.",
-        "Observable result: The result follows because Types check shapes; document and test semantic contracts, accessibility, state, and callback behavior separately.",
-        "Boundary check: Types check shapes; document and test semantic contracts, accessibility, state, and callback behavior separately."
+        "Names the example \"A Button with a clear contract\": the Button requires children and onPress.",
+        "variant has a documented default.",
+        "Disabled behavior is part of the contract.",
+        "Every team uses the same four props, and keyboard users can press it."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Type checking cannot prove accessible labels, callback effects, or valid combinations without deliberate design.",
+      "prompt": "Simplify `Alert({ isError, isWarning, isInfo, text, message, onClose, closeHandler })` into a clear interface, and write its JSDoc.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "One tone prop.",
+        "One text source, one callback."
       ],
       "expectedEvidence": [
-        "A component interface defines required and optional props, callbacks, controlled values, defaults, and semantic constraints.",
-        "Type checking cannot prove accessible labels, callback effects, or valid combinations without deliberate design."
+        "`Alert({ tone = \"info\", children, onClose })`.",
+        "Documented allowed tones and default."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Component API design and explain why the misconception fails.",
+      "prompt": "Pick a component from your app, list how it's used across the codebase, then redesign its props, update the call sites, and add tests for required props, defaults and keyboard behaviour.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Search for every usage.",
+        "Remove conflicting booleans."
       ],
       "expectedEvidence": [
-        "Review and simplify a component interface while documenting its contract.",
-        "Types check shapes; document and test semantic contracts, accessibility, state, and callback behavior separately."
+        "A smaller interface with docs.",
+        "Tests for the contract."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.props.interfaces.misconception",
-      "explanation": "Types check shapes; document and test semantic contracts, accessibility, state, and callback behavior separately.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'semantic contracts' and state the decisive evidence."
+      "explanation": "Write the component's contract in three lines: **required props, optional props with defaults, and what it guarantees** (semantics, keyboard, disabled). Anything that doesn't fit is a candidate to remove.",
+      "retryPrompt": "Apply this to \"The icon button nobody could name\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to review and simplify a component interface while documenting its contract. Keep this boundary in view: Type checking cannot prove accessible labels, callback effects, or valid combinations without deliberate design.",
+    "summary": "To review and simplify a component interface, keep a small set of required props, a few optional ones with documented defaults, onSomething callbacks, and built-in constraints like native semantics. Replace conflicting booleans with one enumerated prop, and remember types don't guarantee accessibility; tests do.",
     "retrievalPrompts": [
-      "Explain Component API design using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: TypeScript prop types automatically guarantee the component is accessible and semantically valid.",
-      "Apply checkpoint 'semantic contracts' to a new artifact."
+      "Why is one variant prop better than several booleans?",
+      "What belongs in a component's contract?",
+      "Do prop types guarantee accessibility?"
     ],
     "nextReviewPrompt": "Next: continue to “Render purity and Strict Mode”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

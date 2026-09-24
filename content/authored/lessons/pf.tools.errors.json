@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Build or syntax failures prevent a valid artifact, runtime failures occur during execution, and logic failures complete but violate the required behavior; the earliest relevant diagnostic guides the next observation.",
+    "summary": "Errors come in three families. **Syntax errors** stop the program before it runs at all. **Runtime errors** crash it while running. **Logic errors** let it finish — but with the wrong answer. Read the **earliest** relevant message first: it usually points at the real cause, and later messages are often just knock-on effects.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A missing delimiter produces a parser location before execution, so changing the calculation is irrelevant until syntax is repaired. Your goal is to classify an error, identify the earliest useful diagnostic and propose the next observation. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You run your program and the screen fills with red. Where do you even begin? Start by asking which family the error belongs to. A missing delimiter produces a parser location before execution, so changing the calculation is irrelevant until syntax is repaired. In this lesson you'll classify an error, identify the earliest useful diagnostic, and propose the next observation — instead of guessing.\n\n```predict\n{\"question\": \"`print((2 + 3)` — nothing prints, and Python reports `SyntaxError: '(' was never closed`. Which family is this?\", \"options\": [\"Runtime error\", \"Syntax error\"], \"answer\": 1, \"why\": \"Python couldn't even understand the code, so it never started running. That's a syntax (parse) error.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Source-to-execution models; Examples and edge cases; Editor and terminal workflow; Sequence. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Source-to-execution models**, **Examples and edge cases**, **Editor and terminal workflow** and **Sequence** — errors happen at different stages of turning source into running code."
       },
       {
-        "heading": "Operational model",
-        "body": "Build or syntax failures prevent a valid artifact, runtime failures occur during execution, and logic failures complete but violate the required behavior; the earliest relevant diagnostic guides the next observation. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The model: three families, three stages",
+        "body": "| Family | When it happens | Example | Clue |\n|---|---|---|---|\n| Syntax. | before running. | missing `)` or `:`. | `SyntaxError` with a line number. |\n| Runtime. | while running. | `10 / 0`, `items[5]`. | a traceback ending in `ZeroDivisionError`, `IndexError`. |\n| Logic. | runs to the end. | `>` instead of `>=`. | no message, just a wrong result. |\n\n```reveal\n{\"prompt\": \"In a Python traceback, where's the most useful line?\", \"answer\": \"Usually the **last line** (the error type and message) plus the deepest line of **your** code above it. That's where it actually failed.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "One defect can trigger many later diagnostics, exceptions can wrap original causes, and undefined behavior can evade clean classification. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Every red message is the root cause, so fixing the last diagnostic first is the fastest strategy."
+        "heading": "Fix the first cause, not the last symptom",
+        "body": "```predict\n{\"question\": \"A compiler shows 12 errors. The first says line 3 is missing a `;`. Best move?\", \"options\": [\"Fix the 12th error first\", \"Fix line 3 and rerun\"], \"answer\": 1, \"why\": \"One early syntax mistake can confuse the parser and cause many fake follow-on errors. Fix the earliest, then rerun and re-read.\"}\n```\n\nLogic errors give no message — you find them with **examples and expected results**."
       }
     ]
   },
   "scope": {
     "includes": [
-      "Differentiate syntax/build, runtime and logic failures and extract actionable location information.",
-      "Classify an error, identify the earliest useful diagnostic and propose the next observation."
+      "Classify an error as syntax, runtime or logic.",
+      "Use the earliest relevant diagnostic to choose the next observation."
     ],
     "excludes": [
-      "One defect can trigger many later diagnostics, exceptions can wrap original causes, and undefined behavior can evade clean classification."
+      "Exception handling with try/except.",
+      "Debugger tools."
     ]
   },
   "outcomes": [
@@ -63,133 +64,136 @@
   "examples": [
     {
       "id": "pf.tools.errors.example-a",
-      "title": "Error categories and messages: direct case",
+      "title": "The missing bracket",
       "situation": "A missing delimiter produces a parser location before execution, so changing the calculation is irrelevant until syntax is repaired.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A missing delimiter produces a parser location before execution, so changing the calculation is irrelevant until syntax is repaired.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Classify the phase, start with the earliest actionable cause, reproduce minimally, and confirm the repair removes the original failure without creating another."
+        "**Classify:** `total = (price * 2` is missing a `)`. Python reports a SyntaxError with a parser location before execution.",
+        "**Ignore the calculation for now:** nothing ran, so the math can't be the problem yet.",
+        "**Next observation:** look at the reported line and the line just before it; add the missing delimiter and rerun."
       ],
-      "result": "The case supports the declared outcome because Classify the phase, start with the earliest actionable cause, reproduce minimally, and confirm the repair removes the original failure without creating another."
+      "result": "After the syntax is repaired, the program runs and any remaining calculation issue can be observed."
     },
     {
       "id": "pf.tools.errors.example-b",
-      "title": "Error categories and messages: boundary case",
-      "situation": "A program runs and prints 12 instead of required 10, so a state trace and failing example investigate logic rather than compiler configuration.",
+      "title": "Runtime vs logic",
+      "situation": "Program A crashes with `ZeroDivisionError` on an empty list. Program B finishes but reports an average of 0 for `[4, 8]`.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A program runs and prints 12 instead of required 10, so a state trace and failing example investigate logic rather than compiler configuration.",
-        "Step 2 — Keep this boundary explicit: One defect can trigger many later diagnostics, exceptions can wrap original causes, and undefined behavior can evade clean classification.",
-        "Step 3 — Reject the documented misconception: Every red message is the root cause, so fixing the last diagnostic first is the fastest strategy."
+        "A is a runtime error: it started, then crashed at the division — the traceback shows the line.",
+        "B is a logic error: no message, but 0 is wrong (expected 6).",
+        "Next observations: for A, check the list length before dividing; for B, print the total and count before the division."
       ],
-      "result": "This case demonstrates the declared outcome: Classify an error, identify the earliest useful diagnostic and propose the next observation."
+      "result": "Classifying each error points to a different, specific next observation."
     }
   ],
   "misconceptions": [
     {
       "id": "pf.tools.errors.misconception",
       "mistakenBelief": "Every red message is the root cause, so fixing the last diagnostic first is the fastest strategy.",
-      "correction": "Classify the phase, start with the earliest actionable cause, reproduce minimally, and confirm the repair removes the original failure without creating another.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Every red message is the root cause, so fixing the last diagnostic first is the fastest strategy."
+      "correction": "Later messages are often side effects of an earlier problem. Classify the error, start from the earliest relevant diagnostic, fix one cause, and rerun to see what remains.",
+      "diagnosticPrompt": "In \"The missing bracket\", why is changing the calculation pointless at first?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A repair bench can model Error categories and messages: identify the correct part, use a named tool, read the first reliable symptom, test one cause, and verify the repair.",
+    "example": "Like a **car that won't start vs one that stalls vs one that drives to the wrong town**: no fuel (syntax — never starts), engine fault mid-trip (runtime), wrong directions (logic — you arrive, just not where you wanted).",
     "usefulFor": [
-      "Building a careful inspect, edit, run, diagnose, and verify workflow"
+      "remembering the three stages",
+      "seeing logic errors as silent"
     ],
     "limitations": [
-      "Software tools have shell parsing, filesystem, runtime, and diagnostic rules that physical tools do not share.",
-      "One defect can trigger many later diagnostics, exceptions can wrap original causes, and undefined behavior can evade clean classification."
+      "Code gives exact line numbers; cars rarely do.",
+      "One code mistake can trigger many messages; a car usually has one symptom."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A missing delimiter produces a parser location before execution, so changing the calculation is irrelevant until syntax is repaired.",
-      "Build or syntax failures prevent a valid artifact, runtime failures occur during execution, and logic failures complete but violate the required behavior; the earliest relevant diagnostic guides the next observation.",
-      "Classify the phase, start with the earliest actionable cause, reproduce minimally, and confirm the repair removes the original failure without creating another."
+      "total = (price * 2",
+      "print(total)",
+      "run"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Parse",
         "state": {
-          "evidence": "A missing delimiter produces a parser location before execution, so changing the calculation is irrelevant until syntax is repaired."
+          "stage": "before execution",
+          "message": "SyntaxError: '(' was never closed"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "The parser reports the missing delimiter and its location before anything runs."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Classify",
         "state": {
-          "model": "Build or syntax failures prevent a valid artifact, runtime failures occur during execution, and logic failures complete but violate the required behavior; the earliest relevant diagnostic guides the next observation."
+          "family": "syntax",
+          "calculation checked": "not yet"
         },
-        "explanation": "Apply the declared Error categories and messages model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "Because nothing executed, the calculation is irrelevant until the syntax is repaired."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Repair and rerun",
         "state": {
-          "correction": "Classify the phase, start with the earliest actionable cause, reproduce minimally, and confirm the repair removes the original failure without creating another."
+          "fix": "add )",
+          "program": "runs"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Every red message is the root cause, so fixing the last diagnostic first is the fastest strategy."
+        "explanation": "Adding the delimiter lets the program run so behaviour can be observed."
       }
     ],
-    "textAlternative": "Starting artifact: A missing delimiter produces a parser location before execution, so changing the calculation is irrelevant until syntax is repaired. Step 1, Observe. State: evidence: A missing delimiter produces a parser location before execution, so changing the calculation is irrelevant until syntax is repaired.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Build or syntax failures prevent a valid artifact, runtime failures occur during execution, and logic failures complete but violate the required behavior; the earliest relevant diagnostic guides the next observation.. Apply the declared Error categories and messages model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Classify the phase, start with the earliest actionable cause, reproduce minimally, and confirm the repair removes the original failure without creating another.. Compare the observation with the correction and reject the misconception: Every red message is the root cause, so fixing the last diagnostic first is the fastest strategy."
+    "textAlternative": "Handling a syntax error from a missing bracket. Step 1, Parse: stage is before execution; message is SyntaxError: '(' was never closed. The parser reports the missing delimiter and its location before anything runs. Step 2, Classify: family is syntax; calculation checked is not yet. Because nothing executed, the calculation is irrelevant until the syntax is repaired. Step 3, Repair and rerun: fix is add ); program is runs. Adding the delimiter lets the program run so behaviour can be observed."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Error categories and messages: direct case”: state its starting evidence, apply the Error categories and messages rule, and give the observable result in three short lines.",
+      "prompt": "For \"The missing bracket\", classify the error, say what the parser location tells you before execution, and why changing the calculation is irrelevant until syntax is repaired.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Family.",
+        "What the message points at.",
+        "Next step."
       ],
       "expectedEvidence": [
-        "Named example: Error categories and messages: direct case.",
-        "Starting evidence: A missing delimiter produces a parser location before execution, so changing the calculation is irrelevant until syntax is repaired.",
-        "Core rule: Build or syntax failures prevent a valid artifact, runtime failures occur during execution, and logic failures complete but violate the required behavior; the earliest relevant diagnostic guides the next observation.",
-        "Observable result: The case supports the declared outcome because Classify the phase, start with the earliest actionable cause, reproduce minimally, and confirm the repair removes the original failure without creating another.",
-        "Boundary check: Classify the phase, start with the earliest actionable cause, reproduce minimally, and confirm the repair removes the original failure without creating another."
+        "Names the example \"The missing bracket\": a missing delimiter.",
+        "It's a syntax error reported with a parser location before execution.",
+        "Changing the calculation is irrelevant until the syntax is repaired.",
+        "Add the delimiter and rerun."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A program runs and prints 12 instead of required 10, so a state trace and failing example investigate logic rather than compiler configuration.",
+      "prompt": "Classify each and name your next observation: (a) `NameError: name 'totl' is not defined`, (b) a sort that puts 10 before 9, (c) `IndentationError` on line 4.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Did it run? Did it crash?",
+        "What would you check first?"
       ],
       "expectedEvidence": [
-        "Build or syntax failures prevent a valid artifact, runtime failures occur during execution, and logic failures complete but violate the required behavior; the earliest relevant diagnostic guides the next observation.",
-        "One defect can trigger many later diagnostics, exceptions can wrap original causes, and undefined behavior can evade clean classification."
+        "(a) runtime — check the spelling of total. (b) logic — check whether values are text.",
+        "(c) syntax — check the indentation of lines 3–4."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Error categories and messages, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Write three tiny programs that each produce one error family. Run them, copy the key message, and explain how you'd find each cause.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "One syntax, one runtime, one logic.",
+        "Logic needs an expected result."
       ],
       "expectedEvidence": [
-        "Classify an error, identify the earliest useful diagnostic and propose the next observation.",
-        "Classify the phase, start with the earliest actionable cause, reproduce minimally, and confirm the repair removes the original failure without creating another."
+        "Three correctly classified examples with their messages.",
+        "A sensible next observation for each."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "pf.tools.errors.misconception",
-      "explanation": "Classify the phase, start with the earliest actionable cause, reproduce minimally, and confirm the repair removes the original failure without creating another.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A program runs and prints 12 instead of required 10, so a state trace and failing example investigate logic rather than compiler configuration."
+      "explanation": "Ask in order: **Did it start?** (no → syntax). **Did it crash?** (yes → runtime). **Wrong answer?** (→ logic). Then read the earliest message about your own code.",
+      "retryPrompt": "Apply this to \"Runtime vs logic\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to classify an error, identify the earliest useful diagnostic and propose the next observation. Keep this boundary in view: One defect can trigger many later diagnostics, exceptions can wrap original causes, and undefined behavior can evade clean classification.",
+    "summary": "To classify an error, ask when it happened: syntax errors stop before running, runtime errors crash during execution, logic errors finish with wrong results. Identify the earliest useful diagnostic, fix one cause, and propose the next observation.",
     "retrievalPrompts": [
-      "Explain Error categories and messages without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Every red message is the root cause, so fixing the last diagnostic first is the fastest strategy.",
-      "Apply the model to this case from memory: A program runs and prints 12 instead of required 10, so a state trace and failing example investigate logic rather than compiler configuration."
+      "What are the three error families?",
+      "Why fix the earliest error first?",
+      "How do you find a logic error with no message?"
     ],
     "nextReviewPrompt": "Next: continue to “Debugging and testing loop”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

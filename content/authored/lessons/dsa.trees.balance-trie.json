@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Balanced search trees control height for logarithmic operations, while tries follow key symbols and trade memory for prefix operations.",
+    "summary": "Two trees fix different problems. A **balanced BST** (AVL, red-black) rotates nodes after inserts and deletes to keep its height about **log n**, so search, insert, delete and ordered queries stay O(log n) even for sorted input. That's what `std::map`, Java's `TreeMap` and similar use. A **trie** stores strings **character by character**: each edge is a letter, and a path from the root spells a prefix. Looking up a word of length L costs **O(L)**, whatever the number of stored words, and all words starting with a prefix sit **under one node**. The price is memory: many nodes, each with its own children map.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A trie retrieves all words under a prefix node without comparing entire unrelated keys. Your goal is to compare balanced BST and trie suitability and implement a tested trie. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A search box should suggest lesson titles as a learner types \"lo\": \"loops\", \"logic\", \"logs\". Scanning all 20,000 titles on every keystroke and checking startswith is slow. A trie retrieves all words under a prefix node without comparing entire unrelated keys. In this lesson you'll compare balanced BST and trie suitability and implement a tested trie.\n\n```predict\n{\"question\": \"Checking whether \\\"loops\\\" is in a trie of 1,000,000 words. What does the cost depend on?\", \"options\": [\"The number of words, so it's big\", \"The length of \\\"loops\\\": about 5 steps, O(L)\"], \"answer\": 1, \"why\": \"It follows one edge per character. The cost is O(L), not O(1), and not O(n).\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Recursive problem design; Linked lists; Binary search tree operations; String traversal and matching basics. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Recursive problem design**, the **Linked lists** module, **Binary search tree operations**, and **String traversal and matching basics**."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Balanced search trees control height for logarithmic operations, while tries follow key symbols and trade memory for prefix operations. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The distinction: balance by height, or branch by character",
+        "body": "```python\nclass TrieNode:\n    def __init__(self):\n        self.children = {}          # char -> TrieNode.\n        self.is_word = False\n\nclass Trie:\n    def __init__(self):\n        self.root = TrieNode()\n\n    def insert(self, word):         # O(L).\n        node = self.root\n        for ch in word:\n            node = node.children.setdefault(ch, TrieNode())\n        node.is_word = True\n\n    def _find(self, prefix):        # O(L) to reach the prefix node.\n        node = self.root\n        for ch in prefix:\n            node = node.children.get(ch)\n            if node is None:\n                return None\n        return node\n\n    def starts_with(self, prefix):  # O(L + size of the answer).\n        node, out = self._find(prefix), []\n        def collect(n, path):\n            if n.is_word:\n                out.append(prefix + path)\n            for ch in sorted(n.children):\n                collect(n.children[ch], path + ch)\n        if node:\n            collect(node, \"\")\n        return out\n```\n\n| Need | Balanced BST | Trie |\n|---|---|---|\n| exact lookup. | O(L log n) comparisons. | O(L). |\n| all keys with a prefix. | find start, walk in order. | one subtree. |\n| sorted iteration, ranges. | natural. | possible (sorted children). |\n| memory. | one node per key. | one node per character path. |\n\n```reveal\n{\"prompt\": \"What's a rotation in a balanced BST?\", \"answer\": \"A local rearrangement of a parent and child that keeps the left-smaller, right-larger invariant but shortens the taller side, keeping height about log n.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Balancing rotations preserve order but are implementation-specific; trie cost depends on key length and alphabet representation. The draft therefore rejects: A trie operation is O(1) because it does not depend on the number of stored words."
+        "heading": "Not O(1)",
+        "body": "```predict\n{\"question\": \"A trie lookup for a 40-character word vs a 3-character word. Same cost?\", \"options\": [\"Yes, tries are O(1)\", \"No: 40 steps vs 3; cost grows with word length\"], \"answer\": 1, \"why\": \"Independent of the number of words, but not of the word's length.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Explain balance guarantees and implement trie insert, lookup and prefix traversal.",
-      "Compare balanced BST and trie suitability and implement a tested trie.",
-      "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+      "Explain how balanced BSTs keep O(log n) height and when to use a library sorted map.",
+      "Implement and test a trie with insert, search and prefix listing."
     ],
     "excludes": [
-      "Balancing rotations preserve order but are implementation-specific; trie cost depends on key length and alphabet representation."
+      "Implementing AVL or red-black rotations in full.",
+      "Compressed tries and suffix trees."
     ]
   },
   "outcomes": [
@@ -68,142 +64,135 @@
   "examples": [
     {
       "id": "dsa.trees.balance-trie.example-a",
-      "title": "Balanced trees and tries: language-neutral trace",
+      "title": "Autocomplete for lesson titles",
       "situation": "A trie retrieves all words under a prefix node without comparing entire unrelated keys.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: A trie retrieves all words under a prefix node without comparing entire unrelated keys.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Trie work depends on key length; balanced-tree work depends logarithmically on stored keys under its invariants."
+        "**Insert titles:** \"loops\", \"logic\", \"logs\" and \"lists\" share the path l → o for the first three.",
+        "**Prefix node:** typing \"lo\" walks two edges to one node; everything under it starts with \"lo\".",
+        "**Retrieve and test:** starts_with(\"lo\") will return [\"logic\", \"logs\", \"loops\"] without touching \"lists\"; tests cover an empty prefix and a missing one."
       ],
-      "result": "The conceptual result follows because Trie work depends on key length; balanced-tree work depends logarithmically on stored keys under its invariants."
+      "result": "Suggestions appear instantly as learners type, however many titles exist."
     },
     {
       "id": "dsa.trees.balance-trie.example-b",
-      "title": "Balanced trees and tries: implementation transfer",
-      "situation": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
+      "title": "The leaderboard that needed ranges",
+      "situation": "A leaderboard needs \"all scores between 70 and 80\" and \"next higher score\" queries while scores are added all day.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
-        "Step 3 — Retest this boundary in the selected implementation: Balancing rotations preserve order but are implementation-specific; trie cost depends on key length and alphabet representation."
+        "A trie doesn't fit numeric ranges well; a hash map has no order.",
+        "A balanced BST (or the language's sorted map/set) supports ordered insert and range queries in O(log n + k).",
+        "Python lacks one built in: use a sorted list with bisect for moderate sizes, or a library."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Range and next-higher queries stay fast as scores stream in."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.trees.balance-trie.misconception",
       "mistakenBelief": "A trie operation is O(1) because it does not depend on the number of stored words.",
-      "correction": "Trie work depends on key length; balanced-tree work depends logarithmically on stored keys under its invariants.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: A trie operation is O(1) because it does not depend on the number of stored words."
+      "correction": "A trie operation follows one node per character, so it costs O(L) for a key of length L. It's independent of how many words are stored, which is different from constant time.",
+      "diagnosticPrompt": "In the opening predict, what did the cost depend on?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Balanced trees and tries, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "A trie is like **a phone's contact list grouped by letter, then by next letter**: typing \"Lo\" jumps straight to the \"Lo\" group, and every contact there matches. A balanced BST is like **a well-organised filing cabinet that reshuffles folders** so no drawer gets too deep.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering one step per character",
+      "balanced = height kept small"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Balancing rotations preserve order but are implementation-specific; trie cost depends on key length and alphabet representation."
+      "Contact lists are small; tries can use a lot of memory.",
+      "The cabinet reshuffle is the rotation."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A trie retrieves all words under a prefix node without comparing entire unrelated keys.",
-      "Balanced search trees control height for logarithmic operations, while tries follow key symbols and trade memory for prefix operations.",
-      "Trie work depends on key length; balanced-tree work depends logarithmically on stored keys under its invariants.",
-      "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+      "insert loops, logic, logs, lists",
+      "starts_with('lo')",
+      "collect"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Insert",
         "state": {
-          "scenario": "A trie retrieves all words under a prefix node without comparing entire unrelated keys."
+          "shared path": "l → o",
+          "branches": "o → o/g, l → i"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "Titles with common prefixes share nodes."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Find prefix",
         "state": {
-          "invariant": "Balanced search trees control height for logarithmic operations, while tries follow key symbols and trade memory for prefix operations."
+          "steps": "2",
+          "node": "after l, o"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "Walking two edges reaches the prefix node for \"lo\"."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Collect",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "result": "[logic, logs, loops]"
         },
-        "explanation": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Trie work depends on key length; balanced-tree work depends logarithmically on stored keys under its invariants."
-        },
-        "explanation": "Verify the result and reject this misconception: A trie operation is O(1) because it does not depend on the number of stored words."
+        "explanation": "The trie retrieves all words under a prefix node without comparing unrelated keys like lists."
       }
     ],
-    "textAlternative": "Starting artifact: A trie retrieves all words under a prefix node without comparing entire unrelated keys. Step 1, Specification. State: scenario: A trie retrieves all words under a prefix node without comparing entire unrelated keys.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Balanced search trees control height for logarithmic operations, while tries follow key symbols and trade memory for prefix operations.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged. Step 4, Conclusion. State: correction: Trie work depends on key length; balanced-tree work depends logarithmically on stored keys under its invariants.. Verify the result and reject this misconception: A trie operation is O(1) because it does not depend on the number of stored words."
+    "textAlternative": "Tracing an autocomplete query. Step 1, Insert: shared path is l → o; branches is o → o/g, l → i. Titles with common prefixes share nodes. Step 2, Find prefix: steps is 2; node is after l, o. Walking two edges reaches the prefix node for \"lo\". Step 3, Collect: result is [logic, logs, loops]. The trie retrieves all words under a prefix node without comparing unrelated keys like lists."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Balanced trees and tries: language-neutral trace”: state its starting evidence, apply the Balanced trees and tries rule, and give the observable result in three short lines.",
+      "prompt": "For \"Autocomplete for lesson titles\", explain how a trie retrieves all words under a prefix node without comparing entire unrelated keys.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Insert.",
+        "Prefix node.",
+        "Collect."
       ],
       "expectedEvidence": [
-        "Named example: Balanced trees and tries: language-neutral trace.",
-        "Starting evidence: A trie retrieves all words under a prefix node without comparing entire unrelated keys.",
-        "Core rule: Balanced search trees control height for logarithmic operations, while tries follow key symbols and trade memory for prefix operations.",
-        "Observable result: The conceptual result follows because Trie work depends on key length; balanced-tree work depends logarithmically on stored keys under its invariants.",
-        "Boundary check: Trie work depends on key length; balanced-tree work depends logarithmically on stored keys under its invariants."
+        "Names the example \"Autocomplete for lesson titles\": scanning all titles was slow.",
+        "A trie retrieves all words under a prefix node.",
+        "It never compares entire unrelated keys.",
+        "Suggestions appear instantly as learners type."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Balanced search trees control height for logarithmic operations, while tries follow key symbols and trade memory for prefix operations.",
+      "prompt": "Add `delete(word)` to the Trie that unmarks is_word and removes nodes that no longer lead to any word. Test deleting a word that's a prefix of another (\"log\" vs \"logs\").",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Recurse, then prune empty children.",
+        "Keep nodes still used by other words."
       ],
       "expectedEvidence": [
-        "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
-        "Balancing rotations preserve order but are implementation-specific; trie cost depends on key length and alphabet representation."
+        "\"logs\" survives deleting \"log\".",
+        "No dangling empty branches."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Balanced trees and tries case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Build autocomplete returning at most 5 suggestions ranked by popularity for a prefix. Store a count at word nodes, compare the trie with a sorted list + bisect approach, and test performance on 50,000 titles.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Collect then sort by count, or keep top-k per node.",
+        "Measure both approaches."
       ],
       "expectedEvidence": [
-        "Compare balanced BST and trie suitability and implement a tested trie.",
-        "Trie work depends on key length; balanced-tree work depends logarithmically on stored keys under its invariants."
+        "Correct top-5 results.",
+        "A reasoned comparison of speed and memory."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.trees.balance-trie.misconception",
-      "explanation": "Trie work depends on key length; balanced-tree work depends logarithmically on stored keys under its invariants.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'key length', then state one implementation-specific risk in the selected language."
+      "explanation": "Ask: **Are my queries about prefixes of strings (trie), or about order and ranges (balanced BST / sorted map)?** And state costs honestly: O(L) for tries, O(log n) comparisons for balanced trees.",
+      "retryPrompt": "Apply this to \"The leaderboard that needed ranges\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to compare balanced BST and trie suitability and implement a tested trie. Keep this boundary in view: Balancing rotations preserve order but are implementation-specific; trie cost depends on key length and alphabet representation.",
+    "summary": "To compare balanced BSTs and tries and implement a tested trie, remember balanced BSTs keep height about log n for ordered keys and range queries, while tries branch by character so lookups cost O(L) and all words sharing a prefix live under one node, trading memory for fast prefix operations like autocomplete.",
     "retrievalPrompts": [
-      "State the Balanced trees and tries invariant and complexity without code.",
-      "Why is this claim false: A trie operation is O(1) because it does not depend on the number of stored words.",
-      "Map checkpoint 'key length' to C, C++, Java, and Python."
+      "Why isn't a trie lookup O(1)?",
+      "Which structure suits range queries?",
+      "What does a trie store at each edge?"
     ],
     "nextReviewPrompt": "Next: continue to “Heap property and array layout”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

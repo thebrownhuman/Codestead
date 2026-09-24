@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Headings label document sections and form a meaningful hierarchy that supports scanning and assistive navigation.",
+    "summary": "Headings `<h1>`–`<h6>` build the page's **outline**, like a book's table of contents. Use **one** descriptive `h1` for the page's main subject, `h2` for its main sections, `h3` for sub-sections inside an h2, and so on — don't skip levels downward. Choose a heading level for its **place in the outline**, never for its font size; CSS controls size.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A page uses one descriptive h1 for its main subject and h2 elements for peer sections such as syllabus and schedule. Your goal is to create and review a logical heading hierarchy for a multi-section page. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Screen-reader users often jump from heading to heading to skim a page, the way you glance at bold titles. If your headings are chosen for looks — an h4 because it's \"the right size\" — that outline becomes nonsense. A page uses one descriptive h1 for its main subject and h2 elements for peer sections such as syllabus and schedule. In this lesson you'll create and review a logical heading hierarchy for a multi-section page.\n\n```predict\n{\"question\": \"A designer wants a small heading, so the developer uses `<h5>` right after the `<h1>`. Problem?\", \"options\": [\"No — sizes are a design choice\", \"Yes — it skips levels; the outline says h5 is 4 levels deep. Use h2 and style it smaller with CSS.\"], \"answer\": 1, \"why\": \"Level expresses structure. CSS can make an h2 any size you want.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Standards-mode document skeleton. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Standards-mode document skeleton** — headings go inside body."
       },
       {
-        "heading": "Technology rule",
-        "body": "Headings label document sections and form a meaningful hierarchy that supports scanning and assistive navigation. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: headings form an outline",
+        "body": "```html\n<h1>Web Basics — Autumn Course</h1>\n  <h2>Syllabus</h2>\n    <h3>Week 1: HTML</h3>\n    <h3>Week 2: CSS</h3>\n  <h2>Schedule</h2>\n  <h2>Contact</h2>\n```\n\n| Rule | Why |\n|---|---|\n| one descriptive h1. | says what the whole page is about. |\n| peer sections share a level. | Syllabus, Schedule, Contact are all h2. |\n| don't skip down (h2 → h4). | the outline would have a missing level. |\n| level ≠ size. | style size with CSS. |\n\n```reveal\n{\"prompt\": \"Can you go from an h3 back up to an h2?\", \"answer\": \"Yes. Going **up** any number of levels is fine — it starts a new higher-level section. Only skipping **down** leaves gaps.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Heading rank should reflect structure rather than visual size, and skipping ranks can obscure relationships even when browsers render them. This draft therefore rejects: Heading elements should be chosen by the font size the design needs."
+        "heading": "Read the outline",
+        "body": "```predict\n{\"question\": \"Which heading list describes a sensible page?\", \"options\": [\"h1, h2, h3, h2, h3\", \"h3, h1, h4, h1\"], \"answer\": 0, \"why\": \"One h1, then sections and sub-sections in order. The second has two h1s and jumps levels, so its outline is confusing.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use descriptive headings to communicate document outline rather than visual size.",
-      "Create and review a logical heading hierarchy for a multi-section page."
+      "Build a heading outline with one h1 and properly nested h2–h6.",
+      "Review a page's headings for skipped levels and size-driven choices."
     ],
     "excludes": [
-      "Heading rank should reflect structure rather than visual size, and skipping ranks can obscure relationships even when browsers render them."
+      "Styling headings with CSS.",
+      "The sectioning outline algorithm (never implemented by browsers)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "html.semantics.headings.example-a",
-      "title": "Heading hierarchy: concrete case",
+      "title": "A course page outline",
       "situation": "A page uses one descriptive h1 for its main subject and h2 elements for peer sections such as syllabus and schedule.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A page uses one descriptive h1 for its main subject and h2 elements for peer sections such as syllabus and schedule.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Choose heading rank from section hierarchy, then control visual size with CSS rather than selecting headings by appearance."
+        "**One descriptive h1:** \"Web Basics — Autumn Course\" names the main subject.",
+        "**Peer sections as h2:** Syllabus, Schedule and Contact are siblings, so all are h2.",
+        "**Sub-sections as h3:** each week inside Syllabus is an h3 — no levels skipped, so the browser can build a clean outline."
       ],
-      "result": "The result follows because Choose heading rank from section hierarchy, then control visual size with CSS rather than selecting headings by appearance."
+      "result": "A screen reader's heading list reads like a clear table of contents for the course page."
     },
     {
       "id": "html.semantics.headings.example-b",
-      "title": "Heading hierarchy: boundary case",
-      "situation": "Heading rank should reflect structure rather than visual size, and skipping ranks can obscure relationships even when browsers render them.",
+      "title": "The size-driven headings",
+      "situation": "A blog post uses `<h1>` for the site name, `<h1>` for the title, and `<h4>` for sections \"because h2 looked too big\".",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Heading rank should reflect structure rather than visual size, and skipping ranks can obscure relationships even when browsers render them.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Heading elements should be chosen by the font size the design needs."
+        "Two h1s make the main subject unclear.",
+        "Jumping from h1 to h4 leaves gaps in the outline.",
+        "Fix: one h1 for the post title, h2 for sections, and CSS for sizes; the site name can be plain text or a logo link."
       ],
-      "result": "The boundary requires this correction: Choose heading rank from section hierarchy, then control visual size with CSS rather than selecting headings by appearance."
+      "result": "The outline becomes post title → sections, and the design still looks right via CSS."
     }
   ],
   "misconceptions": [
     {
       "id": "html.semantics.headings.misconception",
       "mistakenBelief": "Heading elements should be chosen by the font size the design needs.",
-      "correction": "Choose heading rank from section hierarchy, then control visual size with CSS rather than selecting headings by appearance.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: Heading elements should be chosen by the font size the design needs."
+      "correction": "Heading levels describe the document outline: one h1 for the main subject, then nested levels without skipping downward. Visual size is a CSS decision that can be applied to any level.",
+      "diagnosticPrompt": "In \"The size-driven headings\", which two outline problems appeared?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model Heading hierarchy, with structure carrying meaning before decoration.",
+    "example": "Headings are like a **book's table of contents**: Book title (h1), chapters (h2), sections within chapters (h3). You wouldn't number a section 4.1.1.1 directly under chapter 4.",
     "usefulFor": [
-      "Building a first mental model for Heading hierarchy before using exact platform terms"
+      "remembering levels = nesting",
+      "seeing size as separate from structure"
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "Heading rank should reflect structure rather than visual size, and skipping ranks can obscure relationships even when browsers render them."
+      "Books have fixed layouts; the same HTML outline can be styled many ways.",
+      "Web pages are often skimmed by heading navigation, not read front to back."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A page uses one descriptive h1 for its main subject and h2 elements for peer sections such as syllabus and schedule.",
-      "Headings label document sections and form a meaningful hierarchy that supports scanning and assistive navigation.",
-      "Choose heading rank from section hierarchy, then control visual size with CSS rather than selecting headings by appearance."
+      "<h1>Web Basics — Autumn Course</h1>",
+      "<h2>Syllabus</h2><h3>Week 1: HTML</h3>",
+      "<h2>Schedule</h2>"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Main subject",
         "state": {
-          "evidence": "A page uses one descriptive h1 for its main subject and h2 elements for peer sections such as syllabus and schedule."
+          "h1": "Web Basics — Autumn Course"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The page uses one descriptive h1 for its main subject."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "First section",
         "state": {
-          "rule": "Headings label document sections and form a meaningful hierarchy that supports scanning and assistive navigation."
+          "h2": "Syllabus",
+          "h3": "Week 1: HTML"
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Syllabus is an h2 section with an h3 sub-section inside."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Peer section",
         "state": {
-          "correction": "Choose heading rank from section hierarchy, then control visual size with CSS rather than selecting headings by appearance."
+          "h2": "Schedule"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Heading elements should be chosen by the font size the design needs."
+        "explanation": "Schedule is another h2, a peer of the syllabus section."
       }
     ],
-    "textAlternative": "Starting artifact: A page uses one descriptive h1 for its main subject and h2 elements for peer sections such as syllabus and schedule. Step 1, Artifact. State: evidence: A page uses one descriptive h1 for its main subject and h2 elements for peer sections such as syllabus and schedule.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Headings label document sections and form a meaningful hierarchy that supports scanning and assistive navigation.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Choose heading rank from section hierarchy, then control visual size with CSS rather than selecting headings by appearance.. Check the result against the boundary and reject this misconception: Heading elements should be chosen by the font size the design needs."
+    "textAlternative": "Building a heading outline. Step 1, Main subject: h1 is Web Basics — Autumn Course. The page uses one descriptive h1 for its main subject. Step 2, First section: h2 is Syllabus; h3 is Week 1: HTML. Syllabus is an h2 section with an h3 sub-section inside. Step 3, Peer section: h2 is Schedule. Schedule is another h2, a peer of the syllabus section."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Heading hierarchy: concrete case”: state its starting evidence, apply the Heading hierarchy rule, and give the observable result in three short lines.",
+      "prompt": "For \"A course page outline\", explain why the page uses one descriptive h1 for its main subject and h2 elements for peer sections such as syllabus and schedule.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "h1.",
+        "Peer sections.",
+        "Sub-sections."
       ],
       "expectedEvidence": [
-        "Named example: Heading hierarchy: concrete case.",
-        "Starting evidence: A page uses one descriptive h1 for its main subject and h2 elements for peer sections such as syllabus and schedule.",
-        "Core rule: Headings label document sections and form a meaningful hierarchy that supports scanning and assistive navigation.",
-        "Observable result: The result follows because Choose heading rank from section hierarchy, then control visual size with CSS rather than selecting headings by appearance.",
-        "Boundary check: Choose heading rank from section hierarchy, then control visual size with CSS rather than selecting headings by appearance."
+        "Names the example \"A course page outline\": one descriptive h1 for its main subject.",
+        "h2 elements for peer sections such as syllabus and schedule.",
+        "h3 for weeks inside the syllabus.",
+        "No levels are skipped."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Heading rank should reflect structure rather than visual size, and skipping ranks can obscure relationships even when browsers render them.",
+      "prompt": "Write the heading outline for a recipe page with sections Ingredients, Method (with sub-steps Prep and Cook) and Tips.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "One h1.",
+        "Method's children are h3."
       ],
       "expectedEvidence": [
-        "Headings label document sections and form a meaningful hierarchy that supports scanning and assistive navigation.",
-        "Heading rank should reflect structure rather than visual size, and skipping ranks can obscure relationships even when browsers render them."
+        "h1 recipe name; h2 Ingredients, Method, Tips.",
+        "h3 Prep and Cook under Method."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Heading hierarchy and explain why the misconception fails.",
+      "prompt": "Use a browser extension or DevTools accessibility tree to list the headings of a real website. Find one problem and write the corrected outline.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Look for multiple h1s or skipped levels.",
+        "Explain the fix."
       ],
       "expectedEvidence": [
-        "Create and review a logical heading hierarchy for a multi-section page.",
-        "Choose heading rank from section hierarchy, then control visual size with CSS rather than selecting headings by appearance."
+        "Accurate heading list from a real page.",
+        "A corrected outline with justification."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.semantics.headings.misconception",
-      "explanation": "Choose heading rank from section hierarchy, then control visual size with CSS rather than selecting headings by appearance.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'section hierarchy' and state the decisive evidence."
+      "explanation": "List only your headings, indented by level. If the list doesn't read like a sensible table of contents, fix the levels — then fix the look with CSS.",
+      "retryPrompt": "Make the list for \"The size-driven headings\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to create and review a logical heading hierarchy for a multi-section page. Keep this boundary in view: Heading rank should reflect structure rather than visual size, and skipping ranks can obscure relationships even when browsers render them.",
+    "summary": "To create a logical heading hierarchy, use one descriptive h1, give peer sections the same level, nest sub-sections one level deeper without skipping down, and choose levels by outline position — never by font size.",
     "retrievalPrompts": [
-      "Explain Heading hierarchy using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: Heading elements should be chosen by the font size the design needs.",
-      "Apply checkpoint 'section hierarchy' to a new artifact."
+      "How many h1s should a page usually have?",
+      "Is it OK to jump from h2 to h4?",
+      "What controls heading size?"
     ],
     "nextReviewPrompt": "Next: continue to “Paragraph and inline meaning”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

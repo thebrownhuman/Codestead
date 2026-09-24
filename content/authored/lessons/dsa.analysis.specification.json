@@ -33,38 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "An algorithm specification defines inputs, outputs, constraints, required behavior, and allowed complexity independently of one implementation.",
+    "summary": "A **specification** says exactly what an algorithm must do, before any code: the **inputs** and their constraints (sizes, ranges, sorted or not, duplicates allowed?), the **output** (a value, an index, a list; which one if several are valid?), what happens in **edge cases** (empty input, no answer), and the **allowed cost** (for example, \"O(n) time\"). Pair it with an **invariant**: a statement that stays true at every step of your loop, which you use to trace and later prove the algorithm. A function name plus one sample input is not a specification.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A two-sum specification states whether indexes or values are returned and whether one pair is guaranteed. Your goal is to specify and trace an algorithm using a contract and invariant. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Two teammates both solve \"two-sum\" for a quiz scorer. One returns the two numbers, the other returns their positions, and one crashes when no pair exists. Both passed the single sample. A two-sum specification states whether indexes or values are returned and whether one pair is guaranteed. In this lesson you'll specify and trace an algorithm using a contract and invariant.\n\n```predict\n{\"question\": \"\\\"Given nums and target, return the two that add to target.\\\" For nums = [3, 3], target = 6, what's the answer?\", \"options\": [\"[3, 3]\", \"Unclear: the numbers [3, 3] or the indexes [0, 1]? And is a pair always guaranteed?\"], \"answer\": 1, \"why\": \"Without a specification, several different answers are all \\\"correct\\\".\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: pf problem pseudocode; pf tools debug test; Selected-language readiness; pf problem io. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Pseudocode**, **Debugging and testing loop**, **Selected-language readiness**, and **Inputs, outputs and constraints** (describing inputs and outputs)."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "An algorithm specification defines inputs, outputs, constraints, required behavior, and allowed complexity independently of one implementation. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The contract: inputs, output, edge cases, cost",
+        "body": "```text\nProblem: two_sum(nums, target).\nInput: nums is a list of n integers, 0 <= n <= 100000; may contain duplicates; not sorted.\n       target is an integer.\nOutput: indexes (i, j) with i < j and nums[i] + nums[j] == target.\n        If several pairs exist, return the one with the smallest j, then smallest i.\n        If none exists, return None.\nCost: O(n) expected time, O(n) extra space.\n```\n\n```python\ndef two_sum(nums, target):\n    seen = {}                        # value -> first index where we saw it.\n    for j, x in enumerate(nums):\n        # Invariant: seen holds every value in nums[0:j] with its first index.\n        if target - x in seen:\n            return (seen[target - x], j)\n        if x not in seen:\n            seen[x] = j\n    return None\n```\n\n| Part | Why it matters |\n|---|---|\n| input constraints. | decide which algorithms are fast enough. |\n| exact output. | callers and tests agree on one answer. |\n| edge cases. | empty, no answer, duplicates. |\n| invariant. | a checkable claim to trace each step. |\n\n```reveal\n{\"prompt\": \"Why does the loop check before adding x to seen?\", \"answer\": \"So an element doesn't pair with itself: [3] with target 6 must return None, not (0, 0).\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Examples do not replace the contract, and invalid, empty, duplicate, or large inputs need explicit treatment. The draft therefore rejects: The function name and sample input fully specify an algorithm problem."
+        "heading": "Trace with the invariant",
+        "body": "```predict\n{\"question\": \"nums = [2, 7, 11, 15], target = 9. After j = 0, what does seen contain?\", \"options\": [\"{}\", \"{2: 0}\"], \"answer\": 1, \"why\": \"The invariant says seen holds nums[0:1] = [2], so {2: 0}. At j = 1, 9 - 7 = 2 is in seen: return (0, 1).\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "State inputs, outputs, preconditions, postconditions and a useful loop or structure invariant.",
-      "Specify and trace an algorithm using a contract and invariant.",
-      "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
+      "Write a contract with inputs, constraints, exact output, edge cases and cost.",
+      "State a loop invariant and trace an algorithm against it."
     ],
     "excludes": [
-      "Examples do not replace the contract, and invalid, empty, duplicate, or large inputs need explicit treatment."
+      "Formal proof (next lesson).",
+      "Specification languages like TLA+."
     ]
   },
   "outcomes": [
@@ -73,142 +69,136 @@
   "examples": [
     {
       "id": "dsa.analysis.specification.example-a",
-      "title": "Algorithm specification and invariants: language-neutral trace",
+      "title": "Two-sum, said precisely",
       "situation": "A two-sum specification states whether indexes or values are returned and whether one pair is guaranteed.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: A two-sum specification states whether indexes or values are returned and whether one pair is guaranteed.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Write an input-output-constraint contract before selecting a data structure or language implementation."
+        "**Specify:** the contract says return indexes (i, j) with i < j, pick the smallest j, and return None if no pair exists.",
+        "**Invariant:** seen holds every value before position j with its first index.",
+        "**Trace:** for [3, 3] and target 6, j = 1 will find 3 in seen and return (0, 1)."
       ],
-      "result": "The conceptual result follows because Write an input-output-constraint contract before selecting a data structure or language implementation."
+      "result": "Both teammates now write the same behaviour, and tests for duplicates and \"no pair\" have one right answer."
     },
     {
       "id": "dsa.analysis.specification.example-b",
-      "title": "Algorithm specification and invariants: implementation transfer",
-      "situation": "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics.",
+      "title": "The median with no rule for even sizes",
+      "situation": "A \"median score\" function works for [1, 5, 9] but gives different results in two implementations for [1, 5, 9, 11].",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics.",
-        "Step 3 — Retest this boundary in the selected implementation: Examples do not replace the contract, and invalid, empty, duplicate, or large inputs need explicit treatment."
+        "The spec never said what to return for an even count.",
+        "Add: \"for even n, return the mean of the two middle values as a float\".",
+        "Add tests for n = 0 (return None), odd n and even n."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Both implementations return 7.0 for [1, 5, 9, 11] and agree on every edge case."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.analysis.specification.misconception",
       "mistakenBelief": "The function name and sample input fully specify an algorithm problem.",
-      "correction": "Write an input-output-constraint contract before selecting a data structure or language implementation.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: The function name and sample input fully specify an algorithm problem."
+      "correction": "A name and one sample leave many choices open: values or indexes, which answer when several exist, what to do with empty input or no answer, and how fast it must be. A written contract settles them.",
+      "diagnosticPrompt": "In the opening predict, which two questions did the sample leave open?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Algorithm specification and invariants, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "A specification is like **an order form for a custom cake**: size, flavour, allergies, what to do if a flavour is out of stock, and the delivery deadline. \"Make a birthday cake\" plus a photo leaves the baker guessing.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering say exactly what's wanted",
+      "invariant = a check the baker repeats at each layer"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Examples do not replace the contract, and invalid, empty, duplicate, or large inputs need explicit treatment."
+      "Bakers can phone you; functions can't ask questions.",
+      "The deadline is like the allowed cost."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A two-sum specification states whether indexes or values are returned and whether one pair is guaranteed.",
-      "An algorithm specification defines inputs, outputs, constraints, required behavior, and allowed complexity independently of one implementation.",
-      "Write an input-output-constraint contract before selecting a data structure or language implementation.",
-      "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
+      "two_sum([2, 7, 11, 15], 9)",
+      "j = 0, x = 2",
+      "j = 1, x = 7"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Start",
         "state": {
-          "scenario": "A two-sum specification states whether indexes or values are returned and whether one pair is guaranteed."
+          "seen": "{}",
+          "contract": "indexes, i < j, None if absent"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The specification says indexes are returned and no pair is guaranteed."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "j = 0",
         "state": {
-          "invariant": "An algorithm specification defines inputs, outputs, constraints, required behavior, and allowed complexity independently of one implementation."
+          "9 - 2 = 7 in seen?": "no",
+          "seen": "{2: 0}"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "The invariant holds: seen contains every value before position 1."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "j = 1",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "9 - 7 = 2 in seen?": "yes",
+          "return": "(0, 1)"
         },
-        "explanation": "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Write an input-output-constraint contract before selecting a data structure or language implementation."
-        },
-        "explanation": "Verify the result and reject this misconception: The function name and sample input fully specify an algorithm problem."
+        "explanation": "The algorithm returns indexes exactly as the contract requires."
       }
     ],
-    "textAlternative": "Starting artifact: A two-sum specification states whether indexes or values are returned and whether one pair is guaranteed. Step 1, Specification. State: scenario: A two-sum specification states whether indexes or values are returned and whether one pair is guaranteed.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: An algorithm specification defines inputs, outputs, constraints, required behavior, and allowed complexity independently of one implementation.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics. Step 4, Conclusion. State: correction: Write an input-output-constraint contract before selecting a data structure or language implementation.. Verify the result and reject this misconception: The function name and sample input fully specify an algorithm problem."
+    "textAlternative": "Tracing two-sum against its contract. Step 1, Start: seen is {}; contract is indexes, i < j, None if absent. The specification says indexes are returned and no pair is guaranteed. Step 2, j = 0: 9 - 2 = 7 in seen? is no; seen is {2: 0}. The invariant holds: seen contains every value before position 1. Step 3, j = 1: 9 - 7 = 2 in seen? is yes; return is (0, 1). The algorithm returns indexes exactly as the contract requires."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Algorithm specification and invariants: language-neutral trace”: state its starting evidence, apply the Algorithm specification and invariants rule, and give the observable result in three short lines.",
+      "prompt": "For \"Two-sum, said precisely\", explain how a two-sum specification states whether indexes or values are returned and whether one pair is guaranteed.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Contract.",
+        "Invariant.",
+        "Trace."
       ],
       "expectedEvidence": [
-        "Named example: Algorithm specification and invariants: language-neutral trace.",
-        "Starting evidence: A two-sum specification states whether indexes or values are returned and whether one pair is guaranteed.",
-        "Core rule: An algorithm specification defines inputs, outputs, constraints, required behavior, and allowed complexity independently of one implementation.",
-        "Observable result: The conceptual result follows because Write an input-output-constraint contract before selecting a data structure or language implementation.",
-        "Boundary check: Write an input-output-constraint contract before selecting a data structure or language implementation."
+        "Names the example \"Two-sum, said precisely\": the specification states indexes are returned.",
+        "It says whether one pair is guaranteed: return None if not.",
+        "The invariant describes seen.",
+        "Both teammates now write the same behaviour."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: An algorithm specification defines inputs, outputs, constraints, required behavior, and allowed complexity independently of one implementation.",
+      "prompt": "Write a full specification for `first_repeat(words)`: returns the first word that appears twice. Cover empty input, no repeat, case sensitivity and cost.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Which \"first\": first to repeat, or earliest repeated word?",
+        "O(n) expected time."
       ],
       "expectedEvidence": [
-        "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics.",
-        "Examples do not replace the contract, and invalid, empty, duplicate, or large inputs need explicit treatment."
+        "Exact output rule stated.",
+        "Edge cases and cost listed."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Algorithm specification and invariants case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Specify, implement and test `merge_scores(a, b)` that merges two sorted score lists. State the contract, a loop invariant, and tests for empty lists, duplicates and unequal lengths.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Invariant about the output prefix.",
+        "Stable order for ties?"
       ],
       "expectedEvidence": [
-        "Specify and trace an algorithm using a contract and invariant.",
-        "Write an input-output-constraint contract before selecting a data structure or language implementation."
+        "Contract and invariant written first.",
+        "Tests pass for all edge cases."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.analysis.specification.misconception",
-      "explanation": "Write an input-output-constraint contract before selecting a data structure or language implementation.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'input-output-constraint contract', then state one implementation-specific risk in the selected language."
+      "explanation": "Before coding, fill in five lines: **input and constraints, exact output, edge cases, allowed cost, invariant.** If any line says \"it depends\", decide and write it down.",
+      "retryPrompt": "Apply this to \"The median with no rule for even sizes\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to specify and trace an algorithm using a contract and invariant. Keep this boundary in view: Examples do not replace the contract, and invalid, empty, duplicate, or large inputs need explicit treatment.",
+    "summary": "To specify and trace an algorithm, write a contract with inputs and constraints, one exact output rule, edge-case behaviour and allowed cost, then state a loop invariant and check it at each step of a trace, such as seen holding every earlier value in two-sum.",
     "retrievalPrompts": [
-      "State the Algorithm specification and invariants invariant and complexity without code.",
-      "Why is this claim false: The function name and sample input fully specify an algorithm problem.",
-      "Map checkpoint 'input-output-constraint contract' to C, C++, Java, and Python."
+      "What four things does a contract state?",
+      "What is a loop invariant?",
+      "Why isn't a sample input a specification?"
     ],
     "nextReviewPrompt": "Next: continue to “Correctness and counterexamples”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

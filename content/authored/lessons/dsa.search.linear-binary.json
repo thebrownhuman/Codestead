@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Linear search needs no ordering, while binary search maintains a sorted search interval and discards half after each comparison.",
+    "summary": "**Linear search** checks items one by one: O(n), and it works on any order. **Binary search** needs a **sorted** array: look at the middle, and because everything left is smaller and everything right is larger, throw away half each step: O(log n), about 20 steps for a million items. The safest form is **lower_bound**: search the half-open range `[lo, hi)` for the **first position whose value is not less than the target**. Its invariant: everything before lo is < target, everything from hi on is ≥ target. It handles missing values, duplicates and empty arrays without special cases.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: lower_bound searches [lo,hi) for the first position whose value is not less than target. Your goal is to implement, trace and test linear and binary search including empty and duplicate cases. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A sorted list of 100,000 quiz scores is used to answer \"how many learners scored below 70?\". A hand-written binary search sometimes returns the middle 70 instead of the first 70 among duplicates, and it loops forever on an empty list. lower_bound searches [lo,hi) for the first position whose value is not less than target. In this lesson you'll implement, trace and test linear and binary search including empty and duplicate cases.\n\n```predict\n{\"question\": \"Binary search on [9, 2, 7, 4, 5] for 4. What's wrong?\", \"options\": [\"Nothing; the midpoint logic still works\", \"The array isn't sorted, so discarding a half can throw away the answer\"], \"answer\": 1, \"why\": \"Binary search relies on order to know which half can't contain the target.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Arrays, strings and matrices; Time, space and asymptotic growth; Array representation and operations; Correctness and counterexamples. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Arrays, strings and matrices** module, **Time, space and asymptotic growth**, **Array representation and operations**, and **Correctness and counterexamples**, since the invariant is the whole trick."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Linear search needs no ordering, while binary search maintains a sorted search interval and discards half after each comparison. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The invariant: [lo, hi) always brackets the answer",
+        "body": "```python\ndef linear_search(values, target):      # O(n), any order.\n    for i, v in enumerate(values):\n        if v == target:\n            return i\n    return -1\n\ndef lower_bound(values, target):        # O(log n), values sorted ascending.\n    lo, hi = 0, len(values)             # search [lo, hi).\n    # Invariant: values[:lo] < target and values[hi:] >= target.\n    while lo < hi:\n        mid = (lo + hi) // 2\n        if values[mid] < target:\n            lo = mid + 1                # mid and everything left are too small.\n        else:\n            hi = mid                    # mid could be the answer; keep it.\n    return lo                           # first index with value >= target.\n\nscores = [40, 55, 70, 70, 70, 85, 90]\nprint(lower_bound(scores, 70))          # 2: two learners scored below 70.\nprint(lower_bound(scores, 100))         # 7: len(scores), not found.\nprint(lower_bound([], 70))              # 0: empty is fine.\n```\n\n| Case | lower_bound result |\n|---|---|\n| target present. | index of its first copy. |\n| target missing. | where it would be inserted. |\n| all values smaller. | len(values). |\n| empty array. | 0. |\n\n```reveal\n{\"prompt\": \"How do you check if the target is actually present?\", \"answer\": \"`i = lower_bound(values, t)`, then `i < len(values) and values[i] == t`.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Binary search needs monotonic structure, careful half-open bounds, and overflow-safe midpoint calculation. The draft therefore rejects: Binary search works on any unsorted array if the midpoint is updated correctly."
+        "heading": "Why the loop always ends",
+        "body": "```predict\n{\"question\": \"Each step sets lo = mid + 1 or hi = mid. Does the range [lo, hi) always shrink?\", \"options\": [\"Not always; it can get stuck\", \"Yes: mid is in [lo, hi), so either change makes it smaller\"], \"answer\": 1, \"why\": \"A shrinking range of whole numbers must reach lo == hi, so the loop terminates.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Search unsorted or sorted ranges with correct invariants and boundary updates.",
-      "Implement, trace and test linear and binary search including empty and duplicate cases.",
-      "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics."
+      "Implement linear search and lower_bound with a half-open invariant.",
+      "Test empty, missing, duplicate, first and last cases."
     ],
     "excludes": [
-      "Binary search needs monotonic structure, careful half-open bounds, and overflow-safe midpoint calculation."
+      "Binary search on answers (search space tricks) in depth.",
+      "Interpolation and exponential search."
     ]
   },
   "outcomes": [
@@ -68,142 +64,137 @@
   "examples": [
     {
       "id": "dsa.search.linear-binary.example-a",
-      "title": "Linear and binary search: language-neutral trace",
+      "title": "Where does score 70 start?",
       "situation": "lower_bound searches [lo,hi) for the first position whose value is not less than target.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: lower_bound searches [lo,hi) for the first position whose value is not less than target.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Binary search requires a sorted or monotonic predicate and a maintained interval invariant."
+        "**Invariant:** in [40, 55, 70, 70, 70, 85, 90], everything before lo is below 70 and everything from hi on is at least 70.",
+        "**First position not less than target:** the loop narrows to lo = hi = 2, the first 70.",
+        "**Test:** a test will compare lower_bound with a linear scan for every target from 0 to 100, including the empty list."
       ],
-      "result": "The conceptual result follows because Binary search requires a sorted or monotonic predicate and a maintained interval invariant."
+      "result": "The report says two learners scored below 70, and the search never loops forever or returns a middle duplicate."
     },
     {
       "id": "dsa.search.linear-binary.example-b",
-      "title": "Linear and binary search: implementation transfer",
-      "situation": "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics.",
+      "title": "The search that missed the last item",
+      "situation": "A binary search uses `while lo < hi - 1` and never checks the final candidate, so searching for 90 in the score list returns \"not found\".",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics.",
-        "Step 3 — Retest this boundary in the selected implementation: Binary search needs monotonic structure, careful half-open bounds, and overflow-safe midpoint calculation."
+        "The off-by-one loop condition stopped one step early.",
+        "Using the half-open [lo, hi) form with `while lo < hi` checks every candidate.",
+        "Add tests for the first item, the last item and a missing item."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Every score, including the largest, is found."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.search.linear-binary.misconception",
       "mistakenBelief": "Binary search works on any unsorted array if the midpoint is updated correctly.",
-      "correction": "Binary search requires a sorted or monotonic predicate and a maintained interval invariant.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Binary search works on any unsorted array if the midpoint is updated correctly."
+      "correction": "Discarding half the range is only safe when the array is sorted, because order guarantees the target can't be in the discarded half. On unsorted data, use linear search or sort first.",
+      "diagnosticPrompt": "In the opening predict, what could go wrong on [9, 2, 7, 4, 5]?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Linear and binary search, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Binary search is like **finding a word in a paper dictionary**: open the middle, see whether your word comes before or after, and ignore the other half. It only works because the dictionary is alphabetical; a shuffled pile of pages needs page-by-page reading (linear search).",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering halve a sorted range",
+      "lower_bound = the first page your word could be on"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Binary search needs monotonic structure, careful half-open bounds, and overflow-safe midpoint calculation."
+      "Dictionaries are sorted by publishers; your array must be sorted by you.",
+      "The range [lo, hi) is the bundle of pages still in your hands."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "lower_bound searches [lo,hi) for the first position whose value is not less than target.",
-      "Linear search needs no ordering, while binary search maintains a sorted search interval and discards half after each comparison.",
-      "Binary search requires a sorted or monotonic predicate and a maintained interval invariant.",
-      "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics."
+      "scores = [40, 55, 70, 70, 70, 85, 90], target 70",
+      "loop",
+      "return"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Start",
         "state": {
-          "scenario": "lower_bound searches [lo,hi) for the first position whose value is not less than target."
+          "lo": "0",
+          "hi": "7",
+          "mid": "3 (70)"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "70 is not less than 70, so hi becomes 3."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Narrow",
         "state": {
-          "invariant": "Linear search needs no ordering, while binary search maintains a sorted search interval and discards half after each comparison."
+          "lo, hi": "0, 3 → mid 1 (55) → lo 2; then mid 2 (70) → hi 2"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "lower_bound searches [lo,hi) keeping its invariant each step."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Return",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "lo": "2",
+          "hi": "2",
+          "answer": "first 70 at index 2"
         },
-        "explanation": "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Binary search requires a sorted or monotonic predicate and a maintained interval invariant."
-        },
-        "explanation": "Verify the result and reject this misconception: Binary search works on any unsorted array if the midpoint is updated correctly."
+        "explanation": "It returns the first position whose value is not less than target."
       }
     ],
-    "textAlternative": "Starting artifact: lower_bound searches [lo,hi) for the first position whose value is not less than target. Step 1, Specification. State: scenario: lower_bound searches [lo,hi) for the first position whose value is not less than target.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Linear search needs no ordering, while binary search maintains a sorted search interval and discards half after each comparison.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics. Step 4, Conclusion. State: correction: Binary search requires a sorted or monotonic predicate and a maintained interval invariant.. Verify the result and reject this misconception: Binary search works on any unsorted array if the midpoint is updated correctly."
+    "textAlternative": "Tracing lower_bound with duplicates. Step 1, Start: lo is 0; hi is 7; mid is 3 (70). 70 is not less than 70, so hi becomes 3. Step 2, Narrow: lo, hi is 0, 3 → mid 1 (55) → lo 2; then mid 2 (70) → hi 2. lower_bound searches [lo,hi) keeping its invariant each step. Step 3, Return: lo is 2; hi is 2; answer is first 70 at index 2. It returns the first position whose value is not less than target."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Linear and binary search: language-neutral trace”: state its starting evidence, apply the Linear and binary search rule, and give the observable result in three short lines.",
+      "prompt": "For \"Where does score 70 start?\", explain how lower_bound searches [lo,hi) for the first position whose value is not less than target.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Invariant.",
+        "Narrowing.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Linear and binary search: language-neutral trace.",
-        "Starting evidence: lower_bound searches [lo,hi) for the first position whose value is not less than target.",
-        "Core rule: Linear search needs no ordering, while binary search maintains a sorted search interval and discards half after each comparison.",
-        "Observable result: The conceptual result follows because Binary search requires a sorted or monotonic predicate and a maintained interval invariant.",
-        "Boundary check: Binary search requires a sorted or monotonic predicate and a maintained interval invariant."
+        "Names the example \"Where does score 70 start?\": duplicates of 70 confused the old search.",
+        "lower_bound searches [lo,hi).",
+        "It finds the first position whose value is not less than target.",
+        "The report says two learners scored below 70."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Linear search needs no ordering, while binary search maintains a sorted search interval and discards half after each comparison.",
+      "prompt": "Write `upper_bound(values, target)`: the first position whose value is greater than target. Use it with lower_bound to count how many learners scored exactly 70.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Change < to <= in the comparison.",
+        "count = upper - lower."
       ],
       "expectedEvidence": [
-        "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics.",
-        "Binary search needs monotonic structure, careful half-open bounds, and overflow-safe midpoint calculation."
+        "upper_bound(scores, 70) = 5.",
+        "Count of 70s = 3."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Linear and binary search case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Implement both searches in your chosen language (watch integer overflow for mid in C, C++ and Java: use lo + (hi - lo) / 2). Test against linear search on 1,000 random sorted arrays including empty and all-equal ones.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Randomised comparison test.",
+        "Overflow-safe midpoint."
       ],
       "expectedEvidence": [
-        "Implement, trace and test linear and binary search including empty and duplicate cases.",
-        "Binary search requires a sorted or monotonic predicate and a maintained interval invariant."
+        "All comparisons agree.",
+        "Complexity stated for each."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.search.linear-binary.misconception",
-      "explanation": "Binary search requires a sorted or monotonic predicate and a maintained interval invariant.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'monotonic predicate', then state one implementation-specific risk in the selected language."
+      "explanation": "Write the invariant first: **what's true about everything before lo and from hi on?** Choose half-open [lo, hi), loop while lo < hi, and test: empty, missing below, missing above, first, last, duplicates.",
+      "retryPrompt": "Apply this to \"The search that missed the last item\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement, trace and test linear and binary search including empty and duplicate cases. Keep this boundary in view: Binary search needs monotonic structure, careful half-open bounds, and overflow-safe midpoint calculation.",
+    "summary": "To implement, trace and test searches, use linear search for unsorted data in O(n) and binary search only on sorted data in O(log n), written as lower_bound over a half-open [lo, hi) range whose invariant keeps smaller values before lo and larger-or-equal from hi, and test empty, missing, duplicate, first and last cases.",
     "retrievalPrompts": [
-      "State the Linear and binary search invariant and complexity without code.",
-      "Why is this claim false: Binary search works on any unsorted array if the midpoint is updated correctly.",
-      "Map checkpoint 'monotonic predicate' to C, C++, Java, and Python."
+      "When can you use binary search?",
+      "What does lower_bound return?",
+      "Why does the loop always terminate?"
     ],
     "nextReviewPrompt": "Next: continue to “Selection and insertion sort”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

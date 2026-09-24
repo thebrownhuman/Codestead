@@ -43,33 +43,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A React SPA project integrates semantic components, state ownership, data states, routes, errors, tests, build, and deployment fallback.",
+    "summary": "Your React single-page app project brings the whole course together: **semantic components**, clear **state ownership**, explicit **data states**, **routes** that survive refresh, **error boundaries**, **tests**, a verified **production build**, and a **hosting fallback**. \"All screens look right\" is not the finish line. It's done when the key learner journeys work by **keyboard**, on a **phone-width screen**, on a **refreshed deep link**, with **slow and failing requests**, and when automated tests prove it. A short README explains how to run, test and deploy it.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A portfolio app supports direct route refresh, loading and error recovery, keyboard navigation, tests, and a verified production bundle. Your goal is to deliver and explain a reproducible React SPA whose key user journeys pass automated and manual keyboard tests. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Your portfolio app looks great in the demo. Then a reviewer refreshes `/projects/quiz-app` and gets a 404, tabs through the nav and loses focus, turns on slow 3G and sees a blank page, and finds the build was never run. A portfolio app supports direct route refresh, loading and error recovery, keyboard navigation, tests, and a verified production bundle. In this lesson you'll deliver and explain a reproducible React SPA whose key user journeys pass automated and manual keyboard tests.\n\n```predict\n{\"question\": \"Every screen is built and looks right. Is the SPA complete?\", \"options\": [\"Yes\", \"Not until refresh, keyboard, slow/failing network, tests and the production build are checked\"], \"answer\": 1, \"why\": \"Visible screens are only the happy path.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Accessibility, errors and performance; Routing and application context; Routing and integration tests; Error boundaries and recovery; Measure before optimization. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Accessibility, errors and performance** module, the **Routing and application context** module, **Routing and integration tests**, **Error boundaries and recovery**, and **Measure before optimization**."
       },
       {
-        "heading": "Technology rule",
-        "body": "A React SPA project integrates semantic components, state ownership, data states, routes, errors, tests, build, and deployment fallback. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: a journey passes only when every layer does",
+        "body": "| Layer | Evidence for \"done\" |\n|---|---|\n| semantics. | native elements, names; keyboard audit passes. |\n| state ownership. | each value has one owner; no duplicated state. |\n| data states. | loading, empty, error with retry, success for each fetch. |\n| routes. | direct URL, links, Back, not-found; titles and focus move. |\n| errors. | route boundaries with safe fallback and retry. |\n| tests. | component, async and route integration tests pass in CI. |\n| build. | `npm ci && npm run build && npm run preview` works from a clean clone. |\n| hosting. | fallback serves index.html; refreshing a deep link works. |\n| performance. | one measured check; changes justified or none needed. |\n\n```text\nREADME excerpt.\nRun: npm ci, then npm run dev.\nTest: npm test (component, async, route suites).\nBuild: npm run build, then npm run preview.\nDeploy: host rewrites /* to /index.html.\nKey journeys: browse projects, open a project, contact form.\n```\n\n```reveal\n{\"prompt\": \"Why list \\\"key journeys\\\" in the README?\", \"answer\": \"It tells reviewers what to try, and it tells you which journeys need integration tests and a keyboard check.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "A polished success path can hide hydration, direct-route, offline, stale, mobile, accessibility, and privacy failures. This draft therefore rejects: Finishing all visible screens is sufficient evidence that an SPA is complete."
+        "heading": "Manual checks still matter",
+        "body": "```predict\n{\"question\": \"All automated tests pass. What should you still do by hand?\", \"options\": [\"Nothing\", \"Tab through each journey, try a 360px width, throttle the network, and refresh a deep link\"], \"answer\": 1, \"why\": \"Some problems are only visible to a person using the app.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Integrate routed views, forms, remote data, complete async states, accessibility, errors and tests.",
-      "Deliver and explain a reproducible React SPA whose key user journeys pass automated and manual keyboard tests."
+      "Integrate components, state, data states, routes, errors, tests and build into one SPA.",
+      "Verify key journeys by keyboard, narrow screen, slow network and deep-link refresh, and document them."
     ],
     "excludes": [
-      "A polished success path can hide hydration, direct-route, offline, stale, mobile, accessibility, and privacy failures."
+      "Server-side rendering frameworks.",
+      "Backend implementation."
     ]
   },
   "outcomes": [
@@ -78,133 +79,135 @@
   "examples": [
     {
       "id": "react.project.spa.example-a",
-      "title": "Intermediate single-page application: concrete case",
+      "title": "A portfolio app that holds up",
       "situation": "A portfolio app supports direct route refresh, loading and error recovery, keyboard navigation, tests, and a verified production bundle.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A portfolio app supports direct route refresh, loading and error recovery, keyboard navigation, tests, and a verified production bundle.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Verify the full state and route model, failure recovery, accessibility, security, tests, bundle, and deployed behavior."
+        "**Direct route refresh:** the host rewrites app paths to index.html, and a route test starts at /projects/quiz-app.",
+        "**Loading and error recovery:** each project fetch shows loading, an error with Try again, and success; a route boundary catches render errors.",
+        "**Keyboard, tests and bundle:** a keyboard pass will reach every link, CI runs the test suites, and `npm run build && npm run preview` is checked before deploy."
       ],
-      "result": "The result follows because Verify the full state and route model, failure recovery, accessibility, security, tests, bundle, and deployed behavior."
+      "result": "Reviewers can refresh any page, use it without a mouse, survive a failing network, and reproduce it from the README."
     },
     {
       "id": "react.project.spa.example-b",
-      "title": "Intermediate single-page application: boundary case",
-      "situation": "A polished success path can hide hydration, direct-route, offline, stale, mobile, accessibility, and privacy failures.",
+      "title": "The contact form that sent twice",
+      "situation": "In the finished app, the contact form sends two emails when the Send button is double-clicked on a slow connection.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: A polished success path can hide hydration, direct-route, offline, stale, mobile, accessibility, and privacy failures.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Finishing all visible screens is sufficient evidence that an SPA is complete."
+        "The mutation had no pending state.",
+        "Add status pending with a disabled button and a ref guard, and show a success or error message.",
+        "Add an async test that double-clicks with a slow fake and asserts one call."
       ],
-      "result": "The boundary requires this correction: Verify the full state and route model, failure recovery, accessibility, security, tests, bundle, and deployed behavior."
+      "result": "One message is sent per submission, and the test keeps it that way."
     }
   ],
   "misconceptions": [
     {
       "id": "react.project.spa.misconception",
       "mistakenBelief": "Finishing all visible screens is sufficient evidence that an SPA is complete.",
-      "correction": "Verify the full state and route model, failure recovery, accessibility, security, tests, bundle, and deployed behavior.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Finishing all visible screens is sufficient evidence that an SPA is complete."
+      "correction": "Screens show the happy path. Completion means key journeys work through refreshes, keyboard use, narrow screens, slow and failing requests and production builds, with tests and a README as evidence.",
+      "diagnosticPrompt": "In \"A portfolio app that holds up\", what did the reviewer find?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Intermediate single-page application, where inputs and state produce a UI description.",
+    "example": "Shipping an SPA is like **a building inspection**. The rooms may look finished, but the inspector checks every entrance (deep links), the stairs and ramps (keyboard access), the fire exits (error recovery), the wiring under load (slow network), and the paperwork (README and tests).",
     "usefulFor": [
-      "Building a first mental model for Intermediate single-page application before using exact platform terms"
+      "remembering every layer",
+      "README = the building's paperwork"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "A polished success path can hide hydration, direct-route, offline, stale, mobile, accessibility, and privacy failures."
+      "Inspectors visit once; your tests inspect on every change.",
+      "A beautiful room with a locked door (404 on refresh) still fails."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A portfolio app supports direct route refresh, loading and error recovery, keyboard navigation, tests, and a verified production bundle.",
-      "A React SPA project integrates semantic components, state ownership, data states, routes, errors, tests, build, and deployment fallback.",
-      "Verify the full state and route model, failure recovery, accessibility, security, tests, bundle, and deployed behavior."
+      "refresh /projects/quiz-app on slow 3G",
+      "request fails, click Try again",
+      "Tab through the page"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Refresh",
         "state": {
-          "evidence": "A portfolio app supports direct route refresh, loading and error recovery, keyboard navigation, tests, and a verified production bundle."
+          "server": "index.html",
+          "status": "loading"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "Direct route refresh works and shows a loading state."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Recover",
         "state": {
-          "rule": "A React SPA project integrates semantic components, state ownership, data states, routes, errors, tests, build, and deployment fallback."
+          "first request": "failed",
+          "after retry": "project shown"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Loading and error recovery let the learner try again."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Keyboard",
         "state": {
-          "correction": "Verify the full state and route model, failure recovery, accessibility, security, tests, bundle, and deployed behavior."
+          "focus order": "nav, h1, content, contact link"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Finishing all visible screens is sufficient evidence that an SPA is complete."
+        "explanation": "Keyboard navigation reaches everything, backed by tests and a verified production bundle."
       }
     ],
-    "textAlternative": "Starting artifact: A portfolio app supports direct route refresh, loading and error recovery, keyboard navigation, tests, and a verified production bundle. Step 1, Artifact. State: evidence: A portfolio app supports direct route refresh, loading and error recovery, keyboard navigation, tests, and a verified production bundle.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A React SPA project integrates semantic components, state ownership, data states, routes, errors, tests, build, and deployment fallback.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Verify the full state and route model, failure recovery, accessibility, security, tests, bundle, and deployed behavior.. Check the result against the boundary and reject this misconception: Finishing all visible screens is sufficient evidence that an SPA is complete."
+    "textAlternative": "Walking one key journey. Step 1, Refresh: server is index.html; status is loading. Direct route refresh works and shows a loading state. Step 2, Recover: first request is failed; after retry is project shown. Loading and error recovery let the learner try again. Step 3, Keyboard: focus order is nav, h1, content, contact link. Keyboard navigation reaches everything, backed by tests and a verified production bundle."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Intermediate single-page application: concrete case”: state its starting evidence, apply the Intermediate single-page application rule, and give the observable result in three short lines.",
+      "prompt": "For \"A portfolio app that holds up\", explain how a portfolio app supports direct route refresh, loading and error recovery, keyboard navigation, tests, and a verified production bundle.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Refresh.",
+        "Recovery.",
+        "Keyboard, tests, build."
       ],
       "expectedEvidence": [
-        "Named example: Intermediate single-page application: concrete case.",
-        "Starting evidence: A portfolio app supports direct route refresh, loading and error recovery, keyboard navigation, tests, and a verified production bundle.",
-        "Core rule: A React SPA project integrates semantic components, state ownership, data states, routes, errors, tests, build, and deployment fallback.",
-        "Observable result: The result follows because Verify the full state and route model, failure recovery, accessibility, security, tests, bundle, and deployed behavior.",
-        "Boundary check: Verify the full state and route model, failure recovery, accessibility, security, tests, bundle, and deployed behavior."
+        "Names the example \"A portfolio app that holds up\": direct route refresh works through the host fallback.",
+        "Loading and error recovery are shown for each fetch.",
+        "Keyboard navigation, tests, and a verified production bundle are checked.",
+        "Reviewers can reproduce it from the README."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: A polished success path can hide hydration, direct-route, offline, stale, mobile, accessibility, and privacy failures.",
+      "prompt": "Write the \"done\" checklist for one journey in your SPA (for example, opening a project), with one automated test and one manual check per layer.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Use the table above.",
+        "Name each test."
       ],
       "expectedEvidence": [
-        "A React SPA project integrates semantic components, state ownership, data states, routes, errors, tests, build, and deployment fallback.",
-        "A polished success path can hide hydration, direct-route, offline, stale, mobile, accessibility, and privacy failures."
+        "A checklist with evidence per layer.",
+        "At least three named tests."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Intermediate single-page application and explain why the misconception fails.",
+      "prompt": "Finish your SPA: implement the key journeys, add component, async and route tests, run a keyboard and 360px audit, throttle the network, verify the production build and hosting fallback, and write a README a reviewer can follow.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Clean clone before submitting.",
+        "Record audit results."
       ],
       "expectedEvidence": [
-        "Deliver and explain a reproducible React SPA whose key user journeys pass automated and manual keyboard tests.",
-        "Verify the full state and route model, failure recovery, accessibility, security, tests, bundle, and deployed behavior."
+        "All journeys pass automated and manual checks.",
+        "A reproducible README."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.project.spa.misconception",
-      "explanation": "Verify the full state and route model, failure recovery, accessibility, security, tests, bundle, and deployed behavior.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'full state and route model' and state the decisive evidence."
+      "explanation": "For each key journey, walk the table: **semantics, state, data states, routes, errors, tests, build, hosting, performance.** Any row without evidence isn't done yet.",
+      "retryPrompt": "Apply this to \"The contact form that sent twice\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to deliver and explain a reproducible React SPA whose key user journeys pass automated and manual keyboard tests. Keep this boundary in view: A polished success path can hide hydration, direct-route, offline, stale, mobile, accessibility, and privacy failures.",
+    "summary": "To deliver and explain a reproducible React SPA, integrate semantic components, single-owner state, explicit data states, refresh-safe routes with titles and focus, error boundaries, and component, async and route tests, then verify key journeys by keyboard, narrow screen, slow network and deep-link refresh, and document how to run, test and deploy it.",
     "retrievalPrompts": [
-      "Explain Intermediate single-page application using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: Finishing all visible screens is sufficient evidence that an SPA is complete.",
-      "Apply checkpoint 'full state and route model' to a new artifact."
+      "Why isn't finishing the screens enough?",
+      "Which manual checks should you still run?",
+      "What belongs in the README?"
     ],
     "nextReviewPrompt": "Next: use this skill in the module checkpoint and one independent practice attempt. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

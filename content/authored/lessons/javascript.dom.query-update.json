@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "DOM queries select existing nodes and updates change properties, attributes, classes, or text with semantics appropriate to the content.",
+    "summary": "To change a page, first **find** the element: `document.querySelector(\".greeting\")` returns the first match or **null** if nothing matches, so check before using it. Then **update** the smallest thing that changed: `textContent` for plain text, `classList.add/remove/toggle` for styling state, `setAttribute` or a property like `input.value` or `button.disabled` for behaviour. `textContent` never parses HTML, so user text shows up as text. `innerHTML` parses markup and must never receive untrusted input.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: querySelector is null-checked before textContent updates trusted text without parsing HTML. Your goal is to implement a DOM update without unsafe HTML parsing or unnecessary tree replacement. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A welcome banner shows `Hello, ${name}!` using innerHTML. One learner signs up with the name `<img src=x onerror=alert(1)>` and the page runs their script for everyone who sees it. querySelector is null-checked before textContent updates trusted text without parsing HTML. In this lesson you'll implement a DOM update without unsafe HTML parsing or unnecessary tree replacement.\n\n```predict\n{\"question\": \"`el.textContent = \\\"<b>Asha</b>\\\"` shows…\", \"options\": [\"Asha in bold\", \"the literal characters <b>Asha</b>\"], \"answer\": 1, \"why\": \"textContent sets plain text. The angle brackets are displayed, not parsed.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Scope, closures and modules; html project site; html document dom; Dependency boundaries. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Scope, closures and modules** module, the **Semantic multi-page site** you built, **Document tree and DOM concept** (the page as a tree of nodes), and **Dependency boundaries**, because DOM code belongs in the view layer."
       },
       {
-        "heading": "Technology rule",
-        "body": "DOM queries select existing nodes and updates change properties, attributes, classes, or text with semantics appropriate to the content. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The rule: find, check, change the smallest thing",
+        "body": "```js\nfunction showGreeting(name) {\n  const el = document.querySelector(\"#greeting\");\n  if (!el) return;                       // missing element: nothing to update.\n  el.textContent = `Hello, ${name}!`;    // text only, never parsed.\n}\n\nconst saveBtn = document.querySelector(\"#save\");\nsaveBtn?.classList.add(\"is-busy\");       // styling state.\nif (saveBtn) saveBtn.disabled = true;    // behaviour via property.\nsaveBtn?.setAttribute(\"aria-busy\", \"true\");\n```\n\n| Goal | Use |\n|---|---|\n| show user or plain text. | `textContent`. |\n| toggle a visual state. | `classList.toggle(\"open\")`. |\n| form value or disabled. | property: `input.value`, `btn.disabled`. |\n| ARIA or data attribute. | `setAttribute(\"aria-expanded\", \"true\")`. |\n| insert markup you wrote. | build nodes (next lesson), not innerHTML with data. |\n\n```reveal\n{\"prompt\": \"Why not replace the whole section's innerHTML on each update?\", \"answer\": \"It destroys and rebuilds every node, dropping focus, input values and event listeners, and it risks injecting untrusted HTML.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Queries can return null or live collections, innerHTML parses markup, and property and attribute values can differ. This draft therefore rejects: innerHTML and textContent are interchangeable for displaying user text."
+        "heading": "querySelectorAll returns a list",
+        "body": "```predict\n{\"question\": \"`document.querySelectorAll(\\\".tab\\\").classList.remove(\\\"active\\\")` does…\", \"options\": [\"removes active from every tab\", \"TypeError: a NodeList has no classList; loop over it\"], \"answer\": 1, \"why\": \"Use `for (const tab of document.querySelectorAll(\\\".tab\\\")) tab.classList.remove(\\\"active\\\");`.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Select elements and update text, attributes, classes and properties with correct distinctions.",
-      "Implement a DOM update without unsafe HTML parsing or unnecessary tree replacement."
+      "Query elements and null-check the result.",
+      "Update text, classes, attributes and properties without parsing HTML."
     ],
     "excludes": [
-      "Queries can return null or live collections, innerHTML parses markup, and property and attribute values can differ."
+      "Creating and removing nodes (next lesson).",
+      "Sanitiser libraries."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "javascript.dom.query-update.example-a",
-      "title": "Query and update DOM: concrete case",
+      "title": "Showing a learner's name safely",
       "situation": "querySelector is null-checked before textContent updates trusted text without parsing HTML.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: querySelector is null-checked before textContent updates trusted text without parsing HTML.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Use textContent for text; innerHTML parses markup and is unsafe for untrusted strings without robust sanitization."
+        "**Bug:** `` banner.innerHTML = `Hello, ${name}!` `` runs markup hidden in the name.",
+        "**Null-check:** `const el = document.querySelector(\"#greeting\"); if (!el) return;` avoids a crash on pages without the banner.",
+        "**Update:** `` el.textContent = `Hello, ${name}!` `` renders the name as text; a test will check the text contains \"<img\" literally."
       ],
-      "result": "The result follows because Use textContent for text; innerHTML parses markup and is unsafe for untrusted strings without robust sanitization."
+      "result": "Every learner's name displays exactly as typed, and no name can run code on the page."
     },
     {
       "id": "javascript.dom.query-update.example-b",
-      "title": "Query and update DOM: boundary case",
-      "situation": "Queries can return null or live collections, innerHTML parses markup, and property and attribute values can differ.",
+      "title": "The tabs that stayed active",
+      "situation": "A tab switcher calls `document.querySelectorAll(\".tab\").classList.remove(\"active\")` and the console shows \"Cannot read properties of undefined (reading 'remove')\".",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Queries can return null or live collections, innerHTML parses markup, and property and attribute values can differ.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: innerHTML and textContent are interchangeable for displaying user text."
+        "querySelectorAll returns a NodeList, not one element.",
+        "A NodeList has no classList, so the call fails.",
+        "Fix: loop with for...of and update each tab's classList, then add active to the clicked one."
       ],
-      "result": "The boundary requires this correction: Use textContent for text; innerHTML parses markup and is unsafe for untrusted strings without robust sanitization."
+      "result": "Only the clicked tab is marked active and the others lose the class."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.dom.query-update.misconception",
       "mistakenBelief": "innerHTML and textContent are interchangeable for displaying user text.",
-      "correction": "Use textContent for text; innerHTML parses markup and is unsafe for untrusted strings without robust sanitization.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: innerHTML and textContent are interchangeable for displaying user text."
+      "correction": "innerHTML parses its string as HTML, so user text can inject elements and scripts. textContent sets plain text and is the safe choice for any text that isn't markup you wrote yourself.",
+      "diagnosticPrompt": "In \"Showing a learner's name safely\", what did innerHTML do with the name?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Query and update DOM, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "textContent is like **writing on a sticky note**: whatever you write is just words. innerHTML is like **handing someone building instructions**: if a stranger wrote the instructions, they can make the builder do anything.",
     "usefulFor": [
-      "Building a first mental model for Query and update DOM before using exact platform terms"
+      "remembering text vs parsed markup",
+      "null-check = checking the note's spot exists"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Queries can return null or live collections, innerHTML parses markup, and property and attribute values can differ."
+      "Notes can't hold images; textContent really is text only.",
+      "Instructions you wrote yourself are fine; that's what building nodes is for."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "querySelector is null-checked before textContent updates trusted text without parsing HTML.",
-      "DOM queries select existing nodes and updates change properties, attributes, classes, or text with semantics appropriate to the content.",
-      "Use textContent for text; innerHTML parses markup and is unsafe for untrusted strings without robust sanitization."
+      "const el = document.querySelector('#greeting')",
+      "if (!el) return",
+      "el.textContent = `Hello, ${name}!`"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Query",
         "state": {
-          "evidence": "querySelector is null-checked before textContent updates trusted text without parsing HTML."
+          "el": "<p id=\"greeting\">"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "querySelector returns the first match, or null when the element is missing."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Check",
         "state": {
-          "rule": "DOM queries select existing nodes and updates change properties, attributes, classes, or text with semantics appropriate to the content."
+          "el is null?": "no"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The null-check guards the update so pages without a banner don't crash."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Update",
         "state": {
-          "correction": "Use textContent for text; innerHTML parses markup and is unsafe for untrusted strings without robust sanitization."
+          "text shown": "Hello, <img src=x ...>!",
+          "HTML parsed": "no"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: innerHTML and textContent are interchangeable for displaying user text."
+        "explanation": "textContent updates the text without parsing HTML."
       }
     ],
-    "textAlternative": "Starting artifact: querySelector is null-checked before textContent updates trusted text without parsing HTML. Step 1, Artifact. State: evidence: querySelector is null-checked before textContent updates trusted text without parsing HTML.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: DOM queries select existing nodes and updates change properties, attributes, classes, or text with semantics appropriate to the content.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use textContent for text; innerHTML parses markup and is unsafe for untrusted strings without robust sanitization.. Check the result against the boundary and reject this misconception: innerHTML and textContent are interchangeable for displaying user text."
+    "textAlternative": "A safe text update. Step 1, Query: el is <p id=\"greeting\">. querySelector returns the first match, or null when the element is missing. Step 2, Check: el is null? is no. The null-check guards the update so pages without a banner don't crash. Step 3, Update: text shown is Hello, <img src=x ...>!; HTML parsed is no. textContent updates the text without parsing HTML."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Query and update DOM: concrete case”: state its starting evidence, apply the Query and update DOM rule, and give the observable result in three short lines.",
+      "prompt": "For \"Showing a learner's name safely\", explain how querySelector is null-checked before textContent updates trusted text without parsing HTML.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Query.",
+        "Null-check.",
+        "Safe update."
       ],
       "expectedEvidence": [
-        "Named example: Query and update DOM: concrete case.",
-        "Starting evidence: querySelector is null-checked before textContent updates trusted text without parsing HTML.",
-        "Core rule: DOM queries select existing nodes and updates change properties, attributes, classes, or text with semantics appropriate to the content.",
-        "Observable result: The result follows because Use textContent for text; innerHTML parses markup and is unsafe for untrusted strings without robust sanitization.",
-        "Boundary check: Use textContent for text; innerHTML parses markup and is unsafe for untrusted strings without robust sanitization."
+        "Names the example \"Showing a learner's name safely\": querySelector finds the greeting.",
+        "The result is null-checked first.",
+        "textContent updates the text without parsing HTML.",
+        "A malicious name shows as literal text."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Queries can return null or live collections, innerHTML parses markup, and property and attribute values can differ.",
+      "prompt": "Write `setStatus(message, isError)` that finds `#status`, sets its text, toggles an `error` class, and sets `role=\"alert\"` only for errors.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Null-check first.",
+        "classList.toggle with a second argument."
       ],
       "expectedEvidence": [
-        "DOM queries select existing nodes and updates change properties, attributes, classes, or text with semantics appropriate to the content.",
-        "Queries can return null or live collections, innerHTML parses markup, and property and attribute values can differ."
+        "Uses textContent, not innerHTML.",
+        "`el.classList.toggle(\"error\", isError)`."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Query and update DOM and explain why the misconception fails.",
+      "prompt": "Refactor a small page that re-renders a whole section with innerHTML on every keypress. Update only the changed text and classes, and test that the input keeps focus and user text is not parsed.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Query once, update many times.",
+        "Test with a <script> string."
       ],
       "expectedEvidence": [
-        "Implement a DOM update without unsafe HTML parsing or unnecessary tree replacement.",
-        "Use textContent for text; innerHTML parses markup and is unsafe for untrusted strings without robust sanitization."
+        "No innerHTML with data.",
+        "Tests for focus and literal text."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.dom.query-update.misconception",
-      "explanation": "Use textContent for text; innerHTML parses markup and is unsafe for untrusted strings without robust sanitization.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'textContent' and state the decisive evidence."
+      "explanation": "Before each update ask: **Could this element be missing? → null-check. Is this text? → textContent. Is it state? → classList or a property.** If you typed innerHTML with a variable, stop.",
+      "retryPrompt": "Apply this to \"The tabs that stayed active\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement a DOM update without unsafe HTML parsing or unnecessary tree replacement. Keep this boundary in view: Queries can return null or live collections, innerHTML parses markup, and property and attribute values can differ.",
+    "summary": "To implement a DOM update without unsafe HTML parsing, query the element, null-check it, and change the smallest thing: textContent for text, classList for state, properties or setAttribute for behaviour. Loop over querySelectorAll results, and avoid rebuilding trees with innerHTML.",
     "retrievalPrompts": [
-      "Explain Query and update DOM using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: innerHTML and textContent are interchangeable for displaying user text.",
-      "Apply checkpoint 'textContent' to a new artifact."
+      "What does querySelector return when nothing matches?",
+      "Why is textContent safe for user text?",
+      "How do you update every element from querySelectorAll?"
     ],
     "nextReviewPrompt": "Next: continue to “Create and remove nodes”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

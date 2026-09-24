@@ -38,33 +38,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A pointer value designates an object or function, one-past position, or null; dereference is valid only when the designation, lifetime, alignment, and access type permit it.",
+    "summary": "A **pointer** holds an **address**: where an object lives. `&score` gives the address of score; `int *p = &score;` stores it; `*p` **dereferences**, reaching the object itself, so `*p = 10` changes score. A pointer can be **valid** (points at a live object), **null** (`NULL`, points at nothing), or **invalid**: uninitialised, or **dangling** because the object it pointed at has ended its lifetime, such as a local variable of a function that has returned. Only **valid** pointers may be dereferenced. Non-null doesn't mean valid, so C can't check it for you: your code's design has to guarantee it.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: The address of a live int is passed to a helper, checked against null by contract, and dereferenced only before that int's lifetime ends. Your goal is to trace pointer and pointee state and identify null, invalid and dangling cases. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner writes a helper that returns `&total` where total is a local variable. The value looks right the first time, then turns into garbage after another function call. The address of a live int is passed to a helper, checked against null by contract, and dereferenced only before that int's lifetime ends. In this lesson you'll trace pointer and pointee state and identify null, invalid and dangling cases.\n\n```predict\n{\"question\": \"A pointer isn't NULL. Is it safe to dereference?\", \"options\": [\"Yes\", \"Not necessarily: it may be uninitialised or dangling\"], \"answer\": 1, \"why\": \"NULL is one invalid value among many; C can't detect the others.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: One-dimensional arrays; Parameters and return values. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **One-dimensional arrays** (contiguous objects in memory) and **Parameters and return values** (writing through a passed pointer)."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "A pointer value designates an object or function, one-past position, or null; dereference is valid only when the designation, lifetime, alignment, and access type permit it. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The state: pointer value and pointee lifetime",
+        "body": "```c\n#include <stdio.h>\n#include <stddef.h>\n\n/* Contract: p must point at a live int (NULL is rejected). */\nvoid add_bonus(int *p, int bonus) {\n    if (p == NULL) return;\n    *p += bonus;                 /* writes the caller's int. */\n}\n\nint *broken(void) {\n    int total = 42;\n    return &total;               /* DANGLING: total dies on return. */\n}\n\nint main(void) {\n    int score = 7;\n    int *p = &score;             /* p holds score's address. */\n    add_bonus(p, 3);             /* score is now 10. */\n    printf(\"%d %d\\n\", score, *p);\n\n    int *q = NULL;               /* points at nothing: don't dereference. */\n    int *r;                      /* uninitialised: invalid. */\n    (void)q; (void)r;\n    return 0;\n}\n```\n\n| Pointer | Dereference? |\n|---|---|\n| `&score` while score lives. | yes. |\n| `NULL`. | no (check first). |\n| uninitialised. | no. |\n| address of a local after its function returns. | no: dangling. |\n\n```reveal\n{\"prompt\": \"How do tools catch dangling pointers?\", \"answer\": \"-Wall warns about returning a local's address, and running with -fsanitize=address reports use-after-return or use-after-free at run time.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Uninitialized, dangling, misaligned, out-of-bounds, incorrectly converted, or null pointers cannot be made safe merely by checking their numeric appearance. Therefore the draft explicitly rejects this beginner failure model: Any non-null pointer is safe to dereference because null is the only invalid address value."
+        "heading": "Initialise pointers",
+        "body": "```predict\n{\"question\": \"What's the safest way to declare a pointer you can't set yet?\", \"options\": [\"int *p;\", \"int *p = NULL;\"], \"answer\": 1, \"why\": \"NULL is checkable; garbage isn't.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Create, inspect and dereference pointers only while they designate valid objects.",
-      "Trace pointer and pointee state and identify null, invalid and dangling cases."
+      "Take addresses with &, dereference with *, and trace pointer and pointee state.",
+      "Identify null, uninitialised and dangling pointers and dereference only live objects."
     ],
     "excludes": [
-      "Uninitialized, dangling, misaligned, out-of-bounds, incorrectly converted, or null pointers cannot be made safe merely by checking their numeric appearance."
+      "Pointer arithmetic (next lesson).",
+      "Heap lifetime (memory module)."
     ]
   },
   "outcomes": [
@@ -73,133 +74,136 @@
   "examples": [
     {
       "id": "c.pointers.address.example-a",
-      "title": "Addresses and dereference: defined case",
+      "title": "Passing a score's address",
       "situation": "The address of a live int is passed to a helper, checked against null by contract, and dereferenced only before that int's lifetime ends.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: The address of a live int is passed to a helper, checked against null by contract, and dereferenced only before that int's lifetime ends.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Dereference requires a pointer to a live compatible object within bounds; non-null alone does not establish provenance, lifetime, alignment, or access validity."
+        "**The address of a live int is passed to a helper:** add_bonus(&score, 3) while score is alive in main.",
+        "**Checked against null by contract:** the helper returns early for NULL.",
+        "**Dereferenced only before that int's lifetime ends:** *p += 3 changes score to 10; the helper will not keep p after returning."
       ],
-      "result": "The defined result follows because Dereference requires a pointer to a live compatible object within bounds; non-null alone does not establish provenance, lifetime, alignment, or access validity."
+      "result": "The score updates correctly, and no pointer outlives its object."
     },
     {
       "id": "c.pointers.address.example-b",
-      "title": "Addresses and dereference: boundary case",
-      "situation": "Returning the address of an automatic local creates a dangling pointer once the function returns and its object lifetime ends.",
+      "title": "The returned local",
+      "situation": "broken() returns &total. The caller prints 42 once, then garbage after calling another function.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: Returning the address of an automatic local creates a dangling pointer once the function returns and its object lifetime ends.",
-        "Step 2 — Keep this standard boundary visible: Uninitialized, dangling, misaligned, out-of-bounds, incorrectly converted, or null pointers cannot be made safe merely by checking their numeric appearance.",
-        "Step 3 — Reject the tempting rule: Any non-null pointer is safe to dereference because null is the only invalid address value."
+        "total's lifetime ended when broken returned.",
+        "The next call reused that stack memory.",
+        "Return the value (int) instead, or have the caller provide storage."
       ],
-      "result": "This case demonstrates the declared outcome: Trace pointer and pointee state and identify null, invalid and dangling cases."
+      "result": "The result stays correct because nothing refers to dead memory."
     }
   ],
   "misconceptions": [
     {
       "id": "c.pointers.address.misconception",
       "mistakenBelief": "Any non-null pointer is safe to dereference because null is the only invalid address value.",
-      "correction": "Dereference requires a pointer to a live compatible object within bounds; non-null alone does not establish provenance, lifetime, alignment, or access validity.",
-      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: Any non-null pointer is safe to dereference because null is the only invalid address value."
+      "correction": "Uninitialised and dangling pointers hold non-null values that are still invalid. Only a pointer to a live, correctly typed object may be dereferenced.",
+      "diagnosticPrompt": "In \"The returned local\", why did 42 turn into garbage?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A manually managed workshop can model Addresses and dereference: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "example": "A pointer is like **a hotel room number written on a card**. Going to that room (dereferencing) works only while the guest is checked in. NULL is a card saying \"no room\". A dangling pointer is **a card for a guest who has checked out**: the room still exists, but someone else may be in it now.",
     "usefulFor": [
-      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+      "remembering card vs guest",
+      "checked out = dangling"
     ],
     "limitations": [
-      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
-      "Uninitialized, dangling, misaligned, out-of-bounds, incorrectly converted, or null pointers cannot be made safe merely by checking their numeric appearance."
+      "Hotels have front desks to check; C has none.",
+      "A blank card (uninitialised) could point anywhere."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "The address of a live int is passed to a helper, checked against null by contract, and dereferenced only before that int's lifetime ends.",
-      "A pointer value designates an object or function, one-past position, or null; dereference is valid only when the designation, lifetime, alignment, and access type permit it.",
-      "Dereference requires a pointer to a live compatible object within bounds; non-null alone does not establish provenance, lifetime, alignment, or access validity."
+      "int score = 7; int *p = &score;",
+      "add_bonus(p, 3)",
+      "main returns"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Point",
         "state": {
-          "evidence": "The address of a live int is passed to a helper, checked against null by contract, and dereferenced only before that int's lifetime ends."
+          "p": "&score",
+          "*p": "7"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "The address of a live int is stored in p."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Write",
         "state": {
-          "rule": "A pointer value designates an object or function, one-past position, or null; dereference is valid only when the designation, lifetime, alignment, and access type permit it."
+          "*p": "10",
+          "score": "10"
         },
-        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+        "explanation": "The helper checks against null by contract and dereferences safely."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "End",
         "state": {
-          "conclusion": "Dereference requires a pointer to a live compatible object within bounds; non-null alone does not establish provenance, lifetime, alignment, or access validity."
+          "score": "lifetime over",
+          "p": "must not be used"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: Any non-null pointer is safe to dereference because null is the only invalid address value."
+        "explanation": "Dereferencing is only valid before that int's lifetime ends."
       }
     ],
-    "textAlternative": "Starting artifact: The address of a live int is passed to a helper, checked against null by contract, and dereferenced only before that int's lifetime ends. Step 1, Source and state. State: evidence: The address of a live int is passed to a helper, checked against null by contract, and dereferenced only before that int's lifetime ends.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A pointer value designates an object or function, one-past position, or null; dereference is valid only when the designation, lifetime, alignment, and access type permit it.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Dereference requires a pointer to a live compatible object within bounds; non-null alone does not establish provenance, lifetime, alignment, or access validity.. Check the conclusion against the boundary and reject this misconception: Any non-null pointer is safe to dereference because null is the only invalid address value."
+    "textAlternative": "Tracing pointer and pointee state. Step 1, Point: p is &score; *p is 7. The address of a live int is stored in p. Step 2, Write: *p is 10; score is 10. The helper checks against null by contract and dereferences safely. Step 3, End: score is lifetime over; p is must not be used. Dereferencing is only valid before that int's lifetime ends."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Addresses and dereference: defined case”: state its starting evidence, apply the Addresses and dereference rule, and give the observable result in three short lines.",
+      "prompt": "For \"Passing a score's address\", explain how the address of a live int is passed to a helper, checked against null by contract, and dereferenced only before that int's lifetime ends.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Point.",
+        "Check.",
+        "Lifetime."
       ],
       "expectedEvidence": [
-        "Named example: Addresses and dereference: defined case.",
-        "Starting evidence: The address of a live int is passed to a helper, checked against null by contract, and dereferenced only before that int's lifetime ends.",
-        "Core rule: A pointer value designates an object or function, one-past position, or null; dereference is valid only when the designation, lifetime, alignment, and access type permit it.",
-        "Observable result: The defined result follows because Dereference requires a pointer to a live compatible object within bounds; non-null alone does not establish provenance, lifetime, alignment, or access validity.",
-        "Boundary check: Dereference requires a pointer to a live compatible object within bounds; non-null alone does not establish provenance, lifetime, alignment, or access validity."
+        "Names the example \"Passing a score's address\": a returned local turned into garbage.",
+        "The address of a live int is passed to a helper and checked against null by contract.",
+        "It is dereferenced only before that int's lifetime ends.",
+        "The score updates correctly."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same C rule to this related boundary case: Returning the address of an automatic local creates a dangling pointer once the function returns and its object lifetime ends.",
+      "prompt": "For each line, say whether *p is valid: int x = 1; int *p = &x; | int *p; | int *p = NULL; | { int y = 2; p = &y; } then use *p after the block. Explain each.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Block ends end y's lifetime.",
+        "Uninitialised = invalid."
       ],
       "expectedEvidence": [
-        "A pointer value designates an object or function, one-past position, or null; dereference is valid only when the designation, lifetime, alignment, and access type permit it.",
-        "Uninitialized, dangling, misaligned, out-of-bounds, incorrectly converted, or null pointers cannot be made safe merely by checking their numeric appearance."
+        "Four verdicts.",
+        "Dangling case identified."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new C example for Addresses and dereference, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Write a function that finds the largest element and returns a pointer to it (or NULL for an empty array). Document the lifetime contract, test it, and demonstrate with -fsanitize=address what happens if the caller keeps the pointer after the array's scope ends.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Return pointer into the caller's array.",
+        "Compile with -g -fsanitize=address."
       ],
       "expectedEvidence": [
-        "Trace pointer and pointee state and identify null, invalid and dangling cases.",
-        "Dereference requires a pointer to a live compatible object within bounds; non-null alone does not establish provenance, lifetime, alignment, or access validity."
+        "Contract documented.",
+        "Sanitizer report explained."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "c.pointers.address.misconception",
-      "explanation": "Dereference requires a pointer to a live compatible object within bounds; non-null alone does not establish provenance, lifetime, alignment, or access validity.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'live compatible object' and state the decisive evidence: Returning the address of an automatic local creates a dangling pointer once the function returns and its object lifetime ends."
+      "explanation": "Before any *p, answer: **what does p point at, is that object still alive, and could p be NULL or uninitialised?**",
+      "retryPrompt": "Apply this to \"The returned local\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to trace pointer and pointee state and identify null, invalid and dangling cases. Keep this boundary in view: Uninitialized, dangling, misaligned, out-of-bounds, incorrectly converted, or null pointers cannot be made safe merely by checking their numeric appearance.",
+    "summary": "To trace pointers, remember & gives an address, * reaches the object, a pointer may be valid, null, uninitialised or dangling, and only pointers to live objects may be dereferenced, so initialise pointers, check NULL where the contract allows it, and never keep addresses of objects whose lifetime has ended.",
     "retrievalPrompts": [
-      "Explain Addresses and dereference using a concrete C rule rather than the optional analogy.",
-      "Why is this claim incorrect: Any non-null pointer is safe to dereference because null is the only invalid address value.",
-      "Apply the checkpoint 'live compatible object' to the boundary case from memory."
+      "What does *p do?",
+      "Is every non-null pointer valid?",
+      "What makes a pointer dangling?"
     ],
     "nextReviewPrompt": "Next: continue to “Pointers, arrays and arithmetic”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

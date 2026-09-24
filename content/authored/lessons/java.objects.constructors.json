@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A constructor establishes a valid new object by initializing required state, validating arguments, and delegating to another constructor or superclass before ordinary instance use.",
+    "summary": "A constructor's job is to make sure **no invalid object ever exists**. Initialise every required field, **validate** arguments and throw (`IllegalArgumentException`, `Objects.requireNonNull`) if they can't form a valid object. When a class has several constructors, have the convenience ones **delegate** with `this(...)` as their **first statement**, so validation lives in **one place**. Mark fields `final` when they never change after construction. Java only provides a free **no-argument constructor** if you declare **no constructors at all**; declare any constructor and it's gone.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A two-argument constructor validates normalized bounds, while a convenience constructor delegates with this(...) so the invariant has one implementation. Your goal is to implement constructors that prevent invalid observable object state. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner's Range class has two constructors that each copy the validation code, and one of them forgets to check that min <= max. Later they add a two-argument constructor and existing code calling `new Range()` stops compiling. A two-argument constructor validates normalized bounds, while a convenience constructor delegates with this(...) so the invariant has one implementation. In this lesson you'll implement constructors that prevent invalid observable object state.\n\n```predict\n{\"question\": \"A class declares only `Range(int min, int max)`. Does `new Range()` compile?\", \"options\": [\"Yes, Java adds a no-arg constructor\", \"No: the default constructor exists only when no constructor is declared\"], \"answer\": 1, \"why\": \"Declare a no-arg constructor explicitly if you need one.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Method contracts and parameters; pf data records; Classes, fields and methods. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Method contracts and parameters**, **Records and entities** and **Classes, fields and methods** (invariants)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "A constructor establishes a valid new object by initializing required state, validating arguments, and delegating to another constructor or superclass before ordinary instance use. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The invariant: established once, in one constructor",
+        "body": "```java\nimport java.util.Objects;\n\n// Invariant: min <= max.\npublic class Range {\n    private final int min;\n    private final int max;\n    private final String label;\n\n    public Range(int a, int b, String label) {          // the one real constructor.\n        this.min = Math.min(a, b);                      // normalise order.\n        this.max = Math.max(a, b);\n        this.label = Objects.requireNonNull(label, \"label\");\n    }\n\n    public Range(int a, int b) { this(a, b, \"range\"); }   // delegates: no copied checks.\n\n    public Range() { this(0, 0); }                      // explicit no-arg constructor.\n\n    public boolean contains(int x) { return x >= min && x <= max; }\n\n    public static void main(String[] args) {\n        Range r = new Range(10, 3);                     // normalised to 3..10.\n        System.out.println(r.contains(5) + \" \" + r.min + \"..\" + r.max);   // true 3..10\n    }\n}\n```\n\n| Technique | Purpose |\n|---|---|\n| validate or normalise in one constructor. | invariant has one implementation. |\n| `this(...)` first in others. | convenience without duplication. |\n| `final` fields. | can't change after construction. |\n| `Objects.requireNonNull`. | reject null early with a clear message. |\n\n```reveal\n{\"prompt\": \"Why must this(...) be the first statement?\", \"answer\": \"Java requires an object to be fully initialised by exactly one constructor chain before other code runs, so delegation happens before any other statements.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "Constructors are not inherited or dynamically dispatched, this(...) or super(...) ordering is constrained, partially initialized this can escape, and records have their own constructor forms. The learner must reject this documented misconception: Java supplies a no-argument constructor even after any constructor is declared, and validation can be postponed safely until the first method call."
+        "heading": "Validate early",
+        "body": "```predict\n{\"question\": \"Should Range accept a null label and throw later when printing?\", \"options\": [\"Yes, validate when used\", \"No: reject it in the constructor so no invalid Range ever exists\"], \"answer\": 1, \"why\": \"Failing at construction points straight at the caller who passed bad data.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Initialize all required state, validate arguments and chain constructors deliberately.",
-      "Implement constructors that prevent invalid observable object state."
+      "Validate or normalise arguments in constructors and use final fields.",
+      "Delegate between constructors with this(...) and explain when the default constructor exists."
     ],
     "excludes": [
-      "Constructors are not inherited or dynamically dispatched, this(...) or super(...) ordering is constrained, partially initialized this can escape, and records have their own constructor forms."
+      "super(...) and inheritance order (abstraction module).",
+      "Static factory methods and builders in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "java.objects.constructors.example.direct",
-      "title": "Constructors and invariants: direct language case",
+      "title": "Two constructors, one validation",
       "situation": "A two-argument constructor validates normalized bounds, while a convenience constructor delegates with this(...) so the invariant has one implementation.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A two-argument constructor validates normalized bounds, while a convenience constructor delegates with this(...) so the invariant has one implementation.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Declare every required construction path explicitly and establish the complete invariant before the new reference becomes observable."
+        "**A two-argument constructor validates normalized bounds:** Range(10, 3) stores min 3 and max 10.",
+        "**A convenience constructor delegates with this(...):** Range() calls this(0, 0), which calls the main constructor.",
+        "**So the invariant has one implementation:** fixing or tightening the check will happen in one place only."
       ],
-      "result": "The example meets the atomic outcome because Declare every required construction path explicitly and establish the complete invariant before the new reference becomes observable."
+      "result": "Every Range that exists has min <= max."
     },
     {
       "id": "java.objects.constructors.example.boundary",
-      "title": "Constructors and invariants: boundary and transfer case",
-      "situation": "A constructor rejects null before assigning the field and never registers this with another component until all invariant checks have passed.",
+      "title": "The late null",
+      "situation": "A Customer constructor accepts a null email, and a crash happens days later when a newsletter job calls email.toLowerCase().",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A constructor rejects null before assigning the field and never registers this with another component until all invariant checks have passed.",
-        "Step 2 — Keep the language boundary explicit: Constructors are not inherited or dynamically dispatched, this(...) or super(...) ordering is constrained, partially initialized this can escape, and records have their own constructor forms.",
-        "Step 3 — Reject the tempting but incorrect rule: Java supplies a no-argument constructor even after any constructor is declared, and validation can be postponed safely until the first method call."
+        "The bad value was accepted at construction.",
+        "Use Objects.requireNonNull(email, \"email\") in the constructor.",
+        "The exception now points at the code that created the Customer."
       ],
-      "result": "This case demonstrates the declared outcome: Implement constructors that prevent invalid observable object state."
+      "result": "Bad data is rejected immediately with a clear message."
     }
   ],
   "misconceptions": [
     {
       "id": "java.objects.constructors.misconception",
       "mistakenBelief": "Java supplies a no-argument constructor even after any constructor is declared, and validation can be postponed safely until the first method call.",
-      "correction": "Declare every required construction path explicitly and establish the complete invariant before the new reference becomes observable.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Java supplies a no-argument constructor even after any constructor is declared, and validation can be postponed safely until the first method call."
+      "correction": "The default constructor exists only when a class declares none. Postponed validation lets invalid objects exist and fail far from their cause.",
+      "diagnosticPrompt": "In the opening predict, why didn't new Range() compile?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a secured service object whose constructor admits only valid state and whose public desk exposes approved behavior can introduce Constructors and invariants, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "example": "A constructor is like **a factory's final inspection**: nothing leaves the building until it passes. Having every production line **send items through one inspection station** (this(...) delegation) means the rules can't drift apart between lines.",
     "usefulFor": [
-      "understanding encapsulation, construction, identity, equality, and records"
+      "remembering one inspection station",
+      "nothing invalid leaves the factory"
     ],
     "limitations": [
-      "object references, hashing, shallow immutability, and garbage collection are not physical ownership rules",
-      "Constructors are not inherited or dynamically dispatched, this(...) or super(...) ordering is constrained, partially initialized this can escape, and records have their own constructor forms."
+      "Factories can recall products; Java objects can't be recalled.",
+      "final fields are parts welded in place."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A two-argument constructor validates normalized bounds, while a convenience constructor delegates with this(...) so the invariant has one implementation.",
-      "A constructor establishes a valid new object by initializing required state, validating arguments, and delegating to another constructor or superclass before ordinary instance use.",
-      "Declare every required construction path explicitly and establish the complete invariant before the new reference becomes observable."
+      "new Range(10, 3)",
+      "new Range()",
+      "r.contains(5)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Normalise",
         "state": {
-          "evidence": "A two-argument constructor validates normalized bounds, while a convenience constructor delegates with this(...) so the invariant has one implementation."
+          "min": "3",
+          "max": "10",
+          "label": "range"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "The two-argument constructor validates and normalises the bounds."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Delegate",
         "state": {
-          "rule": "A constructor establishes a valid new object by initializing required state, validating arguments, and delegating to another constructor or superclass before ordinary instance use."
+          "chain": "Range() -> Range(0, 0) -> Range(0, 0, \"range\")"
         },
-        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "A convenience constructor delegates with this(...), so the invariant has one implementation."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Use",
         "state": {
-          "correction": "Declare every required construction path explicitly and establish the complete invariant before the new reference becomes observable."
+          "contains(5)": "true"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Java supplies a no-argument constructor even after any constructor is declared, and validation can be postponed safely until the first method call."
+        "explanation": "Methods can rely on min <= max without rechecking."
       }
     ],
-    "textAlternative": "Starting artifact: A two-argument constructor validates normalized bounds, while a convenience constructor delegates with this(...) so the invariant has one implementation. Step 1, Observe. State: evidence: A two-argument constructor validates normalized bounds, while a convenience constructor delegates with this(...) so the invariant has one implementation.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A constructor establishes a valid new object by initializing required state, validating arguments, and delegating to another constructor or superclass before ordinary instance use.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Declare every required construction path explicitly and establish the complete invariant before the new reference becomes observable.. Compare the observation with the correction and explain why the misconception fails: Java supplies a no-argument constructor even after any constructor is declared, and validation can be postponed safely until the first method call."
+    "textAlternative": "Tracing constructor delegation. Step 1, Normalise: min is 3; max is 10; label is range. The two-argument constructor validates and normalises the bounds. Step 2, Delegate: chain is Range() -> Range(0, 0) -> Range(0, 0, \"range\"). A convenience constructor delegates with this(...), so the invariant has one implementation. Step 3, Use: contains(5) is true. Methods can rely on min <= max without rechecking."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Constructors and invariants: direct language case”: state its starting evidence, apply the Constructors and invariants rule, and give the observable result in three short lines.",
+      "prompt": "For \"Two constructors, one validation\", explain how a two-argument constructor validates normalized bounds, while a convenience constructor delegates with this(...) so the invariant has one implementation.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Validate.",
+        "Delegate.",
+        "Rely."
       ],
       "expectedEvidence": [
-        "Named example: Constructors and invariants: direct language case.",
-        "Starting evidence: A two-argument constructor validates normalized bounds, while a convenience constructor delegates with this(...) so the invariant has one implementation.",
-        "Core rule: A constructor establishes a valid new object by initializing required state, validating arguments, and delegating to another constructor or superclass before ordinary instance use.",
-        "Observable result: The example meets the atomic outcome because Declare every required construction path explicitly and establish the complete invariant before the new reference becomes observable.",
-        "Boundary check: Declare every required construction path explicitly and establish the complete invariant before the new reference becomes observable."
+        "Names the example \"Two constructors, one validation\": duplicated checks drifted apart.",
+        "A two-argument constructor validates normalized bounds.",
+        "A convenience constructor delegates with this(...) so the invariant has one implementation.",
+        "Every Range that exists has min <= max."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A constructor rejects null before assigning the field and never registers this with another component until all invariant checks have passed.",
+      "prompt": "Write a Temperature class storing kelvin with a validating constructor (kelvin >= 0) and a convenience constructor taking celsius that delegates. Test valid, zero and negative inputs.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Use a static factory or a flag parameter to avoid ambiguous signatures.",
+        "final field."
       ],
       "expectedEvidence": [
-        "A constructor establishes a valid new object by initializing required state, validating arguments, and delegating to another constructor or superclass before ordinary instance use.",
-        "Constructors are not inherited or dynamically dispatched, this(...) or super(...) ordering is constrained, partially initialized this can escape, and records have their own constructor forms."
+        "Invalid input rejected.",
+        "One validation implementation."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Constructors and invariants, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Write an Email class whose constructor rejects null, strips whitespace, lowercases, and requires exactly one '@' with text on both sides. Add a delegating constructor, and test at least six valid and invalid inputs.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "strip, then toLowerCase.",
+        "indexOf and lastIndexOf for '@'."
       ],
       "expectedEvidence": [
-        "Implement constructors that prevent invalid observable object state.",
-        "Declare every required construction path explicitly and establish the complete invariant before the new reference becomes observable."
+        "Invalid emails never constructed.",
+        "Tests cover edge cases."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "java.objects.constructors.misconception",
-      "explanation": "Declare every required construction path explicitly and establish the complete invariant before the new reference becomes observable.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A constructor rejects null before assigning the field and never registers this with another component until all invariant checks have passed."
+      "explanation": "For each class ask: **can any combination of constructor arguments create an invalid object?** If yes, validate it in the single main constructor.",
+      "retryPrompt": "Apply this to \"The late null\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement constructors that prevent invalid observable object state. Keep this boundary in view: Constructors are not inherited or dynamically dispatched, this(...) or super(...) ordering is constrained, partially initialized this can escape, and records have their own constructor forms.",
+    "summary": "To implement constructors that prevent invalid state, initialise every required field, validate or normalise arguments and throw early, make unchanging fields final, delegate convenience constructors to one main constructor with this(...) as the first statement, and declare a no-arg constructor explicitly when needed.",
     "retrievalPrompts": [
-      "Explain Constructors and invariants using canonical Java: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Java supplies a no-argument constructor even after any constructor is declared, and validation can be postponed safely until the first method call.",
-      "Predict this case from memory: A constructor rejects null before assigning the field and never registers this with another component until all invariant checks have passed."
+      "When does Java supply a default constructor?",
+      "Why delegate with this(...)?",
+      "Why validate in the constructor rather than later?"
     ],
     "nextReviewPrompt": "Next: continue to “References, identity and equality”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Neural experiments separate training, validation, and test evidence; regularization, early stopping, augmentation, architecture, and seeded repetitions control or measure generalization without tuning on the test.",
+    "summary": "Neural networks can memorise training data, so experiments need discipline. Keep **three kinds of evidence** separate: training loss (is it learning?), **validation** (for every choice you make) and **test** (once, at the end). Tools to help generalisation include **weight decay** (penalising large weights), **early stopping** (stop when validation stops improving), **dropout** and **data augmentation**. Training is **random**: initial weights, data order and dropout all vary, so run each setting with **several seeds** and report the **mean and range**, not one lucky run. One fixed seed doesn't guarantee identical results everywhere (GPU operations can still vary). And checking the test score every epoch quietly turns it into a validation set.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Three seeded runs compare a baseline with weight decay using the same validation policy, report mean and range, and evaluate the frozen choice once on test. Your goal is to design and compare a controlled neural-network experiment without test-set leakage. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner reports that weight decay improves accuracy from 81.2% to 82.0% based on one run each, and they watched the test score every epoch to decide when to stop. A classmate reruns with other seeds and gets the opposite ranking. Three seeded runs compare a baseline with weight decay using the same validation policy, report mean and range, and evaluate the frozen choice once on test. In this lesson you'll design and compare a controlled neural-network experiment without test-set leakage.\n\n```predict\n{\"question\": \"Run A beats run B by 0.8% on one seed each. Is A better?\", \"options\": [\"Yes, it scored higher\", \"Not yet: seed-to-seed variation might be larger than 0.8%\"], \"answer\": 1, \"why\": \"Repeat with several seeds and compare means and ranges.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Supervised learning; Data and experimental workflow; Loss, gradients and optimization; Train, validation, test and leakage. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Supervised learning**, **Data and experimental workflow**, **Loss, gradients and optimization** and **Train, validation, test and leakage**."
       },
       {
-        "heading": "Bounded operational model",
-        "body": "Neural experiments separate training, validation, and test evidence; regularization, early stopping, augmentation, architecture, and seeded repetitions control or measure generalization without tuning on the test. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+        "heading": "The rule: validation decides, seeds measure noise, test once",
+        "body": "```python\nimport random\n\ndef train_run(weight_decay, seed):           # stand-in for a real training run.\n    random.seed(seed)\n    noise = random.uniform(-0.01, 0.01)\n    return round(0.80 + (0.015 if weight_decay else 0) + noise, 3)   # validation accuracy.\n\nresults = {}\nfor wd in (False, True):\n    scores = [train_run(wd, s) for s in (1, 2, 3)]\n    results[wd] = scores\n    print(\"weight decay\" if wd else \"baseline\", scores,\n          \"mean\", round(sum(scores) / 3, 3), \"range\", round(max(scores) - min(scores), 3))\n\nchoice = max(results, key=lambda k: sum(results[k]))   # chosen on validation only.\nprint(\"frozen choice:\", \"weight decay\" if choice else \"baseline\", \"-> evaluate on test once\")\n```\n\n```reveal\n{\"prompt\": \"How does early stopping use validation?\", \"answer\": \"Track validation loss each epoch and keep the weights from the best epoch. Stop after it hasn't improved for a set number of epochs. The test set is never involved.\"}\n```"
       },
       {
-        "heading": "Failure boundary and non-claim",
-        "body": "Seeds do not remove nondeterminism, early stopping uses validation repeatedly, augmentation can change labels, regularization can underfit, hardware/library behavior varies, and one run hides variability. The learner must reject this overclaim: Setting one random seed makes neural training exactly reproducible and checking the test after every epoch is harmless monitoring."
+        "heading": "Seeds and reproducibility",
+        "body": "```predict\n{\"question\": \"You set one random seed. Will every run on every machine give identical results?\", \"options\": [\"Yes, seeds make it deterministic\", \"Not guaranteed: hardware and parallel operations can still vary\"], \"answer\": 1, \"why\": \"Record seeds and versions, and report variation across several seeds.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use validation, early stopping, regularization and seeded experiments while reporting variability.",
-      "Design and compare a controlled neural-network experiment without test-set leakage."
+      "Separate training, validation and test evidence and use early stopping or weight decay on validation.",
+      "Repeat runs across seeds and report mean and range before choosing."
     ],
     "excludes": [
-      "Seeds do not remove nondeterminism, early stopping uses validation repeatedly, augmentation can change labels, regularization can underfit, hardware/library behavior varies, and one run hides variability."
+      "Hyperparameter search libraries.",
+      "Distributed training determinism in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "ai.neural.regularization.example.direct",
-      "title": "Validation, regularization and reproducibility: bounded direct case",
+      "title": "Weight decay across three seeds",
       "situation": "Three seeded runs compare a baseline with weight decay using the same validation policy, report mean and range, and evaluate the frozen choice once on test.",
       "walkthrough": [
-        "Step 1 — Observe the exact data, state, metric, or tool behavior: Three seeded runs compare a baseline with weight decay using the same validation policy, report mean and range, and evaluate the frozen choice once on test.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the claim boundary with: Record environment and seeds, repeat controlled runs, use validation for choices, reserve test for the frozen procedure, and report remaining variability."
+        "**Three seeded runs compare a baseline with weight decay:** seeds 1, 2 and 3 for each setting.",
+        "**Using the same validation policy, report mean and range:** we compute both for each setting's validation accuracy.",
+        "**Evaluate the frozen choice once on test:** the winner is picked on validation, then tested a single time."
       ],
-      "result": "This example supports only the atomic outcome because Record environment and seeds, repeat controlled runs, use validation for choices, reserve test for the frozen procedure, and report remaining variability."
+      "result": "The reported improvement is larger than run-to-run noise and uncontaminated by the test set."
     },
     {
       "id": "ai.neural.regularization.example.stress",
-      "title": "Validation, regularization and reproducibility: stress and transfer case",
-      "situation": "Test accuracy is not monitored each epoch because that would adapt model selection to the held-out set.",
+      "title": "The single lucky seed",
+      "situation": "A 0.8% gain from weight decay vanished when a classmate reran with different seeds.",
       "walkthrough": [
-        "Step 1 — Name the changed population, input, assumption, or failure: Test accuracy is not monitored each epoch because that would adapt model selection to the held-out set.",
-        "Step 2 — Keep the non-claim visible: Seeds do not remove nondeterminism, early stopping uses validation repeatedly, augmentation can change labels, regularization can underfit, hardware/library behavior varies, and one run hides variability.",
-        "Step 3 — Reject the tempting overclaim: Setting one random seed makes neural training exactly reproducible and checking the test after every epoch is harmless monitoring."
+        "One run per setting couldn't separate the effect from noise.",
+        "Run three or more seeds each and report mean and range.",
+        "Only claim a gain when it exceeds the range."
       ],
-      "result": "This case demonstrates the declared outcome: Design and compare a controlled neural-network experiment without test-set leakage."
+      "result": "The claimed gain now survives other people's reruns with new seeds."
     }
   ],
   "misconceptions": [
     {
       "id": "ai.neural.regularization.misconception",
       "mistakenBelief": "Setting one random seed makes neural training exactly reproducible and checking the test after every epoch is harmless monitoring.",
-      "correction": "Record environment and seeds, repeat controlled runs, use validation for choices, reserve test for the frozen procedure, and report remaining variability.",
-      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: Setting one random seed makes neural training exactly reproducible and checking the test after every epoch is harmless monitoring."
+      "correction": "Seeds reduce but don't remove variation, and looking at the test during training turns it into validation data.",
+      "diagnosticPrompt": "In the opening story, how was the test set misused?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a layered numeric circuit whose weights, biases, activations, loss, and updates can be traced on a tiny example can introduce Validation, regularization and reproducibility only after its canonical technical definition and evidence boundary are stated.",
+    "example": "A neural experiment is like **testing whether a new running shoe makes you faster**. One race on one day proves little: wind and sleep vary (seeds). Run **several races in each shoe** and compare averages. Choose the shoe using **practice races** (validation), then run **the championship once** (test). Checking championship times during practice spoils it.",
     "usefulFor": [
-      "forward passes, gradient updates, regularization evidence, and architectural roles"
+      "remembering several races per shoe",
+      "practice races choose, championship once"
     ],
     "limitations": [
-      "a toy circuit does not explain large-network representations, training data, emergent behavior, or deployment safety",
-      "Seeds do not remove nondeterminism, early stopping uses validation repeatedly, augmentation can change labels, regularization can underfit, hardware/library behavior varies, and one run hides variability."
+      "Weight decay is running with a lighter backpack.",
+      "Early stopping is ending practice when times stop improving."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Three seeded runs compare a baseline with weight decay using the same validation policy, report mean and range, and evaluate the frozen choice once on test.",
-      "Neural experiments separate training, validation, and test evidence; regularization, early stopping, augmentation, architecture, and seeded repetitions control or measure generalization without tuning on the test.",
-      "Record environment and seeds, repeat controlled runs, use validation for choices, reserve test for the frozen procedure, and report remaining variability."
+      "three baseline seeds",
+      "three weight-decay seeds",
+      "choose and test once"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Baseline",
         "state": {
-          "boundedEvidence": "Three seeded runs compare a baseline with weight decay using the same validation policy, report mean and range, and evaluate the frozen choice once on test."
+          "report": "mean and range"
         },
-        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+        "explanation": "Three seeded runs measure the baseline under one validation policy."
       },
       {
         "step": 2,
-        "focus": "Model",
+        "focus": "Weight decay",
         "state": {
-          "operationalRule": "Neural experiments separate training, validation, and test evidence; regularization, early stopping, augmentation, architecture, and seeded repetitions control or measure generalization without tuning on the test."
+          "report": "mean and range"
         },
-        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+        "explanation": "The same seeds and policy measure weight decay for a fair comparison."
       },
       {
         "step": 3,
-        "focus": "Limit",
+        "focus": "Freeze",
         "state": {
-          "correction": "Record environment and seeds, repeat controlled runs, use validation for choices, reserve test for the frozen procedure, and report remaining variability."
+          "choice": "higher validation mean",
+          "test": "once"
         },
-        "explanation": "State what the evidence does not establish and reject the misconception: Setting one random seed makes neural training exactly reproducible and checking the test after every epoch is harmless monitoring."
+        "explanation": "The frozen choice is evaluated once on test."
       }
     ],
-    "textAlternative": "Starting artifact: Three seeded runs compare a baseline with weight decay using the same validation policy, report mean and range, and evaluate the frozen choice once on test. Step 1, Observe. State: boundedEvidence: Three seeded runs compare a baseline with weight decay using the same validation policy, report mean and range, and evaluate the frozen choice once on test.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Neural experiments separate training, validation, and test evidence; regularization, early stopping, augmentation, architecture, and seeded repetitions control or measure generalization without tuning on the test.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Record environment and seeds, repeat controlled runs, use validation for choices, reserve test for the frozen procedure, and report remaining variability.. State what the evidence does not establish and reject the misconception: Setting one random seed makes neural training exactly reproducible and checking the test after every epoch is harmless monitoring."
+    "textAlternative": "Tracing a controlled experiment. Step 1, Baseline: report is mean and range. Three seeded runs measure the baseline under one validation policy. Step 2, Weight decay: report is mean and range. The same seeds and policy measure weight decay for a fair comparison. Step 3, Freeze: choice is higher validation mean; test is once. The frozen choice is evaluated once on test."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Validation, regularization and reproducibility: bounded direct case”: state its starting evidence, apply the Validation, regularization and reproducibility rule, and give the observable result in three short lines.",
+      "prompt": "For \"Weight decay across three seeds\", explain how three seeded runs compare a baseline with weight decay using the same validation policy, report mean and range, and evaluate the frozen choice once on test.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Seeds.",
+        "Compare.",
+        "Test once."
       ],
       "expectedEvidence": [
-        "Named example: Validation, regularization and reproducibility: bounded direct case.",
-        "Starting evidence: Three seeded runs compare a baseline with weight decay using the same validation policy, report mean and range, and evaluate the frozen choice once on test.",
-        "Core rule: Neural experiments separate training, validation, and test evidence; regularization, early stopping, augmentation, architecture, and seeded repetitions control or measure generalization without tuning on the test.",
-        "Observable result: This example supports only the atomic outcome because Record environment and seeds, repeat controlled runs, use validation for choices, reserve test for the frozen procedure, and report remaining variability.",
-        "Boundary check: Record environment and seeds, repeat controlled runs, use validation for choices, reserve test for the frozen procedure, and report remaining variability."
+        "Names the example \"Weight decay across three seeds\": one lucky seed misled.",
+        "Three seeded runs compare a baseline with weight decay using the same validation policy.",
+        "They report mean and range, and evaluate the frozen choice once on test.",
+        "The reported improvement is larger than run-to-run noise and uncontaminated by the test set."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed case: Test accuracy is not monitored each epoch because that would adapt model selection to the held-out set.",
+      "prompt": "Change the noise range in train_run to ±0.03 and rerun. Decide whether weight decay's advantage is still convincing, and why.",
       "scaffold": [
-        "Identify which assumption, population, input, or objective changed.",
-        "Preserve provenance and the declared failure boundary."
+        "Compare the gap with the range.",
+        "Same seeds."
       ],
       "expectedEvidence": [
-        "Neural experiments separate training, validation, and test evidence; regularization, early stopping, augmentation, architecture, and seeded repetitions control or measure generalization without tuning on the test.",
-        "Seeds do not remove nondeterminism, early stopping uses validation repeatedly, augmentation can change labels, regularization can underfit, hardware/library behavior varies, and one run hides variability."
+        "Decision justified.",
+        "Mean and range reported."
       ]
     },
     "farTransfer": {
-      "prompt": "Design a neutral-context example or evaluation for Validation, regularization and reproducibility and list the evidence that would support and falsify its bounded claim.",
+      "prompt": "Train a small real network with and without early stopping for five seeds each. Keep a log of seeds, versions and settings, pick on validation, and report a single test result with the variation you saw.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+        "Save best-epoch weights.",
+        "Never read test during training."
       ],
       "expectedEvidence": [
-        "Design and compare a controlled neural-network experiment without test-set leakage.",
-        "Record environment and seeds, repeat controlled runs, use validation for choices, reserve test for the frozen procedure, and report remaining variability."
+        "Log complete.",
+        "One test result reported with context."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "ai.neural.regularization.misconception",
-      "explanation": "Record environment and seeds, repeat controlled runs, use validation for choices, reserve test for the frozen procedure, and report remaining variability.",
-      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: Test accuracy is not monitored each epoch because that would adapt model selection to the held-out set."
+      "explanation": "Before claiming a gain: **several seeds, mean and range, chosen on validation, test once**.",
+      "retryPrompt": "Apply this to \"The single lucky seed\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to design and compare a controlled neural-network experiment without test-set leakage. Keep this boundary in view: Seeds do not remove nondeterminism, early stopping uses validation repeatedly, augmentation can change labels, regularization can underfit, hardware/library behavior varies, and one run hides variability.",
+    "summary": "To design and compare a controlled neural-network experiment without test-set leakage, choose settings like weight decay or early stopping using validation only, repeat each across several seeds and report mean and range, record versions, and evaluate the frozen choice once on the test set.",
     "retrievalPrompts": [
-      "Explain Validation, regularization and reproducibility with one technical mechanism, one evidence requirement, and one non-claim.",
-      "Why is this overclaim invalid: Setting one random seed makes neural training exactly reproducible and checking the test after every epoch is harmless monitoring.",
-      "Apply the boundary to: Test accuracy is not monitored each epoch because that would adapt model selection to the held-out set."
+      "Why run several seeds?",
+      "What is early stopping based on?",
+      "Why not watch the test score each epoch?"
     ],
     "nextReviewPrompt": "Next: continue to “Convolution, sequence and attention roles”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

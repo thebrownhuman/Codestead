@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Readable typography balances line length, line height, spacing, alignment, hierarchy, and user zoom without fixing text into inflexible boxes.",
+    "summary": "Readable text comes from a few measurable choices: a comfortable **size** (about 1rem or larger for body text), a **line length** (measure) of roughly 45–75 characters (`max-width: 65ch`), a **unitless line-height** around 1.5 so it scales with the text, clear heading sizes, and containers that **grow** instead of clipping when text gets longer — for translations or 200% zoom.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Article text uses a bounded measure and unitless line-height while containers expand for longer translated labels. Your goal is to create and audit readable body, heading and code typography at 200 percent zoom. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A blog post stretches edge to edge on a wide monitor: 180 characters per line, 13px text, tight lines. Readers lose their place jumping back to the start of each line. Squeezing more words on screen didn't help — it hurt. Article text uses a bounded measure and unitless line-height, while containers expand for longer translated labels. In this lesson you'll create and audit readable body, heading and code typography at 200 percent zoom.\n\n```predict\n{\"question\": \"Why use `line-height: 1.5` instead of `line-height: 24px`?\", \"options\": [\"They're the same\", \"Unitless 1.5 scales with each element's font size; 24px stays fixed even for bigger text\"], \"answer\": 1, \"why\": \"A unitless value is multiplied by each element's own font-size, so headings and zoomed text keep proportional spacing.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Lengths, percentages and viewport units; html semantics text; Font families and loading; html semantics headings. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Lengths, percentages and viewport units**, **Paragraph and inline meaning**, **Font families and loading**, and **Heading hierarchy**."
       },
       {
-        "heading": "Technology rule",
-        "body": "Readable typography balances line length, line height, spacing, alignment, hierarchy, and user zoom without fixing text into inflexible boxes. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: size, measure, leading, room to grow",
+        "body": "```css\nbody {\n  font-size: 1.125rem;       /* ~18px at default settings */\n  line-height: 1.6;          /* unitless */\n}\n.article { max-width: 65ch; margin-inline: auto; padding-inline: 1rem; }\nh1 { font-size: clamp(1.75rem, 1.2rem + 2vw, 2.5rem); line-height: 1.2; }\ncode, pre { font-size: 0.95em; }\n.btn { padding: 0.5em 1em; min-height: 2.75rem; }  /* grows with its label */\n```\n\n| Choice | Why |\n|---|---|\n| ≥ 1rem body. | readable, respects user settings. |\n| 45–75ch measure. | eyes find the next line easily. |\n| unitless line-height. | spacing scales with text. |\n| no fixed heights on text boxes. | longer translations and zoom don't overflow. |\n\n```reveal\n{\"prompt\": \"What should you check at 200% zoom?\", \"answer\": \"Text still readable without horizontal scrolling (except code/tables), nothing clipped or overlapping, buttons grow with their labels.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Optimal values vary by script, language, content, and font; user overrides and 200 percent zoom must remain usable. This draft therefore rejects: Smaller text always fits more content and therefore improves usability."
+        "heading": "Smaller isn't better",
+        "body": "```predict\n{\"question\": \"Shrinking body text from 18px to 13px to fit more content above the fold…\", \"options\": [\"Improves usability\", \"Hurts readability for many users, especially on phones and for low-vision readers\"], \"answer\": 1, \"why\": \"More words on screen doesn't mean more understanding. Readable size and spacing do.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Set scalable size, line height, measure, weight, alignment and spacing without blocking text zoom.",
-      "Create and audit readable body, heading and code typography at 200 percent zoom."
+      "Set readable body size, measure, unitless line-height and heading scale.",
+      "Audit text at 200% zoom and with longer content."
     ],
     "excludes": [
-      "Optimal values vary by script, language, content, and font; user overrides and 200 percent zoom must remain usable."
+      "Advanced typographic features like hyphenation tuning.",
+      "Colour contrast (next lesson)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "css.type.readability.example-a",
-      "title": "Readable text metrics: concrete case",
+      "title": "An article that reads comfortably",
       "situation": "Article text uses a bounded measure and unitless line-height while containers expand for longer translated labels.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: Article text uses a bounded measure and unitless line-height while containers expand for longer translated labels.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Prioritize legibility and reflow with scalable text, adequate line height, and layouts that survive zoom and longer content."
+        "**Bounded measure:** `.article { max-width: 65ch }` keeps lines around 65 characters even on wide screens.",
+        "**Unitless line-height:** `line-height: 1.6` scales for body text, headings and zoomed text alike.",
+        "**Expanding containers:** buttons have no fixed height, so the German label \"Kurs fortsetzen und speichern\" wraps and the button grows. The browser will render it cleanly at 200% zoom."
       ],
-      "result": "The result follows because Prioritize legibility and reflow with scalable text, adequate line height, and layouts that survive zoom and longer content."
+      "result": "The article reads comfortably at any width, and longer translated labels fit without clipping."
     },
     {
       "id": "css.type.readability.example-b",
-      "title": "Readable text metrics: boundary case",
-      "situation": "Optimal values vary by script, language, content, and font; user overrides and 200 percent zoom must remain usable.",
+      "title": "The fixed-height button",
+      "situation": "`.btn { height: 40px; }` works in English. In Tamil, the label wraps to two lines and the second line is cut off.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Optimal values vary by script, language, content, and font; user overrides and 200 percent zoom must remain usable.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Smaller text always fits more content and therefore improves usability."
+        "The fixed height can't grow with the text.",
+        "At 200% zoom even the English label overflows.",
+        "Fix: replace height with padding and `min-height`, so the button grows as needed."
       ],
-      "result": "The boundary requires this correction: Prioritize legibility and reflow with scalable text, adequate line height, and layouts that survive zoom and longer content."
+      "result": "Buttons fit their labels in every language and zoom level."
     }
   ],
   "misconceptions": [
     {
       "id": "css.type.readability.misconception",
       "mistakenBelief": "Smaller text always fits more content and therefore improves usability.",
-      "correction": "Prioritize legibility and reflow with scalable text, adequate line height, and layouts that survive zoom and longer content.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: Smaller text always fits more content and therefore improves usability."
+      "correction": "Small text and long lines make reading slower and harder, especially on small screens and for people with low vision. Readable size, bounded line length, generous line-height and flexible containers improve usability.",
+      "diagnosticPrompt": "In \"An article that reads comfortably\", which two measures made lines easy to follow?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Readable text metrics, where rules size, place, and paint existing content.",
+    "example": "Readable typography is like a **well-designed newspaper column**: narrow enough that your eyes find the next line, spaced enough that lines don't blur, and printed large enough to read on a train.",
     "usefulFor": [
-      "Building a first mental model for Readable text metrics before using exact platform terms"
+      "remembering measure and spacing",
+      "seeing size as usability, not decoration"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "Optimal values vary by script, language, content, and font; user overrides and 200 percent zoom must remain usable."
+      "Newspapers have fixed page widths; web pages must adapt.",
+      "Web text must also survive zoom and translation."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Article text uses a bounded measure and unitless line-height while containers expand for longer translated labels.",
-      "Readable typography balances line length, line height, spacing, alignment, hierarchy, and user zoom without fixing text into inflexible boxes.",
-      "Prioritize legibility and reflow with scalable text, adequate line height, and layouts that survive zoom and longer content."
+      ".article { max-width: 65ch }",
+      "body { line-height: 1.6 }",
+      "zoom to 200% with a German label"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Measure",
         "state": {
-          "evidence": "Article text uses a bounded measure and unitless line-height while containers expand for longer translated labels."
+          "line length": "≈ 65 characters"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "Article text uses a bounded measure on wide screens."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Leading",
         "state": {
-          "rule": "Readable typography balances line length, line height, spacing, alignment, hierarchy, and user zoom without fixing text into inflexible boxes."
+          "line-height": "1.6 × font-size"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "A unitless line-height scales with each element's text."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Growth",
         "state": {
-          "correction": "Prioritize legibility and reflow with scalable text, adequate line height, and layouts that survive zoom and longer content."
+          "button": "wraps and grows",
+          "clipping": "none"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Smaller text always fits more content and therefore improves usability."
+        "explanation": "Containers expand for longer translated labels at 200% zoom."
       }
     ],
-    "textAlternative": "Starting artifact: Article text uses a bounded measure and unitless line-height while containers expand for longer translated labels. Step 1, Artifact. State: evidence: Article text uses a bounded measure and unitless line-height while containers expand for longer translated labels.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Readable typography balances line length, line height, spacing, alignment, hierarchy, and user zoom without fixing text into inflexible boxes.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Prioritize legibility and reflow with scalable text, adequate line height, and layouts that survive zoom and longer content.. Check the result against the boundary and reject this misconception: Smaller text always fits more content and therefore improves usability."
+    "textAlternative": "Auditing readability. Step 1, Measure: line length is ≈ 65 characters. Article text uses a bounded measure on wide screens. Step 2, Leading: line-height is 1.6 × font-size. A unitless line-height scales with each element's text. Step 3, Growth: button is wraps and grows; clipping is none. Containers expand for longer translated labels at 200% zoom."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Readable text metrics: concrete case”: state its starting evidence, apply the Readable text metrics rule, and give the observable result in three short lines.",
+      "prompt": "For \"An article that reads comfortably\", explain how the article text uses a bounded measure and unitless line-height, and how containers expand for longer translated labels.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Measure.",
+        "Line-height.",
+        "Growth."
       ],
       "expectedEvidence": [
-        "Named example: Readable text metrics: concrete case.",
-        "Starting evidence: Article text uses a bounded measure and unitless line-height while containers expand for longer translated labels.",
-        "Core rule: Readable typography balances line length, line height, spacing, alignment, hierarchy, and user zoom without fixing text into inflexible boxes.",
-        "Observable result: The result follows because Prioritize legibility and reflow with scalable text, adequate line height, and layouts that survive zoom and longer content.",
-        "Boundary check: Prioritize legibility and reflow with scalable text, adequate line height, and layouts that survive zoom and longer content."
+        "Names the example \"An article that reads comfortably\": article text uses a bounded measure.",
+        "A unitless line-height scales with text.",
+        "Containers expand for longer translated labels.",
+        "Everything stays readable at 200% zoom."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Optimal values vary by script, language, content, and font; user overrides and 200 percent zoom must remain usable.",
+      "prompt": "A documentation page has 14px body text, `line-height: 18px`, and full-width paragraphs. Write three CSS changes and explain each.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Size, leading, measure.",
+        "Units matter."
       ],
       "expectedEvidence": [
-        "Readable typography balances line length, line height, spacing, alignment, hierarchy, and user zoom without fixing text into inflexible boxes.",
-        "Optimal values vary by script, language, content, and font; user overrides and 200 percent zoom must remain usable."
+        "font-size ≥ 1rem; line-height: 1.5–1.6 unitless.",
+        "max-width around 65ch for paragraphs."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Readable text metrics and explain why the misconception fails.",
+      "prompt": "Audit a text-heavy page at 320px, 1440px and 200% zoom. Measure line length, line-height and any clipping, then fix what fails.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Count characters per line.",
+        "Look for fixed heights."
       ],
       "expectedEvidence": [
-        "Create and audit readable body, heading and code typography at 200 percent zoom.",
-        "Prioritize legibility and reflow with scalable text, adequate line height, and layouts that survive zoom and longer content."
+        "Audit notes for all three scenarios.",
+        "Fixes applied with before/after screenshots."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.type.readability.misconception",
-      "explanation": "Prioritize legibility and reflow with scalable text, adequate line height, and layouts that survive zoom and longer content.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'survive zoom' and state the decisive evidence."
+      "explanation": "Checklist per text style: **size ≥ 1rem for body? line length ≤ ~75ch? unitless line-height? no fixed height on its container? readable at 200% zoom?**",
+      "retryPrompt": "Run it on \"The fixed-height button\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to create and audit readable body, heading and code typography at 200 percent zoom. Keep this boundary in view: Optimal values vary by script, language, content, and font; user overrides and 200 percent zoom must remain usable.",
+    "summary": "To create and audit readable typography, use a body size of at least 1rem, a bounded measure around 65ch, unitless line-height, a clear heading scale, and containers without fixed heights — then check everything at 200 percent zoom and with longer content.",
     "retrievalPrompts": [
-      "Explain Readable text metrics using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: Smaller text always fits more content and therefore improves usability.",
-      "Apply checkpoint 'survive zoom' to a new artifact."
+      "Why unitless line-height?",
+      "What line length is comfortable?",
+      "What should you check at 200% zoom?"
     ],
     "nextReviewPrompt": "Next: continue to “Color and contrast”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

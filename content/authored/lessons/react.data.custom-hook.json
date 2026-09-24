@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A custom hook packages reusable stateful logic and other hooks while each caller receives independent state unless an external store is shared.",
+    "summary": "A **custom hook** is a function whose name starts with `use` and that calls other hooks, packaging **reusable stateful logic**: a subscription, a fetch, a timer. `useOnlineStatus()` can set up the online/offline listeners, clean them up, and return `true` or `false`. Each component that calls it gets **its own independent state and effects**, because hooks share *logic*, not *data*. If two components must share the same live value, it has to come from something outside them, such as the browser, a context or a store, which here is the browser's own online flag.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: useOnlineStatus owns one subscription pattern and cleans it up for each consuming component. Your goal is to design and test a focused custom hook used by two components. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A lesson player shows an \"offline\" banner, and the save button also needs to know when the learner is offline. Both components copy the same 15 lines of listener code, and one copy forgets to remove its listeners. useOnlineStatus owns one subscription pattern and cleans it up for each consuming component. In this lesson you'll design and test a focused custom hook used by two components.\n\n```predict\n{\"question\": \"A `useCounter()` hook holds `useState(0)`. Two components call it, and one increments. Does the other see the change?\", \"options\": [\"Yes, they share the hook\", \"No: each call has its own state\"], \"answer\": 1, \"why\": \"Custom hooks reuse logic. Each caller gets separate state.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Cleanup and race prevention; javascript network fetch; Client fetch lifecycle; Dependencies and reactive values. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Cleanup and race prevention**, **Fetch and HTTP responses**, **Client fetch lifecycle**, and **Dependencies and reactive values**, since hooks contain effects."
       },
       {
-        "heading": "Technology rule",
-        "body": "A custom hook packages reusable stateful logic and other hooks while each caller receives independent state unless an external store is shared. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: shared logic, separate state per caller",
+        "body": "```jsx\n// useOnlineStatus.js.\nimport { useEffect, useState } from \"react\";\n\nexport function useOnlineStatus() {\n  const [isOnline, setIsOnline] = useState(() => navigator.onLine);\n  useEffect(() => {\n    const update = () => setIsOnline(navigator.onLine);\n    window.addEventListener(\"online\", update);\n    window.addEventListener(\"offline\", update);\n    return () => {\n      window.removeEventListener(\"online\", update);\n      window.removeEventListener(\"offline\", update);\n    };\n  }, []);\n  return isOnline;\n}\n\n// Two consumers, each with its own subscription.\nfunction OfflineBanner() {\n  const isOnline = useOnlineStatus();\n  return isOnline ? null : <p role=\"status\">You're offline. Changes will save when you reconnect.</p>;\n}\n\nfunction SaveButton({ onSave }) {\n  const isOnline = useOnlineStatus();\n  return <button type=\"button\" onClick={onSave} disabled={!isOnline}>{isOnline ? \"Save\" : \"Offline\"}</button>;\n}\n```\n\n| Good custom hook | Why |\n|---|---|\n| name starts with `use`. | lint rules check hook usage. |\n| one focused job. | easy to reuse and test. |\n| cleans up what it sets up. | no leaks per caller. |\n| returns plain values or functions. | callers stay simple. |\n\n```reveal\n{\"prompt\": \"Both components show the same value. Isn't that shared state?\", \"answer\": \"They each read the same external source (navigator.onLine and its events). Their React states are separate copies that happen to agree.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Hooks must follow call-order rules, names begin with use, and hidden effects or unstable return identities can surprise consumers. This draft therefore rejects: Calling the same custom hook in two components automatically shares one state instance."
+        "heading": "Name it for its job",
+        "body": "```predict\n{\"question\": \"Which is a better hook?\", \"options\": [\"`useLifecycle(effectFn)` that wraps useEffect\", \"`useOnlineStatus()` that answers one question\"], \"answer\": 1, \"why\": \"Hooks that describe a purpose read better than hooks that rename React APIs.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Extract reusable stateful behavior without hiding dependencies or returning unstable accidental APIs.",
-      "Design and test a focused custom hook used by two components."
+      "Extract stateful logic into a focused use-hook with cleanup.",
+      "Explain independent state per caller and test the hook through two components."
     ],
     "excludes": [
-      "Hooks must follow call-order rules, names begin with use, and hidden effects or unstable return identities can surprise consumers."
+      "useSyncExternalStore in depth.",
+      "Publishing hook libraries."
     ]
   },
   "outcomes": [
@@ -63,133 +64,136 @@
   "examples": [
     {
       "id": "react.data.custom-hook.example-a",
-      "title": "Custom hooks for reusable logic: concrete case",
+      "title": "One online-status hook, two components",
       "situation": "useOnlineStatus owns one subscription pattern and cleans it up for each consuming component.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: useOnlineStatus owns one subscription pattern and cleans it up for each consuming component.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Custom hooks share logic, not state; each call has its own hook state unless both connect to shared external data."
+        "**Extract:** the copied listener code moves into useOnlineStatus, which returns isOnline.",
+        "**Clean up for each consuming component:** every caller adds its own listeners and removes the same functions on unmount.",
+        "**Test:** render OfflineBanner and SaveButton, fire an offline event, and a test will see the banner text and a disabled Offline button."
       ],
-      "result": "The result follows because Custom hooks share logic, not state; each call has its own hook state unless both connect to shared external data."
+      "result": "Both components react to connection changes, and no listeners are left behind when either unmounts."
     },
     {
       "id": "react.data.custom-hook.example-b",
-      "title": "Custom hooks for reusable logic: boundary case",
-      "situation": "Hooks must follow call-order rules, names begin with use, and hidden effects or unstable return identities can surprise consumers.",
+      "title": "The hook that was meant to share",
+      "situation": "A team writes `useCart()` with useState inside and calls it in the header and the checkout page, expecting both to show the same items. Adding an item on checkout doesn't update the header.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Hooks must follow call-order rules, names begin with use, and hidden effects or unstable return identities can surprise consumers.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Calling the same custom hook in two components automatically shares one state instance."
+        "Each call created its own cart state.",
+        "Custom hooks don't share data between callers.",
+        "Fix: keep the cart in a CartProvider (context + reducer) and have useCart read from that context."
       ],
-      "result": "The boundary requires this correction: Custom hooks share logic, not state; each call has its own hook state unless both connect to shared external data."
+      "result": "The header and checkout show the same cart because it lives in one provider."
     }
   ],
   "misconceptions": [
     {
       "id": "react.data.custom-hook.misconception",
       "mistakenBelief": "Calling the same custom hook in two components automatically shares one state instance.",
-      "correction": "Custom hooks share logic, not state; each call has its own hook state unless both connect to shared external data.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Calling the same custom hook in two components automatically shares one state instance."
+      "correction": "Every call to a custom hook runs its hooks again for that component, creating separate state and effects. To share one value, store it outside: context, a store, or an external source.",
+      "diagnosticPrompt": "In \"The hook that was meant to share\", why didn't the header update?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Custom hooks for reusable logic, where inputs and state produce a UI description.",
+    "example": "A custom hook is like **a recipe card**: many kitchens can cook from it, and each gets its own dish. If you want everyone to eat from **the same pot**, you need a shared pot (context or a store), not more copies of the recipe.",
     "usefulFor": [
-      "Building a first mental model for Custom hooks for reusable logic before using exact platform terms"
+      "remembering logic, not data",
+      "shared pot = provider"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Hooks must follow call-order rules, names begin with use, and hidden effects or unstable return identities can surprise consumers."
+      "Recipes don't subscribe to anything; hooks can, and each copy cleans up its own.",
+      "Two kitchens reading the same thermometer (navigator.onLine) will agree without sharing a pot."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "useOnlineStatus owns one subscription pattern and cleans it up for each consuming component.",
-      "A custom hook packages reusable stateful logic and other hooks while each caller receives independent state unless an external store is shared.",
-      "Custom hooks share logic, not state; each call has its own hook state unless both connect to shared external data."
+      "OfflineBanner mounts: useOnlineStatus()",
+      "SaveButton mounts: useOnlineStatus()",
+      "offline event fires"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Banner",
         "state": {
-          "evidence": "useOnlineStatus owns one subscription pattern and cleans it up for each consuming component."
+          "banner listeners": "2",
+          "isOnline": "true"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The first component gets its own subscription from the hook."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Button",
         "state": {
-          "rule": "A custom hook packages reusable stateful logic and other hooks while each caller receives independent state unless an external store is shared."
+          "button listeners": "2",
+          "total listeners": "4"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "useOnlineStatus owns one subscription pattern, repeated for each consuming component."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Offline",
         "state": {
-          "correction": "Custom hooks share logic, not state; each call has its own hook state unless both connect to shared external data."
+          "banner": "shown",
+          "button": "Offline, disabled"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Calling the same custom hook in two components automatically shares one state instance."
+        "explanation": "Both states update from the same browser event, and each cleans up on unmount."
       }
     ],
-    "textAlternative": "Starting artifact: useOnlineStatus owns one subscription pattern and cleans it up for each consuming component. Step 1, Artifact. State: evidence: useOnlineStatus owns one subscription pattern and cleans it up for each consuming component.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A custom hook packages reusable stateful logic and other hooks while each caller receives independent state unless an external store is shared.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Custom hooks share logic, not state; each call has its own hook state unless both connect to shared external data.. Check the result against the boundary and reject this misconception: Calling the same custom hook in two components automatically shares one state instance."
+    "textAlternative": "Tracing two callers of one hook. Step 1, Banner: banner listeners is 2; isOnline is true. The first component gets its own subscription from the hook. Step 2, Button: button listeners is 2; total listeners is 4. useOnlineStatus owns one subscription pattern, repeated for each consuming component. Step 3, Offline: banner is shown; button is Offline, disabled. Both states update from the same browser event, and each cleans up on unmount."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Custom hooks for reusable logic: concrete case”: state its starting evidence, apply the Custom hooks for reusable logic rule, and give the observable result in three short lines.",
+      "prompt": "For \"One online-status hook, two components\", explain how useOnlineStatus owns one subscription pattern and cleans it up for each consuming component.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Extract.",
+        "Per-caller cleanup.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Custom hooks for reusable logic: concrete case.",
-        "Starting evidence: useOnlineStatus owns one subscription pattern and cleans it up for each consuming component.",
-        "Core rule: A custom hook packages reusable stateful logic and other hooks while each caller receives independent state unless an external store is shared.",
-        "Observable result: The result follows because Custom hooks share logic, not state; each call has its own hook state unless both connect to shared external data.",
-        "Boundary check: Custom hooks share logic, not state; each call has its own hook state unless both connect to shared external data."
+        "Names the example \"One online-status hook, two components\": duplicated listener code moved into the hook.",
+        "useOnlineStatus owns one subscription pattern.",
+        "It cleans it up for each consuming component.",
+        "Both components react to connection changes."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Hooks must follow call-order rules, names begin with use, and hidden effects or unstable return identities can surprise consumers.",
+      "prompt": "Write `useLocalStorage(key, initial)` returning [value, setValue] that reads once, writes on change, and handles corrupt JSON. Use it in two components with different keys.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "useState with a lazy initializer.",
+        "try/catch around JSON.parse."
       ],
       "expectedEvidence": [
-        "A custom hook packages reusable stateful logic and other hooks while each caller receives independent state unless an external store is shared.",
-        "Hooks must follow call-order rules, names begin with use, and hidden effects or unstable return identities can surprise consumers."
+        "Independent values per key.",
+        "Corrupt data falls back to initial."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Custom hooks for reusable logic and explain why the misconception fails.",
+      "prompt": "Extract a `useLessonSearch(query)` hook with fetch, abort, status and retry from an existing component. Use it in two places and test the hook through a small test component, including out-of-order responses.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Return { status, data, retry }.",
+        "Dependencies: query and attempt."
       ],
       "expectedEvidence": [
-        "Design and test a focused custom hook used by two components.",
-        "Custom hooks share logic, not state; each call has its own hook state unless both connect to shared external data."
+        "Two components use the hook.",
+        "Tests cover race and retry."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.data.custom-hook.misconception",
-      "explanation": "Custom hooks share logic, not state; each call has its own hook state unless both connect to shared external data.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'share logic, not state' and state the decisive evidence."
+      "explanation": "Before writing a hook ask: **What one question does it answer?** Name it for that. After writing it ask: **Does each caller need its own state, or one shared value?** If shared, add a provider.",
+      "retryPrompt": "Apply this to \"The hook that was meant to share\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to design and test a focused custom hook used by two components. Keep this boundary in view: Hooks must follow call-order rules, names begin with use, and hidden effects or unstable return identities can surprise consumers.",
+    "summary": "To design and test a focused custom hook, move reusable stateful logic into a use-named function that sets up and cleans up its own effects and returns simple values. Each component that calls it gets independent state; share one value through context, a store or an external source instead.",
     "retrievalPrompts": [
-      "Explain Custom hooks for reusable logic using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: Calling the same custom hook in two components automatically shares one state instance.",
-      "Apply checkpoint 'share logic, not state' to a new artifact."
+      "What must a custom hook's name start with?",
+      "Do two callers share the hook's state?",
+      "How do you share one value between components?"
     ],
     "nextReviewPrompt": "Next: continue to “Declarative routes and links”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

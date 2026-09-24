@@ -146,9 +146,14 @@ const PENDING_OR_ACTIVE_VERIFIED_LEARNER = accountPolicy(
     { role: "learner", status: "active", emailVerified: true },
   ],
 );
-const PENDING_UNVERIFIED_LEARNER = accountPolicy(
+// The bootstrap administrator is created pending and unverified, and must
+// receive its own verification mail before it can sign in and activate.
+const PENDING_UNVERIFIED_ACCOUNT = accountPolicy(
   [false],
-  [{ role: "learner", status: "pending", emailVerified: false }],
+  [
+    { role: "learner", status: "pending", emailVerified: false },
+    { role: "admin", status: "pending", emailVerified: false },
+  ],
 );
 const PASSWORD_RESET_ACCOUNT = accountPolicy(
   [false],
@@ -174,7 +179,7 @@ const TEMPLATE_AUTHORITY_POLICY_DEFINITIONS = {
   "verify-email": {
     scope: "account",
     versions: VERSION_1,
-    account: PENDING_UNVERIFIED_LEARNER,
+    account: PENDING_UNVERIFIED_ACCOUNT,
   },
   "reset-password": {
     scope: "account",

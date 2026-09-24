@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "JavaScript this is determined by call form, except arrows capture it lexically; extracting a method can lose its receiver.",
+    "summary": "For a regular function, `this` is decided **at call time** by how the function is called: `user.getName()` → `this` is `user` (the **receiver** before the dot). Call the same function without a dot — `const f = user.getName; f()` — and `this` is `undefined` in modules/strict code. Callbacks lose the receiver the same way. Fix with `user.getName.bind(user)`, a wrapping arrow `() => user.getName()`, or by not relying on this.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Calling user.getName() supplies user as receiver, but assigning the method to a variable removes that call-site receiver. Your goal is to trace and repair this binding across direct, method and callback calls. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A profile page passes `user.getName` to a button handler. Clicking the button throws \"Cannot read properties of undefined (reading 'name')\". The method works when called directly — so what changed? Calling user.getName() supplies user as receiver, but assigning the method to a variable removes that call-site receiver. In this lesson you'll trace and repair this binding across direct, method and callback calls.\n\n```predict\n{\"question\": \"`const user = { name: \\\"Asha\\\", getName() { return this.name; } }; const f = user.getName; f();` In a module, what happens?\", \"options\": [\"Returns \\\"Asha\\\"\", \"TypeError — this is undefined, so this.name fails\"], \"answer\": 1, \"why\": \"this comes from the call site. `f()` has no receiver, so this is undefined in modules and strict mode.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Object records and property access; Function declarations, expressions and arrows. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Object records and property access** and **Function declarations, expressions and arrows** — arrows don't have their own this."
       },
       {
-        "heading": "Technology rule",
-        "body": "JavaScript this is determined by call form, except arrows capture it lexically; extracting a method can lose its receiver. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The rule: look left of the dot at call time",
+        "body": "| Call | this is |\n|---|---|\n| `user.getName()`. | user (receiver before the dot). |\n| `const f = user.getName; f()`. | undefined (strict/module). |\n| `button.addEventListener(\"click\", user.getName)`. | the button (not user!). |\n| `setTimeout(user.getName, 0)`. | undefined/global — receiver lost. |\n| `user.getName.bind(user)`. | always user. |\n| `() => user.getName()`. | user, via the method call inside. |\n\n```js\nbutton.addEventListener(\"click\", () => showName(user.getName()));  // keeps the receiver\n// or\nconst getName = user.getName.bind(user);\n```\n\n```reveal\n{\"prompt\": \"Is `this` fixed where the function is written?\", \"answer\": \"For regular functions and methods, no — it's set by each call. Only arrow functions take this from where they're written.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Strict mode, constructors, bind, event callbacks, and modules affect the resulting value. This draft therefore rejects: this is permanently defined where a normal function is written."
+        "heading": "Callbacks and receivers",
+        "body": "```predict\n{\"question\": \"`[1, 2].forEach(counter.add)` where add uses `this.total += n`. Does counter.total change?\", \"options\": [\"Yes\", \"No — forEach calls add without a receiver\"], \"answer\": 1, \"why\": \"Pass `(n) => counter.add(n)` or `counter.add.bind(counter)`, or use forEach's thisArg: `forEach(counter.add, counter)`.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Determine this from call form and avoid detached-method and arrow-method surprises.",
-      "Trace and repair this binding across direct, method and callback calls."
+      "Trace this for direct, method, callback and bound calls.",
+      "Repair lost receivers with bind or a wrapping arrow."
     ],
     "excludes": [
-      "Strict mode, constructors, bind, event callbacks, and modules affect the resulting value."
+      "call and apply in depth.",
+      "this in classes' static blocks."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "javascript.objects.this.example-a",
-      "title": "Method calls and this: concrete case",
+      "title": "The method that lost its receiver",
       "situation": "Calling user.getName() supplies user as receiver, but assigning the method to a variable removes that call-site receiver.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: Calling user.getName() supplies user as receiver, but assigning the method to a variable removes that call-site receiver.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: For normal functions, this comes from the call site; bind it or preserve the receiver when extracting methods."
+        "**Direct call:** `user.getName()` — the receiver is user, so it returns \"Asha\".",
+        "**Assigning the method:** `button.addEventListener(\"click\", user.getName)` — when clicked, the browser will call it with the button as this, and `this.name` is undefined.",
+        "**Repair:** `() => showName(user.getName())` or `user.getName.bind(user)` keeps the call-site receiver."
       ],
-      "result": "The result follows because For normal functions, this comes from the call site; bind it or preserve the receiver when extracting methods."
+      "result": "The button shows \"Asha\" because the method is always called with user as its receiver."
     },
     {
       "id": "javascript.objects.this.example-b",
-      "title": "Method calls and this: boundary case",
-      "situation": "Strict mode, constructors, bind, event callbacks, and modules affect the resulting value.",
+      "title": "The counter that never counted",
+      "situation": "`const counter = { total: 0, add(n) { this.total += n; } }; [1, 2, 3].forEach(counter.add);` — total stays 0 (and strict code throws).",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Strict mode, constructors, bind, event callbacks, and modules affect the resulting value.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: this is permanently defined where a normal function is written."
+        "forEach calls add as a plain function — no receiver.",
+        "this is undefined, so `this.total` fails.",
+        "Fix: `[1, 2, 3].forEach((n) => counter.add(n));` → total becomes 6."
       ],
-      "result": "The boundary requires this correction: For normal functions, this comes from the call site; bind it or preserve the receiver when extracting methods."
+      "result": "counter.total ends at 6 because each call has counter as its receiver."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.objects.this.misconception",
       "mistakenBelief": "this is permanently defined where a normal function is written.",
-      "correction": "For normal functions, this comes from the call site; bind it or preserve the receiver when extracting methods.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: this is permanently defined where a normal function is written."
+      "correction": "For regular functions, this is determined by how the function is called: the receiver before the dot, a bind, or nothing. Passing a method as a callback drops its receiver unless you bind it or wrap it.",
+      "diagnosticPrompt": "In \"The method that lost its receiver\", what was this when the button was clicked?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Method calls and this, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "`this` is like **\"me\" in a sentence**: it depends on who's speaking. \"Read my name\" said by Asha means Asha's name. Pass the same note to someone else to read aloud, and \"my\" now means them.",
     "usefulFor": [
-      "Building a first mental model for Method calls and this before using exact platform terms"
+      "remembering this = the caller at call time",
+      "bind = writing the speaker's name on the note"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Strict mode, constructors, bind, event callbacks, and modules affect the resulting value."
+      "Notes don't throw errors; undefined this does.",
+      "Arrows are notes that always mean the original writer."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Calling user.getName() supplies user as receiver, but assigning the method to a variable removes that call-site receiver.",
-      "JavaScript this is determined by call form, except arrows capture it lexically; extracting a method can lose its receiver.",
-      "For normal functions, this comes from the call site; bind it or preserve the receiver when extracting methods."
+      "const user = { name: 'Asha', getName() { return this.name; } }",
+      "user.getName()",
+      "const f = user.getName; f()"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Method call",
         "state": {
-          "evidence": "Calling user.getName() supplies user as receiver, but assigning the method to a variable removes that call-site receiver."
+          "receiver": "user",
+          "returned": "Asha"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "Calling user.getName() supplies user as receiver."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Detach",
         "state": {
-          "rule": "JavaScript this is determined by call form, except arrows capture it lexically; extracting a method can lose its receiver."
+          "f": "same function",
+          "receiver": "none"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Assigning the method to a variable removes that call-site receiver."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Plain call",
         "state": {
-          "correction": "For normal functions, this comes from the call site; bind it or preserve the receiver when extracting methods."
+          "this": "undefined",
+          "result": "TypeError"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: this is permanently defined where a normal function is written."
+        "explanation": "Calling f() without a receiver leaves this undefined in a module."
       }
     ],
-    "textAlternative": "Starting artifact: Calling user.getName() supplies user as receiver, but assigning the method to a variable removes that call-site receiver. Step 1, Artifact. State: evidence: Calling user.getName() supplies user as receiver, but assigning the method to a variable removes that call-site receiver.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: JavaScript this is determined by call form, except arrows capture it lexically; extracting a method can lose its receiver.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: For normal functions, this comes from the call site; bind it or preserve the receiver when extracting methods.. Check the result against the boundary and reject this misconception: this is permanently defined where a normal function is written."
+    "textAlternative": "Tracing this across calls. Step 1, Method call: receiver is user; returned is Asha. Calling user.getName() supplies user as receiver. Step 2, Detach: f is same function; receiver is none. Assigning the method to a variable removes that call-site receiver. Step 3, Plain call: this is undefined; result is TypeError. Calling f() without a receiver leaves this undefined in a module."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Method calls and this: concrete case”: state its starting evidence, apply the Method calls and this rule, and give the observable result in three short lines.",
+      "prompt": "For \"The method that lost its receiver\", explain why calling user.getName() supplies user as receiver, but assigning the method to a variable removes that call-site receiver, and how to repair it.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Method call.",
+        "Detached.",
+        "Repair."
       ],
       "expectedEvidence": [
-        "Named example: Method calls and this: concrete case.",
-        "Starting evidence: Calling user.getName() supplies user as receiver, but assigning the method to a variable removes that call-site receiver.",
-        "Core rule: JavaScript this is determined by call form, except arrows capture it lexically; extracting a method can lose its receiver.",
-        "Observable result: The result follows because For normal functions, this comes from the call site; bind it or preserve the receiver when extracting methods.",
-        "Boundary check: For normal functions, this comes from the call site; bind it or preserve the receiver when extracting methods."
+        "Names the example \"The method that lost its receiver\": calling user.getName() supplies user as receiver.",
+        "Assigning the method to a variable removes that call-site receiver.",
+        "this becomes undefined or the button.",
+        "Repair with bind or a wrapping arrow."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Strict mode, constructors, bind, event callbacks, and modules affect the resulting value.",
+      "prompt": "Predict this in each: `obj.m()`, `const m = obj.m; m()`, `setTimeout(obj.m)`, `setTimeout(() => obj.m())`, `obj.m.bind(obj)()`.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Look for the dot at call time.",
+        "Arrows keep the inner call."
       ],
       "expectedEvidence": [
-        "JavaScript this is determined by call form, except arrows capture it lexically; extracting a method can lose its receiver.",
-        "Strict mode, constructors, bind, event callbacks, and modules affect the resulting value."
+        "obj, undefined, lost (undefined/global).",
+        "obj, obj."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Method calls and this and explain why the misconception fails.",
+      "prompt": "Write a small `Timer` object with start/stop methods used as button click handlers. Show the bug with direct method references, then fix it two ways and test each.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "addEventListener(\"click\", timer.start) loses the receiver.",
+        "bind vs arrow."
       ],
       "expectedEvidence": [
-        "Trace and repair this binding across direct, method and callback calls.",
-        "For normal functions, this comes from the call site; bind it or preserve the receiver when extracting methods."
+        "Demonstrated bug and two working fixes.",
+        "Tests confirming the timer's state changes."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.objects.this.misconception",
-      "explanation": "For normal functions, this comes from the call site; bind it or preserve the receiver when extracting methods.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'call site' and state the decisive evidence."
+      "explanation": "At every call, find **what's immediately left of the dot when the function actually runs**. No dot at call time → no receiver. Passing a method somewhere else? Wrap it or bind it.",
+      "retryPrompt": "Apply this to \"The counter that never counted\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to trace and repair this binding across direct, method and callback calls. Keep this boundary in view: Strict mode, constructors, bind, event callbacks, and modules affect the resulting value.",
+    "summary": "To trace and repair this binding, look at the call site: method calls use the receiver before the dot, plain calls have no receiver (undefined in modules), and callbacks lose the receiver. Repair with bind or a wrapping arrow that calls the method on its object.",
     "retrievalPrompts": [
-      "Explain Method calls and this using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: this is permanently defined where a normal function is written.",
-      "Apply checkpoint 'call site' to a new artifact."
+      "When is this decided for a method?",
+      "Why does passing user.getName as a callback break it?",
+      "Name two ways to keep the receiver."
     ],
     "nextReviewPrompt": "Next: continue to “Prototype delegation”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

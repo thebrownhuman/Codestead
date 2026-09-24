@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "RAII binds resource ownership to object lifetime: construction acquires or establishes ownership and deterministic destruction releases it during every normal scope exit and stack unwind.",
+    "summary": "**RAII** (Resource Acquisition Is Initialisation) ties a resource to an object's lifetime: the **constructor acquires** it and the **destructor releases** it. Because C++ destroys local objects **whenever a scope ends**, by normal exit, `return`, `break` **or an exception**, cleanup can't be forgotten. It applies to **every** resource, not just memory: `std::ifstream` closes files, `std::lock_guard` unlocks mutexes, `std::unique_ptr` deletes objects, `std::vector` frees its buffer. If you catch yourself writing `close()`, `unlock()` or `delete` by hand on each path, wrap the resource in an RAII type instead.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: An ifstream closes automatically when its scope ends, including when a later operation throws an exception. Your goal is to refactor manual cleanup into an exception-safe RAII design. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner opens a log with `FILE* f = fopen(...)`, then has four early returns and a function that can throw. Two paths forget fclose, and under load the program runs out of file handles. An ifstream closes automatically when its scope ends, including when a later operation throws an exception. In this lesson you'll refactor manual cleanup into an exception-safe RAII design.\n\n```predict\n{\"question\": \"A function creates a std::ifstream, then an exception is thrown. Is the file closed?\", \"options\": [\"No, the close line was skipped\", \"Yes: stack unwinding runs the ifstream's destructor\"], \"answer\": 1, \"why\": \"Destructors run for completed local objects as the exception leaves their scope.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Constructors and initialization; Value, reference and const-reference parameters. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Constructors and initialization** (establishing invariants) and **Value, reference and const-reference parameters** (ownership intent)."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "RAII binds resource ownership to object lifetime: construction acquires or establishes ownership and deterministic destruction releases it during every normal scope exit and stack unwind. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The rule: acquire in a constructor, release in a destructor",
+        "body": "```cpp\n#include <fstream>\n#include <mutex>\n#include <stdexcept>\n#include <string>\n#include <vector>\n\nstd::mutex log_mutex;\n\nstd::vector<std::string> read_lines(const std::string& path) {\n    std::ifstream in(path);                        // acquires the file.\n    if (!in) throw std::runtime_error(\"cannot open \" + path);\n    std::vector<std::string> lines;                // owns its buffer.\n    for (std::string line; std::getline(in, line);) {\n        if (line == \"STOP\") return lines;          // early return: file still closed.\n        lines.push_back(line);                     // may throw bad_alloc: still closed.\n    }\n    return lines;\n}                                                  // ~ifstream closes on EVERY exit.\n\nvoid append_log(const std::string& msg) {\n    std::lock_guard<std::mutex> lock(log_mutex);   // locks now...\n    std::ofstream out(\"app.log\", std::ios::app);\n    out << msg << '\\n';\n}                                                  // ...unlocks here, always.\n```\n\n| Resource | RAII type |\n|---|---|\n| file. | `std::ifstream`, `std::ofstream`. |\n| heap object. | `std::unique_ptr`. |\n| buffer. | `std::vector`, `std::string`. |\n| mutex lock. | `std::lock_guard`, `std::scoped_lock`. |\n\n```reveal\n{\"prompt\": \"What about a C API resource like FILE* that has no C++ wrapper?\", \"answer\": \"Wrap it: std::unique_ptr<FILE, decltype(&fclose)> f(fopen(path, \\\"r\\\"), &fclose); gives a FILE* that closes itself. Or write a tiny class whose destructor calls the release function.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "RAII does not resolve ownership cycles, process termination can skip normal destruction, and constructors must handle partial acquisition with member RAII. Therefore the draft explicitly rejects this beginner failure model: RAII is only about memory allocated with new and does not apply to files, locks, sockets, or transactions."
+        "heading": "Destructors must not fail loudly",
+        "body": "```predict\n{\"question\": \"Should a destructor throw if releasing the resource fails?\", \"options\": [\"Yes\", \"No: destructors are noexcept by default, and throwing during unwinding terminates the program\"], \"answer\": 1, \"why\": \"Log the failure, or offer an explicit close() that can report errors before destruction.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Acquire resources in constructors and release them in destructors or standard wrappers.",
-      "Refactor manual cleanup into an exception-safe RAII design."
+      "Bind files, memory, locks and other resources to object lifetimes.",
+      "Replace manual cleanup on every path with RAII types that clean up during unwinding too."
     ],
     "excludes": [
-      "RAII does not resolve ownership cycles, process termination can skip normal destruction, and constructors must handle partial acquisition with member RAII."
+      "Writing full custom resource classes with move support (move lesson).",
+      "Garbage collection comparisons."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "cpp.resources.raii.example-a",
-      "title": "RAII and deterministic cleanup: defined case",
+      "title": "The file that closes itself",
       "situation": "An ifstream closes automatically when its scope ends, including when a later operation throws an exception.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: An ifstream closes automatically when its scope ends, including when a later operation throws an exception.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: RAII applies to any resource with scoped ownership and release, including memory, files, locks, handles, and rollback guards."
+        "**An ifstream:** read_lines acquires the file by constructing in(path).",
+        "**Closes automatically when its scope ends:** the early return on STOP still closes it.",
+        "**Including when a later operation throws an exception:** if push_back throws bad_alloc, unwinding will run ~ifstream."
       ],
-      "result": "The defined result follows because RAII applies to any resource with scoped ownership and release, including memory, files, locks, handles, and rollback guards."
+      "result": "No path leaks a file handle, and the code has no close calls at all."
     },
     {
       "id": "cpp.resources.raii.example-b",
-      "title": "RAII and deterministic cleanup: boundary case",
-      "situation": "A lock_guard releases its mutex at block exit rather than relying on every return path to call unlock manually.",
+      "title": "The mutex left locked",
+      "situation": "A function calls m.lock(), then returns early on an error without m.unlock(). Every other thread then waits forever.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A lock_guard releases its mutex at block exit rather than relying on every return path to call unlock manually.",
-        "Step 2 — Keep this standard boundary visible: RAII does not resolve ownership cycles, process termination can skip normal destruction, and constructors must handle partial acquisition with member RAII.",
-        "Step 3 — Reject the tempting rule: RAII is only about memory allocated with new and does not apply to files, locks, sockets, or transactions."
+        "Manual unlock was skipped on one path.",
+        "Use std::lock_guard<std::mutex> lock(m); at the top.",
+        "Delete every manual unlock call."
       ],
-      "result": "This case demonstrates the declared outcome: Refactor manual cleanup into an exception-safe RAII design."
+      "result": "The mutex is released on every exit, including exceptions."
     }
   ],
   "misconceptions": [
     {
       "id": "cpp.resources.raii.misconception",
       "mistakenBelief": "RAII is only about memory allocated with new and does not apply to files, locks, sockets, or transactions.",
-      "correction": "RAII applies to any resource with scoped ownership and release, including memory, files, locks, handles, and rollback guards.",
-      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: RAII is only about memory allocated with new and does not apply to files, locks, sockets, or transactions."
+      "correction": "RAII works for any resource with a release step: files, locks, sockets, database transactions and more. The destructor performs the release on every exit.",
+      "diagnosticPrompt": "In \"The mutex left locked\", which RAII type fixes it?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A system of self-managing components can model RAII and deterministic cleanup: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "example": "RAII is like **a hotel key card that deactivates when you check out**. You don't have to remember to hand it in: leaving (end of scope), whether calmly or in a fire drill (exception), always ends access.",
     "usefulFor": [
-      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+      "remembering checkout ends access",
+      "fire drills still check you out"
     ],
     "limitations": [
-      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
-      "RAII does not resolve ownership cycles, process termination can skip normal destruction, and constructors must handle partial acquisition with member RAII."
+      "Hotels need a desk; C++ uses destructors.",
+      "Every resource type can have its own key card."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "An ifstream closes automatically when its scope ends, including when a later operation throws an exception.",
-      "RAII binds resource ownership to object lifetime: construction acquires or establishes ownership and deterministic destruction releases it during every normal scope exit and stack unwind.",
-      "RAII applies to any resource with scoped ownership and release, including memory, files, locks, handles, and rollback guards."
+      "std::ifstream in(path);",
+      "push_back throws bad_alloc",
+      "exception leaves read_lines"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Acquire",
         "state": {
-          "evidence": "An ifstream closes automatically when its scope ends, including when a later operation throws an exception."
+          "in": "open"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "The ifstream acquires the file in its constructor."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Throw",
         "state": {
-          "rule": "RAII binds resource ownership to object lifetime: construction acquires or establishes ownership and deterministic destruction releases it during every normal scope exit and stack unwind."
+          "exception": "bad_alloc",
+          "close() called": "no"
         },
-        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+        "explanation": "A later operation throws before any manual cleanup could run."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Unwind",
         "state": {
-          "conclusion": "RAII applies to any resource with scoped ownership and release, including memory, files, locks, handles, and rollback guards."
+          "~ifstream": "ran",
+          "file": "closed"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: RAII is only about memory allocated with new and does not apply to files, locks, sockets, or transactions."
+        "explanation": "The ifstream closes automatically when its scope ends, even on an exception."
       }
     ],
-    "textAlternative": "Starting artifact: An ifstream closes automatically when its scope ends, including when a later operation throws an exception. Step 1, Source and state. State: evidence: An ifstream closes automatically when its scope ends, including when a later operation throws an exception.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: RAII binds resource ownership to object lifetime: construction acquires or establishes ownership and deterministic destruction releases it during every normal scope exit and stack unwind.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: RAII applies to any resource with scoped ownership and release, including memory, files, locks, handles, and rollback guards.. Check the conclusion against the boundary and reject this misconception: RAII is only about memory allocated with new and does not apply to files, locks, sockets, or transactions."
+    "textAlternative": "Tracing RAII during unwinding. Step 1, Acquire: in is open. The ifstream acquires the file in its constructor. Step 2, Throw: exception is bad_alloc; close() called is no. A later operation throws before any manual cleanup could run. Step 3, Unwind: ~ifstream is ran; file is closed. The ifstream closes automatically when its scope ends, even on an exception."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “RAII and deterministic cleanup: defined case”: state its starting evidence, apply the RAII and deterministic cleanup rule, and give the observable result in three short lines.",
+      "prompt": "For \"The file that closes itself\", explain how an ifstream closes automatically when its scope ends, including when a later operation throws an exception.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Acquire.",
+        "Throw.",
+        "Release."
       ],
       "expectedEvidence": [
-        "Named example: RAII and deterministic cleanup: defined case.",
-        "Starting evidence: An ifstream closes automatically when its scope ends, including when a later operation throws an exception.",
-        "Core rule: RAII binds resource ownership to object lifetime: construction acquires or establishes ownership and deterministic destruction releases it during every normal scope exit and stack unwind.",
-        "Observable result: The defined result follows because RAII applies to any resource with scoped ownership and release, including memory, files, locks, handles, and rollback guards.",
-        "Boundary check: RAII applies to any resource with scoped ownership and release, including memory, files, locks, handles, and rollback guards."
+        "Names the example \"The file that closes itself\": manual fclose was skipped on two paths.",
+        "An ifstream closes automatically when its scope ends.",
+        "This includes when a later operation throws an exception.",
+        "No path leaks a file handle."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same CPP rule to this related boundary case: A lock_guard releases its mutex at block exit rather than relying on every return path to call unlock manually.",
+      "prompt": "Rewrite a function that uses fopen/fclose with three early returns into one using std::ifstream, removing every manual close. Test each early-return path.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "std::getline for lines.",
+        "Check the stream after opening."
       ],
       "expectedEvidence": [
-        "RAII binds resource ownership to object lifetime: construction acquires or establishes ownership and deterministic destruction releases it during every normal scope exit and stack unwind.",
-        "RAII does not resolve ownership cycles, process termination can skip normal destruction, and constructors must handle partial acquisition with member RAII."
+        "No close calls left.",
+        "Every path tested."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CPP example for RAII and deterministic cleanup, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Wrap a C-style resource (FILE* or a made-up handle API with open/close functions) in a small RAII class or unique_ptr with a custom deleter. Show with a counter that open and close calls always balance, even when an exception is thrown mid-function.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Count opens and closes in globals.",
+        "Delete copy operations of your class."
       ],
       "expectedEvidence": [
-        "Refactor manual cleanup into an exception-safe RAII design.",
-        "RAII applies to any resource with scoped ownership and release, including memory, files, locks, handles, and rollback guards."
+        "Balanced counts on every path.",
+        "Exception path tested."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "cpp.resources.raii.misconception",
-      "explanation": "RAII applies to any resource with scoped ownership and release, including memory, files, locks, handles, and rollback guards.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'scoped ownership' and state the decisive evidence: A lock_guard releases its mutex at block exit rather than relying on every return path to call unlock manually."
+      "explanation": "Search your code for **close, unlock, delete, free**. Each one is a sign a resource isn't owned by an object yet: wrap it in an RAII type.",
+      "retryPrompt": "Apply this to \"The mutex left locked\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to refactor manual cleanup into an exception-safe RAII design. Keep this boundary in view: RAII does not resolve ownership cycles, process termination can skip normal destruction, and constructors must handle partial acquisition with member RAII.",
+    "summary": "To refactor into exception-safe RAII, give every resource an owning object that acquires it in its constructor and releases it in its destructor, rely on scope exit and stack unwinding to run destructors on every path, use standard types like ifstream, unique_ptr, vector and lock_guard, and keep destructors from throwing.",
     "retrievalPrompts": [
-      "Explain RAII and deterministic cleanup using a concrete CPP rule rather than the optional analogy.",
-      "Why is this claim incorrect: RAII is only about memory allocated with new and does not apply to files, locks, sockets, or transactions.",
-      "Apply the checkpoint 'scoped ownership' to the boundary case from memory."
+      "What does RAII tie together?",
+      "When do destructors run?",
+      "Which resources besides memory benefit?"
     ],
     "nextReviewPrompt": "Next: continue to “unique_ptr, shared_ptr and non-owning access”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Python special methods let a type participate in representation, equality, hashing, length, containment, and iteration protocols, with each method required to honor the corresponding language contract.",
+    "summary": "Special \"dunder\" methods let your objects plug into Python's built-in behaviour: `__repr__` for a helpful debug view, `__eq__` for `==`, `__hash__` for use in sets and dict keys, `__len__`/`__iter__`/`__contains__` for containers. The rules: `__eq__` should return **`NotImplemented`** for unknown types, and defining `__eq__` **removes** the default hash — only add `__hash__` back if the object is immutable.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A Coordinate implements a safe repr and value equality, returns NotImplemented for unrelated types, and remains immutable before defining hash behavior. Your goal is to implement and test appropriate repr, equality or container protocol behavior without surprising side effects. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A map app stores places as `Coordinate` objects. Printing one shows `<Coordinate object at 0x7f3a…>` — useless. Two coordinates with the same numbers aren't `==`. And you can't put them in a set. Three protocols fix all of that. A Coordinate implements a safe repr and value equality, returns NotImplemented for unrelated types, and remains immutable before defining hash behavior. In this lesson you'll implement and test appropriate repr, equality or container protocol behavior without surprising side effects.\n\n```predict\n{\"question\": \"A class defines `__eq__` but not `__hash__`. What does `{Coordinate(1, 2)}` do?\", \"options\": [\"Creates a set with one item\", \"TypeError: unhashable type\"], \"answer\": 1, \"why\": \"Defining `__eq__` sets `__hash__` to None, because the default identity hash would disagree with your new equality.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Scope and closures; Modules and imports; Data classes and value modeling; Composition, inheritance and super. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Scope and closures**, **Modules and imports**, **Data classes and value modeling**, and **Composition, inheritance and super**."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Python special methods let a type participate in representation, equality, hashing, length, containment, and iteration protocols, with each method required to honor the corresponding language contract. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The rule: repr, eq with NotImplemented, hash only if immutable",
+        "body": "```python\nclass Coordinate:\n    __slots__ = (\"_lat\", \"_lon\")\n\n    def __init__(self, lat: float, lon: float):\n        object.__setattr__(self, \"_lat\", lat)\n        object.__setattr__(self, \"_lon\", lon)\n\n    def __setattr__(self, name, value):\n        raise AttributeError(\"Coordinate is immutable\")\n\n    def __repr__(self):\n        return f\"Coordinate({self._lat!r}, {self._lon!r})\"\n\n    def __eq__(self, other):\n        if not isinstance(other, Coordinate):\n            return NotImplemented\n        return (self._lat, self._lon) == (other._lat, other._lon)\n\n    def __hash__(self):\n        return hash((self._lat, self._lon))\n```\n\n| Method | Enables |\n|---|---|\n| `__repr__`. | readable output in the REPL, logs and tracebacks. |\n| `__eq__`. | value equality with `==`. |\n| `__hash__`. | sets and dict keys — only for immutable objects. |\n\n```reveal\n{\"prompt\": \"Why return `NotImplemented` instead of `False` for other types?\", \"answer\": \"It tells Python \\\"I don't know how to compare with that — ask the other object\\\". Returning False blocks the other side from answering, and can break symmetry.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "__repr__ should be unambiguous and safe, __eq__ may return NotImplemented, equal hashable objects need equal hashes, __len__ affects truthiness, and protocol methods should avoid surprising side effects. The learner must reject this documented misconception: Returning False from __eq__ for every unknown type is always correct and defining __eq__ leaves inherited hashing valid automatically."
+        "heading": "Container protocols",
+        "body": "```predict\n{\"question\": \"A `Playlist` class defines `__len__` and `__iter__`. What works now?\", \"options\": [\"`len(p)` and `for song in p:`\", \"Nothing — you must inherit from list\"], \"answer\": 0, \"why\": \"Python uses these methods directly. Add `__contains__` for fast `in` checks. No inheritance needed.\"}\n```\n\nKeep repr and eq **side-effect free**: no printing, no network calls, no changing state."
       }
     ]
   },
   "scope": {
     "includes": [
-      "Implement selected special methods to make domain values predictable in display, comparison and iteration.",
-      "Implement and test appropriate repr, equality or container protocol behavior without surprising side effects."
+      "Implement __repr__, __eq__ (with NotImplemented) and __hash__ correctly.",
+      "Add container protocols like __len__, __iter__ and __contains__."
     ],
     "excludes": [
-      "__repr__ should be unambiguous and safe, __eq__ may return NotImplemented, equal hashable objects need equal hashes, __len__ affects truthiness, and protocol methods should avoid surprising side effects."
+      "Rich comparison ordering (__lt__ etc.) in depth.",
+      "Descriptors and __getattr__."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "python.objects.protocols.example.direct",
-      "title": "Representation, equality and container protocols: direct language case",
+      "title": "A well-behaved Coordinate",
       "situation": "A Coordinate implements a safe repr and value equality, returns NotImplemented for unrelated types, and remains immutable before defining hash behavior.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A Coordinate implements a safe repr and value equality, returns NotImplemented for unrelated types, and remains immutable before defining hash behavior.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Honor each data-model protocol: return NotImplemented for unsupported equality, align equality with hashing, and keep representation and iteration predictable."
+        "**Safe repr:** `repr(Coordinate(12.97, 77.59))` → `Coordinate(12.97, 77.59)` — no side effects.",
+        "**Value equality:** `Coordinate(1, 2) == Coordinate(1, 2)` is True; comparing with `(1, 2)` returns NotImplemented, so the result is False.",
+        "**Immutable before hash:** attribute assignment is blocked, so `hash((lat, lon))` stays valid and coordinates work in sets."
       ],
-      "result": "The example meets the atomic outcome because Honor each data-model protocol: return NotImplemented for unsupported equality, align equality with hashing, and keep representation and iteration predictable."
+      "result": "Coordinates print clearly, compare by value, and can be deduplicated in a set without surprises."
     },
     {
       "id": "python.objects.protocols.example.boundary",
-      "title": "Representation, equality and container protocols: boundary and transfer case",
-      "situation": "A container's __iter__ returns a fresh iterator each call rather than returning one permanently exhausted iterator object.",
+      "title": "The mutable key that got lost",
+      "situation": "A mutable `Cell` class defines `__eq__` and `__hash__` from its `value`. A cell is used as a dict key, then `cell.value` changes.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A container's __iter__ returns a fresh iterator each call rather than returning one permanently exhausted iterator object.",
-        "Step 2 — Keep the language boundary explicit: __repr__ should be unambiguous and safe, __eq__ may return NotImplemented, equal hashable objects need equal hashes, __len__ affects truthiness, and protocol methods should avoid surprising side effects.",
-        "Step 3 — Reject the tempting but incorrect rule: Returning False from __eq__ for every unknown type is always correct and defining __eq__ leaves inherited hashing valid automatically."
+        "The dict stored the key under the hash of the old value.",
+        "After the change, `cell in d` looks in the wrong bucket and returns False.",
+        "Fix: make Cell immutable, or drop __hash__ so it can't be used as a key."
       ],
-      "result": "This case demonstrates the declared outcome: Implement and test appropriate repr, equality or container protocol behavior without surprising side effects."
+      "result": "Only immutable objects keep a stable hash; the fixed Cell can't get lost in a dict."
     }
   ],
   "misconceptions": [
     {
       "id": "python.objects.protocols.misconception",
-      "mistakenBelief": "Returning False from __eq__ for every unknown type is always correct and defining __eq__ leaves inherited hashing valid automatically.",
-      "correction": "Honor each data-model protocol: return NotImplemented for unsupported equality, align equality with hashing, and keep representation and iteration predictable.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Returning False from __eq__ for every unknown type is always correct and defining __eq__ leaves inherited hashing valid automatically."
+      "mistakenBelief": "Returning False from __eq__ for every unknown type is always correct, and defining __eq__ leaves inherited hashing valid automatically.",
+      "correction": "For unknown types, __eq__ should return NotImplemented so Python can try the other operand. Defining __eq__ sets __hash__ to None; add a hash only if the object is immutable and equal objects hash equally.",
+      "diagnosticPrompt": "In \"The mutable key that got lost\", why couldn't the dict find the key?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a family of service records whose instance state, generated value methods, inheritance order, and protocols define observable behavior can introduce Representation, equality and container protocols, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "example": "Dunder methods are like **standard sockets** in a wall: implement the right plug shape (`__len__`, `__eq__`) and Python's built-in appliances (`len`, `==`, `set`) just work with your object.",
     "usefulFor": [
-      "classes, data classes, composition, inheritance, and special methods"
+      "remembering protocols connect to built-ins",
+      "no inheritance needed"
     ],
     "limitations": [
-      "descriptor lookup, MRO, hashing, NotImplemented, and shallow frozen state do not map cleanly to physical records",
-      "__repr__ should be unambiguous and safe, __eq__ may return NotImplemented, equal hashable objects need equal hashes, __len__ affects truthiness, and protocol methods should avoid surprising side effects."
+      "Sockets don't have hidden rules; hash and eq must stay consistent.",
+      "A wrong plug fails loudly; a wrong __eq__ may fail silently."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A Coordinate implements a safe repr and value equality, returns NotImplemented for unrelated types, and remains immutable before defining hash behavior.",
-      "Python special methods let a type participate in representation, equality, hashing, length, containment, and iteration protocols, with each method required to honor the corresponding language contract.",
-      "Honor each data-model protocol: return NotImplemented for unsupported equality, align equality with hashing, and keep representation and iteration predictable."
+      "a = Coordinate(1, 2); b = Coordinate(1, 2)",
+      "a == b; a == (1, 2)",
+      "{a, b}"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Repr",
         "state": {
-          "evidence": "A Coordinate implements a safe repr and value equality, returns NotImplemented for unrelated types, and remains immutable before defining hash behavior."
+          "repr(a)": "Coordinate(1, 2)"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "The Coordinate implements a safe repr with no side effects."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Equality",
         "state": {
-          "rule": "Python special methods let a type participate in representation, equality, hashing, length, containment, and iteration protocols, with each method required to honor the corresponding language contract."
+          "a == b": "True",
+          "a.__eq__((1, 2))": "NotImplemented",
+          "a == (1, 2)": "False"
         },
-        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "Value equality works, and unrelated types get NotImplemented."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Hash in a set",
         "state": {
-          "correction": "Honor each data-model protocol: return NotImplemented for unsupported equality, align equality with hashing, and keep representation and iteration predictable."
+          "len({a, b})": "1"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Returning False from __eq__ for every unknown type is always correct and defining __eq__ leaves inherited hashing valid automatically."
+        "explanation": "Because it remains immutable, the defined hash behavior lets equal coordinates collapse in a set."
       }
     ],
-    "textAlternative": "Starting artifact: A Coordinate implements a safe repr and value equality, returns NotImplemented for unrelated types, and remains immutable before defining hash behavior. Step 1, Observe. State: evidence: A Coordinate implements a safe repr and value equality, returns NotImplemented for unrelated types, and remains immutable before defining hash behavior.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Python special methods let a type participate in representation, equality, hashing, length, containment, and iteration protocols, with each method required to honor the corresponding language contract.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Honor each data-model protocol: return NotImplemented for unsupported equality, align equality with hashing, and keep representation and iteration predictable.. Compare the observation with the correction and explain why the misconception fails: Returning False from __eq__ for every unknown type is always correct and defining __eq__ leaves inherited hashing valid automatically."
+    "textAlternative": "Protocol behaviour of an immutable Coordinate. Step 1, Repr: repr(a) is Coordinate(1, 2). The Coordinate implements a safe repr with no side effects. Step 2, Equality: a == b is True; a.__eq__((1, 2)) is NotImplemented; a == (1, 2) is False. Value equality works, and unrelated types get NotImplemented. Step 3, Hash in a set: len({a, b}) is 1. Because it remains immutable, the defined hash behavior lets equal coordinates collapse in a set."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Representation, equality and container protocols: direct language case”: state its starting evidence, apply the Representation, equality and container protocols rule, and give the observable result in three short lines.",
+      "prompt": "For \"A well-behaved Coordinate\", explain the safe repr, the value equality that returns NotImplemented for unrelated types, and why it remains immutable before defining hash behavior.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "repr.",
+        "eq.",
+        "hash."
       ],
       "expectedEvidence": [
-        "Named example: Representation, equality and container protocols: direct language case.",
-        "Starting evidence: A Coordinate implements a safe repr and value equality, returns NotImplemented for unrelated types, and remains immutable before defining hash behavior.",
-        "Core rule: Python special methods let a type participate in representation, equality, hashing, length, containment, and iteration protocols, with each method required to honor the corresponding language contract.",
-        "Observable result: The example meets the atomic outcome because Honor each data-model protocol: return NotImplemented for unsupported equality, align equality with hashing, and keep representation and iteration predictable.",
-        "Boundary check: Honor each data-model protocol: return NotImplemented for unsupported equality, align equality with hashing, and keep representation and iteration predictable."
+        "Names the example \"A well-behaved Coordinate\": a Coordinate implements a safe repr.",
+        "Value equality compares lat and lon and returns NotImplemented for unrelated types.",
+        "It remains immutable before defining hash behavior.",
+        "Equal coordinates collapse to one item in a set."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A container's __iter__ returns a fresh iterator each call rather than returning one permanently exhausted iterator object.",
+      "prompt": "Add `__repr__`, `__len__` and `__contains__` to a `Playlist` that wraps a list of song titles. Show `repr(p)`, `len(p)` and `\"Glow\" in p`.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Delegate to the inner list.",
+        "Keep repr side-effect free."
       ],
       "expectedEvidence": [
-        "Python special methods let a type participate in representation, equality, hashing, length, containment, and iteration protocols, with each method required to honor the corresponding language contract.",
-        "__repr__ should be unambiguous and safe, __eq__ may return NotImplemented, equal hashable objects need equal hashes, __len__ affects truthiness, and protocol methods should avoid surprising side effects."
+        "Working protocol methods delegating to the list.",
+        "Correct outputs for repr, len and membership."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Representation, equality and container protocols, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Write tests for a value class: equality with same values, inequality with different values, NotImplemented for another type, stable hash, and use as a dict key. Then make it mutable and show which test should fail.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Test `a.__eq__(object())` directly.",
+        "Change a field after inserting as a key."
       ],
       "expectedEvidence": [
-        "Implement and test appropriate repr, equality or container protocol behavior without surprising side effects.",
-        "Honor each data-model protocol: return NotImplemented for unsupported equality, align equality with hashing, and keep representation and iteration predictable."
+        "Complete test suite for the protocol rules.",
+        "Demonstrates why a mutable version must not be hashable."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "python.objects.protocols.misconception",
-      "explanation": "Honor each data-model protocol: return NotImplemented for unsupported equality, align equality with hashing, and keep representation and iteration predictable.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A container's __iter__ returns a fresh iterator each call rather than returning one permanently exhausted iterator object."
+      "explanation": "Checklist per class: **repr unambiguous and side-effect free? eq returns NotImplemented for strangers? eq defined → is the object immutable? If yes, hash the same fields; if no, leave it unhashable.**",
+      "retryPrompt": "Run the checklist on \"The mutable key that got lost\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test appropriate repr, equality or container protocol behavior without surprising side effects. Keep this boundary in view: __repr__ should be unambiguous and safe, __eq__ may return NotImplemented, equal hashable objects need equal hashes, __len__ affects truthiness, and protocol methods should avoid surprising side effects.",
+    "summary": "To implement protocol behavior without surprises, give a safe __repr__, make __eq__ compare values and return NotImplemented for unrelated types, and define __hash__ only for immutable objects using the same fields. Container protocols like __len__ and __iter__ plug into built-ins directly.",
     "retrievalPrompts": [
-      "Explain Representation, equality and container protocols using canonical Python: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Returning False from __eq__ for every unknown type is always correct and defining __eq__ leaves inherited hashing valid automatically.",
-      "Predict this case from memory: A container's __iter__ returns a fresh iterator each call rather than returning one permanently exhausted iterator object."
+      "What happens to __hash__ when you define __eq__?",
+      "Why return NotImplemented?",
+      "Why must hashable objects be immutable?"
     ],
     "nextReviewPrompt": "Next: continue to “Comprehensions”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

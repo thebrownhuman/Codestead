@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A monotonic stack or deque removes candidates that cannot be the next greater, smaller, minimum, or maximum answer.",
+    "summary": "A **monotonic stack** keeps only the items that could still be an answer, in increasing or decreasing order. For **next greater element**: scan left to right, keeping indexes whose next greater value hasn't been found. When a new value arrives, it **resolves** every smaller value on top of the stack (pop them and record the answer), then gets pushed itself. Items that can never be an answer are **thrown away**, which is why the stack doesn't hold every element. Each index is pushed and popped at most once: **O(n)**. A **monotonic deque** does the same for sliding-window maximum or minimum.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A next-greater stack pops smaller values when a new greater value resolves them. Your goal is to implement and explain a next-greater or range-extreme problem with a monotonic structure. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A progress page shows, for each day's quiz score, how many days until a higher score. Comparing each day with every later day is O(n²) for a year of scores. A next-greater stack pops smaller values when a new greater value resolves them. In this lesson you'll implement and explain a next-greater or range-extreme problem with a monotonic structure.\n\n```predict\n{\"question\": \"Does a monotonic stack keep every element it has seen?\", \"options\": [\"Yes, it's a stack\", \"No: elements that can't be a future answer are popped and discarded\"], \"answer\": 1, \"why\": \"Discarding impossible candidates is what makes it O(n).\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Arrays, strings and matrices; Hash tables, sets and maps; Stacks, queues and deques; Stack ADT; Deque ADT; Correctness and counterexamples. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Arrays, strings and matrices** module, the **Hash tables, sets and maps** module, the **Stacks, queues and deques** module, **Stack ADT**, **Deque ADT**, and **Correctness and counterexamples**."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "A monotonic stack or deque removes candidates that cannot be the next greater, smaller, minimum, or maximum answer. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The invariant: the stack holds unresolved indexes, values decreasing",
+        "body": "```python\ndef days_until_higher(scores):            # O(n) time, O(n) space.\n    answer = [0] * len(scores)            # 0 = never higher.\n    stack = []                            # indexes; their scores decrease from bottom to top.\n    for i, s in enumerate(scores):\n        while stack and scores[stack[-1]] < s:   # s resolves smaller waiting days.\n            j = stack.pop()\n            answer[j] = i - j\n        stack.append(i)                   # i now waits for its own higher score.\n    return answer\n\nprint(days_until_higher([60, 55, 70, 65, 80, 40]))   # [2, 1, 2, 1, 0, 0]\n```\n\n| Question | Structure | Keep |\n|---|---|---|\n| next greater to the right. | stack, decreasing values. | unresolved indexes. |\n| next smaller to the right. | stack, increasing values. | unresolved indexes. |\n| max of each window. | deque, decreasing values. | indexes still in the window. |\n| min of each window. | deque, increasing values. | indexes still in the window. |\n\n```reveal\n{\"prompt\": \"Why store indexes instead of scores?\", \"answer\": \"The answer is a distance (i - j), and windows need to know when an index has expired. Indexes carry both position and, via scores[j], the value.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Strict versus nonstrict comparison controls duplicates, and stored indexes are often needed for distance and expiry. The draft therefore rejects: A monotonic stack must contain every previously visited element."
+        "heading": "Why popping is safe",
+        "body": "```predict\n{\"question\": \"Scores 55 then 70 arrive. After 70 pops 55, could 55 still be the next greater for any earlier day?\", \"options\": [\"Yes\", \"No: 70 is later and bigger, so any earlier day would take 70 first\"], \"answer\": 1, \"why\": \"70 dominates 55 for everyone to the left, so 55 is useless from now on.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Discard dominated candidates while preserving ordered potential answers.",
-      "Implement and explain a next-greater or range-extreme problem with a monotonic structure.",
-      "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+      "Implement next-greater (or next-smaller) with a monotonic stack.",
+      "Explain why popped items can never be answers and why the total is O(n)."
     ],
     "excludes": [
-      "Strict versus nonstrict comparison controls duplicates, and stored indexes are often needed for distance and expiry."
+      "Largest rectangle in a histogram in depth.",
+      "Cartesian trees."
     ]
   },
   "outcomes": [
@@ -68,142 +64,135 @@
   "examples": [
     {
       "id": "dsa.patterns.monotonic.example-a",
-      "title": "Monotonic stack and queue: language-neutral trace",
+      "title": "When will my score next go up?",
       "situation": "A next-greater stack pops smaller values when a new greater value resolves them.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: A next-greater stack pops smaller values when a new greater value resolves them.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Remove dominated candidates while preserving the monotonic invariant; discarded items cannot answer any future relevant query."
+        "**Waiting days:** after 60 and 55, the stack holds both, since neither has seen a higher score.",
+        "**Pops smaller values when a greater value resolves them:** 70 pops 55 (answer 1 day) and 60 (answer 2 days), then waits itself.",
+        "**Test:** [60, 55, 70, 65, 80, 40] will give [2, 1, 2, 1, 0, 0], matching a brute-force double loop on random inputs."
       ],
-      "result": "The conceptual result follows because Remove dominated candidates while preserving the monotonic invariant; discarded items cannot answer any future relevant query."
+      "result": "The progress page shows every day's wait in one pass over a year of scores."
     },
     {
       "id": "dsa.patterns.monotonic.example-b",
-      "title": "Monotonic stack and queue: implementation transfer",
-      "situation": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
+      "title": "The stock-style span",
+      "situation": "A streak widget shows, for each day, how many consecutive days up to today had a score no higher than today's.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
-        "Step 3 — Retest this boundary in the selected implementation: Strict versus nonstrict comparison controls duplicates, and stored indexes are often needed for distance and expiry."
+        "That's \"previous greater\" instead of next greater.",
+        "Keep a stack of indexes with decreasing scores; pop while the top is ≤ today's score.",
+        "The span is today's index minus the index left on top (or i + 1 if the stack is empty)."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Streak spans are computed in O(n) for any number of days."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.patterns.monotonic.misconception",
       "mistakenBelief": "A monotonic stack must contain every previously visited element.",
-      "correction": "Remove dominated candidates while preserving the monotonic invariant; discarded items cannot answer any future relevant query.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: A monotonic stack must contain every previously visited element."
+      "correction": "It deliberately discards elements that are dominated: once a larger later value appears, smaller earlier values can never be anyone's next greater. Keeping only live candidates is the whole trick.",
+      "diagnosticPrompt": "In the opening predict, what happened to dominated elements?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Monotonic stack and queue, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "A monotonic stack is like **people waiting in a queue to see over a wall**: when a taller person arrives, everyone shorter in front of them in line **finally sees someone taller** and leaves. Shorter people never block a taller person's view, so they're safely forgotten.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering taller arrivals resolve shorter waiters",
+      "discard = they can never be the answer again"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Strict versus nonstrict comparison controls duplicates, and stored indexes are often needed for distance and expiry."
+      "Real queues are first-come; this one resolves from the most recent.",
+      "Each person arrives once and leaves once: O(n)."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A next-greater stack pops smaller values when a new greater value resolves them.",
-      "A monotonic stack or deque removes candidates that cannot be the next greater, smaller, minimum, or maximum answer.",
-      "Remove dominated candidates while preserving the monotonic invariant; discarded items cannot answer any future relevant query.",
-      "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+      "scores [60, 55, 70, 65, 80, 40]",
+      "process 60, 55, 70",
+      "process 65, 80, 40"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Wait",
         "state": {
-          "scenario": "A next-greater stack pops smaller values when a new greater value resolves them."
+          "stack (scores)": "[60, 55]"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "No higher score has appeared for 60 or 55 yet."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Resolve",
         "state": {
-          "invariant": "A monotonic stack or deque removes candidates that cannot be the next greater, smaller, minimum, or maximum answer."
+          "70 pops": "55 → 1 day, 60 → 2 days",
+          "stack": "[70]"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "A next-greater stack pops smaller values when a new greater value resolves them."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Finish",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "80 pops": "65 → 1, 70 → 2",
+          "left waiting": "80, 40 → 0"
         },
-        "explanation": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Remove dominated candidates while preserving the monotonic invariant; discarded items cannot answer any future relevant query."
-        },
-        "explanation": "Verify the result and reject this misconception: A monotonic stack must contain every previously visited element."
+        "explanation": "Items still on the stack never see a higher score."
       }
     ],
-    "textAlternative": "Starting artifact: A next-greater stack pops smaller values when a new greater value resolves them. Step 1, Specification. State: scenario: A next-greater stack pops smaller values when a new greater value resolves them.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: A monotonic stack or deque removes candidates that cannot be the next greater, smaller, minimum, or maximum answer.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees. Step 4, Conclusion. State: correction: Remove dominated candidates while preserving the monotonic invariant; discarded items cannot answer any future relevant query.. Verify the result and reject this misconception: A monotonic stack must contain every previously visited element."
+    "textAlternative": "Tracing next greater element. Step 1, Wait: stack (scores) is [60, 55]. No higher score has appeared for 60 or 55 yet. Step 2, Resolve: 70 pops is 55 → 1 day, 60 → 2 days; stack is [70]. A next-greater stack pops smaller values when a new greater value resolves them. Step 3, Finish: 80 pops is 65 → 1, 70 → 2; left waiting is 80, 40 → 0. Items still on the stack never see a higher score."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Monotonic stack and queue: language-neutral trace”: state its starting evidence, apply the Monotonic stack and queue rule, and give the observable result in three short lines.",
+      "prompt": "For \"When will my score next go up?\", explain how a next-greater stack pops smaller values when a new greater value resolves them.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Wait.",
+        "Resolve.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Monotonic stack and queue: language-neutral trace.",
-        "Starting evidence: A next-greater stack pops smaller values when a new greater value resolves them.",
-        "Core rule: A monotonic stack or deque removes candidates that cannot be the next greater, smaller, minimum, or maximum answer.",
-        "Observable result: The conceptual result follows because Remove dominated candidates while preserving the monotonic invariant; discarded items cannot answer any future relevant query.",
-        "Boundary check: Remove dominated candidates while preserving the monotonic invariant; discarded items cannot answer any future relevant query."
+        "Names the example \"When will my score next go up?\": comparing every later day was O(n²).",
+        "A next-greater stack holds unresolved days.",
+        "It pops smaller values when a new greater value resolves them.",
+        "The progress page shows every day's wait in one pass."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: A monotonic stack or deque removes candidates that cannot be the next greater, smaller, minimum, or maximum answer.",
+      "prompt": "Write `next_smaller(values)` returning the index of the next strictly smaller value for each item (or -1). Test [4, 5, 2, 10, 8].",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Increasing stack.",
+        "Pop while top > current."
       ],
       "expectedEvidence": [
-        "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
-        "Strict versus nonstrict comparison controls duplicates, and stored indexes are often needed for distance and expiry."
+        "Result: [2, 2, -1, 4, -1].",
+        "O(n) time."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Monotonic stack and queue case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Implement sliding-window minimum with a monotonic deque and compare it with the window-maximum version from the deque lesson. Test against brute force for several window sizes, including k = 1 and k = n.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Pop back while back ≥ new.",
+        "Pop front when expired."
       ],
       "expectedEvidence": [
-        "Implement and explain a next-greater or range-extreme problem with a monotonic structure.",
-        "Remove dominated candidates while preserving the monotonic invariant; discarded items cannot answer any future relevant query."
+        "Matches brute force for all k.",
+        "Written note on the shared invariant."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.patterns.monotonic.misconception",
-      "explanation": "Remove dominated candidates while preserving the monotonic invariant; discarded items cannot answer any future relevant query.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'dominated candidates', then state one implementation-specific risk in the selected language."
+      "explanation": "Ask two questions: **Which earlier items can never be an answer once this new item arrives?** Pop those. **What order does that leave on the stack?** That's your monotonic direction.",
+      "retryPrompt": "Apply this to \"The stock-style span\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and explain a next-greater or range-extreme problem with a monotonic structure. Keep this boundary in view: Strict versus nonstrict comparison controls duplicates, and stored indexes are often needed for distance and expiry.",
+    "summary": "To implement and explain a next-greater or range-extreme problem, keep a monotonic stack (or deque for windows) of unresolved indexes, pop smaller values when a greater one resolves them, record their answers, and push the new index; dominated items can never be answers, so each index is pushed and popped once, giving O(n).",
     "retrievalPrompts": [
-      "State the Monotonic stack and queue invariant and complexity without code.",
-      "Why is this claim false: A monotonic stack must contain every previously visited element.",
-      "Map checkpoint 'dominated candidates' to C, C++, Java, and Python."
+      "Why can popped items be discarded forever?",
+      "Which order does a next-greater stack keep?",
+      "Why is the total work O(n)?"
     ],
     "nextReviewPrompt": "Next: continue to “Intervals and sweep ordering”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

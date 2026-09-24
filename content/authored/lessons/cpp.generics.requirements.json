@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Concepts and requires expressions state compile-time semantic and syntactic requirements, improving overload participation and diagnostics without testing runtime values.",
+    "summary": "Without constraints, a template error appears **deep inside** the template, pages away from the real mistake. **Concepts** state requirements at the **boundary**: `template <std::random_access_iterator It>` or `requires std::sortable<It>`. If a call doesn't satisfy them, the error names the **unsatisfied requirement at your call site**, and overload resolution can simply skip that template. A `requires` expression lists operations that must **compile**, for example `requires (T a) { a.size(); }`. It's checked at compile time and **never runs** anything. Concepts check syntax plus the documented meaning: they can't prove your algorithm works for every value.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A sorting helper requires random-access iteration and sortable values, rejecting a list iterator at the call boundary. Your goal is to explain why an instantiation fails and improve its requirement or call site. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner writes a sort_all helper and calls it with a std::list. The compiler prints 90 lines about iterator subtraction inside std::sort. With a constrained version, the error is one line at the call: the list's iterator isn't random access. A sorting helper requires random-access iteration and sortable values, rejecting a list iterator at the call boundary. In this lesson you'll explain why an instantiation fails and improve its requirement or call site.\n\n```predict\n{\"question\": \"Does a requires expression run the listed operations at run time to test them?\", \"options\": [\"Yes\", \"No: it only checks at compile time that they would compile\"], \"answer\": 1, \"why\": \"Concepts are compile-time checks; tests still verify behaviour.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Standard algorithms; Class interface and invariants; Function templates; Warnings and diagnostics. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Standard algorithms**, **Class interface and invariants**, **Function templates** and **Warnings and diagnostics** (reading candidate notes)."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "Concepts and requires expressions state compile-time semantic and syntactic requirements, improving overload participation and diagnostics without testing runtime values. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The rule: state requirements at the boundary",
+        "body": "```cpp\n#include <algorithm>\n#include <concepts>\n#include <iterator>\n#include <list>\n#include <ranges>\n#include <vector>\n\ntemplate <std::random_access_iterator It>\n    requires std::sortable<It>\nvoid sort_all(It first, It last) {\n    std::sort(first, last);\n}\n\ntemplate <typename C>\nconcept HasSize = requires (const C& c) {\n    { c.size() } -> std::convertible_to<std::size_t>;   // must compile, returns size-like.\n};\n\ntemplate <HasSize C>\nbool is_empty(const C& c) { return c.size() == 0; }\n\nint main() {\n    std::vector<int> v{3, 1, 2};\n    sort_all(v.begin(), v.end());                    // ok.\n    std::list<int> l{3, 1, 2};\n    // sort_all(l.begin(), l.end());   error: constraint random_access_iterator not satisfied.\n    l.sort();                                        // the list's own sort.\n    bool e = is_empty(v);                            // false.\n    (void)e;\n}\n```\n\n| Without constraint | With constraint |\n|---|---|\n| error deep inside std::sort. | error at your call. |\n| message about operator-. | message naming the concept. |\n| overload always considered. | overload skipped if unsatisfied. |\n\n```reveal\n{\"prompt\": \"Can a type satisfy a concept syntactically but still be wrong to use?\", \"answer\": \"Yes. A comparator can compile but not be a strict weak ordering. Concepts carry semantic expectations in their documentation, but only tests check behaviour.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "A syntactically valid expression does not prove every semantic law, overly broad concepts accept broken behavior, and constraints do not replace runtime preconditions. Therefore the draft explicitly rejects this beginner failure model: A requires expression executes sample operations at runtime and proves the algorithm will succeed for every value."
+        "heading": "Fixing the call or the requirement",
+        "body": "```predict\n{\"question\": \"A constrained template rejects your type. What are the two possible fixes?\", \"options\": [\"Remove the constraint\", \"Change the call (use a suitable type or algorithm), or relax the requirement if the template truly needs less\"], \"answer\": 1, \"why\": \"The constraint documents what the template really uses.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "State template requirements and read substitution diagnostics from the first failed requirement.",
-      "Explain why an instantiation fails and improve its requirement or call site."
+      "Read constraint failures and decide whether to fix the call site or the requirement.",
+      "Write concepts and requires expressions that state the operations a template uses."
     ],
     "excludes": [
-      "A syntactically valid expression does not prove every semantic law, overly broad concepts accept broken behavior, and constraints do not replace runtime preconditions."
+      "Subsumption and concept ordering in depth.",
+      "SFINAE techniques."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "cpp.generics.requirements.example-a",
-      "title": "Conceptual constraints and diagnostics: defined case",
+      "title": "Sorting a std::list by mistake",
       "situation": "A sorting helper requires random-access iteration and sortable values, rejecting a list iterator at the call boundary.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A sorting helper requires random-access iteration and sortable values, rejecting a list iterator at the call boundary.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Constraints are compile-time requirements on types and expressions; document semantic laws and validate runtime value preconditions separately."
+        "**A sorting helper requires random-access iteration and sortable values:** template <std::random_access_iterator It> requires std::sortable<It>.",
+        "**Rejecting a list iterator:** sort_all(l.begin(), l.end()) fails because list iterators are bidirectional.",
+        "**At the call boundary:** the one-line error points at main; the fix will be l.sort()."
       ],
-      "result": "The defined result follows because Constraints are compile-time requirements on types and expressions; document semantic laws and validate runtime value preconditions separately."
+      "result": "The error explains itself, and the learner picks the right tool."
     },
     {
       "id": "cpp.generics.requirements.example-b",
-      "title": "Conceptual constraints and diagnostics: boundary case",
-      "situation": "A numeric concept checks available operations but documentation still states nonzero divisor as a runtime precondition.",
+      "title": "The over-strict requirement",
+      "situation": "A print_all template requires std::random_access_range, so it rejects std::list and std::set even though it only loops over elements.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A numeric concept checks available operations but documentation still states nonzero divisor as a runtime precondition.",
-        "Step 2 — Keep this standard boundary visible: A syntactically valid expression does not prove every semantic law, overly broad concepts accept broken behavior, and constraints do not replace runtime preconditions.",
-        "Step 3 — Reject the tempting rule: A requires expression executes sample operations at runtime and proves the algorithm will succeed for every value."
+        "The body only uses a range-for.",
+        "Relax the requirement to std::ranges::input_range.",
+        "Now every iterable container works."
       ],
-      "result": "This case demonstrates the declared outcome: Explain why an instantiation fails and improve its requirement or call site."
+      "result": "The constraint matches what the template really uses."
     }
   ],
   "misconceptions": [
     {
       "id": "cpp.generics.requirements.misconception",
       "mistakenBelief": "A requires expression executes sample operations at runtime and proves the algorithm will succeed for every value.",
-      "correction": "Constraints are compile-time requirements on types and expressions; document semantic laws and validate runtime value preconditions separately.",
-      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: A requires expression executes sample operations at runtime and proves the algorithm will succeed for every value."
+      "correction": "Requires expressions are compile-time checks that operations are valid. They don't run code or prove run-time correctness; tests do that.",
+      "diagnosticPrompt": "In the opening predict, when is a requires expression checked?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A system of self-managing components can model Conceptual constraints and diagnostics: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "example": "A concept is like **the height sign at a roller coaster entrance**. It stops unsuitable riders **at the gate** (call site) instead of halfway through the ride (deep in the template). But it doesn't guarantee a good ride: that still needs safety checks (tests).",
     "usefulFor": [
-      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+      "remembering check at the gate",
+      "the sign isn't a safety test"
     ],
     "limitations": [
-      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
-      "A syntactically valid expression does not prove every semantic law, overly broad concepts accept broken behavior, and constraints do not replace runtime preconditions."
+      "Height is easy to measure; semantics aren't.",
+      "An over-strict sign turns away riders who'd be fine."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A sorting helper requires random-access iteration and sortable values, rejecting a list iterator at the call boundary.",
-      "Concepts and requires expressions state compile-time semantic and syntactic requirements, improving overload participation and diagnostics without testing runtime values.",
-      "Constraints are compile-time requirements on types and expressions; document semantic laws and validate runtime value preconditions separately."
+      "sort_all(v.begin(), v.end())",
+      "sort_all(l.begin(), l.end())",
+      "l.sort()"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Accept",
         "state": {
-          "evidence": "A sorting helper requires random-access iteration and sortable values, rejecting a list iterator at the call boundary."
+          "It": "vector iterator",
+          "constraint": "satisfied"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "The sorting helper requires random-access iteration and sortable values."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Reject",
         "state": {
-          "rule": "Concepts and requires expressions state compile-time semantic and syntactic requirements, improving overload participation and diagnostics without testing runtime values."
+          "It": "list iterator",
+          "error": "random_access_iterator not satisfied"
         },
-        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+        "explanation": "A list iterator is rejected at the call boundary."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Fix",
         "state": {
-          "conclusion": "Constraints are compile-time requirements on types and expressions; document semantic laws and validate runtime value preconditions separately."
+          "call": "l.sort()",
+          "result": "1 2 3"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: A requires expression executes sample operations at runtime and proves the algorithm will succeed for every value."
+        "explanation": "The call site switches to an algorithm the list supports."
       }
     ],
-    "textAlternative": "Starting artifact: A sorting helper requires random-access iteration and sortable values, rejecting a list iterator at the call boundary. Step 1, Source and state. State: evidence: A sorting helper requires random-access iteration and sortable values, rejecting a list iterator at the call boundary.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: Concepts and requires expressions state compile-time semantic and syntactic requirements, improving overload participation and diagnostics without testing runtime values.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Constraints are compile-time requirements on types and expressions; document semantic laws and validate runtime value preconditions separately.. Check the conclusion against the boundary and reject this misconception: A requires expression executes sample operations at runtime and proves the algorithm will succeed for every value."
+    "textAlternative": "Tracing a constraint failure. Step 1, Accept: It is vector iterator; constraint is satisfied. The sorting helper requires random-access iteration and sortable values. Step 2, Reject: It is list iterator; error is random_access_iterator not satisfied. A list iterator is rejected at the call boundary. Step 3, Fix: call is l.sort(); result is 1 2 3. The call site switches to an algorithm the list supports."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Conceptual constraints and diagnostics: defined case”: state its starting evidence, apply the Conceptual constraints and diagnostics rule, and give the observable result in three short lines.",
+      "prompt": "For \"Sorting a std::list by mistake\", explain how a sorting helper requires random-access iteration and sortable values, rejecting a list iterator at the call boundary.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Require.",
+        "Reject.",
+        "Fix."
       ],
       "expectedEvidence": [
-        "Named example: Conceptual constraints and diagnostics: defined case.",
-        "Starting evidence: A sorting helper requires random-access iteration and sortable values, rejecting a list iterator at the call boundary.",
-        "Core rule: Concepts and requires expressions state compile-time semantic and syntactic requirements, improving overload participation and diagnostics without testing runtime values.",
-        "Observable result: The defined result follows because Constraints are compile-time requirements on types and expressions; document semantic laws and validate runtime value preconditions separately.",
-        "Boundary check: Constraints are compile-time requirements on types and expressions; document semantic laws and validate runtime value preconditions separately."
+        "Names the example \"Sorting a std::list by mistake\": 90 lines of errors inside std::sort.",
+        "A sorting helper requires random-access iteration and sortable values.",
+        "It rejects a list iterator at the call boundary.",
+        "The error explains itself."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same CPP rule to this related boundary case: A numeric concept checks available operations but documentation still states nonzero divisor as a runtime precondition.",
+      "prompt": "Write a concept Printable<T> requiring std::cout << t to compile, constrain a print function with it, and call it with int, std::string and a struct without operator<<. Read the error.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "requires (std::ostream& os, const T& t) { os << t; }.",
+        "#include <iostream>."
       ],
       "expectedEvidence": [
-        "Concepts and requires expressions state compile-time semantic and syntactic requirements, improving overload participation and diagnostics without testing runtime values.",
-        "A syntactically valid expression does not prove every semantic law, overly broad concepts accept broken behavior, and constraints do not replace runtime preconditions."
+        "Two calls work.",
+        "Clear error for the struct."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CPP example for Conceptual constraints and diagnostics, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Take an unconstrained template that fails deep inside for some types. Identify every operation it uses, write a concept for exactly those, and compare the error messages before and after for a bad call.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "List operations first.",
+        "Don't over-constrain."
       ],
       "expectedEvidence": [
-        "Explain why an instantiation fails and improve its requirement or call site.",
-        "Constraints are compile-time requirements on types and expressions; document semantic laws and validate runtime value preconditions separately."
+        "Short error at the call site.",
+        "Valid types still accepted."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "cpp.generics.requirements.misconception",
-      "explanation": "Constraints are compile-time requirements on types and expressions; document semantic laws and validate runtime value preconditions separately.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'compile-time requirements' and state the decisive evidence: A numeric concept checks available operations but documentation still states nonzero divisor as a runtime precondition."
+      "explanation": "When a constraint fails, read **which requirement** is unsatisfied, then ask: **is my argument wrong for this template, or is the requirement stricter than the body needs?**",
+      "retryPrompt": "Apply this to \"The over-strict requirement\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to explain why an instantiation fails and improve its requirement or call site. Keep this boundary in view: A syntactically valid expression does not prove every semantic law, overly broad concepts accept broken behavior, and constraints do not replace runtime preconditions.",
+    "summary": "To explain and fix constraint failures, state a template's requirements with concepts or requires clauses at its boundary, read which requirement a call fails, then either change the call site to a suitable type or algorithm or relax the requirement to what the body truly uses, remembering concepts are compile-time checks, not proofs of behaviour.",
     "retrievalPrompts": [
-      "Explain Conceptual constraints and diagnostics using a concrete CPP rule rather than the optional analogy.",
-      "Why is this claim incorrect: A requires expression executes sample operations at runtime and proves the algorithm will succeed for every value.",
-      "Apply the checkpoint 'compile-time requirements' to the boundary case from memory."
+      "What does a concept do to error messages?",
+      "Does a requires expression run code?",
+      "What are the two ways to fix an unsatisfied constraint?"
     ],
     "nextReviewPrompt": "Next: continue to “variant and type-safe alternatives”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

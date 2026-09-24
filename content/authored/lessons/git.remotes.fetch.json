@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Fetch downloads new reachable objects and updates remote-tracking references without merging them into the current local branch or changing its working tree.",
+    "summary": "`git fetch` **downloads** new commits from the remote and moves your **remote-tracking refs** (like `origin/main`) to match the server. It **never** touches your local branches or your working files, so it's always safe to run. After fetching, compare: `git status` says whether you're **ahead** (you have commits the server lacks), **behind** (the server has commits you lack) or **diverged** (both). `git log main..origin/main` lists what's new on the server; `git log origin/main..main` lists what's only yours. Then decide how to integrate.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: After fetch, origin/main moves to the server's latest commit while local main and the learner's working files stay unchanged. Your goal is to fetch and explain ahead, behind and diverged states before integration. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner has been away for a day. They want to see what teammates pushed, but they're halfway through an edit and afraid `git pull` will mess up their files. After fetch, origin/main moves to the server's latest commit while local main and the learner's working files stay unchanged. In this lesson you'll fetch and explain ahead, behind and diverged states before integration.\n\n```predict\n{\"question\": \"You have uncommitted edits and run git fetch. What happens to them?\", \"options\": [\"They may be overwritten\", \"Nothing: fetch only updates remote-tracking refs\"], \"answer\": 1, \"why\": \"Fetch is read-only for your branches and working tree.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Branches, merges and conflicts; Clone and remote configuration; Log, show and graph. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Branches, merges and conflicts**, **Clone and remote configuration** and **Log, show and graph**."
       },
       {
-        "heading": "Operational model",
-        "body": "Fetch downloads new reachable objects and updates remote-tracking references without merging them into the current local branch or changing its working tree. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The model: fetch moves origin/*, nothing else",
+        "body": "```bash\ngit fetch origin\ngit status\n#   Your branch and 'origin/main' have diverged,\n#   and have 1 and 3 different commits each, respectively.\n\ngit log --oneline main..origin/main    # the 3 new server commits.\ngit log --oneline origin/main..main    # my 1 local commit.\ngit diff main...origin/main            # what changed on the server since we split.\ngit log --oneline --graph --all -8     # see the fork.\n```\n\n| State | main..origin/main | origin/main..main |\n|---|---|---|\n| up to date. | empty. | empty. |\n| behind. | commits. | empty. |\n| ahead. | empty. | commits. |\n| diverged. | commits. | commits. |\n\n```reveal\n{\"prompt\": \"Why does git status sometimes say \\\"up to date\\\" when teammates have pushed?\", \"answer\": \"It compares with origin/main as of your last fetch. Without fetching, Git doesn't know about the new commits.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Refspecs, pruning, shallow boundaries, authentication, force-updated remote branches, and tags affect which references change. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Fetching is the same as pulling and can silently rewrite the current branch's files."
+        "heading": "Look before integrating",
+        "body": "```predict\n{\"question\": \"After fetch, status says \\\"behind by 3\\\" and your working tree is clean. What's the likely integration?\", \"options\": [\"A merge commit is needed\", \"A fast-forward: main can simply move to origin/main\"], \"answer\": 1, \"why\": \"Behind with no local commits means nothing to combine.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Update remote-tracking refs without altering the working branch and inspect divergence first.",
-      "Fetch and explain ahead, behind and diverged states before integration."
+      "Fetch safely and read ahead, behind and diverged states from status and log ranges.",
+      "Inspect incoming changes with log and diff before integrating."
     ],
     "excludes": [
-      "Refspecs, pruning, shallow boundaries, authentication, force-updated remote branches, and tags affect which references change."
+      "Integrating with pull (next lesson).",
+      "Fetch refspecs and pruning in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "git.remotes.fetch.example-a",
-      "title": "Fetch and compare: direct case",
+      "title": "Checking what the team did",
       "situation": "After fetch, origin/main moves to the server's latest commit while local main and the learner's working files stay unchanged.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: After fetch, origin/main moves to the server's latest commit while local main and the learner's working files stay unchanged.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Fetch updates the local view of remote references only; inspect divergence and choose a separate integration operation deliberately."
+        "**Fetch:** git fetch origin downloads three teammate commits.",
+        "**origin/main moves to the server's latest commit:** git log main..origin/main lists them.",
+        "**Local main and the learner's working files stay unchanged:** the half-finished edit is untouched; git status will report \"behind by 3\"."
       ],
-      "result": "The case supports the declared outcome because Fetch updates the local view of remote references only; inspect divergence and choose a separate integration operation deliberately."
+      "result": "The learner sees exactly what's new before deciding how to integrate."
     },
     {
       "id": "git.remotes.fetch.example-b",
-      "title": "Fetch and compare: boundary case",
-      "situation": "The learner compares local main with origin/main before deciding whether to merge, rebase, or leave the branch untouched.",
+      "title": "The diverged surprise",
+      "situation": "A learner committed locally, and a teammate pushed meanwhile. After fetch, status says diverged, 1 and 2.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: The learner compares local main with origin/main before deciding whether to merge, rebase, or leave the branch untouched.",
-        "Step 2 — Keep this boundary explicit: Refspecs, pruning, shallow boundaries, authentication, force-updated remote branches, and tags affect which references change.",
-        "Step 3 — Reject the documented misconception: Fetching is the same as pulling and can silently rewrite the current branch's files."
+        "origin/main..main shows the learner's one commit.",
+        "main..origin/main shows the teammate's two.",
+        "Integration will need a merge or rebase; the learner reviews the diff first."
       ],
-      "result": "This case demonstrates the declared outcome: Fetch and explain ahead, behind and diverged states before integration."
+      "result": "The learner integrates knowingly instead of being surprised by a merge."
     }
   ],
   "misconceptions": [
     {
       "id": "git.remotes.fetch.misconception",
       "mistakenBelief": "Fetching is the same as pulling and can silently rewrite the current branch's files.",
-      "correction": "Fetch updates the local view of remote references only; inspect divergence and choose a separate integration operation deliberately.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Fetching is the same as pulling and can silently rewrite the current branch's files."
+      "correction": "Fetch only downloads objects and updates remote-tracking refs. Pull is fetch plus an integration step; only that second step changes your branch and files.",
+      "diagnosticPrompt": "In the opening predict, what happened to the uncommitted edits?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "Two libraries exchanging catalog updates can model Fetch and compare: each keeps an independent collection and synchronizes selected records deliberately.",
+    "example": "Fetching is like **checking the mailbox**: new letters (commits) arrive in the box (origin/main), but nothing on your desk (main, working tree) changes until you choose to open and file them.",
     "usefulFor": [
-      "Separating local history, remote observations, download, integration, and publication"
+      "remembering mailbox vs desk",
+      "fetch = collect mail"
     ],
     "limitations": [
-      "Git refspecs, authentication, ancestry checks, force updates, and object transfer have no exact library equivalent.",
-      "Refspecs, pruning, shallow boundaries, authentication, force-updated remote branches, and tags affect which references change."
+      "Mail can pile up; so can commits, making later integration bigger.",
+      "Ahead means you have outgoing mail not yet posted."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "After fetch, origin/main moves to the server's latest commit while local main and the learner's working files stay unchanged.",
-      "Fetch downloads new reachable objects and updates remote-tracking references without merging them into the current local branch or changing its working tree.",
-      "Fetch updates the local view of remote references only; inspect divergence and choose a separate integration operation deliberately."
+      "git fetch origin",
+      "git status",
+      "git log main..origin/main"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Fetch",
         "state": {
-          "evidence": "After fetch, origin/main moves to the server's latest commit while local main and the learner's working files stay unchanged."
+          "origin/main": "server tip (+3)",
+          "main": "unchanged"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "After fetch, origin/main moves to the server's latest commit."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Status",
         "state": {
-          "model": "Fetch downloads new reachable objects and updates remote-tracking references without merging them into the current local branch or changing its working tree."
+          "state": "behind by 3",
+          "working files": "unchanged"
         },
-        "explanation": "Apply the declared Fetch and compare model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "Local main and the learner's working files stay unchanged."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Inspect",
         "state": {
-          "correction": "Fetch updates the local view of remote references only; inspect divergence and choose a separate integration operation deliberately."
+          "incoming": "3 commits listed"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Fetching is the same as pulling and can silently rewrite the current branch's files."
+        "explanation": "The learner reviews incoming work before integrating it."
       }
     ],
-    "textAlternative": "Starting artifact: After fetch, origin/main moves to the server's latest commit while local main and the learner's working files stay unchanged. Step 1, Observe. State: evidence: After fetch, origin/main moves to the server's latest commit while local main and the learner's working files stay unchanged.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Fetch downloads new reachable objects and updates remote-tracking references without merging them into the current local branch or changing its working tree.. Apply the declared Fetch and compare model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Fetch updates the local view of remote references only; inspect divergence and choose a separate integration operation deliberately.. Compare the observation with the correction and reject the misconception: Fetching is the same as pulling and can silently rewrite the current branch's files."
+    "textAlternative": "Tracing a safe fetch. Step 1, Fetch: origin/main is server tip (+3); main is unchanged. After fetch, origin/main moves to the server's latest commit. Step 2, Status: state is behind by 3; working files is unchanged. Local main and the learner's working files stay unchanged. Step 3, Inspect: incoming is 3 commits listed. The learner reviews incoming work before integrating it."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Fetch and compare: direct case”: state its starting evidence, apply the Fetch and compare rule, and give the observable result in three short lines.",
+      "prompt": "For \"Checking what the team did\", explain how after fetch, origin/main moves to the server's latest commit while local main and the learner's working files stay unchanged.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Fetch.",
+        "Status.",
+        "Inspect."
       ],
       "expectedEvidence": [
-        "Named example: Fetch and compare: direct case.",
-        "Starting evidence: After fetch, origin/main moves to the server's latest commit while local main and the learner's working files stay unchanged.",
-        "Core rule: Fetch downloads new reachable objects and updates remote-tracking references without merging them into the current local branch or changing its working tree.",
-        "Observable result: The case supports the declared outcome because Fetch updates the local view of remote references only; inspect divergence and choose a separate integration operation deliberately.",
-        "Boundary check: Fetch updates the local view of remote references only; inspect divergence and choose a separate integration operation deliberately."
+        "Names the example \"Checking what the team did\": the learner feared pull mid-edit.",
+        "After fetch, origin/main moves to the server's latest commit.",
+        "Local main and the learner's working files stay unchanged.",
+        "The learner sees exactly what's new before integrating."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: The learner compares local main with origin/main before deciding whether to merge, rebase, or leave the branch untouched.",
+      "prompt": "With two clones of a sandbox remote, create ahead, behind and diverged states in turn. After each, fetch, run git status, and show both log ranges.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Push from one clone, commit in the other.",
+        "Fetch before checking status."
       ],
       "expectedEvidence": [
-        "Fetch downloads new reachable objects and updates remote-tracking references without merging them into the current local branch or changing its working tree.",
-        "Refspecs, pruning, shallow boundaries, authentication, force-updated remote branches, and tags affect which references change."
+        "All three states demonstrated.",
+        "Log ranges match the table."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Fetch and compare, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Write a short pre-integration checklist script that fetches, prints ahead/behind counts with git rev-list --left-right --count main...origin/main, and lists incoming commits. Test it in all three states.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "The count prints two numbers.",
+        "Never modify branches in the script."
       ],
       "expectedEvidence": [
-        "Fetch and explain ahead, behind and diverged states before integration.",
-        "Fetch updates the local view of remote references only; inspect divergence and choose a separate integration operation deliberately."
+        "Correct counts in each state.",
+        "Script is read-only."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.remotes.fetch.misconception",
-      "explanation": "Fetch updates the local view of remote references only; inspect divergence and choose a separate integration operation deliberately.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: The learner compares local main with origin/main before deciding whether to merge, rebase, or leave the branch untouched."
+      "explanation": "Make it a habit: **fetch, then status, then read the incoming log** before any pull or merge.",
+      "retryPrompt": "Apply this to \"The diverged surprise\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to fetch and explain ahead, behind and diverged states before integration. Keep this boundary in view: Refspecs, pruning, shallow boundaries, authentication, force-updated remote branches, and tags affect which references change.",
+    "summary": "To fetch and explain ahead, behind and diverged states, run git fetch to update remote-tracking refs without touching local branches or files, then compare main with origin/main using git status and the two log ranges, and inspect incoming changes before choosing how to integrate.",
     "retrievalPrompts": [
-      "Explain Fetch and compare without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Fetching is the same as pulling and can silently rewrite the current branch's files.",
-      "Apply the model to this case from memory: The learner compares local main with origin/main before deciding whether to merge, rebase, or leave the branch untouched."
+      "What does fetch change?",
+      "What does diverged mean?",
+      "Which log range shows incoming commits?"
     ],
     "nextReviewPrompt": "Next: continue to “Pull policy”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

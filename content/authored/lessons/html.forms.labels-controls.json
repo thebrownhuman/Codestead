@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A label associates an accessible name with its form control through nesting or matching for and id values.",
+    "summary": "Every form control needs a **visible, persistent label** tied to it: `<label for=\"email\">` pointing at `<input id=\"email\">`. The label gives the control its accessible name, and clicking it focuses the field — a bigger target for everyone. **Placeholder** text is not a label: it disappears when typing, is often low-contrast, and isn't reliably announced. Connect help text and errors separately with `aria-describedby`.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A label for=email points to one input id=email while help and errors are connected separately. Your goal is to create a keyboard-operable form whose controls have persistent accessible names. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A sign-up form shows grey text \"Email\" inside each box — until you start typing, and it vanishes. Now which box was which? Screen-reader users may hear just \"edit text\". A label for=email points to one input id=email, while help and errors are connected separately. In this lesson you'll create a keyboard-operable form whose controls have persistent accessible names.\n\n```predict\n{\"question\": \"An input has `placeholder=\\\"Email\\\"` and no label. What's the accessible name?\", \"options\": [\"Reliably \\\"Email\\\"\", \"Possibly nothing — placeholders aren't a dependable name, and they vanish while typing\"], \"answer\": 1, \"why\": \"Some tools use placeholder as a fallback, many don't, and sighted users lose it once they type. Always add a real label.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Paragraph and inline meaning; Relative and absolute URLs; Form submission model. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Paragraph and inline meaning**, **Relative and absolute URLs** and the **Form submission model** — every control needs a name to be sent."
       },
       {
-        "heading": "Technology rule",
-        "body": "A label associates an accessible name with its form control through nesting or matching for and id values. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The rule: one label per control, plus described-by for extras",
+        "body": "```html\n<label for=\"email\">Email address</label>\n<input id=\"email\" name=\"email\" type=\"email\" autocomplete=\"email\"\n       aria-describedby=\"email-help email-error\">\n<p id=\"email-help\">We'll send your receipt here.</p>\n<p id=\"email-error\" hidden>Enter an email like name@example.com.</p>\n\n<label><input type=\"checkbox\" name=\"news\"> Send me course news</label>\n\n<button type=\"submit\">Create account</button>\n```\n\n| Piece | Gives |\n|---|---|\n| `label for` = `id`. | the accessible name + a click target. |\n| wrapping label. | same, for checkboxes without ids. |\n| `aria-describedby`. | help and error text read after the name. |\n| real `button`. | keyboard: Enter/Space submits. |\n\n```reveal\n{\"prompt\": \"What's wrong with two inputs sharing `id=\\\"email\\\"`?\", \"answer\": \"ids must be unique. The label would point at only the first one, leaving the second unnamed.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Placeholder text is not a persistent label, duplicate ids break association, and custom controls need equivalent semantics and state. This draft therefore rejects: Placeholder text is an adequate replacement for a visible label."
+        "heading": "Keyboard check",
+        "body": "```predict\n{\"question\": \"A \\\"Submit\\\" built as `<div class=\\\"btn\\\" onclick=\\\"send()\\\">` — can a keyboard user submit?\", \"options\": [\"Yes\", \"No — use a real button\"], \"answer\": 1, \"why\": \"Real form controls and buttons are focusable and operable by keyboard for free.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Associate visible labels with suitable native input, textarea, select and button controls.",
-      "Create a keyboard-operable form whose controls have persistent accessible names."
+      "Pair every control with a visible label using for/id or wrapping.",
+      "Connect help and error text with aria-describedby and use real buttons."
     ],
     "excludes": [
-      "Placeholder text is not a persistent label, duplicate ids break association, and custom controls need equivalent semantics and state."
+      "Grouping radio buttons (next lesson).",
+      "Custom-styled controls."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "html.forms.labels-controls.example-a",
-      "title": "Labels and input controls: concrete case",
+      "title": "An email field with label, help and error",
       "situation": "A label for=email points to one input id=email while help and errors are connected separately.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A label for=email points to one input id=email while help and errors are connected separately.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Give every control a persistent programmatic label; placeholders may offer examples but do not replace labels."
+        "**Label for=email points to one input id=email:** the input's accessible name becomes \"Email address\".",
+        "**Help connected separately:** `aria-describedby=\"email-help email-error\"` makes the screen reader read \"We'll send your receipt here.\" after the name.",
+        "**Error:** when validation fails, the email-error paragraph is shown and read the same way."
       ],
-      "result": "The result follows because Give every control a persistent programmatic label; placeholders may offer examples but do not replace labels."
+      "result": "The email field has a persistent name, and its help and error messages are announced with it."
     },
     {
       "id": "html.forms.labels-controls.example-b",
-      "title": "Labels and input controls: boundary case",
-      "situation": "Placeholder text is not a persistent label, duplicate ids break association, and custom controls need equivalent semantics and state.",
+      "title": "The placeholder-only sign-up",
+      "situation": "A form's three inputs (name, email, password) have placeholders only. Users forget which field is which mid-typing; a screen reader reads \"edit text, edit text, edit text\".",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Placeholder text is not a persistent label, duplicate ids break association, and custom controls need equivalent semantics and state.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Placeholder text is an adequate replacement for a visible label."
+        "No visible, persistent names exist once typing starts.",
+        "Assistive technology can't reliably name the controls.",
+        "Fix: add a `<label>` above each input with matching for/id; keep placeholders only for example formats, if at all."
       ],
-      "result": "The boundary requires this correction: Give every control a persistent programmatic label; placeholders may offer examples but do not replace labels."
+      "result": "Every field is named on screen and to assistive technology at all times."
     }
   ],
   "misconceptions": [
     {
       "id": "html.forms.labels-controls.misconception",
       "mistakenBelief": "Placeholder text is an adequate replacement for a visible label.",
-      "correction": "Give every control a persistent programmatic label; placeholders may offer examples but do not replace labels.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: Placeholder text is an adequate replacement for a visible label."
+      "correction": "Placeholders disappear as soon as someone types, often have poor contrast, and aren't a reliable accessible name. Use a visible label connected with for/id, and connect help text with aria-describedby.",
+      "diagnosticPrompt": "In \"The placeholder-only sign-up\", what did screen-reader users hear?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model Labels and input controls, with structure carrying meaning before decoration.",
+    "example": "A label is like a **name tag sewn onto a school bag**; a placeholder is a **sticky note** that falls off when you open the bag. You want the tag to stay for the whole year.",
     "usefulFor": [
-      "Building a first mental model for Labels and input controls before using exact platform terms"
+      "remembering labels persist",
+      "seeing placeholders as temporary"
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "Placeholder text is not a persistent label, duplicate ids break association, and custom controls need equivalent semantics and state."
+      "Bags don't talk; screen readers announce labels.",
+      "Help text is like a care-instructions label — separate from the name tag."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A label for=email points to one input id=email while help and errors are connected separately.",
-      "A label associates an accessible name with its form control through nesting or matching for and id values.",
-      "Give every control a persistent programmatic label; placeholders may offer examples but do not replace labels."
+      "<label for='email'>Email address</label>",
+      "<input id='email' aria-describedby='email-help email-error'>",
+      "focus the input"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Label",
         "state": {
-          "evidence": "A label for=email points to one input id=email while help and errors are connected separately."
+          "for": "email",
+          "input id": "email"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The label for=email points to one input id=email."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Described by",
         "state": {
-          "rule": "A label associates an accessible name with its form control through nesting or matching for and id values."
+          "help": "We'll send your receipt here.",
+          "error": "hidden until invalid"
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Help and errors are connected separately with aria-describedby."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Announced",
         "state": {
-          "correction": "Give every control a persistent programmatic label; placeholders may offer examples but do not replace labels."
+          "screen reader": "Email address, edit text, We'll send your receipt here."
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Placeholder text is an adequate replacement for a visible label."
+        "explanation": "Focusing the input reads its persistent name followed by the help text."
       }
     ],
-    "textAlternative": "Starting artifact: A label for=email points to one input id=email while help and errors are connected separately. Step 1, Artifact. State: evidence: A label for=email points to one input id=email while help and errors are connected separately.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A label associates an accessible name with its form control through nesting or matching for and id values.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Give every control a persistent programmatic label; placeholders may offer examples but do not replace labels.. Check the result against the boundary and reject this misconception: Placeholder text is an adequate replacement for a visible label."
+    "textAlternative": "A labelled email field. Step 1, Label: for is email; input id is email. The label for=email points to one input id=email. Step 2, Described by: help is We'll send your receipt here.; error is hidden until invalid. Help and errors are connected separately with aria-describedby. Step 3, Announced: screen reader is Email address, edit text, We'll send your receipt here.. Focusing the input reads its persistent name followed by the help text."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Labels and input controls: concrete case”: state its starting evidence, apply the Labels and input controls rule, and give the observable result in three short lines.",
+      "prompt": "For \"An email field with label, help and error\", explain how the label for=email points to one input id=email, and how help and errors are connected separately.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Label.",
+        "Help.",
+        "Error."
       ],
       "expectedEvidence": [
-        "Named example: Labels and input controls: concrete case.",
-        "Starting evidence: A label for=email points to one input id=email while help and errors are connected separately.",
-        "Core rule: A label associates an accessible name with its form control through nesting or matching for and id values.",
-        "Observable result: The result follows because Give every control a persistent programmatic label; placeholders may offer examples but do not replace labels.",
-        "Boundary check: Give every control a persistent programmatic label; placeholders may offer examples but do not replace labels."
+        "Names the example \"An email field with label, help and error\": the label for=email points to one input id=email.",
+        "That gives the input a persistent name.",
+        "Help and errors are connected separately with aria-describedby.",
+        "Screen readers announce the name, then the help."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Placeholder text is not a persistent label, duplicate ids break association, and custom controls need equivalent semantics and state.",
+      "prompt": "Write a phone-number field with a visible label, a help text \"Include country code\", and an error message, all correctly connected.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "for/id pair.",
+        "aria-describedby with two ids."
       ],
       "expectedEvidence": [
-        "A label associates an accessible name with its form control through nesting or matching for and id values.",
-        "Placeholder text is not a persistent label, duplicate ids break association, and custom controls need equivalent semantics and state."
+        "Label and input with matching for/id.",
+        "aria-describedby referencing the help and error ids."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Labels and input controls and explain why the misconception fails.",
+      "prompt": "Take a form you've built. Remove any placeholder-as-label, add labels, connect help/errors, then complete it using only the keyboard and a screen reader.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Tab through every control.",
+        "Listen to each name."
       ],
       "expectedEvidence": [
-        "Create a keyboard-operable form whose controls have persistent accessible names.",
-        "Give every control a persistent programmatic label; placeholders may offer examples but do not replace labels."
+        "Every control has a persistent accessible name.",
+        "The form can be completed and submitted by keyboard alone."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.forms.labels-controls.misconception",
-      "explanation": "Give every control a persistent programmatic label; placeholders may offer examples but do not replace labels.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'programmatic label' and state the decisive evidence."
+      "explanation": "For each control ask: **What's its name if I hide the placeholder? Does clicking the name focus it? Is extra text connected with describedby?**",
+      "retryPrompt": "Ask this for \"The placeholder-only sign-up\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to create a keyboard-operable form whose controls have persistent accessible names. Keep this boundary in view: Placeholder text is not a persistent label, duplicate ids break association, and custom controls need equivalent semantics and state.",
+    "summary": "To create a keyboard-operable form with persistent accessible names, give every control a visible label via for/id (or wrapping), connect help and error text with aria-describedby, use real buttons, and never rely on placeholders as labels.",
     "retrievalPrompts": [
-      "Explain Labels and input controls using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: Placeholder text is an adequate replacement for a visible label.",
-      "Apply checkpoint 'programmatic label' to a new artifact."
+      "Why isn't a placeholder a label?",
+      "How does for/id connect a label?",
+      "What does aria-describedby add?"
     ],
     "nextReviewPrompt": "Next: continue to “Groups, choices and autocomplete”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

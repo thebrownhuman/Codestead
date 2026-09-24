@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A useful issue states the observed need or defect, reproducible context, expected and actual behavior, acceptance criteria, scope, and relevant evidence without embedding secrets.",
+    "summary": "An **issue** is a request for work that someone else can pick up without asking you twenty questions. A good one has: a **specific title**, the **context** (version, browser or OS), **steps to reproduce**, **expected vs actual** behaviour, **acceptance criteria** (how we'll know it's done), and **evidence** such as a log excerpt, screenshot or tiny test case. Keep it to **one problem**. And **never paste secrets or personal data**: redact tokens, passwords, emails and customer details, because issues are often public and are kept forever.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A bug issue includes minimal reproduction steps, version, expected total, actual total, and a redacted test case while omitting customer data. Your goal is to write a scoped issue that another learner can understand and verify. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner reports a bug titled \"cart broken\". Three days later nobody has touched it: the maintainer can't reproduce it and doesn't know what \"broken\" means. A bug issue includes minimal reproduction steps, version, expected total, actual total, and a redacted test case while omitting customer data. In this lesson you'll write a scoped issue that another learner can understand and verify.\n\n```predict\n{\"question\": \"Which title helps a maintainer most?\", \"options\": [\"Cart broken!!\", \"Cart total ignores discount when quantity is 0\"], \"answer\": 1, \"why\": \"A specific title states the behaviour and condition, and is searchable.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Remotes and synchronization; pf problem io; Diffs and patch review. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Remotes and synchronization**, **Inputs, outputs and constraints** (inputs, outputs and expected results) and **Diffs and patch review**."
       },
       {
-        "heading": "Operational model",
-        "body": "A useful issue states the observed need or defect, reproducible context, expected and actual behavior, acceptance criteria, scope, and relevant evidence without embedding secrets. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The model: an issue someone else can verify",
+        "body": "```markdown\n### Cart total ignores discount when quantity is 0\n\n**Version:** v1.4.2, Chrome 128, Windows 11\n\n**Steps to reproduce**\n1. Add item \"Pen\" (price 10.00), set quantity to 0.\n2. Apply code SAVE10.\n\n**Expected:** total 0.00\n**Actual:** total -1.00\n\n**Test case (redacted):** `total([{price: 10, qty: 0}], \"SAVE10\")` returns -1.\n\n**Acceptance criteria**\n- [ ] Total is never negative.\n- [ ] A regression test covers qty 0 with a discount.\n```\n\n| Include | Leave out |\n|---|---|\n| version and environment. | API keys, tokens, passwords. |\n| minimal reproduction steps. | customer names, emails, addresses. |\n| expected vs actual. | several unrelated bugs in one issue. |\n\n```reveal\n{\"prompt\": \"Why a minimal test case instead of the whole customer order?\", \"answer\": \"It isolates the cause, anyone can run it, and it contains no personal data.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Project templates and privacy rules vary, and an issue may describe work without authorizing access, disclosure, or a particular implementation. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: A short title such as login broken is enough because developers can discover the environment and expected behavior themselves."
+        "heading": "One issue, one problem",
+        "body": "```predict\n{\"question\": \"You found a wrong total and a typo on the checkout page. How many issues?\", \"options\": [\"One, they're both checkout\", \"Two: each can be fixed, verified and closed independently\"], \"answer\": 1, \"why\": \"Scoped issues map to focused pull requests.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Describe problem, context, reproduction or desired outcome and acceptance criteria.",
-      "Write a scoped issue that another learner can understand and verify."
+      "Write issues with context, reproduction steps, expected vs actual behaviour and acceptance criteria.",
+      "Redact secrets and personal data, and keep each issue to one problem."
     ],
     "excludes": [
-      "Project templates and privacy rules vary, and an issue may describe work without authorizing access, disclosure, or a particular implementation."
+      "Issue templates and labels configuration.",
+      "Project boards and triage processes."
     ]
   },
   "outcomes": [
@@ -68,133 +69,137 @@
   "examples": [
     {
       "id": "git.collaboration.issue.example-a",
-      "title": "Actionable issues: direct case",
+      "title": "The wrong cart total",
       "situation": "A bug issue includes minimal reproduction steps, version, expected total, actual total, and a redacted test case while omitting customer data.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A bug issue includes minimal reproduction steps, version, expected total, actual total, and a redacted test case while omitting customer data.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent."
+        "**Minimal reproduction steps and version:** two steps, v1.4.2, Chrome on Windows.",
+        "**Expected total, actual total:** 0.00 expected, -1.00 actual.",
+        "**A redacted test case while omitting customer data:** one line of input that fails; the customer's name and email are removed, so anyone will be able to verify the fix."
       ],
-      "result": "The case supports the declared outcome because Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent."
+      "result": "A teammate reproduces the bug in two minutes and knows exactly when it's fixed."
     },
     {
       "id": "git.collaboration.issue.example-b",
-      "title": "Actionable issues: boundary case",
-      "situation": "A feature issue defines measurable acceptance criteria and out-of-scope behavior before code or estimates are proposed.",
+      "title": "The feature request with no finish line",
+      "situation": "An issue says \"Make search better\". Two people work on it and disagree about whether it's done.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A feature issue defines measurable acceptance criteria and out-of-scope behavior before code or estimates are proposed.",
-        "Step 2 — Keep this boundary explicit: Project templates and privacy rules vary, and an issue may describe work without authorizing access, disclosure, or a particular implementation.",
-        "Step 3 — Reject the documented misconception: A short title such as login broken is enough because developers can discover the environment and expected behavior themselves."
+        "Rewrite as a specific need: \"Search should match partial words\".",
+        "Add acceptance criteria: \"'calc' finds 'calculator'; results appear under 300 ms\".",
+        "Split other search ideas into their own issues."
       ],
-      "result": "This case demonstrates the declared outcome: Write a scoped issue that another learner can understand and verify."
+      "result": "Everyone agrees on the goal and on when the issue can be closed."
     }
   ],
   "misconceptions": [
     {
       "id": "git.collaboration.issue.misconception",
       "mistakenBelief": "A short title such as login broken is enough because developers can discover the environment and expected behavior themselves.",
-      "correction": "Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: A short title such as login broken is enough because developers can discover the environment and expected behavior themselves."
+      "correction": "Without environment, steps and expected behaviour, others must guess or ask, and bugs that can't be reproduced often go unfixed.",
+      "diagnosticPrompt": "In the opening story, why had nobody touched the \"cart broken\" issue?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "An editorial desk can model Actionable issues: a request defines the change, a draft presents evidence, reviewers comment, and approved work enters the edition.",
+    "example": "An issue is like **a note to a mechanic**. \"Car broken\" gets a shrug. \"Squeal from front left when braking above 50 km/h, since Tuesday\" gets it fixed. You'd also never leave your house keys taped to the note: that's the secret you redact.",
     "usefulFor": [
-      "Connecting issues, bounded changes, actionable review, checks, and controlled integration"
+      "remembering precise symptoms",
+      "never tape keys to the note"
     ],
     "limitations": [
-      "Repository permissions, automated checks, security disclosure, and commit identity require explicit technical controls.",
-      "Project templates and privacy rules vary, and an issue may describe work without authorizing access, disclosure, or a particular implementation."
+      "Mechanics can inspect the car; maintainers often can't see your machine.",
+      "Acceptance criteria are the \"squeal is gone\" test drive."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A bug issue includes minimal reproduction steps, version, expected total, actual total, and a redacted test case while omitting customer data.",
-      "A useful issue states the observed need or defect, reproducible context, expected and actual behavior, acceptance criteria, scope, and relevant evidence without embedding secrets.",
-      "Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent."
+      "draft title and context",
+      "add steps, expected, actual",
+      "redact and add acceptance criteria"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Title",
         "state": {
-          "evidence": "A bug issue includes minimal reproduction steps, version, expected total, actual total, and a redacted test case while omitting customer data."
+          "title": "Cart total ignores discount when quantity is 0",
+          "version": "v1.4.2"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "The issue names the behaviour and the environment."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Reproduce",
         "state": {
-          "model": "A useful issue states the observed need or defect, reproducible context, expected and actual behavior, acceptance criteria, scope, and relevant evidence without embedding secrets."
+          "steps": "2",
+          "expected": "0.00",
+          "actual": "-1.00"
         },
-        "explanation": "Apply the declared Actionable issues model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "Minimal reproduction steps show the expected total and actual total."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Finish",
         "state": {
-          "correction": "Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent."
+          "test case": "redacted one-liner",
+          "customer data": "removed"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: A short title such as login broken is enough because developers can discover the environment and expected behavior themselves."
+        "explanation": "A redacted test case replaces customer data, and criteria define done."
       }
     ],
-    "textAlternative": "Starting artifact: A bug issue includes minimal reproduction steps, version, expected total, actual total, and a redacted test case while omitting customer data. Step 1, Observe. State: evidence: A bug issue includes minimal reproduction steps, version, expected total, actual total, and a redacted test case while omitting customer data.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A useful issue states the observed need or defect, reproducible context, expected and actual behavior, acceptance criteria, scope, and relevant evidence without embedding secrets.. Apply the declared Actionable issues model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent.. Compare the observation with the correction and reject the misconception: A short title such as login broken is enough because developers can discover the environment and expected behavior themselves."
+    "textAlternative": "Tracing an actionable issue. Step 1, Title: title is Cart total ignores discount when quantity is 0; version is v1.4.2. The issue names the behaviour and the environment. Step 2, Reproduce: steps is 2; expected is 0.00; actual is -1.00. Minimal reproduction steps show the expected total and actual total. Step 3, Finish: test case is redacted one-liner; customer data is removed. A redacted test case replaces customer data, and criteria define done."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Actionable issues: direct case”: state its starting evidence, apply the Actionable issues rule, and give the observable result in three short lines.",
+      "prompt": "For \"The wrong cart total\", explain how a bug issue includes minimal reproduction steps, version, expected total, actual total, and a redacted test case while omitting customer data.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Context.",
+        "Reproduce.",
+        "Redact."
       ],
       "expectedEvidence": [
-        "Named example: Actionable issues: direct case.",
-        "Starting evidence: A bug issue includes minimal reproduction steps, version, expected total, actual total, and a redacted test case while omitting customer data.",
-        "Core rule: A useful issue states the observed need or defect, reproducible context, expected and actual behavior, acceptance criteria, scope, and relevant evidence without embedding secrets.",
-        "Observable result: The case supports the declared outcome because Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent.",
-        "Boundary check: Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent."
+        "Names the example \"The wrong cart total\": \"cart broken\" went nowhere.",
+        "A bug issue includes minimal reproduction steps, version, expected total and actual total.",
+        "It includes a redacted test case while omitting customer data.",
+        "A teammate reproduces the bug in two minutes."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A feature issue defines measurable acceptance criteria and out-of-scope behavior before code or estimates are proposed.",
+      "prompt": "Rewrite this issue so someone else could verify it: \"Login broken on my laptop, pls fix asap. my token is ghp_abc123\".",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Remove the token (and rotate it!).",
+        "Add steps, expected, actual."
       ],
       "expectedEvidence": [
-        "A useful issue states the observed need or defect, reproducible context, expected and actual behavior, acceptance criteria, scope, and relevant evidence without embedding secrets.",
-        "Project templates and privacy rules vary, and an issue may describe work without authorizing access, disclosure, or a particular implementation."
+        "No secret remains.",
+        "Another learner can reproduce it."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Actionable issues, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Find a real small bug or missing feature in one of your projects. Write the issue with title, environment, steps, expected/actual, evidence and acceptance criteria. Ask a partner to reproduce it using only the issue.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Test the steps yourself first.",
+        "Keep one problem per issue."
       ],
       "expectedEvidence": [
-        "Write a scoped issue that another learner can understand and verify.",
-        "Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent."
+        "Partner reproduces without questions.",
+        "Acceptance criteria are checkable."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.collaboration.issue.misconception",
-      "explanation": "Provide concise reproducible evidence and testable acceptance boundaries so another person can confirm and close the work without guessing intent.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A feature issue defines measurable acceptance criteria and out-of-scope behavior before code or estimates are proposed."
+      "explanation": "Before submitting, read the issue as a stranger: **could I reproduce this, and would I know when it's fixed?** Then scan for **anything secret or personal**.",
+      "retryPrompt": "Apply this to \"The feature request with no finish line\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to write a scoped issue that another learner can understand and verify. Keep this boundary in view: Project templates and privacy rules vary, and an issue may describe work without authorizing access, disclosure, or a particular implementation.",
+    "summary": "To write a scoped issue another learner can verify, give it a specific title, the version and environment, minimal steps, expected and actual behaviour, evidence and acceptance criteria, keep it to one problem, and redact all secrets and personal data.",
     "retrievalPrompts": [
-      "Explain Actionable issues without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: A short title such as login broken is enough because developers can discover the environment and expected behavior themselves.",
-      "Apply the model to this case from memory: A feature issue defines measurable acceptance criteria and out-of-scope behavior before code or estimates are proposed."
+      "What makes a title useful?",
+      "What are acceptance criteria for?",
+      "What must never appear in an issue?"
     ],
     "nextReviewPrompt": "Next: continue to “Pull request narrative”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

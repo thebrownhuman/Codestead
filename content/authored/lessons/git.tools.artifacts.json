@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Build artifacts are generated outputs with traceable source revision, toolchain, dependencies, checksums, and retention rules; they are not automatically source-of-truth files.",
+    "summary": "An **artifact** is a built output people download or deploy: a zip, an installer, a Docker image, a `dist/` bundle. It's **generated from source**, so the source branch is not the place for it. A good artifact is **traceable**: its name includes the **version and commit** (`app-1.2.0-3f2a9c1.zip`), it has a **checksum** (SHA-256) so downloaders can verify it, it's **scanned**, and it's stored by **CI in a release or artifact store** with a retention rule. Committing build outputs bloats history and drifts from the source; ignoring everything without publishing it leaves users with nothing.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A release archive is named with version and commit, hashed, scanned, and stored by CI rather than committed into the source branch. Your goal is to define and test an artifact policy for a small project. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner commits their built `dist/` folder to main so users can download the app. Months later the repo is 800 MB, dist/ doesn't match the source, and nobody knows which commit built the zip users have. A release archive is named with version and commit, hashed, scanned, and stored by CI rather than committed into the source branch. In this lesson you'll define and test an artifact policy for a small project.\n\n```predict\n{\"question\": \"Where should a release zip live?\", \"options\": [\"Committed in main\", \"Attached to a release or artifact store by CI, with version, commit and checksum\"], \"answer\": 1, \"why\": \"Source in Git; built outputs in a store that records where they came from.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Ignore policy; Commits and history; Build and task commands; Tags and release points. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Ignore policy**, **Commits and history**, **Build and task commands** and **Tags and release points**."
       },
       {
-        "heading": "Operational model",
-        "body": "Build artifacts are generated outputs with traceable source revision, toolchain, dependencies, checksums, and retention rules; they are not automatically source-of-truth files. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The rule: build from a tag, name, hash, store",
+        "body": "```bash\ngit switch --detach v1.2.0                 # build exactly the tagged commit.\nnpm ci && npm run build && npm test\nsha=$(git rev-parse --short HEAD)\nzip -r \"app-1.2.0-$sha.zip\" dist/         # the name carries version and commit.\nsha256sum \"app-1.2.0-$sha.zip\" > \"app-1.2.0-$sha.zip.sha256\"\n# CI: scan the archive, then upload both files to the v1.2.0 release.\n\n# A downloader verifies:\nsha256sum -c app-1.2.0-3f2a9c1.zip.sha256   # prints \"OK\" if unchanged.\n```\n\n| Artifact fact | Why |\n|---|---|\n| version + commit in the name. | trace any file back to source. |\n| checksum. | detect corruption or tampering. |\n| scan. | catch known vulnerabilities before release. |\n| retention rule. | keep releases, expire temporary builds. |\n\n```reveal\n{\"prompt\": \"Is every generated file an artifact to exclude from Git?\", \"answer\": \"Not always. Small generated files that the build needs and can't easily regenerate (some lockfiles, checked-in API schemas) may be committed on purpose. Decide per file and document it.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Some generated code or vendored assets may be intentionally versioned, while large, signed, or platform-specific artifacts need dedicated storage and provenance. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Every generated file should be ignored, or alternatively every build output should be committed so users can find it."
+        "heading": "Traceability test",
+        "body": "```predict\n{\"question\": \"A user reports a bug in \\\"app.zip\\\". What do you need to reproduce it?\", \"options\": [\"Just the latest main\", \"The exact commit it was built from, which the name or metadata should give you\"], \"answer\": 1, \"why\": \"Without traceability, you can't check out the code that produced the bug.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Distinguish reproducible outputs from source and attach verified artifacts to versioned releases rather than ordinary commits.",
-      "Define and test an artifact policy for a small project."
+      "Build artifacts from tagged commits, name them with version and commit, and publish checksums.",
+      "Store artifacts in releases or artifact stores with retention, not in the source branch."
     ],
     "excludes": [
-      "Some generated code or vendored assets may be intentionally versioned, while large, signed, or platform-specific artifacts need dedicated storage and provenance."
+      "Container registries and signing in depth.",
+      "Deployment pipelines (CI module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "git.tools.artifacts.example-a",
-      "title": "Generated artifacts and releases: direct case",
+      "title": "Shipping v1.2.0",
       "situation": "A release archive is named with version and commit, hashed, scanned, and stored by CI rather than committed into the source branch.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A release archive is named with version and commit, hashed, scanned, and stored by CI rather than committed into the source branch.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Classify each output by reproducibility and distribution need, document the policy, and preserve provenance without polluting source history unnecessarily."
+        "**Named with version and commit:** app-1.2.0-3f2a9c1.zip, built from tag v1.2.0.",
+        "**Hashed and scanned:** a .sha256 file is generated and the archive passes the dependency scan.",
+        "**Stored by CI rather than committed into the source branch:** both files are uploaded to the v1.2.0 release; dist/ will stay ignored in Git."
       ],
-      "result": "The case supports the declared outcome because Classify each output by reproducibility and distribution need, document the policy, and preserve provenance without polluting source history unnecessarily."
+      "result": "Every download is traceable, verifiable, and the repository stays small."
     },
     {
       "id": "git.tools.artifacts.example-b",
-      "title": "Generated artifacts and releases: boundary case",
-      "situation": "A generated API client is committed only because project policy requires review and reproducible regeneration from a versioned schema.",
+      "title": "The mystery binary",
+      "situation": "A team's download page has \"latest.zip\" with no version. A bug report comes in, and nobody can tell which commit it came from.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A generated API client is committed only because project policy requires review and reproducible regeneration from a versioned schema.",
-        "Step 2 — Keep this boundary explicit: Some generated code or vendored assets may be intentionally versioned, while large, signed, or platform-specific artifacts need dedicated storage and provenance.",
-        "Step 3 — Reject the documented misconception: Every generated file should be ignored, or alternatively every build output should be committed so users can find it."
+        "Rename artifacts with version and commit.",
+        "Publish a checksum alongside each one.",
+        "Build only from tags, in CI, never from a laptop."
       ],
-      "result": "This case demonstrates the declared outcome: Define and test an artifact policy for a small project."
+      "result": "Every future bug report can be matched to its exact source."
     }
   ],
   "misconceptions": [
     {
       "id": "git.tools.artifacts.misconception",
       "mistakenBelief": "Every generated file should be ignored, or alternatively every build output should be committed so users can find it.",
-      "correction": "Classify each output by reproducibility and distribution need, document the policy, and preserve provenance without polluting source history unnecessarily.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Every generated file should be ignored, or alternatively every build output should be committed so users can find it."
+      "correction": "Build outputs belong in a traceable store, not the source branch, and users still need them published. A few generated files may be committed deliberately; decide and document per file.",
+      "diagnosticPrompt": "In the opening story, what went wrong when dist/ was committed?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A recipe and packing line can model Generated artifacts and releases: declared ingredients resolve to exact supplies, controlled steps produce an artifact, and labels preserve provenance.",
+    "example": "An artifact is like **a bottle from a winery**. The label shows the vintage (version) and batch (commit), a seal proves it's unopened (checksum), it's inspected (scan), and it's sold from the shop (release store), not stored in the vineyard (source branch).",
     "usefulFor": [
-      "Understanding dependency resolution, configuration, repeatable builds, and generated artifacts"
+      "remembering label, seal, shop",
+      "vineyard = source"
     ],
     "limitations": [
-      "Software supply chains include executable dependencies, caches, signatures, platform variance, and secret handling beyond a kitchen process.",
-      "Some generated code or vendored assets may be intentionally versioned, while large, signed, or platform-specific artifacts need dedicated storage and provenance."
+      "Wine can't be rebuilt; artifacts can, from the tagged commit.",
+      "Old batches expire under a retention rule."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A release archive is named with version and commit, hashed, scanned, and stored by CI rather than committed into the source branch.",
-      "Build artifacts are generated outputs with traceable source revision, toolchain, dependencies, checksums, and retention rules; they are not automatically source-of-truth files.",
-      "Classify each output by reproducibility and distribution need, document the policy, and preserve provenance without polluting source history unnecessarily."
+      "checkout v1.2.0; clean build and test",
+      "name, zip, sha256sum, scan",
+      "CI uploads to release"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Build",
         "state": {
-          "evidence": "A release archive is named with version and commit, hashed, scanned, and stored by CI rather than committed into the source branch."
+          "commit": "3f2a9c1 (v1.2.0)",
+          "tests": "pass"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "The release archive is built from the tagged commit."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Label",
         "state": {
-          "model": "Build artifacts are generated outputs with traceable source revision, toolchain, dependencies, checksums, and retention rules; they are not automatically source-of-truth files."
+          "file": "app-1.2.0-3f2a9c1.zip",
+          "sha256": "recorded"
         },
-        "explanation": "Apply the declared Generated artifacts and releases model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "It is named with version and commit, hashed and scanned."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Store",
         "state": {
-          "correction": "Classify each output by reproducibility and distribution need, document the policy, and preserve provenance without polluting source history unnecessarily."
+          "release v1.2.0": "zip + .sha256",
+          "main": "no dist/"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Every generated file should be ignored, or alternatively every build output should be committed so users can find it."
+        "explanation": "It is stored by CI rather than committed into the source branch."
       }
     ],
-    "textAlternative": "Starting artifact: A release archive is named with version and commit, hashed, scanned, and stored by CI rather than committed into the source branch. Step 1, Observe. State: evidence: A release archive is named with version and commit, hashed, scanned, and stored by CI rather than committed into the source branch.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Build artifacts are generated outputs with traceable source revision, toolchain, dependencies, checksums, and retention rules; they are not automatically source-of-truth files.. Apply the declared Generated artifacts and releases model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Classify each output by reproducibility and distribution need, document the policy, and preserve provenance without polluting source history unnecessarily.. Compare the observation with the correction and reject the misconception: Every generated file should be ignored, or alternatively every build output should be committed so users can find it."
+    "textAlternative": "Tracing a traceable release artifact. Step 1, Build: commit is 3f2a9c1 (v1.2.0); tests is pass. The release archive is built from the tagged commit. Step 2, Label: file is app-1.2.0-3f2a9c1.zip; sha256 is recorded. It is named with version and commit, hashed and scanned. Step 3, Store: release v1.2.0 is zip + .sha256; main is no dist/. It is stored by CI rather than committed into the source branch."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Generated artifacts and releases: direct case”: state its starting evidence, apply the Generated artifacts and releases rule, and give the observable result in three short lines.",
+      "prompt": "For \"Shipping v1.2.0\", explain how a release archive is named with version and commit, hashed, scanned, and stored by CI rather than committed into the source branch.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Build.",
+        "Label.",
+        "Store."
       ],
       "expectedEvidence": [
-        "Named example: Generated artifacts and releases: direct case.",
-        "Starting evidence: A release archive is named with version and commit, hashed, scanned, and stored by CI rather than committed into the source branch.",
-        "Core rule: Build artifacts are generated outputs with traceable source revision, toolchain, dependencies, checksums, and retention rules; they are not automatically source-of-truth files.",
-        "Observable result: The case supports the declared outcome because Classify each output by reproducibility and distribution need, document the policy, and preserve provenance without polluting source history unnecessarily.",
-        "Boundary check: Classify each output by reproducibility and distribution need, document the policy, and preserve provenance without polluting source history unnecessarily."
+        "Names the example \"Shipping v1.2.0\": a committed dist/ bloated the repo.",
+        "A release archive is named with version and commit, hashed and scanned.",
+        "It is stored by CI rather than committed into the source branch.",
+        "Every download is traceable and the repository stays small."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A generated API client is committed only because project policy requires review and reproducible regeneration from a versioned schema.",
+      "prompt": "For a small project, build a zip from a tagged commit, name it with version and short hash, create a .sha256 file, then verify it with sha256sum -c. Modify the zip and show verification fails.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Use a disposable tag.",
+        "Change one byte to test."
       ],
       "expectedEvidence": [
-        "Build artifacts are generated outputs with traceable source revision, toolchain, dependencies, checksums, and retention rules; they are not automatically source-of-truth files.",
-        "Some generated code or vendored assets may be intentionally versioned, while large, signed, or platform-specific artifacts need dedicated storage and provenance."
+        "OK on the original.",
+        "FAILED after modification."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Generated artifacts and releases, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Write an artifact policy for your project: what's built, naming, checksum, where it's stored, retention, and any generated files deliberately committed. Test it end to end on a sandbox release.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "One page is enough.",
+        "Include how a user verifies a download."
       ],
       "expectedEvidence": [
-        "Define and test an artifact policy for a small project.",
-        "Classify each output by reproducibility and distribution need, document the policy, and preserve provenance without polluting source history unnecessarily."
+        "Policy covers all six points.",
+        "Sandbox release follows it."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.tools.artifacts.misconception",
-      "explanation": "Classify each output by reproducibility and distribution need, document the policy, and preserve provenance without polluting source history unnecessarily.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A generated API client is committed only because project policy requires review and reproducible regeneration from a versioned schema."
+      "explanation": "For every output ask: **generated or source? If generated, where is it stored, and can I trace it to a commit and verify it?**",
+      "retryPrompt": "Apply this to \"The mystery binary\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to define and test an artifact policy for a small project. Keep this boundary in view: Some generated code or vendored assets may be intentionally versioned, while large, signed, or platform-specific artifacts need dedicated storage and provenance.",
+    "summary": "To define and test an artifact policy, build releases from tagged commits in a clean environment, name them with version and commit, publish checksums, scan them, store them in a release or artifact store with retention rules, and keep build outputs out of the source branch unless deliberately documented.",
     "retrievalPrompts": [
-      "Explain Generated artifacts and releases without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Every generated file should be ignored, or alternatively every build output should be committed so users can find it.",
-      "Apply the model to this case from memory: A generated API client is committed only because project policy requires review and reproducible regeneration from a versioned schema."
+      "What should an artifact's name include?",
+      "What is a checksum for?",
+      "Why not commit dist/ to main?"
     ],
     "nextReviewPrompt": "Next: continue to “Debugger workflow”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

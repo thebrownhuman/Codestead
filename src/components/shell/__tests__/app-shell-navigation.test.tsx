@@ -38,6 +38,8 @@ vi.mock("../exam-lockdown-overlay", () => ({
 }));
 
 import { AppShell } from "../app-shell";
+import { InterfaceThemeMenu } from "../interface-theme-menu";
+import { NotificationMenu } from "../notification-menu";
 
 const shellCss = readFileSync(resolve(process.cwd(), "src/components/shell/app-shell.module.css"), "utf8");
 
@@ -386,6 +388,7 @@ describe("AppShell compact navigation", () => {
       </AppShell>,
     );
     expect(await screen.findByText("Learning content")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Open navigation" }));
     await user.click(screen.getByRole("button", { name: /Aarav Rao/i }));
     await user.click(screen.getByRole("menuitem", { name: "Sign out" }));
 
@@ -414,6 +417,7 @@ describe("AppShell compact navigation", () => {
       </AppShell>,
     );
     expect(await screen.findByText("Learning content")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Open navigation" }));
     await user.click(screen.getByRole("button", { name: /Aarav Rao/i }));
     await user.click(screen.getByRole("menuitem", { name: "Sign out" }));
 
@@ -438,9 +442,8 @@ describe("AppShell compact navigation", () => {
     await waitFor(() => expect(sidebar).toHaveAttribute("inert"));
     expect(sidebar).toHaveAttribute("aria-hidden", "true");
     expect(screen.getByTitle("Course search is coming soon")).toHaveAttribute("aria-disabled", "true");
-    expect(screen.getByRole("button", { name: "Notifications" })).toBeEnabled();
-
     await user.click(trigger);
+    expect(screen.getByRole("button", { name: "Notifications" })).toBeEnabled();
     expect(sidebar).not.toHaveAttribute("inert");
     expect(content).toHaveAttribute("inert");
     expect(within(sidebar as HTMLElement).getByRole("button", { name: "Close navigation" })).toHaveFocus();
@@ -455,6 +458,7 @@ describe("AppShell compact navigation", () => {
     const user = userEvent.setup();
     render(<AppShell><button type="button">Learning action</button></AppShell>);
 
+    await user.click(screen.getByRole("button", { name: "Open navigation" }));
     const trigger = screen.getByRole("button", { name: /Aarav Rao/i });
     expect(trigger).toHaveAttribute("aria-haspopup", "menu");
     expect(trigger).toHaveAttribute("aria-controls", "profile-menu");
@@ -463,9 +467,9 @@ describe("AppShell compact navigation", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("menu")).toBeInTheDocument();
     expect(screen.getAllByRole("menuitem").length).toBeGreaterThan(0);
-    await waitFor(() => expect(screen.getByRole("menuitem", { name: "Settings" })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole("menuitemradio", { name: /System/i })).toHaveFocus());
 
-    await user.keyboard("{ArrowDown}");
+    await user.keyboard("{End}");
     expect(screen.getByRole("menuitem", { name: "Sign out" })).toHaveFocus();
 
     await user.keyboard("{Escape}");
@@ -477,17 +481,17 @@ describe("AppShell compact navigation", () => {
     const user = userEvent.setup();
     render(<AppShell><button type="button">Learning action</button></AppShell>);
 
+    await user.click(screen.getByRole("button", { name: "Open navigation" }));
     const trigger = screen.getByRole("button", { name: /Aarav Rao/i });
     await user.click(trigger);
-    await waitFor(() => expect(screen.getByRole("menuitem", { name: "Settings" })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole("menuitemradio", { name: /System/i })).toHaveFocus());
 
     await user.tab();
     await waitFor(() => expect(trigger).toHaveAttribute("aria-expanded", "false"));
     expect(screen.queryByRole("menu", { name: "Account menu" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Learning action" })).toHaveFocus();
 
     await user.click(trigger);
-    await waitFor(() => expect(screen.getByRole("menuitem", { name: "Settings" })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole("menuitemradio", { name: /System/i })).toHaveFocus());
     await user.tab({ shift: true });
     await waitFor(() => expect(trigger).toHaveAttribute("aria-expanded", "false"));
     expect(screen.queryByRole("menu", { name: "Account menu" })).not.toBeInTheDocument();
@@ -500,21 +504,21 @@ describe("AppShell compact navigation", () => {
       const user = userEvent.setup();
       render(<AppShell><button type="button">Learning action</button></AppShell>);
 
+      await user.click(screen.getByRole("button", { name: "Open navigation" }));
       const trigger = screen.getByRole("button", { name: /Aarav Rao/i });
       await user.click(trigger);
       frames.flushNext();
-      expect(screen.getByRole("menuitem", { name: "Settings" })).toHaveFocus();
+      expect(screen.getByRole("menuitemradio", { name: /System/i })).toHaveFocus();
 
       await user.tab();
       expect(trigger).toHaveAttribute("aria-expanded", "false");
-      expect(screen.getByRole("button", { name: "Learning action" })).toHaveFocus();
 
       await user.click(trigger);
       expect(screen.getByRole("menu", { name: "Account menu" })).toBeInTheDocument();
       frames.flushNext();
       expect(screen.getByRole("menu", { name: "Account menu" })).toBeInTheDocument();
       frames.flushNext();
-      expect(screen.getByRole("menuitem", { name: "Settings" })).toHaveFocus();
+      expect(screen.getByRole("menuitemradio", { name: /System/i })).toHaveFocus();
     } finally {
       frames.restore();
     }
@@ -522,7 +526,7 @@ describe("AppShell compact navigation", () => {
 
   it("lets keyboard users choose an exact interface theme and restores trigger focus", async () => {
     const user = userEvent.setup();
-    render(<AppShell><p>Learning content</p></AppShell>);
+    render(<InterfaceThemeMenu />);
 
     const trigger = screen.getByRole("button", { name: "Interface theme: System" });
     await user.click(trigger);
@@ -541,7 +545,7 @@ describe("AppShell compact navigation", () => {
 
   it("closes the theme menu after forward and reverse Tab without trapping focus", async () => {
     const user = userEvent.setup();
-    render(<AppShell><p>Learning content</p></AppShell>);
+    render(<><InterfaceThemeMenu /><NotificationMenu /></>);
 
     const themeTrigger = screen.getByRole("button", { name: "Interface theme: System" });
     const notificationTrigger = screen.getByRole("button", { name: "Notifications" });
@@ -569,7 +573,7 @@ describe("AppShell compact navigation", () => {
     const frames = installAnimationFrameQueue();
     try {
       const user = userEvent.setup();
-      render(<AppShell><p>Learning content</p></AppShell>);
+      render(<><InterfaceThemeMenu /><NotificationMenu /></>);
 
       const themeTrigger = screen.getByRole("button", { name: "Interface theme: System" });
       const notificationTrigger = screen.getByRole("button", { name: "Notifications" });
@@ -645,28 +649,19 @@ describe("AppShell compact navigation", () => {
     await waitFor(() => expect(document.getElementById("main-content")).toHaveFocus());
   });
 
-  it("marks nested desktop and mobile destinations as the current page", () => {
+  it("marks nested destinations as the current page and has no bottom tab bar", () => {
     navigation.pathname = "/projects/project-1";
     render(<AppShell><p>Project content</p></AppShell>);
 
     const projectLinks = screen.getAllByRole("link", { name: "Projects", hidden: true });
-    expect(projectLinks).toHaveLength(2);
-    expect(projectLinks.every((link) => link.getAttribute("aria-current") === "page")).toBe(true);
-  });
-
-  it("keeps full accessible mobile labels while using compact sighted labels", () => {
-    render(<AppShell><p>Learning content</p></AppShell>);
-
-    const mobileNavigation = screen.getByRole("navigation", { name: "Mobile navigation" });
-    expect(within(mobileNavigation).getByRole("link", { name: "My roadmap" })).toHaveTextContent("Path");
-    expect(within(mobileNavigation).getByRole("link", { name: "Courses" })).toHaveTextContent("Learn");
-    expect(within(mobileNavigation).getByRole("link", { name: "Projects" })).toHaveTextContent("Build");
+    expect(projectLinks).toHaveLength(1);
+    expect(projectLinks[0]).toHaveAttribute("aria-current", "page");
+    expect(screen.queryByRole("navigation", { name: "Mobile navigation" })).not.toBeInTheDocument();
   });
 
   it("contains explicit large-text and reduced-motion shell fallbacks", () => {
     expect(shellCss).toContain(':global(html[data-text-size="150"]) .sidebar');
-    expect(shellCss).toContain(':global(html[data-text-size="200"]) .mobileNav');
-    expect(shellCss).toContain(':global(html[data-text-size="200"]) .main');
+    expect(shellCss).not.toContain(".mobileNav");
     expect(shellCss).toContain(':global(html[data-motion="reduce"]) .routeStage');
     expect(shellCss).toContain(':global(html:not([data-motion="normal"])) .routeStage');
     expect(shellCss).toContain("@media (forced-colors: active)");

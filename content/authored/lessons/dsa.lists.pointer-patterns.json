@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Slow-fast pointers, sentinel nodes, and pointer-to-pointer techniques simplify list traversal, cycle detection, and edge-case updates.",
+    "summary": "A few pointer patterns solve most linked-list puzzles. **Slow-fast pointers** (Floyd's tortoise and hare): slow moves one node, fast moves two. If fast reaches null, there's no cycle; if they ever **point to the same node**, there is one. It uses O(1) extra space. **In-place reversal**: walk with `prev`, `current` and `next_node`, flipping each link, O(n) time. **Sentinel (dummy) nodes** sit before the head so deleting the head needs no special case. Compare **node identity** (`is` in Python, pointer equality in C/C++, `==` on references in Java), never node values.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Floyd's cycle detector advances one pointer once and another twice until they meet or the fast path ends. Your goal is to implement, prove informally and test reversal and cycle detection. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A corrupted playlist has its last lesson pointing back to lesson 3, so \"play all\" never finishes. You need to detect this without storing every node you've seen. Floyd's cycle detector advances one pointer once and another twice until they meet or the fast path ends. In this lesson you'll implement, prove informally and test reversal and cycle detection.\n\n```predict\n{\"question\": \"Two different nodes both hold the value \\\"Loops\\\". Slow and fast land on them at the same time. Is that a cycle?\", \"options\": [\"Yes, the values match\", \"Not necessarily: compare the nodes themselves, not their values\"], \"answer\": 1, \"why\": \"Duplicate values are normal. A cycle means the same node is reached again.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Array representation and operations; Insertion and deletion; Correctness and counterexamples. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Array representation and operations**, **Insertion and deletion** (rewiring next links), and **Correctness and counterexamples**, since you'll argue why these patterns work."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Slow-fast pointers, sentinel nodes, and pointer-to-pointer techniques simplify list traversal, cycle detection, and edge-case updates. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The model: two speeds, three pointers",
+        "body": "```python\ndef has_cycle(head):                     # O(n) time, O(1) space.\n    slow = fast = head\n    while fast is not None and fast.next is not None:\n        slow = slow.next                  # one step.\n        fast = fast.next.next             # two steps.\n        if slow is fast:                  # same node: identity, not value.\n            return True\n    return False                          # fast fell off the end.\n\ndef reverse(head):                        # O(n) time, O(1) space.\n    prev, current = None, head\n    while current is not None:\n        next_node = current.next          # save before overwriting.\n        current.next = prev               # flip this link.\n        prev, current = current, next_node\n    return prev                           # new head.\n```\n\n| Pattern | Use it for |\n|---|---|\n| slow-fast. | cycle detection, middle node, k-th from end. |\n| prev/current/next. | reversing all or part of a list. |\n| sentinel node. | uniform insert and delete at the head. |\n\n```reveal\n{\"prompt\": \"Why must slow and fast meet if there's a cycle?\", \"answer\": \"Once both are inside the cycle, fast gains one node on slow every step. The gap shrinks by one each time, so it reaches zero: they meet.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Each technique has a proof obligation and ownership implications rather than being a magic constant-time shortcut. The draft therefore rejects: Slow-fast pointers find a cycle by comparing node values rather than node identity."
+        "heading": "Reverse carefully",
+        "body": "```predict\n{\"question\": \"In reverse, what happens if you set current.next = prev before saving next_node?\", \"options\": [\"It still works\", \"You lose the rest of the list, because the old next is overwritten\"], \"answer\": 1, \"why\": \"Save the next node first, then flip the link.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use slow-fast and predecessor-current pointers for reversal, midpoint and cycle detection.",
-      "Implement, prove informally and test reversal and cycle detection.",
-      "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity."
+      "Detect cycles with slow-fast pointers using node identity.",
+      "Reverse a list in place and argue informally why both patterns are correct."
     ],
     "excludes": [
-      "Each technique has a proof obligation and ownership implications rather than being a magic constant-time shortcut."
+      "Finding the cycle's start node in depth.",
+      "Recursive reversal."
     ]
   },
   "outcomes": [
@@ -68,142 +64,137 @@
   "examples": [
     {
       "id": "dsa.lists.pointer-patterns.example-a",
-      "title": "Two-pointer list patterns: language-neutral trace",
+      "title": "Tortoise and hare on a broken playlist",
       "situation": "Floyd's cycle detector advances one pointer once and another twice until they meet or the fast path ends.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: Floyd's cycle detector advances one pointer once and another twice until they meet or the fast path ends.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Cycle detection compares node identity; equal values in different nodes do not prove a cycle."
+        "**Advance at two speeds:** slow moves one node and fast two each step.",
+        "**Meet or end:** in the broken playlist, fast laps slow inside the loop and they meet, so has_cycle returns True.",
+        "**Test:** a test will build lists with no cycle, a cycle back to the head, a self-loop and duplicate values, checking each answer."
       ],
-      "result": "The conceptual result follows because Cycle detection compares node identity; equal values in different nodes do not prove a cycle."
+      "result": "The app detects the corrupted playlist in O(n) time with O(1) extra memory and refuses to play it forever."
     },
     {
       "id": "dsa.lists.pointer-patterns.example-b",
-      "title": "Two-pointer list patterns: implementation transfer",
-      "situation": "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity.",
+      "title": "The reversed list that lost its tail",
+      "situation": "A reverse function sets `current.next = prev` and then `current = current.next`. The reversed list has only one node.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity.",
-        "Step 3 — Retest this boundary in the selected implementation: Each technique has a proof obligation and ownership implications rather than being a magic constant-time shortcut."
+        "After flipping, current.next is prev, so current moves backwards.",
+        "The rest of the original list is never visited.",
+        "Fix: save next_node = current.next before flipping, then move current = next_node."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Reversing [1, 2, 3] gives [3, 2, 1], and tests cover empty and one-node lists."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.lists.pointer-patterns.misconception",
       "mistakenBelief": "Slow-fast pointers find a cycle by comparing node values rather than node identity.",
-      "correction": "Cycle detection compares node identity; equal values in different nodes do not prove a cycle.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Slow-fast pointers find a cycle by comparing node values rather than node identity."
+      "correction": "Different nodes can hold equal values, so value comparison gives false alarms. The detector checks whether both pointers refer to the same node object.",
+      "diagnosticPrompt": "In the opening predict, why weren't two \"Loops\" nodes proof of a cycle?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Two-pointer list patterns, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Floyd's detector is like **two runners on a track**: if the track is a straight road, the fast runner reaches the end. If it's a loop, the fast runner eventually laps the slow one and they meet. Checking by runner, not by shirt colour, avoids mistaking two people in the same shirt for one.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering lap = cycle",
+      "identity = the same runner"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Each technique has a proof obligation and ownership implications rather than being a magic constant-time shortcut."
+      "Runners can be seen; pointers must be compared in code.",
+      "Reversal is like turning each arrow on a trail around, one at a time, remembering where the next one was."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Floyd's cycle detector advances one pointer once and another twice until they meet or the fast path ends.",
-      "Slow-fast pointers, sentinel nodes, and pointer-to-pointer techniques simplify list traversal, cycle detection, and edge-case updates.",
-      "Cycle detection compares node identity; equal values in different nodes do not prove a cycle.",
-      "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity."
+      "list 1 -> 2 -> 3 -> 4 -> back to 2",
+      "step slow 1, fast 2",
+      "repeat"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Step 1",
         "state": {
-          "scenario": "Floyd's cycle detector advances one pointer once and another twice until they meet or the fast path ends."
+          "slow": "node 2",
+          "fast": "node 3"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "Floyd's cycle detector advances one pointer once and another twice."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Step 2",
         "state": {
-          "invariant": "Slow-fast pointers, sentinel nodes, and pointer-to-pointer techniques simplify list traversal, cycle detection, and edge-case updates."
+          "slow": "node 3",
+          "fast": "node 2 (after 4)"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "Inside the loop, fast closes the gap by one node each step."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Step 3",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "slow": "node 4",
+          "fast": "node 4",
+          "result": "cycle"
         },
-        "explanation": "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Cycle detection compares node identity; equal values in different nodes do not prove a cycle."
-        },
-        "explanation": "Verify the result and reject this misconception: Slow-fast pointers find a cycle by comparing node values rather than node identity."
+        "explanation": "They meet on the same node, so a cycle exists."
       }
     ],
-    "textAlternative": "Starting artifact: Floyd's cycle detector advances one pointer once and another twice until they meet or the fast path ends. Step 1, Specification. State: scenario: Floyd's cycle detector advances one pointer once and another twice until they meet or the fast path ends.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Slow-fast pointers, sentinel nodes, and pointer-to-pointer techniques simplify list traversal, cycle detection, and edge-case updates.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity. Step 4, Conclusion. State: correction: Cycle detection compares node identity; equal values in different nodes do not prove a cycle.. Verify the result and reject this misconception: Slow-fast pointers find a cycle by comparing node values rather than node identity."
+    "textAlternative": "Tracing cycle detection. Step 1, Step 1: slow is node 2; fast is node 3. Floyd's cycle detector advances one pointer once and another twice. Step 2, Step 2: slow is node 3; fast is node 2 (after 4). Inside the loop, fast closes the gap by one node each step. Step 3, Step 3: slow is node 4; fast is node 4; result is cycle. They meet on the same node, so a cycle exists."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Two-pointer list patterns: language-neutral trace”: state its starting evidence, apply the Two-pointer list patterns rule, and give the observable result in three short lines.",
+      "prompt": "For \"Tortoise and hare on a broken playlist\", explain how Floyd's cycle detector advances one pointer once and another twice until they meet or the fast path ends.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Speeds.",
+        "Meet or end.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Two-pointer list patterns: language-neutral trace.",
-        "Starting evidence: Floyd's cycle detector advances one pointer once and another twice until they meet or the fast path ends.",
-        "Core rule: Slow-fast pointers, sentinel nodes, and pointer-to-pointer techniques simplify list traversal, cycle detection, and edge-case updates.",
-        "Observable result: The conceptual result follows because Cycle detection compares node identity; equal values in different nodes do not prove a cycle.",
-        "Boundary check: Cycle detection compares node identity; equal values in different nodes do not prove a cycle."
+        "Names the example \"Tortoise and hare on a broken playlist\": the playlist loops back to lesson 3.",
+        "Floyd's cycle detector advances one pointer once and another twice.",
+        "They meet or the fast path ends.",
+        "The app detects the corrupted playlist in O(n) time with O(1) memory."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Slow-fast pointers, sentinel nodes, and pointer-to-pointer techniques simplify list traversal, cycle detection, and edge-case updates.",
+      "prompt": "Use slow-fast pointers to write `middle(head)` returning the middle node (the second middle for even lengths). Test lengths 1, 2, 5 and 6.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Stop when fast or fast.next is None.",
+        "Return slow."
       ],
       "expectedEvidence": [
-        "In C, nodes need explicit allocation, links, and cleanup; in C++, prefer RAII ownership such as unique_ptr where it fits; in Java, node references are garbage-collected but links and equality remain explicit; in Python, object references simplify storage but do not change linear traversal complexity.",
-        "Each technique has a proof obligation and ownership implications rather than being a magic constant-time shortcut."
+        "Correct middle for each length.",
+        "O(n) time, O(1) space."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Two-pointer list patterns case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Implement `reverse_between(head, left, right)` that reverses positions left..right using a sentinel node. Test reversing the whole list, a middle part, one position, and starting at the head.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Sentinel before head.",
+        "prev/current/next inside the range."
       ],
       "expectedEvidence": [
-        "Implement, prove informally and test reversal and cycle detection.",
-        "Cycle detection compares node identity; equal values in different nodes do not prove a cycle."
+        "All tests pass.",
+        "Informal argument for why links stay connected."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.lists.pointer-patterns.misconception",
-      "explanation": "Cycle detection compares node identity; equal values in different nodes do not prove a cycle.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'node identity', then state one implementation-specific risk in the selected language."
+      "explanation": "For each pointer move, write **what each pointer refers to before and after**. For cycles, compare nodes with identity. For reversal, **save next before flipping**.",
+      "retryPrompt": "Apply this to \"The reversed list that lost its tail\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement, prove informally and test reversal and cycle detection. Keep this boundary in view: Each technique has a proof obligation and ownership implications rather than being a magic constant-time shortcut.",
+    "summary": "To implement and test reversal and cycle detection, use slow-fast pointers that compare node identity and meet only if a cycle exists, reverse in place with prev, current and a saved next, use sentinels to simplify head edits, and argue why each pattern keeps the list connected and terminates.",
     "retrievalPrompts": [
-      "State the Two-pointer list patterns invariant and complexity without code.",
-      "Why is this claim false: Slow-fast pointers find a cycle by comparing node values rather than node identity.",
-      "Map checkpoint 'node identity' to C, C++, Java, and Python."
+      "Why must the pointers compare identity, not values?",
+      "Why do slow and fast meet in a cycle?",
+      "What must you save before flipping a link?"
     ],
     "nextReviewPrompt": "Next: continue to “Stack ADT”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

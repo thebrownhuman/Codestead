@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "An effect synchronizes React state with an external system after commit; derived render data and event consequences usually need no effect.",
+    "summary": "`useEffect` is for **synchronising with something outside React** after the screen updates: a video element's play/pause, a chat connection, a browser API, a third-party widget. Two common jobs **don't** need an effect. **Values derived from props or state**, like a filtered list or full name, are computed during render. **Things that happen because the learner did something**, like saving on submit or showing a toast after a click, belong in the **event handler**. Unnecessary effects cause extra renders, flicker and bugs from out-of-date values.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A media-player effect calls play or pause to synchronize an external video element with isPlaying. Your goal is to remove an unnecessary effect and place logic in render or an event handler. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A lesson page plays a short video. The component holds `isPlaying` in state, but the real `<video>` element has its own play and pause methods that React doesn't call for you. Meanwhile, another component uses an effect to copy `firstName + lastName` into a `fullName` state. A media-player effect calls play or pause to synchronize an external video element with isPlaying. In this lesson you'll remove an unnecessary effect and place logic in render or an event handler.\n\n```predict\n{\"question\": \"`useEffect(() => setFullName(first + \\\" \\\" + last), [first, last])`. Is the effect needed?\", \"options\": [\"Yes, to keep fullName updated\", \"No: compute `const fullName = first + \\\" \\\" + last` during render\"], \"answer\": 1, \"why\": \"Derived values need no state and no effect. The effect adds an extra render with a stale value first.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: State and events; javascript async network; Minimal and normalized state; Render purity and Strict Mode. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **State and events** module, the **Promises, async work and HTTP** module, **Minimal and normalized state** (derive, don't store), and **Render purity and Strict Mode**."
       },
       {
-        "heading": "Technology rule",
-        "body": "An effect synchronizes React state with an external system after commit; derived render data and event consequences usually need no effect. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: effects sync with the outside",
+        "body": "```jsx\nimport { useEffect, useRef, useState } from \"react\";\n\nexport function LessonVideo({ src }) {\n  const [isPlaying, setIsPlaying] = useState(false);\n  const videoRef = useRef(null);\n\n  // Needed: the video element is outside React's control.\n  useEffect(() => {\n    if (isPlaying) videoRef.current.play();\n    else videoRef.current.pause();\n  }, [isPlaying]);\n\n  return (\n    <>\n      <video ref={videoRef} src={src} onEnded={() => setIsPlaying(false)} />\n      <button type=\"button\" onClick={() => setIsPlaying(!isPlaying)}>\n        {isPlaying ? \"Pause\" : \"Play\"}\n      </button>\n    </>\n  );\n}\n```\n\n| Situation | Put it in |\n|---|---|\n| value computed from props/state. | render. |\n| response to a click or submit. | event handler. |\n| keep an external system matching state. | effect. |\n| reset state when a prop changes. | a key, not an effect. |\n\n```reveal\n{\"prompt\": \"Why not call play() inside the click handler instead?\", \"answer\": \"You could for this button. The effect also keeps the video right when isPlaying changes from anywhere, like the onEnded handler or a parent.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Effects do not run on the server, can repeat in development, and set-state loops indicate derived-state misuse. This draft therefore rejects: Any calculation after state changes belongs in useEffect."
+        "heading": "Handler, not effect",
+        "body": "```predict\n{\"question\": \"After a lesson is saved, show a \\\"Saved!\\\" toast. Where?\", \"options\": [\"An effect watching a `saved` flag\", \"The submit handler, right after the save succeeds\"], \"answer\": 1, \"why\": \"It happens because of a specific action, so it belongs with that action.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use effects only to synchronize with external systems, not for event logic or derivable values.",
-      "Remove an unnecessary effect and place logic in render or an event handler."
+      "Use effects only to synchronise with external systems.",
+      "Move derived values into render and action consequences into handlers."
     ],
     "excludes": [
-      "Effects do not run on the server, can repeat in development, and set-state loops indicate derived-state misuse."
+      "Dependency rules (next lesson).",
+      "Data-fetching libraries."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "react.effects.need.example-a",
-      "title": "When an effect is needed: concrete case",
+      "title": "Keeping a video in step with isPlaying",
       "situation": "A media-player effect calls play or pause to synchronize an external video element with isPlaying.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A media-player effect calls play or pause to synchronize an external video element with isPlaying.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Calculate render-derived values during render; use effects only to synchronize with systems outside React."
+        "**External system:** the video element has imperative play and pause methods React doesn't call itself.",
+        "**Synchronize:** the effect reads isPlaying and calls `play()` or `pause()` on the ref after each commit.",
+        "**Check:** a test will mock play and pause, click Play, and assert play was called once; onEnded will flip the button back."
       ],
-      "result": "The result follows because Calculate render-derived values during render; use effects only to synchronize with systems outside React."
+      "result": "The video always matches the button, whether playback is changed by a click or by the video ending."
     },
     {
       "id": "react.effects.need.example-b",
-      "title": "When an effect is needed: boundary case",
-      "situation": "Effects do not run on the server, can repeat in development, and set-state loops indicate derived-state misuse.",
+      "title": "The effect that only derived",
+      "situation": "A search list has `const [visible, setVisible] = useState([])` and an effect that filters lessons into visible whenever query changes. The list flickers with old results on each keystroke.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Effects do not run on the server, can repeat in development, and set-state loops indicate derived-state misuse.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Any calculation after state changes belongs in useEffect."
+        "The first render shows the old visible list, then the effect sets the new one.",
+        "Filtering is a derived value, not an external system.",
+        "Fix: delete the state and effect, and compute `const visible = lessons.filter(...)` during render."
       ],
-      "result": "The boundary requires this correction: Calculate render-derived values during render; use effects only to synchronize with systems outside React."
+      "result": "Results update in the same render as the query, with no flicker and less code."
     }
   ],
   "misconceptions": [
     {
       "id": "react.effects.need.misconception",
       "mistakenBelief": "Any calculation after state changes belongs in useEffect.",
-      "correction": "Calculate render-derived values during render; use effects only to synchronize with systems outside React.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Any calculation after state changes belongs in useEffect."
+      "correction": "Calculations from props and state belong in render, and consequences of an action belong in its handler. Effects are only for synchronising with systems outside React.",
+      "diagnosticPrompt": "In \"The effect that only derived\", why did the list flicker?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model When an effect is needed, where inputs and state produce a UI description.",
+    "example": "An effect is like **a stage manager who adjusts the lights to match the script** after each scene change. Actors don't need the stage manager to say their lines (render) or to react to a heckler (handler); the stage manager only handles equipment outside the actors' control.",
     "usefulFor": [
-      "Building a first mental model for When an effect is needed before using exact platform terms"
+      "remembering external sync",
+      "render = the script, handler = reacting to events"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Effects do not run on the server, can repeat in development, and set-state loops indicate derived-state misuse."
+      "Stage managers work in real time; effects run after the screen updates.",
+      "Asking the stage manager to rewrite lines causes delays, like needless effects."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A media-player effect calls play or pause to synchronize an external video element with isPlaying.",
-      "An effect synchronizes React state with an external system after commit; derived render data and event consequences usually need no effect.",
-      "Calculate render-derived values during render; use effects only to synchronize with systems outside React."
+      "click Play: setIsPlaying(true)",
+      "render + commit",
+      "effect runs"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Event",
         "state": {
-          "evidence": "A media-player effect calls play or pause to synchronize an external video element with isPlaying."
+          "isPlaying": "true (queued)"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The click changes state; nothing external has changed yet."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Commit",
         "state": {
-          "rule": "An effect synchronizes React state with an external system after commit; derived render data and event consequences usually need no effect."
+          "button text": "Pause",
+          "video": "still paused"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "React updates the DOM it owns first."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Effect",
         "state": {
-          "correction": "Calculate render-derived values during render; use effects only to synchronize with systems outside React."
+          "called": "videoRef.current.play()",
+          "video": "playing"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Any calculation after state changes belongs in useEffect."
+        "explanation": "The media-player effect calls play to synchronize the external video element with isPlaying."
       }
     ],
-    "textAlternative": "Starting artifact: A media-player effect calls play or pause to synchronize an external video element with isPlaying. Step 1, Artifact. State: evidence: A media-player effect calls play or pause to synchronize an external video element with isPlaying.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: An effect synchronizes React state with an external system after commit; derived render data and event consequences usually need no effect.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Calculate render-derived values during render; use effects only to synchronize with systems outside React.. Check the result against the boundary and reject this misconception: Any calculation after state changes belongs in useEffect."
+    "textAlternative": "Tracing an effect after a click. Step 1, Event: isPlaying is true (queued). The click changes state; nothing external has changed yet. Step 2, Commit: button text is Pause; video is still paused. React updates the DOM it owns first. Step 3, Effect: called is videoRef.current.play(); video is playing. The media-player effect calls play to synchronize the external video element with isPlaying."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “When an effect is needed: concrete case”: state its starting evidence, apply the When an effect is needed rule, and give the observable result in three short lines.",
+      "prompt": "For \"Keeping a video in step with isPlaying\", explain how a media-player effect calls play or pause to synchronize an external video element with isPlaying.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "External system.",
+        "Effect.",
+        "Check."
       ],
       "expectedEvidence": [
-        "Named example: When an effect is needed: concrete case.",
-        "Starting evidence: A media-player effect calls play or pause to synchronize an external video element with isPlaying.",
-        "Core rule: An effect synchronizes React state with an external system after commit; derived render data and event consequences usually need no effect.",
-        "Observable result: The result follows because Calculate render-derived values during render; use effects only to synchronize with systems outside React.",
-        "Boundary check: Calculate render-derived values during render; use effects only to synchronize with systems outside React."
+        "Names the example \"Keeping a video in step with isPlaying\": the video element is external to React.",
+        "The media-player effect calls play or pause.",
+        "It synchronizes the external video element with isPlaying.",
+        "The video always matches the button."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Effects do not run on the server, can repeat in development, and set-state loops indicate derived-state misuse.",
+      "prompt": "A component has an effect that sets `isValid` whenever email changes, and another that sends analytics when a Buy button's `clicked` flag becomes true. Rewrite both without effects.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "isValid is derived.",
+        "Analytics belongs to the click."
       ],
       "expectedEvidence": [
-        "An effect synchronizes React state with an external system after commit; derived render data and event consequences usually need no effect.",
-        "Effects do not run on the server, can repeat in development, and set-state loops indicate derived-state misuse."
+        "`const isValid = email.includes(\"@\")`.",
+        "Send analytics in the Buy handler."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for When an effect is needed and explain why the misconception fails.",
+      "prompt": "Audit every useEffect in a React feature. Classify each as external sync, derived value, or action consequence, remove the unnecessary ones, and add tests proving behaviour didn't change.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Ask: what outside system does it touch?",
+        "Keep only real syncs."
       ],
       "expectedEvidence": [
-        "Remove an unnecessary effect and place logic in render or an event handler.",
-        "Calculate render-derived values during render; use effects only to synchronize with systems outside React."
+        "A classification table.",
+        "Fewer effects, same passing tests."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.effects.need.misconception",
-      "explanation": "Calculate render-derived values during render; use effects only to synchronize with systems outside React.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'systems outside React' and state the decisive evidence."
+      "explanation": "Before writing useEffect ask: **What system outside React am I synchronising with?** If the answer is \"none\", compute it in render or do it in the handler.",
+      "retryPrompt": "Apply this to \"The effect that only derived\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to remove an unnecessary effect and place logic in render or an event handler. Keep this boundary in view: Effects do not run on the server, can repeat in development, and set-state loops indicate derived-state misuse.",
+    "summary": "To remove an unnecessary effect, compute derived values during render and run action consequences in the event handler that caused them. Keep useEffect for synchronising React state with external systems, such as calling play or pause on a video element after commit.",
     "retrievalPrompts": [
-      "Explain When an effect is needed using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: Any calculation after state changes belongs in useEffect.",
-      "Apply checkpoint 'systems outside React' to a new artifact."
+      "What are effects for?",
+      "Where should a derived value be computed?",
+      "Where should a toast after saving be shown?"
     ],
     "nextReviewPrompt": "Next: continue to “Dependencies and reactive values”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

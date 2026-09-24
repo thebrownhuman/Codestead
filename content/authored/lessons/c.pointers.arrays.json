@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Within one array object, pointer addition advances by elements and comparisons can include the one-past pointer, while dereference remains limited to actual elements.",
+    "summary": "Inside an array, **pointer arithmetic counts elements, not bytes**: if `p` points at `values[0]`, then `p + 1` points at `values[1]`, whatever the element size. `values[i]` is exactly `*(values + i)`. You may form the **one-past-the-end** pointer `values + count` and compare against it, but **never dereference** it. Arithmetic is only defined **within one array object** (plus that one-past position): moving further, or comparing pointers into two unrelated objects, is undefined. Subtracting two pointers into the same array gives the **number of elements** between them (`ptrdiff_t`).",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A loop advances int *p from values to values + count, stopping before p equals the one-past endpoint. Your goal is to rewrite and trace equivalent bounded array and pointer traversals. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner converts an index loop to a pointer loop: `for (int *p = values; p <= values + count; p++) sum += *p;`. The sum includes one extra, random number. A loop advances int *p from values to values + count, stopping before p equals the one-past endpoint. In this lesson you'll rewrite and trace equivalent bounded array and pointer traversals.\n\n```predict\n{\"question\": \"values is an int array starting at address 1000, and int is 4 bytes. What address is values + 2?\", \"options\": [\"1002\", \"1008: +2 means two ints, 8 bytes\"], \"answer\": 1, \"why\": \"The compiler scales by sizeof(int) for you.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: One-dimensional arrays; Parameters and return values; Addresses and dereference. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **One-dimensional arrays**, **Parameters and return values** and **Addresses and dereference** (valid, null and dangling pointers)."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "Within one array object, pointer addition advances by elements and comparisons can include the one-past pointer, while dereference remains limited to actual elements. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The rule: element steps, one-past is a boundary",
+        "body": "```c\n#include <stdio.h>\n#include <stddef.h>\n\nint sum_index(const int *values, size_t count) {\n    int sum = 0;\n    for (size_t i = 0; i < count; i++) sum += values[i];\n    return sum;\n}\n\nint sum_pointer(const int *values, size_t count) {\n    int sum = 0;\n    const int *end = values + count;          /* one past: compare, never read. */\n    for (const int *p = values; p < end; p++) sum += *p;\n    return sum;\n}\n\nint main(void) {\n    int v[] = {4, 8, 15, 16};\n    printf(\"%d %d\\n\", sum_index(v, 4), sum_pointer(v, 4));   /* 43 43. */\n    ptrdiff_t gap = &v[3] - &v[1];            /* 2 elements. */\n    printf(\"%td\\n\", gap);\n    return 0;\n}\n```\n\n| Expression | Means |\n|---|---|\n| `v + i`. | address of `v[i]`. |\n| `*(v + i)`. | same as `v[i]`. |\n| `v + count`. | one past the end: compare only. |\n| `q - p`. | elements between, same array only. |\n\n```reveal\n{\"prompt\": \"Is `v - 1` allowed if you never dereference it?\", \"answer\": \"No. Even forming a pointer before the start of an array is undefined. Only positions from v to v + count are valid to compute.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Arithmetic across unrelated objects is not defined, one-past may not be dereferenced, and array-to-pointer conversion loses total length information. Therefore the draft explicitly rejects this beginner failure model: Pointer arithmetic counts bytes for every pointer type and can traverse freely between separately allocated objects."
+        "heading": "Stay inside one object",
+        "body": "```predict\n{\"question\": \"`int a[3], b[3];` Is `a + 3 == b` guaranteed to be true or false, and is walking from a into b allowed?\", \"options\": [\"It's defined; b follows a\", \"Neither is guaranteed: they're separate objects, so walking between them is undefined\"], \"answer\": 1, \"why\": \"Layout of separate variables is up to the compiler.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Relate array conversion, indexing and pointer arithmetic within one array object.",
-      "Rewrite and trace equivalent bounded array and pointer traversals."
+      "Rewrite index loops as pointer loops that stop at the one-past pointer.",
+      "Explain element-scaled arithmetic and its limits to a single array object."
     ],
     "excludes": [
-      "Arithmetic across unrelated objects is not defined, one-past may not be dereferenced, and array-to-pointer conversion loses total length information."
+      "Pointer arithmetic on void * (not standard C).",
+      "Heap buffers (memory module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "c.pointers.arrays.example-a",
-      "title": "Pointers, arrays and arithmetic: defined case",
+      "title": "Walking an array with a pointer",
       "situation": "A loop advances int *p from values to values + count, stopping before p equals the one-past endpoint.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A loop advances int *p from values to values + count, stopping before p equals the one-past endpoint.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Pointer arithmetic is scaled by the pointed-to type and is defined only within one array object plus its one-past position."
+        "**A loop advances int *p from values:** p starts at &values[0].",
+        "**To values + count:** end is the one-past endpoint, computed once.",
+        "**Stopping before p equals the one-past endpoint:** p < end; the sum of {4, 8, 15, 16} will be 43, matching the index version."
       ],
-      "result": "The defined result follows because Pointer arithmetic is scaled by the pointed-to type and is defined only within one array object plus its one-past position."
+      "result": "Both loops agree, and neither reads past the array."
     },
     {
       "id": "c.pointers.arrays.example-b",
-      "title": "Pointers, arrays and arithmetic: boundary case",
-      "situation": "Subtracting two pointers into the same array yields an element distance, but subtracting pointers into separate arrays is not a portable distance.",
+      "title": "The byte-counting mistake",
+      "situation": "A learner advances `int *p` by `sizeof(int)` each step to \"move one int\", and skips most elements.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: Subtracting two pointers into the same array yields an element distance, but subtracting pointers into separate arrays is not a portable distance.",
-        "Step 2 — Keep this standard boundary visible: Arithmetic across unrelated objects is not defined, one-past may not be dereferenced, and array-to-pointer conversion loses total length information.",
-        "Step 3 — Reject the tempting rule: Pointer arithmetic counts bytes for every pointer type and can traverse freely between separately allocated objects."
+        "p + 4 moves four ints, not four bytes.",
+        "Pointer arithmetic is already scaled by element size.",
+        "Use p++ (or p + 1) to move one element."
       ],
-      "result": "This case demonstrates the declared outcome: Rewrite and trace equivalent bounded array and pointer traversals."
+      "result": "Every element is visited exactly once."
     }
   ],
   "misconceptions": [
     {
       "id": "c.pointers.arrays.misconception",
       "mistakenBelief": "Pointer arithmetic counts bytes for every pointer type and can traverse freely between separately allocated objects.",
-      "correction": "Pointer arithmetic is scaled by the pointed-to type and is defined only within one array object plus its one-past position.",
-      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: Pointer arithmetic counts bytes for every pointer type and can traverse freely between separately allocated objects."
+      "correction": "Arithmetic is scaled by the element size, and it's only defined within one array object and its one-past position.",
+      "diagnosticPrompt": "In \"The byte-counting mistake\", how far did p + sizeof(int) actually move?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A manually managed workshop can model Pointers, arrays and arithmetic: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "example": "Pointer arithmetic is like **walking along a row of houses by house number**, not by metres. \"Two houses along\" means two houses however wide they are. The kerb just past the last house (one-past) is a fine place to stop and check, but there's no house there to enter, and the next street (another object) isn't part of this row.",
     "usefulFor": [
-      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+      "remembering house numbers, not metres",
+      "kerb = one-past"
     ],
     "limitations": [
-      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
-      "Arithmetic across unrelated objects is not defined, one-past may not be dereferenced, and array-to-pointer conversion loses total length information."
+      "Streets continue; arrays just end.",
+      "Counting between two houses on the same street = pointer subtraction."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A loop advances int *p from values to values + count, stopping before p equals the one-past endpoint.",
-      "Within one array object, pointer addition advances by elements and comparisons can include the one-past pointer, while dereference remains limited to actual elements.",
-      "Pointer arithmetic is scaled by the pointed-to type and is defined only within one array object plus its one-past position."
+      "p = values; end = values + 4",
+      "p = values..values + 3: sum += *p",
+      "p == end: stop"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Start",
         "state": {
-          "evidence": "A loop advances int *p from values to values + count, stopping before p equals the one-past endpoint."
+          "p": "&values[0]",
+          "end": "values + 4"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "The loop advances int *p from values, with the endpoint computed once."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Walk",
         "state": {
-          "rule": "Within one array object, pointer addition advances by elements and comparisons can include the one-past pointer, while dereference remains limited to actual elements."
+          "*p": "4, 8, 15, 16",
+          "sum": "43"
         },
-        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+        "explanation": "Each p++ moves one element forward within the array."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Stop",
         "state": {
-          "conclusion": "Pointer arithmetic is scaled by the pointed-to type and is defined only within one array object plus its one-past position."
+          "p": "== end",
+          "dereferenced": "no"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: Pointer arithmetic counts bytes for every pointer type and can traverse freely between separately allocated objects."
+        "explanation": "The loop stops before p equals the one-past endpoint."
       }
     ],
-    "textAlternative": "Starting artifact: A loop advances int *p from values to values + count, stopping before p equals the one-past endpoint. Step 1, Source and state. State: evidence: A loop advances int *p from values to values + count, stopping before p equals the one-past endpoint.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: Within one array object, pointer addition advances by elements and comparisons can include the one-past pointer, while dereference remains limited to actual elements.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Pointer arithmetic is scaled by the pointed-to type and is defined only within one array object plus its one-past position.. Check the conclusion against the boundary and reject this misconception: Pointer arithmetic counts bytes for every pointer type and can traverse freely between separately allocated objects."
+    "textAlternative": "Tracing a pointer loop. Step 1, Start: p is &values[0]; end is values + 4. The loop advances int p from values, with the endpoint computed once. Step 2, Walk: *p is 4, 8, 15, 16; sum is 43. Each p++ moves one element forward within the array. Step 3, Stop: p is == end; dereferenced is no. The loop stops before p equals the one-past endpoint."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Pointers, arrays and arithmetic: defined case”: state its starting evidence, apply the Pointers, arrays and arithmetic rule, and give the observable result in three short lines.",
+      "prompt": "For \"Walking an array with a pointer\", explain how a loop advances int *p from values to values + count, stopping before p equals the one-past endpoint.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Start.",
+        "Walk.",
+        "Stop."
       ],
       "expectedEvidence": [
-        "Named example: Pointers, arrays and arithmetic: defined case.",
-        "Starting evidence: A loop advances int *p from values to values + count, stopping before p equals the one-past endpoint.",
-        "Core rule: Within one array object, pointer addition advances by elements and comparisons can include the one-past pointer, while dereference remains limited to actual elements.",
-        "Observable result: The defined result follows because Pointer arithmetic is scaled by the pointed-to type and is defined only within one array object plus its one-past position.",
-        "Boundary check: Pointer arithmetic is scaled by the pointed-to type and is defined only within one array object plus its one-past position."
+        "Names the example \"Walking an array with a pointer\": p <= end added a random number.",
+        "A loop advances int *p from values to values + count.",
+        "It stops before p equals the one-past endpoint.",
+        "Both loops agree, and neither reads past the array."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same C rule to this related boundary case: Subtracting two pointers into the same array yields an element distance, but subtracting pointers into separate arrays is not a portable distance.",
+      "prompt": "Rewrite `for (size_t i = 0; i < n; i++) if (v[i] == target) return (int)i; return -1;` using a pointer loop, returning the index via pointer subtraction. Test first, last and missing targets.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Index = p - v.",
+        "Stop at v + n."
       ],
       "expectedEvidence": [
-        "Within one array object, pointer addition advances by elements and comparisons can include the one-past pointer, while dereference remains limited to actual elements.",
-        "Arithmetic across unrelated objects is not defined, one-past may not be dereferenced, and array-to-pointer conversion loses total length information."
+        "Same results as the index version.",
+        "No read past the end."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new C example for Pointers, arrays and arithmetic, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Write void reverse(int *first, int *last) that reverses the elements from first up to (not including) last, using two pointers moving toward each other. Test with 0, 1, 2 and 5 elements under -fsanitize=address.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "last is one-past.",
+        "Loop while first < --last, or equivalent."
       ],
       "expectedEvidence": [
-        "Rewrite and trace equivalent bounded array and pointer traversals.",
-        "Pointer arithmetic is scaled by the pointed-to type and is defined only within one array object plus its one-past position."
+        "All sizes reversed correctly.",
+        "Sanitizer clean."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "c.pointers.arrays.misconception",
-      "explanation": "Pointer arithmetic is scaled by the pointed-to type and is defined only within one array object plus its one-past position.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'one-past position' and state the decisive evidence: Subtracting two pointers into the same array yields an element distance, but subtracting pointers into separate arrays is not a portable distance."
+      "explanation": "For every pointer loop state: **the start pointer, the one-past end pointer, and the fact that the end is compared but never dereferenced.**",
+      "retryPrompt": "Apply this to \"The byte-counting mistake\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to rewrite and trace equivalent bounded array and pointer traversals. Keep this boundary in view: Arithmetic across unrelated objects is not defined, one-past may not be dereferenced, and array-to-pointer conversion loses total length information.",
+    "summary": "To rewrite and trace pointer traversals, remember p + i moves i elements, v[i] means *(v + i), the one-past pointer v + count may be compared but not dereferenced, arithmetic stays within one array object, and subtracting pointers into the same array counts the elements between them.",
     "retrievalPrompts": [
-      "Explain Pointers, arrays and arithmetic using a concrete C rule rather than the optional analogy.",
-      "Why is this claim incorrect: Pointer arithmetic counts bytes for every pointer type and can traverse freely between separately allocated objects.",
-      "Apply the checkpoint 'one-past position' to the boundary case from memory."
+      "What does p + 1 move by?",
+      "What may you do with the one-past pointer?",
+      "Why can't you walk from one array into another?"
     ],
     "nextReviewPrompt": "Next: continue to “const-correct pointer interfaces”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A record groups named fields that describe one conceptual entity, with each field chosen for a defined meaning, type, optionality, and validation rule.",
+    "summary": "A **record** groups named fields that describe **one thing** — a student, an order, a song. Each field should have a clear meaning, a type, a rule for whether it can be empty, and a validation rule. Values you can calculate (like progress %) usually belong outside the record, so they never go stale.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A student record groups id, display name, enrollment date, and active status while keeping calculated progress outside the editable identity fields. Your goal is to design a record representation and justify its fields and types. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You're building a class roster. Each student has an id, a display name, an enrollment date and whether they're active. You could keep four separate lists — but then deleting one student means editing four lists in step. A student record groups id, display name, enrollment date and active status together, while keeping calculated progress outside the editable identity fields. In this lesson you'll design a record representation and justify its fields and types.\n\n```predict\n{\"question\": \"Which field should *not* be stored inside the student record?\", \"options\": [\"`enrolled_on` (a date)\", \"`progress_percent` (calculated from finished lessons)\"], \"answer\": 1, \"why\": \"Progress can be calculated from lesson data. Storing a copy risks it going **stale** when lessons change.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Iteration; Values and types. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Iteration** and **Values and types** (text, numbers, booleans, dates). A record is a small bundle of typed values with names."
       },
       {
-        "heading": "Operational model",
-        "body": "A record groups named fields that describe one conceptual entity, with each field chosen for a defined meaning, type, optionality, and validation rule. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The mental model: one entity, named fields, clear rules",
+        "body": "```python\nstudent = {\n    \"id\": \"S-104\",            # text, required, never changes\n    \"display_name\": \"Priya\",   # text, required, 1-60 chars\n    \"enrolled_on\": \"2026-01-12\",  # date, required\n    \"active\": True,             # boolean, required\n}\n```\n\n| Field | Type | Empty allowed? | Rule |\n|---|---|---|---|\n| id | text | no. | unique, never edited. |\n| display_name | text | no. | 1–60 characters. |\n| enrolled_on | date | no. | not in the future. |\n| active | boolean | no. | True or False. |\n\n```reveal\n{\"prompt\": \"Why is `active` a boolean and not the text \\\"yes\\\"/\\\"no\\\"?\", \"answer\": \"A boolean has exactly two valid values. Text allows \\\"Yes\\\", \\\"y\\\", \\\"YES \\\"… each a chance for a bug.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Records do not automatically enforce identity, uniqueness, normalization, privacy, or database relationships, and duplicated derived fields can become inconsistent. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Any values frequently used together should be copied into one record, including every derived and unrelated field."
+        "heading": "What doesn't belong",
+        "body": "Ask of every field: **does it describe this entity, and is it stored rather than calculated?**\n\n```predict\n{\"question\": \"A teammate adds `school_wifi_password` to each student record \\\"because it's used a lot\\\". Good idea?\", \"options\": [\"Yes — it's convenient\", \"No — it doesn't describe the student\"], \"answer\": 1, \"why\": \"Being used often together isn't enough. It isn't a property of a student, and copying it into every record means updating hundreds of copies when it changes.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Group related named fields that describe one conceptual entity.",
-      "Design a record representation and justify its fields and types."
+      "Choose fields, types, optionality and validation rules for one entity.",
+      "Keep derived and unrelated values out of the record."
     ],
     "excludes": [
-      "Records do not automatically enforce identity, uniqueness, normalization, privacy, or database relationships, and duplicated derived fields can become inconsistent."
+      "Database tables and keys (later courses).",
+      "Classes and methods."
     ]
   },
   "outcomes": [
@@ -63,133 +64,133 @@
   "examples": [
     {
       "id": "pf.data.records.example-a",
-      "title": "Records and entities: direct case",
+      "title": "Designing a student record",
       "situation": "A student record groups id, display name, enrollment date, and active status while keeping calculated progress outside the editable identity fields.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A student record groups id, display name, enrollment date, and active status while keeping calculated progress outside the editable identity fields.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Group cohesive facts about one entity, name their meanings and constraints, and derive redundant values rather than storing conflicting copies when possible."
+        "**Pick the entity:** one student. Every field must describe that student.",
+        "**Choose fields and types:** id (text), display name (text), enrollment date (date), active status (boolean).",
+        "**Leave out calculated progress:** it's derived from finished lessons, so it's computed when needed, not stored."
       ],
-      "result": "The case supports the declared outcome because Group cohesive facts about one entity, name their meanings and constraints, and derive redundant values rather than storing conflicting copies when possible."
+      "result": "A four-field student record with clear types, and progress calculated outside it so it can't go stale."
     },
     {
       "id": "pf.data.records.example-b",
-      "title": "Records and entities: boundary case",
-      "situation": "A coordinate record names latitude and longitude with range constraints so callers do not confuse two unlabeled numeric positions.",
+      "title": "The order record with a stale total",
+      "situation": "An order record stores `items`, `unit prices`, and also a saved `total` field computed at checkout.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A coordinate record names latitude and longitude with range constraints so callers do not confuse two unlabeled numeric positions.",
-        "Step 2 — Keep this boundary explicit: Records do not automatically enforce identity, uniqueness, normalization, privacy, or database relationships, and duplicated derived fields can become inconsistent.",
-        "Step 3 — Reject the documented misconception: Any values frequently used together should be copied into one record, including every derived and unrelated field."
+        "A support agent later fixes one item's price in the record.",
+        "The stored `total` isn't recalculated, so it now disagrees with the items.",
+        "Fix: remove the derived `total` field and calculate it from items and prices when needed."
       ],
-      "result": "This case demonstrates the declared outcome: Design a record representation and justify its fields and types."
+      "result": "Removing the derived field means the order total always matches its items."
     }
   ],
   "misconceptions": [
     {
       "id": "pf.data.records.misconception",
       "mistakenBelief": "Any values frequently used together should be copied into one record, including every derived and unrelated field.",
-      "correction": "Group cohesive facts about one entity, name their meanings and constraints, and derive redundant values rather than storing conflicting copies when possible.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Any values frequently used together should be copied into one record, including every derived and unrelated field."
+      "correction": "A record should hold fields that describe one entity. Derived values can be calculated when needed, and unrelated values belong in their own record; copying them in creates stale or inconsistent data.",
+      "diagnosticPrompt": "In \"The order record with a stale total\", which field caused the problem, and why?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "An organized storeroom can model Records and entities: shelves preserve order, labeled bins group fields, membership lists avoid duplicates, and indexes locate values.",
+    "example": "A record is like an **ID card**: name, photo, date of birth, ID number — facts about one person. You wouldn't print their current bank balance on it; that changes and is looked up elsewhere.",
     "usefulFor": [
-      "Comparing organization by order, name, membership, lookup, and update needs"
+      "remembering one record = one entity",
+      "seeing why changing, calculated data stays off the card"
     ],
     "limitations": [
-      "Physical storage hides concrete complexity, equality, hashing, mutation, allocation, and concurrency guarantees.",
-      "Records do not automatically enforce identity, uniqueness, normalization, privacy, or database relationships, and duplicated derived fields can become inconsistent."
+      "ID cards rarely change; many records are edited often.",
+      "Real records may link to other records (like a class id), which an ID card doesn't show."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A student record groups id, display name, enrollment date, and active status while keeping calculated progress outside the editable identity fields.",
-      "A record groups named fields that describe one conceptual entity, with each field chosen for a defined meaning, type, optionality, and validation rule.",
-      "Group cohesive facts about one entity, name their meanings and constraints, and derive redundant values rather than storing conflicting copies when possible."
+      "student = {'id': 'S-104', 'display_name': 'Priya', 'enrolled_on': '2026-01-12', 'active': True}",
+      "student['active'] = False",
+      "progress = done / total_lessons"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Create record",
         "state": {
-          "evidence": "A student record groups id, display name, enrollment date, and active status while keeping calculated progress outside the editable identity fields."
+          "id": "S-104",
+          "active": "True"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "The student record is created with four typed identity fields."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Update a field",
         "state": {
-          "model": "A record groups named fields that describe one conceptual entity, with each field chosen for a defined meaning, type, optionality, and validation rule."
+          "active": "False"
         },
-        "explanation": "Apply the declared Records and entities model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "Changing active status edits one field of the same student record."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Calculate progress",
         "state": {
-          "correction": "Group cohesive facts about one entity, name their meanings and constraints, and derive redundant values rather than storing conflicting copies when possible."
+          "progress": "computed when needed"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Any values frequently used together should be copied into one record, including every derived and unrelated field."
+        "explanation": "Progress is calculated outside the record, so it never goes stale."
       }
     ],
-    "textAlternative": "Starting artifact: A student record groups id, display name, enrollment date, and active status while keeping calculated progress outside the editable identity fields. Step 1, Observe. State: evidence: A student record groups id, display name, enrollment date, and active status while keeping calculated progress outside the editable identity fields.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A record groups named fields that describe one conceptual entity, with each field chosen for a defined meaning, type, optionality, and validation rule.. Apply the declared Records and entities model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Group cohesive facts about one entity, name their meanings and constraints, and derive redundant values rather than storing conflicting copies when possible.. Compare the observation with the correction and reject the misconception: Any values frequently used together should be copied into one record, including every derived and unrelated field."
+    "textAlternative": "Creating and updating a student record. Step 1, Create record: id is S-104; active is True. The student record is created with four typed identity fields. Step 2, Update a field: active is False. Changing active status edits one field of the same student record. Step 3, Calculate progress: progress is computed when needed. Progress is calculated outside the record, so it never goes stale."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Records and entities: direct case”: state its starting evidence, apply the Records and entities rule, and give the observable result in three short lines.",
+      "prompt": "For \"Designing a student record\", list the four fields of the student record with a type each, and explain why calculated progress stays outside it.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Four fields with types.",
+        "One sentence about progress."
       ],
       "expectedEvidence": [
-        "Named example: Records and entities: direct case.",
-        "Starting evidence: A student record groups id, display name, enrollment date, and active status while keeping calculated progress outside the editable identity fields.",
-        "Core rule: A record groups named fields that describe one conceptual entity, with each field chosen for a defined meaning, type, optionality, and validation rule.",
-        "Observable result: The case supports the declared outcome because Group cohesive facts about one entity, name their meanings and constraints, and derive redundant values rather than storing conflicting copies when possible.",
-        "Boundary check: Group cohesive facts about one entity, name their meanings and constraints, and derive redundant values rather than storing conflicting copies when possible."
+        "Names the example \"Designing a student record\": a student record with id, display name, enrollment date, active status.",
+        "Types: text, text, date, boolean.",
+        "Calculated progress is kept outside the editable identity fields.",
+        "Storing progress would risk it going stale."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A coordinate record names latitude and longitude with range constraints so callers do not confuse two unlabeled numeric positions.",
+      "prompt": "Design a record for a library book: pick 4–5 fields, give each a type and whether it may be empty, and name one value you'd deliberately leave out.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Think: what describes the book itself?",
+        "What could be calculated or belongs elsewhere?"
       ],
       "expectedEvidence": [
-        "A record groups named fields that describe one conceptual entity, with each field chosen for a defined meaning, type, optionality, and validation rule.",
-        "Records do not automatically enforce identity, uniqueness, normalization, privacy, or database relationships, and duplicated derived fields can become inconsistent."
+        "Fields such as isbn, title, author, year with types and optionality.",
+        "Leaves out something derived or unrelated, like 'days until due' or the borrower's address."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Records and entities, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Design records for a small music app: a song and a playlist. Decide which fields go in each, how a playlist refers to songs, and what's calculated rather than stored.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Playlist refers to song ids.",
+        "Total duration is derived."
       ],
       "expectedEvidence": [
-        "Design a record representation and justify its fields and types.",
-        "Group cohesive facts about one entity, name their meanings and constraints, and derive redundant values rather than storing conflicting copies when possible."
+        "Two records with typed fields that each describe one entity.",
+        "Playlist holds song ids; total duration is calculated, not stored."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "pf.data.records.misconception",
-      "explanation": "Group cohesive facts about one entity, name their meanings and constraints, and derive redundant values rather than storing conflicting copies when possible.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A coordinate record names latitude and longitude with range constraints so callers do not confuse two unlabeled numeric positions."
+      "explanation": "For each field ask three questions: **Does it describe this entity? Is it stored, not calculated? What type and rule does it have?** Drop any field that fails the first two.",
+      "retryPrompt": "Run the three questions on the order record's `total` field."
     }
   ],
   "recap": {
-    "summary": "You should now be able to design a record representation and justify its fields and types. Keep this boundary in view: Records do not automatically enforce identity, uniqueness, normalization, privacy, or database relationships, and duplicated derived fields can become inconsistent.",
+    "summary": "To design a record representation, group only the fields that describe one entity, and justify each field's meaning, type, optionality and validation rule. Keep derived values like progress or totals out, so they can't go stale.",
     "retrievalPrompts": [
-      "Explain Records and entities without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Any values frequently used together should be copied into one record, including every derived and unrelated field.",
-      "Apply the model to this case from memory: A coordinate record names latitude and longitude with range constraints so callers do not confuse two unlabeled numeric positions."
+      "Which fields belong in a student record, and with what types?",
+      "Why is a stored total risky?",
+      "What three questions test a field?"
     ],
     "nextReviewPrompt": "Next: continue to “Sets and maps”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

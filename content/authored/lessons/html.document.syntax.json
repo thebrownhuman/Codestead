@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "HTML tokenization and tree construction interpret elements, attributes, and text into a document structure.",
+    "summary": "HTML **describes structure**; it isn't a program that runs line by line. An **element** is a start tag, content and end tag: `<p>Hello</p>`. **Attributes** add details inside the start tag: `<a href=\"/about\">`. Elements **nest** like boxes inside boxes — and they must close in the reverse order they opened, with each attribute appearing only once per element.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: The fragment <p>Hello <em>friend</em></p> creates nested paragraph, emphasis, and text nodes. Your goal is to author and repair a small element tree without invalid nesting or duplicate attributes. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You write `<p>Hello <em>friend</p></em>` and the page looks… mostly fine? Browsers quietly repair broken markup, so mistakes hide — until styles or scripts behave strangely. Understanding nesting prevents that. The fragment <p>Hello <em>friend</em></p> creates nested paragraph, emphasis, and text nodes. In this lesson you'll author and repair a small element tree without invalid nesting or duplicate attributes.\n\n```predict\n{\"question\": \"Which line is correctly nested?\", \"options\": [\"`<p>Hello <em>friend</p></em>`\", \"`<p>Hello <em>friend</em></p>`\"], \"answer\": 1, \"why\": \"The element opened last (em) must close first. Think of boxes: close the inner box before the outer one.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "This skill has no declared earlier lesson. The course assumes: Basic browser and file use. You can continue when those ideas feel familiar."
+        "body": "No earlier lesson is needed. You should be comfortable with basic browser and file use: saving a file with a `.html` name and opening it in a browser."
       },
       {
-        "heading": "Technology rule",
-        "body": "HTML tokenization and tree construction interpret elements, attributes, and text into a document structure. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: elements are nested boxes",
+        "body": "```html\n<p class=\"greeting\">Hello <em>friend</em>!</p>\n```\n\n| Part | Here |\n|---|---|\n| element. | `p` (paragraph) containing text and an `em`. |\n| start tag. | `<p class=\"greeting\">`. |\n| attribute. | `class=\"greeting\"` — name and quoted value. |\n| nested element. | `<em>friend</em>` inside the paragraph. |\n| end tag. | `</p>`. |\n\nSome elements are **void** — they have no content or end tag: `<img>`, `<br>`, `<input>`.\n\n```reveal\n{\"prompt\": \"Draw the tree for `<p>Hello <em>friend</em>!</p>`.\", \"answer\": \"p → text \\\"Hello \\\", em → text \\\"friend\\\", then text \\\"!\\\". Three children of p, one of them an element with its own text child.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Parser error recovery exists but is not a substitute for conforming markup and can produce unexpected trees. This draft therefore rejects: HTML is executed line by line exactly like JavaScript source."
+        "heading": "One attribute, one value",
+        "body": "```predict\n{\"question\": \"`<img src=\\\"cat.jpg\\\" alt=\\\"A cat\\\" alt=\\\"Kitten\\\">` — which alt does the browser use?\", \"options\": [\"\\\"Kitten\\\" (the last)\", \"\\\"A cat\\\" (the first); the duplicate is ignored\"], \"answer\": 1, \"why\": \"Duplicate attributes are invalid; the parser keeps the first and drops the rest. Validators flag it so you can fix it.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Write valid start/end tags, void elements, quoted attributes and properly nested structures.",
-      "Author and repair a small element tree without invalid nesting or duplicate attributes."
+      "Write elements with correctly quoted attributes and proper nesting.",
+      "Repair mis-nested tags and duplicate attributes."
     ],
     "excludes": [
-      "Parser error recovery exists but is not a substitute for conforming markup and can produce unexpected trees."
+      "The full document skeleton (next lesson).",
+      "CSS styling."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "html.document.syntax.example-a",
-      "title": "Elements, attributes and nesting: concrete case",
+      "title": "Hello, friend — as a tree",
       "situation": "The fragment <p>Hello <em>friend</em></p> creates nested paragraph, emphasis, and text nodes.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: The fragment <p>Hello <em>friend</em></p> creates nested paragraph, emphasis, and text nodes.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: HTML is parsed into a document tree; author conforming markup and inspect the resulting DOM rather than relying on recovery."
+        "**Paragraph:** `<p>` opens a paragraph element containing everything until `</p>`.",
+        "**Emphasis inside:** `<em>friend</em>` is nested, so it opens and closes inside the paragraph.",
+        "**Text nodes:** the browser parses \"Hello \" and \"friend\" into text nodes — the tree is p → [text, em → text]."
       ],
-      "result": "The result follows because HTML is parsed into a document tree; author conforming markup and inspect the resulting DOM rather than relying on recovery."
+      "result": "The browser builds a paragraph with a text node and an emphasis element holding its own text node."
     },
     {
       "id": "html.document.syntax.example-b",
-      "title": "Elements, attributes and nesting: boundary case",
-      "situation": "Parser error recovery exists but is not a substitute for conforming markup and can produce unexpected trees.",
+      "title": "The tangled link",
+      "situation": "`<a href=\"/menu\"><strong>See the menu</a></strong>` and `<a href=\"/menu\" href=\"/food\">Food</a>` appear in a page.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Parser error recovery exists but is not a substitute for conforming markup and can produce unexpected trees.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: HTML is executed line by line exactly like JavaScript source."
+        "The first closes `a` before its child `strong` — invalid nesting.",
+        "The second repeats href; only the first value is used.",
+        "Repair: `<a href=\"/menu\"><strong>See the menu</strong></a>` and a single href."
       ],
-      "result": "The boundary requires this correction: HTML is parsed into a document tree; author conforming markup and inspect the resulting DOM rather than relying on recovery."
+      "result": "Both links now have a valid element tree and one clear destination."
     }
   ],
   "misconceptions": [
     {
       "id": "html.document.syntax.misconception",
-      "mistakenBelief": "HTML is executed line by line exactly like JavaScript source.",
-      "correction": "HTML is parsed into a document tree; author conforming markup and inspect the resulting DOM rather than relying on recovery.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: HTML is executed line by line exactly like JavaScript source."
+      "mistakenBelief": "HTML is executed line by line, exactly like JavaScript source.",
+      "correction": "HTML is parsed into a tree of elements, attributes and text that describes structure; nothing \"runs\". Nesting order and valid attributes decide the shape of that tree.",
+      "diagnosticPrompt": "In \"Hello, friend — as a tree\", what are the children of the p element?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model Elements, attributes and nesting, with structure carrying meaning before decoration.",
+    "example": "HTML is like **packing boxes**: a big box (p) can contain a smaller box (em) and loose items (text). You must close the small box before sealing the big one. Labels on a box (attributes) say things like \"fragile\" — once each.",
     "usefulFor": [
-      "Building a first mental model for Elements, attributes and nesting before using exact platform terms"
+      "remembering close-inner-first",
+      "seeing attributes as labels"
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "Parser error recovery exists but is not a substitute for conforming markup and can produce unexpected trees."
+      "Real boxes don't get auto-repaired; browsers silently fix bad markup, hiding mistakes.",
+      "Void elements are like stickers — no inside at all."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "The fragment <p>Hello <em>friend</em></p> creates nested paragraph, emphasis, and text nodes.",
-      "HTML tokenization and tree construction interpret elements, attributes, and text into a document structure.",
-      "HTML is parsed into a document tree; author conforming markup and inspect the resulting DOM rather than relying on recovery."
+      "<p>",
+      "Hello <em>friend</em>",
+      "</p>"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Open paragraph",
         "state": {
-          "evidence": "The fragment <p>Hello <em>friend</em></p> creates nested paragraph, emphasis, and text nodes."
+          "open": "p"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The parser opens a paragraph element for the fragment."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Nested emphasis",
         "state": {
-          "rule": "HTML tokenization and tree construction interpret elements, attributes, and text into a document structure."
+          "open": "p > em",
+          "text": "friend"
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The emphasis element opens and closes inside the paragraph with its own text node."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Close paragraph",
         "state": {
-          "correction": "HTML is parsed into a document tree; author conforming markup and inspect the resulting DOM rather than relying on recovery."
+          "tree": "p → [text 'Hello ', em → text 'friend']"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: HTML is executed line by line exactly like JavaScript source."
+        "explanation": "Closing the paragraph completes the nested paragraph, emphasis and text nodes."
       }
     ],
-    "textAlternative": "Starting artifact: The fragment <p>Hello <em>friend</em></p> creates nested paragraph, emphasis, and text nodes. Step 1, Artifact. State: evidence: The fragment <p>Hello <em>friend</em></p> creates nested paragraph, emphasis, and text nodes.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: HTML tokenization and tree construction interpret elements, attributes, and text into a document structure.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: HTML is parsed into a document tree; author conforming markup and inspect the resulting DOM rather than relying on recovery.. Check the result against the boundary and reject this misconception: HTML is executed line by line exactly like JavaScript source."
+    "textAlternative": "Parsing a small nested fragment. Step 1, Open paragraph: open is p. The parser opens a paragraph element for the fragment. Step 2, Nested emphasis: open is p > em; text is friend. The emphasis element opens and closes inside the paragraph with its own text node. Step 3, Close paragraph: tree is p → [text 'Hello ', em → text 'friend']. Closing the paragraph completes the nested paragraph, emphasis and text nodes."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Elements, attributes and nesting: concrete case”: state its starting evidence, apply the Elements, attributes and nesting rule, and give the observable result in three short lines.",
+      "prompt": "For \"Hello, friend — as a tree\", describe the tree the fragment <p>Hello <em>friend</em></p> creates: the paragraph, the emphasis inside it, and the text nodes.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Outer element.",
+        "Nested element.",
+        "Text nodes."
       ],
       "expectedEvidence": [
-        "Named example: Elements, attributes and nesting: concrete case.",
-        "Starting evidence: The fragment <p>Hello <em>friend</em></p> creates nested paragraph, emphasis, and text nodes.",
-        "Core rule: HTML tokenization and tree construction interpret elements, attributes, and text into a document structure.",
-        "Observable result: The result follows because HTML is parsed into a document tree; author conforming markup and inspect the resulting DOM rather than relying on recovery.",
-        "Boundary check: HTML is parsed into a document tree; author conforming markup and inspect the resulting DOM rather than relying on recovery."
+        "Names the example \"Hello, friend — as a tree\": the fragment creates nested paragraph, emphasis, and text nodes.",
+        "p is the outer element.",
+        "em is nested inside p and closes first.",
+        "Hello and friend are text nodes."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Parser error recovery exists but is not a substitute for conforming markup and can produce unexpected trees.",
+      "prompt": "Repair: `<ul><li>Tea<li>Coffee</ul>` is actually valid (li end tags are optional), but `<b><i>Sale</b></i>` isn't. Fix the second and draw its tree.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Close inner first.",
+        "One element inside the other."
       ],
       "expectedEvidence": [
-        "HTML tokenization and tree construction interpret elements, attributes, and text into a document structure.",
-        "Parser error recovery exists but is not a substitute for conforming markup and can produce unexpected trees."
+        "`<b><i>Sale</i></b>`.",
+        "Tree: b → i → text 'Sale'."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Elements, attributes and nesting and explain why the misconception fails.",
+      "prompt": "Write a small profile card fragment with a heading, a paragraph containing a link and emphasis, and an image. Validate it with the W3C validator and fix any errors.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Quote every attribute.",
+        "img is void."
       ],
       "expectedEvidence": [
-        "Author and repair a small element tree without invalid nesting or duplicate attributes.",
-        "HTML is parsed into a document tree; author conforming markup and inspect the resulting DOM rather than relying on recovery."
+        "Correctly nested fragment with quoted attributes.",
+        "Validator reports no errors."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.document.syntax.misconception",
-      "explanation": "HTML is parsed into a document tree; author conforming markup and inspect the resulting DOM rather than relying on recovery.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'parsed into a document tree' and state the decisive evidence."
+      "explanation": "Write each tag on its own line and indent children. If an end tag doesn't line up with its start tag, the nesting is wrong. Then check each element's attributes for duplicates.",
+      "retryPrompt": "Indent \"The tangled link\" and find both problems."
     }
   ],
   "recap": {
-    "summary": "You should now be able to author and repair a small element tree without invalid nesting or duplicate attributes. Keep this boundary in view: Parser error recovery exists but is not a substitute for conforming markup and can produce unexpected trees.",
+    "summary": "To author and repair a small element tree, write elements as start tag, content and end tag, put quoted attributes once each in the start tag, and close nested elements before their parents. HTML describes structure — it is parsed into a tree, not executed.",
     "retrievalPrompts": [
-      "Explain Elements, attributes and nesting using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: HTML is executed line by line exactly like JavaScript source.",
-      "Apply checkpoint 'parsed into a document tree' to a new artifact."
+      "What order must nested elements close in?",
+      "What happens with a duplicate attribute?",
+      "What's a void element?"
     ],
     "nextReviewPrompt": "Next: continue to “Standards-mode document skeleton”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

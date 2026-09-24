@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A binary heap is a complete tree whose parent priority dominates children, usually stored compactly in an array.",
+    "summary": "A **binary heap** is a binary tree with two rules. **Shape**: it's **complete**, filled level by level, left to right, with no gaps. **Order**: in a **min-heap** every parent is ≤ its children (a max-heap flips that), so the smallest item is always at the **root**. Because it's complete, a heap fits in an array with no pointers: for 0-based index i, the children are **2i + 1** and **2i + 2**, and the parent is **(i - 1) // 2**. The order rule is only **between parent and child**: siblings and cousins can be in any order, so a heap is not a sorted array.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: In a zero-based heap, children of i are 2i+1 and 2i+2 when within size. Your goal is to trace parent-child indexes and validate a min- or max-heap. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A study-reminder app stores due times in an array and claims it's a min-heap so the soonest reminder is always first. A tester sees the array [2, 5, 3, 9, 6, 4] and says it's wrong because it isn't sorted. In a zero-based heap, children of i are 2i+1 and 2i+2 when within size. In this lesson you'll trace parent-child indexes and validate a min- or max-heap.\n\n```predict\n{\"question\": \"Is [2, 5, 3, 9, 6, 4] a valid min-heap?\", \"options\": [\"No, it's not sorted\", \"Yes: every parent is ≤ its children\"], \"answer\": 1, \"why\": \"Check pairs: 2 ≤ 5, 3; 5 ≤ 9, 6; 3 ≤ 4. Siblings needn't be sorted.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Array representation and operations; Tree terminology and representation. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Array representation and operations** (indexes) and **Tree terminology and representation** (parents, children, complete levels)."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "A binary heap is a complete tree whose parent priority dominates children, usually stored compactly in an array. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The rule: complete shape, parent dominates child",
+        "body": "```python\ndef children(i, size):\n    return [c for c in (2 * i + 1, 2 * i + 2) if c < size]\n\ndef parent(i):\n    return (i - 1) // 2 if i > 0 else None\n\ndef is_min_heap(a):\n    for i in range(len(a)):\n        for c in children(i, len(a)):\n            if a[i] > a[c]:              # a parent larger than a child breaks it.\n                return False\n    return True\n\nprint(is_min_heap([2, 5, 3, 9, 6, 4]))   # True.\nprint(is_min_heap([2, 5, 3, 1]))         # False: 5 at index 1 > 1 at index 3.\n```\n\n```text\nIndex:   0  1  2  3  4  5\nValue:   2  5  3  9  6  4\n             2\n           /   \\\n          5     3\n         / \\   /\n        9   6 4\n```\n\n| Index i | Left 2i+1 | Right 2i+2 | Parent (i-1)//2 |\n|---|---|---|---|\n| 0. | 1. | 2. | none. |\n| 1. | 3. | 4. | 0. |\n| 2. | 5. | 6 (out of range here). | 0. |\n\n```reveal\n{\"prompt\": \"What about 1-based heaps?\", \"answer\": \"Some textbooks start at index 1: children are 2i and 2i + 1, parent is i // 2. Pick one convention and test the formulas.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Heap order is partial, not full sorting, and min versus max orientation changes the dominant element. The draft therefore rejects: Every level of a heap is globally sorted from left to right."
+        "heading": "Shape matters too",
+        "body": "```predict\n{\"question\": \"A tree satisfies parent ≤ child but has a gap on the second level. Is it a binary heap?\", \"options\": [\"Yes\", \"No: a heap must be complete, which is what makes the array layout work\"], \"answer\": 1, \"why\": \"Gaps would leave holes in the array and break the index formulas.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Map complete binary tree relationships to array indexes and distinguish heap from sorted order.",
-      "Trace parent-child indexes and validate a min- or max-heap.",
-      "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+      "Map heap nodes to array indexes with 2i + 1, 2i + 2 and (i - 1) // 2.",
+      "Validate min- and max-heaps by checking every parent-child pair."
     ],
     "excludes": [
-      "Heap order is partial, not full sorting, and min versus max orientation changes the dominant element."
+      "Insert and extract (next lesson).",
+      "d-ary and Fibonacci heaps."
     ]
   },
   "outcomes": [
@@ -68,142 +64,135 @@
   "examples": [
     {
       "id": "dsa.heaps.property.example-a",
-      "title": "Heap property and array layout: language-neutral trace",
+      "title": "A tree hiding in an array",
       "situation": "In a zero-based heap, children of i are 2i+1 and 2i+2 when within size.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: In a zero-based heap, children of i are 2i+1 and 2i+2 when within size.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: A heap guarantees only parent-child priority and root extremum, not total order among siblings or levels."
+        "**Children of i:** index 1 (value 5) has children at 3 and 4 (values 9 and 6); index 2 has a child at 5 only.",
+        "**Within size:** index 2's right child 6 is out of range, so it's skipped.",
+        "**Validate:** is_min_heap checks every parent-child pair and will return True, even though the array isn't sorted."
       ],
-      "result": "The conceptual result follows because A heap guarantees only parent-child priority and root extremum, not total order among siblings or levels."
+      "result": "The tester sees the reminders array is a valid min-heap, with the soonest reminder at index 0."
     },
     {
       "id": "dsa.heaps.property.example-b",
-      "title": "Heap property and array layout: implementation transfer",
-      "situation": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
+      "title": "The max-heap with a hidden break",
+      "situation": "A leaderboard's max-heap is [90, 85, 88, 70, 86, 60]. The top score looks right, so nobody checks further.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
-        "Step 3 — Retest this boundary in the selected implementation: Heap order is partial, not full sorting, and min versus max orientation changes the dominant element."
+        "Index 1 (85) has children at 3 and 4: 70 and 86.",
+        "86 > 85 breaks the max-heap rule.",
+        "A full parent-child check catches it; the heap must be repaired before the next extract."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "The leaderboard's heap is validated after every change, so later extractions stay correct."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.heaps.property.misconception",
       "mistakenBelief": "Every level of a heap is globally sorted from left to right.",
-      "correction": "A heap guarantees only parent-child priority and root extremum, not total order among siblings or levels.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Every level of a heap is globally sorted from left to right."
+      "correction": "A heap only orders each parent relative to its children. Siblings and nodes on the same level can be in any order, which is why a heap isn't a sorted array.",
+      "diagnosticPrompt": "In the opening predict, why wasn't sortedness required?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Heap property and array layout, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "A heap is like **a company where every manager is more senior than their direct reports**: the CEO (root) is the most senior, but two managers on the same level can be in any order, and a junior in one team may outrank a manager in another. The seating plan (array) fills desks row by row with no gaps.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering parent vs child only",
+      "complete = no empty desks"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Heap order is partial, not full sorting, and min versus max orientation changes the dominant element."
+      "Companies can have many reports; a binary heap has at most two.",
+      "Knowing your desk number is enough to find your manager: (i - 1) // 2."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "In a zero-based heap, children of i are 2i+1 and 2i+2 when within size.",
-      "A binary heap is a complete tree whose parent priority dominates children, usually stored compactly in an array.",
-      "A heap guarantees only parent-child priority and root extremum, not total order among siblings or levels.",
-      "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+      "a = [2, 5, 3, 9, 6, 4]",
+      "check i = 0, 1, 2",
+      "result"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "i = 0",
         "state": {
-          "scenario": "In a zero-based heap, children of i are 2i+1 and 2i+2 when within size."
+          "children": "1, 2 → 5, 3",
+          "2 ≤ both": "yes"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The root is compared with its two children."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "i = 1, 2",
         "state": {
-          "invariant": "A binary heap is a complete tree whose parent priority dominates children, usually stored compactly in an array."
+          "i = 1 children": "9, 6",
+          "i = 2 child": "4 (index 5 only)"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "In a zero-based heap, children of i are 2i+1 and 2i+2 when within size."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Result",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "valid min-heap": "True"
         },
-        "explanation": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "A heap guarantees only parent-child priority and root extremum, not total order among siblings or levels."
-        },
-        "explanation": "Verify the result and reject this misconception: Every level of a heap is globally sorted from left to right."
+        "explanation": "Every parent-child pair satisfies the order rule."
       }
     ],
-    "textAlternative": "Starting artifact: In a zero-based heap, children of i are 2i+1 and 2i+2 when within size. Step 1, Specification. State: scenario: In a zero-based heap, children of i are 2i+1 and 2i+2 when within size.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: A binary heap is a complete tree whose parent priority dominates children, usually stored compactly in an array.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged. Step 4, Conclusion. State: correction: A heap guarantees only parent-child priority and root extremum, not total order among siblings or levels.. Verify the result and reject this misconception: Every level of a heap is globally sorted from left to right."
+    "textAlternative": "Validating a min-heap. Step 1, i = 0: children is 1, 2 → 5, 3; 2 ≤ both is yes. The root is compared with its two children. Step 2, i = 1, 2: i = 1 children is 9, 6; i = 2 child is 4 (index 5 only). In a zero-based heap, children of i are 2i+1 and 2i+2 when within size. Step 3, Result: valid min-heap is True. Every parent-child pair satisfies the order rule."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Heap property and array layout: language-neutral trace”: state its starting evidence, apply the Heap property and array layout rule, and give the observable result in three short lines.",
+      "prompt": "For \"A tree hiding in an array\", explain how in a zero-based heap, children of i are 2i+1 and 2i+2 when within size.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Index formulas.",
+        "Size check.",
+        "Validate."
       ],
       "expectedEvidence": [
-        "Named example: Heap property and array layout: language-neutral trace.",
-        "Starting evidence: In a zero-based heap, children of i are 2i+1 and 2i+2 when within size.",
-        "Core rule: A binary heap is a complete tree whose parent priority dominates children, usually stored compactly in an array.",
-        "Observable result: The conceptual result follows because A heap guarantees only parent-child priority and root extremum, not total order among siblings or levels.",
-        "Boundary check: A heap guarantees only parent-child priority and root extremum, not total order among siblings or levels."
+        "Names the example \"A tree hiding in an array\": the tree is stored in an array.",
+        "In a zero-based heap, children of i are 2i+1 and 2i+2.",
+        "Children are used only when within size.",
+        "The reminders array is a valid min-heap."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: A binary heap is a complete tree whose parent priority dominates children, usually stored compactly in an array.",
+      "prompt": "For [1, 3, 2, 7, 4, 5, 6, 8], give the parent of index 7, the children of index 3, and say whether it's a valid min-heap.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "(7 - 1) // 2.",
+        "2 × 3 + 1 and 2 × 3 + 2."
       ],
       "expectedEvidence": [
-        "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
-        "Heap order is partial, not full sorting, and min versus max orientation changes the dominant element."
+        "Parent of 7 is index 3 (value 7).",
+        "Children of 3: index 7 only (8); valid min-heap."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Heap property and array layout case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Write `is_max_heap` and a function that draws a heap array as a tree level by level. Test valid heaps, a broken deep pair, one element and empty.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Level k holds indexes 2^k - 1 to 2^(k+1) - 2.",
+        "Check every pair."
       ],
       "expectedEvidence": [
-        "Trace parent-child indexes and validate a min- or max-heap.",
-        "A heap guarantees only parent-child priority and root extremum, not total order among siblings or levels."
+        "Correct validation.",
+        "Drawings match the index formulas."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.heaps.property.misconception",
-      "explanation": "A heap guarantees only parent-child priority and root extremum, not total order among siblings or levels.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'parent-child priority', then state one implementation-specific risk in the selected language."
+      "explanation": "To check a heap, loop over every index i, compute its children with **2i + 1 and 2i + 2 when < size**, and compare only parent with child. Never check that the whole array is sorted.",
+      "retryPrompt": "Apply this to \"The max-heap with a hidden break\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to trace parent-child indexes and validate a min- or max-heap. Keep this boundary in view: Heap order is partial, not full sorting, and min versus max orientation changes the dominant element.",
+    "summary": "To trace parent-child indexes and validate a heap, remember a binary heap is a complete tree stored in an array where index i's children are 2i + 1 and 2i + 2 (when within size) and its parent is (i - 1) // 2, and check that every parent dominates its children, without expecting levels to be sorted.",
     "retrievalPrompts": [
-      "State the Heap property and array layout invariant and complexity without code.",
-      "Why is this claim false: Every level of a heap is globally sorted from left to right.",
-      "Map checkpoint 'parent-child priority' to C, C++, Java, and Python."
+      "What are the children of index i?",
+      "Which pairs does the heap order rule compare?",
+      "Why must a heap be complete?"
     ],
     "nextReviewPrompt": "Next: continue to “Heapify, insert and extract”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

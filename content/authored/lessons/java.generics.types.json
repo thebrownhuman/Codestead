@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Java generic types and methods introduce compile-time type parameters so one implementation can preserve relationships among input, stored, and returned types without raw casts.",
+    "summary": "**Generics** let one class or method work with many types while the compiler still tracks **which** type. `class Box<T>` has a **type parameter** T; `Box<String>` stores and returns Strings, with no casts. A **generic method** declares its own parameter before the return type: `static <T> T first(List<T> items)` returns whatever element type the list holds. The payoff is **compile-time safety**: putting an Integer in a `Box<String>` is an error before the program runs. The catch is **erasure**: at run time the type argument is gone, so you **can't** write `new T()`, `new T[10]` or `x instanceof T`. Avoid **raw types** like plain `Box`, which switch the checks off.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Box<T> stores and returns T, while a static <T> T first(List<T>) method preserves the list element type at each call. Your goal is to implement and use a small generic class and generic method safely. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner stores everything in `List` (raw) and casts on the way out: `String s = (String) list.get(0);`. One day an Integer sneaks in and the cast throws ClassCastException far from where the bad value was added. Then they try `new T()` inside a generic class and the compiler refuses. Box<T> stores and returns T, while a static <T> T first(List<T>) method preserves the list element type at each call. In this lesson you'll implement and use a small generic class and generic method safely.\n\n```predict\n{\"question\": \"Inside `class Box<T>`, can you write `T fresh = new T();`?\", \"options\": [\"Yes, T is a class\", \"No: type arguments are erased at run time, so Java doesn't know which class to create\"], \"answer\": 1, \"why\": \"Pass a factory (like Supplier<T>) if you need to create T values.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Interfaces; Arrays and multidimensional arrays; Method contracts and parameters. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Interfaces** (contracts), **Arrays and multidimensional arrays** (typed storage) and **Method contracts and parameters** (signatures and return types)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Java generic types and methods introduce compile-time type parameters so one implementation can preserve relationships among input, stored, and returned types without raw casts. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: type parameters the compiler tracks",
+        "body": "```java\nimport java.util.List;\n\nclass Box<T> {\n    private T value;                              // T is whatever the user chose.\n    Box(T value) { this.value = value; }\n    T get() { return value; }\n    void set(T value) { this.value = value; }\n}\n\npublic class Generics {\n    static <T> T first(List<T> items) {           // <T> declared before return type.\n        if (items.isEmpty()) throw new IllegalArgumentException(\"empty\");\n        return items.get(0);\n    }\n\n    public static void main(String[] args) {\n        Box<String> name = new Box<>(\"Ada\");     // diamond infers String.\n        String s = name.get();                      // no cast needed.\n        // name.set(42);                            // compile error: int is not String.\n        Integer n = first(List.of(7, 8, 9));        // T inferred as Integer.\n        System.out.println(s + \" \" + n);           // Ada 7\n    }\n}\n```\n\n```reveal\n{\"prompt\": \"What is a raw type, and why avoid it?\", \"answer\": \"Using Box without <...> is a raw type. The compiler stops checking element types and only warns, so bad values slip in and fail later as ClassCastException.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "Type erasure restricts runtime type tests and generic array creation, primitives need wrappers, static members cannot use a class type parameter directly, and raw types discard checks. The learner must reject this documented misconception: Generic type arguments are fully reified at runtime, so new T() and new T[10] are always available."
+        "heading": "Erasure limits",
+        "body": "```predict\n{\"question\": \"Which of these compiles inside `class Box<T>`?\", \"options\": [\"new T[10]\", \"a Supplier<T> field used to create values\"], \"answer\": 1, \"why\": \"Generic arrays and new T() need runtime type information that erasure removes.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Parameterize reusable APIs and avoid raw types and unnecessary casts.",
-      "Implement and use a small generic class and generic method safely."
+      "Declare generic classes and generic methods with type parameters.",
+      "Use type inference and explain erasure limits such as new T()."
     ],
     "excludes": [
-      "Type erasure restricts runtime type tests and generic array creation, primitives need wrappers, static members cannot use a class type parameter directly, and raw types discard checks."
+      "Wildcards and bounds (next lesson).",
+      "Reflection-based type tokens in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "java.generics.types.example.direct",
-      "title": "Generic types and methods: direct language case",
+      "title": "A Box<T> and a first(List<T>) method",
       "situation": "Box<T> stores and returns T, while a static <T> T first(List<T>) method preserves the list element type at each call.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: Box<T> stores and returns T, while a static <T> T first(List<T>) method preserves the list element type at each call.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Use type parameters for compile-time relationships and account for type erasure; avoid raw types and require factories or reifiable representations when runtime construction is needed."
+        "**Box<T> stores and returns T:** Box<String>.get() returns a String with no cast.",
+        "**A static <T> T first(List<T>) method:** the method declares T before its return type.",
+        "**Preserves the list element type at each call:** first(List.of(7, 8, 9)) will return an Integer, and first on a List<String> returns a String."
       ],
-      "result": "The example meets the atomic outcome because Use type parameters for compile-time relationships and account for type erasure; avoid raw types and require factories or reifiable representations when runtime construction is needed."
+      "result": "One implementation serves every element type, checked at compile time."
     },
     {
       "id": "java.generics.types.example.boundary",
-      "title": "Generic types and methods: boundary and transfer case",
-      "situation": "A raw List accepts a String into a collection expected to hold Integer, moving the failure to a later compiler-inserted cast.",
+      "title": "The cast that exploded later",
+      "situation": "A raw List collects strings and one Integer, and a cast to String throws when the list is read.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A raw List accepts a String into a collection expected to hold Integer, moving the failure to a later compiler-inserted cast.",
-        "Step 2 — Keep the language boundary explicit: Type erasure restricts runtime type tests and generic array creation, primitives need wrappers, static members cannot use a class type parameter directly, and raw types discard checks.",
-        "Step 3 — Reject the tempting but incorrect rule: Generic type arguments are fully reified at runtime, so new T() and new T[10] are always available."
+        "The raw type let the Integer in with only a warning.",
+        "Change the declaration to List<String>.",
+        "Now the compiler rejects the bad add at the line that caused it."
       ],
-      "result": "This case demonstrates the declared outcome: Implement and use a small generic class and generic method safely."
+      "result": "The bug is caught at compile time, where it was written."
     }
   ],
   "misconceptions": [
     {
       "id": "java.generics.types.misconception",
       "mistakenBelief": "Generic type arguments are fully reified at runtime, so new T() and new T[10] are always available.",
-      "correction": "Use type parameters for compile-time relationships and account for type erasure; avoid raw types and require factories or reifiable representations when runtime construction is needed.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Generic type arguments are fully reified at runtime, so new T() and new T[10] are always available."
+      "correction": "Type arguments are erased after compilation. Code can't create T values or T arrays directly; pass a factory or use a List<T> instead.",
+      "diagnosticPrompt": "In the opening predict, why couldn't Box create a new T?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a typed storage service whose labels constrain accepted contents and whose containers promise order, uniqueness, lookup, or removal policy can introduce Generic types and methods, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "example": "A generic class is like **a labelled storage bin**: `Box<String>` has a \"strings only\" label the **checker at the door** (the compiler) enforces. But the label is **peeled off before shipping** (erasure), so the warehouse at run time can't read it to build new items of that kind.",
     "usefulFor": [
-      "generic relationships, wildcard direction, and collection choice"
+      "remembering labels checked at the door",
+      "labels peeled off before shipping"
     ],
     "limitations": [
-      "type erasure, variance, hashing, iterator validity, and complexity guarantees are not visible in physical bins",
-      "Type erasure restricts runtime type tests and generic array creation, primitives need wrappers, static members cannot use a class type parameter directly, and raw types discard checks."
+      "A raw type is a bin with no label: anything goes in.",
+      "Inference is the checker reading the label for you."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Box<T> stores and returns T, while a static <T> T first(List<T>) method preserves the list element type at each call.",
-      "Java generic types and methods introduce compile-time type parameters so one implementation can preserve relationships among input, stored, and returned types without raw casts.",
-      "Use type parameters for compile-time relationships and account for type erasure; avoid raw types and require factories or reifiable representations when runtime construction is needed."
+      "new Box<>(\"Ada\")",
+      "name.get()",
+      "first(List.of(7, 8, 9))"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Create",
         "state": {
-          "evidence": "Box<T> stores and returns T, while a static <T> T first(List<T>) method preserves the list element type at each call."
+          "Box type": "Box<String>",
+          "value": "\"Ada\""
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "The diamond infers T as String from the constructor argument."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Get",
         "state": {
-          "rule": "Java generic types and methods introduce compile-time type parameters so one implementation can preserve relationships among input, stored, and returned types without raw casts."
+          "returned type": "String",
+          "cast": "none"
         },
-        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "Box<T> stores and returns T, so no cast is needed."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Call generic",
         "state": {
-          "correction": "Use type parameters for compile-time relationships and account for type erasure; avoid raw types and require factories or reifiable representations when runtime construction is needed."
+          "T": "Integer",
+          "result": "7"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Generic type arguments are fully reified at runtime, so new T() and new T[10] are always available."
+        "explanation": "A static <T> T first(List<T>) method preserves the list element type at each call."
       }
     ],
-    "textAlternative": "Starting artifact: Box<T> stores and returns T, while a static <T> T first(List<T>) method preserves the list element type at each call. Step 1, Observe. State: evidence: Box<T> stores and returns T, while a static <T> T first(List<T>) method preserves the list element type at each call.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Java generic types and methods introduce compile-time type parameters so one implementation can preserve relationships among input, stored, and returned types without raw casts.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Use type parameters for compile-time relationships and account for type erasure; avoid raw types and require factories or reifiable representations when runtime construction is needed.. Compare the observation with the correction and explain why the misconception fails: Generic type arguments are fully reified at runtime, so new T() and new T[10] are always available."
+    "textAlternative": "Tracing generic type inference. Step 1, Create: Box type is Box<String>; value is \"Ada\". The diamond infers T as String from the constructor argument. Step 2, Get: returned type is String; cast is none. Box<T> stores and returns T, so no cast is needed. Step 3, Call generic: T is Integer; result is 7. A static <T> T first(List<T>) method preserves the list element type at each call."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Generic types and methods: direct language case”: state its starting evidence, apply the Generic types and methods rule, and give the observable result in three short lines.",
+      "prompt": "For \"A Box<T> and a first(List<T>) method\", explain how Box<T> stores and returns T, while a static <T> T first(List<T>) method preserves the list element type at each call.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Declare.",
+        "Infer.",
+        "Check."
       ],
       "expectedEvidence": [
-        "Named example: Generic types and methods: direct language case.",
-        "Starting evidence: Box<T> stores and returns T, while a static <T> T first(List<T>) method preserves the list element type at each call.",
-        "Core rule: Java generic types and methods introduce compile-time type parameters so one implementation can preserve relationships among input, stored, and returned types without raw casts.",
-        "Observable result: The example meets the atomic outcome because Use type parameters for compile-time relationships and account for type erasure; avoid raw types and require factories or reifiable representations when runtime construction is needed.",
-        "Boundary check: Use type parameters for compile-time relationships and account for type erasure; avoid raw types and require factories or reifiable representations when runtime construction is needed."
+        "Names the example \"A Box<T> and a first(List<T>) method\": raw types caused late casts.",
+        "Box<T> stores and returns T.",
+        "A static <T> T first(List<T>) method preserves the list element type at each call.",
+        "One implementation serves every element type."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A raw List accepts a String into a collection expected to hold Integer, moving the failure to a later compiler-inserted cast.",
+      "prompt": "Write a generic class Pair<A, B> with accessors and a generic method static <T> T last(List<T>). Test with Pair<String, Integer> and lists of two types.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Two type parameters.",
+        "Reject empty lists."
       ],
       "expectedEvidence": [
-        "Java generic types and methods introduce compile-time type parameters so one implementation can preserve relationships among input, stored, and returned types without raw casts.",
-        "Type erasure restricts runtime type tests and generic array creation, primitives need wrappers, static members cannot use a class type parameter directly, and raw types discard checks."
+        "No casts in the tests.",
+        "A wrong type fails to compile."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Generic types and methods, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Build a generic Cache<K, V> backed by a HashMap with get, put and a getOrCreate(K key, Supplier<V> maker) method. Explain why a Supplier is needed instead of new V().",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Supplier<V> from java.util.function.",
+        "Call maker.get() only on a miss."
       ],
       "expectedEvidence": [
-        "Implement and use a small generic class and generic method safely.",
-        "Use type parameters for compile-time relationships and account for type erasure; avoid raw types and require factories or reifiable representations when runtime construction is needed."
+        "Works for two different V types.",
+        "Erasure explained."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "java.generics.types.misconception",
-      "explanation": "Use type parameters for compile-time relationships and account for type erasure; avoid raw types and require factories or reifiable representations when runtime construction is needed.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A raw List accepts a String into a collection expected to hold Integer, moving the failure to a later compiler-inserted cast."
+      "explanation": "When you see a cast on the way out of a container, ask: **could a type parameter carry this type instead?** Replace raw types with parameterised ones.",
+      "retryPrompt": "Apply this to \"The cast that exploded later\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and use a small generic class and generic method safely. Keep this boundary in view: Type erasure restricts runtime type tests and generic array creation, primitives need wrappers, static members cannot use a class type parameter directly, and raw types discard checks.",
+    "summary": "To implement and use a small generic class and generic method safely, declare type parameters, let the compiler infer type arguments, avoid raw types and casts, and remember erasure means no new T() or new T[] at run time.",
     "retrievalPrompts": [
-      "Explain Generic types and methods using canonical Java: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Generic type arguments are fully reified at runtime, so new T() and new T[10] are always available.",
-      "Predict this case from memory: A raw List accepts a String into a collection expected to hold Integer, moving the failure to a later compiler-inserted cast."
+      "What does <T> before a return type declare?",
+      "Why avoid raw types?",
+      "Why can't you write new T()?"
     ],
     "nextReviewPrompt": "Next: continue to “Bounds and wildcards”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

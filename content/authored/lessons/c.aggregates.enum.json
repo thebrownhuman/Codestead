@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "An enumeration declares named integer constants and an enumerated type, improving domain vocabulary while remaining subject to implementation integer representation rules.",
+    "summary": "An **enum** gives names to related integer constants: `enum Status { STATUS_PENDING, STATUS_READY, STATUS_FAILED };` (values 0, 1, 2 unless you set them). Code then says `STATUS_READY` instead of a magic `1`. But a C enum is **just an integer underneath**: nothing stops a variable from holding 7, and the compiler won't check it at run time. So pair enums with a `switch` that lists **every enumerator without a `default`**, so that `-Wswitch` (on with -Wall) warns when a new case is added and forgotten. Then handle **invalid values** explicitly after the switch.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: enum Status names STATUS_PENDING, STATUS_READY, and STATUS_FAILED so a switch can communicate domain cases clearly. Your goal is to use an enum with exhaustive control flow and a safe invalid-value policy. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "An order system uses `int status` where 0 is pending, 1 ready and 2 failed. A new developer writes `if (status == 3)` for \"shipped\", which never existed, and a corrupted record with status 7 prints \"ready\" because of an else branch. enum Status names STATUS_PENDING, STATUS_READY, and STATUS_FAILED so a switch can communicate domain cases clearly. In this lesson you'll use an enum with exhaustive control flow and a safe invalid-value policy.\n\n```predict\n{\"question\": \"`enum Status s = 7;` What does C do?\", \"options\": [\"Compile error\", \"Accepts it: enums are integers, so invalid values are possible\"], \"answer\": 1, \"why\": \"Your code must decide what an out-of-range value means.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: One-dimensional arrays; Addresses and dereference; if and switch. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **One-dimensional arrays**, **Addresses and dereference** and **if and switch** (switch with break and default)."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "An enumeration declares named integer constants and an enumerated type, improving domain vocabulary while remaining subject to implementation integer representation rules. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The rule: exhaustive switch, explicit invalid policy",
+        "body": "```c\n#include <stdio.h>\n\nenum Status {\n    STATUS_PENDING,     /* 0. */\n    STATUS_READY,       /* 1. */\n    STATUS_FAILED,      /* 2. */\n};\n\nconst char *status_name(enum Status s) {\n    switch (s) {                 /* no default: -Wswitch flags missing cases. */\n    case STATUS_PENDING: return \"pending\";\n    case STATUS_READY:   return \"ready\";\n    case STATUS_FAILED:  return \"failed\";\n    }\n    return \"invalid\";            /* policy for values outside the enum. */\n}\n\nint main(void) {\n    printf(\"%s\\n\", status_name(STATUS_READY));        /* ready. */\n    printf(\"%s\\n\", status_name((enum Status)7));      /* invalid. */\n    return 0;\n}\n```\n\n```reveal\n{\"prompt\": \"Why leave out default in the switch?\", \"answer\": \"With default, the compiler assumes every other value is handled and stays quiet when someone adds STATUS_SHIPPED. Without it, -Wswitch lists the new, unhandled enumerator.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "C enums do not automatically reject every out-of-domain integer conversion, underlying representation can vary, and duplicate enumerator values are possible. Therefore the draft explicitly rejects this beginner failure model: A C enum is a runtime-checked closed set that can never hold a value outside its listed enumerators."
+        "heading": "Adding a case",
+        "body": "```predict\n{\"question\": \"You add STATUS_SHIPPED to the enum. Which code warns you where it must be handled?\", \"options\": [\"None\", \"Every switch over enum Status without a default, via -Wswitch\"], \"answer\": 1, \"why\": \"Exhaustive switches turn enum changes into a compiler checklist.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Represent a closed set of named integral states and validate external values.",
-      "Use an enum with exhaustive control flow and a safe invalid-value policy."
+      "Declare enums to name domain cases instead of magic numbers.",
+      "Write exhaustive switches without default, plus an explicit policy for invalid values."
     ],
     "excludes": [
-      "C enums do not automatically reject every out-of-domain integer conversion, underlying representation can vary, and duplicate enumerator values are possible."
+      "Enum underlying types in C23.",
+      "Bit-flag enums in depth."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "c.aggregates.enum.example-a",
-      "title": "Enumerations: defined case",
+      "title": "Order status as named cases",
       "situation": "enum Status names STATUS_PENDING, STATUS_READY, and STATUS_FAILED so a switch can communicate domain cases clearly.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: enum Status names STATUS_PENDING, STATUS_READY, and STATUS_FAILED so a switch can communicate domain cases clearly.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Use enums for named integral states but validate external values explicitly; the type alone is not a universal runtime membership check."
+        "**enum Status names STATUS_PENDING, STATUS_READY, and STATUS_FAILED:** the magic 0, 1 and 2 disappear.",
+        "**So a switch can communicate domain cases clearly:** status_name lists each case by name.",
+        "**Invalid policy:** value 7 returns \"invalid\"; adding STATUS_SHIPPED will make -Wswitch point at every switch to update."
       ],
-      "result": "The defined result follows because Use enums for named integral states but validate external values explicitly; the type alone is not a universal runtime membership check."
+      "result": "Readers see domain words, and new cases can't be silently forgotten."
     },
     {
       "id": "c.aggregates.enum.example-b",
-      "title": "Enumerations: boundary case",
-      "situation": "Input is validated before converting an arbitrary integer to an enum-backed state because not every integer names a declared enumerator.",
+      "title": "The parsed status",
+      "situation": "A status arrives as text from a file: \"ready\". The learner converts it with a cast from an unchecked number.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: Input is validated before converting an arbitrary integer to an enum-backed state because not every integer names a declared enumerator.",
-        "Step 2 — Keep this standard boundary visible: C enums do not automatically reject every out-of-domain integer conversion, underlying representation can vary, and duplicate enumerator values are possible.",
-        "Step 3 — Reject the tempting rule: A C enum is a runtime-checked closed set that can never hold a value outside its listed enumerators."
+        "Parse text into an enum with a function returning bool.",
+        "Reject unknown strings instead of casting guesses.",
+        "Only validated values ever enter enum Status variables."
       ],
-      "result": "This case demonstrates the declared outcome: Use an enum with exhaustive control flow and a safe invalid-value policy."
+      "result": "Invalid input stops at the boundary, not deep in the program."
     }
   ],
   "misconceptions": [
     {
       "id": "c.aggregates.enum.misconception",
       "mistakenBelief": "A C enum is a runtime-checked closed set that can never hold a value outside its listed enumerators.",
-      "correction": "Use enums for named integral states but validate external values explicitly; the type alone is not a universal runtime membership check.",
-      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: A C enum is a runtime-checked closed set that can never hold a value outside its listed enumerators."
+      "correction": "Enums are integer types. Casts, corrupted data or arithmetic can put any value in them, so code needs an explicit policy for invalid values.",
+      "diagnosticPrompt": "In the opening predict, why was enum Status s = 7 accepted?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A manually managed workshop can model Enumerations: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "example": "An enum is like **labelled buttons on a lift panel**: PENDING, READY, FAILED instead of 0, 1, 2. But underneath it's still a number wire: someone can short it to 7, so the lift controller needs a rule for \"unknown floor\".",
     "usefulFor": [
-      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+      "remembering labels on a number",
+      "unknown floor rule"
     ],
     "limitations": [
-      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
-      "C enums do not automatically reject every out-of-domain integer conversion, underlying representation can vary, and duplicate enumerator values are possible."
+      "Real panels only have real buttons; enums don't enforce that.",
+      "Adding a floor should update every controller: -Wswitch helps."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "enum Status names STATUS_PENDING, STATUS_READY, and STATUS_FAILED so a switch can communicate domain cases clearly.",
-      "An enumeration declares named integer constants and an enumerated type, improving domain vocabulary while remaining subject to implementation integer representation rules.",
-      "Use enums for named integral states but validate external values explicitly; the type alone is not a universal runtime membership check."
+      "status_name(STATUS_READY)",
+      "status_name((enum Status)7)",
+      "add STATUS_SHIPPED; compile"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Named",
         "state": {
-          "evidence": "enum Status names STATUS_PENDING, STATUS_READY, and STATUS_FAILED so a switch can communicate domain cases clearly."
+          "s": "STATUS_READY (1)",
+          "result": "ready"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "The switch communicates each domain case clearly."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Invalid",
         "state": {
-          "rule": "An enumeration declares named integer constants and an enumerated type, improving domain vocabulary while remaining subject to implementation integer representation rules."
+          "s": "7",
+          "result": "invalid"
         },
-        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+        "explanation": "Values outside the enum fall to the explicit invalid policy."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Extend",
         "state": {
-          "conclusion": "Use enums for named integral states but validate external values explicitly; the type alone is not a universal runtime membership check."
+          "-Wswitch": "warns: STATUS_SHIPPED not handled"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: A C enum is a runtime-checked closed set that can never hold a value outside its listed enumerators."
+        "explanation": "Leaving out default makes the compiler flag forgotten cases."
       }
     ],
-    "textAlternative": "Starting artifact: enum Status names STATUS_PENDING, STATUS_READY, and STATUS_FAILED so a switch can communicate domain cases clearly. Step 1, Source and state. State: evidence: enum Status names STATUS_PENDING, STATUS_READY, and STATUS_FAILED so a switch can communicate domain cases clearly.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: An enumeration declares named integer constants and an enumerated type, improving domain vocabulary while remaining subject to implementation integer representation rules.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Use enums for named integral states but validate external values explicitly; the type alone is not a universal runtime membership check.. Check the conclusion against the boundary and reject this misconception: A C enum is a runtime-checked closed set that can never hold a value outside its listed enumerators."
+    "textAlternative": "Tracing an enum-based switch. Step 1, Named: s is STATUS_READY (1); result is ready. The switch communicates each domain case clearly. Step 2, Invalid: s is 7; result is invalid. Values outside the enum fall to the explicit invalid policy. Step 3, Extend: -Wswitch is warns: STATUS_SHIPPED not handled. Leaving out default makes the compiler flag forgotten cases."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Enumerations: defined case”: state its starting evidence, apply the Enumerations rule, and give the observable result in three short lines.",
+      "prompt": "For \"Order status as named cases\", explain how enum Status names STATUS_PENDING, STATUS_READY, and STATUS_FAILED so a switch can communicate domain cases clearly.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Name.",
+        "Switch.",
+        "Invalid."
       ],
       "expectedEvidence": [
-        "Named example: Enumerations: defined case.",
-        "Starting evidence: enum Status names STATUS_PENDING, STATUS_READY, and STATUS_FAILED so a switch can communicate domain cases clearly.",
-        "Core rule: An enumeration declares named integer constants and an enumerated type, improving domain vocabulary while remaining subject to implementation integer representation rules.",
-        "Observable result: The defined result follows because Use enums for named integral states but validate external values explicitly; the type alone is not a universal runtime membership check.",
-        "Boundary check: Use enums for named integral states but validate external values explicitly; the type alone is not a universal runtime membership check."
+        "Names the example \"Order status as named cases\": magic numbers let status 7 print ready.",
+        "enum Status names STATUS_PENDING, STATUS_READY, and STATUS_FAILED.",
+        "A switch can communicate domain cases clearly.",
+        "New cases can't be silently forgotten."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same C rule to this related boundary case: Input is validated before converting an arbitrary integer to an enum-backed state because not every integer names a declared enumerator.",
+      "prompt": "Define enum Weekday and write bool is_weekend(enum Weekday d) with an exhaustive switch. Add a new value on purpose and read the -Wswitch warning.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "No default in the switch.",
+        "Return false for invalid after it."
       ],
       "expectedEvidence": [
-        "An enumeration declares named integer constants and an enumerated type, improving domain vocabulary while remaining subject to implementation integer representation rules.",
-        "C enums do not automatically reject every out-of-domain integer conversion, underlying representation can vary, and duplicate enumerator values are possible."
+        "Warning observed.",
+        "Invalid values handled."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new C example for Enumerations, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Write bool parse_status(const char *text, enum Status *out) and a round-trip test (enum to name to enum) for every case, plus tests for unknown and empty text.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "strcmp for each name.",
+        "Don't write *out on failure."
       ],
       "expectedEvidence": [
-        "Use an enum with exhaustive control flow and a safe invalid-value policy.",
-        "Use enums for named integral states but validate external values explicitly; the type alone is not a universal runtime membership check."
+        "Round trip passes for all cases.",
+        "Unknown text rejected."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "c.aggregates.enum.misconception",
-      "explanation": "Use enums for named integral states but validate external values explicitly; the type alone is not a universal runtime membership check.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'validate external values explicitly' and state the decisive evidence: Input is validated before converting an arbitrary integer to an enum-backed state because not every integer names a declared enumerator."
+      "explanation": "For every enum: **name the cases, switch without default, and write what happens for an invalid value.** Convert external data only through a validating parser.",
+      "retryPrompt": "Apply this to \"The parsed status\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to use an enum with exhaustive control flow and a safe invalid-value policy. Keep this boundary in view: C enums do not automatically reject every out-of-domain integer conversion, underlying representation can vary, and duplicate enumerator values are possible.",
+    "summary": "To use enums safely, name domain cases instead of magic numbers, handle every enumerator in switches without a default so -Wswitch catches new cases, add an explicit policy for invalid values afterwards, and validate external data before it becomes an enum.",
     "retrievalPrompts": [
-      "Explain Enumerations using a concrete C rule rather than the optional analogy.",
-      "Why is this claim incorrect: A C enum is a runtime-checked closed set that can never hold a value outside its listed enumerators.",
-      "Apply the checkpoint 'validate external values explicitly' to the boundary case from memory."
+      "Can an enum variable hold a value not in the list?",
+      "Why omit default in enum switches?",
+      "Where should external values be validated?"
     ],
     "nextReviewPrompt": "Next: continue to “Unions and tagged values”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

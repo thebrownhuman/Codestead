@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "DOM events travel through capture, target, and bubble phases, with composed paths and default actions distinct from propagation.",
+    "summary": "When you click a button, the event travels in three phases: **capture** (down from window to the target), **target**, then **bubble** (back up through every ancestor). Listeners run by default in the bubble phase, so a listener on a parent `<ul>` hears clicks from every child. That's **event delegation**: one listener, then `event.target.closest(\"button\")` to find which button was clicked, and it works for buttons added later. `stopPropagation()` stops the journey; `preventDefault()` only cancels the browser's **default action** (following a link, submitting a form) and does not stop propagation.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: One list listener uses event delegation and closest to handle buttons added later. Your goal is to trace propagation and implement a delegated interaction without duplicate handlers. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A to-do list attaches a click listener to each delete button when the page loads. Buttons for new to-dos don't work, and re-rendering adds duplicate listeners that delete two items per click. One list listener uses event delegation and closest to handle buttons added later. In this lesson you'll trace propagation and implement a delegated interaction without duplicate handlers.\n\n```predict\n{\"question\": \"A link inside a `<li>` has a click listener calling `event.preventDefault()`. Does a click listener on the parent `<ul>` still run?\", \"options\": [\"No, preventDefault stops it\", \"Yes: preventDefault only cancels navigation; the event still bubbles\"], \"answer\": 1, \"why\": \"Default action and propagation are separate. Only stopPropagation stops the bubble.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Scope, closures and modules; html project site; Create and remove nodes; Method calls and this. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Scope, closures and modules** module, the **Semantic multi-page site**, **Create and remove nodes** (items added later), and **Method calls and this**, because this inside handlers depends on how they're written."
       },
       {
-        "heading": "Technology rule",
-        "body": "DOM events travel through capture, target, and bubble phases, with composed paths and default actions distinct from propagation. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: capture, target, bubble",
+        "body": "```js\nconst list = document.querySelector(\"#todos\");\n\nlist?.addEventListener(\"click\", (event) => {\n  const button = event.target.closest(\"button[data-action='delete']\");\n  if (!button || !list.contains(button)) return;   // click wasn't on a delete button.\n  button.closest(\"li\")?.remove();\n});\n\n// Later: new items need no new listeners.\nconst li = document.createElement(\"li\");\nli.textContent = \"Walk the dog \";\nconst del = document.createElement(\"button\");\ndel.dataset.action = \"delete\";\ndel.textContent = \"Delete\";\nli.append(del);\nlist?.append(li);\n```\n\n| Call | Effect |\n|---|---|\n| `event.target`. | the innermost element clicked, e.g. a span inside the button. |\n| `event.currentTarget`. | the element whose listener is running (the list). |\n| `closest(selector)`. | walks up from target to the nearest match. |\n| `preventDefault()`. | cancel the browser's default action only. |\n| `stopPropagation()`. | stop travelling to further ancestors. |\n\n```reveal\n{\"prompt\": \"Why closest instead of checking `event.target.tagName === \\\"BUTTON\\\"`?\", \"answer\": \"If the button contains an icon span, target is the span. closest walks up to the button either way.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Not all events bubble, shadow DOM retargets, passive listeners restrict preventDefault, and stopPropagation does not cancel default action. This draft therefore rejects: preventDefault also stops the event from reaching ancestor listeners."
+        "heading": "Trace the bubble",
+        "body": "```predict\n{\"question\": \"Listeners on the button, li and ul all log their name. Clicking the button logs…\", \"options\": [\"ul, li, button\", \"button, li, ul\"], \"answer\": 1, \"why\": \"Bubbling runs from the target upward. Capture listeners (third argument true) would run top-down first.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Handle capture, target and bubble phases and delegate stable ancestor events when appropriate.",
-      "Trace propagation and implement a delegated interaction without duplicate handlers."
+      "Trace capture, target and bubble phases.",
+      "Implement event delegation with closest for dynamic content."
     ],
     "excludes": [
-      "Not all events bubble, shadow DOM retargets, passive listeners restrict preventDefault, and stopPropagation does not cancel default action."
+      "Shadow DOM composed paths in depth.",
+      "Custom events and EventTarget subclasses."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "javascript.events.model.example-a",
-      "title": "Event propagation and delegation: concrete case",
-      "situation": "One list listener uses event delegation and closest to handle buttons added later.",
+      "title": "One listener for every delete button",
+      "situation": "One list listener uses event delegation and closest to handle delete buttons added later.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: One list listener uses event delegation and closest to handle buttons added later.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: preventDefault cancels a cancelable default action; propagation controls are separate."
+        "**Problem:** per-button listeners miss new buttons and duplicate on re-render.",
+        "**One list listener:** the ul hears every click as it bubbles up and uses `closest(\"button[data-action='delete']\")`.",
+        "**Check:** after adding a new item, clicking its Delete will remove exactly one li, and the listener count stays 1."
       ],
-      "result": "The result follows because preventDefault cancels a cancelable default action; propagation controls are separate."
+      "result": "Every delete button works, including ones added later, and each click removes one item."
     },
     {
       "id": "javascript.events.model.example-b",
-      "title": "Event propagation and delegation: boundary case",
-      "situation": "Not all events bubble, shadow DOM retargets, passive listeners restrict preventDefault, and stopPropagation does not cancel default action.",
+      "title": "The link that still triggered the row",
+      "situation": "A table row opens a details panel on click. A \"Download\" link inside the row calls preventDefault to start a custom download, but the details panel opens too.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Not all events bubble, shadow DOM retargets, passive listeners restrict preventDefault, and stopPropagation does not cancel default action.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: preventDefault also stops the event from reaching ancestor listeners."
+        "preventDefault cancelled the navigation only.",
+        "The click still bubbled to the row's listener.",
+        "Fix: call `event.stopPropagation()` in the link handler, or have the row ignore clicks where `event.target.closest(\"a\")` is set."
       ],
-      "result": "The boundary requires this correction: preventDefault cancels a cancelable default action; propagation controls are separate."
+      "result": "Clicking Download starts the download without opening the details panel."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.events.model.misconception",
       "mistakenBelief": "preventDefault also stops the event from reaching ancestor listeners.",
-      "correction": "preventDefault cancels a cancelable default action; propagation controls are separate.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: preventDefault also stops the event from reaching ancestor listeners."
+      "correction": "preventDefault only cancels the browser's default action. The event keeps bubbling to ancestors unless stopPropagation is called.",
+      "diagnosticPrompt": "In \"The link that still triggered the row\", why did the row still react?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Event propagation and delegation, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "An event is like **a shout in a building**: it's heard in the room where it happened, then on each floor above as it travels up the stairwell (bubbling). Delegation is putting **one receptionist on the ground floor** who hears everything and asks \"which room did that come from?\" (closest).",
     "usefulFor": [
-      "Building a first mental model for Event propagation and delegation before using exact platform terms"
+      "remembering bubbling upward",
+      "delegation = one receptionist"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Not all events bubble, shadow DOM retargets, passive listeners restrict preventDefault, and stopPropagation does not cancel default action."
+      "Shouts fade; events reach every ancestor unless stopped.",
+      "preventDefault is like cancelling the fire drill, not muting the shout."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "One list listener uses event delegation and closest to handle buttons added later.",
-      "DOM events travel through capture, target, and bubble phases, with composed paths and default actions distinct from propagation.",
-      "preventDefault cancels a cancelable default action; propagation controls are separate."
+      "click on Delete button inside li inside ul",
+      "bubble: button → li → ul",
+      "ul listener: closest('button[data-action=delete]')"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Target",
         "state": {
-          "evidence": "One list listener uses event delegation and closest to handle buttons added later."
+          "event.target": "button",
+          "phase": "target"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The click starts at the delete button that was pressed."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Bubble",
         "state": {
-          "rule": "DOM events travel through capture, target, and bubble phases, with composed paths and default actions distinct from propagation."
+          "passes": "li, then ul"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The event bubbles up through each ancestor element."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Delegate",
         "state": {
-          "correction": "preventDefault cancels a cancelable default action; propagation controls are separate."
+          "closest match": "button",
+          "removed": "its li"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: preventDefault also stops the event from reaching ancestor listeners."
+        "explanation": "One list listener uses event delegation and closest to handle the button."
       }
     ],
-    "textAlternative": "Starting artifact: One list listener uses event delegation and closest to handle buttons added later. Step 1, Artifact. State: evidence: One list listener uses event delegation and closest to handle buttons added later.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: DOM events travel through capture, target, and bubble phases, with composed paths and default actions distinct from propagation.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: preventDefault cancels a cancelable default action; propagation controls are separate.. Check the result against the boundary and reject this misconception: preventDefault also stops the event from reaching ancestor listeners."
+    "textAlternative": "Tracing a delegated click. Step 1, Target: event.target is button; phase is target. The click starts at the delete button that was pressed. Step 2, Bubble: passes is li, then ul. The event bubbles up through each ancestor element. Step 3, Delegate: closest match is button; removed is its li. One list listener uses event delegation and closest to handle the button."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Event propagation and delegation: concrete case”: state its starting evidence, apply the Event propagation and delegation rule, and give the observable result in three short lines.",
+      "prompt": "For \"One listener for every delete button\", explain how one list listener uses event delegation and closest to handle buttons added later.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Problem.",
+        "Delegation.",
+        "Check."
       ],
       "expectedEvidence": [
-        "Named example: Event propagation and delegation: concrete case.",
-        "Starting evidence: One list listener uses event delegation and closest to handle buttons added later.",
-        "Core rule: DOM events travel through capture, target, and bubble phases, with composed paths and default actions distinct from propagation.",
-        "Observable result: The result follows because preventDefault cancels a cancelable default action; propagation controls are separate.",
-        "Boundary check: preventDefault cancels a cancelable default action; propagation controls are separate."
+        "Names the example \"One listener for every delete button\": one list listener handles every button.",
+        "The click bubbles up to the list.",
+        "closest finds the delete button, even for buttons added later.",
+        "Each click removes exactly one item."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Not all events bubble, shadow DOM retargets, passive listeners restrict preventDefault, and stopPropagation does not cancel default action.",
+      "prompt": "A menu ul has li items with a `data-id`. Write one delegated listener that logs the clicked item's id, ignoring clicks on the gaps between items.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "closest(\"li[data-id]\").",
+        "Return early when null."
       ],
       "expectedEvidence": [
-        "DOM events travel through capture, target, and bubble phases, with composed paths and default actions distinct from propagation.",
-        "Not all events bubble, shadow DOM retargets, passive listeners restrict preventDefault, and stopPropagation does not cancel default action."
+        "One listener on the ul.",
+        "Logs dataset.id for the clicked li only."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Event propagation and delegation and explain why the misconception fails.",
+      "prompt": "Build a card grid where each card has Edit and Delete buttons and cards are added dynamically. Use one delegated listener with data-action, and test with cards added after setup.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Switch on button.dataset.action.",
+        "No per-card listeners."
       ],
       "expectedEvidence": [
-        "Trace propagation and implement a delegated interaction without duplicate handlers.",
-        "preventDefault cancels a cancelable default action; propagation controls are separate."
+        "Both actions work for new cards.",
+        "A test proving there's one listener and no duplicates."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.events.model.misconception",
-      "explanation": "preventDefault cancels a cancelable default action; propagation controls are separate.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'default action' and state the decisive evidence."
+      "explanation": "Draw the element's ancestors as a ladder. The event climbs it after the target. Ask: **who listens on which rung, and did anyone call stopPropagation?** preventDefault doesn't remove rungs.",
+      "retryPrompt": "Apply this to \"The link that still triggered the row\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to trace propagation and implement a delegated interaction without duplicate handlers. Keep this boundary in view: Not all events bubble, shadow DOM retargets, passive listeners restrict preventDefault, and stopPropagation does not cancel default action.",
+    "summary": "To trace propagation and implement a delegated interaction, remember events go capture, target, then bubble up through ancestors. Put one listener on a stable parent and use event.target.closest to find the control, which also handles items added later. preventDefault cancels default actions only; stopPropagation stops the bubble.",
     "retrievalPrompts": [
-      "Explain Event propagation and delegation using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: preventDefault also stops the event from reaching ancestor listeners.",
-      "Apply checkpoint 'default action' to a new artifact."
+      "In which order do bubbling listeners run?",
+      "Why use closest in a delegated handler?",
+      "Does preventDefault stop propagation?"
     ],
     "nextReviewPrompt": "Next: continue to “Forms, validation and accessible state”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

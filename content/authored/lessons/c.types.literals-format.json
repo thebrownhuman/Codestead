@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Literal spelling and suffix select a candidate type, while formatted input and output require a conversion specification compatible with the actual argument pointer or promoted value type.",
+    "summary": "Literals have types. `42` is an int, `42L` a long, `42u` unsigned, `3.5` a double, `3.5f` a float, `'A'` an int character code, and `\"hi\"` a char array. `printf` and `scanf` **can't see your types**: they trust the **conversion specifier** you write. Use `%d` for int, `%ld` for long, `%lld` for long long, `%u` for unsigned, `%zu` for size_t, `%f` for double, `%c` for a char and `%s` for a string. With `scanf`, pass **addresses** (`&x`) and use `%lf` for a double. A mismatch is **undefined behaviour**: it may print garbage, or work on one machine and break on another. Compile with `-Wall` so the compiler checks format strings.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A size_t value is printed with %zu rather than guessing that it has the same type as unsigned long on every target. Your goal is to repair mismatched literals and formatted I/O conversions without invoking undefined behavior. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner prints an array length with `printf(\"%d\", count)` where count is size_t. It looks fine on their machine, but -Wall warns about the format, and on another platform the same line prints a nonsense number. A size_t value is printed with %zu rather than guessing that it has the same type as unsigned long on every target. In this lesson you'll repair mismatched literals and formatted I/O conversions without invoking undefined behavior.\n\n```predict\n{\"question\": \"Does printf automatically convert your argument to match %d?\", \"options\": [\"Yes\", \"No: it reads the bytes as whatever the specifier says, so mismatches are undefined behaviour\"], \"answer\": 1, \"why\": \"printf trusts the format string completely.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Translation unit and main; pf state expressions; Scalar types and declarations. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Translation unit and main**, **Expressions and evaluation** and **Scalar types and declarations** (size_t, double and friends)."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "Literal spelling and suffix select a candidate type, while formatted input and output require a conversion specification compatible with the actual argument pointer or promoted value type. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The rule: specifier must match the promoted type",
+        "body": "```c\n#include <stdio.h>\n#include <stddef.h>\n\nint main(void) {\n    size_t count = 3;\n    long long big = 3000000000LL; /* LL suffix: long long. */\n    double avg = 8.0 / 3;        /* double division. */\n    char grade = 'B';\n\n    printf(\"%zu items\\n\", count);     /* size_t. */\n    printf(\"%lld\\n\", big);            /* long long. */\n    printf(\"%.2f\\n\", avg);            /* double: 2.67. */\n    printf(\"%c\\n\", grade);            /* char (promoted to int). */\n\n    double price;\n    if (scanf(\"%lf\", &price) == 1)    /* scanf: %lf and an address. */\n        printf(\"%.2f\\n\", price);\n    return 0;\n}\n```\n\n| Type | printf | scanf |\n|---|---|---|\n| int. | `%d`. | `%d` + `&x`. |\n| long. | `%ld`. | `%ld`. |\n| size_t. | `%zu`. | `%zu`. |\n| double. | `%f`. | `%lf`. |\n| char. | `%c`. | `%c` (use \" %c\" to skip spaces). |\n\n```reveal\n{\"prompt\": \"Why is %f fine for a float in printf but not in scanf?\", \"answer\": \"printf arguments are promoted: a float becomes a double, which %f expects. scanf receives a pointer, so it must know exactly: %f for float*, %lf for double*.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Integer literal bases change candidate lists, variadic arguments undergo promotions, and mismatched printf or scanf specifications can produce undefined behavior. Therefore the draft explicitly rejects this beginner failure model: Any integer can safely be printed with %d because printf converts numeric argument types automatically."
+        "heading": "Let the compiler check",
+        "body": "```predict\n{\"question\": \"What does -Wall do for `printf(\\\"%d\\\", 3.5)`?\", \"options\": [\"Nothing\", \"Warns that %d expects int but the argument is double\"], \"answer\": 1, \"why\": \"-Wformat (in -Wall) checks literal format strings against argument types.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Match literal forms, suffixes and format specifiers to types.",
-      "Repair mismatched literals and formatted I/O conversions without invoking undefined behavior."
+      "Identify literal types from spelling and suffix.",
+      "Match printf and scanf specifiers to argument types, including %zu and %lf, and check scanf's return value."
     ],
     "excludes": [
-      "Integer literal bases change candidate lists, variadic arguments undergo promotions, and mismatched printf or scanf specifications can produce undefined behavior."
+      "Width and precision flags in depth.",
+      "Wide characters and locales."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "c.types.literals-format.example-a",
-      "title": "Literals and formatted I/O types: defined case",
+      "title": "Printing a size_t correctly",
       "situation": "A size_t value is printed with %zu rather than guessing that it has the same type as unsigned long on every target.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A size_t value is printed with %zu rather than guessing that it has the same type as unsigned long on every target.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Match each format conversion to the promoted argument type; use %zu for size_t and standard format macros where fixed-width types require them."
+        "**A size_t value:** count = sizeof marks / sizeof marks[0].",
+        "**Printed with %zu:** printf(\"%zu\\n\", count) matches size_t on every compiler that supports C99 or later.",
+        "**Rather than guessing that it has the same type as unsigned long on every target:** -Wall will flag %d or %lu mismatches."
       ],
-      "result": "The defined result follows because Match each format conversion to the promoted argument type; use %zu for size_t and standard format macros where fixed-width types require them."
+      "result": "The count prints correctly on every platform, with no undefined behaviour."
     },
     {
       "id": "c.types.literals-format.example-b",
-      "title": "Literals and formatted I/O types: boundary case",
-      "situation": "A uint64_t value uses the matching PRIu64 macro from inttypes.h when portable fixed-width formatting is required.",
+      "title": "The average that printed zero",
+      "situation": "`int total = 17, n = 4; printf(\"%f\", total / n);` prints garbage or 0.000000.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A uint64_t value uses the matching PRIu64 macro from inttypes.h when portable fixed-width formatting is required.",
-        "Step 2 — Keep this standard boundary visible: Integer literal bases change candidate lists, variadic arguments undergo promotions, and mismatched printf or scanf specifications can produce undefined behavior.",
-        "Step 3 — Reject the tempting rule: Any integer can safely be printed with %d because printf converts numeric argument types automatically."
+        "total / n is int division (4), and %f expects a double: a mismatch.",
+        "Fix the type: (double)total / n gives 4.25, a double.",
+        "Now %f matches: printf(\"%.2f\", (double)total / n) prints 4.25."
       ],
-      "result": "This case demonstrates the declared outcome: Repair mismatched literals and formatted I/O conversions without invoking undefined behavior."
+      "result": "The average is correct, and the specifier matches its argument."
     }
   ],
   "misconceptions": [
     {
       "id": "c.types.literals-format.misconception",
       "mistakenBelief": "Any integer can safely be printed with %d because printf converts numeric argument types automatically.",
-      "correction": "Match each format conversion to the promoted argument type; use %zu for size_t and standard format macros where fixed-width types require them.",
-      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: Any integer can safely be printed with %d because printf converts numeric argument types automatically."
+      "correction": "printf can't see argument types; it reads them as the specifier claims. Passing a long, size_t or double to %d is undefined behaviour.",
+      "diagnosticPrompt": "In the opening predict, what does printf do with a mismatched argument?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A manually managed workshop can model Literals and formatted I/O types: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "example": "A format string is like **labels on unmarked boxes** handed to a blindfolded packer. The packer (printf) trusts each label completely: label a box \"4 kg\" when it holds 8, and the packing goes wrong. The compiler with -Wall is **a friend who checks your labels** before you hand them over.",
     "usefulFor": [
-      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+      "remembering printf is blindfolded",
+      "-Wall checks the labels"
     ],
     "limitations": [
-      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
-      "Integer literal bases change candidate lists, variadic arguments undergo promotions, and mismatched printf or scanf specifications can produce undefined behavior."
+      "Real packers might notice; printf never does.",
+      "scanf needs the box's address, not the box."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A size_t value is printed with %zu rather than guessing that it has the same type as unsigned long on every target.",
-      "Literal spelling and suffix select a candidate type, while formatted input and output require a conversion specification compatible with the actual argument pointer or promoted value type.",
-      "Match each format conversion to the promoted argument type; use %zu for size_t and standard format macros where fixed-width types require them."
+      "size_t count = 3;",
+      "printf(\"%zu\", count);",
+      "gcc -Wall: no format warnings"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Declare",
         "state": {
-          "evidence": "A size_t value is printed with %zu rather than guessing that it has the same type as unsigned long on every target."
+          "count": "3",
+          "type": "size_t"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "A size_t value holds the element count."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Print",
         "state": {
-          "rule": "Literal spelling and suffix select a candidate type, while formatted input and output require a conversion specification compatible with the actual argument pointer or promoted value type."
+          "specifier": "%zu",
+          "output": "3"
         },
-        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+        "explanation": "It is printed with %zu, the specifier made for size_t."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Check",
         "state": {
-          "conclusion": "Match each format conversion to the promoted argument type; use %zu for size_t and standard format macros where fixed-width types require them."
+          "-Wformat": "clean"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: Any integer can safely be printed with %d because printf converts numeric argument types automatically."
+        "explanation": "The compiler confirms the specifier matches on this target, too."
       }
     ],
-    "textAlternative": "Starting artifact: A size_t value is printed with %zu rather than guessing that it has the same type as unsigned long on every target. Step 1, Source and state. State: evidence: A size_t value is printed with %zu rather than guessing that it has the same type as unsigned long on every target.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: Literal spelling and suffix select a candidate type, while formatted input and output require a conversion specification compatible with the actual argument pointer or promoted value type.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Match each format conversion to the promoted argument type; use %zu for size_t and standard format macros where fixed-width types require them.. Check the conclusion against the boundary and reject this misconception: Any integer can safely be printed with %d because printf converts numeric argument types automatically."
+    "textAlternative": "Tracing a matched format. Step 1, Declare: count is 3; type is size_t. A size_t value holds the element count. Step 2, Print: specifier is %zu; output is 3. It is printed with %zu, the specifier made for size_t. Step 3, Check: -Wformat is clean. The compiler confirms the specifier matches on this target, too."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Literals and formatted I/O types: defined case”: state its starting evidence, apply the Literals and formatted I/O types rule, and give the observable result in three short lines.",
+      "prompt": "For \"Printing a size_t correctly\", explain why a size_t value is printed with %zu rather than guessing that it has the same type as unsigned long on every target.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Type.",
+        "Specifier.",
+        "Check."
       ],
       "expectedEvidence": [
-        "Named example: Literals and formatted I/O types: defined case.",
-        "Starting evidence: A size_t value is printed with %zu rather than guessing that it has the same type as unsigned long on every target.",
-        "Core rule: Literal spelling and suffix select a candidate type, while formatted input and output require a conversion specification compatible with the actual argument pointer or promoted value type.",
-        "Observable result: The defined result follows because Match each format conversion to the promoted argument type; use %zu for size_t and standard format macros where fixed-width types require them.",
-        "Boundary check: Match each format conversion to the promoted argument type; use %zu for size_t and standard format macros where fixed-width types require them."
+        "Names the example \"Printing a size_t correctly\": %d printed nonsense on another platform.",
+        "A size_t value is printed with %zu.",
+        "It avoids guessing that it has the same type as unsigned long on every target.",
+        "The count prints correctly on every platform."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same C rule to this related boundary case: A uint64_t value uses the matching PRIu64 macro from inttypes.h when portable fixed-width formatting is required.",
+      "prompt": "Fix each: `printf(\"%d\", 5000000000L)`, `printf(\"%d\", sizeof(int))`, `scanf(\"%f\", &d)` where d is double, `printf(\"%s\", 'A')`. Compile with -Wall before and after.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Match each argument's type.",
+        "'A' is a char, not a string."
       ],
       "expectedEvidence": [
-        "Literal spelling and suffix select a candidate type, while formatted input and output require a conversion specification compatible with the actual argument pointer or promoted value type.",
-        "Integer literal bases change candidate lists, variadic arguments undergo promotions, and mismatched printf or scanf specifications can produce undefined behavior."
+        "Four corrected lines.",
+        "No -Wformat warnings."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new C example for Literals and formatted I/O types, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Write a program that reads an int, a double and a word with scanf, checks that scanf returned the expected count each time, and prints them back with correct specifiers and 2 decimal places for the double.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "scanf returns the number of items converted.",
+        "%99s limits a word to a 100-char buffer."
       ],
       "expectedEvidence": [
-        "Repair mismatched literals and formatted I/O conversions without invoking undefined behavior.",
-        "Match each format conversion to the promoted argument type; use %zu for size_t and standard format macros where fixed-width types require them."
+        "Bad input handled.",
+        "All specifiers correct."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "c.types.literals-format.misconception",
-      "explanation": "Match each format conversion to the promoted argument type; use %zu for size_t and standard format macros where fixed-width types require them.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint '%zu' and state the decisive evidence: A uint64_t value uses the matching PRIu64 macro from inttypes.h when portable fixed-width formatting is required."
+      "explanation": "For every %-specifier, point at its argument and name its type. **Do they match exactly (after promotion)?** Then let -Wall confirm.",
+      "retryPrompt": "Apply this to \"The average that printed zero\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to repair mismatched literals and formatted I/O conversions without invoking undefined behavior. Keep this boundary in view: Integer literal bases change candidate lists, variadic arguments undergo promotions, and mismatched printf or scanf specifications can produce undefined behavior.",
+    "summary": "To repair formatted I/O, know each literal's type from its spelling and suffix, match every printf and scanf specifier to its argument's actual (promoted) type, such as %zu for size_t and %lf for scanf doubles, pass addresses to scanf and check its return, and compile with -Wall to catch mismatches.",
     "retrievalPrompts": [
-      "Explain Literals and formatted I/O types using a concrete C rule rather than the optional analogy.",
-      "Why is this claim incorrect: Any integer can safely be printed with %d because printf converts numeric argument types automatically.",
-      "Apply the checkpoint '%zu' to the boundary case from memory."
+      "Which specifier prints size_t?",
+      "Why does scanf need &x?",
+      "What happens on a mismatch?"
     ],
     "nextReviewPrompt": "Next: continue to “Operators and precedence”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

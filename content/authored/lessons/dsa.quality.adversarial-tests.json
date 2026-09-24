@@ -33,38 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Adversarial tests target empty, singleton, duplicate, ordered, reverse, extreme, disconnected, cyclic, and scale cases derived from algorithm assumptions.",
+    "summary": "An algorithm's bugs hide where its **assumptions** meet the edges of the input. **Adversarial tests** go there on purpose: **empty**, **one item**, **duplicates**, already **sorted** and **reversed**, **extreme values** (minimum, maximum, negative, overflow-sized), **disconnected** and **cyclic** graphs, and **maximum size** for speed. Build a reusable **test matrix** from the algorithm's assumptions, then add **property tests**: compare against a slow but obviously correct brute force on many random small inputs, and check invariants (output sorted, same items, every edge respected). Big random inputs alone rarely hit the dangerous corners.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A binary-search suite includes empty, absent, first, last, duplicates, and maximum-size sorted input. Your goal is to create a reusable test matrix that distinguishes algorithm correctness from a few passing examples. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A binary search passes 10,000 random tests, then fails in production when searching an empty list and when the target is the very last element. Random data almost never produced those cases. A binary-search suite includes empty, absent, first, last, duplicates, and maximum-size sorted input. In this lesson you'll create a reusable test matrix that distinguishes algorithm correctness from a few passing examples.\n\n```predict\n{\"question\": \"Do large random inputs cover every important boundary of an algorithm?\", \"options\": [\"Yes, if there are enough of them\", \"No: boundaries like empty, one item or the last position are rare in random data\"], \"answer\": 1, \"why\": \"Choose edge cases deliberately from the algorithm's assumptions.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Greedy, backtracking and dynamic programming; Directed and weighted graph algorithms; Sequence and range problem patterns; Correctness and counterexamples; Components and cycle detection; Tabulation and state reconstruction. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Greedy, backtracking and dynamic programming** module, the **Directed and weighted graph algorithms** module, the **Sequence and range problem patterns** module, **Correctness and counterexamples**, **Components and cycle detection**, and **Tabulation and state reconstruction**."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Adversarial tests target empty, singleton, duplicate, ordered, reverse, extreme, disconnected, cyclic, and scale cases derived from algorithm assumptions. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The model: edges from assumptions, plus properties",
+        "body": "```python\nimport random\nfrom bisect import bisect_left        # trusted reference.\n\ndef lower_bound(a, t):                 # the code under test.\n    lo, hi = 0, len(a)\n    while lo < hi:\n        mid = (lo + hi) // 2\n        if a[mid] < t: lo = mid + 1\n        else: hi = mid\n    return lo\n\nMATRIX = [                             # (name, array, target).\n    (\"empty\", [], 5),\n    (\"single hit\", [5], 5),\n    (\"single miss\", [5], 9),\n    (\"first\", [1, 3, 5], 1),\n    (\"last\", [1, 3, 5], 5),\n    (\"absent middle\", [1, 3, 5], 4),\n    (\"duplicates\", [2, 2, 2, 2], 2),\n    (\"negatives\", [-9, -3, 0], -3),\n]\nfor name, a, t in MATRIX:\n    assert lower_bound(a, t) == bisect_left(a, t), name\n\nfor _ in range(2000):                 # property test vs reference.\n    a = sorted(random.randint(-5, 5) for _ in range(random.randint(0, 8)))\n    t = random.randint(-6, 6)\n    assert lower_bound(a, t) == bisect_left(a, t), (a, t)\n```\n\n| Algorithm family | Must-include cases |\n|---|---|\n| searching and sorting. | empty, one, duplicates, sorted, reversed, first, last. |\n| graphs. | disconnected, cycle, self-loop, single vertex, large sparse. |\n| DP and greedy. | zero, impossible target, known counterexamples. |\n\n```reveal\n{\"prompt\": \"Why use small random inputs for property tests?\", \"answer\": \"Small inputs hit edge cases often, run fast, and when a test fails the failing input is short enough to debug.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Random tests need trustworthy oracles, overflow and recursion limits are language-specific, and hidden tests should not reward hacks. The draft therefore rejects: Large random inputs alone cover every important algorithm boundary."
+        "heading": "A few examples aren't proof",
+        "body": "```predict\n{\"question\": \"A shortest-path function passes the three examples in the task. Enough for a portfolio?\", \"options\": [\"Yes\", \"No: add disconnected, cyclic, zero-weight and large graphs, plus a brute-force comparison\"], \"answer\": 1, \"why\": \"The examples show one path through the code, not its assumptions.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Test empty, singleton, duplicate, sorted, reverse, disconnected, cyclic, malformed and size-boundary inputs as applicable.",
-      "Create a reusable test matrix that distinguishes algorithm correctness from a few passing examples.",
-      "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence."
+      "Build a reusable test matrix from an algorithm's assumptions.",
+      "Add property tests against a trusted reference or invariant."
     ],
     "excludes": [
-      "Random tests need trustworthy oracles, overflow and recursion limits are language-specific, and hidden tests should not reward hacks."
+      "Fuzzing infrastructure.",
+      "Formal verification."
     ]
   },
   "outcomes": [
@@ -73,142 +69,135 @@
   "examples": [
     {
       "id": "dsa.quality.adversarial-tests.example-a",
-      "title": "Adversarial and property tests: language-neutral trace",
+      "title": "A test matrix for binary search",
       "situation": "A binary-search suite includes empty, absent, first, last, duplicates, and maximum-size sorted input.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: A binary-search suite includes empty, absent, first, last, duplicates, and maximum-size sorted input.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Derive adversarial cases from invariants and failure modes, then add randomized comparison to a trusted oracle."
+        "**Matrix rows:** empty, absent, first, last, duplicates and negatives are each written as a named case.",
+        "**Reference check:** each case compares lower_bound with Python's bisect_left, a trusted implementation.",
+        "**Maximum size and properties:** a suite will also run a 10⁶-item sorted array for speed and 2,000 small random arrays against the reference."
       ],
-      "result": "The conceptual result follows because Derive adversarial cases from invariants and failure modes, then add randomized comparison to a trusted oracle."
+      "result": "The search is shown correct on every boundary, not just on a few friendly examples."
     },
     {
       "id": "dsa.quality.adversarial-tests.example-b",
-      "title": "Adversarial and property tests: implementation transfer",
-      "situation": "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence.",
+      "title": "The route planner's missing cases",
+      "situation": "A Dijkstra implementation passes its happy-path tests, but crashes when the destination is unreachable and loops on a zero-weight cycle.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence.",
-        "Step 3 — Retest this boundary in the selected implementation: Random tests need trustworthy oracles, overflow and recursion limits are language-specific, and hidden tests should not reward hacks."
+        "Add matrix rows: unreachable target, zero-weight edges, self-loop, single vertex, disconnected graph.",
+        "Property-test against Bellman-Ford on small random non-negative graphs.",
+        "Fix unreachable handling to return infinity or None as specified."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "The planner handles every graph shape in the matrix and agrees with the reference on random graphs."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.quality.adversarial-tests.misconception",
       "mistakenBelief": "Large random inputs alone cover every important algorithm boundary.",
-      "correction": "Derive adversarial cases from invariants and failure modes, then add randomized comparison to a trusted oracle.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Large random inputs alone cover every important algorithm boundary."
+      "correction": "Random data rarely produces empty inputs, single items, exact boundaries, duplicates everywhere or disconnected graphs. Those cases must be chosen deliberately, and random tests work best as small property checks against a reference.",
+      "diagnosticPrompt": "In \"A test matrix for binary search\", which cases did random data miss?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Adversarial and property tests, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Adversarial testing is like **a bridge inspector testing the joints and the edges**, not just driving one car across the middle. The matrix lists every joint to check; property tests are **driving thousands of small cars over and comparing the readings with the design**.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering test the joints",
+      "property test = compare with a trusted design"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Random tests need trustworthy oracles, overflow and recursion limits are language-specific, and hidden tests should not reward hacks."
+      "Bridges don't have empty inputs; algorithms do.",
+      "Heavy trucks are the maximum-size test."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A binary-search suite includes empty, absent, first, last, duplicates, and maximum-size sorted input.",
-      "Adversarial tests target empty, singleton, duplicate, ordered, reverse, extreme, disconnected, cyclic, and scale cases derived from algorithm assumptions.",
-      "Derive adversarial cases from invariants and failure modes, then add randomized comparison to a trusted oracle.",
-      "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence."
+      "build MATRIX from assumptions",
+      "run against reference",
+      "run property tests"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Design",
         "state": {
-          "scenario": "A binary-search suite includes empty, absent, first, last, duplicates, and maximum-size sorted input."
+          "rows": "empty, single, first, last, absent, duplicates, negatives"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The binary-search suite lists each boundary as a named case."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Check",
         "state": {
-          "invariant": "Adversarial tests target empty, singleton, duplicate, ordered, reverse, extreme, disconnected, cyclic, and scale cases derived from algorithm assumptions."
+          "reference": "bisect_left",
+          "failures": "0"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "Each case compares the result with a trusted implementation."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Scale and random",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "10⁶ items": "fast",
+          "2,000 random small": "all agree"
         },
-        "explanation": "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Derive adversarial cases from invariants and failure modes, then add randomized comparison to a trusted oracle."
-        },
-        "explanation": "Verify the result and reject this misconception: Large random inputs alone cover every important algorithm boundary."
+        "explanation": "The suite includes maximum-size sorted input and property tests."
       }
     ],
-    "textAlternative": "Starting artifact: A binary-search suite includes empty, absent, first, last, duplicates, and maximum-size sorted input. Step 1, Specification. State: scenario: A binary-search suite includes empty, absent, first, last, duplicates, and maximum-size sorted input.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Adversarial tests target empty, singleton, duplicate, ordered, reverse, extreme, disconnected, cyclic, and scale cases derived from algorithm assumptions.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence. Step 4, Conclusion. State: correction: Derive adversarial cases from invariants and failure modes, then add randomized comparison to a trusted oracle.. Verify the result and reject this misconception: Large random inputs alone cover every important algorithm boundary."
+    "textAlternative": "Running a test matrix. Step 1, Design: rows is empty, single, first, last, absent, duplicates, negatives. The binary-search suite lists each boundary as a named case. Step 2, Check: reference is bisect_left; failures is 0. Each case compares the result with a trusted implementation. Step 3, Scale and random: 10⁶ items is fast; 2,000 random small is all agree. The suite includes maximum-size sorted input and property tests."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Adversarial and property tests: language-neutral trace”: state its starting evidence, apply the Adversarial and property tests rule, and give the observable result in three short lines.",
+      "prompt": "For \"A test matrix for binary search\", explain why a binary-search suite includes empty, absent, first, last, duplicates, and maximum-size sorted input.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Matrix.",
+        "Reference.",
+        "Scale."
       ],
       "expectedEvidence": [
-        "Named example: Adversarial and property tests: language-neutral trace.",
-        "Starting evidence: A binary-search suite includes empty, absent, first, last, duplicates, and maximum-size sorted input.",
-        "Core rule: Adversarial tests target empty, singleton, duplicate, ordered, reverse, extreme, disconnected, cyclic, and scale cases derived from algorithm assumptions.",
-        "Observable result: The conceptual result follows because Derive adversarial cases from invariants and failure modes, then add randomized comparison to a trusted oracle.",
-        "Boundary check: Derive adversarial cases from invariants and failure modes, then add randomized comparison to a trusted oracle."
+        "Names the example \"A test matrix for binary search\": random tests missed the edges.",
+        "A binary-search suite includes empty, absent, first and last.",
+        "It also includes duplicates and maximum-size sorted input.",
+        "The search is shown correct on every boundary."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Adversarial tests target empty, singleton, duplicate, ordered, reverse, extreme, disconnected, cyclic, and scale cases derived from algorithm assumptions.",
+      "prompt": "Write a test matrix for your topological sort: empty graph, single vertex, chain, diamond, disconnected parts, a cycle and a self-loop. State the expected result for each.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Cycles return None.",
+        "Check every edge goes forward."
       ],
       "expectedEvidence": [
-        "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence.",
-        "Random tests need trustworthy oracles, overflow and recursion limits are language-specific, and hidden tests should not reward hacks."
+        "Seven named cases with expectations.",
+        "An order-validity checker instead of one fixed order."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Adversarial and property tests case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Pick one algorithm from your portfolio. Write its assumptions, derive a test matrix of at least 10 cases, add a property test against a brute-force reference, and record any bug found with the smallest failing input.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Brute force for n ≤ 8.",
+        "Shrink failing inputs by hand."
       ],
       "expectedEvidence": [
-        "Create a reusable test matrix that distinguishes algorithm correctness from a few passing examples.",
-        "Derive adversarial cases from invariants and failure modes, then add randomized comparison to a trusted oracle."
+        "A reusable matrix file.",
+        "Any bugs fixed with regression tests."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.quality.adversarial-tests.misconception",
-      "explanation": "Derive adversarial cases from invariants and failure modes, then add randomized comparison to a trusted oracle.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'invariants and failure modes', then state one implementation-specific risk in the selected language."
+      "explanation": "For each assumption the algorithm makes (sorted, non-negative, connected, non-empty), write **one test where it's true at the edge and one where it's false**. Then add a small random comparison against a trusted reference.",
+      "retryPrompt": "Apply this to \"The route planner's missing cases\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to create a reusable test matrix that distinguishes algorithm correctness from a few passing examples. Keep this boundary in view: Random tests need trustworthy oracles, overflow and recursion limits are language-specific, and hidden tests should not reward hacks.",
+    "summary": "To create a reusable test matrix, derive edge cases from the algorithm's assumptions (empty, single, duplicates, first and last, extremes, disconnected and cyclic graphs, maximum size), name each one, and add property tests that compare many small random inputs with a trusted reference, instead of relying on a few passing examples.",
     "retrievalPrompts": [
-      "State the Adversarial and property tests invariant and complexity without code.",
-      "Why is this claim false: Large random inputs alone cover every important algorithm boundary.",
-      "Map checkpoint 'invariants and failure modes' to C, C++, Java, and Python."
+      "Why don't big random tests find edge bugs?",
+      "Where do matrix cases come from?",
+      "What is a property test?"
     ],
     "nextReviewPrompt": "Next: continue to “Comparative DSA capstone”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

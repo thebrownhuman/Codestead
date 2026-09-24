@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "async functions return promises, and await pauses only that async continuation while other tasks can proceed.",
+    "summary": "An `async function` always returns a **promise**. Inside it, `await p` **pauses only that function** until p settles, then continues with the value, or throws the rejection so `try/catch` can handle it. The browser keeps running clicks, timers and rendering meanwhile. Because each await waits, two independent requests written as `await a(); await b();` run **one after the other**. Start both first, then `await Promise.all([...])` to wait for them **together**.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Two independent fetch promises start before Promise.all is awaited, avoiding unnecessary serialization. Your goal is to refactor a promise workflow using async/await and justify its concurrency behavior. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A dashboard loads the learner's profile and their course progress. Each request takes about 1 second, but the page takes 2 seconds to appear, because the second request only starts after the first finishes. Two independent fetch promises start before Promise.all is awaited, avoiding unnecessary serialization. In this lesson you'll refactor a promise workflow using async/await and justify its concurrency behavior.\n\n```predict\n{\"question\": \"While an async function is paused at `await fetch(...)`, can the learner still click other buttons?\", \"options\": [\"No, await blocks the page\", \"Yes: only that function is paused; the event loop keeps running\"], \"answer\": 1, \"why\": \"await hands control back to the event loop. The function resumes later as a microtask.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Call stack and event loop model; Closures and lifetime; Promises and chains; Parameters, rest and return contracts. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Call stack and event loop model**, **Closures and lifetime**, **Promises and chains** (await unwraps the same promises), and **Parameters, rest and return contracts**, since an async function's return value becomes a promise."
       },
       {
-        "heading": "Technology rule",
-        "body": "async functions return promises, and await pauses only that async continuation while other tasks can proceed. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: await pauses one function, not the page",
+        "body": "```js\n// Serial: about 2 s. The second request waits for the first.\nasync function loadSlow(api) {\n  const profile = await api.profile();\n  const progress = await api.progress();\n  return { profile, progress };\n}\n\n// Concurrent: about 1 s. Both start, then we wait for both.\nasync function loadDashboard(api) {\n  const profilePromise = api.profile();      // started.\n  const progressPromise = api.progress();    // started.\n  try {\n    const [profile, progress] = await Promise.all([profilePromise, progressPromise]);\n    return { profile, progress };\n  } catch (error) {\n    showMessage(\"Couldn't load your dashboard. Try again.\");\n    throw error;                             // let the caller know too.\n  }\n}\n```\n\n| Need | Write |\n|---|---|\n| B needs A's result. | `const a = await A(); await B(a);` (serial on purpose). |\n| A and B independent. | start both, then `await Promise.all([a, b])`. |\n| want every result, even failures. | `await Promise.allSettled([...])`. |\n| handle a rejection. | `try { await ... } catch (e) { ... }`. |\n\n```reveal\n{\"prompt\": \"If one request in Promise.all rejects, what happens?\", \"answer\": \"Promise.all rejects straight away with that error. The other request still finishes in the background, but its result is ignored.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Sequential awaits can serialize independent work, try/catch scope matters, and rejection still needs handling. This draft therefore rejects: await blocks the browser thread until the promise settles."
+        "heading": "What does an async function return?",
+        "body": "```predict\n{\"question\": \"`async function f() { return 5; } const x = f();` What is x?\", \"options\": [\"5\", \"a promise that fulfils with 5\"], \"answer\": 1, \"why\": \"Callers must await it or use then.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Write structured asynchronous functions and distinguish sequential from intentional concurrent waits.",
-      "Refactor a promise workflow using async/await and justify its concurrency behavior."
+      "Rewrite promise chains with async/await and try/catch.",
+      "Choose serial or concurrent awaits and justify the choice."
     ],
     "excludes": [
-      "Sequential awaits can serialize independent work, try/catch scope matters, and rejection still needs handling."
+      "Top-level await details in bundlers.",
+      "Async iterators and for await in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,137 @@
   "examples": [
     {
       "id": "javascript.async.await.example-a",
-      "title": "async and await: concrete case",
-      "situation": "Two independent fetch promises start before Promise.all is awaited, avoiding unnecessary serialization.",
+      "title": "Two requests at once",
+      "situation": "Two independent fetch promises start before Promise.all is awaited, avoiding unnecessary serialization of the dashboard.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: Two independent fetch promises start before Promise.all is awaited, avoiding unnecessary serialization.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: await suspends the async function continuation, not the entire event loop."
+        "**Measure:** the serial version awaits profile, then progress, so it takes about 2 seconds.",
+        "**Start both first:** `api.profile()` and `api.progress()` are called before any await.",
+        "**Await together:** `await Promise.all([...])` will finish in about 1 second, the time of the slower request."
       ],
-      "result": "The result follows because await suspends the async function continuation, not the entire event loop."
+      "result": "The dashboard appears about twice as fast, and a failure in either request shows one clear message."
     },
     {
       "id": "javascript.async.await.example-b",
-      "title": "async and await: boundary case",
-      "situation": "Sequential awaits can serialize independent work, try/catch scope matters, and rejection still needs handling.",
+      "title": "The await that wasn't",
+      "situation": "A save handler calls `saveDraft(text)` and then immediately shows \"Saved!\", even when the server rejects the draft.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Sequential awaits can serialize independent work, try/catch scope matters, and rejection still needs handling.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: await blocks the browser thread until the promise settles."
+        "saveDraft is async, so calling it returns a promise straight away.",
+        "Without await, the next line runs before the save finishes and the rejection is never caught.",
+        "Fix: `try { await saveDraft(text); showSaved(); } catch { showError(); }`."
       ],
-      "result": "The boundary requires this correction: await suspends the async function continuation, not the entire event loop."
+      "result": "\"Saved!\" appears only after a real save, and failures show an error instead."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.async.await.misconception",
       "mistakenBelief": "await blocks the browser thread until the promise settles.",
-      "correction": "await suspends the async function continuation, not the entire event loop.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: await blocks the browser thread until the promise settles."
+      "correction": "await pauses only the current async function. Control returns to the event loop, so other events, timers and rendering continue until the promise settles and the function resumes.",
+      "diagnosticPrompt": "In the opening predict, why could the learner still click buttons?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model async and await, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "await is like **ordering at a café and sitting down with a buzzer**: you (the function) wait, but the barista keeps serving other people (the event loop). Ordering two drinks at the counter together, then waiting for both buzzers (Promise.all), is faster than ordering the second only after the first arrives.",
     "usefulFor": [
-      "Building a first mental model for async and await before using exact platform terms"
+      "remembering only you wait",
+      "Promise.all = two buzzers at once"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Sequential awaits can serialize independent work, try/catch scope matters, and rejection still needs handling."
+      "Buzzers don't fail; promises can reject.",
+      "If one drink can't be made, Promise.all tells you right away."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Two independent fetch promises start before Promise.all is awaited, avoiding unnecessary serialization.",
-      "async functions return promises, and await pauses only that async continuation while other tasks can proceed.",
-      "await suspends the async function continuation, not the entire event loop."
+      "const p1 = api.profile(); const p2 = api.progress()",
+      "await Promise.all([p1, p2])",
+      "return { profile, progress }"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Start",
         "state": {
-          "evidence": "Two independent fetch promises start before Promise.all is awaited, avoiding unnecessary serialization."
+          "p1": "pending",
+          "p2": "pending",
+          "time": "0 s"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "Both independent fetch promises start before anything is awaited."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Await",
         "state": {
-          "rule": "async functions return promises, and await pauses only that async continuation while other tasks can proceed."
+          "function": "paused",
+          "page": "still responsive"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The function pauses at Promise.all while the event loop keeps running."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Resume",
         "state": {
-          "correction": "await suspends the async function continuation, not the entire event loop."
+          "time": "about 1 s",
+          "result": "both values"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: await blocks the browser thread until the promise settles."
+        "explanation": "Both settle together, avoiding unnecessary serialization."
       }
     ],
-    "textAlternative": "Starting artifact: Two independent fetch promises start before Promise.all is awaited, avoiding unnecessary serialization. Step 1, Artifact. State: evidence: Two independent fetch promises start before Promise.all is awaited, avoiding unnecessary serialization.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: async functions return promises, and await pauses only that async continuation while other tasks can proceed.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: await suspends the async function continuation, not the entire event loop.. Check the result against the boundary and reject this misconception: await blocks the browser thread until the promise settles."
+    "textAlternative": "Tracing concurrent awaits. Step 1, Start: p1 is pending; p2 is pending; time is 0 s. Both independent fetch promises start before anything is awaited. Step 2, Await: function is paused; page is still responsive. The function pauses at Promise.all while the event loop keeps running. Step 3, Resume: time is about 1 s; result is both values. Both settle together, avoiding unnecessary serialization."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “async and await: concrete case”: state its starting evidence, apply the async and await rule, and give the observable result in three short lines.",
+      "prompt": "For \"Two requests at once\", explain why two independent fetch promises start before Promise.all is awaited, and how that avoids unnecessary serialization.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Serial timing.",
+        "Start both.",
+        "Await together."
       ],
       "expectedEvidence": [
-        "Named example: async and await: concrete case.",
-        "Starting evidence: Two independent fetch promises start before Promise.all is awaited, avoiding unnecessary serialization.",
-        "Core rule: async functions return promises, and await pauses only that async continuation while other tasks can proceed.",
-        "Observable result: The result follows because await suspends the async function continuation, not the entire event loop.",
-        "Boundary check: await suspends the async function continuation, not the entire event loop."
+        "Names the example \"Two requests at once\": both fetch promises start first.",
+        "The serial version takes about 2 seconds.",
+        "Promise.all is awaited once, avoiding unnecessary serialization.",
+        "The dashboard appears about twice as fast."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Sequential awaits can serialize independent work, try/catch scope matters, and rejection still needs handling.",
+      "prompt": "Rewrite `getUser().then((u) => getPosts(u.id)).then(render).catch(showError)` with async/await. Should the two requests run concurrently? Explain.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "getPosts needs u.id.",
+        "try/catch replaces catch."
       ],
       "expectedEvidence": [
-        "async functions return promises, and await pauses only that async continuation while other tasks can proceed.",
-        "Sequential awaits can serialize independent work, try/catch scope matters, and rejection still needs handling."
+        "Serial on purpose, because posts depend on the user.",
+        "One try/catch around both awaits."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for async and await and explain why the misconception fails.",
+      "prompt": "Load three independent course summaries with async/await. Measure serial and concurrent versions with fake 500 ms promises, then show a partial result with Promise.allSettled when one fails.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Use performance.now().",
+        "Filter fulfilled results."
       ],
       "expectedEvidence": [
-        "Refactor a promise workflow using async/await and justify its concurrency behavior.",
-        "await suspends the async function continuation, not the entire event loop."
+        "Timing comparison of about 1.5 s vs 0.5 s.",
+        "Page shows two summaries and one error."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.async.await.misconception",
-      "explanation": "await suspends the async function continuation, not the entire event loop.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'not the entire event loop' and state the decisive evidence."
+      "explanation": "For every pair of awaits ask: **does the second need the first's result?** If not, start both and await Promise.all. For every async call ask: **did I await it or return it?**",
+      "retryPrompt": "Apply this to \"The await that wasn't\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to refactor a promise workflow using async/await and justify its concurrency behavior. Keep this boundary in view: Sequential awaits can serialize independent work, try/catch scope matters, and rejection still needs handling.",
+    "summary": "To refactor a promise workflow using async/await, remember async functions return promises and await pauses only that function while the event loop keeps running. Use try/catch for rejections, await dependent steps in order, and start independent promises first, then await Promise.all to avoid unnecessary serialization.",
     "retrievalPrompts": [
-      "Explain async and await using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: await blocks the browser thread until the promise settles.",
-      "Apply checkpoint 'not the entire event loop' to a new artifact."
+      "Does await block the browser?",
+      "What does an async function return?",
+      "When should you use Promise.all?"
     ],
     "nextReviewPrompt": "Next: continue to “Fetch and HTTP responses”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

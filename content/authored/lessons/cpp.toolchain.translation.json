@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "C++ translation preprocesses each translation unit, checks declarations and templates, emits object code, and links definitions under the one-definition rule.",
+    "summary": "Like C, each `.cpp` file is a **translation unit**: preprocessed, compiled to an object file, then **linked**. C++ adds two big rules. The **One Definition Rule (ODR)**: each non-inline function or variable has exactly one definition in the program, and things that may appear in several units (classes, inline functions, templates) must be **identical** everywhere. And **templates** are blueprints, not code: the compiler only generates `max<int>` in a unit that can **see the full template definition**. So template definitions normally live in **headers**; put one in a .cpp file and other units get `undefined reference` link errors.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A template definition remains visible in a header so a translation unit can instantiate it for int before linking. Your goal is to classify and repair preprocessing, compilation and linking failures. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner declares `template <typename T> T biggest(T a, T b);` in util.h and defines it in util.cpp. main.cpp calls biggest(3, 7), every file compiles, and the link fails with `undefined reference to int biggest<int>(int, int)`. A template definition remains visible in a header so a translation unit can instantiate it for int before linking. In this lesson you'll classify and repair preprocessing, compilation and linking failures.\n\n```predict\n{\"question\": \"Each .cpp file compiles on its own. Can the program still violate a C++ rule?\", \"options\": [\"No\", \"Yes: missing definitions, duplicate definitions and ODR violations show up at link time or not at all\"], \"answer\": 1, \"why\": \"Some ODR violations are never diagnosed and just misbehave.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: pf computing execution; pf tools terminal editor; Program structure and main. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Source-to-execution models**, **Editor and terminal workflow** and **Program structure and main** (int main and streams)."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "C++ translation preprocesses each translation unit, checks declarations and templates, emits object code, and links definitions under the one-definition rule. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The model: units, instantiation and one definition",
+        "body": "```cpp\n// util.h\n#pragma once                           // common include guard.\ntemplate <typename T>\nT biggest(T a, T b) {                  // full definition visible to includers.\n    return (a < b) ? b : a;\n}\n\nint count_words(const char* text);     // declaration only.\n\n// util.cpp\n#include \"util.h\"\nint count_words(const char* text) { /* ... */ return 0; }   // exactly one definition.\n\n// main.cpp\n#include <iostream>\n#include \"util.h\"\nint main() {\n    std::cout << biggest(3, 7) << '\\n';   // instantiates biggest<int> here.\n}\n```\n\n```bash\ng++ -std=c++20 -Wall -c util.cpp main.cpp\ng++ util.o main.o -o app\n```\n\n| Symptom | Stage |\n|---|---|\n| `fatal error: utill.h: No such file`. | preprocessing. |\n| `no matching function for call`. | compilation. |\n| `undefined reference to ...`. | linking: definition missing. |\n| `multiple definition of ...`. | linking: ODR broken. |\n\n```reveal\n{\"prompt\": \"Why can a non-template function defined in a header cause multiple definitions?\", \"answer\": \"Every .cpp including the header gets its own definition. Mark it inline (which allows identical repeated definitions), or move the body to one .cpp file.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Templates and inline entities can appear in multiple units under ODR conditions, modules alter delivery, and link-time optimization can blur physical phase boundaries. Therefore the draft explicitly rejects this beginner failure model: If separate .cpp files compile, declarations and definitions across them cannot violate a C++ program rule."
+        "heading": "Where does the template go?",
+        "body": "```predict\n{\"question\": \"biggest is defined only in util.cpp. main.cpp calls biggest(3.5, 2.0). What happens?\", \"options\": [\"It works\", \"Link error: main.cpp couldn't instantiate biggest<double>, and util.cpp never did\"], \"answer\": 1, \"why\": \"Templates generate code where they're used, so the definition must be visible there.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Relate source files, headers, object files, libraries and the One Definition Rule at an introductory level.",
-      "Classify and repair preprocessing, compilation and linking failures."
+      "Classify build failures as preprocessing, compilation or linking.",
+      "Apply the One Definition Rule and keep template definitions in headers."
     ],
     "excludes": [
-      "Templates and inline entities can appear in multiple units under ODR conditions, modules alter delivery, and link-time optimization can blur physical phase boundaries."
+      "Explicit template instantiation.",
+      "C++20 modules."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "cpp.toolchain.translation.example-a",
-      "title": "Compile and link model: defined case",
+      "title": "A template that must live in the header",
       "situation": "A template definition remains visible in a header so a translation unit can instantiate it for int before linking.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A template definition remains visible in a header so a translation unit can instantiate it for int before linking.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Translation units compile independently, but linked entities must still satisfy compatible declarations and the one-definition rule across the entire program."
+        "**A template definition remains visible in a header:** biggest's body moves from util.cpp into util.h.",
+        "**So a translation unit can instantiate it for int:** main.cpp generates biggest<int> when it calls biggest(3, 7).",
+        "**Before linking:** the linker will find the generated code, and the undefined reference disappears."
       ],
-      "result": "The defined result follows because Translation units compile independently, but linked entities must still satisfy compatible declarations and the one-definition rule across the entire program."
+      "result": "The program links and prints 7."
     },
     {
       "id": "cpp.toolchain.translation.example-b",
-      "title": "Compile and link model: boundary case",
-      "situation": "Two non-inline definitions of the same external function compile separately but violate the one-definition rule at link or beyond.",
+      "title": "The helper defined twice",
+      "situation": "A learner writes `int square(int x) { return x * x; }` in math.h, included by three .cpp files. Linking reports multiple definition of square.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: Two non-inline definitions of the same external function compile separately but violate the one-definition rule at link or beyond.",
-        "Step 2 — Keep this standard boundary visible: Templates and inline entities can appear in multiple units under ODR conditions, modules alter delivery, and link-time optimization can blur physical phase boundaries.",
-        "Step 3 — Reject the tempting rule: If separate .cpp files compile, declarations and definitions across them cannot violate a C++ program rule."
+        "Each unit compiled its own copy: three definitions.",
+        "Either mark it inline in the header,",
+        "or keep only the declaration in math.h and define it in math.cpp."
       ],
-      "result": "This case demonstrates the declared outcome: Classify and repair preprocessing, compilation and linking failures."
+      "result": "One definition exists, and all three files use it."
     }
   ],
   "misconceptions": [
     {
       "id": "cpp.toolchain.translation.misconception",
       "mistakenBelief": "If separate .cpp files compile, declarations and definitions across them cannot violate a C++ program rule.",
-      "correction": "Translation units compile independently, but linked entities must still satisfy compatible declarations and the one-definition rule across the entire program.",
-      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: If separate .cpp files compile, declarations and definitions across them cannot violate a C++ program rule."
+      "correction": "Compilation checks one unit at a time. Missing, duplicate or mismatched definitions across units are only found at link time, and some ODR violations aren't diagnosed at all.",
+      "diagnosticPrompt": "In the opening story, which stage reported the problem?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A system of self-managing components can model Compile and link model: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "example": "A template is like **a cookie cutter**. You can only make star cookies (biggest<int>) in a kitchen that has the cutter. Keeping the cutter in one kitchen (util.cpp) means other kitchens can't make stars, and the bakery (linker) finds none when assembling the order.",
     "usefulFor": [
-      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+      "remembering the cutter must be in the kitchen",
+      "ODR = one official recipe"
     ],
     "limitations": [
-      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
-      "Templates and inline entities can appear in multiple units under ODR conditions, modules alter delivery, and link-time optimization can blur physical phase boundaries."
+      "Kitchens can copy cutters freely; headers copy templates freely.",
+      "Two different recipes with the same name is an ODR violation."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A template definition remains visible in a header so a translation unit can instantiate it for int before linking.",
-      "C++ translation preprocesses each translation unit, checks declarations and templates, emits object code, and links definitions under the one-definition rule.",
-      "Translation units compile independently, but linked entities must still satisfy compatible declarations and the one-definition rule across the entire program."
+      "g++ -c main.cpp util.cpp",
+      "link: undefined reference to biggest<int>",
+      "move template body to util.h; rebuild"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Compile",
         "state": {
-          "evidence": "A template definition remains visible in a header so a translation unit can instantiate it for int before linking."
+          "main.o": "needs biggest<int>",
+          "util.o": "no instantiation"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "Each file compiles, but no unit generated biggest<int>."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Link",
         "state": {
-          "rule": "C++ translation preprocesses each translation unit, checks declarations and templates, emits object code, and links definitions under the one-definition rule."
+          "error": "undefined reference"
         },
-        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+        "explanation": "The linker can't find the missing instantiation for int."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Fix",
         "state": {
-          "conclusion": "Translation units compile independently, but linked entities must still satisfy compatible declarations and the one-definition rule across the entire program."
+          "util.h": "full template",
+          "link": "ok"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: If separate .cpp files compile, declarations and definitions across them cannot violate a C++ program rule."
+        "explanation": "A template definition remains visible in a header so main.cpp can instantiate it."
       }
     ],
-    "textAlternative": "Starting artifact: A template definition remains visible in a header so a translation unit can instantiate it for int before linking. Step 1, Source and state. State: evidence: A template definition remains visible in a header so a translation unit can instantiate it for int before linking.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: C++ translation preprocesses each translation unit, checks declarations and templates, emits object code, and links definitions under the one-definition rule.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Translation units compile independently, but linked entities must still satisfy compatible declarations and the one-definition rule across the entire program.. Check the conclusion against the boundary and reject this misconception: If separate .cpp files compile, declarations and definitions across them cannot violate a C++ program rule."
+    "textAlternative": "Tracing a template link error. Step 1, Compile: main.o is needs biggest<int>; util.o is no instantiation. Each file compiles, but no unit generated biggest<int>. Step 2, Link: error is undefined reference. The linker can't find the missing instantiation for int. Step 3, Fix: util.h is full template; link is ok. A template definition remains visible in a header so main.cpp can instantiate it."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Compile and link model: defined case”: state its starting evidence, apply the Compile and link model rule, and give the observable result in three short lines.",
+      "prompt": "For \"A template that must live in the header\", explain how a template definition remains visible in a header so a translation unit can instantiate it for int before linking.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Compile.",
+        "Link.",
+        "Fix."
       ],
       "expectedEvidence": [
-        "Named example: Compile and link model: defined case.",
-        "Starting evidence: A template definition remains visible in a header so a translation unit can instantiate it for int before linking.",
-        "Core rule: C++ translation preprocesses each translation unit, checks declarations and templates, emits object code, and links definitions under the one-definition rule.",
-        "Observable result: The defined result follows because Translation units compile independently, but linked entities must still satisfy compatible declarations and the one-definition rule across the entire program.",
-        "Boundary check: Translation units compile independently, but linked entities must still satisfy compatible declarations and the one-definition rule across the entire program."
+        "Names the example \"A template that must live in the header\": the definition hid in util.cpp.",
+        "A template definition remains visible in a header.",
+        "A translation unit can instantiate it for int before linking.",
+        "The program links and prints 7."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same CPP rule to this related boundary case: Two non-inline definitions of the same external function compile separately but violate the one-definition rule at link or beyond.",
+      "prompt": "Classify each error by stage and name the fix: (a) `fatal error: vectr: No such file`, (b) `no matching function for call to 'f(std::string)'`, (c) `undefined reference to 'Parser::run()'`, (d) `multiple definition of 'helper()'`.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "File missing = preprocessing.",
+        "(c) often means a missing .cpp in the link."
       ],
       "expectedEvidence": [
-        "C++ translation preprocesses each translation unit, checks declarations and templates, emits object code, and links definitions under the one-definition rule.",
-        "Templates and inline entities can appear in multiple units under ODR conditions, modules alter delivery, and link-time optimization can blur physical phase boundaries."
+        "Four stages named.",
+        "A fix for each."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CPP example for Compile and link model, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Build a three-file program with one template and one ordinary helper. Reproduce each failure on purpose (template in .cpp, helper defined in header without inline, missing object in link), capture the messages, then fix all three.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Use g++ -c then link separately.",
+        "Explain each message."
       ],
       "expectedEvidence": [
-        "Classify and repair preprocessing, compilation and linking failures.",
-        "Translation units compile independently, but linked entities must still satisfy compatible declarations and the one-definition rule across the entire program."
+        "Three failures reproduced.",
+        "Clean final build."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "cpp.toolchain.translation.misconception",
-      "explanation": "Translation units compile independently, but linked entities must still satisfy compatible declarations and the one-definition rule across the entire program.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'one-definition rule' and state the decisive evidence: Two non-inline definitions of the same external function compile separately but violate the one-definition rule at link or beyond."
+      "explanation": "Read the first error and ask: **file (preprocess), code (compile), or definition (link)?** For link errors, ask: **zero definitions or several?**",
+      "retryPrompt": "Apply this to \"The helper defined twice\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to classify and repair preprocessing, compilation and linking failures. Keep this boundary in view: Templates and inline entities can appear in multiple units under ODR conditions, modules alter delivery, and link-time optimization can blur physical phase boundaries.",
+    "summary": "To classify and repair build failures, remember each .cpp is compiled separately and then linked, keep exactly one definition of each non-inline function and variable, define inline functions and templates in headers so every unit that uses them can see them, and read error wording to identify the stage.",
     "retrievalPrompts": [
-      "Explain Compile and link model using a concrete CPP rule rather than the optional analogy.",
-      "Why is this claim incorrect: If separate .cpp files compile, declarations and definitions across them cannot violate a C++ program rule.",
-      "Apply the checkpoint 'one-definition rule' to the boundary case from memory."
+      "What does the One Definition Rule require?",
+      "Why do template definitions go in headers?",
+      "Which stage reports multiple definition?"
     ],
     "nextReviewPrompt": "Next: continue to “Namespaces and qualified names”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

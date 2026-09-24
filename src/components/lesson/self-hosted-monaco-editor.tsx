@@ -16,6 +16,16 @@ import styles from "./lesson-workspace.module.css";
 // deliberately keeps a same-origin CSP and ships the installed Monaco version.
 loader.config({ paths: { vs: "/monaco/vs" } });
 
+// Monaco rejects in-flight work with a CancellationError (name and message
+// "Canceled") when an editor is disposed. That is expected cleanup, not a
+// failure, so keep it out of the unhandled-rejection error overlay.
+if (typeof window !== "undefined") {
+  window.addEventListener("unhandledrejection", (event) => {
+    const reason = event.reason as { name?: unknown; message?: unknown } | null;
+    if (reason?.name === "Canceled" && reason.message === "Canceled") event.preventDefault();
+  });
+}
+
 const EDITOR_LOAD_TIMEOUT_MS = 8_000;
 const LEARNCODING_DARK_THEME = "learncoding-dark";
 

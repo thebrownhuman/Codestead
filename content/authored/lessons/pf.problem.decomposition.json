@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Decomposition divides one requirement into cohesive subproblems whose inputs and outputs connect and whose combined behavior covers the original need.",
+    "summary": "**Decomposition** means splitting one big requirement into smaller parts that each do **one clear job**, whose outputs feed the next part's inputs, and which **together cover everything** the original asked for. It's not about making many tiny functions — it's about clean jobs and clean hand-offs.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A quiz application is separated into loading questions, presenting one question, checking an answer, updating score, and reporting the final result. Your goal is to create and justify a decomposition whose parts cover the original requirement. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "\"Build a quiz app\" feels huge. Where do you even start? Break it down: a quiz application is separated into loading questions, presenting one question, checking an answer, updating score, and reporting the final result. Each part is small enough to write and test on its own, and together they cover the whole quiz. In this lesson you'll create and justify a decomposition whose parts cover the original requirement.\n\n```predict\n{\"question\": \"The quiz must also show a timer. With parts load / present / check / score / report, is the decomposition complete?\", \"options\": [\"Yes, it's fine\", \"No — nothing covers the timer\"], \"answer\": 1, \"why\": \"A decomposition must **cover** the whole requirement. Missing parts mean missing features. Add a \\\"track time\\\" part.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Program, code and algorithm; Inputs, outputs and constraints. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Program, code and algorithm** and **Inputs, outputs and constraints**. Each part you create gets its own small input-output statement."
       },
       {
-        "heading": "Operational model",
-        "body": "Decomposition divides one requirement into cohesive subproblems whose inputs and outputs connect and whose combined behavior covers the original need. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The model: jobs that connect and cover",
+        "body": "| Part | Input | Output |\n|---|---|---|\n| load questions. | file name. | list of questions. |\n| present question. | one question. | learner's answer. |\n| check answer. | question and answer. | correct or not. |\n| update score. | score and result. | new score. |\n| report result. | final score and total. | message shown. |\n\nCheck three things: each part has **one job**, each output **connects** to the next input, and all parts together **cover** the requirement.\n\n```reveal\n{\"prompt\": \"Would a part named `do_quiz_stuff` be a good piece?\", \"answer\": \"No. Its job is unclear, so you can't say what goes in or comes out. A good part's name says its one job.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Splitting work by arbitrary line count or creating fragments with hidden shared state does not produce useful decomposition, and integration responsibilities must remain visible. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Decomposition means writing many tiny functions even when their responsibilities and interfaces are unclear."
+        "heading": "Too tiny is also a problem",
+        "body": "```predict\n{\"question\": \"Someone splits \\\"check answer\\\" into `get_letter`, `lower_letter`, `compare_letter`, `return_result` — each one line. Better?\", \"options\": [\"Yes — more functions is always better\", \"No — one clear job was split into pieces with no real meaning\"], \"answer\": 1, \"why\": \"Decomposition is about clear responsibilities, not counting functions. Tiny fragments add hand-offs without making anything clearer.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Split a problem into cohesive, ordered subproblems.",
-      "Create and justify a decomposition whose parts cover the original requirement."
+      "Split a requirement into cohesive parts with connected inputs and outputs.",
+      "Check that the parts together cover the whole requirement."
     ],
     "excludes": [
-      "Splitting work by arbitrary line count or creating fragments with hidden shared state does not produce useful decomposition, and integration responsibilities must remain visible."
+      "Classes and modules.",
+      "Team task planning."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "pf.problem.decomposition.example-a",
-      "title": "Decomposition: direct case",
+      "title": "Splitting a quiz app",
       "situation": "A quiz application is separated into loading questions, presenting one question, checking an answer, updating score, and reporting the final result.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A quiz application is separated into loading questions, presenting one question, checking an answer, updating score, and reporting the final result.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement."
+        "**One job each:** loading questions, presenting one question, checking an answer, updating score, reporting the final result.",
+        "**Connected:** loaded questions feed presenting; the answer feeds checking; the check result feeds the score update.",
+        "**Covering:** the loop over questions plus the final report covers the whole quiz requirement."
       ],
-      "result": "The case supports the declared outcome because A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement."
+      "result": "Five cohesive parts that connect and together cover the quiz application."
     },
     {
       "id": "pf.problem.decomposition.example-b",
-      "title": "Decomposition: boundary case",
-      "situation": "An expense report is separated into parsing entries, validating currency and dates, aggregating categories, and formatting a summary.",
+      "title": "The monthly bill",
+      "situation": "Requirement: read this month's electricity units, calculate the bill with slab rates, add tax, and print a receipt.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: An expense report is separated into parsing entries, validating currency and dates, aggregating categories, and formatting a summary.",
-        "Step 2 — Keep this boundary explicit: Splitting work by arbitrary line count or creating fragments with hidden shared state does not produce useful decomposition, and integration responsibilities must remain visible.",
-        "Step 3 — Reject the documented misconception: Decomposition means writing many tiny functions even when their responsibilities and interfaces are unclear."
+        "Parts: read units → compute slab charge → add tax → format receipt.",
+        "Each output feeds the next: units → charge → total → receipt text.",
+        "Check coverage: every phrase of the requirement maps to a part."
       ],
-      "result": "This case demonstrates the declared outcome: Create and justify a decomposition whose parts cover the original requirement."
+      "result": "Four parts that together produce the receipt, each testable alone."
     }
   ],
   "misconceptions": [
     {
       "id": "pf.problem.decomposition.misconception",
-      "mistakenBelief": "Decomposition means writing many tiny functions even when their responsibilities and interfaces are unclear.",
-      "correction": "A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Decomposition means writing many tiny functions even when their responsibilities and interfaces are unclear."
+      "mistakenBelief": "Decomposition means writing many tiny functions, even when their responsibilities and interfaces are unclear.",
+      "correction": "Good decomposition creates parts with clear single responsibilities and well-defined inputs and outputs that connect and together cover the requirement. The number of functions doesn't matter; clarity of each job does.",
+      "diagnosticPrompt": "In \"Too tiny is also a problem\", why didn't four one-line functions help?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "Planning a trip can model Decomposition: name the destination, inputs and constraints, divide the journey, and check routes before traveling.",
+    "example": "Like a **restaurant kitchen**: one station preps, one cooks, one plates, one serves. Each has a clear job, passes food along, and together they deliver the full meal.",
     "usefulFor": [
-      "Making requirements, ordered decisions, decomposition, and edge conditions concrete"
+      "remembering one job per part and clean hand-offs",
+      "checking nothing is missing from the meal"
     ],
     "limitations": [
-      "Programs require unambiguous executable rules, while a traveler can improvise from incomplete directions.",
-      "Splitting work by arbitrary line count or creating fragments with hidden shared state does not produce useful decomposition, and integration responsibilities must remain visible."
+      "Kitchen stations work at the same time; program parts often run in sequence.",
+      "In code you can test each station alone with fake inputs."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A quiz application is separated into loading questions, presenting one question, checking an answer, updating score, and reporting the final result.",
-      "Decomposition divides one requirement into cohesive subproblems whose inputs and outputs connect and whose combined behavior covers the original need.",
-      "A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement."
+      "questions = load_questions('quiz.txt')",
+      "for q in questions: answer = present(q); score = update(score, check(q, answer))",
+      "report(score, len(questions))"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Load",
         "state": {
-          "evidence": "A quiz application is separated into loading questions, presenting one question, checking an answer, updating score, and reporting the final result."
+          "questions": "5 questions"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "Loading questions produces the list the other parts will use."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Per question",
         "state": {
-          "model": "Decomposition divides one requirement into cohesive subproblems whose inputs and outputs connect and whose combined behavior covers the original need."
+          "answer": "B",
+          "correct": "True",
+          "score": "1"
         },
-        "explanation": "Apply the declared Decomposition model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "Presenting, checking and updating score run once for each question."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Report",
         "state": {
-          "correction": "A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement."
+          "output": "You scored 4 out of 5"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Decomposition means writing many tiny functions even when their responsibilities and interfaces are unclear."
+        "explanation": "Reporting the final result uses the finished score and the total."
       }
     ],
-    "textAlternative": "Starting artifact: A quiz application is separated into loading questions, presenting one question, checking an answer, updating score, and reporting the final result. Step 1, Observe. State: evidence: A quiz application is separated into loading questions, presenting one question, checking an answer, updating score, and reporting the final result.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Decomposition divides one requirement into cohesive subproblems whose inputs and outputs connect and whose combined behavior covers the original need.. Apply the declared Decomposition model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement.. Compare the observation with the correction and reject the misconception: Decomposition means writing many tiny functions even when their responsibilities and interfaces are unclear."
+    "textAlternative": "Running the decomposed quiz application. Step 1, Load: questions is 5 questions. Loading questions produces the list the other parts will use. Step 2, Per question: answer is B; correct is True; score is 1. Presenting, checking and updating score run once for each question. Step 3, Report: output is You scored 4 out of 5. Reporting the final result uses the finished score and the total."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Decomposition: direct case”: state its starting evidence, apply the Decomposition rule, and give the observable result in three short lines.",
+      "prompt": "For \"Splitting a quiz app\", name the five parts of the quiz application, say what each hands to the next, and explain why together they cover the requirement.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "List five parts.",
+        "Hand-offs.",
+        "Coverage."
       ],
       "expectedEvidence": [
-        "Named example: Decomposition: direct case.",
-        "Starting evidence: A quiz application is separated into loading questions, presenting one question, checking an answer, updating score, and reporting the final result.",
-        "Core rule: Decomposition divides one requirement into cohesive subproblems whose inputs and outputs connect and whose combined behavior covers the original need.",
-        "Observable result: The case supports the declared outcome because A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement.",
-        "Boundary check: A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement."
+        "Names the example \"Splitting a quiz app\": a quiz application separated into five parts.",
+        "Loading questions, presenting one question, checking an answer, updating score, reporting the final result.",
+        "Each output feeds the next input.",
+        "Together they cover the whole quiz requirement."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: An expense report is separated into parsing entries, validating currency and dates, aggregating categories, and formatting a summary.",
+      "prompt": "Decompose \"a to-do app that adds tasks, marks them done, and shows remaining tasks\" into parts with inputs and outputs.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "One job per part.",
+        "Check coverage."
       ],
       "expectedEvidence": [
-        "Decomposition divides one requirement into cohesive subproblems whose inputs and outputs connect and whose combined behavior covers the original need.",
-        "Splitting work by arbitrary line count or creating fragments with hidden shared state does not produce useful decomposition, and integration responsibilities must remain visible."
+        "Parts like add task, mark done, list remaining with clear inputs/outputs.",
+        "Explains every requirement phrase is covered."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Decomposition, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Take a program you want to build. Decompose it into 4–7 parts, draw arrows for the hand-offs, and mark any part you'd test first and why.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Name each part by its job.",
+        "Look for missing coverage."
       ],
       "expectedEvidence": [
-        "Create and justify a decomposition whose parts cover the original requirement.",
-        "A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement."
+        "A justified decomposition with connected parts.",
+        "A reasoned choice of which part to test first."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "pf.problem.decomposition.misconception",
-      "explanation": "A good decomposition names responsibilities and data flow so each part can be understood and tested while the parts still cover the complete requirement.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: An expense report is separated into parsing entries, validating currency and dates, aggregating categories, and formatting a summary."
+      "explanation": "Underline each verb in the requirement (\"load\", \"check\", \"report\"). Each usually becomes a part. Then draw arrows for what each hands to the next.",
+      "retryPrompt": "Do this for \"The monthly bill\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to create and justify a decomposition whose parts cover the original requirement. Keep this boundary in view: Splitting work by arbitrary line count or creating fragments with hidden shared state does not produce useful decomposition, and integration responsibilities must remain visible.",
+    "summary": "To create a decomposition, split the requirement into parts with one clear job each, make every part's output connect to the next part's input, and justify that the parts together cover the original requirement. Clarity matters, not function count.",
     "retrievalPrompts": [
-      "Explain Decomposition without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Decomposition means writing many tiny functions even when their responsibilities and interfaces are unclear.",
-      "Apply the model to this case from memory: An expense report is separated into parsing entries, validating currency and dates, aggregating categories, and formatting a summary."
+      "What three checks make a good decomposition?",
+      "Why is `do_quiz_stuff` a poor part?",
+      "How do you find missing coverage?"
     ],
     "nextReviewPrompt": "Next: continue to “Pseudocode”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

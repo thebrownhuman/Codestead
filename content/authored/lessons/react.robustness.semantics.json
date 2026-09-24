@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "React output should use native semantic elements, accessible names, keyboard behavior, and state attributes just like authored HTML.",
+    "summary": "React renders ordinary HTML, so all the accessibility rules still apply. Use **native elements** first: `<button>` for actions, `<a href>` for navigation, `<label>` for fields, `<dialog>` for modal dialogs. Native elements come with **roles, keyboard support and focus** built in. Give every control an **accessible name** (visible text, a label, or aria-label for icon buttons), and expose state with attributes such as `aria-expanded`, `aria-pressed` or `aria-invalid`. Test with a keyboard: Tab order, Enter/Space, Escape, and where focus goes when things open and close.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A reusable dialog composes a real button trigger, labeled dialog region, focus management, and escape behavior. Your goal is to audit and repair component names, roles, states, focus order and keyboard behavior. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A \"Report a problem\" pop-up is built from divs: a div trigger with onClick, a div overlay, a close \"×\" span. Mouse users are fine; keyboard users can't open it, screen readers don't know it's a dialog, and Escape does nothing. A reusable dialog composes a real button trigger, labeled dialog region, focus management, and escape behavior. In this lesson you'll audit and repair component names, roles, states, focus order and keyboard behavior.\n\n```predict\n{\"question\": \"React handles clicks on any element. Is `<div onClick={open}>Report</div>` as good as a button?\", \"options\": [\"Yes, React makes it work\", \"No: it can't be focused with Tab, and Enter/Space and its role are missing\"], \"answer\": 1, \"why\": \"A native button gives focus, keyboard activation and the button role for free.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Routing and application context; Remote data and asynchronous UI; html accessibility audit; JSX expressions and attributes. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Routing and application context** module, the **Remote data and asynchronous UI** module, your **Keyboard and accessibility-tree audit** skills, and **JSX expressions and attributes** (aria-* and htmlFor in JSX)."
       },
       {
-        "heading": "Technology rule",
-        "body": "React output should use native semantic elements, accessible names, keyboard behavior, and state attributes just like authored HTML. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: native element, name, state, focus",
+        "body": "```jsx\nimport { useEffect, useRef } from \"react\";\n\nexport function ReportDialog({ open, onClose, children }) {\n  const ref = useRef(null);\n  useEffect(() => {\n    const dialog = ref.current;\n    if (open && !dialog.open) dialog.showModal();   // traps focus inside, Escape closes.\n    if (!open && dialog.open) dialog.close();\n  }, [open]);\n\n  return (\n    <dialog ref={ref} aria-labelledby=\"report-title\" onClose={onClose}>\n      <h2 id=\"report-title\">Report a problem</h2>\n      {children}\n      <button type=\"button\" onClick={onClose} aria-label=\"Close report dialog\">×</button>\n    </dialog>\n  );\n}\n\n// Trigger: a real button that exposes its state.\n<button type=\"button\" aria-haspopup=\"dialog\" onClick={() => setOpen(true)}>Report a problem</button>\n```\n\n| Check | Look for |\n|---|---|\n| name. | text, label, or aria-label on icon buttons. |\n| role. | native element before any role attribute. |\n| state. | aria-expanded, aria-pressed, aria-invalid, disabled. |\n| keyboard. | Tab reaches it; Enter/Space/Escape work. |\n| focus. | moves into dialogs, returns to the trigger on close. |\n\n```reveal\n{\"prompt\": \"Does showModal return focus to the trigger on close?\", \"answer\": \"Browsers generally return focus to the element that was focused before showModal, but test it; if needed, keep a ref to the trigger and focus it in onClose.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Component abstraction can hide invalid nesting, generated ids must remain stable, and portals change DOM placement. This draft therefore rejects: Because React handles events, div elements are preferable to native buttons."
+        "heading": "Icon buttons",
+        "body": "```predict\n{\"question\": \"`<button onClick={onClose}>×</button>`. What does a screen reader announce?\", \"options\": [\"Close\", \"\\\"times, button\\\" or just \\\"button\\\"\"], \"answer\": 1, \"why\": \"Add aria-label=\\\"Close report dialog\\\" so the button has a real name.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Render native elements, visible focus and logical order instead of div-based imitation controls.",
-      "Audit and repair component names, roles, states, focus order and keyboard behavior."
+      "Prefer native elements and give every control an accessible name and state.",
+      "Audit and repair keyboard behaviour and focus order, and test them."
     ],
     "excludes": [
-      "Component abstraction can hide invalid nesting, generated ids must remain stable, and portals change DOM placement."
+      "Complex ARIA widgets like tree grids.",
+      "Automated audit tool configuration."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "react.robustness.semantics.example-a",
-      "title": "Semantic and keyboard-accessible components: concrete case",
+      "title": "A dialog everyone can use",
       "situation": "A reusable dialog composes a real button trigger, labeled dialog region, focus management, and escape behavior.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A reusable dialog composes a real button trigger, labeled dialog region, focus management, and escape behavior.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Use native semantic controls in React; event handling does not supply keyboard, role, name, or state automatically."
+        "**Real button trigger:** the div becomes `<button type=\"button\">Report a problem</button>`, reachable by Tab.",
+        "**Labeled dialog region:** `<dialog aria-labelledby=\"report-title\">` opened with showModal moves focus inside and closes on Escape.",
+        "**Test:** press Tab to the trigger, Enter to open, and a test will check the dialog is named \"Report a problem\"; Escape will close it and focus returns to the trigger."
       ],
-      "result": "The result follows because Use native semantic controls in React; event handling does not supply keyboard, role, name, or state automatically."
+      "result": "Keyboard and screen-reader users can open, use and close the dialog as easily as mouse users."
     },
     {
       "id": "react.robustness.semantics.example-b",
-      "title": "Semantic and keyboard-accessible components: boundary case",
-      "situation": "Component abstraction can hide invalid nesting, generated ids must remain stable, and portals change DOM placement.",
+      "title": "The toggle that hid its state",
+      "situation": "A \"Show answers\" toggle changes colour when on, but screen-reader users can't tell whether answers are shown.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Component abstraction can hide invalid nesting, generated ids must remain stable, and portals change DOM placement.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Because React handles events, div elements are preferable to native buttons."
+        "Colour was the only signal of state.",
+        "Use a button with `aria-pressed={showAnswers}`.",
+        "Change the text too: \"Hide answers\" when pressed."
       ],
-      "result": "The boundary requires this correction: Use native semantic controls in React; event handling does not supply keyboard, role, name, or state automatically."
+      "result": "Everyone can tell whether answers are showing, by text and by announced state."
     }
   ],
   "misconceptions": [
     {
       "id": "react.robustness.semantics.misconception",
       "mistakenBelief": "Because React handles events, div elements are preferable to native buttons.",
-      "correction": "Use native semantic controls in React; event handling does not supply keyboard, role, name, or state automatically.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Because React handles events, div elements are preferable to native buttons."
+      "correction": "React only attaches handlers; it doesn't add focusability, keyboard activation or roles. Native buttons, links and form controls provide those automatically and should come first.",
+      "diagnosticPrompt": "In \"A dialog everyone can use\", what couldn't keyboard users do with the div trigger?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Semantic and keyboard-accessible components, where inputs and state produce a UI description.",
+    "example": "Native elements are like **standard door handles**: everyone knows how to use them, including people who can't see them. A div with onClick is **a door you open by pressing a hidden panel**: it works if you already know where to press.",
     "usefulFor": [
-      "Building a first mental model for Semantic and keyboard-accessible components before using exact platform terms"
+      "remembering native first",
+      "accessible name = the sign on the door"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Component abstraction can hide invalid nesting, generated ids must remain stable, and portals change DOM placement."
+      "Doors don't announce themselves; buttons do, through their role and name.",
+      "A dialog is a room you enter and leave by the same door: focus in and back out."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A reusable dialog composes a real button trigger, labeled dialog region, focus management, and escape behavior.",
-      "React output should use native semantic elements, accessible names, keyboard behavior, and state attributes just like authored HTML.",
-      "Use native semantic controls in React; event handling does not supply keyboard, role, name, or state automatically."
+      "Tab to trigger, press Enter",
+      "dialog opens with showModal",
+      "press Escape"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Trigger",
         "state": {
-          "evidence": "A reusable dialog composes a real button trigger, labeled dialog region, focus management, and escape behavior."
+          "focus": "button Report a problem",
+          "role": "button"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "A real button trigger is reachable and activates with Enter."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Open",
         "state": {
-          "rule": "React output should use native semantic elements, accessible names, keyboard behavior, and state attributes just like authored HTML."
+          "dialog name": "Report a problem",
+          "focus": "inside dialog"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The labeled dialog region receives focus management from showModal."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Escape",
         "state": {
-          "correction": "Use native semantic controls in React; event handling does not supply keyboard, role, name, or state automatically."
+          "dialog": "closed",
+          "focus": "trigger button"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Because React handles events, div elements are preferable to native buttons."
+        "explanation": "Escape behavior closes it and focus returns to the trigger."
       }
     ],
-    "textAlternative": "Starting artifact: A reusable dialog composes a real button trigger, labeled dialog region, focus management, and escape behavior. Step 1, Artifact. State: evidence: A reusable dialog composes a real button trigger, labeled dialog region, focus management, and escape behavior.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: React output should use native semantic elements, accessible names, keyboard behavior, and state attributes just like authored HTML.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use native semantic controls in React; event handling does not supply keyboard, role, name, or state automatically.. Check the result against the boundary and reject this misconception: Because React handles events, div elements are preferable to native buttons."
+    "textAlternative": "Walking the dialog with a keyboard. Step 1, Trigger: focus is button Report a problem; role is button. A real button trigger is reachable and activates with Enter. Step 2, Open: dialog name is Report a problem; focus is inside dialog. The labeled dialog region receives focus management from showModal. Step 3, Escape: dialog is closed; focus is trigger button. Escape behavior closes it and focus returns to the trigger."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Semantic and keyboard-accessible components: concrete case”: state its starting evidence, apply the Semantic and keyboard-accessible components rule, and give the observable result in three short lines.",
+      "prompt": "For \"A dialog everyone can use\", explain how a reusable dialog composes a real button trigger, labeled dialog region, focus management, and escape behavior.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Trigger.",
+        "Dialog.",
+        "Keyboard test."
       ],
       "expectedEvidence": [
-        "Named example: Semantic and keyboard-accessible components: concrete case.",
-        "Starting evidence: A reusable dialog composes a real button trigger, labeled dialog region, focus management, and escape behavior.",
-        "Core rule: React output should use native semantic elements, accessible names, keyboard behavior, and state attributes just like authored HTML.",
-        "Observable result: The result follows because Use native semantic controls in React; event handling does not supply keyboard, role, name, or state automatically.",
-        "Boundary check: Use native semantic controls in React; event handling does not supply keyboard, role, name, or state automatically."
+        "Names the example \"A dialog everyone can use\": the trigger is a real button.",
+        "The labeled dialog region uses aria-labelledby.",
+        "Focus management and escape behavior come from showModal.",
+        "Keyboard and screen-reader users can open, use and close the dialog."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Component abstraction can hide invalid nesting, generated ids must remain stable, and portals change DOM placement.",
+      "prompt": "Audit a card component where the whole card is a clickable div that navigates. Rewrite it with a real link covering the title, and keep any other buttons inside the card separate.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Navigation = link.",
+        "Don't nest interactive elements."
       ],
       "expectedEvidence": [
-        "React output should use native semantic elements, accessible names, keyboard behavior, and state attributes just like authored HTML.",
-        "Component abstraction can hide invalid nesting, generated ids must remain stable, and portals change DOM placement."
+        "Tab reaches the link.",
+        "The link's name is the card title."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Semantic and keyboard-accessible components and explain why the misconception fails.",
+      "prompt": "Audit three components in your app with a keyboard and a screen reader. Record name, role, state, keyboard and focus issues in a table, fix them, and add Testing Library tests using getByRole with names.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Tab through everything.",
+        "Query by role and name in tests."
       ],
       "expectedEvidence": [
-        "Audit and repair component names, roles, states, focus order and keyboard behavior.",
-        "Use native semantic controls in React; event handling does not supply keyboard, role, name, or state automatically."
+        "Audit table before and after.",
+        "Tests for each fixed issue."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.robustness.semantics.misconception",
-      "explanation": "Use native semantic controls in React; event handling does not supply keyboard, role, name, or state automatically.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'native semantic controls' and state the decisive evidence."
+      "explanation": "For every interactive element check five things: **name, role, state, keyboard, focus.** If you reached for a div, ask which native element already does the job.",
+      "retryPrompt": "Apply this to \"The toggle that hid its state\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to audit and repair component names, roles, states, focus order and keyboard behavior. Keep this boundary in view: Component abstraction can hide invalid nesting, generated ids must remain stable, and portals change DOM placement.",
+    "summary": "To audit and repair components, use native buttons, links, labels and dialog first, give every control an accessible name, expose state with aria attributes rather than colour, make everything work with Tab, Enter, Space and Escape, and manage focus into and back out of overlays, testing by role and name.",
     "retrievalPrompts": [
-      "Explain Semantic and keyboard-accessible components using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: Because React handles events, div elements are preferable to native buttons.",
-      "Apply checkpoint 'native semantic controls' to a new artifact."
+      "Why is a native button better than a div with onClick?",
+      "How do you name an icon-only button?",
+      "Where should focus go when a dialog closes?"
     ],
     "nextReviewPrompt": "Next: continue to “Error boundaries and recovery”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

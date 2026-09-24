@@ -1,4 +1,4 @@
-.page { display: grid; gap: 30px; padding-bottom: 50px; }
+.page { display: grid; gap: 30px; }
 .hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 30px; padding: 8px 2px 0; }
 .eyebrow { color: var(--brand); font-size: .75rem; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
 .hero h1, .courseHero h1 { max-width: 800px; margin: 5px 0 8px; font-size: clamp(2.15rem, 4vw, 3.7rem); letter-spacing: -.055em; line-height: 1.02; }

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A function template defines a family of functions instantiated for argument types that satisfy all used operations and explicit constraints.",
+    "summary": "A **function template** is a **blueprint**: `template <typename T> T larger(T a, T b)`. At **compile time**, each call with new argument types makes the compiler **instantiate** a separate, fully typed function: `larger<int>`, `larger<std::string>`. Nothing is checked or chosen at run time. The template only works for types that support **every operation it uses**, here `<`. In C++20 you can **state** that requirement with a concept (`std::totally_ordered<T>`) so a bad call fails clearly at the call site. If the two arguments deduce different types (`larger(3, 2.5)`), deduction fails: convert one or specify `larger<double>(3, 2.5)`.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A constrained maximum template accepts two values with a valid ordering and common return behavior rather than assuming every type supports operator<. Your goal is to implement and instantiate a type-safe generic function for multiple value types. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner writes separate largest functions for int, double and std::string, all identical except for the type. Then they write one template and call it with a struct that has no `<`, getting a wall of errors from inside the template. A constrained maximum template accepts two values with a valid ordering and common return behavior rather than assuming every type supports operator<. In this lesson you'll implement and instantiate a type-safe generic function for multiple value types.\n\n```predict\n{\"question\": \"Is a function template one function that checks its argument's type at run time?\", \"options\": [\"Yes\", \"No: the compiler generates a separate typed function for each type used\"], \"answer\": 1, \"why\": \"Templates are compile-time code generation.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Standard algorithms; Class interface and invariants; Function contracts and return values. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Standard algorithms**, **Class interface and invariants** and **Function contracts and return values**."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "A function template defines a family of functions instantiated for argument types that satisfy all used operations and explicit constraints. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The model: a blueprint instantiated per type",
+        "body": "```cpp\n#include <concepts>\n#include <iostream>\n#include <string>\n\ntemplate <std::totally_ordered T>          // requirement: T supports < > <= >= == !=.\nconst T& larger(const T& a, const T& b) {\n    return (a < b) ? b : a;\n}\n\nstruct Point { int x, y; };                // no ordering.\n\nint main() {\n    std::cout << larger(3, 7) << '\\n';                          // larger<int>: 7.\n    std::cout << larger(2.5, 1.5) << '\\n';                      // larger<double>: 2.5.\n    std::cout << larger(std::string(\"pear\"), std::string(\"apple\")) << '\\n';   // pear.\n    std::cout << larger<double>(3, 2.5) << '\\n';                // explicit T: 3.\n    // larger(3, 2.5);            error: T deduced as both int and double.\n    // larger(Point{}, Point{});  error: Point doesn't satisfy totally_ordered.\n}\n```\n\n| Call | Instantiated as |\n|---|---|\n| `larger(3, 7)`. | `larger<int>`. |\n| `larger(2.5, 1.5)`. | `larger<double>`. |\n| `larger<double>(3, 2.5)`. | `larger<double>`, 3 converted. |\n\n```reveal\n{\"prompt\": \"Why return const T& instead of T?\", \"answer\": \"It avoids copying large objects like strings. But be careful: if a caller passes temporaries and keeps the returned reference, it dangles. Returning T is simpler when in doubt.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Deduction does not use every conversion, definitions usually must be visible, overload resolution includes templates and non-templates, and errors can surface at instantiation. Therefore the draft explicitly rejects this beginner failure model: A function template is one runtime function that inspects an argument's dynamic type."
+        "heading": "Mixed argument types",
+        "body": "```predict\n{\"question\": \"`larger(3, 2.5)` with `template <typename T> T larger(T, T)`. What happens?\", \"options\": [\"It returns 3.0\", \"Compile error: T can't be both int and double\"], \"answer\": 1, \"why\": \"Write larger<double>(3, 2.5) or larger(3.0, 2.5).\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Generalize an operation over types while relying only on documented requirements.",
-      "Implement and instantiate a type-safe generic function for multiple value types."
+      "Write function templates, and explain instantiation per type at compile time.",
+      "State operation requirements with concepts and handle deduction conflicts."
     ],
     "excludes": [
-      "Deduction does not use every conversion, definitions usually must be visible, overload resolution includes templates and non-templates, and errors can surface at instantiation."
+      "Variadic templates.",
+      "Template specialisation."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "cpp.generics.function-template.example-a",
-      "title": "Function templates: defined case",
+      "title": "One larger() for ints, doubles and strings",
       "situation": "A constrained maximum template accepts two values with a valid ordering and common return behavior rather than assuming every type supports operator<.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A constrained maximum template accepts two values with a valid ordering and common return behavior rather than assuming every type supports operator<.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: A function template is instantiated at compile time into type-specific functions after deduction and constraint checking."
+        "**A constrained maximum template:** template <std::totally_ordered T> larger(const T&, const T&).",
+        "**Accepts two values with a valid ordering and common return behavior:** int, double and std::string all work and return their own type.",
+        "**Rather than assuming every type supports operator<:** larger(Point{}, Point{}) will fail at the call with a clear constraint message."
       ],
-      "result": "The defined result follows because A function template is instantiated at compile time into type-specific functions after deduction and constraint checking."
+      "result": "One function replaces three copies, and misuse is reported clearly."
     },
     {
       "id": "cpp.generics.function-template.example-b",
-      "title": "Function templates: boundary case",
-      "situation": "Calling a template with mixed types fails deduction until the interface explicitly supports or names a common type.",
+      "title": "The copy-paste trio",
+      "situation": "Three largest functions differ only in type; a bug fix is applied to the int version and forgotten in the others.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: Calling a template with mixed types fails deduction until the interface explicitly supports or names a common type.",
-        "Step 2 — Keep this standard boundary visible: Deduction does not use every conversion, definitions usually must be visible, overload resolution includes templates and non-templates, and errors can surface at instantiation.",
-        "Step 3 — Reject the tempting rule: A function template is one runtime function that inspects an argument's dynamic type."
+        "Replace all three with one template.",
+        "Fixes now apply to every instantiation.",
+        "Tests call it with each type."
       ],
-      "result": "This case demonstrates the declared outcome: Implement and instantiate a type-safe generic function for multiple value types."
+      "result": "One implementation, one fix, every type covered."
     }
   ],
   "misconceptions": [
     {
       "id": "cpp.generics.function-template.misconception",
       "mistakenBelief": "A function template is one runtime function that inspects an argument's dynamic type.",
-      "correction": "A function template is instantiated at compile time into type-specific functions after deduction and constraint checking.",
-      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: A function template is one runtime function that inspects an argument's dynamic type."
+      "correction": "The compiler instantiates a separate function for each set of template arguments at compile time. There's no run-time type inspection.",
+      "diagnosticPrompt": "In the opening predict, what does the compiler generate?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A system of self-managing components can model Function templates: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "example": "A function template is like **a cookie cutter**: one shape, pressed into different doughs (types) to make separate cookies (instantiations). It works only with doughs that hold a shape (support <); a concept is **the label \"firm dough only\"** printed on the cutter.",
     "usefulFor": [
-      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+      "remembering one cutter, many cookies",
+      "concept = the label"
     ],
     "limitations": [
-      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
-      "Deduction does not use every conversion, definitions usually must be visible, overload resolution includes templates and non-templates, and errors can surface at instantiation."
+      "Cookie cutters work at bake time; templates work at compile time.",
+      "Mixing two doughs in one press (int and double) doesn't work."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A constrained maximum template accepts two values with a valid ordering and common return behavior rather than assuming every type supports operator<.",
-      "A function template defines a family of functions instantiated for argument types that satisfy all used operations and explicit constraints.",
-      "A function template is instantiated at compile time into type-specific functions after deduction and constraint checking."
+      "larger(3, 7)",
+      "larger(std::string(\"pear\"), std::string(\"apple\"))",
+      "larger(Point{}, Point{})"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Instantiate int",
         "state": {
-          "evidence": "A constrained maximum template accepts two values with a valid ordering and common return behavior rather than assuming every type supports operator<."
+          "T": "int",
+          "result": "7"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "The constrained template accepts two values with a valid ordering."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Instantiate string",
         "state": {
-          "rule": "A function template defines a family of functions instantiated for argument types that satisfy all used operations and explicit constraints."
+          "T": "std::string",
+          "result": "pear"
         },
-        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+        "explanation": "It gives common return behavior for each type separately."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Reject",
         "state": {
-          "conclusion": "A function template is instantiated at compile time into type-specific functions after deduction and constraint checking."
+          "T": "Point",
+          "error": "constraint not satisfied"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: A function template is one runtime function that inspects an argument's dynamic type."
+        "explanation": "It does not assume every type supports operator<."
       }
     ],
-    "textAlternative": "Starting artifact: A constrained maximum template accepts two values with a valid ordering and common return behavior rather than assuming every type supports operator<. Step 1, Source and state. State: evidence: A constrained maximum template accepts two values with a valid ordering and common return behavior rather than assuming every type supports operator<.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A function template defines a family of functions instantiated for argument types that satisfy all used operations and explicit constraints.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: A function template is instantiated at compile time into type-specific functions after deduction and constraint checking.. Check the conclusion against the boundary and reject this misconception: A function template is one runtime function that inspects an argument's dynamic type."
+    "textAlternative": "Tracing template instantiation. Step 1, Instantiate int: T is int; result is 7. The constrained template accepts two values with a valid ordering. Step 2, Instantiate string: T is std::string; result is pear. It gives common return behavior for each type separately. Step 3, Reject: T is Point; error is constraint not satisfied. It does not assume every type supports operator<."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Function templates: defined case”: state its starting evidence, apply the Function templates rule, and give the observable result in three short lines.",
+      "prompt": "For \"One larger() for ints, doubles and strings\", explain how a constrained maximum template accepts two values with a valid ordering and common return behavior rather than assuming every type supports operator<.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Declare.",
+        "Instantiate.",
+        "Constrain."
       ],
       "expectedEvidence": [
-        "Named example: Function templates: defined case.",
-        "Starting evidence: A constrained maximum template accepts two values with a valid ordering and common return behavior rather than assuming every type supports operator<.",
-        "Core rule: A function template defines a family of functions instantiated for argument types that satisfy all used operations and explicit constraints.",
-        "Observable result: The defined result follows because A function template is instantiated at compile time into type-specific functions after deduction and constraint checking.",
-        "Boundary check: A function template is instantiated at compile time into type-specific functions after deduction and constraint checking."
+        "Names the example \"One larger() for ints, doubles and strings\": three copies drifted apart.",
+        "A constrained maximum template accepts two values with a valid ordering and common return behavior.",
+        "It doesn't assume every type supports operator<.",
+        "One function replaces three copies."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same CPP rule to this related boundary case: Calling a template with mixed types fails deduction until the interface explicitly supports or names a common type.",
+      "prompt": "Write template <typename T> void swap_values(T& a, T& b) and test it with int, std::string and std::vector<int>. Then write a constrained clamp_to(value, low, high) using std::totally_ordered.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Use std::move in swap.",
+        "Test boundary values for clamp."
       ],
       "expectedEvidence": [
-        "A function template defines a family of functions instantiated for argument types that satisfy all used operations and explicit constraints.",
-        "Deduction does not use every conversion, definitions usually must be visible, overload resolution includes templates and non-templates, and errors can surface at instantiation."
+        "Works for all three types.",
+        "Constraint rejects Point."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CPP example for Function templates, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Write a template sum_all(const std::vector<T>&) that returns T, constrained so T supports + and default construction (write your own concept or requires clause). Test with int, double and std::string, and read the error for a type without +.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "requires (T a, T b) { a + b; }.",
+        "Start from T{}."
       ],
       "expectedEvidence": [
-        "Implement and instantiate a type-safe generic function for multiple value types.",
-        "A function template is instantiated at compile time into type-specific functions after deduction and constraint checking."
+        "Three types work.",
+        "Clear error for an unsupported type."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "cpp.generics.function-template.misconception",
-      "explanation": "A function template is instantiated at compile time into type-specific functions after deduction and constraint checking.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'compile time' and state the decisive evidence: Calling a template with mixed types fails deduction until the interface explicitly supports or names a common type."
+      "explanation": "For each template list **every operation it uses on T**. Then either constrain T to those operations or document them, and test with every intended type.",
+      "retryPrompt": "Apply this to \"The copy-paste trio\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and instantiate a type-safe generic function for multiple value types. Keep this boundary in view: Deduction does not use every conversion, definitions usually must be visible, overload resolution includes templates and non-templates, and errors can surface at instantiation.",
+    "summary": "To implement type-safe generic functions, write a function template once, let the compiler instantiate a typed version for each argument type at compile time, constrain the template to the operations it uses (for example with std::totally_ordered), and resolve deduction conflicts with explicit template arguments or conversions.",
     "retrievalPrompts": [
-      "Explain Function templates using a concrete CPP rule rather than the optional analogy.",
-      "Why is this claim incorrect: A function template is one runtime function that inspects an argument's dynamic type.",
-      "Apply the checkpoint 'compile time' to the boundary case from memory."
+      "When are templates instantiated?",
+      "What does a concept constraint do?",
+      "Why does larger(3, 2.5) fail?"
     ],
     "nextReviewPrompt": "Next: continue to “Class templates”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "if, switch, and conditional expressions choose paths using truthiness or strict case matching.",
+    "summary": "`if / else if / else` checks conditions in order and runs the first true branch; `switch` compares one value against cases with `===` (remember `break`!). Conditions use **truthiness**, so `if (count)` treats a real 0 as \"missing\" and `if (items)` treats an empty array `[]` as present. For boundary-complete logic, check exactly what you mean: `count == null` (null or undefined), `items.length === 0`, and test every threshold.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A nullish check distinguishes missing count from a legitimate zero. Your goal is to implement and test boundary-complete conditional logic. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A notifications badge should show \"–\" when the count hasn't loaded yet, and \"0\" when there are truly no messages. `if (count) show(count) else show(\"–\")` shows \"–\" for zero — wrong! A nullish check distinguishes a missing count from a legitimate zero. In this lesson you'll implement and test boundary-complete conditional logic.\n\n```predict\n{\"question\": \"`const items = []; if (items) console.log(\\\"has items\\\");` Does it log?\", \"options\": [\"No — the array is empty\", \"Yes — every array, even empty, is truthy\"], \"answer\": 1, \"why\": \"Objects and arrays are always truthy. Check `items.length > 0` to test for contents.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Values, types and expressions; pf abstraction calls; Equality, truthiness and coercion. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Values, types and expressions** module, **Calls, parameters and returns**, and **Equality, truthiness and coercion**."
       },
       {
-        "heading": "Technology rule",
-        "body": "if, switch, and conditional expressions choose paths using truthiness or strict case matching. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The rule: say exactly what you check",
+        "body": "```js\nfunction badgeText(count) {\n  if (count == null) return \"–\";          // null or undefined: not loaded\n  if (count === 0) return \"0\";\n  if (count > 99) return \"99+\";\n  return String(count);\n}\n\nswitch (status) {\n  case \"draft\":     label = \"Draft\"; break;\n  case \"published\": label = \"Live\"; break;\n  default:          label = \"Unknown\";\n}\n```\n\n| You mean | Write |\n|---|---|\n| missing (null/undefined). | `value == null` (the one accepted use of ==). |\n| empty array. | `arr.length === 0`. |\n| empty string. | `str === \"\"` or `str.trim() === \"\"`. |\n| exactly zero. | `n === 0`. |\n\n```reveal\n{\"prompt\": \"What happens if you forget `break` in a switch case?\", \"answer\": \"Execution falls through into the next case's code, so \\\"draft\\\" would also run the \\\"published\\\" line.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Falsy values include 0, empty string, null, undefined, false, and NaN, while empty arrays are truthy. This draft therefore rejects: An empty array is falsy because it contains no elements."
+        "heading": "Test the boundaries",
+        "body": "```predict\n{\"question\": \"Which inputs cover badgeText's boundaries?\", \"options\": [\"5 and 50\", \"undefined, null, 0, 1, 99, 100\"], \"answer\": 1, \"why\": \"Test missing values, zero, and both sides of the 99 threshold.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Write complete branches with deliberate truth tests and lexical scoping.",
-      "Implement and test boundary-complete conditional logic."
+      "Write if/else and switch logic that distinguishes missing, zero, empty and boundary values.",
+      "Test conditional logic at each boundary."
     ],
     "excludes": [
-      "Falsy values include 0, empty string, null, undefined, false, and NaN, while empty arrays are truthy."
+      "Pattern matching proposals.",
+      "Error handling with try/catch (quality module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,138 @@
   "examples": [
     {
       "id": "javascript.control.selection.example-a",
-      "title": "Conditions and switch: concrete case",
+      "title": "Missing count vs zero",
       "situation": "A nullish check distinguishes missing count from a legitimate zero.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A nullish check distinguishes missing count from a legitimate zero.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Arrays and objects are truthy even when empty; test length or the intended condition explicitly."
+        "**Bug:** `if (count)` treats 0 as falsy, so a real zero shows \"–\".",
+        "**Nullish check:** `if (count == null) return \"–\"` only matches null and undefined — the missing count.",
+        "**Test:** badgeText(undefined) → \"–\", badgeText(0) → \"0\", badgeText(99) → \"99\", badgeText(100) will return \"99+\"."
       ],
-      "result": "The result follows because Arrays and objects are truthy even when empty; test length or the intended condition explicitly."
+      "result": "The badge shows \"–\" while loading and \"0\" for a legitimate zero, with every boundary tested."
     },
     {
       "id": "javascript.control.selection.example-b",
-      "title": "Conditions and switch: boundary case",
-      "situation": "Falsy values include 0, empty string, null, undefined, false, and NaN, while empty arrays are truthy.",
+      "title": "The switch that fell through",
+      "situation": "`switch (role) { case \"editor\": canEdit = true; case \"admin\": canDelete = true; }` — editors can suddenly delete posts.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Falsy values include 0, empty string, null, undefined, false, and NaN, while empty arrays are truthy.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: An empty array is falsy because it contains no elements."
+        "There is no `break` after the editor case, so execution falls through into the admin case.",
+        "Editors therefore get canEdit and canDelete.",
+        "Fix: add `break` to every case, and make intentional fall-through explicit with a comment or separate checks."
       ],
-      "result": "The boundary requires this correction: Arrays and objects are truthy even when empty; test length or the intended condition explicitly."
+      "result": "Each role gets exactly its permissions, whatever the case order."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.control.selection.misconception",
       "mistakenBelief": "An empty array is falsy because it contains no elements.",
-      "correction": "Arrays and objects are truthy even when empty; test length or the intended condition explicitly.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: An empty array is falsy because it contains no elements."
+      "correction": "All objects, including empty arrays and objects, are truthy. Test contents explicitly with length (or Object.keys for objects), and test missing values with == null.",
+      "diagnosticPrompt": "In the opening predict, why did the empty array log \"has items\"?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Conditions and switch, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "Truthiness checks are like **asking \"is there a box?\" instead of \"is there anything in the box?\"** An empty box still counts as a box. Ask the question you actually mean.",
     "usefulFor": [
-      "Building a first mental model for Conditions and switch before using exact platform terms"
+      "remembering arrays/objects are always truthy",
+      "explicit checks for missing, empty, zero"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Falsy values include 0, empty string, null, undefined, false, and NaN, while empty arrays are truthy."
+      "Boxes can't be null; JavaScript values can.",
+      "switch is like a sorting office that keeps sliding parcels down unless each chute has a stop (break)."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A nullish check distinguishes missing count from a legitimate zero.",
-      "if, switch, and conditional expressions choose paths using truthiness or strict case matching.",
-      "Arrays and objects are truthy even when empty; test length or the intended condition explicitly."
+      "function badgeText(count) { if (count == null) return '–'; if (count === 0) return '0'; … }",
+      "badgeText(undefined)",
+      "badgeText(0)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Missing",
         "state": {
-          "evidence": "A nullish check distinguishes missing count from a legitimate zero."
+          "count": "undefined",
+          "count == null": "true",
+          "returned": "–"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The nullish check catches the missing count."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Zero",
         "state": {
-          "rule": "if, switch, and conditional expressions choose paths using truthiness or strict case matching."
+          "count": "0",
+          "count == null": "false",
+          "count === 0": "true",
+          "returned": "0"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "A nullish check distinguishes missing count from a legitimate zero."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Threshold",
         "state": {
-          "correction": "Arrays and objects are truthy even when empty; test length or the intended condition explicitly."
+          "badgeText(100)": "99+"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: An empty array is falsy because it contains no elements."
+        "explanation": "The boundary above 99 returns the capped label."
       }
     ],
-    "textAlternative": "Starting artifact: A nullish check distinguishes missing count from a legitimate zero. Step 1, Artifact. State: evidence: A nullish check distinguishes missing count from a legitimate zero.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: if, switch, and conditional expressions choose paths using truthiness or strict case matching.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Arrays and objects are truthy even when empty; test length or the intended condition explicitly.. Check the result against the boundary and reject this misconception: An empty array is falsy because it contains no elements."
+    "textAlternative": "Distinguishing missing from zero. Step 1, Missing: count is undefined; count == null is true; returned is –. The nullish check catches the missing count. Step 2, Zero: count is 0; count == null is false; count === 0 is true; returned is 0. A nullish check distinguishes missing count from a legitimate zero. Step 3, Threshold: badgeText(100) is 99+. The boundary above 99 returns the capped label."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Conditions and switch: concrete case”: state its starting evidence, apply the Conditions and switch rule, and give the observable result in three short lines.",
+      "prompt": "For \"Missing count vs zero\", explain how a nullish check distinguishes a missing count from a legitimate zero, and list the tests you'd run.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Bug.",
+        "Check.",
+        "Tests."
       ],
       "expectedEvidence": [
-        "Named example: Conditions and switch: concrete case.",
-        "Starting evidence: A nullish check distinguishes missing count from a legitimate zero.",
-        "Core rule: if, switch, and conditional expressions choose paths using truthiness or strict case matching.",
-        "Observable result: The result follows because Arrays and objects are truthy even when empty; test length or the intended condition explicitly.",
-        "Boundary check: Arrays and objects are truthy even when empty; test length or the intended condition explicitly."
+        "Names the example \"Missing count vs zero\": a nullish check distinguishes missing count from a legitimate zero.",
+        "count == null matches only null and undefined.",
+        "A legitimate zero shows \"0\".",
+        "Tests: undefined, null, 0, 99, 100."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Falsy values include 0, empty string, null, undefined, false, and NaN, while empty arrays are truthy.",
+      "prompt": "Write `greet(name)` that returns \"Hello, guest\" for null/undefined/empty or whitespace-only names, else \"Hello, <name>\". List boundary tests.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "trim() for whitespace.",
+        "== null for missing."
       ],
       "expectedEvidence": [
-        "if, switch, and conditional expressions choose paths using truthiness or strict case matching.",
-        "Falsy values include 0, empty string, null, undefined, false, and NaN, while empty arrays are truthy."
+        "Handles null, undefined, \"\", \"  \" as guest.",
+        "Tests include \" Asha \" → \"Hello, Asha\"."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Conditions and switch and explain why the misconception fails.",
+      "prompt": "Write a shipping-cost function with rules: free at ≥ ₹500, ₹40 below, invalid for negative or missing totals. Test every boundary and the invalid cases.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Invalid first.",
+        "Test 499, 500, 501."
       ],
       "expectedEvidence": [
-        "Implement and test boundary-complete conditional logic.",
-        "Arrays and objects are truthy even when empty; test length or the intended condition explicitly."
+        "Boundary-complete function.",
+        "Tests for missing, negative, 0, 499, 500, 501."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.control.selection.misconception",
-      "explanation": "Arrays and objects are truthy even when empty; test length or the intended condition explicitly.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'truthy even when empty' and state the decisive evidence."
+      "explanation": "For each condition, write the **values that should pass and fail**, including undefined, null, 0, \"\", [] and each threshold ±1. If any surprises you, replace the truthiness check with an explicit one.",
+      "retryPrompt": "Do this for \"The switch that fell through\" with each role."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test boundary-complete conditional logic. Keep this boundary in view: Falsy values include 0, empty string, null, undefined, false, and NaN, while empty arrays are truthy.",
+    "summary": "To implement boundary-complete conditional logic, say exactly what you check — == null for missing, === 0 for zero, length === 0 for empty — put breaks in every switch case, and test missing, zero and both sides of each threshold.",
     "retrievalPrompts": [
-      "Explain Conditions and switch using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: An empty array is falsy because it contains no elements.",
-      "Apply checkpoint 'truthy even when empty' to a new artifact."
+      "Is an empty array truthy?",
+      "How do you check for null or undefined together?",
+      "What happens without break in a switch?"
     ],
     "nextReviewPrompt": "Next: continue to “Loops and iterable traversal”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

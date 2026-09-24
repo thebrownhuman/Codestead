@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Route tests render with router context and assert URL-driven views, navigation, parameters, focus, and not-found behavior.",
+    "summary": "A component test can't tell you whether your **routes** are wired correctly: whether `/courses/python` really renders the Python page, whether links update the URL, or whether unknown paths show not-found. A **route integration test** renders the real route tree inside a `MemoryRouter` with `initialEntries` set to a starting URL, then clicks links like a learner and asserts **the URL, the heading, the title and where focus landed**. Include a test for an **unknown URL** and for **Back** navigation.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A test starts at /courses/c, activates Python, and asserts URL, heading, and focus context. Your goal is to create an integration test covering route navigation and focus-context changes. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Every page component has passing tests, but after a refactor the \"Python\" link points to `/course/python` (missing an s) and learners land on not-found. No test caught it, because each page was tested alone. A test starts at /courses/c, activates Python, and asserts URL, heading, and focus context. In this lesson you'll create an integration test covering route navigation and focus-context changes.\n\n```predict\n{\"question\": \"CoursePage has its own passing test. Does that prove the link from the C course to Python works?\", \"options\": [\"Yes\", \"No: only a test through the router checks the link's path and route config\"], \"answer\": 1, \"why\": \"Integration tests catch wiring mistakes between links and routes.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Accessibility, errors and performance; Routing and application context; Asynchronous component tests; Route titles and focus management. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Accessibility, errors and performance** module, the **Routing and application context** module, **Asynchronous component tests**, and **Route titles and focus management**, since focus is part of what you'll assert."
       },
       {
-        "heading": "Technology rule",
-        "body": "Route tests render with router context and assert URL-driven views, navigation, parameters, focus, and not-found behavior. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: real routes, a starting URL, learner actions",
+        "body": "```jsx\nimport { render, screen } from \"@testing-library/react\";\nimport userEvent from \"@testing-library/user-event\";\nimport { MemoryRouter, useLocation } from \"react-router\";\nimport { it, expect } from \"vitest\";\nimport { AppRoutes } from \"./AppRoutes.jsx\";   // the same routes the app uses.\n\n// Shows the current path so tests can assert the URL.\nfunction LocationProbe() {\n  return <output data-testid=\"location\">{useLocation().pathname}</output>;\n}\n\nfunction renderAt(url) {\n  render(\n    <MemoryRouter initialEntries={[url]}>\n      <AppRoutes />\n      <LocationProbe />\n    </MemoryRouter>\n  );\n}\n\n// Link navigation, then URL, heading, focus and title.\nit(\"navigates from C to Python\", async () => {\n  renderAt(\"/courses/c\");\n  await userEvent.setup().click(screen.getByRole(\"link\", { name: \"Python\" }));\n  const heading = await screen.findByRole(\"heading\", { level: 1, name: \"Python\" });\n  expect(screen.getByTestId(\"location\")).toHaveTextContent(\"/courses/python\");\n  expect(heading).toHaveFocus();\n  expect(document.title).toBe(\"Python | Codestead\");\n});\n\nit(\"shows not-found for unknown paths\", () => {\n  renderAt(\"/courses/nope/extra\");\n  expect(screen.getByRole(\"heading\", { name: \"Page not found\" })).toBeInTheDocument();\n});\n```\n\n```reveal\n{\"prompt\": \"Why use a test id for the location probe?\", \"answer\": \"The probe is test-only scaffolding with no user-facing role, which is exactly when a test id is acceptable.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "A mocked router can diverge from production, base paths matter, and direct-entry behavior needs integration coverage. This draft therefore rejects: Testing the component alone proves route configuration and browser history behavior."
+        "heading": "What to cover",
+        "body": "```predict\n{\"question\": \"Which route tests give the most confidence?\", \"options\": [\"One test that the home page renders\", \"Direct URL, link navigation, Back, invalid params, and unknown paths\"], \"answer\": 1, \"why\": \"Each is a door a learner can come through.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Verify navigation, URL state, direct entry and not-found behavior using a representative router setup.",
-      "Create an integration test covering route navigation and focus-context changes."
+      "Render the real route tree in a MemoryRouter at a starting URL.",
+      "Assert URL, heading, title and focus after navigation, plus not-found and Back."
     ],
     "excludes": [
-      "A mocked router can diverge from production, base paths matter, and direct-entry behavior needs integration coverage."
+      "End-to-end tests in a real browser.",
+      "Testing the hosting fallback (manual or deploy check)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "react.testing.routes.example-a",
-      "title": "Routing and integration tests: concrete case",
+      "title": "From the C course to the Python course",
       "situation": "A test starts at /courses/c, activates Python, and asserts URL, heading, and focus context.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A test starts at /courses/c, activates Python, and asserts URL, heading, and focus context.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Test components inside representative routing context and cover direct entry plus navigation history."
+        "**Starts at /courses/c:** renderAt uses MemoryRouter with that initial entry and the real AppRoutes.",
+        "**Activates Python:** userEvent clicks the link found by its accessible name.",
+        "**Asserts URL, heading, and focus:** the test will check the path is /courses/python, the h1 says Python and has focus, and the title matches."
       ],
-      "result": "The result follows because Test components inside representative routing context and cover direct entry plus navigation history."
+      "result": "The broken /course/python link fails this test immediately, and the fixed version proves the whole journey works."
     },
     {
       "id": "react.testing.routes.example-b",
-      "title": "Routing and integration tests: boundary case",
-      "situation": "A mocked router can diverge from production, base paths matter, and direct-entry behavior needs integration coverage.",
+      "title": "Back that went nowhere",
+      "situation": "After opening a lesson from a course, pressing Back in the app's own \"Back to course\" button does nothing, because it calls navigate(-1) on a directly opened URL with no history.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: A mocked router can diverge from production, base paths matter, and direct-entry behavior needs integration coverage.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Testing the component alone proves route configuration and browser history behavior."
+        "A direct visit has no previous entry to go back to.",
+        "Link to the course's real path instead of navigate(-1).",
+        "Test: renderAt the lesson URL directly, click \"Back to course\", and assert the course heading."
       ],
-      "result": "The boundary requires this correction: Test components inside representative routing context and cover direct entry plus navigation history."
+      "result": "The Back to course button works whether the learner came from the course or a shared link."
     }
   ],
   "misconceptions": [
     {
       "id": "react.testing.routes.misconception",
       "mistakenBelief": "Testing the component alone proves route configuration and browser history behavior.",
-      "correction": "Test components inside representative routing context and cover direct entry plus navigation history.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Testing the component alone proves route configuration and browser history behavior."
+      "correction": "A component test renders one page in isolation. Only rendering the real routes in a router, following links and checking the resulting URL and view proves the wiring and history behave.",
+      "diagnosticPrompt": "In \"From the C course to the Python course\", why did the page tests all pass?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Routing and integration tests, where inputs and state produce a UI description.",
+    "example": "Component tests check **each room of a house**; route tests check **the corridors and doors between them**. A perfect kitchen doesn't help if the door from the hall opens onto a wall.",
     "usefulFor": [
-      "Building a first mental model for Routing and integration tests before using exact platform terms"
+      "remembering test the journeys",
+      "MemoryRouter = a model house with a chosen front door"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "A mocked router can diverge from production, base paths matter, and direct-entry behavior needs integration coverage."
+      "Houses don't have Back buttons; apps do, so test them.",
+      "An unknown address should lead to a clear sign, not a blank wall."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A test starts at /courses/c, activates Python, and asserts URL, heading, and focus context.",
-      "Route tests render with router context and assert URL-driven views, navigation, parameters, focus, and not-found behavior.",
-      "Test components inside representative routing context and cover direct entry plus navigation history."
+      "renderAt('/courses/c')",
+      "click link Python",
+      "assert URL, heading, focus, title"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Start",
         "state": {
-          "evidence": "A test starts at /courses/c, activates Python, and asserts URL, heading, and focus context."
+          "location": "/courses/c",
+          "heading": "C"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The test starts at /courses/c with the real routes."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Activate",
         "state": {
-          "rule": "Route tests render with router context and assert URL-driven views, navigation, parameters, focus, and not-found behavior."
+          "clicked": "link Python"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The test activates Python like a learner would."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Assert",
         "state": {
-          "correction": "Test components inside representative routing context and cover direct entry plus navigation history."
+          "location": "/courses/python",
+          "focus": "h1 Python",
+          "title": "Python | Codestead"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Testing the component alone proves route configuration and browser history behavior."
+        "explanation": "It asserts URL, heading, and focus context after navigation."
       }
     ],
-    "textAlternative": "Starting artifact: A test starts at /courses/c, activates Python, and asserts URL, heading, and focus context. Step 1, Artifact. State: evidence: A test starts at /courses/c, activates Python, and asserts URL, heading, and focus context.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Route tests render with router context and assert URL-driven views, navigation, parameters, focus, and not-found behavior.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Test components inside representative routing context and cover direct entry plus navigation history.. Check the result against the boundary and reject this misconception: Testing the component alone proves route configuration and browser history behavior."
+    "textAlternative": "Tracing a route integration test. Step 1, Start: location is /courses/c; heading is C. The test starts at /courses/c with the real routes. Step 2, Activate: clicked is link Python. The test activates Python like a learner would. Step 3, Assert: location is /courses/python; focus is h1 Python; title is Python | Codestead. It asserts URL, heading, and focus context after navigation."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Routing and integration tests: concrete case”: state its starting evidence, apply the Routing and integration tests rule, and give the observable result in three short lines.",
+      "prompt": "For \"From the C course to the Python course\", explain how a test starts at /courses/c, activates Python, and asserts URL, heading, and focus context.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Start.",
+        "Activate.",
+        "Assert."
       ],
       "expectedEvidence": [
-        "Named example: Routing and integration tests: concrete case.",
-        "Starting evidence: A test starts at /courses/c, activates Python, and asserts URL, heading, and focus context.",
-        "Core rule: Route tests render with router context and assert URL-driven views, navigation, parameters, focus, and not-found behavior.",
-        "Observable result: The result follows because Test components inside representative routing context and cover direct entry plus navigation history.",
-        "Boundary check: Test components inside representative routing context and cover direct entry plus navigation history."
+        "Names the example \"From the C course to the Python course\": the test starts at /courses/c.",
+        "It activates Python by its link name.",
+        "It asserts URL, heading, and focus context.",
+        "A broken link path fails this test immediately."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: A mocked router can diverge from production, base paths matter, and direct-entry behavior needs integration coverage.",
+      "prompt": "Write a route test that starts at `/courses/css?page=abc` and asserts the list shows page 1, and one for `/courses/unknown` showing not-found.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "renderAt with query strings.",
+        "Heading queries."
       ],
       "expectedEvidence": [
-        "Route tests render with router context and assert URL-driven views, navigation, parameters, focus, and not-found behavior.",
-        "A mocked router can diverge from production, base paths matter, and direct-entry behavior needs integration coverage."
+        "Invalid page falls back to 1.",
+        "Unknown course shows not-found."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Routing and integration tests and explain why the misconception fails.",
+      "prompt": "Write an integration suite for your app's three main journeys: direct entry, link navigation with focus and title, Back navigation, invalid params and unknown URLs.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Use the real AppRoutes.",
+        "One test per journey step."
       ],
       "expectedEvidence": [
-        "Create an integration test covering route navigation and focus-context changes.",
-        "Test components inside representative routing context and cover direct entry plus navigation history."
+        "Suite passes and catches a deliberately broken link.",
+        "Focus and title asserted each time."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.testing.routes.misconception",
-      "explanation": "Test components inside representative routing context and cover direct entry plus navigation history.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'routing context' and state the decisive evidence."
+      "explanation": "List the doors into each page: **direct URL, link, Back, bad params, unknown path.** Write a MemoryRouter test for each, asserting URL, heading, title and focus.",
+      "retryPrompt": "Apply this to \"Back that went nowhere\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to create an integration test covering route navigation and focus-context changes. Keep this boundary in view: A mocked router can diverge from production, base paths matter, and direct-entry behavior needs integration coverage.",
+    "summary": "To create an integration test covering route navigation and focus-context changes, render the real routes in a MemoryRouter at a starting URL, click links like a learner, assert the URL, heading, title and focused element, and add tests for Back, invalid parameters and unknown paths.",
     "retrievalPrompts": [
-      "Explain Routing and integration tests using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: Testing the component alone proves route configuration and browser history behavior.",
-      "Apply checkpoint 'routing context' to a new artifact."
+      "Why don't component tests prove routing works?",
+      "What does initialEntries do?",
+      "Which four things should you assert after navigating?"
     ],
     "nextReviewPrompt": "Next: continue to “Intermediate single-page application”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

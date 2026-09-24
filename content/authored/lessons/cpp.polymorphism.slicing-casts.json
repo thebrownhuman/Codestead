@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Copying a derived object into a base value slices derived state, while safe downcasts require a polymorphic hierarchy and a checked dynamic_cast when the dynamic type is uncertain.",
+    "summary": "**Slicing** happens when a derived object is copied into a **base value**: `void print(Shape s)` or `Shape s = circle;` keeps only the Shape part. The derived fields are dropped and virtual calls run **the base version**, because the copy really is just a Shape. Accept polymorphic objects by **`const Base&`**, `Base*` or smart pointer instead. Going the other way (base to derived) is a **downcast**. `static_cast<Circle*>(shape_ptr)` **doesn't check anything**: if the object isn't really a Circle, using the result is undefined. `dynamic_cast<Circle*>` **checks at run time** and returns nullptr if the type doesn't match. Better still, add a virtual function so no cast is needed.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Passing Derived by Base value loses its added fields and override behavior, so the interface instead accepts const Base&. Your goal is to diagnose slicing and replace an unsafe cast with polymorphic behavior or a checked alternative. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner writes `void describe(Shape s) { s.draw(); }` and every Circle prints as a generic shape. Elsewhere they `static_cast<Circle*>` any Shape* to read its radius, and the program crashes on squares. Passing Derived by Base value loses its added fields and override behavior, so the interface instead accepts const Base&. In this lesson you'll diagnose slicing and replace an unsafe cast with polymorphic behavior or a checked alternative.\n\n```predict\n{\"question\": \"Does static_cast<Circle*>(p) return nullptr if p actually points at a Square?\", \"options\": [\"Yes\", \"No: it doesn't check; using the result is undefined behaviour\"], \"answer\": 1, \"why\": \"Only dynamic_cast checks the real type.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Class interface and invariants; unique_ptr, shared_ptr and non-owning access; Virtual dispatch and abstract interfaces. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Class interface and invariants**, **unique_ptr, shared_ptr and non-owning access** and **Virtual dispatch and abstract interfaces**."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "Copying a derived object into a base value slices derived state, while safe downcasts require a polymorphic hierarchy and a checked dynamic_cast when the dynamic type is uncertain. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The rule: pass by reference, cast only with a check",
+        "body": "```cpp\n#include <iostream>\n\nclass Shape {\npublic:\n    virtual ~Shape() = default;\n    virtual void draw() const { std::cout << \"shape\\n\"; }\n    virtual double size() const { return 0; }\n};\nclass Circle : public Shape {\npublic:\n    explicit Circle(double r) : r_(r) {}\n    void draw() const override { std::cout << \"circle \" << r_ << '\\n'; }\n    double size() const override { return r_; }     // virtual: no cast needed.\n    double radius() const { return r_; }\nprivate:\n    double r_;\n};\n\nvoid describe_sliced(Shape s)       { s.draw(); }   // copies Shape part: \"shape\".\nvoid describe(const Shape& s)       { s.draw(); }   // no slicing: \"circle 2\".\n\nvoid show_radius(const Shape& s) {\n    if (auto c = dynamic_cast<const Circle*>(&s)) std::cout << c->radius() << '\\n';\n    else std::cout << \"not a circle\\n\";           // checked: safe for any shape.\n}\n\nint main() {\n    Circle c{2.0};\n    describe_sliced(c);   // shape.\n    describe(c);          // circle 2.\n    show_radius(c);       // 2.\n}\n```\n\n```reveal\n{\"prompt\": \"Why is adding a virtual size() often better than dynamic_cast?\", \"answer\": \"Casting means the caller must know every derived type. A virtual function lets each type answer for itself, so adding a new shape needs no changes in callers.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "static_cast downcasts trust an external proof, dynamic_cast needs runtime type information and a polymorphic base, and reference failure throws rather than returns null. Therefore the draft explicitly rejects this beginner failure model: static_cast from Base* to Derived* checks the runtime object and returns null if the object is not Derived."
+        "heading": "Slicing in containers",
+        "body": "```predict\n{\"question\": \"`std::vector<Shape> shapes; shapes.push_back(Circle{1});` What's stored?\", \"options\": [\"A Circle\", \"A sliced Shape: the vector holds Shape values\"], \"answer\": 1, \"why\": \"Use std::vector<std::unique_ptr<Shape>> for polymorphic collections.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Avoid object slicing and minimize checked downcasts through better interface design.",
-      "Diagnose slicing and replace an unsafe cast with polymorphic behavior or a checked alternative."
+      "Diagnose slicing from base-value parameters, assignments and containers.",
+      "Replace unchecked static_cast downcasts with virtual functions or checked dynamic_cast."
     ],
     "excludes": [
-      "static_cast downcasts trust an external proof, dynamic_cast needs runtime type information and a polymorphic base, and reference failure throws rather than returns null."
+      "reinterpret_cast and const_cast.",
+      "RTTI and typeid in depth."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "cpp.polymorphism.slicing-casts.example-a",
-      "title": "Slicing and safe downcasts: defined case",
+      "title": "The Circle that became a Shape",
       "situation": "Passing Derived by Base value loses its added fields and override behavior, so the interface instead accepts const Base&.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: Passing Derived by Base value loses its added fields and override behavior, so the interface instead accepts const Base&.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Use dynamic_cast for a checked polymorphic downcast; static_cast performs no runtime type check and is valid only when the programmer already proves the dynamic type."
+        "**Passing Derived by Base value:** describe_sliced(Shape s) receives a copy of only the Shape part.",
+        "**Loses its added fields and override behavior:** r_ is gone and draw prints \"shape\".",
+        "**So the interface instead accepts const Base&:** describe(const Shape& s) will print \"circle 2\"."
       ],
-      "result": "The defined result follows because Use dynamic_cast for a checked polymorphic downcast; static_cast performs no runtime type check and is valid only when the programmer already proves the dynamic type."
+      "result": "Every shape describes itself correctly, with no copying."
     },
     {
       "id": "cpp.polymorphism.slicing-casts.example-b",
-      "title": "Slicing and safe downcasts: boundary case",
-      "situation": "A pointer dynamic_cast is checked for null before derived-only operations are used.",
+      "title": "The crashing radius reader",
+      "situation": "Code does `static_cast<Circle*>(shape)->radius()` on every shape in a list containing squares.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A pointer dynamic_cast is checked for null before derived-only operations are used.",
-        "Step 2 — Keep this standard boundary visible: static_cast downcasts trust an external proof, dynamic_cast needs runtime type information and a polymorphic base, and reference failure throws rather than returns null.",
-        "Step 3 — Reject the tempting rule: static_cast from Base* to Derived* checks the runtime object and returns null if the object is not Derived."
+        "static_cast trusts the programmer; for squares the result is garbage.",
+        "Option 1: add virtual double size() const to Shape.",
+        "Option 2: dynamic_cast and handle nullptr."
       ],
-      "result": "This case demonstrates the declared outcome: Diagnose slicing and replace an unsafe cast with polymorphic behavior or a checked alternative."
+      "result": "Squares no longer crash the program, and new shapes need no caller changes."
     }
   ],
   "misconceptions": [
     {
       "id": "cpp.polymorphism.slicing-casts.misconception",
       "mistakenBelief": "static_cast from Base* to Derived* checks the runtime object and returns null if the object is not Derived.",
-      "correction": "Use dynamic_cast for a checked polymorphic downcast; static_cast performs no runtime type check and is valid only when the programmer already proves the dynamic type.",
-      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: static_cast from Base* to Derived* checks the runtime object and returns null if the object is not Derived."
+      "correction": "static_cast performs no run-time check. If the object isn't really Derived, using the result is undefined. dynamic_cast is the checked form.",
+      "diagnosticPrompt": "In \"The crashing radius reader\", why did squares crash?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A system of self-managing components can model Slicing and safe downcasts: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "example": "Slicing is like **photocopying only the first page of a report**: you keep the cover (Shape) and lose the details (Circle's radius). A static_cast downcast is **assuming a sealed envelope contains a cheque** and cashing it; dynamic_cast **opens it and checks** first.",
     "usefulFor": [
-      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+      "remembering first page only",
+      "check before cashing"
     ],
     "limitations": [
-      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
-      "static_cast downcasts trust an external proof, dynamic_cast needs runtime type information and a polymorphic base, and reference failure throws rather than returns null."
+      "Photocopies are obvious; slicing is silent.",
+      "A virtual function is asking the envelope's sender instead."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Passing Derived by Base value loses its added fields and override behavior, so the interface instead accepts const Base&.",
-      "Copying a derived object into a base value slices derived state, while safe downcasts require a polymorphic hierarchy and a checked dynamic_cast when the dynamic type is uncertain.",
-      "Use dynamic_cast for a checked polymorphic downcast; static_cast performs no runtime type check and is valid only when the programmer already proves the dynamic type."
+      "Circle c{2.0};",
+      "describe_sliced(c)",
+      "describe(c); show_radius(c)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Create",
         "state": {
-          "evidence": "Passing Derived by Base value loses its added fields and override behavior, so the interface instead accepts const Base&."
+          "c": "Circle r=2"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "A derived object holds its extra field and override."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Slice",
         "state": {
-          "rule": "Copying a derived object into a base value slices derived state, while safe downcasts require a polymorphic hierarchy and a checked dynamic_cast when the dynamic type is uncertain."
+          "parameter": "Shape copy",
+          "output": "shape"
         },
-        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+        "explanation": "Passing Derived by Base value loses its added fields and override behavior."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Fix",
         "state": {
-          "conclusion": "Use dynamic_cast for a checked polymorphic downcast; static_cast performs no runtime type check and is valid only when the programmer already proves the dynamic type."
+          "describe": "circle 2",
+          "radius": "2 (checked)"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: static_cast from Base* to Derived* checks the runtime object and returns null if the object is not Derived."
+        "explanation": "The interface instead accepts const Base&, and downcasts are checked."
       }
     ],
-    "textAlternative": "Starting artifact: Passing Derived by Base value loses its added fields and override behavior, so the interface instead accepts const Base&. Step 1, Source and state. State: evidence: Passing Derived by Base value loses its added fields and override behavior, so the interface instead accepts const Base&.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: Copying a derived object into a base value slices derived state, while safe downcasts require a polymorphic hierarchy and a checked dynamic_cast when the dynamic type is uncertain.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Use dynamic_cast for a checked polymorphic downcast; static_cast performs no runtime type check and is valid only when the programmer already proves the dynamic type.. Check the conclusion against the boundary and reject this misconception: static_cast from Base* to Derived* checks the runtime object and returns null if the object is not Derived."
+    "textAlternative": "Tracing slicing and safe casts. Step 1, Create: c is Circle r=2. A derived object holds its extra field and override. Step 2, Slice: parameter is Shape copy; output is shape. Passing Derived by Base value loses its added fields and override behavior. Step 3, Fix: describe is circle 2; radius is 2 (checked). The interface instead accepts const Base&, and downcasts are checked."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Slicing and safe downcasts: defined case”: state its starting evidence, apply the Slicing and safe downcasts rule, and give the observable result in three short lines.",
+      "prompt": "For \"The Circle that became a Shape\", explain how passing Derived by Base value loses its added fields and override behavior, so the interface instead accepts const Base&.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Copy.",
+        "Lose.",
+        "Reference."
       ],
       "expectedEvidence": [
-        "Named example: Slicing and safe downcasts: defined case.",
-        "Starting evidence: Passing Derived by Base value loses its added fields and override behavior, so the interface instead accepts const Base&.",
-        "Core rule: Copying a derived object into a base value slices derived state, while safe downcasts require a polymorphic hierarchy and a checked dynamic_cast when the dynamic type is uncertain.",
-        "Observable result: The defined result follows because Use dynamic_cast for a checked polymorphic downcast; static_cast performs no runtime type check and is valid only when the programmer already proves the dynamic type.",
-        "Boundary check: Use dynamic_cast for a checked polymorphic downcast; static_cast performs no runtime type check and is valid only when the programmer already proves the dynamic type."
+        "Names the example \"The Circle that became a Shape\": circles printed as shapes.",
+        "Passing Derived by Base value loses its added fields and override behavior.",
+        "The interface instead accepts const Base&.",
+        "Every shape describes itself correctly."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same CPP rule to this related boundary case: A pointer dynamic_cast is checked for null before derived-only operations are used.",
+      "prompt": "Find the slicing in: `Shape s = circle;`, `void f(Shape s)`, `std::vector<Shape> v{circle}`, `Shape& r = circle;`. Rewrite each sliced case to preserve the dynamic type.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "References and pointers don't slice.",
+        "Use unique_ptr in containers."
       ],
       "expectedEvidence": [
-        "Copying a derived object into a base value slices derived state, while safe downcasts require a polymorphic hierarchy and a checked dynamic_cast when the dynamic type is uncertain.",
-        "static_cast downcasts trust an external proof, dynamic_cast needs runtime type information and a polymorphic base, and reference failure throws rather than returns null."
+        "Three slicing cases fixed.",
+        "The reference case explained as fine."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CPP example for Slicing and safe downcasts, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Take code that uses three static_cast downcasts to reach derived-specific data. Replace two with new virtual functions and one with dynamic_cast plus a fallback, and add tests including a new derived type that none of the old casts knew about.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Virtual first, cast only if unavoidable.",
+        "Test the nullptr path."
       ],
       "expectedEvidence": [
-        "Diagnose slicing and replace an unsafe cast with polymorphic behavior or a checked alternative.",
-        "Use dynamic_cast for a checked polymorphic downcast; static_cast performs no runtime type check and is valid only when the programmer already proves the dynamic type."
+        "No unchecked downcasts left.",
+        "New type works unchanged."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "cpp.polymorphism.slicing-casts.misconception",
-      "explanation": "Use dynamic_cast for a checked polymorphic downcast; static_cast performs no runtime type check and is valid only when the programmer already proves the dynamic type.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'dynamic_cast' and state the decisive evidence: A pointer dynamic_cast is checked for null before derived-only operations are used."
+      "explanation": "Search for **base-class value parameters and containers** (slicing) and **static_cast to derived types** (unchecked). Replace them with references or pointers, virtual functions, or dynamic_cast with a null check.",
+      "retryPrompt": "Apply this to \"The crashing radius reader\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to diagnose slicing and replace an unsafe cast with polymorphic behavior or a checked alternative. Keep this boundary in view: static_cast downcasts trust an external proof, dynamic_cast needs runtime type information and a polymorphic base, and reference failure throws rather than returns null.",
+    "summary": "To diagnose slicing and unsafe casts, pass and store polymorphic objects by reference, pointer or smart pointer instead of base values, prefer virtual functions so callers don't need to know derived types, and when a downcast is unavoidable use dynamic_cast with a null check rather than static_cast.",
     "retrievalPrompts": [
-      "Explain Slicing and safe downcasts using a concrete CPP rule rather than the optional analogy.",
-      "Why is this claim incorrect: static_cast from Base* to Derived* checks the runtime object and returns null if the object is not Derived.",
-      "Apply the checkpoint 'dynamic_cast' to the boundary case from memory."
+      "What is slicing?",
+      "Does static_cast check the dynamic type?",
+      "Why prefer a virtual function over dynamic_cast?"
     ],
     "nextReviewPrompt": "Next: continue to “string, array and vector”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

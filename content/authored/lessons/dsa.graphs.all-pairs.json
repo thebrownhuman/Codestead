@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "All-pairs shortest paths compute distances between every ordered pair using repeated single-source methods or dynamic programming such as Floyd-Warshall.",
+    "summary": "Sometimes you need the shortest distance between **every** pair of vertices, like a campus travel-time table. One BFS or Dijkstra gives distances from **one** source only. Two approaches: run a single-source algorithm **from every vertex** (V Dijkstras, good for sparse graphs), or use **Floyd-Warshall**, a dynamic-programming method on a V × V matrix. It tries each vertex k as a possible **intermediate stop**: `dist[i][j] = min(dist[i][j], dist[i][k] + dist[k][j])`. After considering all k, every entry is a shortest distance. It's O(V³) time and O(V²) space, handles negative edges (not negative cycles), and is simple to write.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Floyd-Warshall considers each intermediate vertex and updates dist[i][j] through it. Your goal is to implement and trace all-pairs shortest paths over an adjacency matrix. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A campus app wants a full table: the fastest walk from every building to every other. Running BFS once from the Library fills only the Library's row, and the table's other rows are empty or wrong. Floyd-Warshall considers each intermediate vertex and updates dist[i][j] through it. In this lesson you'll implement and trace all-pairs shortest paths over an adjacency matrix.\n\n```predict\n{\"question\": \"One BFS from vertex A. What does it give you?\", \"options\": [\"Shortest paths between every pair\", \"Shortest (fewest-edge) paths from A only\"], \"answer\": 1, \"why\": \"Single-source means one row of the table. All pairs needs a source per row, or Floyd-Warshall.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Graph representation and traversal; Priority queue applications; Two-dimensional arrays and matrices; Tabulation and state reconstruction; Unweighted and Dijkstra shortest paths. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Graph representation and traversal** module, **Priority queue applications**, **Two-dimensional arrays and matrices**, **Tabulation and state reconstruction**, and **Unweighted and Dijkstra shortest paths**."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "All-pairs shortest paths compute distances between every ordered pair using repeated single-source methods or dynamic programming such as Floyd-Warshall. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The invariant: allow one more intermediate stop each round",
+        "body": "```python\nINF = float(\"inf\")\n\ndef floyd_warshall(dist):              # dist: V x V matrix; dist[i][i] = 0, INF if no edge.\n    n = len(dist)\n    d = [row[:] for row in dist]        # copy; don't change the input.\n    for k in range(n):\n        # Invariant: d[i][j] is the shortest i->j path using only stops 0..k-1.\n        for i in range(n):\n            for j in range(n):\n                if d[i][k] + d[k][j] < d[i][j]:\n                    d[i][j] = d[i][k] + d[k][j]\n    for i in range(n):\n        if d[i][i] < 0:\n            raise ValueError(\"negative cycle\")\n    return d\n\n# 0 Library, 1 Cafe, 2 Lab (minutes; directed here).\nwalk = [[0, 2, 9],\n        [INF, 0, 3],\n        [1, INF, 0]]\nprint(floyd_warshall(walk))   # [[0, 2, 5], [4, 0, 3], [1, 3, 0]]\n```\n\n| Approach | Time | Best for |\n|---|---|---|\n| BFS from every vertex. | O(V(V + E)). | unweighted graphs. |\n| Dijkstra from every vertex. | O(V(V + E) log V). | sparse, non-negative weights. |\n| Floyd-Warshall. | O(V³). | dense or small graphs; negative edges OK. |\n\n```reveal\n{\"prompt\": \"Why must k be the outermost loop?\", \"answer\": \"The invariant grows one allowed stop at a time. Putting k inside would use paths through stops that haven't been fully processed yet.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Complexity, sparse versus dense graphs, negative edges, and path reconstruction govern selection. The draft therefore rejects: Running BFS once computes shortest paths between every pair."
+        "heading": "Reading the table",
+        "body": "```predict\n{\"question\": \"After Floyd-Warshall, dist[i][i] is negative. What does that mean?\", \"options\": [\"A small rounding error\", \"Vertex i is on a negative cycle; shortest paths through it don't exist\"], \"answer\": 1, \"why\": \"Check the diagonal after running.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use Floyd-Warshall dynamic programming for small dense graphs and interpret unreachable or negative-cycle cases.",
-      "Implement and trace all-pairs shortest paths over an adjacency matrix.",
-      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      "Implement Floyd-Warshall over an adjacency matrix and trace its updates.",
+      "Choose between repeated single-source runs and Floyd-Warshall, and detect negative cycles."
     ],
     "excludes": [
-      "Complexity, sparse versus dense graphs, negative edges, and path reconstruction govern selection."
+      "Johnson's algorithm.",
+      "Path reconstruction beyond a next-hop table."
     ]
   },
   "outcomes": [
@@ -68,142 +64,134 @@
   "examples": [
     {
       "id": "dsa.graphs.all-pairs.example-a",
-      "title": "All-pairs path reasoning: language-neutral trace",
+      "title": "A travel-time table for every pair of buildings",
       "situation": "Floyd-Warshall considers each intermediate vertex and updates dist[i][j] through it.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: Floyd-Warshall considers each intermediate vertex and updates dist[i][j] through it.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: One BFS is single-source; all-pairs requires a source run for each vertex or an all-pairs algorithm."
+        "**Start:** Library → Lab is 9 minutes directly, and the Cafe route isn't used yet.",
+        "**Consider each intermediate vertex:** with k = Cafe, dist[Library][Lab] updates through it to 2 + 3 = 5.",
+        "**Finish and test:** the full table becomes [[0, 2, 5], [4, 0, 3], [1, 3, 0]]; a test will compare every entry with Dijkstra run from each building."
       ],
-      "result": "The conceptual result follows because One BFS is single-source; all-pairs requires a source run for each vertex or an all-pairs algorithm."
+      "result": "The app shows a correct travel-time table for every pair of buildings."
     },
     {
       "id": "dsa.graphs.all-pairs.example-b",
-      "title": "All-pairs path reasoning: implementation transfer",
-      "situation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
+      "title": "Choosing for a big sparse network",
+      "situation": "A city bus map has 20,000 stops, each linked to about 4 others, and needs all-pairs travel times overnight.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
-        "Step 3 — Retest this boundary in the selected implementation: Complexity, sparse versus dense graphs, negative edges, and path reconstruction govern selection."
+        "Floyd-Warshall: 20,000³ = 8 × 10¹² steps and a 400,000,000-cell matrix: too much.",
+        "Dijkstra from every stop: about V × E log V, far less for a sparse graph.",
+        "So run Dijkstra 20,000 times (in parallel if possible)."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "The overnight job finishes, and memory stays manageable."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.graphs.all-pairs.misconception",
       "mistakenBelief": "Running BFS once computes shortest paths between every pair.",
-      "correction": "One BFS is single-source; all-pairs requires a source run for each vertex or an all-pairs algorithm.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Running BFS once computes shortest paths between every pair."
+      "correction": "BFS (like Dijkstra) is single-source: it gives distances from its start vertex only. All pairs need one run per source, or an all-pairs method like Floyd-Warshall.",
+      "diagnosticPrompt": "In the opening predict, which row did one BFS fill?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce All-pairs path reasoning, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Floyd-Warshall is like **improving a distance chart one town at a time**: first ask \"is any trip shorter if we allow stopping in town 0?\", then \"...in town 0 or 1?\", and so on. After every town has been allowed as a stop, the chart is complete.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering one more allowed stop per round",
+      "k outermost = towns added in order"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Complexity, sparse versus dense graphs, negative edges, and path reconstruction govern selection."
+      "Real charts are printed once; the algorithm rewrites every cell each round.",
+      "A town that makes trips shorter forever is a negative cycle."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Floyd-Warshall considers each intermediate vertex and updates dist[i][j] through it.",
-      "All-pairs shortest paths compute distances between every ordered pair using repeated single-source methods or dynamic programming such as Floyd-Warshall.",
-      "One BFS is single-source; all-pairs requires a source run for each vertex or an all-pairs algorithm.",
-      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      "walk matrix, k = 0, 1, 2",
+      "k = 1 (Cafe)",
+      "k = 2 (Lab)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "k = 0 (Library)",
         "state": {
-          "scenario": "Floyd-Warshall considers each intermediate vertex and updates dist[i][j] through it."
+          "changes": "Lab → Cafe via Library: 1 + 2 = 3"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "Floyd-Warshall considers each intermediate vertex in turn."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "k = 1 (Cafe)",
         "state": {
-          "invariant": "All-pairs shortest paths compute distances between every ordered pair using repeated single-source methods or dynamic programming such as Floyd-Warshall."
+          "Library → Lab": "9 → 5 via Cafe"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "It updates dist[i][j] through the intermediate vertex when shorter."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "k = 2 (Lab)",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "Cafe → Library": "INF → 3 + 1 = 4",
+          "table": "[[0,2,5],[4,0,3],[1,3,0]]"
         },
-        "explanation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "One BFS is single-source; all-pairs requires a source run for each vertex or an all-pairs algorithm."
-        },
-        "explanation": "Verify the result and reject this misconception: Running BFS once computes shortest paths between every pair."
+        "explanation": "After all stops are allowed, every entry is a shortest distance."
       }
     ],
-    "textAlternative": "Starting artifact: Floyd-Warshall considers each intermediate vertex and updates dist[i][j] through it. Step 1, Specification. State: scenario: Floyd-Warshall considers each intermediate vertex and updates dist[i][j] through it.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: All-pairs shortest paths compute distances between every ordered pair using repeated single-source methods or dynamic programming such as Floyd-Warshall.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target. Step 4, Conclusion. State: correction: One BFS is single-source; all-pairs requires a source run for each vertex or an all-pairs algorithm.. Verify the result and reject this misconception: Running BFS once computes shortest paths between every pair."
+    "textAlternative": "Tracing Floyd-Warshall on three buildings. Step 1, k = 0 (Library): changes is Lab → Cafe via Library: 1 + 2 = 3. Floyd-Warshall considers each intermediate vertex in turn. Step 2, k = 1 (Cafe): Library → Lab is 9 → 5 via Cafe. It updates dist[i][j] through the intermediate vertex when shorter. Step 3, k = 2 (Lab): Cafe → Library is INF → 3 + 1 = 4; table is [[0,2,5],[4,0,3],[1,3,0]]. After all stops are allowed, every entry is a shortest distance."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “All-pairs path reasoning: language-neutral trace”: state its starting evidence, apply the All-pairs path reasoning rule, and give the observable result in three short lines.",
+      "prompt": "For \"A travel-time table for every pair of buildings\", explain how Floyd-Warshall considers each intermediate vertex and updates dist[i][j] through it.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Start.",
+        "Intermediate.",
+        "Finish."
       ],
       "expectedEvidence": [
-        "Named example: All-pairs path reasoning: language-neutral trace.",
-        "Starting evidence: Floyd-Warshall considers each intermediate vertex and updates dist[i][j] through it.",
-        "Core rule: All-pairs shortest paths compute distances between every ordered pair using repeated single-source methods or dynamic programming such as Floyd-Warshall.",
-        "Observable result: The conceptual result follows because One BFS is single-source; all-pairs requires a source run for each vertex or an all-pairs algorithm.",
-        "Boundary check: One BFS is single-source; all-pairs requires a source run for each vertex or an all-pairs algorithm."
+        "Names the example \"A travel-time table for every pair of buildings\": one BFS filled only one row.",
+        "Floyd-Warshall considers each intermediate vertex.",
+        "It updates dist[i][j] through it when that is shorter.",
+        "The app shows a correct travel-time table for every pair."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: All-pairs shortest paths compute distances between every ordered pair using repeated single-source methods or dynamic programming such as Floyd-Warshall.",
+      "prompt": "Run Floyd-Warshall by hand on 3 vertices with edges 0→1 (4), 1→2 (1), 0→2 (7), 2→0 (2). Give the final matrix.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Start with the direct edges and INF.",
+        "k = 0, 1, 2 in order."
       ],
       "expectedEvidence": [
-        "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
-        "Complexity, sparse versus dense graphs, negative edges, and path reconstruction govern selection."
+        "Row 0: [0, 4, 5].",
+        "Row 1: [3, 0, 1]; Row 2: [2, 6, 0]."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different All-pairs path reasoning case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Add a next-hop matrix to Floyd-Warshall so you can print the actual route between any two buildings. Test routes against Dijkstra with parents on random small graphs, and test a negative cycle.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "next[i][j] = next[i][k] when updating.",
+        "Follow next from i until j."
       ],
       "expectedEvidence": [
-        "Implement and trace all-pairs shortest paths over an adjacency matrix.",
-        "One BFS is single-source; all-pairs requires a source run for each vertex or an all-pairs algorithm."
+        "Routes match shortest distances.",
+        "Negative cycles raise an error."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.graphs.all-pairs.misconception",
-      "explanation": "One BFS is single-source; all-pairs requires a source run for each vertex or an all-pairs algorithm.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'each vertex', then state one implementation-specific risk in the selected language."
+      "explanation": "Ask: **one source or all pairs?** For all pairs, compare **V³** with **V × (V + E) log V** for your sizes. For Floyd-Warshall, keep k outermost and check the diagonal for negatives.",
+      "retryPrompt": "Apply this to \"Choosing for a big sparse network\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and trace all-pairs shortest paths over an adjacency matrix. Keep this boundary in view: Complexity, sparse versus dense graphs, negative edges, and path reconstruction govern selection.",
+    "summary": "To implement and trace all-pairs shortest paths, remember BFS and Dijkstra are single-source, so either run one per vertex (good for sparse graphs) or use Floyd-Warshall on an adjacency matrix: for each intermediate vertex k, update dist[i][j] through k, giving O(V³) time and detecting negative cycles on the diagonal.",
     "retrievalPrompts": [
-      "State the All-pairs path reasoning invariant and complexity without code.",
-      "Why is this claim false: Running BFS once computes shortest paths between every pair.",
-      "Map checkpoint 'each vertex' to C, C++, Java, and Python."
+      "Does one BFS give all-pairs distances?",
+      "What does Floyd-Warshall's k loop represent?",
+      "When is running Dijkstra from each vertex better?"
     ],
     "nextReviewPrompt": "Next: continue to “Make, find and union”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

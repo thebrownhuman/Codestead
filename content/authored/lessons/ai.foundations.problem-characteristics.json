@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "An AI task is constrained by what is observable, how actions change the environment, whether outcomes are deterministic, how time evolves, whether states/actions are discrete, how many agents act, and what uncertainty remains.",
+    "summary": "Before choosing a technique, describe the **environment** the AI works in. Seven questions do most of the work. **Observable**: can it see everything relevant, or only part? **Deterministic**: does an action always have the same result? **Episodic or sequential**: does each decision stand alone, or affect later ones? **Static or dynamic**: does the world change while it thinks? **Discrete or continuous**: are states and actions countable steps or smooth quantities? **Single or multi-agent**: is anyone else acting, perhaps against it? **Known or unknown**: are the rules known in advance? The answers **constrain** which methods fit: exact search suits a fully observable, deterministic, discrete puzzle, but a self-driving car needs perception, prediction and fast reaction.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A static grid puzzle is discrete, deterministic, fully observable, and single-agent under its rules, supporting exact state-space search. Your goal is to characterize an AI task and explain how its properties constrain solution choices. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner hears \"it's a robotics problem\" and assumes the same method works for a robot arm in a factory cell and a delivery robot on a busy street. The factory arm fails nothing; the street robot keeps colliding with people whose movements it can't predict. A static grid puzzle is discrete, deterministic, fully observable, and single-agent under its rules, supporting exact state-space search. In this lesson you'll characterize an AI task and explain how its properties constrain solution choices.\n\n```predict\n{\"question\": \"Poker: can the player see all relevant state?\", \"options\": [\"Yes, the table is visible\", \"No: opponents' cards are hidden, so it's partially observable\"], \"answer\": 1, \"why\": \"Hidden information means reasoning about possibilities.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: pf problem io; python quality project; AI, automation and intelligence claims. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Inputs, outputs and constraints** and **Debugger and final project**, plus **AI, automation and intelligence claims** (describing tasks operationally)."
       },
       {
-        "heading": "Bounded operational model",
-        "body": "An AI task is constrained by what is observable, how actions change the environment, whether outcomes are deterministic, how time evolves, whether states/actions are discrete, how many agents act, and what uncertainty remains. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+        "heading": "The model: seven environment properties",
+        "body": "```python\n# Describe tasks by their properties, then let the properties suggest methods.\nPROPS = [\"observable\", \"deterministic\", \"sequential\", \"static\", \"discrete\", \"single_agent\"]\n\ntasks = {\n    \"8-puzzle\":     dict(observable=True,  deterministic=True,  sequential=True,  static=True,  discrete=True,  single_agent=True),\n    \"poker\":        dict(observable=False, deterministic=False, sequential=True,  static=True,  discrete=True,  single_agent=False),\n    \"street robot\": dict(observable=False, deterministic=False, sequential=True,  static=False, discrete=False, single_agent=False),\n}\n\ndef suggest(p):\n    if all(p[k] for k in PROPS):\n        return \"exact state-space search\"\n    if not p[\"observable\"] or not p[\"deterministic\"]:\n        return \"reason with probabilities; replan as you observe\"\n    return \"search with opponent modelling\"\n\nfor name, p in tasks.items():\n    print(name, \"->\", suggest(p))\n```\n\nOutput: 8-puzzle gets exact state-space search; poker and the street robot need probabilistic reasoning and replanning.\n\n```reveal\n{\"prompt\": \"What does episodic mean?\", \"answer\": \"Each decision is independent, like classifying separate photos. In sequential tasks, like chess, today's move changes tomorrow's options.\"}\n```"
       },
       {
-        "heading": "Failure boundary and non-claim",
-        "body": "These properties can differ between simulation and deployment, partial observability can be hidden by convenient datasets, other agents change dynamics, and a useful abstraction deliberately omits details. The learner must reject this overclaim: Once a task is called classification, search, or robotics, its environment properties and appropriate solution family are already determined."
+        "heading": "Labels don't decide properties",
+        "body": "```predict\n{\"question\": \"Two tasks are both called classification: sorting photos, and flagging fraud as fraudsters adapt. Same environment?\", \"options\": [\"Yes, both are classification\", \"No: fraud is dynamic and adversarial, so models must be monitored and updated\"], \"answer\": 1, \"why\": \"Characterise the environment, not just the task type.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Classify observability, determinism, dynamics, discreteness, agents and uncertainty.",
-      "Characterize an AI task and explain how its properties constrain solution choices."
+      "Characterise tasks by observability, determinism, sequence, dynamics, discreteness and agents.",
+      "Explain how those properties constrain solution choices."
     ],
     "excludes": [
-      "These properties can differ between simulation and deployment, partial observability can be hidden by convenient datasets, other agents change dynamics, and a useful abstraction deliberately omits details."
+      "Formal definitions of POMDPs.",
+      "Detailed algorithms (later modules)."
     ]
   },
   "outcomes": [
@@ -63,133 +64,136 @@
   "examples": [
     {
       "id": "ai.foundations.problem-characteristics.example.direct",
-      "title": "Problem and environment characteristics: bounded direct case",
+      "title": "A sliding-tile puzzle, fully described",
       "situation": "A static grid puzzle is discrete, deterministic, fully observable, and single-agent under its rules, supporting exact state-space search.",
       "walkthrough": [
-        "Step 1 — Observe the exact data, state, metric, or tool behavior: A static grid puzzle is discrete, deterministic, fully observable, and single-agent under its rules, supporting exact state-space search.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the claim boundary with: Characterize observability, determinism, dynamics, discreteness, agency, and uncertainty for the actual deployment context before choosing or evaluating a method."
+        "**Discrete and deterministic:** each slide moves one tile one square, always the same way.",
+        "**Fully observable and single-agent:** the whole board is visible and nobody else moves.",
+        "**Supporting exact state-space search:** we can run BFS or A* and check the plan will work as computed."
       ],
-      "result": "This example supports only the atomic outcome because Characterize observability, determinism, dynamics, discreteness, agency, and uncertainty for the actual deployment context before choosing or evaluating a method."
+      "result": "The puzzle can be solved exactly, with a guaranteed plan."
     },
     {
       "id": "ai.foundations.problem-characteristics.example.stress",
-      "title": "Problem and environment characteristics: stress and transfer case",
-      "situation": "A road-driving task is dynamic, partially observable, continuous, stochastic, and multi-agent, so the grid assumptions cannot justify the same guarantees.",
+      "title": "The street robot",
+      "situation": "A delivery robot planned perfect paths in a simulator but kept colliding with pedestrians outside.",
       "walkthrough": [
-        "Step 1 — Name the changed population, input, assumption, or failure: A road-driving task is dynamic, partially observable, continuous, stochastic, and multi-agent, so the grid assumptions cannot justify the same guarantees.",
-        "Step 2 — Keep the non-claim visible: These properties can differ between simulation and deployment, partial observability can be hidden by convenient datasets, other agents change dynamics, and a useful abstraction deliberately omits details.",
-        "Step 3 — Reject the tempting overclaim: Once a task is called classification, search, or robotics, its environment properties and appropriate solution family are already determined."
+        "The simulator was static and deterministic; the street is dynamic, partially observable and multi-agent.",
+        "Add sensing, prediction of people's motion, and frequent replanning.",
+        "Test in scenarios with moving, unpredictable agents."
       ],
-      "result": "This case demonstrates the declared outcome: Characterize an AI task and explain how its properties constrain solution choices."
+      "result": "The robot's method matches the real environment's properties."
     }
   ],
   "misconceptions": [
     {
       "id": "ai.foundations.problem-characteristics.misconception",
       "mistakenBelief": "Once a task is called classification, search, or robotics, its environment properties and appropriate solution family are already determined.",
-      "correction": "Characterize observability, determinism, dynamics, discreteness, agency, and uncertainty for the actual deployment context before choosing or evaluating a method.",
-      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: Once a task is called classification, search, or robotics, its environment properties and appropriate solution family are already determined."
+      "correction": "Task labels hide big differences. Characterise observability, determinism, dynamics and agents for each task before choosing methods.",
+      "diagnosticPrompt": "In \"The street robot\", which properties changed between simulator and street?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a map that labels what an automated system observes, claims, chooses, and cannot establish can introduce Problem and environment characteristics only after its canonical technical definition and evidence boundary are stated.",
+    "example": "Characterising an environment is like **checking conditions before a hike**. \"It's a hike\" tells you little. Is the trail **marked** (observable)? Is the **weather** stable (static, deterministic)? Are you **alone or in a race** (agents)? A sunny marked trail needs a map; a foggy mountain in a storm needs a compass, radio and plan B.",
     "usefulFor": [
-      "separating techniques, environments, agents, evidence, and historical limits"
+      "remembering check conditions, not just the label",
+      "fog = partial observability"
     ],
     "limitations": [
-      "maps simplify contested intelligence concepts and cannot turn benchmark evidence into general capability",
-      "These properties can differ between simulation and deployment, partial observability can be hidden by convenient datasets, other agents change dynamics, and a useful abstraction deliberately omits details."
+      "Other hikers competing for a hut is multi-agent.",
+      "Weather changing mid-hike is dynamic."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A static grid puzzle is discrete, deterministic, fully observable, and single-agent under its rules, supporting exact state-space search.",
-      "An AI task is constrained by what is observable, how actions change the environment, whether outcomes are deterministic, how time evolves, whether states/actions are discrete, how many agents act, and what uncertainty remains.",
-      "Characterize observability, determinism, dynamics, discreteness, agency, and uncertainty for the actual deployment context before choosing or evaluating a method."
+      "describe 8-puzzle",
+      "describe poker",
+      "describe street robot"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Puzzle",
         "state": {
-          "boundedEvidence": "A static grid puzzle is discrete, deterministic, fully observable, and single-agent under its rules, supporting exact state-space search."
+          "all properties": "true",
+          "suggest": "exact state-space search"
         },
-        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+        "explanation": "A static grid puzzle is discrete, deterministic, fully observable, and single-agent."
       },
       {
         "step": 2,
-        "focus": "Model",
+        "focus": "Poker",
         "state": {
-          "operationalRule": "An AI task is constrained by what is observable, how actions change the environment, whether outcomes are deterministic, how time evolves, whether states/actions are discrete, how many agents act, and what uncertainty remains."
+          "observable": "false",
+          "single agent": "false"
         },
-        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+        "explanation": "Hidden cards and opponents require reasoning about possibilities."
       },
       {
         "step": 3,
-        "focus": "Limit",
+        "focus": "Robot",
         "state": {
-          "correction": "Characterize observability, determinism, dynamics, discreteness, agency, and uncertainty for the actual deployment context before choosing or evaluating a method."
+          "static": "false",
+          "discrete": "false"
         },
-        "explanation": "State what the evidence does not establish and reject the misconception: Once a task is called classification, search, or robotics, its environment properties and appropriate solution family are already determined."
+        "explanation": "A dynamic, continuous world needs sensing and replanning."
       }
     ],
-    "textAlternative": "Starting artifact: A static grid puzzle is discrete, deterministic, fully observable, and single-agent under its rules, supporting exact state-space search. Step 1, Observe. State: boundedEvidence: A static grid puzzle is discrete, deterministic, fully observable, and single-agent under its rules, supporting exact state-space search.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: An AI task is constrained by what is observable, how actions change the environment, whether outcomes are deterministic, how time evolves, whether states/actions are discrete, how many agents act, and what uncertainty remains.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Characterize observability, determinism, dynamics, discreteness, agency, and uncertainty for the actual deployment context before choosing or evaluating a method.. State what the evidence does not establish and reject the misconception: Once a task is called classification, search, or robotics, its environment properties and appropriate solution family are already determined."
+    "textAlternative": "Tracing environment characterisation. Step 1, Puzzle: all properties is true; suggest is exact state-space search. A static grid puzzle is discrete, deterministic, fully observable, and single-agent. Step 2, Poker: observable is false; single agent is false. Hidden cards and opponents require reasoning about possibilities. Step 3, Robot: static is false; discrete is false. A dynamic, continuous world needs sensing and replanning."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Problem and environment characteristics: bounded direct case”: state its starting evidence, apply the Problem and environment characteristics rule, and give the observable result in three short lines.",
+      "prompt": "For \"A sliding-tile puzzle, fully described\", explain why a static grid puzzle is discrete, deterministic, fully observable, and single-agent under its rules, supporting exact state-space search.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Observe.",
+        "Classify properties.",
+        "Choose method."
       ],
       "expectedEvidence": [
-        "Named example: Problem and environment characteristics: bounded direct case.",
-        "Starting evidence: A static grid puzzle is discrete, deterministic, fully observable, and single-agent under its rules, supporting exact state-space search.",
-        "Core rule: An AI task is constrained by what is observable, how actions change the environment, whether outcomes are deterministic, how time evolves, whether states/actions are discrete, how many agents act, and what uncertainty remains.",
-        "Observable result: This example supports only the atomic outcome because Characterize observability, determinism, dynamics, discreteness, agency, and uncertainty for the actual deployment context before choosing or evaluating a method.",
-        "Boundary check: Characterize observability, determinism, dynamics, discreteness, agency, and uncertainty for the actual deployment context before choosing or evaluating a method."
+        "Names the example \"A sliding-tile puzzle, fully described\": one label hid different environments.",
+        "A static grid puzzle is discrete, deterministic, fully observable, and single-agent under its rules.",
+        "That supports exact state-space search.",
+        "The plan is guaranteed."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed case: A road-driving task is dynamic, partially observable, continuous, stochastic, and multi-agent, so the grid assumptions cannot justify the same guarantees.",
+      "prompt": "Characterise chess, a thermostat, spam filtering and a taxi dispatcher on all seven properties, and suggest a method family for each.",
       "scaffold": [
-        "Identify which assumption, population, input, or objective changed.",
-        "Preserve provenance and the declared failure boundary."
+        "Use a table.",
+        "Justify two properties per task."
       ],
       "expectedEvidence": [
-        "An AI task is constrained by what is observable, how actions change the environment, whether outcomes are deterministic, how time evolves, whether states/actions are discrete, how many agents act, and what uncertainty remains.",
-        "These properties can differ between simulation and deployment, partial observability can be hidden by convenient datasets, other agents change dynamics, and a useful abstraction deliberately omits details."
+        "Four tasks characterised.",
+        "Methods match properties."
       ]
     },
     "farTransfer": {
-      "prompt": "Design a neutral-context example or evaluation for Problem and environment characteristics and list the evidence that would support and falsify its bounded claim.",
+      "prompt": "Pick one task and describe how its properties change between a lab version and real deployment. Explain which method choices must change as a result.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+        "Look for hidden information and other agents.",
+        "Consider time pressure."
       ],
       "expectedEvidence": [
-        "Characterize an AI task and explain how its properties constrain solution choices.",
-        "Characterize observability, determinism, dynamics, discreteness, agency, and uncertainty for the actual deployment context before choosing or evaluating a method."
+        "Differences listed.",
+        "Method changes justified."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "ai.foundations.problem-characteristics.misconception",
-      "explanation": "Characterize observability, determinism, dynamics, discreteness, agency, and uncertainty for the actual deployment context before choosing or evaluating a method.",
-      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A road-driving task is dynamic, partially observable, continuous, stochastic, and multi-agent, so the grid assumptions cannot justify the same guarantees."
+      "explanation": "Before choosing a method, **fill in all seven properties** for the real environment, not the demo one.",
+      "retryPrompt": "Apply this to \"The street robot\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to characterize an AI task and explain how its properties constrain solution choices. Keep this boundary in view: These properties can differ between simulation and deployment, partial observability can be hidden by convenient datasets, other agents change dynamics, and a useful abstraction deliberately omits details.",
+    "summary": "To characterize an AI task and explain how its properties constrain solution choices, decide whether it is observable, deterministic, sequential, static, discrete, single-agent and known, then pick methods that fit those properties in the real environment.",
     "retrievalPrompts": [
-      "Explain Problem and environment characteristics with one technical mechanism, one evidence requirement, and one non-claim.",
-      "Why is this overclaim invalid: Once a task is called classification, search, or robotics, its environment properties and appropriate solution family are already determined.",
-      "Apply the boundary to: A road-driving task is dynamic, partially observable, continuous, stochastic, and multi-agent, so the grid assumptions cannot justify the same guarantees."
+      "What does partially observable mean?",
+      "Why does a dynamic world need replanning?",
+      "Does the label classification decide the environment?"
     ],
     "nextReviewPrompt": "Next: continue to “Agent, goal and utility models”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

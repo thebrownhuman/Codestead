@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Structured pseudocode expresses precise executable intent with sequence, selection, iteration, and named operations without depending on one language's punctuation.",
+    "summary": "**Pseudocode** is a plan written in plain, structured steps — precise enough that any two people would carry it out the same way, but free of any one language's punctuation. It uses the same building blocks as code: **sequence**, **selection** (IF), **iteration** (FOR EACH / WHILE) and **named operations**.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Pseudocode for an average initializes total, visits each value, updates total, and divides by the count only after checking that the collection is nonempty. Your goal is to write and trace structured pseudocode for a calculation and decision. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Before cooking a new dish you read the recipe; before coding, you write pseudocode. Say you need the average of some scores. Pseudocode for an average initializes total, visits each value, updates total, and divides by the count only after checking that the collection is nonempty. That last check is the kind of detail a vague paragraph forgets. In this lesson you'll write and trace structured pseudocode for a calculation and decision.\n\n```predict\n{\"question\": \"Plan: \\\"add up the numbers and divide\\\". Two people follow it for an empty list. Do they surely do the same thing?\", \"options\": [\"Yes\", \"No — the plan doesn't say what happens with no numbers\"], \"answer\": 1, \"why\": \"An informal paragraph leaves gaps. One person returns 0, another divides by zero. Structured pseudocode makes that decision explicit.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Program, code and algorithm; Decomposition. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Program, code and algorithm** and **Decomposition**. Pseudocode spells out the steps inside one part of a decomposition."
       },
       {
-        "heading": "Operational model",
-        "body": "Structured pseudocode expresses precise executable intent with sequence, selection, iteration, and named operations without depending on one language's punctuation. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The model: structured steps with the four building blocks",
+        "body": "```text\nFUNCTION average(values)\n    IF values is empty THEN\n        RETURN \"no data\"\n    END IF\n    SET total TO 0\n    FOR EACH v IN values\n        SET total TO total + v\n    END FOR\n    RETURN total / count(values)\nEND FUNCTION\n```\n\n| Block | Here |\n|---|---|\n| Sequence. | steps run in order. |\n| Selection. | IF values is empty. |\n| Iteration. | FOR EACH v. |\n| Named operation. | count(values). |\n\n```reveal\n{\"prompt\": \"Why is `IF values is empty` placed *before* the loop?\", \"answer\": \"So we never reach `total / count(values)` with a count of 0. The decision must happen before the division.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Pseudocode is not an excuse for ambiguous phrases such as handle errors somehow; its conventions, inputs, state changes, and termination must still be traceable. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Any informal paragraph counts as pseudocode even when two readers could execute different steps from it."
+        "heading": "Precise but language-free",
+        "body": "```predict\n{\"question\": \"Which line is better pseudocode?\", \"options\": [\"\\\"Deal with the numbers somehow.\\\"\", \"\\\"FOR EACH v IN values: SET total TO total + v\\\"\"], \"answer\": 1, \"why\": \"The second is precise and executable by hand, yet it isn't tied to Python's colons or C's braces.\"}\n```\n\nA good check: **trace it** on a small example. If you get stuck on a step, it's not precise enough yet."
       }
     ]
   },
   "scope": {
     "includes": [
-      "Express executable intent without depending on one language's syntax.",
-      "Write and trace structured pseudocode for a calculation and decision."
+      "Write pseudocode with sequence, selection, iteration and named operations.",
+      "Trace pseudocode by hand on a small input."
     ],
     "excludes": [
-      "Pseudocode is not an excuse for ambiguous phrases such as handle errors somehow; its conventions, inputs, state changes, and termination must still be traceable."
+      "Flowcharts.",
+      "Translating pseudocode into a specific language."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "pf.problem.pseudocode.example-a",
-      "title": "Pseudocode: direct case",
+      "title": "Pseudocode for an average",
       "situation": "Pseudocode for an average initializes total, visits each value, updates total, and divides by the count only after checking that the collection is nonempty.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: Pseudocode for an average initializes total, visits each value, updates total, and divides by the count only after checking that the collection is nonempty.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Useful pseudocode has unambiguous control flow and state effects that another person can trace and translate without inventing missing decisions."
+        "**Check first:** IF values is empty THEN return \"no data\" — so we never divide by zero.",
+        "**Initialize and visit:** SET total TO 0, then FOR EACH value, update total.",
+        "**Divide:** RETURN total / count(values) only after the collection is known to be nonempty."
       ],
-      "result": "The case supports the declared outcome because Useful pseudocode has unambiguous control flow and state effects that another person can trace and translate without inventing missing decisions."
+      "result": "Traced on [4, 8, 6] the total is 18 and the average is 6; on an empty list it returns \"no data\"."
     },
     {
       "id": "pf.problem.pseudocode.example-b",
-      "title": "Pseudocode: boundary case",
-      "situation": "Pseudocode for ticket eligibility tests age and membership in explicit branches before returning one named decision.",
+      "title": "Pass or fail decision",
+      "situation": "Pseudocode must decide a result from a score: 40 or more passes, otherwise fail; scores outside 0–100 are invalid.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: Pseudocode for ticket eligibility tests age and membership in explicit branches before returning one named decision.",
-        "Step 2 — Keep this boundary explicit: Pseudocode is not an excuse for ambiguous phrases such as handle errors somehow; its conventions, inputs, state changes, and termination must still be traceable.",
-        "Step 3 — Reject the documented misconception: Any informal paragraph counts as pseudocode even when two readers could execute different steps from it."
+        "IF score < 0 OR score > 100 THEN RETURN \"invalid\".",
+        "ELSE IF score >= 40 THEN RETURN \"pass\".",
+        "ELSE RETURN \"fail\". Trace: 40 → pass, 39 → fail, 120 → invalid."
       ],
-      "result": "This case demonstrates the declared outcome: Write and trace structured pseudocode for a calculation and decision."
+      "result": "Structured selection that two readers would execute identically for every score."
     }
   ],
   "misconceptions": [
     {
       "id": "pf.problem.pseudocode.misconception",
-      "mistakenBelief": "Any informal paragraph counts as pseudocode even when two readers could execute different steps from it.",
-      "correction": "Useful pseudocode has unambiguous control flow and state effects that another person can trace and translate without inventing missing decisions.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Any informal paragraph counts as pseudocode even when two readers could execute different steps from it."
+      "mistakenBelief": "Any informal paragraph counts as pseudocode, even when two readers could execute different steps from it.",
+      "correction": "Pseudocode must be precise: its steps, order, decisions and loops leave no room for two readers to do different things. It drops language punctuation, not precision.",
+      "diagnosticPrompt": "In the opening predict, what did \"add up and divide\" fail to specify?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "Planning a trip can model Pseudocode: name the destination, inputs and constraints, divide the journey, and check routes before traveling.",
+    "example": "Pseudocode is like a **recipe card**: \"whisk 2 eggs, then fold in flour; if too thick, add milk\". Clear steps anyone can follow, whatever kitchen they're in.",
     "usefulFor": [
-      "Making requirements, ordered decisions, decomposition, and edge conditions concrete"
+      "remembering precise order and decisions",
+      "seeing it as language-independent"
     ],
     "limitations": [
-      "Programs require unambiguous executable rules, while a traveler can improvise from incomplete directions.",
-      "Pseudocode is not an excuse for ambiguous phrases such as handle errors somehow; its conventions, inputs, state changes, and termination must still be traceable."
+      "Recipes allow \"to taste\"; pseudocode can't allow vague steps.",
+      "Computers need every case handled, like the empty list, which recipes often skip."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Pseudocode for an average initializes total, visits each value, updates total, and divides by the count only after checking that the collection is nonempty.",
-      "Structured pseudocode expresses precise executable intent with sequence, selection, iteration, and named operations without depending on one language's punctuation.",
-      "Useful pseudocode has unambiguous control flow and state effects that another person can trace and translate without inventing missing decisions."
+      "IF values is empty THEN RETURN 'no data'",
+      "SET total TO 0; FOR EACH v IN values: SET total TO total + v",
+      "RETURN total / count(values)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Check empty",
         "state": {
-          "evidence": "Pseudocode for an average initializes total, visits each value, updates total, and divides by the count only after checking that the collection is nonempty."
+          "values": "[4, 8, 6]",
+          "empty?": "no"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "The collection is not empty, so the pseudocode continues to the loop."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Update total",
         "state": {
-          "model": "Structured pseudocode expresses precise executable intent with sequence, selection, iteration, and named operations without depending on one language's punctuation."
+          "total": "4, 12, 18"
         },
-        "explanation": "Apply the declared Pseudocode model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "Each value is visited once and the total is updated after every visit."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Divide",
         "state": {
-          "correction": "Useful pseudocode has unambiguous control flow and state effects that another person can trace and translate without inventing missing decisions."
+          "count": "3",
+          "returned": "6"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Any informal paragraph counts as pseudocode even when two readers could execute different steps from it."
+        "explanation": "Only after checking the collection, the total 18 is divided by the count 3."
       }
     ],
-    "textAlternative": "Starting artifact: Pseudocode for an average initializes total, visits each value, updates total, and divides by the count only after checking that the collection is nonempty. Step 1, Observe. State: evidence: Pseudocode for an average initializes total, visits each value, updates total, and divides by the count only after checking that the collection is nonempty.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Structured pseudocode expresses precise executable intent with sequence, selection, iteration, and named operations without depending on one language's punctuation.. Apply the declared Pseudocode model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Useful pseudocode has unambiguous control flow and state effects that another person can trace and translate without inventing missing decisions.. Compare the observation with the correction and reject the misconception: Any informal paragraph counts as pseudocode even when two readers could execute different steps from it."
+    "textAlternative": "Tracing the average pseudocode on three values. Step 1, Check empty: values is [4, 8, 6]; empty? is no. The collection is not empty, so the pseudocode continues to the loop. Step 2, Update total: total is 4, 12, 18. Each value is visited once and the total is updated after every visit. Step 3, Divide: count is 3; returned is 6. Only after checking the collection, the total 18 is divided by the count 3."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Pseudocode: direct case”: state its starting evidence, apply the Pseudocode rule, and give the observable result in three short lines.",
+      "prompt": "For \"Pseudocode for an average\", write the pseudocode steps: the nonempty check, how total is initialized and updated for each value, and when to divide by the count.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Check.",
+        "Initialize and loop.",
+        "Divide."
       ],
       "expectedEvidence": [
-        "Named example: Pseudocode: direct case.",
-        "Starting evidence: Pseudocode for an average initializes total, visits each value, updates total, and divides by the count only after checking that the collection is nonempty.",
-        "Core rule: Structured pseudocode expresses precise executable intent with sequence, selection, iteration, and named operations without depending on one language's punctuation.",
-        "Observable result: The case supports the declared outcome because Useful pseudocode has unambiguous control flow and state effects that another person can trace and translate without inventing missing decisions.",
-        "Boundary check: Useful pseudocode has unambiguous control flow and state effects that another person can trace and translate without inventing missing decisions."
+        "Names the example \"Pseudocode for an average\": the collection is checked as nonempty first.",
+        "It initializes total to 0 and visits each value to update total.",
+        "It divides by the count only after the check.",
+        "On [4, 8, 6] the average is 6."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: Pseudocode for ticket eligibility tests age and membership in explicit branches before returning one named decision.",
+      "prompt": "Write pseudocode that finds the largest number in a list, returning \"no data\" for an empty list. Trace it on [3, 9, 2].",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Start best at the first item.",
+        "Handle empty first."
       ],
       "expectedEvidence": [
-        "Structured pseudocode expresses precise executable intent with sequence, selection, iteration, and named operations without depending on one language's punctuation.",
-        "Pseudocode is not an excuse for ambiguous phrases such as handle errors somehow; its conventions, inputs, state changes, and termination must still be traceable."
+        "Structured pseudocode with an empty check, a loop and a comparison.",
+        "Trace shows best becoming 3, then 9; returns 9."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Pseudocode, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Write pseudocode for a vending machine: given a price and coins inserted, decide whether to dispense and how much change to return. Include invalid input.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Use IF for not-enough money.",
+        "What counts as invalid?"
       ],
       "expectedEvidence": [
-        "Write and trace structured pseudocode for a calculation and decision.",
-        "Useful pseudocode has unambiguous control flow and state effects that another person can trace and translate without inventing missing decisions."
+        "Precise pseudocode covering enough, exact and too-little money.",
+        "Handles invalid input like negative coins."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "pf.problem.pseudocode.misconception",
-      "explanation": "Useful pseudocode has unambiguous control flow and state effects that another person can trace and translate without inventing missing decisions.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: Pseudocode for ticket eligibility tests age and membership in explicit branches before returning one named decision."
+      "explanation": "Hand your pseudocode to an imaginary robot that does only what's written. For each line ask \"could it do this two different ways?\" If yes, make it more precise.",
+      "retryPrompt": "Run the robot test on \"add up the numbers and divide\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to write and trace structured pseudocode for a calculation and decision. Keep this boundary in view: Pseudocode is not an excuse for ambiguous phrases such as handle errors somehow; its conventions, inputs, state changes, and termination must still be traceable.",
+    "summary": "To write and trace structured pseudocode for a calculation and decision, use sequence, selection, iteration and named operations with no language punctuation, but full precision. Handle edge cases, like an empty list, before they can break a step.",
     "retrievalPrompts": [
-      "Explain Pseudocode without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Any informal paragraph counts as pseudocode even when two readers could execute different steps from it.",
-      "Apply the model to this case from memory: Pseudocode for ticket eligibility tests age and membership in explicit branches before returning one named decision."
+      "What four building blocks does pseudocode use?",
+      "Why check for an empty list before dividing?",
+      "How can you tell pseudocode is precise enough?"
     ],
     "nextReviewPrompt": "Next: continue to “Examples and edge cases”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

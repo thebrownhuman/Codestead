@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A standards-mode document declares the HTML doctype and provides html, head, and body structure with language and metadata.",
+    "summary": "Every real HTML page shares the same skeleton: `<!doctype html>` switches the browser into **standards mode**, `<html lang=\"en\">` says the page's language, `<head>` holds information *about* the page (encoding, title, viewport), and `<body>` holds what people see. Put `<meta charset=\"utf-8\">` **first** in the head so every character is read correctly.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A page begins with <!doctype html>, sets lang on html, gives a title in head, and puts visible content in body. Your goal is to create and explain a complete minimal HTML document with early encoding declaration. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You open your page and \"café\" shows up with two stray symbols where the é should be, and the layout is subtly off compared to your friend's copy. Both problems come from a missing skeleton. A page begins with <!doctype html>, sets lang on html, gives a title in head, and puts visible content in body. In this lesson you'll create and explain a complete minimal HTML document with an early encoding declaration.\n\n```predict\n{\"question\": \"What does `<!doctype html>` do?\", \"options\": [\"It's just a comment noting the HTML version\", \"It makes the browser use standards mode instead of quirks mode\"], \"answer\": 1, \"why\": \"Without it, browsers fall back to \\\"quirks mode\\\", copying old bugs for ancient pages — sizes and layout can differ.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Elements, attributes and nesting. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Elements, attributes and nesting** — the skeleton is just a few nested elements with attributes."
       },
       {
-        "heading": "Technology rule",
-        "body": "A standards-mode document declares the HTML doctype and provides html, head, and body structure with language and metadata. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: doctype, html, head, body",
+        "body": "```html\n<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <title>Asha's Recipes</title>\n  </head>\n  <body>\n    <h1>Asha's Recipes</h1>\n    <p>Simple food, made at home.</p>\n  </body>\n</html>\n```\n\n| Part | Job |\n|---|---|\n| `<!doctype html>`. | standards mode. |\n| `lang=\"en\"`. | language for screen readers, translation, hyphenation. |\n| `<meta charset=\"utf-8\">`. | read bytes as UTF-8 — must come early. |\n| `<title>`. | tab name, bookmarks, search results. |\n| `<body>`. | visible content. |\n\n```reveal\n{\"prompt\": \"Why must charset appear early in the head?\", \"answer\": \"The browser must know the encoding before it reads any text. The spec requires the declaration within the first 1024 bytes.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Browsers can infer omitted elements, but explicit structure supports tooling, accessibility, and predictable maintenance. This draft therefore rejects: The doctype is an optional comment that only documents the HTML version."
+        "heading": "Head vs body",
+        "body": "```predict\n{\"question\": \"Where does `<h1>Welcome</h1>` belong?\", \"options\": [\"In head, near the title\", \"In body\"], \"answer\": 1, \"why\": \"The head holds information about the page. Anything visitors should see goes in body.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Declare doctype, language, character encoding, viewport and body content correctly.",
-      "Create and explain a complete minimal HTML document with early encoding declaration."
+      "Write a complete minimal document with doctype, lang, charset, viewport and title.",
+      "Explain what belongs in head versus body."
     ],
     "excludes": [
-      "Browsers can infer omitted elements, but explicit structure supports tooling, accessibility, and predictable maintenance."
+      "Linking CSS and scripts (metadata module).",
+      "Social sharing meta tags."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "html.document.skeleton.example-a",
-      "title": "Standards-mode document skeleton: concrete case",
+      "title": "The smallest complete page",
       "situation": "A page begins with <!doctype html>, sets lang on html, gives a title in head, and puts visible content in body.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A page begins with <!doctype html>, sets lang on html, gives a title in head, and puts visible content in body.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Use <!doctype html> to request standards mode and provide explicit html, head, and body structure."
+        "**Begins with <!doctype html>:** the browser renders in standards mode.",
+        "**Sets lang on html and a title in head:** `<html lang=\"en\">`, then `<meta charset=\"utf-8\">` first and `<title>Asha's Recipes</title>`.",
+        "**Visible content in body:** the h1 and paragraph go inside `<body>`."
       ],
-      "result": "The result follows because Use <!doctype html> to request standards mode and provide explicit html, head, and body structure."
+      "result": "The tab reads \"Asha's Recipes\", accented text displays correctly, and the page renders in standards mode."
     },
     {
       "id": "html.document.skeleton.example-b",
-      "title": "Standards-mode document skeleton: boundary case",
-      "situation": "Browsers can infer omitted elements, but explicit structure supports tooling, accessibility, and predictable maintenance.",
+      "title": "The garbled café",
+      "situation": "A page saved as UTF-8 has no charset declaration. \"café\" shows with two stray symbols in place of the é on some computers.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Browsers can infer omitted elements, but explicit structure supports tooling, accessibility, and predictable maintenance.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: The doctype is an optional comment that only documents the HTML version."
+        "Without a declaration, the browser guesses an older encoding.",
+        "The two UTF-8 bytes of é are read as two separate characters.",
+        "Fix: add `<meta charset=\"utf-8\">` as the first element in head."
       ],
-      "result": "The boundary requires this correction: Use <!doctype html> to request standards mode and provide explicit html, head, and body structure."
+      "result": "With the early declaration, café displays correctly everywhere."
     }
   ],
   "misconceptions": [
     {
       "id": "html.document.skeleton.misconception",
       "mistakenBelief": "The doctype is an optional comment that only documents the HTML version.",
-      "correction": "Use <!doctype html> to request standards mode and provide explicit html, head, and body structure.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: The doctype is an optional comment that only documents the HTML version."
+      "correction": "The doctype is required: it tells browsers to use standards mode. Without it, pages render in quirks mode, where layout rules differ.",
+      "diagnosticPrompt": "In the opening predict, what mode does a page without a doctype use?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model Standards-mode document skeleton, with structure carrying meaning before decoration.",
+    "example": "The skeleton is like a **letter**: the envelope format (doctype), the language it's written in (lang), the address label (title, charset in head), and the letter itself (body).",
     "usefulFor": [
-      "Building a first mental model for Standards-mode document skeleton before using exact platform terms"
+      "remembering head = about the page, body = the page",
+      "seeing doctype as the format"
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "Browsers can infer omitted elements, but explicit structure supports tooling, accessibility, and predictable maintenance."
+      "Letters don't switch rendering modes; browsers do.",
+      "A letter has one reader; pages serve screen readers, search engines and browsers."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A page begins with <!doctype html>, sets lang on html, gives a title in head, and puts visible content in body.",
-      "A standards-mode document declares the HTML doctype and provides html, head, and body structure with language and metadata.",
-      "Use <!doctype html> to request standards mode and provide explicit html, head, and body structure."
+      "<!doctype html>",
+      "<html lang='en'><head><meta charset='utf-8'><title>Asha's Recipes</title></head>",
+      "<body><h1>Asha's Recipes</h1></body></html>"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Doctype",
         "state": {
-          "evidence": "A page begins with <!doctype html>, sets lang on html, gives a title in head, and puts visible content in body."
+          "mode": "standards"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The page begins with the doctype, so the browser uses standards mode."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Head",
         "state": {
-          "rule": "A standards-mode document declares the HTML doctype and provides html, head, and body structure with language and metadata."
+          "lang": "en",
+          "charset": "utf-8",
+          "title": "Asha's Recipes"
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "It sets lang on html and gives a title in head after the early charset."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Body",
         "state": {
-          "correction": "Use <!doctype html> to request standards mode and provide explicit html, head, and body structure."
+          "visible": "h1 + paragraph"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: The doctype is an optional comment that only documents the HTML version."
+        "explanation": "It puts visible content in body."
       }
     ],
-    "textAlternative": "Starting artifact: A page begins with <!doctype html>, sets lang on html, gives a title in head, and puts visible content in body. Step 1, Artifact. State: evidence: A page begins with <!doctype html>, sets lang on html, gives a title in head, and puts visible content in body.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A standards-mode document declares the HTML doctype and provides html, head, and body structure with language and metadata.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use <!doctype html> to request standards mode and provide explicit html, head, and body structure.. Check the result against the boundary and reject this misconception: The doctype is an optional comment that only documents the HTML version."
+    "textAlternative": "Reading a minimal document. Step 1, Doctype: mode is standards. The page begins with the doctype, so the browser uses standards mode. Step 2, Head: lang is en; charset is utf-8; title is Asha's Recipes. It sets lang on html and gives a title in head after the early charset. Step 3, Body: visible is h1 + paragraph. It puts visible content in body."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Standards-mode document skeleton: concrete case”: state its starting evidence, apply the Standards-mode document skeleton rule, and give the observable result in three short lines.",
+      "prompt": "For \"The smallest complete page\", explain how the page begins with <!doctype html>, why it sets lang on html, what goes in head including the title, and what goes in body.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Doctype.",
+        "lang.",
+        "head.",
+        "body."
       ],
       "expectedEvidence": [
-        "Named example: Standards-mode document skeleton: concrete case.",
-        "Starting evidence: A page begins with <!doctype html>, sets lang on html, gives a title in head, and puts visible content in body.",
-        "Core rule: A standards-mode document declares the HTML doctype and provides html, head, and body structure with language and metadata.",
-        "Observable result: The result follows because Use <!doctype html> to request standards mode and provide explicit html, head, and body structure.",
-        "Boundary check: Use <!doctype html> to request standards mode and provide explicit html, head, and body structure."
+        "Names the example \"The smallest complete page\": the page begins with <!doctype html> for standards mode.",
+        "It sets lang on html.",
+        "It gives a title in head after meta charset.",
+        "It puts visible content in body."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Browsers can infer omitted elements, but explicit structure supports tooling, accessibility, and predictable maintenance.",
+      "prompt": "Write the skeleton for a Hindi-language page titled \"मेरा पेज\" with one heading. Which attributes and meta tags matter most?",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "lang=\"hi\".",
+        "charset first."
       ],
       "expectedEvidence": [
-        "A standards-mode document declares the HTML doctype and provides html, head, and body structure with language and metadata.",
-        "Browsers can infer omitted elements, but explicit structure supports tooling, accessibility, and predictable maintenance."
+        "Doctype, html lang=\"hi\", meta charset utf-8, viewport and title.",
+        "Heading inside body."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Standards-mode document skeleton and explain why the misconception fails.",
+      "prompt": "Create two copies of a small page: one with and one without the doctype and charset. Open both, compare layout and accented text, and explain each difference.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Add a word with an accent.",
+        "Check the rendering mode in dev tools."
       ],
       "expectedEvidence": [
-        "Create and explain a complete minimal HTML document with early encoding declaration.",
-        "Use <!doctype html> to request standards mode and provide explicit html, head, and body structure."
+        "Observed differences described.",
+        "Each explained by quirks mode or encoding."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.document.skeleton.misconception",
-      "explanation": "Use <!doctype html> to request standards mode and provide explicit html, head, and body structure.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'standards mode' and state the decisive evidence."
+      "explanation": "Keep a checklist at the top of every file: **doctype → html lang → head (charset first, viewport, title) → body**. Tick each before writing content.",
+      "retryPrompt": "Tick the checklist for \"The garbled café\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to create and explain a complete minimal HTML document with early encoding declaration. Keep this boundary in view: Browsers can infer omitted elements, but explicit structure supports tooling, accessibility, and predictable maintenance.",
+    "summary": "To create a complete minimal HTML document, start with <!doctype html>, set lang on html, put meta charset utf-8 first in head with a viewport and title, and place visible content in body. The doctype switches on standards mode.",
     "retrievalPrompts": [
-      "Explain Standards-mode document skeleton using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: The doctype is an optional comment that only documents the HTML version.",
-      "Apply checkpoint 'standards mode' to a new artifact."
+      "What does the doctype do?",
+      "Why declare charset first?",
+      "What belongs in head vs body?"
     ],
     "nextReviewPrompt": "Next: continue to “Document tree and DOM concept”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

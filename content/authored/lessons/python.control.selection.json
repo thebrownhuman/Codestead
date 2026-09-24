@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Python if/elif/else evaluates truth conditions in order, while match applies structural patterns, guards, and captures to supported data shapes rather than acting as a generic switch.",
+    "summary": "Python picks a path with `if`/`elif`/`else` — checked top to bottom, first true branch wins — or with `match`, which compares a value against **patterns**. Boundary-complete selection means every possible input, including exact thresholds and impossible values, lands in a branch you chose on purpose.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A temperature classifier tests exact thresholds with an elif chain and has a documented branch for out-of-domain sensor values. Your goal is to implement and test boundary-complete selection using an appropriate construct. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A smart thermostat labels readings: below 18 is cold, 18 to 26 comfortable, above 26 hot. Then a broken sensor sends -999. Which label should that get? A temperature classifier tests exact thresholds with an elif chain and has a documented branch for out-of-domain sensor values. In this lesson you'll implement and test boundary-complete selection using an appropriate construct — and meet one sneaky `match` trap.\n\n```predict\n{\"question\": \"With `if t < 18: cold` / `elif t <= 26: comfortable` / `else: hot`, what is 26?\", \"options\": [\"comfortable\", \"hot\"], \"answer\": 0, \"why\": \"`26 < 18` is False; `26 <= 26` is True → comfortable. Exact thresholds are where bugs hide, so test them.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Scripts, indentation and main guard; pf state expressions; Operators and comparisons. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Scripts, indentation and main guard**, **Expressions and evaluation** and **Operators and comparisons** (chained comparisons like `18 <= t <= 26`)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Python if/elif/else evaluates truth conditions in order, while match applies structural patterns, guards, and captures to supported data shapes rather than acting as a generic switch. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The rule: first true branch wins, cover every input",
+        "body": "```python\ndef classify(t):\n    if not -50 <= t <= 60:       # documented: sensor fault\n        return \"invalid\"\n    elif t < 18:\n        return \"cold\"\n    elif t <= 26:\n        return \"comfortable\"\n    else:\n        return \"hot\"\n```\n\n| Input | Branch |\n|---|---|\n| -999. | invalid. |\n| 17.9. | cold. |\n| 18 and 26. | comfortable. |\n| 26.1. | hot. |\n\n```reveal\n{\"prompt\": \"Why check \\\"invalid\\\" first?\", \"answer\": \"Otherwise -999 would match `t < 18` and be labelled cold — a believable but wrong answer. Handle out-of-domain values before normal ones.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "A capture pattern can shadow a constant name, guards run only after pattern success, sequence/string patterns differ, wildcard placement matters, and incomplete numeric boundaries leave gaps. The learner must reject this documented misconception: Every bare name in a match case compares against an existing variable or constant value."
+        "heading": "`match` and the capture trap",
+        "body": "`match` is great for comparing against fixed shapes or literal values:\n\n```python\nmatch command:\n    case \"start\": run()\n    case \"stop\":  halt()\n    case _:       print(\"unknown\")\n```\n\n```predict\n{\"question\": \"`STOP = \\\"stop\\\"` then `case STOP:`. What does that case do?\", \"options\": [\"Compares command with \\\"stop\\\"\", \"Matches anything and binds it to a new name STOP\"], \"answer\": 1, \"why\": \"A bare name in a case is a **capture pattern**: it matches everything. To compare with a constant, use a dotted name like `Cmd.STOP` or a literal.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use conditions and structural pattern matching for complete and readable decisions.",
-      "Implement and test boundary-complete selection using an appropriate construct."
+      "Write if/elif/else chains that handle exact thresholds and out-of-domain values.",
+      "Use match with literal patterns and avoid the bare-name capture trap."
     ],
     "excludes": [
-      "A capture pattern can shadow a constant name, guards run only after pattern success, sequence/string patterns differ, wildcard placement matters, and incomplete numeric boundaries leave gaps."
+      "Class and mapping patterns in match.",
+      "Ternary expressions in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "python.control.selection.example.direct",
-      "title": "if and match: direct language case",
+      "title": "The temperature classifier",
       "situation": "A temperature classifier tests exact thresholds with an elif chain and has a documented branch for out-of-domain sensor values.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A temperature classifier tests exact thresholds with an elif chain and has a documented branch for out-of-domain sensor values.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Treat bare names in patterns as captures unless they are qualified value patterns; choose match for structural decomposition and test every selection boundary."
+        "**Out-of-domain first:** `if not -50 <= t <= 60: return \"invalid\"` — a documented branch for sensor values like -999.",
+        "**Exact thresholds:** `elif t < 18` cold, `elif t <= 26` comfortable — so 18 and 26 are both comfortable.",
+        "**Test:** classify(-999), classify(17.9), classify(18), classify(26), classify(26.1) give invalid, cold, comfortable, comfortable, hot."
       ],
-      "result": "The example meets the atomic outcome because Treat bare names in patterns as captures unless they are qualified value patterns; choose match for structural decomposition and test every selection boundary."
+      "result": "Every temperature, including exact thresholds and faulty sensor values, reaches a deliberate branch."
     },
     {
       "id": "python.control.selection.example.boundary",
-      "title": "if and match: boundary and transfer case",
-      "situation": "A match statement destructures tagged command tuples, uses literals for command names, and keeps a final wildcard for malformed shapes.",
+      "title": "The match that matched everything",
+      "situation": "```python\nQUIT = \"q\"\nmatch key:\n    case QUIT:\n        exit_app()\n    case \"h\":\n        show_help()\n```\nPressing \"h\" quits the app.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A match statement destructures tagged command tuples, uses literals for command names, and keeps a final wildcard for malformed shapes.",
-        "Step 2 — Keep the language boundary explicit: A capture pattern can shadow a constant name, guards run only after pattern success, sequence/string patterns differ, wildcard placement matters, and incomplete numeric boundaries leave gaps.",
-        "Step 3 — Reject the tempting but incorrect rule: Every bare name in a match case compares against an existing variable or constant value."
+        "`case QUIT:` is a capture pattern, not a comparison — it matches any key.",
+        "It binds key's value to the name QUIT and runs exit_app().",
+        "Fix: `case \"q\":` or put constants in a class and use `case Keys.QUIT:`."
       ],
-      "result": "This case demonstrates the declared outcome: Implement and test boundary-complete selection using an appropriate construct."
+      "result": "After the fix, \"h\" shows help and only \"q\" quits."
     }
   ],
   "misconceptions": [
     {
       "id": "python.control.selection.misconception",
       "mistakenBelief": "Every bare name in a match case compares against an existing variable or constant value.",
-      "correction": "Treat bare names in patterns as captures unless they are qualified value patterns; choose match for structural decomposition and test every selection boundary.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Every bare name in a match case compares against an existing variable or constant value."
+      "correction": "A bare name in a case is a capture pattern: it matches any value and binds it to that name. Only literals and dotted names (like `Colors.RED`) compare against a value.",
+      "diagnosticPrompt": "In \"The match that matched everything\", why did pressing \"h\" quit?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a labeled decision board whose current objects feed expressions, branches, patterns, and repeatable progress rules can introduce if and match, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "example": "An if/elif chain is like **airport security lanes** checked in order: \"prohibited items? → stop. Crew? → fast lane. Everyone else → normal lane\". Checking prohibited items first stops them sneaking into a normal lane.",
     "usefulFor": [
-      "scalar semantics, comparisons, selection, and iteration"
+      "remembering order matters",
+      "putting invalid checks first"
     ],
     "limitations": [
-      "identity, truthiness, protocol dispatch, chained comparisons, and iterator behavior do not follow ordinary board-game rules",
-      "A capture pattern can shadow a constant name, guards run only after pattern success, sequence/string patterns differ, wildcard placement matters, and incomplete numeric boundaries leave gaps."
+      "People can be re-checked; a branch runs only once.",
+      "`match` is more like a sorter that inspects the shape of a package."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A temperature classifier tests exact thresholds with an elif chain and has a documented branch for out-of-domain sensor values.",
-      "Python if/elif/else evaluates truth conditions in order, while match applies structural patterns, guards, and captures to supported data shapes rather than acting as a generic switch.",
-      "Treat bare names in patterns as captures unless they are qualified value patterns; choose match for structural decomposition and test every selection boundary."
+      "t = -999",
+      "if not -50 <= t <= 60: return 'invalid'",
+      "elif t < 18: return 'cold'"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Receive reading",
         "state": {
-          "evidence": "A temperature classifier tests exact thresholds with an elif chain and has a documented branch for out-of-domain sensor values."
+          "t": "-999"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "The temperature classifier receives an out-of-domain sensor value."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Domain check",
         "state": {
-          "rule": "Python if/elif/else evaluates truth conditions in order, while match applies structural patterns, guards, and captures to supported data shapes rather than acting as a generic switch."
+          "-50 <= t <= 60": "False",
+          "returned": "invalid"
         },
-        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "The documented branch catches the out-of-domain value first."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Skipped branches",
         "state": {
-          "correction": "Treat bare names in patterns as captures unless they are qualified value patterns; choose match for structural decomposition and test every selection boundary."
+          "t < 18 checked": "no"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Every bare name in a match case compares against an existing variable or constant value."
+        "explanation": "Because a branch already ran, the cold test is never reached."
       }
     ],
-    "textAlternative": "Starting artifact: A temperature classifier tests exact thresholds with an elif chain and has a documented branch for out-of-domain sensor values. Step 1, Observe. State: evidence: A temperature classifier tests exact thresholds with an elif chain and has a documented branch for out-of-domain sensor values.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Python if/elif/else evaluates truth conditions in order, while match applies structural patterns, guards, and captures to supported data shapes rather than acting as a generic switch.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Treat bare names in patterns as captures unless they are qualified value patterns; choose match for structural decomposition and test every selection boundary.. Compare the observation with the correction and explain why the misconception fails: Every bare name in a match case compares against an existing variable or constant value."
+    "textAlternative": "Classifying a faulty sensor reading. Step 1, Receive reading: t is -999. The temperature classifier receives an out-of-domain sensor value. Step 2, Domain check: -50 <= t <= 60 is False; returned is invalid. The documented branch catches the out-of-domain value first. Step 3, Skipped branches: t < 18 checked is no. Because a branch already ran, the cold test is never reached."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “if and match: direct language case”: state its starting evidence, apply the if and match rule, and give the observable result in three short lines.",
+      "prompt": "For \"The temperature classifier\", explain how the elif chain handles the exact thresholds 18 and 26, and why there is a documented branch for out-of-domain sensor values.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Thresholds.",
+        "Out-of-domain branch.",
+        "Tests."
       ],
       "expectedEvidence": [
-        "Named example: if and match: direct language case.",
-        "Starting evidence: A temperature classifier tests exact thresholds with an elif chain and has a documented branch for out-of-domain sensor values.",
-        "Core rule: Python if/elif/else evaluates truth conditions in order, while match applies structural patterns, guards, and captures to supported data shapes rather than acting as a generic switch.",
-        "Observable result: The example meets the atomic outcome because Treat bare names in patterns as captures unless they are qualified value patterns; choose match for structural decomposition and test every selection boundary.",
-        "Boundary check: Treat bare names in patterns as captures unless they are qualified value patterns; choose match for structural decomposition and test every selection boundary."
+        "Names the example \"The temperature classifier\": an elif chain testing exact thresholds.",
+        "18 and 26 are both comfortable.",
+        "A documented branch returns invalid for out-of-domain sensor values like -999.",
+        "Tests cover -999, 17.9, 18, 26 and 26.1."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A match statement destructures tagged command tuples, uses literals for command names, and keeps a final wildcard for malformed shapes.",
+      "prompt": "Write `ticket(age)`: under 0 or over 120 → \"invalid\", under 13 → \"child\", 60 or over → \"senior\", else \"adult\". List the boundary tests.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Invalid first.",
+        "Test 12, 13, 59, 60."
       ],
       "expectedEvidence": [
-        "Python if/elif/else evaluates truth conditions in order, while match applies structural patterns, guards, and captures to supported data shapes rather than acting as a generic switch.",
-        "A capture pattern can shadow a constant name, guards run only after pattern success, sequence/string patterns differ, wildcard placement matters, and incomplete numeric boundaries leave gaps."
+        "Correct chain with invalid handled first.",
+        "Boundary tests: -1, 12, 13, 59, 60, 121 with expected labels."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of if and match, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Write a `match` on a command string with cases for \"add\", \"remove\", \"list\" and a wildcard. Then add a constant-based version using a class of names and show both behave the same.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Use `case _:` for unknown.",
+        "Dotted names compare."
       ],
       "expectedEvidence": [
-        "Implement and test boundary-complete selection using an appropriate construct.",
-        "Treat bare names in patterns as captures unless they are qualified value patterns; choose match for structural decomposition and test every selection boundary."
+        "Working literal-pattern match with wildcard.",
+        "Constant version using dotted names, not bare names."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "python.control.selection.misconception",
-      "explanation": "Treat bare names in patterns as captures unless they are qualified value patterns; choose match for structural decomposition and test every selection boundary.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A match statement destructures tagged command tuples, uses literals for command names, and keeps a final wildcard for malformed shapes."
+      "explanation": "List every boundary value and one impossible value. Walk each through the chain, writing True/False at each condition until one fires. For `match`, underline bare names — they capture.",
+      "retryPrompt": "Walk -999, 18 and 26 through the classifier."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test boundary-complete selection using an appropriate construct. Keep this boundary in view: A capture pattern can shadow a constant name, guards run only after pattern success, sequence/string patterns differ, wildcard placement matters, and incomplete numeric boundaries leave gaps.",
+    "summary": "To implement boundary-complete selection, handle out-of-domain values first, order conditions so exact thresholds land correctly, and test each boundary. Use `match` for literal patterns, remembering that bare names capture instead of compare.",
     "retrievalPrompts": [
-      "Explain if and match using canonical Python: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Every bare name in a match case compares against an existing variable or constant value.",
-      "Predict this case from memory: A match statement destructures tagged command tuples, uses literals for command names, and keeps a final wildcard for malformed shapes."
+      "Where should the invalid-input check go?",
+      "What does a bare name in a case do?",
+      "Which temperatures should you always test?"
     ],
     "nextReviewPrompt": "Next: continue to “for, while and loop control”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

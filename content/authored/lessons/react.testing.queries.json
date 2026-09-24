@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "React tests should query by accessible role, name, label, and visible text in the same priority users perceive.",
+    "summary": "React Testing Library encourages tests that find elements **the way people do**. Query priority: `getByRole` with a name (`getByRole(\"button\", { name: \"Save lesson\" })`), then `getByLabelText` for form fields, then `getByText` for plain content. `getByTestId` is a **last resort** for things with no accessible role or text. Interact with `userEvent` (type, click, keyboard) rather than calling handlers or setting state. Tests written this way survive refactors and also fail when a label or button name goes missing.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A save button is selected by role and accessible name rather than its CSS class. Your goal is to write component tests that avoid implementation-detail selectors. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A lesson editor test finds the Save button with `container.querySelector(\".btn-primary\")`. A redesign renames the class and 40 tests fail, although nothing changed for learners. Meanwhile, a real bug, the Save button losing its text for an icon, passes every test. A save button is selected by role and accessible name rather than its CSS class. In this lesson you'll write component tests that avoid implementation-detail selectors.\n\n```predict\n{\"question\": \"Which query would catch the icon-only Save button bug?\", \"options\": [\"getByTestId(\\\"save-button\\\")\", \"getByRole(\\\"button\\\", { name: \\\"Save lesson\\\" })\"], \"answer\": 1, \"why\": \"The role query needs an accessible name, so it fails when the name disappears. A test id doesn't care.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Accessibility, errors and performance; Routing and application context; Semantic and keyboard-accessible components; javascript quality dom tests. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Accessibility, errors and performance** module, the **Routing and application context** module, **Semantic and keyboard-accessible components**, and **DOM and asynchronous integration tests** (the same ideas without React)."
       },
       {
-        "heading": "Technology rule",
-        "body": "React tests should query by accessible role, name, label, and visible text in the same priority users perceive. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The rule: query like a user, act like a user",
+        "body": "```jsx\nimport { render, screen } from \"@testing-library/react\";\nimport userEvent from \"@testing-library/user-event\";\nimport { it, expect, vi } from \"vitest\";\nimport { LessonEditor } from \"./LessonEditor.jsx\";\n\nit(\"saves the typed title\", async () => {\n  const onSave = vi.fn();\n  const user = userEvent.setup();\n  render(<LessonEditor onSave={onSave} />);\n\n  await user.type(screen.getByLabelText(\"Lesson title\"), \"Loops\");\n  await user.click(screen.getByRole(\"button\", { name: \"Save lesson\" }));\n\n  expect(onSave).toHaveBeenCalledWith({ title: \"Loops\" });\n  expect(screen.getByRole(\"status\")).toHaveTextContent(\"Saved\");\n});\n```\n\n| Priority | Query | Use for |\n|---|---|---|\n| 1. | getByRole + name. | buttons, links, headings, dialogs. |\n| 2. | getByLabelText. | form fields. |\n| 3. | getByText. | plain text content. |\n| last. | getByTestId. | no role, label or text available. |\n\n| Prefix | Behaviour |\n|---|---|\n| getBy. | exactly one, or throws. |\n| queryBy. | returns null if missing (for \"not there\" checks). |\n| findBy. | waits for it to appear (async). |\n\n```reveal\n{\"prompt\": \"When is getByTestId acceptable?\", \"answer\": \"For something with no user-facing role or text, like a canvas chart wrapper. Even then, consider adding an accessible name instead.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Some hidden or presentation nodes lack roles, duplicate names need scoping, and test ids are a last resort. This draft therefore rejects: data-testid is always the most stable and user-centered query."
+        "heading": "Absent elements",
+        "body": "```predict\n{\"question\": \"How do you assert an error message is not shown?\", \"options\": [\"expect(screen.getByText(\\\"Error\\\")).toBeNull()\", \"expect(screen.queryByText(\\\"Error\\\")).toBeNull()\"], \"answer\": 1, \"why\": \"getBy throws when missing; queryBy returns null.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Query rendered output by role, name, label or text and drive realistic user interactions.",
-      "Write component tests that avoid implementation-detail selectors."
+      "Query by role and name, label and text before test ids.",
+      "Interact through userEvent and assert what users see."
     ],
     "excludes": [
-      "Some hidden or presentation nodes lack roles, duplicate names need scoping, and test ids are a last resort."
+      "Async waiting in depth (next lesson).",
+      "Snapshot testing."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "react.testing.queries.example-a",
-      "title": "Accessible queries and interactions: concrete case",
+      "title": "Finding the Save button like a learner",
       "situation": "A save button is selected by role and accessible name rather than its CSS class.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A save button is selected by role and accessible name rather than its CSS class.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Prefer semantic user-facing queries and use test ids only when no meaningful accessible selector exists."
+        "**Replace the selector:** `querySelector(\".btn-primary\")` becomes `getByRole(\"button\", { name: \"Save lesson\" })`.",
+        "**Act like a learner:** the test types into the field found by its label and clicks the button with userEvent.",
+        "**Check:** the test will survive the class rename, and it fails if the button loses its accessible name."
       ],
-      "result": "The result follows because Prefer semantic user-facing queries and use test ids only when no meaningful accessible selector exists."
+      "result": "Tests break when learners would notice a problem, not when styling changes."
     },
     {
       "id": "react.testing.queries.example-b",
-      "title": "Accessible queries and interactions: boundary case",
-      "situation": "Some hidden or presentation nodes lack roles, duplicate names need scoping, and test ids are a last resort.",
+      "title": "The test that called the handler directly",
+      "situation": "A test does `wrapper.props().onClick()` to \"click\" a button. It passes, but in the real app the button is disabled and can't be clicked.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Some hidden or presentation nodes lack roles, duplicate names need scoping, and test ids are a last resort.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: data-testid is always the most stable and user-centered query."
+        "Calling the handler skipped the real DOM and its disabled state.",
+        "Use `await user.click(screen.getByRole(\"button\", { name: \"Submit\" }))`.",
+        "Now the test also checks `toBeDisabled()` before the form is valid."
       ],
-      "result": "The boundary requires this correction: Prefer semantic user-facing queries and use test ids only when no meaningful accessible selector exists."
+      "result": "The test only passes when a learner could actually click the button."
     }
   ],
   "misconceptions": [
     {
       "id": "react.testing.queries.misconception",
       "mistakenBelief": "data-testid is always the most stable and user-centered query.",
-      "correction": "Prefer semantic user-facing queries and use test ids only when no meaningful accessible selector exists.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: data-testid is always the most stable and user-centered query."
+      "correction": "Test ids are invisible to learners and pass even when names, labels or roles break. Role, label and text queries reflect what users perceive and should come first; test ids are a last resort.",
+      "diagnosticPrompt": "In the opening predict, which query would miss the missing button name?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Accessible queries and interactions, where inputs and state produce a UI description.",
+    "example": "Accessible queries are like **asking a friend to find \"the Save button\" on your screen**: they look for what's visible and named. Test ids are like **finding it by the manufacturer's serial number on the back**: stable, but it tells you nothing about whether a person can use it.",
     "usefulFor": [
-      "Building a first mental model for Accessible queries and interactions before using exact platform terms"
+      "remembering query by what users perceive",
+      "userEvent = a real person clicking"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Some hidden or presentation nodes lack roles, duplicate names need scoping, and test ids are a last resort."
+      "Friends can squint; queries need exact names or regexes.",
+      "Serial numbers are fine when nothing else identifies the part."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A save button is selected by role and accessible name rather than its CSS class.",
-      "React tests should query by accessible role, name, label, and visible text in the same priority users perceive.",
-      "Prefer semantic user-facing queries and use test ids only when no meaningful accessible selector exists."
+      "render(<LessonEditor />)",
+      "getByRole('button', { name: 'Save lesson' })",
+      "user.click and assert"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Render",
         "state": {
-          "evidence": "A save button is selected by role and accessible name rather than its CSS class."
+          "DOM": "label + input + button"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The component renders its real accessible structure."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Query",
         "state": {
-          "rule": "React tests should query by accessible role, name, label, and visible text in the same priority users perceive."
+          "found": "button Save lesson",
+          "class used": "none"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The save button is selected by role and accessible name rather than its CSS class."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Act",
         "state": {
-          "correction": "Prefer semantic user-facing queries and use test ids only when no meaningful accessible selector exists."
+          "onSave calls": "1",
+          "status": "Saved"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: data-testid is always the most stable and user-centered query."
+        "explanation": "userEvent clicks it like a learner and the test checks the visible result."
       }
     ],
-    "textAlternative": "Starting artifact: A save button is selected by role and accessible name rather than its CSS class. Step 1, Artifact. State: evidence: A save button is selected by role and accessible name rather than its CSS class.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: React tests should query by accessible role, name, label, and visible text in the same priority users perceive.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Prefer semantic user-facing queries and use test ids only when no meaningful accessible selector exists.. Check the result against the boundary and reject this misconception: data-testid is always the most stable and user-centered query."
+    "textAlternative": "Tracing an accessible test. Step 1, Render: DOM is label + input + button. The component renders its real accessible structure. Step 2, Query: found is button Save lesson; class used is none. The save button is selected by role and accessible name rather than its CSS class. Step 3, Act: onSave calls is 1; status is Saved. userEvent clicks it like a learner and the test checks the visible result."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Accessible queries and interactions: concrete case”: state its starting evidence, apply the Accessible queries and interactions rule, and give the observable result in three short lines.",
+      "prompt": "For \"Finding the Save button like a learner\", explain why a save button is selected by role and accessible name rather than its CSS class.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Selector.",
+        "Interaction.",
+        "Check."
       ],
       "expectedEvidence": [
-        "Named example: Accessible queries and interactions: concrete case.",
-        "Starting evidence: A save button is selected by role and accessible name rather than its CSS class.",
-        "Core rule: React tests should query by accessible role, name, label, and visible text in the same priority users perceive.",
-        "Observable result: The result follows because Prefer semantic user-facing queries and use test ids only when no meaningful accessible selector exists.",
-        "Boundary check: Prefer semantic user-facing queries and use test ids only when no meaningful accessible selector exists."
+        "Names the example \"Finding the Save button like a learner\": the class selector broke on a redesign.",
+        "The save button is selected by role and accessible name.",
+        "userEvent clicks it like a learner.",
+        "Tests break when learners would notice a problem, not when styling changes."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Some hidden or presentation nodes lack roles, duplicate names need scoping, and test ids are a last resort.",
+      "prompt": "Rewrite three queries: `.title h2`, `#email-input`, `[data-testid=\"close\"]` (an × button with aria-label=\"Close\") using role, label and name.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Heading role with name.",
+        "Label text for the input."
       ],
       "expectedEvidence": [
-        "React tests should query by accessible role, name, label, and visible text in the same priority users perceive.",
-        "Some hidden or presentation nodes lack roles, duplicate names need scoping, and test ids are a last resort."
+        "getByRole(\"heading\", { name: ... }).",
+        "getByLabelText(\"Email\"), getByRole(\"button\", { name: \"Close\" })."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Accessible queries and interactions and explain why the misconception fails.",
+      "prompt": "Refactor a component test file to remove every class, id and test-id selector where an accessible query works. Note any element that had no accessible name and fix the component too.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "One query at a time.",
+        "Fix components, not just tests."
       ],
       "expectedEvidence": [
-        "Write component tests that avoid implementation-detail selectors.",
-        "Prefer semantic user-facing queries and use test ids only when no meaningful accessible selector exists."
+        "Only role, label and text queries left, except justified ones.",
+        "Components gained missing names."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.testing.queries.misconception",
-      "explanation": "Prefer semantic user-facing queries and use test ids only when no meaningful accessible selector exists.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'semantic user-facing queries' and state the decisive evidence."
+      "explanation": "For each query ask: **How would a learner find this?** Use that: role and name, label, or text. If you can't, the component may be missing an accessible name.",
+      "retryPrompt": "Apply this to \"The test that called the handler directly\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to write component tests that avoid implementation-detail selectors. Keep this boundary in view: Some hidden or presentation nodes lack roles, duplicate names need scoping, and test ids are a last resort.",
+    "summary": "To write component tests that avoid implementation-detail selectors, find elements by role and accessible name, label or visible text before test ids, interact with userEvent instead of calling handlers, use queryBy for absent elements, and assert what learners actually see.",
     "retrievalPrompts": [
-      "Explain Accessible queries and interactions using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: data-testid is always the most stable and user-centered query.",
-      "Apply checkpoint 'semantic user-facing queries' to a new artifact."
+      "What's the first-choice query?",
+      "Why are test ids a last resort?",
+      "Which query do you use to check something is absent?"
     ],
     "nextReviewPrompt": "Next: continue to “Asynchronous component tests”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "With nested control flow, the inner construct completes for each applicable outer state; total executions are derived by tracing both levels and their bounds.",
+    "summary": "A loop inside a loop runs its **whole inner loop once for every outer step**. Two loops of 3 give 3 × 3 = 9 inner runs, not 6. That's how you walk grids, tables and seats-in-rows — and why nested loops get slow fast.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A grid traversal visits each row and then each column in that row, producing one coordinate pair per cell including row and column zero. Your goal is to trace nested loops over a small two-dimensional table and count executions. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A cinema has 3 rows with 4 seats each, and you need to label every seat: A1, A2 … C4. One loop can walk the rows, but inside each row you need another loop for the seats. That's a nested loop — a grid traversal. In this lesson you'll trace exactly which row and column pair appears when, count how many times the inner code runs, and see why doubling the size can quadruple the work.\n\n```predict\n{\"code\": \"for row in range(2):\\n    for col in range(3):\\n        print(row, col)\", \"question\": \"How many times does `print` run?\", \"options\": [\"5\", \"6\", \"9\"], \"answer\": 1, \"why\": \"For **each** of the 2 outer rows, the inner loop runs 3 times: 2 × 3 = 6.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Expressions and evaluation; Iteration. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Expressions and evaluation** and **Iteration** — how a single loop starts, checks, works and progresses. Now we put one loop inside another."
       },
       {
-        "heading": "Operational model",
-        "body": "With nested control flow, the inner construct completes for each applicable outer state; total executions are derived by tracing both levels and their bounds. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The mental model: the inner loop restarts every time",
+        "body": "```python\nfor row in range(3):        # rows 0, 1, 2\n    for col in range(4):    # cols 0..3, again for EACH row\n        print(row, col)\n```\n\nOrder of output: `0 0`, `0 1`, `0 2`, `0 3`, then `1 0` … The inner loop **finishes completely** before the outer loop moves on, and `col` starts from 0 again each row.\n\n```reveal\n{\"prompt\": \"What's the very last line printed?\", \"answer\": \"`2 3` — the last row (2) and the last column (3). Both start at 0, so the last index is size − 1.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Rows can have different lengths, inner branches can skip work, and resetting an inner counter in the wrong place changes both coverage and execution count. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Two nested loops each running n times perform about n steps rather than up to n multiplied by n inner executions."
+        "heading": "Counting the work",
+        "body": "If the outer loop runs `n` times and the inner runs `n` times, the inner body runs **n × n** times.\n\n| n | inner runs |\n|---|---|\n| 10 | 100 |\n| 100 | 10,000 |\n| 1,000 | 1,000,000 |\n\n```predict\n{\"question\": \"Both loops go up to `n`. You make `n` twice as big. The work becomes about…\", \"options\": [\"2× bigger\", \"4× bigger\"], \"answer\": 1, \"why\": \"(2n) × (2n) = 4n². Doubling each loop's size quadruples the total inner runs.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Reason about decisions and loops nested inside one another, including grid traversal.",
-      "Trace nested loops over a small two-dimensional table and count executions."
+      "Trace the order of (row, column) pairs produced by nested loops.",
+      "Count total inner executions as outer × inner."
     ],
     "excludes": [
-      "Rows can have different lengths, inner branches can skip work, and resetting an inner counter in the wrong place changes both coverage and execution count."
+      "Formal Big-O notation (DSA course).",
+      "Three or more levels of nesting."
     ]
   },
   "outcomes": [
@@ -63,133 +64,138 @@
   "examples": [
     {
       "id": "pf.control.nested.example-a",
-      "title": "Nested control and tables: direct case",
-      "situation": "A grid traversal visits each row and then each column in that row, producing one coordinate pair per cell including row and column zero.",
+      "title": "Walking a grid",
+      "situation": "```python\nfor row in range(2):\n    for col in range(2):\n        print(row, col)\n```\nA 2×2 grid traversal visiting each row, then each column in that row.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A grid traversal visits each row and then each column in that row, producing one coordinate pair per cell including row and column zero.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Trace the inner loop separately for every outer iteration and multiply or sum the actual per-outer counts while respecting branches and irregular sizes."
+        "**Row 0:** the inner loop runs fully: prints coordinate `0 0`, then `0 1`.",
+        "**Row 1:** the inner loop restarts at column 0: prints `1 0`, then `1 1`.",
+        "**Count:** 2 rows × 2 columns = 4 coordinate pairs, one per cell, including row and column zero."
       ],
-      "result": "The case supports the declared outcome because Trace the inner loop separately for every outer iteration and multiply or sum the actual per-outer counts while respecting branches and irregular sizes."
+      "result": "Prints 4 coordinate pairs: (0,0), (0,1), (1,0), (1,1) — every cell exactly once."
     },
     {
       "id": "pf.control.nested.example-b",
-      "title": "Nested control and tables: boundary case",
-      "situation": "A timetable comparison visits each student and each registered course, but skips inactive registrations before counting matches.",
+      "title": "The seat labeller",
+      "situation": "```python\nfor r in \"ABC\":\n    for n in range(1, 5):\n        print(f\"{r}{n}\", end=\" \")\n```",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A timetable comparison visits each student and each registered course, but skips inactive registrations before counting matches.",
-        "Step 2 — Keep this boundary explicit: Rows can have different lengths, inner branches can skip work, and resetting an inner counter in the wrong place changes both coverage and execution count.",
-        "Step 3 — Reject the documented misconception: Two nested loops each running n times perform about n steps rather than up to n multiplied by n inner executions."
+        "The outer loop picks a row letter: A, then B, then C.",
+        "For each letter, the inner loop prints numbers 1 to 4 (`range(1, 5)` stops before 5).",
+        "Total: 3 rows × 4 seats = 12 labels."
       ],
-      "result": "This case demonstrates the declared outcome: Trace nested loops over a small two-dimensional table and count executions."
+      "result": "Prints `A1 A2 A3 A4 B1 … C4` — 12 labels."
     }
   ],
   "misconceptions": [
     {
       "id": "pf.control.nested.misconception",
-      "mistakenBelief": "Two nested loops each running n times perform about n steps rather than up to n multiplied by n inner executions.",
-      "correction": "Trace the inner loop separately for every outer iteration and multiply or sum the actual per-outer counts while respecting branches and irregular sizes.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Two nested loops each running n times perform about n steps rather than up to n multiplied by n inner executions."
+      "mistakenBelief": "Two nested loops that each run n times do about n steps in total.",
+      "correction": "The inner loop runs completely for every single outer step, so the total is outer × inner — n × n, not n + n.",
+      "diagnosticPrompt": "In \"The seat labeller\", how many labels print, and why isn't it 3 + 4?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A route with ordered checkpoints, forks, and repeated laps can model Nested control and tables while each decision uses the current conditions.",
+    "example": "Like a **clock**: the minute hand goes all the way round (60 steps) for every single step of the hour hand. One hour tick = a full inner lap.",
     "usefulFor": [
-      "Visualizing order, branching, repetition, progress, and nested routes"
+      "remembering the inner loop completes before the outer moves",
+      "seeing why totals multiply"
     ],
     "limitations": [
-      "Real control flow can include calls, exceptions, concurrency, and evaluation rules absent from a physical route.",
-      "Rows can have different lengths, inner branches can skip work, and resetting an inner counter in the wrong place changes both coverage and execution count."
+      "A clock never stops; loops end when their ranges run out.",
+      "Inner loop sizes can change with the outer value (like a triangle), which the clock hides."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A grid traversal visits each row and then each column in that row, producing one coordinate pair per cell including row and column zero.",
-      "With nested control flow, the inner construct completes for each applicable outer state; total executions are derived by tracing both levels and their bounds.",
-      "Trace the inner loop separately for every outer iteration and multiply or sum the actual per-outer counts while respecting branches and irregular sizes."
+      "for row in range(2):",
+      "    for col in range(2):",
+      "        print(row, col)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Row 0 starts",
         "state": {
-          "evidence": "A grid traversal visits each row and then each column in that row, producing one coordinate pair per cell including row and column zero."
+          "row": "0",
+          "col": "0 then 1",
+          "printed": "0 0, 0 1"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "The inner loop runs both columns while row stays at zero."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Row 1 starts",
         "state": {
-          "model": "With nested control flow, the inner construct completes for each applicable outer state; total executions are derived by tracing both levels and their bounds."
+          "row": "1",
+          "col": "restarts at 0",
+          "printed": "1 0, 1 1"
         },
-        "explanation": "Apply the declared Nested control and tables model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "The outer loop moves on and the inner loop starts again from column zero."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Both loops end",
         "state": {
-          "correction": "Trace the inner loop separately for every outer iteration and multiply or sum the actual per-outer counts while respecting branches and irregular sizes."
+          "total prints": "4",
+          "pairs": "every cell once"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Two nested loops each running n times perform about n steps rather than up to n multiplied by n inner executions."
+        "explanation": "The outer loop runs out after row 1, giving four prints in total."
       }
     ],
-    "textAlternative": "Starting artifact: A grid traversal visits each row and then each column in that row, producing one coordinate pair per cell including row and column zero. Step 1, Observe. State: evidence: A grid traversal visits each row and then each column in that row, producing one coordinate pair per cell including row and column zero.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: With nested control flow, the inner construct completes for each applicable outer state; total executions are derived by tracing both levels and their bounds.. Apply the declared Nested control and tables model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Trace the inner loop separately for every outer iteration and multiply or sum the actual per-outer counts while respecting branches and irregular sizes.. Compare the observation with the correction and reject the misconception: Two nested loops each running n times perform about n steps rather than up to n multiplied by n inner executions."
+    "textAlternative": "Nested loops over a 2 by 2 grid. Step 1, Row 0 starts: row is 0; col is 0 then 1; printed is 0 0, 0 1. The inner loop runs both columns while row stays at zero. Step 2, Row 1 starts: row is 1; col is restarts at 0; printed is 1 0, 1 1. The outer loop moves on and the inner loop starts again from column zero. Step 3, Both loops end: total prints is 4; pairs is every cell once. The outer loop runs out after row 1, giving four prints in total."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Nested control and tables: direct case”: state its starting evidence, apply the Nested control and tables rule, and give the observable result in three short lines.",
+      "prompt": "Using \"Walking a grid\", explain in three lines what prints for row 0, what prints for row 1, and how many coordinate pairs you get in total.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Line 1: row 0.",
+        "Line 2: row 1 — where does col start?",
+        "Line 3: the total count."
       ],
       "expectedEvidence": [
-        "Named example: Nested control and tables: direct case.",
-        "Starting evidence: A grid traversal visits each row and then each column in that row, producing one coordinate pair per cell including row and column zero.",
-        "Core rule: With nested control flow, the inner construct completes for each applicable outer state; total executions are derived by tracing both levels and their bounds.",
-        "Observable result: The case supports the declared outcome because Trace the inner loop separately for every outer iteration and multiply or sum the actual per-outer counts while respecting branches and irregular sizes.",
-        "Boundary check: Trace the inner loop separately for every outer iteration and multiply or sum the actual per-outer counts while respecting branches and irregular sizes."
+        "Names the example \"Walking a grid\": a 2×2 grid traversal printing each row and column.",
+        "Row 0 prints coordinate 0 0 and 0 1.",
+        "Row 1 restarts the inner loop and prints 1 0 and 1 1.",
+        "4 coordinate pairs in total: every cell once, including row and column zero."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A timetable comparison visits each student and each registered course, but skips inactive registrations before counting matches.",
+      "prompt": "A times table: `for a in range(1, 4): for b in range(1, 4): print(a * b)`. How many numbers print, and what are the first three?",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Count outer × inner.",
+        "Inner loop finishes first."
       ],
       "expectedEvidence": [
-        "With nested control flow, the inner construct completes for each applicable outer state; total executions are derived by tracing both levels and their bounds.",
-        "Rows can have different lengths, inner branches can skip work, and resetting an inner counter in the wrong place changes both coverage and execution count."
+        "9 numbers print.",
+        "First three are 1, 2, 3 (a is 1 while b goes 1, 2, 3)."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Nested control and tables, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Write nested loops that print a triangle of stars: 1 star, then 2, then 3, then 4. Explain why the inner loop's size depends on the outer variable.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Inner loop: `range(row + 1)` or similar.",
+        "Count the total stars."
       ],
       "expectedEvidence": [
-        "Trace nested loops over a small two-dimensional table and count executions.",
-        "Trace the inner loop separately for every outer iteration and multiply or sum the actual per-outer counts while respecting branches and irregular sizes."
+        "Correct triangle with 1–4 stars per line.",
+        "Explains the inner range uses the outer variable; total is 10 stars."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "pf.control.nested.misconception",
-      "explanation": "Trace the inner loop separately for every outer iteration and multiply or sum the actual per-outer counts while respecting branches and irregular sizes.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A timetable comparison visits each student and each registered course, but skips inactive registrations before counting matches."
+      "explanation": "Draw a small table: one row per outer value, and in it list every inner value. Count the cells — that's how many times the inner body runs.",
+      "retryPrompt": "Draw that table for \"The seat labeller\" and count the labels."
     }
   ],
   "recap": {
-    "summary": "You should now be able to trace nested loops over a small two-dimensional table and count executions. Keep this boundary in view: Rows can have different lengths, inner branches can skip work, and resetting an inner counter in the wrong place changes both coverage and execution count.",
+    "summary": "The inner loop runs completely for every outer step and restarts each time. Total inner runs = outer × inner, so two size-n loops do n² work. Trace (row, col) pairs in order to predict output exactly.",
     "retrievalPrompts": [
-      "Explain Nested control and tables without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Two nested loops each running n times perform about n steps rather than up to n multiplied by n inner executions.",
-      "Apply the model to this case from memory: A timetable comparison visits each student and each registered course, but skips inactive registrations before counting matches."
+      "For 2 rows × 3 cols, how many prints?",
+      "Where does the inner loop start on each new outer step?",
+      "Why does doubling n make nested loops about 4× slower?"
     ],
     "nextReviewPrompt": "Next: continue to “Functions as contracts”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

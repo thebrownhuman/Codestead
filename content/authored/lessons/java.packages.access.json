@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Java packages provide names and an access boundary, while public, protected, package-private, and private control which clients may depend on each type or member.",
+    "summary": "A **package** (`package com.shop.billing;`) gives classes a full name and forms an **access boundary**. Java has four access levels. **public**: anyone. **protected**: the same package, plus subclasses in other packages (through inheritance). **package-private** (no keyword): **every class in the same package**, not just the same file. **private**: only inside the same top-level class. Good design exposes a **small public surface**, usually an interface and a factory, and keeps implementation classes package-private so callers **can't depend on details** you might change. Every public type and member is a promise you'll have to keep.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Implementation classes remain package-private behind one public service interface, reducing the surface callers can couple to. Your goal is to create a coherent package structure and justify each exposed type or member. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner makes every class and method public \"so nothing breaks\". Six months later they want to replace their StripeGateway class, but three other packages construct it directly and call its helper methods. They also believe a method with no modifier is private to its file. Implementation classes remain package-private behind one public service interface, reducing the surface callers can couple to. In this lesson you'll create a coherent package structure and justify each exposed type or member.\n\n```predict\n{\"question\": \"A method has no access modifier. Who can call it?\", \"options\": [\"Only code in the same file\", \"Any class in the same package\"], \"answer\": 1, \"why\": \"No modifier means package-private.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Exceptions, resources and I/O; Lambdas, streams and optionals; Classes, fields and methods; Interfaces. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Exceptions, resources and I/O**, **Lambdas, streams and optionals**, **Classes, fields and methods** and **Interfaces** (the public contract)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Java packages provide names and an access boundary, while public, protected, package-private, and private control which clients may depend on each type or member. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: public contract, package-private details",
+        "body": "```java\n// file: com/shop/billing/Payments.java\npackage com.shop.billing;\n\npublic interface Payments {                 // the only type callers see.\n    boolean charge(String customer, long cents);\n\n    static Payments create() {              // factory hides the implementation.\n        return new CardPayments(new Ledger());\n    }\n}\n\n// file: com/shop/billing/CardPayments.java\npackage com.shop.billing;\n\nclass CardPayments implements Payments {    // package-private: invisible outside.\n    private final Ledger ledger;            // private: only this class.\n    CardPayments(Ledger ledger) { this.ledger = ledger; }\n    public boolean charge(String customer, long cents) {\n        if (cents <= 0) return false;\n        ledger.record(customer, cents);\n        return true;\n    }\n}\n\n// file: com/shop/billing/Ledger.java\npackage com.shop.billing;\n\nclass Ledger {\n    void record(String customer, long cents) { /* store it. */ }\n}\n\n// file: com/shop/app/Main.java  (another package)\n// Payments p = Payments.create();   OK.\n// new CardPayments(...)             compile error: not public.\n```\n\n| Modifier | Same class | Same package | Subclass elsewhere | Anywhere |\n|---|---|---|---|---|\n| private. | yes. | no. | no. | no. |\n| (none). | yes. | yes. | no. | no. |\n| protected. | yes. | yes. | yes. | no. |\n| public. | yes. | yes. | yes. | yes. |\n\n```reveal\n{\"prompt\": \"Why is protected wider than package-private?\", \"answer\": \"protected includes everything package-private allows, plus subclass access from other packages. It's a bigger promise, so use it only for deliberate extension points.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "Packages are not a security sandbox, protected includes package and subtype rules, split packages/modules complicate deployment, and public API compatibility persists beyond source organization. The learner must reject this documented misconception: Package-private members are private to one source file, and protected means accessible only by subclasses everywhere."
+        "heading": "Justify every public",
+        "body": "```predict\n{\"question\": \"A helper method is only used by classes in the same package. What access should it have?\", \"options\": [\"public, in case it's useful later\", \"package-private: expose it only when there's a real outside caller\"], \"answer\": 1, \"why\": \"It's easy to widen access later and hard to take it back.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Organize types and minimize public surface using language access levels.",
-      "Create a coherent package structure and justify each exposed type or member."
+      "Apply public, protected, package-private and private deliberately.",
+      "Hide implementations behind a public interface within a package."
     ],
     "excludes": [
-      "Packages are not a security sandbox, protected includes package and subtype rules, split packages/modules complicate deployment, and public API compatibility persists beyond source organization."
+      "The Java module system (module-info.java).",
+      "Reflection-based access."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "java.packages.access.example.direct",
-      "title": "Packages and access control: direct language case",
+      "title": "One public interface, hidden implementations",
       "situation": "Implementation classes remain package-private behind one public service interface, reducing the surface callers can couple to.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: Implementation classes remain package-private behind one public service interface, reducing the surface callers can couple to.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Package-private access is shared across the package; protected combines package access with constrained subtype access, so expose the minimum stable surface."
+        "**Implementation classes remain package-private:** CardPayments and Ledger have no modifier.",
+        "**Behind one public service interface:** callers use Payments and Payments.create().",
+        "**Reducing the surface callers can couple to:** we can replace CardPayments without changing any other package."
       ],
-      "result": "The example meets the atomic outcome because Package-private access is shared across the package; protected combines package access with constrained subtype access, so expose the minimum stable surface."
+      "result": "The billing package can change freely inside its boundary."
     },
     {
       "id": "java.packages.access.example.boundary",
-      "title": "Packages and access control: boundary and transfer case",
-      "situation": "A protected field is replaced with a protected method or narrower collaborator because direct mutable representation would spread subclass coupling.",
+      "title": "The gateway everyone depended on",
+      "situation": "Three packages call new StripeGateway() and its public helper methods, so replacing it means editing all of them.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A protected field is replaced with a protected method or narrower collaborator because direct mutable representation would spread subclass coupling.",
-        "Step 2 — Keep the language boundary explicit: Packages are not a security sandbox, protected includes package and subtype rules, split packages/modules complicate deployment, and public API compatibility persists beyond source organization.",
-        "Step 3 — Reject the tempting but incorrect rule: Package-private members are private to one source file, and protected means accessible only by subclasses everywhere."
+        "The class and its helpers were public without a reason.",
+        "Introduce a public Payments interface and a factory.",
+        "Make the gateway and helpers package-private and migrate callers once."
       ],
-      "result": "This case demonstrates the declared outcome: Create a coherent package structure and justify each exposed type or member."
+      "result": "Future replacements touch only the billing package."
     }
   ],
   "misconceptions": [
     {
       "id": "java.packages.access.misconception",
       "mistakenBelief": "Package-private members are private to one source file, and protected means accessible only by subclasses everywhere.",
-      "correction": "Package-private access is shared across the package; protected combines package access with constrained subtype access, so expose the minimum stable surface.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Package-private members are private to one source file, and protected means accessible only by subclasses everywhere."
+      "correction": "Package-private means the whole package can access a member, and protected adds subclass access on top of package access.",
+      "diagnosticPrompt": "In the opening predict, who could call the method with no modifier?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a versioned delivery line whose public labels, recipe, inspections, and investigation record make one artifact reproducible can introduce Packages and access control, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "example": "A package is like **an office floor**. **Private** is your desk drawer. **Package-private** is the shared kitchen: anyone on the floor can use it. **Protected** is the kitchen plus family members visiting from other floors. **Public** is the front reception desk, and everything there is something you've promised visitors.",
     "usefulFor": [
-      "packages, Maven, JUnit, debugging, and project evidence"
+      "remembering drawer, kitchen, family, reception",
+      "reception = promises"
     ],
     "limitations": [
-      "access control is not a security boundary and caches, plugins, bytecode, secrets, and platform differences need technical controls",
-      "Packages are not a security sandbox, protected includes package and subtype rules, split packages/modules complicate deployment, and public API compatibility persists beyond source organization."
+      "Moving something from reception back to the kitchen upsets visitors.",
+      "Factories are the receptionist fetching staff for you."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Implementation classes remain package-private behind one public service interface, reducing the surface callers can couple to.",
-      "Java packages provide names and an access boundary, while public, protected, package-private, and private control which clients may depend on each type or member.",
-      "Package-private access is shared across the package; protected combines package access with constrained subtype access, so expose the minimum stable surface."
+      "Main calls Payments.create()",
+      "factory builds CardPayments(new Ledger())",
+      "Main tries new CardPayments(...)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Expose",
         "state": {
-          "evidence": "Implementation classes remain package-private behind one public service interface, reducing the surface callers can couple to."
+          "visible to Main": "Payments, create, charge"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "One public service interface is the only surface callers can couple to."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Hide",
         "state": {
-          "rule": "Java packages provide names and an access boundary, while public, protected, package-private, and private control which clients may depend on each type or member."
+          "CardPayments": "package-private",
+          "ledger field": "private"
         },
-        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "Implementation classes remain package-private behind the interface."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Reject",
         "state": {
-          "correction": "Package-private access is shared across the package; protected combines package access with constrained subtype access, so expose the minimum stable surface."
+          "result": "compile error: not public"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Package-private members are private to one source file, and protected means accessible only by subclasses everywhere."
+        "explanation": "Outside code can't depend on hidden implementation details."
       }
     ],
-    "textAlternative": "Starting artifact: Implementation classes remain package-private behind one public service interface, reducing the surface callers can couple to. Step 1, Observe. State: evidence: Implementation classes remain package-private behind one public service interface, reducing the surface callers can couple to.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Java packages provide names and an access boundary, while public, protected, package-private, and private control which clients may depend on each type or member.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Package-private access is shared across the package; protected combines package access with constrained subtype access, so expose the minimum stable surface.. Compare the observation with the correction and explain why the misconception fails: Package-private members are private to one source file, and protected means accessible only by subclasses everywhere."
+    "textAlternative": "Tracing access boundaries. Step 1, Expose: visible to Main is Payments, create, charge. One public service interface is the only surface callers can couple to. Step 2, Hide: CardPayments is package-private; ledger field is private. Implementation classes remain package-private behind the interface. Step 3, Reject: result is compile error: not public. Outside code can't depend on hidden implementation details."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Packages and access control: direct language case”: state its starting evidence, apply the Packages and access control rule, and give the observable result in three short lines.",
+      "prompt": "For \"One public interface, hidden implementations\", explain how implementation classes remain package-private behind one public service interface, reducing the surface callers can couple to.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Package.",
+        "Hide.",
+        "Expose one."
       ],
       "expectedEvidence": [
-        "Named example: Packages and access control: direct language case.",
-        "Starting evidence: Implementation classes remain package-private behind one public service interface, reducing the surface callers can couple to.",
-        "Core rule: Java packages provide names and an access boundary, while public, protected, package-private, and private control which clients may depend on each type or member.",
-        "Observable result: The example meets the atomic outcome because Package-private access is shared across the package; protected combines package access with constrained subtype access, so expose the minimum stable surface.",
-        "Boundary check: Package-private access is shared across the package; protected combines package access with constrained subtype access, so expose the minimum stable surface."
+        "Names the example \"One public interface, hidden implementations\": public classes locked in callers.",
+        "Implementation classes remain package-private.",
+        "One public service interface reduces the surface callers can couple to.",
+        "The package can change freely inside."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A protected field is replaced with a protected method or narrower collaborator because direct mutable representation would spread subclass coupling.",
+      "prompt": "Create a package com.app.store with a public Inventory interface, a package-private MapInventory, and a static factory. Show that another package can use Inventory but not MapInventory.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Two packages, separate folders.",
+        "Compile the illegal access to see the error."
       ],
       "expectedEvidence": [
-        "Java packages provide names and an access boundary, while public, protected, package-private, and private control which clients may depend on each type or member.",
-        "Packages are not a security sandbox, protected includes package and subtype rules, split packages/modules complicate deployment, and public API compatibility persists beyond source organization."
+        "Only the interface is public.",
+        "Error message captured."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Packages and access control, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Take a project where every class is public. Reduce access to the minimum needed, justify each remaining public type and member in a short table, and keep all tests passing.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Start by making everything package-private and widen on compile errors.",
+        "Record why each public is needed."
       ],
       "expectedEvidence": [
-        "Create a coherent package structure and justify each exposed type or member.",
-        "Package-private access is shared across the package; protected combines package access with constrained subtype access, so expose the minimum stable surface."
+        "Public surface reduced.",
+        "Tests still pass."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "java.packages.access.misconception",
-      "explanation": "Package-private access is shared across the package; protected combines package access with constrained subtype access, so expose the minimum stable surface.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A protected field is replaced with a protected method or narrower collaborator because direct mutable representation would spread subclass coupling."
+      "explanation": "For each type and member ask: **who outside this package truly needs it?** If nobody, drop the modifier. If only subclasses, consider protected.",
+      "retryPrompt": "Apply this to \"The gateway everyone depended on\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to create a coherent package structure and justify each exposed type or member. Keep this boundary in view: Packages are not a security sandbox, protected includes package and subtype rules, split packages/modules complicate deployment, and public API compatibility persists beyond source organization.",
+    "summary": "To create a coherent package structure and justify each exposed type or member, group related classes in a package, keep implementations package-private and fields private, expose a small public interface with a factory, and widen access only for a real caller.",
     "retrievalPrompts": [
-      "Explain Packages and access control using canonical Java: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Package-private members are private to one source file, and protected means accessible only by subclasses everywhere.",
-      "Predict this case from memory: A protected field is replaced with a protected method or narrower collaborator because direct mutable representation would spread subclass coupling."
+      "What does no modifier mean?",
+      "What does protected add?",
+      "Why keep implementations package-private?"
     ],
     "nextReviewPrompt": "Next: continue to “Maven project lifecycle”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

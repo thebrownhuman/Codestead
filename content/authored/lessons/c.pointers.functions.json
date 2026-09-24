@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A function pointer has a compatible function type and can select behavior at runtime, but calls remain valid only when return and parameter types match the pointed-to function.",
+    "summary": "A **function pointer** stores which function to call, so behaviour can be chosen at run time. `int (*op)(int)` reads as \"op is a pointer to a function taking an int and returning an int\". Assign a function's name (`op = square;`) and call it like a function (`op(5)`). The pointer's type must **match the function's type exactly**. Casting `double half(double)` to `int (*)(int)` compiles, but calling through it is **undefined behaviour**: the argument and return are passed the wrong way. A `typedef` makes signatures readable, and callbacks like `qsort`'s comparator use exactly this idea.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A transform function receives int (*operation)(int) and calls either square or negate through the compatible pointer. Your goal is to implement and explain a small callback-based operation without incompatible casts. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner writes `transform(values, n, op)` so the same loop can square or negate every element. To reuse an existing `double half(double)`, they cast it: `transform(v, n, (int (*)(int))half)`. It compiles, and the results are garbage. A transform function receives int (*operation)(int) and calls either square or negate through the compatible pointer. In this lesson you'll implement and explain a small callback-based operation without incompatible casts.\n\n```predict\n{\"question\": \"Calling double half(double) through an int (*)(int) pointer after a cast is...\", \"options\": [\"Fine, the cast converts it\", \"Undefined behaviour: the call uses the wrong parameter and return types\"], \"answer\": 1, \"why\": \"Write a small adapter function with the right signature instead.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: One-dimensional arrays; Parameters and return values; Addresses and dereference; Declarations, prototypes and definitions. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **One-dimensional arrays**, **Parameters and return values**, **Addresses and dereference** and **Declarations, prototypes and definitions**."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "A function pointer has a compatible function type and can select behavior at runtime, but calls remain valid only when return and parameter types match the pointed-to function. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The rule: pointer type must match function type",
+        "body": "```c\n#include <stdio.h>\n#include <stddef.h>\n\ntypedef int (*IntOp)(int);         /* a pointer to int f(int). */\n\nint square(int x) { return x * x; }\nint negate(int x) { return -x; }\n\nvoid transform(int *v, size_t n, IntOp operation) {\n    for (size_t i = 0; i < n; i++) v[i] = operation(v[i]);   /* callback. */\n}\n\n/* Adapter instead of an incompatible cast. */\ndouble half(double x) { return x / 2; }\nint half_int(int x) { return (int)half((double)x); }\n\nint main(void) {\n    int v[] = {1, 2, 3};\n    transform(v, 3, square);       /* 1 4 9. */\n    transform(v, 3, negate);       /* -1 -4 -9. */\n    transform(v, 3, half_int);     /* 0 -2 -4: C division truncates toward zero. */\n    for (size_t i = 0; i < 3; i++) printf(\"%d \", v[i]);\n    return 0;\n}\n```\n\n```reveal\n{\"prompt\": \"How does qsort use a function pointer?\", \"answer\": \"qsort(base, n, size, cmp) calls your int cmp(const void *, const void *) to compare pairs. The comparator's type must match exactly; you convert the void pointers inside it.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Object and function pointers are not generally interchangeable, casts do not repair incompatible call types, and callback context often needs a separate void pointer contract. Therefore the draft explicitly rejects this beginner failure model: Casting any function address to the requested pointer type makes an incompatible callback call safe."
+        "heading": "Reading the declaration",
+        "body": "```predict\n{\"question\": \"What is `int *f(int);` compared with `int (*f)(int);`?\", \"options\": [\"The same\", \"The first is a function returning int *; the second is a pointer to a function returning int\"], \"answer\": 1, \"why\": \"The parentheses around *f make it a pointer. A typedef avoids the confusion.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Store compatible function addresses and invoke callbacks through typed interfaces.",
-      "Implement and explain a small callback-based operation without incompatible casts."
+      "Declare, assign and call function pointers, using typedef for readability.",
+      "Pass callbacks with exactly matching types and write adapters instead of casting."
     ],
     "excludes": [
-      "Object and function pointers are not generally interchangeable, casts do not repair incompatible call types, and callback context often needs a separate void pointer contract."
+      "Variadic callbacks.",
+      "Function pointers inside structs (vtables) in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "c.pointers.functions.example-a",
-      "title": "Function pointers and callbacks: defined case",
+      "title": "Square or negate, chosen at run time",
       "situation": "A transform function receives int (*operation)(int) and calls either square or negate through the compatible pointer.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A transform function receives int (*operation)(int) and calls either square or negate through the compatible pointer.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: The actual function and pointer call type must be compatible; a cast can silence a diagnostic but cannot create a valid calling convention."
+        "**A transform function receives int (*operation)(int):** its third parameter has type IntOp.",
+        "**Calls either square or negate:** transform(v, 3, square) turns {1, 2, 3} into {1, 4, 9}.",
+        "**Through the compatible pointer:** both functions are exactly int f(int); half is wrapped in half_int, so no cast is needed."
       ],
-      "result": "The defined result follows because The actual function and pointer call type must be compatible; a cast can silence a diagnostic but cannot create a valid calling convention."
+      "result": "The same loop runs three different operations, all with defined behaviour."
     },
     {
       "id": "c.pointers.functions.example-b",
-      "title": "Function pointers and callbacks: boundary case",
-      "situation": "A comparison callback uses the exact library-required signature and converts context data only under a documented object-pointer contract.",
+      "title": "Sorting scores with qsort",
+      "situation": "A learner wants scores sorted in descending order using qsort.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A comparison callback uses the exact library-required signature and converts context data only under a documented object-pointer contract.",
-        "Step 2 — Keep this standard boundary visible: Object and function pointers are not generally interchangeable, casts do not repair incompatible call types, and callback context often needs a separate void pointer contract.",
-        "Step 3 — Reject the tempting rule: Casting any function address to the requested pointer type makes an incompatible callback call safe."
+        "Write int by_desc(const void *a, const void *b) matching qsort's comparator type.",
+        "Inside, read the ints: int x = *(const int *)a, y = *(const int *)b; return (y > x) - (y < x);",
+        "Call qsort(scores, n, sizeof scores[0], by_desc)."
       ],
-      "result": "This case demonstrates the declared outcome: Implement and explain a small callback-based operation without incompatible casts."
+      "result": "Scores sort descending, with no overflow from subtracting ints."
     }
   ],
   "misconceptions": [
     {
       "id": "c.pointers.functions.misconception",
       "mistakenBelief": "Casting any function address to the requested pointer type makes an incompatible callback call safe.",
-      "correction": "The actual function and pointer call type must be compatible; a cast can silence a diagnostic but cannot create a valid calling convention.",
-      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: Casting any function address to the requested pointer type makes an incompatible callback call safe."
+      "correction": "The cast only silences the compiler. Calling a function through a pointer of a different type is undefined behaviour; write an adapter with the exact type instead.",
+      "diagnosticPrompt": "In the opening story, why did half produce garbage?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A manually managed workshop can model Function pointers and callbacks: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "example": "A function pointer is like **a TV remote's programmable button**. You can assign it to any channel (function) that speaks the same signal format (type). Forcing it onto a device with a different format (a cast) doesn't make the device understand; you need an adapter box.",
     "usefulFor": [
-      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+      "remembering same signal format",
+      "adapter, not force"
     ],
     "limitations": [
-      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
-      "Object and function pointers are not generally interchangeable, casts do not repair incompatible call types, and callback context often needs a separate void pointer contract."
+      "Remotes fail visibly; wrong calls may fail silently.",
+      "typedef is the label on the button."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A transform function receives int (*operation)(int) and calls either square or negate through the compatible pointer.",
-      "A function pointer has a compatible function type and can select behavior at runtime, but calls remain valid only when return and parameter types match the pointed-to function.",
-      "The actual function and pointer call type must be compatible; a cast can silence a diagnostic but cannot create a valid calling convention."
+      "int v[] = {1, 2, 3};",
+      "transform(v, 3, square)",
+      "transform(v, 3, negate)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Setup",
         "state": {
-          "evidence": "A transform function receives int (*operation)(int) and calls either square or negate through the compatible pointer."
+          "v": "{1, 2, 3}",
+          "operation": "not set"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "The array is ready and no callback has been chosen yet."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Square",
         "state": {
-          "rule": "A function pointer has a compatible function type and can select behavior at runtime, but calls remain valid only when return and parameter types match the pointed-to function."
+          "operation": "square",
+          "v": "{1, 4, 9}"
         },
-        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+        "explanation": "The transform function receives int (*operation)(int) and calls square."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Negate",
         "state": {
-          "conclusion": "The actual function and pointer call type must be compatible; a cast can silence a diagnostic but cannot create a valid calling convention."
+          "operation": "negate",
+          "v": "{-1, -4, -9}"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: Casting any function address to the requested pointer type makes an incompatible callback call safe."
+        "explanation": "The same loop calls negate through the compatible pointer."
       }
     ],
-    "textAlternative": "Starting artifact: A transform function receives int (*operation)(int) and calls either square or negate through the compatible pointer. Step 1, Source and state. State: evidence: A transform function receives int (*operation)(int) and calls either square or negate through the compatible pointer.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A function pointer has a compatible function type and can select behavior at runtime, but calls remain valid only when return and parameter types match the pointed-to function.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: The actual function and pointer call type must be compatible; a cast can silence a diagnostic but cannot create a valid calling convention.. Check the conclusion against the boundary and reject this misconception: Casting any function address to the requested pointer type makes an incompatible callback call safe."
+    "textAlternative": "Tracing a callback. Step 1, Setup: v is {1, 2, 3}; operation is not set. The array is ready and no callback has been chosen yet. Step 2, Square: operation is square; v is {1, 4, 9}. The transform function receives int (operation)(int) and calls square. Step 3, Negate: operation is negate; v is {-1, -4, -9}. The same loop calls negate through the compatible pointer."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Function pointers and callbacks: defined case”: state its starting evidence, apply the Function pointers and callbacks rule, and give the observable result in three short lines.",
+      "prompt": "For \"Square or negate, chosen at run time\", explain how a transform function receives int (*operation)(int) and calls either square or negate through the compatible pointer.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Declare.",
+        "Pass.",
+        "Call."
       ],
       "expectedEvidence": [
-        "Named example: Function pointers and callbacks: defined case.",
-        "Starting evidence: A transform function receives int (*operation)(int) and calls either square or negate through the compatible pointer.",
-        "Core rule: A function pointer has a compatible function type and can select behavior at runtime, but calls remain valid only when return and parameter types match the pointed-to function.",
-        "Observable result: The defined result follows because The actual function and pointer call type must be compatible; a cast can silence a diagnostic but cannot create a valid calling convention.",
-        "Boundary check: The actual function and pointer call type must be compatible; a cast can silence a diagnostic but cannot create a valid calling convention."
+        "Names the example \"Square or negate, chosen at run time\": a cast half gave garbage.",
+        "A transform function receives int (*operation)(int).",
+        "It calls either square or negate through the compatible pointer.",
+        "The same loop runs different operations with defined behaviour."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same C rule to this related boundary case: A comparison callback uses the exact library-required signature and converts context data only under a documented object-pointer contract.",
+      "prompt": "Add int doubled(int) and int clamp_0_10(int) and apply each with transform. Then declare an array of IntOp {square, negate, doubled} and apply them all in a loop.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "IntOp ops[] = {square, negate, doubled};",
+        "Print after each."
       ],
       "expectedEvidence": [
-        "A function pointer has a compatible function type and can select behavior at runtime, but calls remain valid only when return and parameter types match the pointed-to function.",
-        "Object and function pointers are not generally interchangeable, casts do not repair incompatible call types, and callback context often needs a separate void pointer contract."
+        "Correct outputs.",
+        "No casts."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new C example for Function pointers and callbacks, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Build a tiny calculator that maps '+', '-', '*', '/' to functions int f(int, int) through a table of function pointers, with a guard for division by zero and an error for unknown operators. Test every operator.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "typedef int (*BinOp)(int, int);",
+        "Look up by char with a small struct array."
       ],
       "expectedEvidence": [
-        "Implement and explain a small callback-based operation without incompatible casts.",
-        "The actual function and pointer call type must be compatible; a cast can silence a diagnostic but cannot create a valid calling convention."
+        "All operators tested.",
+        "Unknown and /0 handled."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "c.pointers.functions.misconception",
-      "explanation": "The actual function and pointer call type must be compatible; a cast can silence a diagnostic but cannot create a valid calling convention.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'compatible' and state the decisive evidence: A comparison callback uses the exact library-required signature and converts context data only under a documented object-pointer contract."
+      "explanation": "Before passing a function, write both types side by side: **does the function's return and parameter list match the pointer's exactly?** If not, write an adapter.",
+      "retryPrompt": "Apply this to \"Sorting scores with qsort\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and explain a small callback-based operation without incompatible casts. Keep this boundary in view: Object and function pointers are not generally interchangeable, casts do not repair incompatible call types, and callback context often needs a separate void pointer contract.",
+    "summary": "To implement callbacks safely, declare function pointers (ideally with typedef), assign functions whose return and parameter types match exactly, call through the pointer to choose behaviour at run time, and write adapter functions instead of casting incompatible functions.",
     "retrievalPrompts": [
-      "Explain Function pointers and callbacks using a concrete C rule rather than the optional analogy.",
-      "Why is this claim incorrect: Casting any function address to the requested pointer type makes an incompatible callback call safe.",
-      "Apply the checkpoint 'compatible' to the boundary case from memory."
+      "What does int (*op)(int) declare?",
+      "Why is casting an incompatible function unsafe?",
+      "How does qsort use a callback?"
     ],
     "nextReviewPrompt": "Next: continue to “Structures”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

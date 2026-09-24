@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Custom properties store cascading token values that are substituted at computed-value time and can vary by scope or theme.",
+    "summary": "**Custom properties** (`--color-text: #1f2937;`) are variables that live **in the cascade**: they're set on elements, inherited by descendants, and read with `var(--color-text)` at the moment each element's styles are computed. Change the value on a parent — like `.theme-dark` — and every component inside picks up the new value. A small set of them for colours, spacing and type is a **design-token layer**.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A --color-text token changes inside a dark theme scope and every consuming component receives the scoped value. Your goal is to create a small color, spacing and typography token layer and trace an override. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You need a dark theme. Hunting through 40 components for every `#1f2937` would take a day and miss some. With tokens, you change a handful of values in one scope and the whole interface follows. A --color-text token changes inside a dark theme scope, and every consuming component receives the scoped value. In this lesson you'll create a small color, spacing and typography token layer and trace an override.\n\n```predict\n{\"question\": \"`:root { --gap: 8px }` and `.roomy { --gap: 24px }`. A card inside `.roomy` uses `padding: var(--gap)`. What padding?\", \"options\": [\"8px — custom properties are global constants\", \"24px — it inherits the nearest value in its ancestry\"], \"answer\": 1, \"why\": \"Custom properties cascade and inherit like other properties. The nearest ancestor that sets --gap wins.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Specificity and source order; html semantics; Inheritance, initial and computed values. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Specificity and source order**, **Text and page semantics**, and **Inheritance, initial and computed values** — custom properties inherit."
       },
       {
-        "heading": "Technology rule",
-        "body": "Custom properties store cascading token values that are substituted at computed-value time and can vary by scope or theme. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: tokens set on ancestors, read with var()",
+        "body": "```css\n:root {\n  --color-text: #1f2937;\n  --color-bg: #ffffff;\n  --space-2: 0.5rem;\n  --space-4: 1rem;\n  --font-body: system-ui, sans-serif;\n}\n.theme-dark {\n  --color-text: #f3f4f6;\n  --color-bg: #111827;\n}\n.card {\n  color: var(--color-text);\n  background: var(--color-bg);\n  padding: var(--space-4);\n  font-family: var(--font-body);\n}\n```\n\n| Where the card sits | --color-text it gets |\n|---|---|\n| anywhere. | #1f2937 (from :root). |\n| inside `.theme-dark`. | #f3f4f6 (nearest ancestor). |\n\n```reveal\n{\"prompt\": \"What if a token is missing?\", \"answer\": \"`var(--color-text, #000)` uses the fallback after the comma. Without a fallback, the property becomes invalid at computed time and falls back to inherit/initial.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "They are not preprocessor variables, can become invalid at use time, inherit by default, and need fallback design. This draft therefore rejects: Custom properties are globally fixed constants evaluated before the cascade."
+        "heading": "Trace an override",
+        "body": "```predict\n{\"question\": \"Where can you see which ancestor supplied a token's value?\", \"options\": [\"Nowhere — it's global\", \"DevTools' Styles pane shows the var() and the rule that set it; hovering var() shows the value\"], \"answer\": 1, \"why\": \"DevTools lists inherited custom properties with the element that set them — perfect for tracing overrides.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Define inheriting reusable values with local overrides and safe fallbacks.",
-      "Create a small color, spacing and typography token layer and trace an override."
+      "Define colour, spacing and typography tokens and consume them with var().",
+      "Override tokens in a scope and trace the value through the cascade."
     ],
     "excludes": [
-      "They are not preprocessor variables, can become invalid at use time, inherit by default, and need fallback design."
+      "@property registration and typed custom properties.",
+      "Design-token build tools."
     ]
   },
   "outcomes": [
@@ -68,133 +69,133 @@
   "examples": [
     {
       "id": "css.system.custom-properties.example-a",
-      "title": "Custom properties and design tokens: concrete case",
+      "title": "A dark theme through one token",
       "situation": "A --color-text token changes inside a dark theme scope and every consuming component receives the scoped value.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A --color-text token changes inside a dark theme scope and every consuming component receives the scoped value.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Custom properties participate in the cascade and scope; define meaningful fallbacks and validate the property where var() is used."
+        "**Default:** `:root { --color-text: #1f2937 }`; cards, buttons and headings use `var(--color-text)`.",
+        "**Dark theme scope:** `.theme-dark { --color-text: #f3f4f6 }` on a section's wrapper.",
+        "**Trace:** inspect a card inside it; DevTools will show --color-text inherited from .theme-dark, so it renders light text."
       ],
-      "result": "The result follows because Custom properties participate in the cascade and scope; define meaningful fallbacks and validate the property where var() is used."
+      "result": "Every component inside the dark scope gets light text without editing any component rule."
     },
     {
       "id": "css.system.custom-properties.example-b",
-      "title": "Custom properties and design tokens: boundary case",
-      "situation": "They are not preprocessor variables, can become invalid at use time, inherit by default, and need fallback design.",
+      "title": "The hard-coded straggler",
+      "situation": "After switching to tokens, one button stays dark-on-dark in the dark theme.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: They are not preprocessor variables, can become invalid at use time, inherit by default, and need fallback design.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Custom properties are globally fixed constants evaluated before the cascade."
+        "Its rule still says `color: #1f2937` instead of `var(--color-text)`.",
+        "Hard-coded values ignore the scoped tokens.",
+        "Fix: replace it with the token; search the stylesheet for raw hex values to catch others."
       ],
-      "result": "The boundary requires this correction: Custom properties participate in the cascade and scope; define meaningful fallbacks and validate the property where var() is used."
+      "result": "The button follows the theme like every other component."
     }
   ],
   "misconceptions": [
     {
       "id": "css.system.custom-properties.misconception",
       "mistakenBelief": "Custom properties are globally fixed constants evaluated before the cascade.",
-      "correction": "Custom properties participate in the cascade and scope; define meaningful fallbacks and validate the property where var() is used.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: Custom properties are globally fixed constants evaluated before the cascade."
+      "correction": "Custom properties participate in the cascade and inherit: each element uses the value from its nearest ancestor (or itself), resolved when its styles are computed. That's what lets a scope like .theme-dark override them.",
+      "diagnosticPrompt": "In the opening predict, why did the card get 24px?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Custom properties and design tokens, where rules size, place, and paint existing content.",
+    "example": "Tokens are like **dimmer switches wired to a room**: every lamp in the room (component) reads the room's switch (nearest ancestor). Change the switch in one room, and only that room's lamps change.",
     "usefulFor": [
-      "Building a first mental model for Custom properties and design tokens before using exact platform terms"
+      "remembering nearest-ancestor wins",
+      "seeing scopes as rooms"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "They are not preprocessor variables, can become invalid at use time, inherit by default, and need fallback design."
+      "Real wiring is fixed; CSS scopes can be added anywhere.",
+      "A lamp with its own hard-wired bulb (hard-coded value) ignores the switch."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A --color-text token changes inside a dark theme scope and every consuming component receives the scoped value.",
-      "Custom properties store cascading token values that are substituted at computed-value time and can vary by scope or theme.",
-      "Custom properties participate in the cascade and scope; define meaningful fallbacks and validate the property where var() is used."
+      ":root { --color-text: #1f2937 }",
+      ".theme-dark { --color-text: #f3f4f6 }",
+      ".card { color: var(--color-text) } inside .theme-dark"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Default token",
         "state": {
-          "evidence": "A --color-text token changes inside a dark theme scope and every consuming component receives the scoped value."
+          "--color-text": "#1f2937"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The root defines the default text token."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Scoped override",
         "state": {
-          "rule": "Custom properties store cascading token values that are substituted at computed-value time and can vary by scope or theme."
+          ".theme-dark --color-text": "#f3f4f6"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The --color-text token changes inside a dark theme scope."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Consumer",
         "state": {
-          "correction": "Custom properties participate in the cascade and scope; define meaningful fallbacks and validate the property where var() is used."
+          "card color": "#f3f4f6"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Custom properties are globally fixed constants evaluated before the cascade."
+        "explanation": "Every consuming component receives the scoped value."
       }
     ],
-    "textAlternative": "Starting artifact: A --color-text token changes inside a dark theme scope and every consuming component receives the scoped value. Step 1, Artifact. State: evidence: A --color-text token changes inside a dark theme scope and every consuming component receives the scoped value.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Custom properties store cascading token values that are substituted at computed-value time and can vary by scope or theme.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Custom properties participate in the cascade and scope; define meaningful fallbacks and validate the property where var() is used.. Check the result against the boundary and reject this misconception: Custom properties are globally fixed constants evaluated before the cascade."
+    "textAlternative": "Tracing a token override. Step 1, Default token: --color-text is #1f2937. The root defines the default text token. Step 2, Scoped override: .theme-dark --color-text is #f3f4f6. The --color-text token changes inside a dark theme scope. Step 3, Consumer: card color is #f3f4f6. Every consuming component receives the scoped value."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Custom properties and design tokens: concrete case”: state its starting evidence, apply the Custom properties and design tokens rule, and give the observable result in three short lines.",
+      "prompt": "For \"A dark theme through one token\", explain how the --color-text token changes inside a dark theme scope and how every consuming component receives the scoped value.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Default.",
+        "Scope.",
+        "Consumers."
       ],
       "expectedEvidence": [
-        "Named example: Custom properties and design tokens: concrete case.",
-        "Starting evidence: A --color-text token changes inside a dark theme scope and every consuming component receives the scoped value.",
-        "Core rule: Custom properties store cascading token values that are substituted at computed-value time and can vary by scope or theme.",
-        "Observable result: The result follows because Custom properties participate in the cascade and scope; define meaningful fallbacks and validate the property where var() is used.",
-        "Boundary check: Custom properties participate in the cascade and scope; define meaningful fallbacks and validate the property where var() is used."
+        "Names the example \"A dark theme through one token\": a --color-text token.",
+        "It changes inside a dark theme scope, .theme-dark.",
+        "Every consuming component receives the scoped value via var().",
+        "DevTools shows it inherited from .theme-dark."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: They are not preprocessor variables, can become invalid at use time, inherit by default, and need fallback design.",
+      "prompt": "Create tokens --space-1 to --space-4 and --radius, then use them in a button. Make a `.compact` scope that shrinks the spacing.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Define on :root.",
+        "Override in .compact."
       ],
       "expectedEvidence": [
-        "Custom properties store cascading token values that are substituted at computed-value time and can vary by scope or theme.",
-        "They are not preprocessor variables, can become invalid at use time, inherit by default, and need fallback design."
+        "Tokens defined and consumed with var().",
+        ".compact overrides the spacing tokens only."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Custom properties and design tokens and explain why the misconception fails.",
+      "prompt": "Convert a small stylesheet's colours and spacings to tokens, add a dark theme scope, and verify in DevTools that every component follows it. List any hard-coded stragglers you fixed.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Search for hex values.",
+        "Check computed colours."
       ],
       "expectedEvidence": [
-        "Create a small color, spacing and typography token layer and trace an override.",
-        "Custom properties participate in the cascade and scope; define meaningful fallbacks and validate the property where var() is used."
+        "All colours and spacings use tokens.",
+        "Dark theme works everywhere; stragglers listed and fixed."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.system.custom-properties.misconception",
-      "explanation": "Custom properties participate in the cascade and scope; define meaningful fallbacks and validate the property where var() is used.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'participate in the cascade' and state the decisive evidence."
+      "explanation": "When a token looks wrong, inspect the element and find **which ancestor set it** in the Styles pane. Then check the rule uses var() and not a hard-coded value.",
+      "retryPrompt": "Trace \"The hard-coded straggler\" this way."
     }
   ],
   "recap": {
-    "summary": "You should now be able to create a small color, spacing and typography token layer and trace an override. Keep this boundary in view: They are not preprocessor variables, can become invalid at use time, inherit by default, and need fallback design.",
+    "summary": "To create a small color, spacing and typography token layer, define custom properties on :root, consume them with var() (with fallbacks where useful), and override them in scopes like .theme-dark. Trace an override in DevTools — tokens cascade and inherit, they aren't fixed constants.",
     "retrievalPrompts": [
-      "Explain Custom properties and design tokens using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: Custom properties are globally fixed constants evaluated before the cascade.",
-      "Apply checkpoint 'participate in the cascade' to a new artifact."
+      "How does a card get a scoped token value?",
+      "What does the value after the comma in var() do?",
+      "Why do hard-coded values break theming?"
     ],
     "nextReviewPrompt": "Next: continue to “Stylesheet organization”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

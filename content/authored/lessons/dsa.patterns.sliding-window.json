@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A sliding window maintains an aggregate for a contiguous range while expanding and shrinking boundaries under a valid condition.",
+    "summary": "A **sliding window** tracks a **contiguous** range `[left, right]` and an aggregate about it (a sum, a count map, the number of distinct items). **Fixed-size** windows move both ends together: add the new item, remove the old. **Variable-size** windows grow `right` one step at a time and **shrink** `left` while the window breaks a condition. Each index enters and leaves once, so it's O(n). The shrink rule needs **monotonic** behaviour: \"shrinking makes the sum smaller\" is true only if values are **non-negative**. With negative numbers, a smaller window can have a bigger sum, and the simple rule fails; prefix sums or other methods are needed.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A longest-distinct substring window removes left characters until the new right character has count one. Your goal is to implement and analyze fixed and variable sliding-window problems. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A study tracker logs the topic of each session. It wants the longest run of consecutive sessions where no topic repeats. Checking every start and end is O(n²) and slow for a year of logs. A longest-distinct substring window removes left characters until the new right character has count one. In this lesson you'll implement and analyze fixed and variable sliding-window problems.\n\n```predict\n{\"question\": \"Values [5, -10, 20], find the longest window with sum ≤ 10 by shrinking while the sum is too big. Safe?\", \"options\": [\"Yes, same rule as always\", \"No: with negatives, removing an item can increase the sum, so shrinking isn't monotonic\"], \"answer\": 1, \"why\": \"The shrink rule assumes that removing items moves the aggregate in one direction.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Arrays, strings and matrices; Hash tables, sets and maps; Stacks, queues and deques; Two-pointer and partition scans; Frequency and lookup patterns. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Arrays, strings and matrices** module, the **Hash tables, sets and maps** module, the **Stacks, queues and deques** module, **Two-pointer and partition scans**, and **Frequency and lookup patterns**."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "A sliding window maintains an aggregate for a contiguous range while expanding and shrinking boundaries under a valid condition. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The invariant: the window always satisfies the condition",
+        "body": "```python\nfrom collections import Counter\n\ndef longest_distinct_run(topics):          # variable window, O(n).\n    count, left, best = Counter(), 0, 0\n    for right, t in enumerate(topics):\n        count[t] += 1\n        while count[t] > 1:                     # shrink until t appears once.\n            count[topics[left]] -= 1\n            left += 1\n        # Invariant: topics[left..right] has no repeats.\n        best = max(best, right - left + 1)\n    return best\n\ndef max_sum_k(minutes, k):                  # fixed window of size k, O(n).\n    window = sum(minutes[:k])\n    best = window\n    for right in range(k, len(minutes)):\n        window += minutes[right] - minutes[right - k]   # add new, drop old.\n        best = max(best, window)\n    return best\n\nprint(longest_distinct_run([\"css\", \"js\", \"css\", \"py\", \"git\", \"js\"]))   # 4\n```\n\n| Window type | Move rule | Aggregate |\n|---|---|---|\n| fixed size k. | add right, drop right - k. | running sum. |\n| variable, \"no repeats\". | shrink while the new item repeats. | count map. |\n| variable, \"sum ≤ limit\" (non-negative). | shrink while sum > limit. | running sum. |\n\n```reveal\n{\"prompt\": \"Why is the variable window O(n) with a while loop inside?\", \"answer\": \"left only moves forward and never past right, so across the whole run it moves at most n times.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Negative values can break monotonic sum logic, fixed and variable windows differ, and counts must be updated symmetrically. The draft therefore rejects: Sliding-window sum logic works unchanged when arbitrary negative values are present."
+        "heading": "Negative values",
+        "body": "```predict\n{\"question\": \"Longest window with sum exactly 0 when values can be negative. Which tool?\", \"options\": [\"A sliding window\", \"Prefix sums with a hash map of first positions\"], \"answer\": 1, \"why\": \"Negative values break the shrink rule; prefix sums don't need it.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Maintain an incremental fixed or variable range summary instead of recomputing each interval.",
-      "Implement and analyze fixed and variable sliding-window problems.",
-      "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+      "Implement fixed and variable sliding windows with an invariant.",
+      "Recognise when negative values or non-monotonic conditions break the pattern."
     ],
     "excludes": [
-      "Negative values can break monotonic sum logic, fixed and variable windows differ, and counts must be updated symmetrically."
+      "Window maximum with deques (monotonic lesson).",
+      "Two-dimensional windows."
     ]
   },
   "outcomes": [
@@ -68,142 +64,136 @@
   "examples": [
     {
       "id": "dsa.patterns.sliding-window.example-a",
-      "title": "Sliding windows: language-neutral trace",
+      "title": "The longest streak of different topics",
       "situation": "A longest-distinct substring window removes left characters until the new right character has count one.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: A longest-distinct substring window removes left characters until the new right character has count one.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: The shrink rule needs a monotonic condition; negative contributions can invalidate common variable-window reasoning."
+        "**Grow right:** the window [css, js] is fine; adding css makes its count 2.",
+        "**Removes left items until the new one has count one:** css leaves from the left, giving [js, css], then py and git extend it to [js, css, py, git].",
+        "**Test:** the result will be 4; a test compares with brute force on random topic logs, including empty and all-same logs."
       ],
-      "result": "The conceptual result follows because The shrink rule needs a monotonic condition; negative contributions can invalidate common variable-window reasoning."
+      "result": "The tracker reports the longest varied streak in one pass over a year of sessions."
     },
     {
       "id": "dsa.patterns.sliding-window.example-b",
-      "title": "Sliding windows: implementation transfer",
-      "situation": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
+      "title": "Best 7-day study total",
+      "situation": "A dashboard shows the highest total minutes in any 7 consecutive days.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
-        "Step 3 — Retest this boundary in the selected implementation: Negative values can break monotonic sum logic, fixed and variable windows differ, and counts must be updated symmetrically."
+        "Use a fixed window of size 7.",
+        "Each step adds the new day and subtracts the day that left.",
+        "Test against summing every 7-day slice directly."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "The best week is found in O(n) instead of O(7n) re-summing."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.patterns.sliding-window.misconception",
       "mistakenBelief": "Sliding-window sum logic works unchanged when arbitrary negative values are present.",
-      "correction": "The shrink rule needs a monotonic condition; negative contributions can invalidate common variable-window reasoning.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Sliding-window sum logic works unchanged when arbitrary negative values are present."
+      "correction": "Shrinking a window to lower its sum only works if every item is non-negative. With negatives, removing an item can raise the sum, so the window may skip valid answers; use prefix sums or another method.",
+      "diagnosticPrompt": "In the opening predict, why did the shrink rule fail?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Sliding windows, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "A sliding window is like **a train window showing a stretch of scenery**: as the train moves, new scenery enters on one side and old scenery leaves on the other. A variable window is **a camera zoom** that widens until the view breaks a rule, then narrows from the back.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering add one side, drop the other",
+      "shrink until the rule holds again"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Negative values can break monotonic sum logic, fixed and variable windows differ, and counts must be updated symmetrically."
+      "Train windows are fixed; variable windows change width.",
+      "If scenery could get more beautiful by removing parts (negatives), the zoom rule breaks."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A longest-distinct substring window removes left characters until the new right character has count one.",
-      "A sliding window maintains an aggregate for a contiguous range while expanding and shrinking boundaries under a valid condition.",
-      "The shrink rule needs a monotonic condition; negative contributions can invalidate common variable-window reasoning.",
-      "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+      "topics css, js, css, py, git, js",
+      "right moves 0..5",
+      "best"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Repeat",
         "state": {
-          "scenario": "A longest-distinct substring window removes left characters until the new right character has count one."
+          "right": "2 (css)",
+          "count[css]": "2"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "Adding the new right item creates a repeat."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Shrink",
         "state": {
-          "invariant": "A sliding window maintains an aggregate for a contiguous range while expanding and shrinking boundaries under a valid condition."
+          "removed": "css at left 0",
+          "window": "js, css"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "The window removes left items until the new right item has count one."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Extend",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "window": "js, css, py, git",
+          "best": "4"
         },
-        "explanation": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "The shrink rule needs a monotonic condition; negative contributions can invalidate common variable-window reasoning."
-        },
-        "explanation": "Verify the result and reject this misconception: Sliding-window sum logic works unchanged when arbitrary negative values are present."
+        "explanation": "Later items extend the window, and the longest run is 4."
       }
     ],
-    "textAlternative": "Starting artifact: A longest-distinct substring window removes left characters until the new right character has count one. Step 1, Specification. State: scenario: A longest-distinct substring window removes left characters until the new right character has count one.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: A sliding window maintains an aggregate for a contiguous range while expanding and shrinking boundaries under a valid condition.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees. Step 4, Conclusion. State: correction: The shrink rule needs a monotonic condition; negative contributions can invalidate common variable-window reasoning.. Verify the result and reject this misconception: Sliding-window sum logic works unchanged when arbitrary negative values are present."
+    "textAlternative": "Tracing a variable window. Step 1, Repeat: right is 2 (css); count[css] is 2. Adding the new right item creates a repeat. Step 2, Shrink: removed is css at left 0; window is js, css. The window removes left items until the new right item has count one. Step 3, Extend: window is js, css, py, git; best is 4. Later items extend the window, and the longest run is 4."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Sliding windows: language-neutral trace”: state its starting evidence, apply the Sliding windows rule, and give the observable result in three short lines.",
+      "prompt": "For \"The longest streak of different topics\", explain how a longest-distinct window removes left characters until the new right character has count one.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Grow.",
+        "Shrink.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Sliding windows: language-neutral trace.",
-        "Starting evidence: A longest-distinct substring window removes left characters until the new right character has count one.",
-        "Core rule: A sliding window maintains an aggregate for a contiguous range while expanding and shrinking boundaries under a valid condition.",
-        "Observable result: The conceptual result follows because The shrink rule needs a monotonic condition; negative contributions can invalidate common variable-window reasoning.",
-        "Boundary check: The shrink rule needs a monotonic condition; negative contributions can invalidate common variable-window reasoning."
+        "Names the example \"The longest streak of different topics\": checking every range was O(n²).",
+        "The window grows right one topic at a time.",
+        "It removes left items until the new right item has count one.",
+        "The tracker reports the longest varied streak in one pass."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: A sliding window maintains an aggregate for a contiguous range while expanding and shrinking boundaries under a valid condition.",
+      "prompt": "Find the shortest window of consecutive days (minutes are non-negative) whose total is at least 120. Use a variable window and test when no window qualifies.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Grow until total ≥ 120, then shrink while still ≥ 120.",
+        "Track the minimum length."
       ],
       "expectedEvidence": [
-        "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
-        "Negative values can break monotonic sum logic, fixed and variable windows differ, and counts must be updated symmetrically."
+        "Correct shortest length.",
+        "Return 0 or None when impossible."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Sliding windows case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Implement \"longest window with at most k distinct topics\" and test it against brute force. Then show a counterexample where a sliding window fails for \"sum exactly 0\" with negatives, and solve that with prefix sums.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Count map and number of distinct.",
+        "Prefix map of first positions."
       ],
       "expectedEvidence": [
-        "Implement and analyze fixed and variable sliding-window problems.",
-        "The shrink rule needs a monotonic condition; negative contributions can invalidate common variable-window reasoning."
+        "Both solutions match brute force.",
+        "A clear failing input for the window approach."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.patterns.sliding-window.misconception",
-      "explanation": "The shrink rule needs a monotonic condition; negative contributions can invalidate common variable-window reasoning.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'monotonic condition', then state one implementation-specific risk in the selected language."
+      "explanation": "Write the window's **condition** and ask: **if I remove the leftmost item, does the window move closer to satisfying it?** If yes, shrink while it's broken. If not guaranteed (negatives), choose another tool.",
+      "retryPrompt": "Apply this to \"Best 7-day study total\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and analyze fixed and variable sliding-window problems. Keep this boundary in view: Negative values can break monotonic sum logic, fixed and variable windows differ, and counts must be updated symmetrically.",
+    "summary": "To implement fixed and variable sliding windows, keep an aggregate for a contiguous range, add the new right item, and for variable windows shrink from the left until the condition holds again, such as a new topic's count returning to one; each index moves at most twice, giving O(n), but negative values can break shrink-based rules.",
     "retrievalPrompts": [
-      "State the Sliding windows invariant and complexity without code.",
-      "Why is this claim false: Sliding-window sum logic works unchanged when arbitrary negative values are present.",
-      "Map checkpoint 'monotonic condition' to C, C++, Java, and Python."
+      "What stays true about the window after shrinking?",
+      "Why is a variable window O(n)?",
+      "Why can negative values break sliding-window sums?"
     ],
     "nextReviewPrompt": "Next: continue to “Monotonic stack and queue”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

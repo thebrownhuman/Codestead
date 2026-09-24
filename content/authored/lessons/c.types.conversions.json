@@ -38,33 +38,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "C applies integer promotions and usual arithmetic conversions before many operations, then assignment or casts can convert the result to a destination type.",
+    "summary": "Before most operations, C **converts operands to a common type**. Small types like char and short are **promoted** to int. Then the **usual arithmetic conversions** apply: int with double becomes double; **signed with unsigned of the same rank becomes unsigned**. That last rule bites: `-1 < 1u` is **false**, because -1 becomes a huge unsigned number. The destination doesn't help either: in `double avg = 7 / 2;`, the division is done in int (3) and only then converted to 3.0. Converting to a type that can't hold the value may **wrap** (unsigned), be implementation-defined, or be **undefined** (float to int out of range), so **check ranges before converting**.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Comparing negative int -1 with unsigned int 1 can convert the negative operand to a large unsigned value and reverse a beginner's expected ordering. Your goal is to predict and test conversion results while guarding values that cannot be represented. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner writes `if (balance < limit)` where balance is int -1 and limit is unsigned 1. The check says -1 is **not** less than 1, and a negative balance gets through. Comparing negative int -1 with unsigned int 1 can convert the negative operand to a large unsigned value and reverse a beginner's expected ordering. In this lesson you'll predict and test conversion results while guarding values that cannot be represented.\n\n```predict\n{\"question\": \"`double avg = 7 / 2;` What is avg?\", \"options\": [\"3.5\", \"3.0: 7 / 2 is computed as int first\"], \"answer\": 1, \"why\": \"Write 7.0 / 2 or (double)7 / 2 to divide in double.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Translation unit and main; pf state expressions; Operators and precedence. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Translation unit and main**, **Expressions and evaluation** and **Operators and precedence**."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "C applies integer promotions and usual arithmetic conversions before many operations, then assignment or casts can convert the result to a destination type. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The rule: operands convert first, destination last",
+        "body": "```c\n#include <stdio.h>\n#include <limits.h>\n\nint main(void) {\n    int a = -1;\n    unsigned int b = 1;\n    printf(\"%d\\n\", a < b);               /* 0: a becomes UINT_MAX. */\n    printf(\"%d\\n\", a < (int)b);          /* 1: compare as signed. */\n\n    double avg = 7 / 2;                   /* 3.0: int division, then converted. */\n    double ok = 7.0 / 2;                  /* 3.5. */\n\n    long big = 3000000000L;\n    if (big > INT_MAX || big < INT_MIN) { /* guard before narrowing. */\n        puts(\"too large for int\");\n    } else {\n        int small = (int)big;\n        printf(\"%d\\n\", small);\n    }\n    printf(\"%.1f %.1f\\n\", avg, ok);\n    return 0;\n}\n```\n\n| Operands | Common type |\n|---|---|\n| char, short. | int (promotion). |\n| int and double. | double. |\n| int and unsigned int. | unsigned int. |\n| int and long. | long. |\n\n```reveal\n{\"prompt\": \"What happens when a negative value is converted to unsigned?\", \"answer\": \"It wraps modulo 2^N: -1 becomes the largest unsigned value (4294967295 for 32-bit). That's well-defined, which is why no error appears.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Signed-to-unsigned conversion is modulo the unsigned range, narrowing can lose information, and out-of-range floating or pointer conversions have separate rules. Therefore the draft explicitly rejects this beginner failure model: The destination variable's type controls how the entire right-hand expression is evaluated from the beginning."
+        "heading": "Guard before narrowing",
+        "body": "```predict\n{\"question\": \"Converting the double 1e20 to int is...\", \"options\": [\"Clamped to INT_MAX\", \"Undefined behaviour: the value can't be represented\"], \"answer\": 1, \"why\": \"Check against INT_MIN and INT_MAX before converting.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Reason about promotions, signedness, narrowing, overflow and floating-point approximation.",
-      "Predict and test conversion results while guarding values that cannot be represented."
+      "Predict promotions and usual arithmetic conversions, especially signed/unsigned mixes.",
+      "Guard range before narrowing conversions and use casts to choose the operation type deliberately."
     ],
     "excludes": [
-      "Signed-to-unsigned conversion is modulo the unsigned range, narrowing can lose information, and out-of-range floating or pointer conversions have separate rules."
+      "Floating-point rounding modes.",
+      "Pointer conversions (pointers module)."
     ]
   },
   "outcomes": [
@@ -73,133 +74,135 @@
   "examples": [
     {
       "id": "c.types.conversions.example-a",
-      "title": "Conversions and numeric boundaries: defined case",
+      "title": "When -1 is bigger than 1",
       "situation": "Comparing negative int -1 with unsigned int 1 can convert the negative operand to a large unsigned value and reverse a beginner's expected ordering.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: Comparing negative int -1 with unsigned int 1 can convert the negative operand to a large unsigned value and reverse a beginner's expected ordering.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Trace integer promotions and usual arithmetic conversions first, then apply the final assignment conversion; cast before an operation only when that semantic change is intended."
+        "**Comparing negative int -1 with unsigned int 1:** the operands have the same rank but different signedness.",
+        "**Can convert the negative operand to a large unsigned value:** -1 becomes 4294967295.",
+        "**And reverse a beginner's expected ordering:** a < b is 0; comparing as signed, or checking a < 0 first, will fix it."
       ],
-      "result": "The defined result follows because Trace integer promotions and usual arithmetic conversions first, then apply the final assignment conversion; cast before an operation only when that semantic change is intended."
+      "result": "Negative balances are rejected, and -Wsign-compare flags similar mixes."
     },
     {
       "id": "c.types.conversions.example-b",
-      "title": "Conversions and numeric boundaries: boundary case",
-      "situation": "Dividing two int operands truncates before assignment to double, while converting one operand to double requests floating division.",
+      "title": "The average rounded down",
+      "situation": "`int sum = 17, n = 4; double avg = sum / n;` gives 4.0 instead of 4.25.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: Dividing two int operands truncates before assignment to double, while converting one operand to double requests floating division.",
-        "Step 2 — Keep this standard boundary visible: Signed-to-unsigned conversion is modulo the unsigned range, narrowing can lose information, and out-of-range floating or pointer conversions have separate rules.",
-        "Step 3 — Reject the tempting rule: The destination variable's type controls how the entire right-hand expression is evaluated from the beginning."
+        "sum / n is int division: 4.",
+        "Assigning to a double only converts the finished result.",
+        "Write (double)sum / n so the division itself is done in double."
       ],
-      "result": "This case demonstrates the declared outcome: Predict and test conversion results while guarding values that cannot be represented."
+      "result": "The average is 4.25 as intended."
     }
   ],
   "misconceptions": [
     {
       "id": "c.types.conversions.misconception",
       "mistakenBelief": "The destination variable's type controls how the entire right-hand expression is evaluated from the beginning.",
-      "correction": "Trace integer promotions and usual arithmetic conversions first, then apply the final assignment conversion; cast before an operation only when that semantic change is intended.",
-      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: The destination variable's type controls how the entire right-hand expression is evaluated from the beginning."
+      "correction": "The right-hand side is evaluated using its operands' types and conversions first; only the final value is converted to the destination type.",
+      "diagnosticPrompt": "In the opening predict, why was avg 3.0?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A manually managed workshop can model Conversions and numeric boundaries: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "example": "Mixed arithmetic is like **two people meeting to trade**: they must agree on one currency first (common type). C's rule sometimes picks a currency where one person's debt (-1) looks like a fortune (UINT_MAX). And the wallet you put the change into (destination) doesn't affect the trade itself.",
     "usefulFor": [
-      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+      "remembering agree on currency first",
+      "destination = the wallet afterwards"
     ],
     "limitations": [
-      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
-      "Signed-to-unsigned conversion is modulo the unsigned range, narrowing can lose information, and out-of-range floating or pointer conversions have separate rules."
+      "Real currencies have exchange rates; C just reinterprets.",
+      "Casts are you choosing the currency on purpose."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Comparing negative int -1 with unsigned int 1 can convert the negative operand to a large unsigned value and reverse a beginner's expected ordering.",
-      "C applies integer promotions and usual arithmetic conversions before many operations, then assignment or casts can convert the result to a destination type.",
-      "Trace integer promotions and usual arithmetic conversions first, then apply the final assignment conversion; cast before an operation only when that semantic change is intended."
+      "int a = -1; unsigned b = 1;",
+      "a < b",
+      "a < (int)b"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Operands",
         "state": {
-          "evidence": "Comparing negative int -1 with unsigned int 1 can convert the negative operand to a large unsigned value and reverse a beginner's expected ordering."
+          "a": "-1 (int)",
+          "b": "1 (unsigned)"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "Comparing negative int -1 with unsigned int 1 needs a common type."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Convert",
         "state": {
-          "rule": "C applies integer promotions and usual arithmetic conversions before many operations, then assignment or casts can convert the result to a destination type."
+          "a as unsigned": "4294967295",
+          "a < b": "0"
         },
-        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+        "explanation": "The negative operand becomes a large unsigned value, reversing the expected ordering."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Fix",
         "state": {
-          "conclusion": "Trace integer promotions and usual arithmetic conversions first, then apply the final assignment conversion; cast before an operation only when that semantic change is intended."
+          "a < (int)b": "1"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: The destination variable's type controls how the entire right-hand expression is evaluated from the beginning."
+        "explanation": "Choosing signed comparison deliberately restores the intended result."
       }
     ],
-    "textAlternative": "Starting artifact: Comparing negative int -1 with unsigned int 1 can convert the negative operand to a large unsigned value and reverse a beginner's expected ordering. Step 1, Source and state. State: evidence: Comparing negative int -1 with unsigned int 1 can convert the negative operand to a large unsigned value and reverse a beginner's expected ordering.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: C applies integer promotions and usual arithmetic conversions before many operations, then assignment or casts can convert the result to a destination type.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Trace integer promotions and usual arithmetic conversions first, then apply the final assignment conversion; cast before an operation only when that semantic change is intended.. Check the conclusion against the boundary and reject this misconception: The destination variable's type controls how the entire right-hand expression is evaluated from the beginning."
+    "textAlternative": "Tracing a signed/unsigned comparison. Step 1, Operands: a is -1 (int); b is 1 (unsigned). Comparing negative int -1 with unsigned int 1 needs a common type. Step 2, Convert: a as unsigned is 4294967295; a < b is 0. The negative operand becomes a large unsigned value, reversing the expected ordering. Step 3, Fix: a < (int)b is 1. Choosing signed comparison deliberately restores the intended result."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Conversions and numeric boundaries: defined case”: state its starting evidence, apply the Conversions and numeric boundaries rule, and give the observable result in three short lines.",
+      "prompt": "For \"When -1 is bigger than 1\", explain how comparing negative int -1 with unsigned int 1 can convert the negative operand to a large unsigned value and reverse a beginner's expected ordering.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Operands.",
+        "Convert.",
+        "Fix."
       ],
       "expectedEvidence": [
-        "Named example: Conversions and numeric boundaries: defined case.",
-        "Starting evidence: Comparing negative int -1 with unsigned int 1 can convert the negative operand to a large unsigned value and reverse a beginner's expected ordering.",
-        "Core rule: C applies integer promotions and usual arithmetic conversions before many operations, then assignment or casts can convert the result to a destination type.",
-        "Observable result: The defined result follows because Trace integer promotions and usual arithmetic conversions first, then apply the final assignment conversion; cast before an operation only when that semantic change is intended.",
-        "Boundary check: Trace integer promotions and usual arithmetic conversions first, then apply the final assignment conversion; cast before an operation only when that semantic change is intended."
+        "Names the example \"When -1 is bigger than 1\": a negative balance got through.",
+        "Comparing negative int -1 with unsigned int 1 can convert the negative operand to a large unsigned value.",
+        "It can reverse a beginner's expected ordering.",
+        "Negative balances are rejected after the fix."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same C rule to this related boundary case: Dividing two int operands truncates before assignment to double, while converting one operand to double requests floating division.",
+      "prompt": "Predict, then print: `-1 < 1u`, `(char)300` (assume 8-bit char), `5 / 2 * 2.0`, `5 / 2.0 * 2`, `(unsigned)-5`. Explain each conversion.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Look at operand types before operators.",
+        "char may be signed."
       ],
       "expectedEvidence": [
-        "C applies integer promotions and usual arithmetic conversions before many operations, then assignment or casts can convert the result to a destination type.",
-        "Signed-to-unsigned conversion is modulo the unsigned range, narrowing can lose information, and out-of-range floating or pointer conversions have separate rules."
+        "Five predictions checked.",
+        "Conversions explained."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new C example for Conversions and numeric boundaries, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Write a function `bool to_int(long v, int *out)` that converts only when v fits in int, returning false otherwise. Test it with values around INT_MAX and INT_MIN, and compile with -Wall -Wextra -Wconversion.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Use <limits.h>.",
+        "-Wconversion reveals silent narrowing."
       ],
       "expectedEvidence": [
-        "Predict and test conversion results while guarding values that cannot be represented.",
-        "Trace integer promotions and usual arithmetic conversions first, then apply the final assignment conversion; cast before an operation only when that semantic change is intended."
+        "Boundary tests pass.",
+        "No unguarded narrowing."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "c.types.conversions.misconception",
-      "explanation": "Trace integer promotions and usual arithmetic conversions first, then apply the final assignment conversion; cast before an operation only when that semantic change is intended.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'integer promotions' and state the decisive evidence: Dividing two int operands truncates before assignment to double, while converting one operand to double requests floating division."
+      "explanation": "For any mixed expression, **write down each operand's type**, apply promotion and the common-type rule, **then** consider the destination. Before narrowing, **check the range**.",
+      "retryPrompt": "Apply this to \"The average rounded down\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to predict and test conversion results while guarding values that cannot be represented. Keep this boundary in view: Signed-to-unsigned conversion is modulo the unsigned range, narrowing can lose information, and out-of-range floating or pointer conversions have separate rules.",
+    "summary": "To predict conversions, promote small integers to int, apply the usual arithmetic conversions to find a common type (watching signed/unsigned mixes), evaluate the expression in that type, and only then convert to the destination, guarding ranges before any narrowing conversion.",
     "retrievalPrompts": [
-      "Explain Conversions and numeric boundaries using a concrete C rule rather than the optional analogy.",
-      "Why is this claim incorrect: The destination variable's type controls how the entire right-hand expression is evaluated from the beginning.",
-      "Apply the checkpoint 'integer promotions' to the boundary case from memory."
+      "What is -1 < 1u, and why?",
+      "Does the destination type affect 7 / 2?",
+      "When is float-to-int conversion undefined?"
     ],
     "nextReviewPrompt": "Next: continue to “if and switch”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

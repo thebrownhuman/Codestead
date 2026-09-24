@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Git hooks run local or server-side programs at lifecycle points to automate checks, but their installation, environment, trust, and bypass policy must be explicit.",
+    "summary": "**Git hooks** are scripts Git runs at certain moments: `pre-commit` before a commit is made, `commit-msg` to check the message, `pre-push` before pushing. They give fast feedback, like formatting staged files in a second. But hooks live in `.git/hooks`, which **isn't cloned**: each developer must install them (for example via a committed launcher like Husky or pre-commit), and anyone can skip them with `--no-verify`. So hooks are a **convenience, not a guarantee**. The **authoritative** checks run in **CI**, on every push. Keep hooks **fast** and put slow suites in pre-push or CI.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A versioned hook launcher runs fast formatting checks before commit while authoritative CI reruns all required checks independently. Your goal is to design a check placement plan for local, pre-push and CI stages. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A team adds a pre-commit hook that runs the linter and assumes nothing unlinted can reach main. A new teammate never installed the hooks; another used `--no-verify` in a hurry. Main breaks. A versioned hook launcher runs fast formatting checks before commit while authoritative CI reruns all required checks independently. In this lesson you'll design a check placement plan for local, pre-push and CI stages.\n\n```predict\n{\"question\": \"A pre-commit hook runs the linter. Does that guarantee every commit on the remote was linted?\", \"options\": [\"Yes\", \"No: hooks can be missing or skipped; only CI checks every push\"], \"answer\": 1, \"why\": \"Hooks run on each developer's machine, under their control.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Dependencies and reproducible builds; Commits and history; Formatter and linter; Build and task commands. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Dependencies and reproducible builds**, **Commits and history**, **Formatter and linter** and **Build and task commands**."
       },
       {
-        "heading": "Operational model",
-        "body": "Git hooks run local or server-side programs at lifecycle points to automate checks, but their installation, environment, trust, and bypass policy must be explicit. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The rule: fast locally, complete in CI",
+        "body": "```json\n// package.json: committed, so everyone gets the same hooks after npm install.\n{\n  \"scripts\": { \"prepare\": \"husky\" },\n  \"lint-staged\": { \"*.{js,ts}\": [\"prettier --write\", \"eslint\"] }\n}\n```\n\n```bash\n# .husky/pre-commit (committed).\nnpx lint-staged          # only staged files: about a second.\n\n# .husky/pre-push (committed).\nnpm test                 # unit tests before sharing.\n```\n\n| Stage | Runs | Speed | Can be skipped? |\n|---|---|---|---|\n| pre-commit. | format + lint staged files. | seconds. | yes (--no-verify). |\n| pre-push. | unit tests. | under a minute. | yes. |\n| CI. | everything: build, all tests, security scans. | minutes. | no (required checks). |\n\n```reveal\n{\"prompt\": \"Why not run the full test suite in pre-commit?\", \"answer\": \"Slow hooks get skipped with --no-verify, and then they check nothing. Keep commit hooks fast so people leave them on.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Client hooks are not cloned automatically, can be bypassed, execute with developer privileges, and may behave differently across shells and platforms. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: A pre-commit hook guarantees every commit in the remote passed the check and is safe to trust."
+        "heading": "Trust the right stage",
+        "body": "```predict\n{\"question\": \"Where should a secret-scanning check that must never be bypassed run?\", \"options\": [\"Only in pre-commit\", \"In CI as a required check (and optionally also locally for fast feedback)\"], \"answer\": 1, \"why\": \"Only server-side checks are authoritative.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use fast local feedback as convenience while keeping authoritative checks reproducible outside developer hooks.",
-      "Design a check placement plan for local, pre-push and CI stages."
+      "Install versioned hooks with a committed launcher and keep them fast.",
+      "Place checks across pre-commit, pre-push and CI, treating CI as authoritative."
     ],
     "excludes": [
-      "Client hooks are not cloned automatically, can be bypassed, execute with developer privileges, and may behave differently across shells and platforms."
+      "Server-side hooks on self-hosted Git servers.",
+      "Writing CI workflows (next module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "git.quality.hooks.example-a",
-      "title": "Local hooks and server checks: direct case",
+      "title": "Fast local checks, authoritative CI",
       "situation": "A versioned hook launcher runs fast formatting checks before commit while authoritative CI reruns all required checks independently.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A versioned hook launcher runs fast formatting checks before commit while authoritative CI reruns all required checks independently.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Treat hooks as convenience and defense in depth, distribute them transparently, minimize privilege, and enforce non-bypassable policy on trusted CI or server controls."
+        "**A versioned hook launcher:** Husky config is committed, and npm install sets it up for everyone.",
+        "**Runs fast formatting checks before commit:** lint-staged formats and lints staged files in about a second.",
+        "**Authoritative CI reruns all required checks independently:** even a --no-verify commit will be caught by CI before merge."
       ],
-      "result": "The case supports the declared outcome because Treat hooks as convenience and defense in depth, distribute them transparently, minimize privilege, and enforce non-bypassable policy on trusted CI or server controls."
+      "result": "Developers get instant feedback, and main is protected regardless of local setups."
     },
     {
       "id": "git.quality.hooks.example-b",
-      "title": "Local hooks and server checks: boundary case",
-      "situation": "A downloaded repository's hook scripts are reviewed before installation because they can execute arbitrary local commands.",
+      "title": "The five-minute pre-commit",
+      "situation": "A hook runs the full test suite on every commit. Within a week, everyone commits with --no-verify.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A downloaded repository's hook scripts are reviewed before installation because they can execute arbitrary local commands.",
-        "Step 2 — Keep this boundary explicit: Client hooks are not cloned automatically, can be bypassed, execute with developer privileges, and may behave differently across shells and platforms.",
-        "Step 3 — Reject the documented misconception: A pre-commit hook guarantees every commit in the remote passed the check and is safe to trust."
+        "The hook was too slow to keep.",
+        "Move the full suite to CI and unit tests to pre-push.",
+        "Keep pre-commit to staged-file formatting and lint."
       ],
-      "result": "This case demonstrates the declared outcome: Design a check placement plan for local, pre-push and CI stages."
+      "result": "Hooks stay on, and feedback stays fast."
     }
   ],
   "misconceptions": [
     {
       "id": "git.quality.hooks.misconception",
       "mistakenBelief": "A pre-commit hook guarantees every commit in the remote passed the check and is safe to trust.",
-      "correction": "Treat hooks as convenience and defense in depth, distribute them transparently, minimize privilege, and enforce non-bypassable policy on trusted CI or server controls.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: A pre-commit hook guarantees every commit in the remote passed the check and is safe to trust."
+      "correction": "Hooks aren't cloned automatically, can be uninstalled, and can be bypassed with --no-verify. Only required server-side checks in CI apply to every push.",
+      "diagnosticPrompt": "In the opening story, how did unlinted code reach main?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A controlled investigation can model Local hooks and server checks: preserve evidence, state a hypothesis, inspect one clue, automate repeatable checks, and narrow the change point.",
+    "example": "Hooks are like **a spell-checker in your own word processor**: quick and helpful, but you can turn it off. CI is **the publisher's editor**, who checks every manuscript before printing, whoever sent it.",
     "usefulFor": [
-      "Linking debugging, static checks, history search, and automated local gates"
+      "remembering your spell-checker vs their editor",
+      "fast locally, final at the publisher"
     ],
     "limitations": [
-      "Debuggers and hooks can alter timing or execute code, and tool findings remain bounded evidence rather than proof.",
-      "Client hooks are not cloned automatically, can be bypassed, execute with developer privileges, and may behave differently across shells and platforms."
+      "Editors take longer; so does CI.",
+      "A writer who disables spell-check still gets caught by the editor."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A versioned hook launcher runs fast formatting checks before commit while authoritative CI reruns all required checks independently.",
-      "Git hooks run local or server-side programs at lifecycle points to automate checks, but their installation, environment, trust, and bypass policy must be explicit.",
-      "Treat hooks as convenience and defense in depth, distribute them transparently, minimize privilege, and enforce non-bypassable policy on trusted CI or server controls."
+      "npm install (sets up hooks)",
+      "git commit (pre-commit: lint-staged)",
+      "git push; CI runs everything"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Install",
         "state": {
-          "evidence": "A versioned hook launcher runs fast formatting checks before commit while authoritative CI reruns all required checks independently."
+          "hooks": "from committed Husky config"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "A versioned hook launcher installs the same hooks for everyone."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Commit",
         "state": {
-          "model": "Git hooks run local or server-side programs at lifecycle points to automate checks, but their installation, environment, trust, and bypass policy must be explicit."
+          "lint-staged": "2 files, 1.2 s"
         },
-        "explanation": "Apply the declared Local hooks and server checks model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "It runs fast formatting checks before each commit."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "CI",
         "state": {
-          "correction": "Treat hooks as convenience and defense in depth, distribute them transparently, minimize privilege, and enforce non-bypassable policy on trusted CI or server controls."
+          "build": "pass",
+          "tests": "pass",
+          "scans": "pass"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: A pre-commit hook guarantees every commit in the remote passed the check and is safe to trust."
+        "explanation": "Authoritative CI reruns all required checks independently."
       }
     ],
-    "textAlternative": "Starting artifact: A versioned hook launcher runs fast formatting checks before commit while authoritative CI reruns all required checks independently. Step 1, Observe. State: evidence: A versioned hook launcher runs fast formatting checks before commit while authoritative CI reruns all required checks independently.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Git hooks run local or server-side programs at lifecycle points to automate checks, but their installation, environment, trust, and bypass policy must be explicit.. Apply the declared Local hooks and server checks model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Treat hooks as convenience and defense in depth, distribute them transparently, minimize privilege, and enforce non-bypassable policy on trusted CI or server controls.. Compare the observation with the correction and reject the misconception: A pre-commit hook guarantees every commit in the remote passed the check and is safe to trust."
+    "textAlternative": "Tracing check placement. Step 1, Install: hooks is from committed Husky config. A versioned hook launcher installs the same hooks for everyone. Step 2, Commit: lint-staged is 2 files, 1.2 s. It runs fast formatting checks before each commit. Step 3, CI: build is pass; tests is pass; scans is pass. Authoritative CI reruns all required checks independently."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Local hooks and server checks: direct case”: state its starting evidence, apply the Local hooks and server checks rule, and give the observable result in three short lines.",
+      "prompt": "For \"Fast local checks, authoritative CI\", explain how a versioned hook launcher runs fast formatting checks before commit while authoritative CI reruns all required checks independently.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Install.",
+        "Commit.",
+        "CI."
       ],
       "expectedEvidence": [
-        "Named example: Local hooks and server checks: direct case.",
-        "Starting evidence: A versioned hook launcher runs fast formatting checks before commit while authoritative CI reruns all required checks independently.",
-        "Core rule: Git hooks run local or server-side programs at lifecycle points to automate checks, but their installation, environment, trust, and bypass policy must be explicit.",
-        "Observable result: The case supports the declared outcome because Treat hooks as convenience and defense in depth, distribute them transparently, minimize privilege, and enforce non-bypassable policy on trusted CI or server controls.",
-        "Boundary check: Treat hooks as convenience and defense in depth, distribute them transparently, minimize privilege, and enforce non-bypassable policy on trusted CI or server controls."
+        "Names the example \"Fast local checks, authoritative CI\": missing and skipped hooks broke main.",
+        "A versioned hook launcher runs fast formatting checks before commit.",
+        "Authoritative CI reruns all required checks independently.",
+        "Developers get instant feedback, and main is protected."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A downloaded repository's hook scripts are reviewed before installation because they can execute arbitrary local commands.",
+      "prompt": "Add a committed pre-commit hook to a sandbox project that formats and lints only staged files. Time it, then commit with --no-verify and explain what that proves about hooks.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Husky + lint-staged, or the pre-commit framework.",
+        "Aim for under 2 seconds."
       ],
       "expectedEvidence": [
-        "Git hooks run local or server-side programs at lifecycle points to automate checks, but their installation, environment, trust, and bypass policy must be explicit.",
-        "Client hooks are not cloned automatically, can be bypassed, execute with developer privileges, and may behave differently across shells and platforms."
+        "Hook installs from committed config.",
+        "Bypass demonstrated and explained."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Local hooks and server checks, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Write a check placement plan for a project: list every check (format, lint, types, unit tests, integration tests, secret scan, build), assign each to pre-commit, pre-push or CI with a reason, and mark which are required for merge.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Consider speed and bypassability.",
+        "CI must include every required check."
       ],
       "expectedEvidence": [
-        "Design a check placement plan for local, pre-push and CI stages.",
-        "Treat hooks as convenience and defense in depth, distribute them transparently, minimize privilege, and enforce non-bypassable policy on trusted CI or server controls."
+        "Every check placed with a reason.",
+        "Required checks all in CI."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.quality.hooks.misconception",
-      "explanation": "Treat hooks as convenience and defense in depth, distribute them transparently, minimize privilege, and enforce non-bypassable policy on trusted CI or server controls.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A downloaded repository's hook scripts are reviewed before installation because they can execute arbitrary local commands."
+      "explanation": "For each check ask: **how fast is it, and what happens if someone skips it?** Fast and optional goes local; anything that must hold goes in CI.",
+      "retryPrompt": "Apply this to \"The five-minute pre-commit\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to design a check placement plan for local, pre-push and CI stages. Keep this boundary in view: Client hooks are not cloned automatically, can be bypassed, execute with developer privileges, and may behave differently across shells and platforms.",
+    "summary": "To design a check placement plan, install hooks from committed, versioned configuration, keep pre-commit checks fast on staged files, put slower tests in pre-push, and run every required check authoritatively in CI, because local hooks can be missing or bypassed.",
     "retrievalPrompts": [
-      "Explain Local hooks and server checks without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: A pre-commit hook guarantees every commit in the remote passed the check and is safe to trust.",
-      "Apply the model to this case from memory: A downloaded repository's hook scripts are reviewed before installation because they can execute arbitrary local commands."
+      "Why aren't hooks a guarantee?",
+      "What belongs in pre-commit?",
+      "Where must required checks run?"
     ],
     "nextReviewPrompt": "Next: continue to “Continuous integration pipeline”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

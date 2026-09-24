@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A minimum spanning tree connects all vertices of a weighted undirected graph with minimum total edge weight and no cycles.",
+    "summary": "A **minimum spanning tree** (MST) of a connected, weighted, **undirected** graph picks V - 1 edges that **connect every vertex** with the **smallest total weight** and no cycles. **Kruskal's algorithm** sorts edges by weight and adds each one **only if its endpoints are in different components**, checked with a disjoint-set (union-find): O(E log E). **Prim's algorithm** grows one tree from a start vertex, always adding the cheapest edge leaving it, using a priority queue. An MST minimises the **total** cost of connecting everything; it does **not** give the shortest path between two vertices.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Kruskal sorts edges and adds one only when disjoint-set representatives differ. Your goal is to implement and test one MST algorithm and distinguish MST from shortest-path trees. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A school wants to network five study rooms with the least total cable. Each possible link has a cable length. A first attempt adds the shortest links in order but creates a loop and wastes cable on a redundant link. Kruskal sorts edges and adds one only when disjoint-set representatives differ. In this lesson you'll implement and test one MST algorithm and distinguish MST from shortest-path trees.\n\n```predict\n{\"question\": \"Does the path between two rooms in the MST always give their shortest cable route?\", \"options\": [\"Yes\", \"No: the MST minimises total cable, not each pair's distance\"], \"answer\": 1, \"why\": \"A shortest-path tree from one room and an MST are different things.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Graph representation and traversal; Priority queue applications; Unweighted and Dijkstra shortest paths; Make, find and union. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Graph representation and traversal** module, **Priority queue applications**, **Unweighted and Dijkstra shortest paths**, and **Make, find and union** (disjoint sets)."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "A minimum spanning tree connects all vertices of a weighted undirected graph with minimum total edge weight and no cycles. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The rule: cheapest edge that joins two different components",
+        "body": "```python\ndef kruskal(n, edges):                    # edges: (w, u, v); vertices 0..n-1.\n    parent = list(range(n))\n    def find(x):\n        while parent[x] != x:\n            parent[x] = parent[parent[x]]   # path halving.\n            x = parent[x]\n        return x\n    tree, total = [], 0\n    for w, u, v in sorted(edges):         # cheapest first.\n        ru, rv = find(u), find(v)\n        if ru != rv:                      # different components: no cycle.\n            parent[ru] = rv\n            tree.append((u, v, w))\n            total += w\n            if len(tree) == n - 1:\n                break\n    return tree, total                    # fewer than n - 1 edges: graph disconnected.\n\nrooms = [(1, 0, 1), (4, 0, 2), (3, 1, 2), (2, 1, 3), (5, 2, 4), (6, 3, 4)]\nprint(kruskal(5, rooms))   # total 11: (0,1,1), (1,3,2), (1,2,3), (2,4,5).\n```\n\n| | MST | Shortest-path tree from s |\n|---|---|---|\n| minimises. | total edge weight. | distance from s to each vertex. |\n| graph. | undirected. | directed or undirected. |\n| algorithms. | Kruskal, Prim. | BFS, Dijkstra, Bellman-Ford. |\n\n```reveal\n{\"prompt\": \"Why does adding the cheapest safe edge always work?\", \"answer\": \"The cut property: for any split of the vertices into two groups, the cheapest edge crossing the split belongs to some MST. Kruskal's choices are always such edges.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Disconnected graphs yield a forest, equal weights can yield many MSTs, and shortest paths are a different objective. The draft therefore rejects: A minimum spanning tree also gives the shortest path between every pair."
+        "heading": "Spot the cycle",
+        "body": "```predict\n{\"question\": \"Edges so far join rooms {0, 1, 2, 3}. The next cheapest edge is 0-2. Add it?\", \"options\": [\"Yes, it's cheap\", \"No: 0 and 2 are already connected, so it would make a cycle\"], \"answer\": 1, \"why\": \"find(0) == find(2) says they're in the same component.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use Prim or Kruskal to connect an undirected weighted graph with minimum total edge cost.",
-      "Implement and test one MST algorithm and distinguish MST from shortest-path trees.",
-      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      "Implement Kruskal with union-find (or Prim with a priority queue) and test totals.",
+      "Distinguish an MST from a shortest-path tree."
     ],
     "excludes": [
-      "Disconnected graphs yield a forest, equal weights can yield many MSTs, and shortest paths are a different objective."
+      "Borůvka's algorithm.",
+      "Directed minimum arborescences."
     ]
   },
   "outcomes": [
@@ -68,142 +64,137 @@
   "examples": [
     {
       "id": "dsa.graphs.mst.example-a",
-      "title": "Minimum spanning trees: language-neutral trace",
+      "title": "Wiring the study rooms for the least cable",
       "situation": "Kruskal sorts edges and adds one only when disjoint-set representatives differ.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: Kruskal sorts edges and adds one only when disjoint-set representatives differ.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: MST minimizes total tree weight, not each pairwise route; shortest-path and spanning-tree objectives differ."
+        "**Sort edges:** cable lengths 1, 2, 3, 4, 5, 6 are tried in that order.",
+        "**Representatives differ:** 0-1, 1-3 and 1-2 join new rooms; 0-2 (length 4) is skipped because 0 and 2 already share a representative.",
+        "**Finish and test:** 2-4 completes the tree with total 11; a test will compare with brute force over all spanning trees of the small graph."
       ],
-      "result": "The conceptual result follows because MST minimizes total tree weight, not each pairwise route; shortest-path and spanning-tree objectives differ."
+      "result": "The rooms are networked with 11 metres of cable, the minimum possible, and no redundant loop."
     },
     {
       "id": "dsa.graphs.mst.example-b",
-      "title": "Minimum spanning trees: implementation transfer",
-      "situation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
+      "title": "The tree that was used for directions",
+      "situation": "A campus app reuses its MST of corridors to give walking directions. The route from the Library to the Lab is much longer than the direct corridor.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
-        "Step 3 — Retest this boundary in the selected implementation: Disconnected graphs yield a forest, equal weights can yield many MSTs, and shortest paths are a different objective."
+        "The MST dropped the direct corridor because other cheap links already connected those areas.",
+        "For directions, compute shortest paths (Dijkstra) instead.",
+        "Keep the MST for its real purpose: laying cable or planning the cheapest network."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Directions use shortest paths, and the network plan uses the MST."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.graphs.mst.misconception",
       "mistakenBelief": "A minimum spanning tree also gives the shortest path between every pair.",
-      "correction": "MST minimizes total tree weight, not each pairwise route; shortest-path and spanning-tree objectives differ.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: A minimum spanning tree also gives the shortest path between every pair."
+      "correction": "An MST minimises the total weight of connecting all vertices. The path it gives between two vertices can be much longer than their shortest path, which Dijkstra or BFS compute.",
+      "diagnosticPrompt": "In \"The tree that was used for directions\", why was the route long?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Minimum spanning trees, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Kruskal is like **a town council building roads cheapest-first**, but refusing any road between two villages that can already reach each other. At the end every village is connected for the least total road. It's great for building, but not a guide to the fastest trip between two particular villages.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering cheapest safe edge",
+      "skip = already connected"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Disconnected graphs yield a forest, equal weights can yield many MSTs, and shortest paths are a different objective."
+      "Councils consider traffic; MST considers only total cost.",
+      "Union-find is the council's map of which villages are already joined."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Kruskal sorts edges and adds one only when disjoint-set representatives differ.",
-      "A minimum spanning tree connects all vertices of a weighted undirected graph with minimum total edge weight and no cycles.",
-      "MST minimizes total tree weight, not each pairwise route; shortest-path and spanning-tree objectives differ.",
-      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      "edges sorted: 0-1(1), 1-3(2), 1-2(3), 0-2(4), 2-4(5), 3-4(6)",
+      "process in order",
+      "result"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Add",
         "state": {
-          "scenario": "Kruskal sorts edges and adds one only when disjoint-set representatives differ."
+          "taken": "0-1, 1-3, 1-2",
+          "components": "{0,1,2,3}, {4}"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "Kruskal sorts edges and adds each that joins two components."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Skip",
         "state": {
-          "invariant": "A minimum spanning tree connects all vertices of a weighted undirected graph with minimum total edge weight and no cycles."
+          "edge": "0-2",
+          "find(0) == find(2)": "yes"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "It adds one only when disjoint-set representatives differ, so 0-2 is skipped."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Finish",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "taken": "2-4",
+          "total": "11",
+          "edges": "4 = n - 1"
         },
-        "explanation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "MST minimizes total tree weight, not each pairwise route; shortest-path and spanning-tree objectives differ."
-        },
-        "explanation": "Verify the result and reject this misconception: A minimum spanning tree also gives the shortest path between every pair."
+        "explanation": "The tree connects all five rooms at minimum cost."
       }
     ],
-    "textAlternative": "Starting artifact: Kruskal sorts edges and adds one only when disjoint-set representatives differ. Step 1, Specification. State: scenario: Kruskal sorts edges and adds one only when disjoint-set representatives differ.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: A minimum spanning tree connects all vertices of a weighted undirected graph with minimum total edge weight and no cycles.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target. Step 4, Conclusion. State: correction: MST minimizes total tree weight, not each pairwise route; shortest-path and spanning-tree objectives differ.. Verify the result and reject this misconception: A minimum spanning tree also gives the shortest path between every pair."
+    "textAlternative": "Tracing Kruskal. Step 1, Add: taken is 0-1, 1-3, 1-2; components is {0,1,2,3}, {4}. Kruskal sorts edges and adds each that joins two components. Step 2, Skip: edge is 0-2; find(0) == find(2) is yes. It adds one only when disjoint-set representatives differ, so 0-2 is skipped. Step 3, Finish: taken is 2-4; total is 11; edges is 4 = n - 1. The tree connects all five rooms at minimum cost."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Minimum spanning trees: language-neutral trace”: state its starting evidence, apply the Minimum spanning trees rule, and give the observable result in three short lines.",
+      "prompt": "For \"Wiring the study rooms for the least cable\", explain how Kruskal sorts edges and adds one only when disjoint-set representatives differ.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Sort.",
+        "Representatives.",
+        "Finish."
       ],
       "expectedEvidence": [
-        "Named example: Minimum spanning trees: language-neutral trace.",
-        "Starting evidence: Kruskal sorts edges and adds one only when disjoint-set representatives differ.",
-        "Core rule: A minimum spanning tree connects all vertices of a weighted undirected graph with minimum total edge weight and no cycles.",
-        "Observable result: The conceptual result follows because MST minimizes total tree weight, not each pairwise route; shortest-path and spanning-tree objectives differ.",
-        "Boundary check: MST minimizes total tree weight, not each pairwise route; shortest-path and spanning-tree objectives differ."
+        "Names the example \"Wiring the study rooms for the least cable\": the goal is least total cable.",
+        "Kruskal sorts edges by length.",
+        "It adds one only when disjoint-set representatives differ.",
+        "The rooms are networked with 11 metres of cable and no loop."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: A minimum spanning tree connects all vertices of a weighted undirected graph with minimum total edge weight and no cycles.",
+      "prompt": "Run Kruskal by hand on edges A-B 2, B-C 2, A-C 1, C-D 4, B-D 3. List the chosen edges and the total.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Sort first.",
+        "Skip edges inside one component."
       ],
       "expectedEvidence": [
-        "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
-        "Disconnected graphs yield a forest, equal weights can yield many MSTs, and shortest paths are a different objective."
+        "A-C 1, then A-B 2, then B-D 3.",
+        "B-C and C-D skipped; total 6."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Minimum spanning trees case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Implement Prim's algorithm with a heap and compare it with Kruskal on 200 random connected graphs (totals must match). Also report when the input graph is disconnected.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Lazy Prim: push edges, skip ones into the tree.",
+        "Check tree size at the end."
       ],
       "expectedEvidence": [
-        "Implement and test one MST algorithm and distinguish MST from shortest-path trees.",
-        "MST minimizes total tree weight, not each pairwise route; shortest-path and spanning-tree objectives differ."
+        "Equal totals on all tests.",
+        "Disconnected graphs reported, not silently wrong."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.graphs.mst.misconception",
-      "explanation": "MST minimizes total tree weight, not each pairwise route; shortest-path and spanning-tree objectives differ.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'total tree weight', then state one implementation-specific risk in the selected language."
+      "explanation": "Ask: **Do I want everything connected as cheaply as possible (MST), or the best route from one place (shortest paths)?** For Kruskal, check every edge with **find(u) != find(v)** before adding it.",
+      "retryPrompt": "Apply this to \"The tree that was used for directions\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test one MST algorithm and distinguish MST from shortest-path trees. Keep this boundary in view: Disconnected graphs yield a forest, equal weights can yield many MSTs, and shortest paths are a different objective.",
+    "summary": "To implement and test a minimum spanning tree, use Kruskal: sort edges by weight and add each only when union-find says its endpoints are in different components, until V - 1 edges connect everything at minimum total weight; remember an MST is for cheapest total connection, not shortest paths between pairs.",
     "retrievalPrompts": [
-      "State the Minimum spanning trees invariant and complexity without code.",
-      "Why is this claim false: A minimum spanning tree also gives the shortest path between every pair.",
-      "Map checkpoint 'total tree weight' to C, C++, Java, and Python."
+      "What does an MST minimise?",
+      "When does Kruskal skip an edge?",
+      "Is the MST path between two vertices their shortest path?"
     ],
     "nextReviewPrompt": "Next: continue to “All-pairs path reasoning”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

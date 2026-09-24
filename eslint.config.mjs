@@ -7,6 +7,8 @@ export default defineConfig([
   ...nextTs,
   globalIgnores([
     ".superpowers/**",
+    ".local-dev/**",
+    "graphify-out/**",
     ".next/**",
     ".next-e2e-*/**",
     "coverage/**",

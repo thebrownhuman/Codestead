@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "C++ sanitizers instrument selected undefined, address, or memory behaviors on executed paths and complement type, ownership, lifetime, and contract reasoning.",
+    "summary": "Sanitizers are compiler-added run-time checks. **AddressSanitizer** (`-fsanitize=address`) catches out-of-bounds access, use-after-free and leaks. **UndefinedBehaviorSanitizer** (`-fsanitize=undefined`) catches signed overflow, invalid shifts, null misuse and more. They report **only on code paths your tests actually run**, so they complement, not replace, reasoning about types, ownership, lifetimes and contracts. When a sanitizer fires, fix the **design** that allowed it (usually unclear ownership, fixed with RAII or smart pointers), never just suppress the report. This lesson's project ties it together: a tested, multi-file command-line app, built with CMake, that runs clean under sanitizers.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: AddressSanitizer reports a use-after-free reached by a test, and ownership is redesigned with RAII rather than suppressing the report. Your goal is to deliver and explain a tested multi-file CLI application with no known sanitizer findings. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner's order CLI keeps a `const Order*` into a vector of orders, then adds more orders. Everything seems fine until AddressSanitizer reports heap-use-after-free: the vector reallocated. A teammate suggests an ASan suppression file. AddressSanitizer reports a use-after-free reached by a test, and ownership is redesigned with RAII rather than suppressing the report. In this lesson you'll deliver and explain a tested multi-file CLI application with no known sanitizer findings.\n\n```predict\n{\"question\": \"All tests pass under ASan and UBSan. Is the program free of undefined behaviour?\", \"options\": [\"Yes\", \"No: only the paths the tests exercised were checked\"], \"answer\": 1, \"why\": \"Sanitizers are evidence for tested paths, not a certificate.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Conceptual constraints and diagnostics; Exceptions and guarantees; Unit and integration tests; CMake project structure; unique_ptr, shared_ptr and non-owning access. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Conceptual constraints and diagnostics**, **Exceptions and guarantees**, **Unit and integration tests**, **CMake project structure** and **unique_ptr, shared_ptr and non-owning access**."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "C++ sanitizers instrument selected undefined, address, or memory behaviors on executed paths and complement type, ownership, lifetime, and contract reasoning. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The model: sanitizers find, design fixes",
+        "body": "```cmake\n# A sanitizer build configuration (Debug).\ntarget_compile_options(orders_core PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)\ntarget_link_options(orders_core PUBLIC -fsanitize=address,undefined)\n```\n\n```cpp\n// Before: a raw pointer into a vector that may reallocate.\n// const Order* current = &orders.back();   orders.push_back(next);   current->total();  // UAF.\n\n// After: an index (stable across growth) or stable ownership.\nstd::vector<std::unique_ptr<Order>> orders;     // each Order has a stable address.\norders.push_back(std::make_unique<Order>(first));\nconst Order& current = *orders.back();          // stays valid when the vector grows.\norders.push_back(std::make_unique<Order>(next));\n```\n\n```text\n==4242==ERROR: AddressSanitizer: heap-use-after-free on address 0x6040...\nREAD of size 8 at ... thread T0\n    #0 Order::total() const  src/order.cpp:21\n    #1 main  src/main.cpp:37\n```\n\n| Finding | Typical design fix |\n|---|---|\n| heap-use-after-free. | clarify ownership; smart pointers or indexes. |\n| out of bounds. | bounds from size(); at() at input boundaries. |\n| signed overflow. | wider type or checked arithmetic. |\n| leak. | RAII owner for every allocation. |\n\n```reveal\n{\"prompt\": \"Why is a suppression file the wrong first response?\", \"answer\": \"It hides the symptom while the use-after-free remains. The program still reads freed memory, just silently. Suppressions are for known false positives in third-party code, not your bugs.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "They do not cover all defects, different sanitizers conflict or change timing, optimized and unexecuted paths differ, and clean runs are not proof. Therefore the draft explicitly rejects this beginner failure model: Passing all sanitizer tests certifies that a C++ program has no lifetime or undefined-behavior defects."
+        "heading": "Final project checklist",
+        "body": "```predict\n{\"question\": \"Which set best describes a finished CLI project?\", \"options\": [\"It runs on my machine\", \"CMake build, unit and integration tests, clean ASan/UBSan runs on those tests, and a README explaining usage and design\"], \"answer\": 1, \"why\": \"Each item is evidence someone else can check.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Combine tests, debugger state and sanitizer reports to repair lifetime, bounds and undefined-behavior defects.",
-      "Deliver and explain a tested multi-file CLI application with no known sanitizer findings."
+      "Build and run tests under AddressSanitizer and UBSan, and read their reports.",
+      "Fix findings through ownership and lifetime design, and deliver a tested multi-file CLI."
     ],
     "excludes": [
-      "They do not cover all defects, different sanitizers conflict or change timing, optimized and unexecuted paths differ, and clean runs are not proof."
+      "ThreadSanitizer and MemorySanitizer in depth.",
+      "Profilers."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "cpp.quality.sanitizers.example-a",
-      "title": "Debugger, sanitizers and final project: defined case",
+      "title": "A use-after-free fixed by ownership",
       "situation": "AddressSanitizer reports a use-after-free reached by a test, and ownership is redesigned with RAII rather than suppressing the report.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: AddressSanitizer reports a use-after-free reached by a test, and ownership is redesigned with RAII rather than suppressing the report.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests."
+        "**AddressSanitizer reports a use-after-free reached by a test:** the test adds orders after taking a pointer to one.",
+        "**Ownership is redesigned with RAII:** orders become vector<unique_ptr<Order>>, so each Order keeps a stable address.",
+        "**Rather than suppressing the report:** the same test will run clean, and a regression test keeps it that way."
       ],
-      "result": "The defined result follows because Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests."
+      "result": "The bug is gone by design, and the evidence is repeatable."
     },
     {
       "id": "cpp.quality.sanitizers.example-b",
-      "title": "Debugger, sanitizers and final project: boundary case",
-      "situation": "UndefinedBehaviorSanitizer exposes signed overflow at a boundary input and the operation gains a precondition or checked arithmetic.",
+      "title": "The overflow in the total",
+      "situation": "UBSan reports signed integer overflow when a test adds 1,000 orders of 3,000,000 cents.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: UndefinedBehaviorSanitizer exposes signed overflow at a boundary input and the operation gains a precondition or checked arithmetic.",
-        "Step 2 — Keep this standard boundary visible: They do not cover all defects, different sanitizers conflict or change timing, optimized and unexecuted paths differ, and clean runs are not proof.",
-        "Step 3 — Reject the tempting rule: Passing all sanitizer tests certifies that a C++ program has no lifetime or undefined-behavior defects."
+        "int totals overflow above about 2.1 billion.",
+        "Use std::int64_t for money in cents.",
+        "Keep the large-total test in the suite."
       ],
-      "result": "This case demonstrates the declared outcome: Deliver and explain a tested multi-file CLI application with no known sanitizer findings."
+      "result": "Totals are correct at realistic scale."
     }
   ],
   "misconceptions": [
     {
       "id": "cpp.quality.sanitizers.misconception",
       "mistakenBelief": "Passing all sanitizer tests certifies that a C++ program has no lifetime or undefined-behavior defects.",
-      "correction": "Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests.",
-      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: Passing all sanitizer tests certifies that a C++ program has no lifetime or undefined-behavior defects."
+      "correction": "Sanitizers only instrument executed paths and specific defect classes. Untested inputs and other defect kinds can still hide bugs, so reasoning and broad tests remain essential.",
+      "diagnosticPrompt": "In the opening predict, what do sanitizers not see?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A system of self-managing components can model Debugger, sanitizers and final project: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "example": "Sanitizers are like **a smoke detector during a fire drill**. The drill (tests) walks certain routes, and the detector catches smoke on those routes. Fixing the wiring (ownership design) prevents fires; taking the detector's battery out (suppressing) just makes the building quieter.",
     "usefulFor": [
-      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+      "remembering detectors only on drill routes",
+      "fix wiring, not the alarm"
     ],
     "limitations": [
-      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
-      "They do not cover all defects, different sanitizers conflict or change timing, optimized and unexecuted paths differ, and clean runs are not proof."
+      "Real detectors run always; sanitizers need special builds.",
+      "More drill routes = more test paths."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "AddressSanitizer reports a use-after-free reached by a test, and ownership is redesigned with RAII rather than suppressing the report.",
-      "C++ sanitizers instrument selected undefined, address, or memory behaviors on executed paths and complement type, ownership, lifetime, and contract reasoning.",
-      "Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests."
+      "build with -fsanitize=address,undefined",
+      "run tests: ASan heap-use-after-free",
+      "redesign ownership; rerun"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Instrument",
         "state": {
-          "evidence": "AddressSanitizer reports a use-after-free reached by a test, and ownership is redesigned with RAII rather than suppressing the report."
+          "build": "Debug + sanitizers"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "The CLI and tests are built with AddressSanitizer and UBSan."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Detect",
         "state": {
-          "rule": "C++ sanitizers instrument selected undefined, address, or memory behaviors on executed paths and complement type, ownership, lifetime, and contract reasoning."
+          "report": "heap-use-after-free at order.cpp:21"
         },
-        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+        "explanation": "AddressSanitizer reports a use-after-free reached by a test."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Redesign",
         "state": {
-          "conclusion": "Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests."
+          "orders": "vector<unique_ptr<Order>>",
+          "rerun": "clean"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: Passing all sanitizer tests certifies that a C++ program has no lifetime or undefined-behavior defects."
+        "explanation": "Ownership is redesigned with RAII rather than suppressing the report."
       }
     ],
-    "textAlternative": "Starting artifact: AddressSanitizer reports a use-after-free reached by a test, and ownership is redesigned with RAII rather than suppressing the report. Step 1, Source and state. State: evidence: AddressSanitizer reports a use-after-free reached by a test, and ownership is redesigned with RAII rather than suppressing the report.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: C++ sanitizers instrument selected undefined, address, or memory behaviors on executed paths and complement type, ownership, lifetime, and contract reasoning.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests.. Check the conclusion against the boundary and reject this misconception: Passing all sanitizer tests certifies that a C++ program has no lifetime or undefined-behavior defects."
+    "textAlternative": "Tracing a sanitizer-driven fix. Step 1, Instrument: build is Debug + sanitizers. The CLI and tests are built with AddressSanitizer and UBSan. Step 2, Detect: report is heap-use-after-free at order.cpp:21. AddressSanitizer reports a use-after-free reached by a test. Step 3, Redesign: orders is vector<unique_ptr<Order>>; rerun is clean. Ownership is redesigned with RAII rather than suppressing the report."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Debugger, sanitizers and final project: defined case”: state its starting evidence, apply the Debugger, sanitizers and final project rule, and give the observable result in three short lines.",
+      "prompt": "For \"A use-after-free fixed by ownership\", explain how AddressSanitizer reports a use-after-free reached by a test, and ownership is redesigned with RAII rather than suppressing the report.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Detect.",
+        "Diagnose.",
+        "Redesign."
       ],
       "expectedEvidence": [
-        "Named example: Debugger, sanitizers and final project: defined case.",
-        "Starting evidence: AddressSanitizer reports a use-after-free reached by a test, and ownership is redesigned with RAII rather than suppressing the report.",
-        "Core rule: C++ sanitizers instrument selected undefined, address, or memory behaviors on executed paths and complement type, ownership, lifetime, and contract reasoning.",
-        "Observable result: The defined result follows because Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests.",
-        "Boundary check: Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests."
+        "Names the example \"A use-after-free fixed by ownership\": a pointer into a growing vector.",
+        "AddressSanitizer reports a use-after-free reached by a test.",
+        "Ownership is redesigned with RAII rather than suppressing the report.",
+        "The bug is gone by design."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same CPP rule to this related boundary case: UndefinedBehaviorSanitizer exposes signed overflow at a boundary input and the operation gains a precondition or checked arithmetic.",
+      "prompt": "Seed three bugs in a small program (vector out of bounds, use-after-free via a dangling reference, signed overflow). Write a test that reaches each, run under ASan/UBSan, and fix each by design.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "-g -fsanitize=address,undefined.",
+        "Explain each fix's rule."
       ],
       "expectedEvidence": [
-        "C++ sanitizers instrument selected undefined, address, or memory behaviors on executed paths and complement type, ownership, lifetime, and contract reasoning.",
-        "They do not cover all defects, different sanitizers conflict or change timing, optimized and unexecuted paths differ, and clean runs are not proof."
+        "Three reports reproduced.",
+        "Clean run after fixes."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CPP example for Debugger, sanitizers and final project, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Deliver the final project: a multi-file order-processing CLI with a CMake build, a library plus app plus test targets, unit and integration tests, a sanitizer configuration with clean runs, and a README covering usage, design, ownership decisions and known limits.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Reuse parse_quantity, Order and file I/O from earlier lessons.",
+        "List what sanitizers can't guarantee."
       ],
       "expectedEvidence": [
-        "Deliver and explain a tested multi-file CLI application with no known sanitizer findings.",
-        "Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests."
+        "Clean sanitizer runs on all tests.",
+        "README explains design and limits."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "cpp.quality.sanitizers.misconception",
-      "explanation": "Sanitizer results are path-limited evidence; combine multiple appropriate tools with static diagnostics, ownership design, invariants, and boundary tests.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'path-limited evidence' and state the decisive evidence: UndefinedBehaviorSanitizer exposes signed overflow at a boundary input and the operation gains a precondition or checked arithmetic."
+      "explanation": "For each sanitizer report ask: **which rule was broken (bounds, lifetime, range, ownership), what design allowed it, and which test now proves it's fixed?**",
+      "retryPrompt": "Apply this to \"The overflow in the total\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to deliver and explain a tested multi-file CLI application with no known sanitizer findings. Keep this boundary in view: They do not cover all defects, different sanitizers conflict or change timing, optimized and unexecuted paths differ, and clean runs are not proof.",
+    "summary": "To deliver a tested multi-file CLI with no known sanitizer findings, build it with CMake, cover it with unit and integration tests, run those tests under AddressSanitizer and UBSan, fix every finding by redesigning ownership, bounds or ranges rather than suppressing it, and remember sanitizers only check the paths your tests exercise.",
     "retrievalPrompts": [
-      "Explain Debugger, sanitizers and final project using a concrete CPP rule rather than the optional analogy.",
-      "Why is this claim incorrect: Passing all sanitizer tests certifies that a C++ program has no lifetime or undefined-behavior defects.",
-      "Apply the checkpoint 'path-limited evidence' to the boundary case from memory."
+      "What do ASan and UBSan each catch?",
+      "Why not suppress a real report?",
+      "What can't a clean sanitizer run guarantee?"
     ],
     "nextReviewPrompt": "Next: use this skill in the module checkpoint and one independent practice attempt. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

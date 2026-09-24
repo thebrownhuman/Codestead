@@ -38,33 +38,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A header exposes declarations, types, and macros shared by translation units, while non-inline external definitions normally belong in exactly one source file.",
+    "summary": "A **header** (`.h`) is a promise: it **declares** what exists (function prototypes, types, macros) so other files can use it correctly. The **definition** (the function body) lives in **exactly one** `.c` file. `#include <stdio.h>` gives you `printf`'s declaration; the C library supplies the definition at link time. Your own headers work the same way. Include the right header for everything you call: without a declaration, the compiler can't check arguments and may reject the call or get it wrong. And including a header **doesn't link** anything by itself; the defining `.c` file or library must still be in the build.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A project header declares int total(const int *values, size_t count) and each caller includes it while one .c file defines the function. Your goal is to select required headers and explain the danger of missing or incompatible declarations. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner writes a `total` function in totals.c, then calls it from main.c and report.c by copying the function into each file. The build fails with `multiple definition of 'total'`. A project header declares int total(const int *values, size_t count) and each caller includes it while one .c file defines the function. In this lesson you'll select required headers and explain the danger of missing or incompatible declarations.\n\n```predict\n{\"question\": \"Does `#include \\\"totals.h\\\"` make total's code part of your program?\", \"options\": [\"Yes, including it adds the code\", \"No: it only declares total; totals.c must still be compiled and linked\"], \"answer\": 1, \"why\": \"Headers promise; source files and libraries deliver.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: pf computing execution; pf tools terminal editor; Translation unit and main. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Source-to-execution models**, **Editor and terminal workflow** and **Translation unit and main** (what one .c file contains)."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "A header exposes declarations, types, and macros shared by translation units, while non-inline external definitions normally belong in exactly one source file. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The model: declare in headers, define once",
+        "body": "```c\n/* totals.h: the promise. */\n#ifndef TOTALS_H\n#define TOTALS_H\n#include <stddef.h>                          /* for size_t. */\nint total(const int *values, size_t count);  /* declaration only. */\n#endif\n\n/* totals.c: the one definition. */\n#include \"totals.h\"\nint total(const int *values, size_t count) {\n    int sum = 0;\n    for (size_t i = 0; i < count; i++) sum += values[i];\n    return sum;\n}\n\n/* main.c: a caller. */\n#include <stdio.h>\n#include \"totals.h\"\nint main(void) {\n    int marks[] = {7, 9, 8};\n    printf(\"%d\\n\", total(marks, 3));        /* 24. */\n    return 0;\n}\n```\n\n```bash\ngcc -Wall -Wextra main.c totals.c -o report\n```\n\n```reveal\n{\"prompt\": \"What do #ifndef / #define / #endif do?\", \"answer\": \"They're an include guard: if two headers both include totals.h, its contents are only pasted in once, avoiding duplicate type definitions.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Header inclusion is textual, macro state and order matter, and incorrect tentative or external definitions can create duplicate symbols or inconsistent declarations. Therefore the draft explicitly rejects this beginner failure model: Including a header automatically links a library implementation and makes every declared function definition available."
+        "heading": "Missing declarations",
+        "body": "```predict\n{\"question\": \"You call `sqrt(2)` but forgot `#include <math.h>`. What does a modern compiler do in C17 mode?\", \"options\": [\"Nothing, it works\", \"It diagnoses an implicit declaration, because it can't check the call or know sqrt returns double\"], \"answer\": 1, \"why\": \"Old C guessed int for undeclared functions, which gave wrong results for sqrt. Always include the header.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Include the header that declares each standard-library facility and respect its contract.",
-      "Select required headers and explain the danger of missing or incompatible declarations."
+      "Put declarations, types and macros in headers with include guards, and one definition in a .c file.",
+      "Include the header for every function you call, and link the defining file or library."
     ],
     "excludes": [
-      "Header inclusion is textual, macro state and order matter, and incorrect tentative or external definitions can create duplicate symbols or inconsistent declarations."
+      "Designing module interfaces (modular C lesson).",
+      "Static libraries and linker flags in depth."
     ]
   },
   "outcomes": [
@@ -73,133 +74,135 @@
   "examples": [
     {
       "id": "c.toolchain.headers.example-a",
-      "title": "Library headers and declarations: defined case",
+      "title": "One declaration, one definition",
       "situation": "A project header declares int total(const int *values, size_t count) and each caller includes it while one .c file defines the function.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A project header declares int total(const int *values, size_t count) and each caller includes it while one .c file defines the function.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: A header supplies compile-time declarations; the matching object or library definition must also be linked, and declarations must remain compatible."
+        "**A project header declares int total(const int *values, size_t count):** totals.h holds the prototype with an include guard.",
+        "**Each caller includes it:** main.c and report.c both #include \"totals.h\" and call total.",
+        "**One .c file defines the function:** only totals.c has the body; gcc main.c report.c totals.c will link cleanly."
       ],
-      "result": "The defined result follows because A header supplies compile-time declarations; the matching object or library definition must also be linked, and declarations must remain compatible."
+      "result": "No duplicate definitions, and every call is checked against one prototype."
     },
     {
       "id": "c.toolchain.headers.example-b",
-      "title": "Library headers and declarations: boundary case",
-      "situation": "An include guard prevents repeated declarations when two headers include the same shared type header through different paths.",
+      "title": "The mismatched prototype",
+      "situation": "A caller declares `int total(int *values, int count);` by hand instead of including totals.h, and passes a size_t count on a 64-bit system.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: An include guard prevents repeated declarations when two headers include the same shared type header through different paths.",
-        "Step 2 — Keep this standard boundary visible: Header inclusion is textual, macro state and order matter, and incorrect tentative or external definitions can create duplicate symbols or inconsistent declarations.",
-        "Step 3 — Reject the tempting rule: Including a header automatically links a library implementation and makes every declared function definition available."
+        "The caller's declaration disagrees with the definition: that's undefined behaviour.",
+        "The compiler can't catch it, because each file compiled separately with a different promise.",
+        "Delete the hand-written declaration and include totals.h everywhere, including totals.c."
       ],
-      "result": "This case demonstrates the declared outcome: Select required headers and explain the danger of missing or incompatible declarations."
+      "result": "Every file sees the same declaration, so the compiler checks every call."
     }
   ],
   "misconceptions": [
     {
       "id": "c.toolchain.headers.misconception",
       "mistakenBelief": "Including a header automatically links a library implementation and makes every declared function definition available.",
-      "correction": "A header supplies compile-time declarations; the matching object or library definition must also be linked, and declarations must remain compatible.",
-      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: Including a header automatically links a library implementation and makes every declared function definition available."
+      "correction": "A header only declares. The definition must come from a compiled .c file or a library supplied at link time, or the linker reports undefined references.",
+      "diagnosticPrompt": "In the opening predict, what did #include \"totals.h\" actually provide?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A manually managed workshop can model Library headers and declarations: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "example": "A header is like **a restaurant menu**: it promises dishes and describes them (declarations). The kitchen (one .c file or a library) actually cooks them. Handing out menus in every room doesn't create a kitchen, and two kitchens cooking the same dish for the same order causes chaos (multiple definitions).",
     "usefulFor": [
-      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+      "remembering menu vs kitchen",
+      "one kitchen per dish"
     ],
     "limitations": [
-      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
-      "Header inclusion is textual, macro state and order matter, and incorrect tentative or external definitions can create duplicate symbols or inconsistent declarations."
+      "Menus can be vague; prototypes must match exactly.",
+      "The C library is a kitchen shared by every program."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A project header declares int total(const int *values, size_t count) and each caller includes it while one .c file defines the function.",
-      "A header exposes declarations, types, and macros shared by translation units, while non-inline external definitions normally belong in exactly one source file.",
-      "A header supplies compile-time declarations; the matching object or library definition must also be linked, and declarations must remain compatible."
+      "totals.h declares total",
+      "main.c and report.c include it",
+      "gcc main.c report.c totals.c"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Declare",
         "state": {
-          "evidence": "A project header declares int total(const int *values, size_t count) and each caller includes it while one .c file defines the function."
+          "totals.h": "int total(const int *, size_t);"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "A project header declares the function once."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Include",
         "state": {
-          "rule": "A header exposes declarations, types, and macros shared by translation units, while non-inline external definitions normally belong in exactly one source file."
+          "main.c": "includes totals.h",
+          "report.c": "includes totals.h"
         },
-        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+        "explanation": "Each caller includes it, so every call is checked."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Define and link",
         "state": {
-          "conclusion": "A header supplies compile-time declarations; the matching object or library definition must also be linked, and declarations must remain compatible."
+          "definition": "totals.c only",
+          "link": "ok"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: Including a header automatically links a library implementation and makes every declared function definition available."
+        "explanation": "One .c file defines the function, and the linker finds it."
       }
     ],
-    "textAlternative": "Starting artifact: A project header declares int total(const int *values, size_t count) and each caller includes it while one .c file defines the function. Step 1, Source and state. State: evidence: A project header declares int total(const int *values, size_t count) and each caller includes it while one .c file defines the function.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A header exposes declarations, types, and macros shared by translation units, while non-inline external definitions normally belong in exactly one source file.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: A header supplies compile-time declarations; the matching object or library definition must also be linked, and declarations must remain compatible.. Check the conclusion against the boundary and reject this misconception: Including a header automatically links a library implementation and makes every declared function definition available."
+    "textAlternative": "Tracing declarations and definitions. Step 1, Declare: totals.h is int total(const int *, size_t);. A project header declares the function once. Step 2, Include: main.c is includes totals.h; report.c is includes totals.h. Each caller includes it, so every call is checked. Step 3, Define and link: definition is totals.c only; link is ok. One .c file defines the function, and the linker finds it."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Library headers and declarations: defined case”: state its starting evidence, apply the Library headers and declarations rule, and give the observable result in three short lines.",
+      "prompt": "For \"One declaration, one definition\", explain how a project header declares int total(const int *values, size_t count) and each caller includes it while one .c file defines the function.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Declare.",
+        "Include.",
+        "Define."
       ],
       "expectedEvidence": [
-        "Named example: Library headers and declarations: defined case.",
-        "Starting evidence: A project header declares int total(const int *values, size_t count) and each caller includes it while one .c file defines the function.",
-        "Core rule: A header exposes declarations, types, and macros shared by translation units, while non-inline external definitions normally belong in exactly one source file.",
-        "Observable result: The defined result follows because A header supplies compile-time declarations; the matching object or library definition must also be linked, and declarations must remain compatible.",
-        "Boundary check: A header supplies compile-time declarations; the matching object or library definition must also be linked, and declarations must remain compatible."
+        "Names the example \"One declaration, one definition\": copied bodies caused multiple definitions.",
+        "A project header declares int total(const int *values, size_t count) and each caller includes it.",
+        "One .c file defines the function.",
+        "No duplicate definitions, and every call is checked."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same C rule to this related boundary case: An include guard prevents repeated declarations when two headers include the same shared type header through different paths.",
+      "prompt": "For each call, name the header: printf, malloc, strlen, sqrt, bool, size_t, EXIT_SUCCESS. Then write a tiny program using three of them with correct includes and a clean -Wall build.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "stdio.h, stdlib.h, string.h, math.h, stdbool.h, stddef.h.",
+        "-lm may be needed for sqrt."
       ],
       "expectedEvidence": [
-        "A header exposes declarations, types, and macros shared by translation units, while non-inline external definitions normally belong in exactly one source file.",
-        "Header inclusion is textual, macro state and order matter, and incorrect tentative or external definitions can create duplicate symbols or inconsistent declarations."
+        "All headers correct.",
+        "Clean strict build."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new C example for Library headers and declarations, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Split a single-file program into a header, a definition file and two callers. Add include guards, build all together, then deliberately define a function in the header and show the multiple-definition error when two files include it.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Include the header in its own .c file too.",
+        "Explain why the error happens at link time."
       ],
       "expectedEvidence": [
-        "Select required headers and explain the danger of missing or incompatible declarations.",
-        "A header supplies compile-time declarations; the matching object or library definition must also be linked, and declarations must remain compatible."
+        "Clean split build.",
+        "Error reproduced and explained."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "c.toolchain.headers.misconception",
-      "explanation": "A header supplies compile-time declarations; the matching object or library definition must also be linked, and declarations must remain compatible.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'compile-time declarations' and state the decisive evidence: An include guard prevents repeated declarations when two headers include the same shared type header through different paths."
+      "explanation": "For each function ask: **where is it declared (which header), and where is it defined (which .c file or library)?** Both answers must exist exactly once.",
+      "retryPrompt": "Apply this to \"The mismatched prototype\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to select required headers and explain the danger of missing or incompatible declarations. Keep this boundary in view: Header inclusion is textual, macro state and order matter, and incorrect tentative or external definitions can create duplicate symbols or inconsistent declarations.",
+    "summary": "To select headers correctly, include the header that declares every function, type and macro you use, keep your own declarations in guarded headers included by callers and by the defining file, put each definition in exactly one .c file, and remember including a header doesn't link its implementation.",
     "retrievalPrompts": [
-      "Explain Library headers and declarations using a concrete C rule rather than the optional analogy.",
-      "Why is this claim incorrect: Including a header automatically links a library implementation and makes every declared function definition available.",
-      "Apply the checkpoint 'compile-time declarations' to the boundary case from memory."
+      "What belongs in a header?",
+      "Where does a function's body go?",
+      "Why is a hand-written mismatched prototype dangerous?"
     ],
     "nextReviewPrompt": "Next: continue to “Scalar types and declarations”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

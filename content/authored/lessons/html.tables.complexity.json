@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Complex tables should be simplified or split when possible; otherwise explicit header associations and linear reading checks must preserve meaning.",
+    "summary": "Complex tables — merged cells, headers in several tiers, irregular layouts — are hard for everyone, and especially for screen-reader users. **First, simplify**: split into two tables, repeat a label, or reorganise rows. Only when the structure truly needs it, wire relationships explicitly: give each header an `id` and list the relevant ids in each data cell's `headers` attribute.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A two-tier financial header uses unique ids and headers attributes only after a simpler table design is found insufficient. Your goal is to review a complex table and propose an accessible structural alternative. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A finance report has a header row \"2025 | 2026\", and under each year \"Revenue | Costs\". Some cells span two rows, others two columns. Sighted readers squint; screen-reader users get the wrong headers. A two-tier financial header uses unique ids and headers attributes only after a simpler table design is found insufficient. In this lesson you'll review a complex table and propose an accessible structural alternative.\n\n```predict\n{\"question\": \"Your table has 4 levels of merged headers. What's the best first move?\", \"options\": [\"Add more colspan and rowspan to make it neater\", \"See if it can be split or reorganised into simpler tables\"], \"answer\": 1, \"why\": \"Every extra merged tier makes the table harder to read and to mark up. Simplify first; wire up ids/headers only if you must.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Heading hierarchy; Captions and context. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Heading hierarchy** and **Captions and context** — plus th and scope from the headers lesson."
       },
       {
-        "heading": "Technology rule",
-        "body": "Complex tables should be simplified or split when possible; otherwise explicit header associations and linear reading checks must preserve meaning. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The rule: simplify first, then wire explicitly",
+        "body": "**Option A — simplify** (preferred): one table per year, each with columns Quarter, Revenue, Costs.\n\n**Option B — explicit wiring**, when one combined table is truly needed:\n\n```html\n<table>\n  <caption>Revenue and costs by year (₹ lakh)</caption>\n  <tr>\n    <td></td>\n    <th id=\"y25\" colspan=\"2\">2025</th>\n    <th id=\"y26\" colspan=\"2\">2026</th>\n  </tr>\n  <tr>\n    <td></td>\n    <th id=\"r25\">Revenue</th><th id=\"c25\">Costs</th>\n    <th id=\"r26\">Revenue</th><th id=\"c26\">Costs</th>\n  </tr>\n  <tr>\n    <th id=\"q1\">Q1</th>\n    <td headers=\"q1 y25 r25\">40</td><td headers=\"q1 y25 c25\">31</td>\n    <td headers=\"q1 y26 r26\">52</td><td headers=\"q1 y26 c26\">36</td>\n  </tr>\n</table>\n```\n\n| Approach | Cost |\n|---|---|\n| split tables. | easy to read and maintain. |\n| scope only. | fine for simple two-way tables. |\n| ids + headers. | precise but laborious and fragile. |\n\n```reveal\n{\"prompt\": \"Why are ids + headers fragile?\", \"answer\": \"Every data cell lists its header ids by hand. Add a column or reorder rows and many attributes must change — easy to get wrong.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Merged cells, nested headers, scrolling, and responsive transformations can destroy relationships even when the desktop view looks clear. This draft therefore rejects: More merged header cells always make a table easier to understand."
+        "heading": "Review questions",
+        "body": "```predict\n{\"question\": \"Which change helps readers most in a table with merged year headers?\", \"options\": [\"Repeating the year in each column header, e.g. \\\"2025 Revenue\\\"\", \"Adding a third merged tier for half-years\"], \"answer\": 0, \"why\": \"Explicit labels in each column remove the need for merged tiers entirely.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Recognize when multiple simpler tables, summaries or downloadable data improve understanding.",
-      "Review a complex table and propose an accessible structural alternative."
+      "Review complex tables and propose simpler structures.",
+      "Use id/headers when a multi-tier table can't be simplified."
     ],
     "excludes": [
-      "Merged cells, nested headers, scrolling, and responsive transformations can destroy relationships even when the desktop view looks clear."
+      "Charts as table alternatives.",
+      "Sortable/interactive data grids."
     ]
   },
   "outcomes": [
@@ -63,133 +64,133 @@
   "examples": [
     {
       "id": "html.tables.complexity.example-a",
-      "title": "Complex-table alternatives: concrete case",
+      "title": "A two-tier financial header",
       "situation": "A two-tier financial header uses unique ids and headers attributes only after a simpler table design is found insufficient.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A two-tier financial header uses unique ids and headers attributes only after a simpler table design is found insufficient.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Prefer a simpler table, and when complexity is necessary, define and test explicit header associations and reading order."
+        "**Try simpler first:** splitting by year was rejected because the report must compare 2025 and 2026 side by side.",
+        "**Unique ids:** each year and each Revenue/Costs header gets its own id (y25, r25, c25…).",
+        "**Headers attributes:** each data cell lists its row and both column tiers, e.g. `headers=\"q1 y26 r26\"`; a screen reader will read \"Q1, 2026, Revenue, 52\"."
       ],
-      "result": "The result follows because Prefer a simpler table, and when complexity is necessary, define and test explicit header associations and reading order."
+      "result": "Every value is announced with its quarter, year and measure, and the extra complexity is justified by a real need."
     },
     {
       "id": "html.tables.complexity.example-b",
-      "title": "Complex-table alternatives: boundary case",
-      "situation": "Merged cells, nested headers, scrolling, and responsive transformations can destroy relationships even when the desktop view looks clear.",
+      "title": "The merged-cell monster",
+      "situation": "A timetable merges rooms, days and time slots across three header tiers with dozens of rowspans.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Merged cells, nested headers, scrolling, and responsive transformations can destroy relationships even when the desktop view looks clear.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: More merged header cells always make a table easier to understand."
+        "Screen readers announce wrong or missing headers for many cells.",
+        "Even sighted users struggle to trace a cell back to its headers.",
+        "Proposal: one table per day, columns Time, Subject, Room — no merged cells at all."
       ],
-      "result": "The boundary requires this correction: Prefer a simpler table, and when complexity is necessary, define and test explicit header associations and reading order."
+      "result": "Five simple tables replace one monster, and every cell has obvious headers."
     }
   ],
   "misconceptions": [
     {
       "id": "html.tables.complexity.misconception",
       "mistakenBelief": "More merged header cells always make a table easier to understand.",
-      "correction": "Prefer a simpler table, and when complexity is necessary, define and test explicit header associations and reading order.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: More merged header cells always make a table easier to understand."
+      "correction": "Each merged tier adds reading and markup complexity. Simplify first by splitting or relabelling; use explicit id/headers wiring only when a complex structure is truly necessary.",
+      "diagnosticPrompt": "In \"The merged-cell monster\", what structure replaced the merged headers?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model Complex-table alternatives, with structure carrying meaning before decoration.",
+    "example": "A complex table is like a **road junction with seven exits**: you can add more signs (headers attributes), but often it's better to build two simple junctions (split tables).",
     "usefulFor": [
-      "Building a first mental model for Complex-table alternatives before using exact platform terms"
+      "remembering simplify before signposting",
+      "seeing ids/headers as detailed signs"
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "Merged cells, nested headers, scrolling, and responsive transformations can destroy relationships even when the desktop view looks clear."
+      "Roads are expensive to rebuild; tables aren't.",
+      "Signs must be updated whenever roads change — like headers attributes."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A two-tier financial header uses unique ids and headers attributes only after a simpler table design is found insufficient.",
-      "Complex tables should be simplified or split when possible; otherwise explicit header associations and linear reading checks must preserve meaning.",
-      "Prefer a simpler table, and when complexity is necessary, define and test explicit header associations and reading order."
+      "<th id='y26' colspan='2'>2026</th>",
+      "<th id='r26'>Revenue</th>",
+      "<td headers='q1 y26 r26'>52</td>"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Simplify first",
         "state": {
-          "evidence": "A two-tier financial header uses unique ids and headers attributes only after a simpler table design is found insufficient."
+          "split by year": "insufficient (need side-by-side)"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "A simpler table design is found insufficient for the comparison."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Unique ids",
         "state": {
-          "rule": "Complex tables should be simplified or split when possible; otherwise explicit header associations and linear reading checks must preserve meaning."
+          "ids": "q1, y25, y26, r25, c25, r26, c26"
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The two-tier financial header uses unique ids."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Headers attributes",
         "state": {
-          "correction": "Prefer a simpler table, and when complexity is necessary, define and test explicit header associations and reading order."
+          "cell 52": "Q1, 2026, Revenue"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: More merged header cells always make a table easier to understand."
+        "explanation": "Each data cell's headers attribute lists all its headers."
       }
     ],
-    "textAlternative": "Starting artifact: A two-tier financial header uses unique ids and headers attributes only after a simpler table design is found insufficient. Step 1, Artifact. State: evidence: A two-tier financial header uses unique ids and headers attributes only after a simpler table design is found insufficient.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Complex tables should be simplified or split when possible; otherwise explicit header associations and linear reading checks must preserve meaning.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Prefer a simpler table, and when complexity is necessary, define and test explicit header associations and reading order.. Check the result against the boundary and reject this misconception: More merged header cells always make a table easier to understand."
+    "textAlternative": "Wiring a two-tier header explicitly. Step 1, Simplify first: split by year is insufficient (need side-by-side). A simpler table design is found insufficient for the comparison. Step 2, Unique ids: ids is q1, y25, y26, r25, c25, r26, c26. The two-tier financial header uses unique ids. Step 3, Headers attributes: cell 52 is Q1, 2026, Revenue. Each data cell's headers attribute lists all its headers."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Complex-table alternatives: concrete case”: state its starting evidence, apply the Complex-table alternatives rule, and give the observable result in three short lines.",
+      "prompt": "For \"A two-tier financial header\", explain why the two-tier financial header uses unique ids and headers attributes, and why only after a simpler table design is found insufficient.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Simpler attempt.",
+        "ids.",
+        "headers."
       ],
       "expectedEvidence": [
-        "Named example: Complex-table alternatives: concrete case.",
-        "Starting evidence: A two-tier financial header uses unique ids and headers attributes only after a simpler table design is found insufficient.",
-        "Core rule: Complex tables should be simplified or split when possible; otherwise explicit header associations and linear reading checks must preserve meaning.",
-        "Observable result: The result follows because Prefer a simpler table, and when complexity is necessary, define and test explicit header associations and reading order.",
-        "Boundary check: Prefer a simpler table, and when complexity is necessary, define and test explicit header associations and reading order."
+        "Names the example \"A two-tier financial header\": a two-tier financial header.",
+        "A simpler table design is tried first and found insufficient.",
+        "It then uses unique ids and headers attributes.",
+        "Cells are announced with quarter, year and measure."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Merged cells, nested headers, scrolling, and responsive transformations can destroy relationships even when the desktop view looks clear.",
+      "prompt": "A table merges \"Morning\" and \"Evening\" over three columns each. Propose a simpler structure that avoids the merge.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Repeat labels.",
+        "Or split tables."
       ],
       "expectedEvidence": [
-        "Complex tables should be simplified or split when possible; otherwise explicit header associations and linear reading checks must preserve meaning.",
-        "Merged cells, nested headers, scrolling, and responsive transformations can destroy relationships even when the desktop view looks clear."
+        "Column headers like 'Morning 1', 'Morning 2'…",
+        "Or two tables, one per session."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Complex-table alternatives and explain why the misconception fails.",
+      "prompt": "Take a real complex table (a timetable, results sheet or financial report). Write a review with the problems, propose a simpler alternative, and build it.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Test the original with a screen reader.",
+        "Compare after."
       ],
       "expectedEvidence": [
-        "Review a complex table and propose an accessible structural alternative.",
-        "Prefer a simpler table, and when complexity is necessary, define and test explicit header associations and reading order."
+        "Clear problem list and justified alternative.",
+        "Built alternative with correct headers."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.tables.complexity.misconception",
-      "explanation": "Prefer a simpler table, and when complexity is necessary, define and test explicit header associations and reading order.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'explicit header associations' and state the decisive evidence."
+      "explanation": "Checklist: **Can I split it? Can I repeat labels instead of merging? Is scope enough? Only then: ids + headers.**",
+      "retryPrompt": "Run it on \"The merged-cell monster\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to review a complex table and propose an accessible structural alternative. Keep this boundary in view: Merged cells, nested headers, scrolling, and responsive transformations can destroy relationships even when the desktop view looks clear.",
+    "summary": "To review a complex table and propose an accessible alternative, simplify first — split tables, repeat labels, reorganise rows. Use unique ids and headers attributes only when a multi-tier structure is genuinely needed.",
     "retrievalPrompts": [
-      "Explain Complex-table alternatives using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: More merged header cells always make a table easier to understand.",
-      "Apply checkpoint 'explicit header associations' to a new artifact."
+      "What should you try before ids/headers?",
+      "Why are headers attributes fragile?",
+      "Do more merged cells help readers?"
     ],
     "nextReviewPrompt": "Next: continue to “Form submission model”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

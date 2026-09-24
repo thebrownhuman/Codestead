@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "NLP tasks include tokenization, representation, classification, extraction, retrieval, translation, and generation; evaluation must match the task, language varieties, stakeholders, and error costs.",
+    "summary": "**Natural-language processing** (NLP) covers many tasks: splitting text into **tokens**, turning it into **representations**, **classifying** it (spam, topic), **extracting** facts (names, dates), **retrieving** relevant documents, **translating** and **generating**. Each needs its own evaluation, matched to the **task**, the **languages and dialects** users actually write in, and the **cost of errors**. A model tested on standard English may fail on regional dialects, code-switching (mixing languages), slang or typos. Text-overlap scores like BLEU compare words, not meaning. Compare with a simple **keyword baseline**, report results **per language or dialect**, and route **uncertain, high-cost** cases to a person.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A support classifier reports per-language and dialect confusion metrics against a keyword baseline and sends uncertain high-cost cases to review. Your goal is to frame and evaluate a small NLP task while identifying language and dialect coverage gaps. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner's support classifier scores 92% on an English benchmark and is launched in India. Tickets in Hinglish (Hindi mixed with English) are routed wrongly half the time, and urgent ones sit in the wrong queue for days. A support classifier reports per-language and dialect confusion metrics against a keyword baseline and sends uncertain high-cost cases to review. In this lesson you'll frame and evaluate a small NLP task while identifying language and dialect coverage gaps.\n\n```predict\n{\"question\": \"A classifier scores 92% on an English benchmark. Will it work for all your users' language varieties?\", \"options\": [\"Yes, 92% is high\", \"Unknown: test each language and dialect your users actually use\"], \"answer\": 1, \"why\": \"Coverage must be measured, not assumed.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Neural networks and learned representations; Knowledge representation and uncertainty; Convolution, sequence and attention roles; Problem, target and success measure. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Neural networks and learned representations**, **Knowledge representation and uncertainty**, **Convolution, sequence and attention roles** and **Problem, target and success measure**."
       },
       {
-        "heading": "Bounded operational model",
-        "body": "NLP tasks include tokenization, representation, classification, extraction, retrieval, translation, and generation; evaluation must match the task, language varieties, stakeholders, and error costs. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+        "heading": "The model: task-matched, slice-aware NLP evaluation",
+        "body": "```python\nURGENT = {\"down\", \"outage\", \"not working\", \"band hai\"}   # includes one Hindi phrase.\n\ndef keyword_baseline(text):\n    return \"urgent\" if any(k in text.lower() for k in URGENT) else \"normal\"\n\ntickets = [  # (text, language variety, true label)\n    (\"Site is down\", \"en\", \"urgent\"), (\"Please update my email\", \"en\", \"normal\"),\n    (\"App band hai since morning\", \"hinglish\", \"urgent\"),\n    (\"payment fail ho gaya\", \"hinglish\", \"urgent\"), (\"bill chahiye\", \"hinglish\", \"normal\"),\n]\n\nfor lang in (\"en\", \"hinglish\"):\n    rows = [t for t in tickets if t[1] == lang]\n    correct = sum(keyword_baseline(t[0]) == t[2] for t in rows)\n    print(lang, f\"{correct}/{len(rows)} correct\")\n# Report per slice; send uncertain urgent-looking tickets to review.\n```\n\n| Task | Evaluate with |\n|---|---|\n| classification. | per-slice confusion counts. |\n| extraction. | field-level precision and recall. |\n| generation. | task success and factual checks, not only overlap. |\n\n```reveal\n{\"prompt\": \"Why is a keyword baseline useful?\", \"answer\": \"It's cheap and transparent. If a model can't beat it on each language slice, the model's complexity isn't earning its keep there.\"}\n```"
       },
       {
-        "heading": "Failure boundary and non-claim",
-        "body": "Tokens are model units not words, benchmark language coverage is limited, automatic overlap metrics miss meaning and harms, dialect performance varies, generated text can be unsupported, and annotations encode policy. The learner must reject this overclaim: One English benchmark or text-overlap metric establishes that an NLP system understands language and works for all dialects."
+        "heading": "Uncertain, costly cases",
+        "body": "```predict\n{\"question\": \"The model is unsure whether a ticket is urgent. What's the safest design?\", \"options\": [\"Pick the likelier label\", \"Send it to human review, because missing urgent tickets is costly\"], \"answer\": 1, \"why\": \"Route by uncertainty and error cost.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Distinguish tokenization, representation, classification, extraction, translation and generation tasks.",
-      "Frame and evaluate a small NLP task while identifying language and dialect coverage gaps."
+      "Frame NLP tasks and match evaluation to task, languages, dialects and error costs.",
+      "Compare with a keyword baseline per slice and route uncertain high-cost cases to review."
     ],
     "excludes": [
-      "Tokens are model units not words, benchmark language coverage is limited, automatic overlap metrics miss meaning and harms, dialect performance varies, generated text can be unsupported, and annotations encode policy."
+      "Training large language models.",
+      "Linguistic theory."
     ]
   },
   "outcomes": [
@@ -68,133 +69,133 @@
   "examples": [
     {
       "id": "ai.applications.nlp.example.direct",
-      "title": "Natural-language processing: bounded direct case",
+      "title": "A support classifier sliced by language",
       "situation": "A support classifier reports per-language and dialect confusion metrics against a keyword baseline and sends uncertain high-cost cases to review.",
       "walkthrough": [
-        "Step 1 — Observe the exact data, state, metric, or tool behavior: A support classifier reports per-language and dialect confusion metrics against a keyword baseline and sends uncertain high-cost cases to review.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the claim boundary with: Frame the exact language task and population, evaluate task-specific errors and coverage slices, and include qualified human review where metrics miss meaning or harm."
+        "**Reports per-language and dialect confusion metrics:** English and Hinglish are scored separately.",
+        "**Against a keyword baseline:** the baseline gets 2/2 English but only 2/3 Hinglish.",
+        "**Sends uncertain high-cost cases to review:** we check \"payment fail ho gaya\" is routed to a person."
       ],
-      "result": "This example supports only the atomic outcome because Frame the exact language task and population, evaluate task-specific errors and coverage slices, and include qualified human review where metrics miss meaning or harm."
+      "result": "Coverage gaps are visible, and urgent tickets aren't lost in them."
     },
     {
       "id": "ai.applications.nlp.example.stress",
-      "title": "Natural-language processing: stress and transfer case",
-      "situation": "A translation system with a good average score mistranslates negation in one domain, so targeted human evaluation blocks deployment there.",
+      "title": "The Hinglish misroute",
+      "situation": "An English-benchmarked classifier misrouted half of Hinglish support tickets after launch.",
       "walkthrough": [
-        "Step 1 — Name the changed population, input, assumption, or failure: A translation system with a good average score mistranslates negation in one domain, so targeted human evaluation blocks deployment there.",
-        "Step 2 — Keep the non-claim visible: Tokens are model units not words, benchmark language coverage is limited, automatic overlap metrics miss meaning and harms, dialect performance varies, generated text can be unsupported, and annotations encode policy.",
-        "Step 3 — Reject the tempting overclaim: One English benchmark or text-overlap metric establishes that an NLP system understands language and works for all dialects."
+        "No Hinglish examples were in training or evaluation.",
+        "Collect and label a Hinglish slice and report it separately.",
+        "Route low-confidence tickets to review until coverage improves."
       ],
-      "result": "This case demonstrates the declared outcome: Frame and evaluate a small NLP task while identifying language and dialect coverage gaps."
+      "result": "Hinglish users get correctly routed support."
     }
   ],
   "misconceptions": [
     {
       "id": "ai.applications.nlp.misconception",
       "mistakenBelief": "One English benchmark or text-overlap metric establishes that an NLP system understands language and works for all dialects.",
-      "correction": "Frame the exact language task and population, evaluate task-specific errors and coverage slices, and include qualified human review where metrics miss meaning or harm.",
-      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: One English benchmark or text-overlap metric establishes that an NLP system understands language and works for all dialects."
+      "correction": "Performance must be measured per language, dialect and task, with metrics matched to what users need.",
+      "diagnosticPrompt": "In \"The Hinglish misroute\", what was missing from evaluation?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a sensing-and-decision pipeline that names modality inputs, task outputs, affected populations, operating conditions, and fallback paths can introduce Natural-language processing only after its canonical technical definition and evidence boundary are stated.",
+    "example": "An NLP system is like **a call-centre agent trained with one accent**. They do well with callers who sound like the training tapes, but struggle with other accents and mixed languages. You'd test them **with every kind of caller you actually get**, and let them **transfer hard calls** to a colleague.",
     "usefulFor": [
-      "NLP, vision, robotics, and multimodal evaluation"
+      "remembering test every kind of caller",
+      "transfer hard calls"
     ],
     "limitations": [
-      "more modalities or fluent outputs do not establish understanding, truth, physical safety, or universal coverage",
-      "Tokens are model units not words, benchmark language coverage is limited, automatic overlap metrics miss meaning and harms, dialect performance varies, generated text can be unsupported, and annotations encode policy."
+      "A phrasebook is the keyword baseline.",
+      "Word-overlap scores are like grading by matching words, not meaning."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A support classifier reports per-language and dialect confusion metrics against a keyword baseline and sends uncertain high-cost cases to review.",
-      "NLP tasks include tokenization, representation, classification, extraction, retrieval, translation, and generation; evaluation must match the task, language varieties, stakeholders, and error costs.",
-      "Frame the exact language task and population, evaluate task-specific errors and coverage slices, and include qualified human review where metrics miss meaning or harm."
+      "score English slice",
+      "score Hinglish slice",
+      "route uncertain cases"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "English",
         "state": {
-          "boundedEvidence": "A support classifier reports per-language and dialect confusion metrics against a keyword baseline and sends uncertain high-cost cases to review."
+          "correct": "2/2"
         },
-        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+        "explanation": "The support classifier reports per-language metrics against a keyword baseline."
       },
       {
         "step": 2,
-        "focus": "Model",
+        "focus": "Hinglish",
         "state": {
-          "operationalRule": "NLP tasks include tokenization, representation, classification, extraction, retrieval, translation, and generation; evaluation must match the task, language varieties, stakeholders, and error costs."
+          "correct": "2/3"
         },
-        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+        "explanation": "Dialect confusion metrics reveal a coverage gap."
       },
       {
         "step": 3,
-        "focus": "Limit",
+        "focus": "Route",
         "state": {
-          "correction": "Frame the exact language task and population, evaluate task-specific errors and coverage slices, and include qualified human review where metrics miss meaning or harm."
+          "uncertain urgent": "to review"
         },
-        "explanation": "State what the evidence does not establish and reject the misconception: One English benchmark or text-overlap metric establishes that an NLP system understands language and works for all dialects."
+        "explanation": "Uncertain high-cost cases are sent to review."
       }
     ],
-    "textAlternative": "Starting artifact: A support classifier reports per-language and dialect confusion metrics against a keyword baseline and sends uncertain high-cost cases to review. Step 1, Observe. State: boundedEvidence: A support classifier reports per-language and dialect confusion metrics against a keyword baseline and sends uncertain high-cost cases to review.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: NLP tasks include tokenization, representation, classification, extraction, retrieval, translation, and generation; evaluation must match the task, language varieties, stakeholders, and error costs.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Frame the exact language task and population, evaluate task-specific errors and coverage slices, and include qualified human review where metrics miss meaning or harm.. State what the evidence does not establish and reject the misconception: One English benchmark or text-overlap metric establishes that an NLP system understands language and works for all dialects."
+    "textAlternative": "Tracing slice-aware NLP evaluation. Step 1, English: correct is 2/2. The support classifier reports per-language metrics against a keyword baseline. Step 2, Hinglish: correct is 2/3. Dialect confusion metrics reveal a coverage gap. Step 3, Route: uncertain urgent is to review. Uncertain high-cost cases are sent to review."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Natural-language processing: bounded direct case”: state its starting evidence, apply the Natural-language processing rule, and give the observable result in three short lines.",
+      "prompt": "For \"A support classifier sliced by language\", explain how a support classifier reports per-language and dialect confusion metrics against a keyword baseline and sends uncertain high-cost cases to review.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Slice.",
+        "Baseline.",
+        "Route."
       ],
       "expectedEvidence": [
-        "Named example: Natural-language processing: bounded direct case.",
-        "Starting evidence: A support classifier reports per-language and dialect confusion metrics against a keyword baseline and sends uncertain high-cost cases to review.",
-        "Core rule: NLP tasks include tokenization, representation, classification, extraction, retrieval, translation, and generation; evaluation must match the task, language varieties, stakeholders, and error costs.",
-        "Observable result: This example supports only the atomic outcome because Frame the exact language task and population, evaluate task-specific errors and coverage slices, and include qualified human review where metrics miss meaning or harm.",
-        "Boundary check: Frame the exact language task and population, evaluate task-specific errors and coverage slices, and include qualified human review where metrics miss meaning or harm."
+        "Names the example \"A support classifier sliced by language\": Hinglish tickets were misrouted.",
+        "A support classifier reports per-language and dialect confusion metrics against a keyword baseline.",
+        "It sends uncertain high-cost cases to review.",
+        "Coverage gaps are visible, and urgent tickets aren't lost in them."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed case: A translation system with a good average score mistranslates negation in one domain, so targeted human evaluation blocks deployment there.",
+      "prompt": "Add five tickets in another language variety your users might use, rerun the per-slice report, and list the baseline's failures.",
       "scaffold": [
-        "Identify which assumption, population, input, or objective changed.",
-        "Preserve provenance and the declared failure boundary."
+        "Label them first.",
+        "Keep slices separate."
       ],
       "expectedEvidence": [
-        "NLP tasks include tokenization, representation, classification, extraction, retrieval, translation, and generation; evaluation must match the task, language varieties, stakeholders, and error costs.",
-        "Tokens are model units not words, benchmark language coverage is limited, automatic overlap metrics miss meaning and harms, dialect performance varies, generated text can be unsupported, and annotations encode policy."
+        "Three slices reported.",
+        "Failures listed."
       ]
     },
     "farTransfer": {
-      "prompt": "Design a neutral-context example or evaluation for Natural-language processing and list the evidence that would support and falsify its bounded claim.",
+      "prompt": "Frame an NLP task for your context (e.g. extracting dates from forms). Write the problem card, a per-slice evaluation plan with a baseline, and a review rule for uncertain high-cost cases.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+        "Name the language varieties.",
+        "Pick field-level metrics."
       ],
       "expectedEvidence": [
-        "Frame and evaluate a small NLP task while identifying language and dialect coverage gaps.",
-        "Frame the exact language task and population, evaluate task-specific errors and coverage slices, and include qualified human review where metrics miss meaning or harm."
+        "Plan complete.",
+        "Coverage gaps identified."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "ai.applications.nlp.misconception",
-      "explanation": "Frame the exact language task and population, evaluate task-specific errors and coverage slices, and include qualified human review where metrics miss meaning or harm.",
-      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A translation system with a good average score mistranslates negation in one domain, so targeted human evaluation blocks deployment there."
+      "explanation": "For every NLP system ask: **which languages and dialects do real users write in, and is each one measured?** Add a baseline and a review route.",
+      "retryPrompt": "Apply this to \"The Hinglish misroute\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to frame and evaluate a small NLP task while identifying language and dialect coverage gaps. Keep this boundary in view: Tokens are model units not words, benchmark language coverage is limited, automatic overlap metrics miss meaning and harms, dialect performance varies, generated text can be unsupported, and annotations encode policy.",
+    "summary": "To frame and evaluate a small NLP task while identifying language and dialect coverage gaps, match metrics to the task, compare with a keyword baseline per language slice, report gaps openly, and route uncertain high-cost cases to people.",
     "retrievalPrompts": [
-      "Explain Natural-language processing with one technical mechanism, one evidence requirement, and one non-claim.",
-      "Why is this overclaim invalid: One English benchmark or text-overlap metric establishes that an NLP system understands language and works for all dialects.",
-      "Apply the boundary to: A translation system with a good average score mistranslates negation in one domain, so targeted human evaluation blocks deployment there."
+      "Why evaluate per dialect?",
+      "What does a keyword baseline show?",
+      "What should happen to uncertain costly cases?"
     ],
     "nextReviewPrompt": "Next: continue to “Computer vision and perception”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

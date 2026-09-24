@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Client navigation must update document title and move or announce focus context so keyboard and screen-reader users perceive the new view.",
+    "summary": "A full page load tells everyone something changed: the tab title updates, screen readers announce the new page, and focus starts at the top. A client-side route change does **none of that by itself**; React just swaps components. So for each route, **set `document.title`** to describe the view, and after navigation **move focus to the main heading** (given `tabIndex={-1}` so it can be focused without joining the Tab order). Don't move focus on the very first load, and don't trap it: the next Tab should continue naturally from there.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: After a course route changes, the main heading receives managed focus without trapping subsequent navigation. Your goal is to verify route changes are perceivable to keyboard and assistive-technology users. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A screen-reader user clicks \"CSS Basics\" in the course list. The content changes, but they hear nothing, focus stays on the link that's no longer on screen, and the tab still says \"Courses\". After a course route changes, the main heading receives managed focus without trapping subsequent navigation. In this lesson you'll verify route changes are perceivable to keyboard and assistive-technology users.\n\n```predict\n{\"question\": \"After a client-side route change, does a screen reader automatically announce the new page?\", \"options\": [\"Yes, the content changed\", \"No: nothing tells it a new page arrived unless you move focus or announce it\"], \"answer\": 1, \"why\": \"Client routing skips the browser's page-load signals, so you must add them.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Remote data and asynchronous UI; javascript browser url; Declarative routes and links; Refs and imperative escape hatches; html metadata title description. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Remote data and asynchronous UI** module, **URL and history state**, **Declarative routes and links**, **Refs and imperative escape hatches**, and **Title and descriptive metadata**."
       },
       {
-        "heading": "Technology rule",
-        "body": "Client navigation must update document title and move or announce focus context so keyboard and screen-reader users perceive the new view. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: title, then focus the heading",
+        "body": "```jsx\nimport { useEffect, useRef } from \"react\";\nimport { useLocation } from \"react-router\";\n\nexport function usePageTitle(title) {\n  useEffect(() => { document.title = `${title} | Codestead`; }, [title]);\n}\n\nexport function RouteHeading({ children }) {\n  const ref = useRef(null);\n  const location = useLocation();\n  useEffect(() => {\n    if (location.key === \"default\") return;   // the first page load: leave focus alone.\n    ref.current?.focus();\n  }, [location.key]);\n  return <h1 ref={ref} tabIndex={-1}>{children}</h1>;\n}\n\nfunction CoursePage({ course }) {\n  usePageTitle(course.title);\n  return <RouteHeading>{course.title}</RouteHeading>;\n}\n```\n\n| After navigation | Why |\n|---|---|\n| title names the view. | tabs, history and screen readers use it. |\n| focus on main h1. | screen readers read it; Tab continues from there. |\n| tabIndex -1 on h1. | focusable by script, skipped by Tab. |\n| first load untouched. | the browser already handles it. |\n\n```reveal\n{\"prompt\": \"Won't focusing a heading show an ugly outline?\", \"answer\": \"Style it with :focus-visible so keyboard users see it and mouse users usually don't. Never remove focus styles entirely.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Focusing every route can disrupt restored history position, dialogs need separate rules, and hash navigation has native expectations. This draft therefore rejects: Changing visible React components automatically announces a new page to assistive technology."
+        "heading": "Check it",
+        "body": "```predict\n{\"question\": \"How do you verify focus moved after navigation in a test?\", \"options\": [\"Take a screenshot\", \"Click the link, then assert document.activeElement is the new page's heading\"], \"answer\": 1, \"why\": \"Test the behaviour directly with Testing Library and a MemoryRouter.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Update document context and move focus appropriately after client navigation.",
-      "Verify route changes are perceivable to keyboard and assistive-technology users."
+      "Update document.title per route.",
+      "Move focus to the main heading after client navigation without trapping it, and test it."
     ],
     "excludes": [
-      "Focusing every route can disrupt restored history position, dialogs need separate rules, and hash navigation has native expectations."
+      "Scroll restoration strategies in depth.",
+      "Live-region announcers for every update."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "react.routing.focus.example-a",
-      "title": "Route titles and focus management: concrete case",
+      "title": "Arriving on the new course page",
       "situation": "After a course route changes, the main heading receives managed focus without trapping subsequent navigation.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: After a course route changes, the main heading receives managed focus without trapping subsequent navigation.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Manage title and focus or announcements on client route changes; visual replacement alone may be silent."
+        "**Title:** CoursePage sets `document.title` to \"CSS Basics | Codestead\".",
+        "**Managed focus:** RouteHeading focuses the h1 with tabIndex -1 after each navigation, but not on the first page load.",
+        "**Check:** a test will click the course link and assert the h1 is focused; pressing Tab will then reach the first link in the page."
       ],
-      "result": "The result follows because Manage title and focus or announcements on client route changes; visual replacement alone may be silent."
+      "result": "Screen-reader users hear \"CSS Basics, heading level 1\", the tab title matches, and keyboard navigation continues normally."
     },
     {
       "id": "react.routing.focus.example-b",
-      "title": "Route titles and focus management: boundary case",
-      "situation": "Focusing every route can disrupt restored history position, dialogs need separate rules, and hash navigation has native expectations.",
+      "title": "The title stuck on Home",
+      "situation": "Every page's browser tab says \"Codestead | Home\", so learners with several tabs can't tell them apart, and history entries all look the same.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Focusing every route can disrupt restored history position, dialogs need separate rules, and hash navigation has native expectations.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Changing visible React components automatically announces a new page to assistive technology."
+        "The title was set once in index.html and never updated.",
+        "Each route should set its own title.",
+        "Call usePageTitle in each page component with its specific name."
       ],
-      "result": "The boundary requires this correction: Manage title and focus or announcements on client route changes; visual replacement alone may be silent."
+      "result": "Tabs and history entries show the page each one is on."
     }
   ],
   "misconceptions": [
     {
       "id": "react.routing.focus.misconception",
       "mistakenBelief": "Changing visible React components automatically announces a new page to assistive technology.",
-      "correction": "Manage title and focus or announcements on client route changes; visual replacement alone may be silent.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Changing visible React components automatically announces a new page to assistive technology."
+      "correction": "Swapping components changes the DOM silently. Without a title update and a focus move (or an announcement), screen-reader and keyboard users don't learn that the view changed.",
+      "diagnosticPrompt": "In \"Arriving on the new course page\", what did the screen-reader user hear?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Route titles and focus management, where inputs and state produce a UI description.",
+    "example": "Client navigation is like **changing the slides in a presentation without saying \"next slide\"**. People looking at the screen notice; people listening don't. Updating the title and focusing the heading is **saying the new slide's name out loud**.",
     "usefulFor": [
-      "Building a first mental model for Route titles and focus management before using exact platform terms"
+      "remembering announce the change",
+      "heading focus = saying the slide title"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Focusing every route can disrupt restored history position, dialogs need separate rules, and hash navigation has native expectations."
+      "Presenters don't trap the audience; focus must not trap Tab.",
+      "The first slide doesn't need an announcement: the page load did it."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "After a course route changes, the main heading receives managed focus without trapping subsequent navigation.",
-      "Client navigation must update document title and move or announce focus context so keyboard and screen-reader users perceive the new view.",
-      "Manage title and focus or announcements on client route changes; visual replacement alone may be silent."
+      "click Link to /courses/css",
+      "route renders CoursePage",
+      "effects run"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Click",
         "state": {
-          "evidence": "After a course route changes, the main heading receives managed focus without trapping subsequent navigation."
+          "focus": "course link",
+          "title": "Courses | Codestead"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The learner activates a link in the course list."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Render",
         "state": {
-          "rule": "Client navigation must update document title and move or announce focus context so keyboard and screen-reader users perceive the new view."
+          "view": "CoursePage"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The course route changes and the new view renders."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Effects",
         "state": {
-          "correction": "Manage title and focus or announcements on client route changes; visual replacement alone may be silent."
+          "title": "CSS Basics | Codestead",
+          "focus": "h1 CSS Basics"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Changing visible React components automatically announces a new page to assistive technology."
+        "explanation": "The main heading receives managed focus without trapping subsequent navigation."
       }
     ],
-    "textAlternative": "Starting artifact: After a course route changes, the main heading receives managed focus without trapping subsequent navigation. Step 1, Artifact. State: evidence: After a course route changes, the main heading receives managed focus without trapping subsequent navigation.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Client navigation must update document title and move or announce focus context so keyboard and screen-reader users perceive the new view.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Manage title and focus or announcements on client route changes; visual replacement alone may be silent.. Check the result against the boundary and reject this misconception: Changing visible React components automatically announces a new page to assistive technology."
+    "textAlternative": "Tracing a perceivable route change. Step 1, Click: focus is course link; title is Courses | Codestead. The learner activates a link in the course list. Step 2, Render: view is CoursePage. The course route changes and the new view renders. Step 3, Effects: title is CSS Basics | Codestead; focus is h1 CSS Basics. The main heading receives managed focus without trapping subsequent navigation."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Route titles and focus management: concrete case”: state its starting evidence, apply the Route titles and focus management rule, and give the observable result in three short lines.",
+      "prompt": "For \"Arriving on the new course page\", explain how after a course route changes, the main heading receives managed focus without trapping subsequent navigation.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Title.",
+        "Focus.",
+        "Check."
       ],
       "expectedEvidence": [
-        "Named example: Route titles and focus management: concrete case.",
-        "Starting evidence: After a course route changes, the main heading receives managed focus without trapping subsequent navigation.",
-        "Core rule: Client navigation must update document title and move or announce focus context so keyboard and screen-reader users perceive the new view.",
-        "Observable result: The result follows because Manage title and focus or announcements on client route changes; visual replacement alone may be silent.",
-        "Boundary check: Manage title and focus or announcements on client route changes; visual replacement alone may be silent."
+        "Names the example \"Arriving on the new course page\": the page title updates.",
+        "After a course route changes, the main heading receives managed focus.",
+        "It does not trap subsequent navigation.",
+        "Screen-reader users hear the new heading."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Focusing every route can disrupt restored history position, dialogs need separate rules, and hash navigation has native expectations.",
+      "prompt": "Add usePageTitle and RouteHeading to a lesson page and a not-found page, so both set titles and focus their h1 after navigation.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Specific titles.",
+        "tabIndex -1 on h1."
       ],
       "expectedEvidence": [
-        "Client navigation must update document title and move or announce focus context so keyboard and screen-reader users perceive the new view.",
-        "Focusing every route can disrupt restored history position, dialogs need separate rules, and hash navigation has native expectations."
+        "Two pages with distinct titles.",
+        "Focus lands on each h1."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Route titles and focus management and explain why the misconception fails.",
+      "prompt": "Audit a routed app with a keyboard and screen reader: for three navigations, record title, what's announced and where focus lands. Fix the gaps and add tests for title and focus.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Use NVDA, VoiceOver or Narrator.",
+        "MemoryRouter tests."
       ],
       "expectedEvidence": [
-        "Verify route changes are perceivable to keyboard and assistive-technology users.",
-        "Manage title and focus or announcements on client route changes; visual replacement alone may be silent."
+        "An audit table before and after.",
+        "Tests for title and focus."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.routing.focus.misconception",
-      "explanation": "Manage title and focus or announcements on client route changes; visual replacement alone may be silent.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'Manage title and focus' and state the decisive evidence."
+      "explanation": "After every route change ask: **Does the tab title name this view? Where is focus? Would a screen-reader user know the page changed?**",
+      "retryPrompt": "Apply this to \"The title stuck on Home\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to verify route changes are perceivable to keyboard and assistive-technology users. Keep this boundary in view: Focusing every route can disrupt restored history position, dialogs need separate rules, and hash navigation has native expectations.",
+    "summary": "To verify route changes are perceivable, set document.title for each view, move focus to the main heading (tabIndex -1) after client navigation but not on first load, keep Tab order flowing from there, and test the title and document.activeElement after clicking links.",
     "retrievalPrompts": [
-      "Explain Route titles and focus management using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: Changing visible React components automatically announces a new page to assistive technology.",
-      "Apply checkpoint 'Manage title and focus' to a new artifact."
+      "Why doesn't a route change announce itself?",
+      "Why give the heading tabIndex -1?",
+      "How do you test that focus moved?"
     ],
     "nextReviewPrompt": "Next: continue to “Context for stable global dependencies”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Backtracking explores a decision tree, abandons partial states that cannot lead to a solution, and restores state before trying alternatives.",
+    "summary": "**Backtracking** explores a tree of choices: make a choice, **recurse** to handle the rest, and if that branch fails, **undo the choice** and try the next. Three habits make it work. **Pruning**: stop a branch as soon as the partial state breaks a rule, instead of building a full wrong answer. **Restoring state**: whatever you changed before recursing must be changed back after, or later branches see stale data. **Honest cost**: pruning often helps enormously in practice, but the worst case is usually still **exponential** (like 9⁸¹ Sudoku guesses or n! orderings).",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A Sudoku solver places a candidate, recurses, and clears that cell when the branch fails. Your goal is to implement and test a permutation, subset or constraint-placement solver with pruning. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A Sudoku helper for a puzzle-a-day feature fills empty cells by trying digits. It works on the first puzzle, then reports \"no solution\" for a puzzle that clearly has one: a failed guess was left in a cell, so every later branch saw a wrong grid. A Sudoku solver places a candidate, recurses, and clears that cell when the branch fails. In this lesson you'll implement and test a permutation, subset or constraint-placement solver with pruning.\n\n```predict\n{\"question\": \"Adding one pruning rule to a backtracking solver. Does that make it polynomial time?\", \"options\": [\"Yes, pruning fixes the growth\", \"Not in general: it removes branches but the worst case is usually still exponential\"], \"answer\": 1, \"why\": \"Pruning helps, sometimes hugely, but it rarely changes the worst-case class.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Recursion and divide-and-conquer; Hash tables, sets and maps; Recursive problem design; Time, space and asymptotic growth. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Recursion and divide-and-conquer** module, the **Hash tables, sets and maps** module, **Recursive problem design**, and **Time, space and asymptotic growth**."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Backtracking explores a decision tree, abandons partial states that cannot lead to a solution, and restores state before trying alternatives. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The model: choose, check, recurse, undo",
+        "body": "```python\ndef solve(grid):                         # grid: 9x9 list of lists, 0 = empty.\n    for r in range(9):\n        for c in range(9):\n            if grid[r][c] == 0:\n                for d in range(1, 10):\n                    if allowed(grid, r, c, d):   # prune: skip digits that break a rule.\n                        grid[r][c] = d          # choose.\n                        if solve(grid):         # recurse on the rest.\n                            return True\n                        grid[r][c] = 0          # undo before trying the next digit.\n                return False                     # no digit fits here: backtrack.\n    return True                                  # no empty cells: solved.\n\ndef allowed(grid, r, c, d):\n    if d in grid[r] or any(grid[i][c] == d for i in range(9)):\n        return False\n    br, bc = 3 * (r // 3), 3 * (c // 3)\n    return all(grid[i][j] != d for i in range(br, br + 3) for j in range(bc, bc + 3))\n```\n\n| Step | Purpose |\n|---|---|\n| choose. | try one option for the next decision. |\n| check (prune). | reject options that already break a rule. |\n| recurse. | solve the smaller remaining problem. |\n| undo. | restore state so the next option starts clean. |\n\n```reveal\n{\"prompt\": \"Why return True immediately when solve succeeds?\", \"answer\": \"One solution is enough here. Returning right away leaves the correct digits in place instead of undoing them.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Worst-case search remains exponential, pruning must be sound, and shared mutable state must be undone exactly. The draft therefore rejects: Backtracking becomes polynomial whenever one pruning condition is added."
+        "heading": "Subsets and permutations",
+        "body": "```predict\n{\"question\": \"How many leaves does the choice tree for all orderings of 8 study topics have?\", \"options\": [\"8 × 8 = 64\", \"8! = 40,320\"], \"answer\": 1, \"why\": \"Each level has one fewer choice. Backtracking visits them all unless pruning cuts branches.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Choose, recurse, undo and prune a decision tree while preserving candidate state.",
-      "Implement and test a permutation, subset or constraint-placement solver with pruning.",
-      "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+      "Implement choose-check-recurse-undo for permutations, subsets or constraint placement.",
+      "Prune invalid partial states and state the exponential worst case honestly."
     ],
     "excludes": [
-      "Worst-case search remains exponential, pruning must be sound, and shared mutable state must be undone exactly."
+      "Dancing links and exact cover in depth.",
+      "SAT solvers."
     ]
   },
   "outcomes": [
@@ -68,142 +64,135 @@
   "examples": [
     {
       "id": "dsa.backtracking.search.example-a",
-      "title": "Backtracking search: language-neutral trace",
+      "title": "A Sudoku solver that undoes its guesses",
       "situation": "A Sudoku solver places a candidate, recurses, and clears that cell when the branch fails.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: A Sudoku solver places a candidate, recurses, and clears that cell when the branch fails.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Pruning can reduce explored states but does not automatically change exponential worst-case complexity."
+        "**Places a candidate:** for the first empty cell, the solver tries the smallest digit allowed by its row, column and box.",
+        "**Recurses:** it solves the rest of the grid with that digit in place.",
+        "**Clears that cell when the branch fails:** it resets the cell to 0 before trying the next digit; a test will solve a known puzzle and check every row, column and box."
       ],
-      "result": "The conceptual result follows because Pruning can reduce explored states but does not automatically change exponential worst-case complexity."
+      "result": "The helper solves every valid daily puzzle and correctly reports puzzles with no solution."
     },
     {
       "id": "dsa.backtracking.search.example-b",
-      "title": "Backtracking search: implementation transfer",
-      "situation": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
+      "title": "Picking study topics within a time budget",
+      "situation": "A planner lists every set of topics whose total minutes is exactly 90, from 15 topics.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
-        "Step 3 — Retest this boundary in the selected implementation: Worst-case search remains exponential, pruning must be sound, and shared mutable state must be undone exactly."
+        "Backtrack over include/exclude choices for each topic (a subset tree).",
+        "Prune when the running total exceeds 90.",
+        "Undo by removing the last included topic when returning."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "All 90-minute plans are listed, and pruning skips most hopeless branches."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.backtracking.search.misconception",
       "mistakenBelief": "Backtracking becomes polynomial whenever one pruning condition is added.",
-      "correction": "Pruning can reduce explored states but does not automatically change exponential worst-case complexity.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Backtracking becomes polynomial whenever one pruning condition is added."
+      "correction": "Pruning removes branches that can't succeed, which often speeds things up dramatically, but adversarial inputs can still force an exponential number of branches. State the worst case honestly.",
+      "diagnosticPrompt": "In the opening predict, what does pruning change and what doesn't it?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Backtracking search, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Backtracking is like **exploring a maze with a ball of string**: at each junction pick a path, unwind string as you go, and when you hit a dead end, **wind the string back** to the last junction and try another way. Pruning is **not walking down a corridor you can see is blocked**.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering choose, check, recurse, undo",
+      "string = restored state"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Worst-case search remains exponential, pruning must be sound, and shared mutable state must be undone exactly."
+      "Mazes are finite and small; puzzles can have astronomically many paths.",
+      "Forgetting to wind the string back is leaving a guess in the grid."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A Sudoku solver places a candidate, recurses, and clears that cell when the branch fails.",
-      "Backtracking explores a decision tree, abandons partial states that cannot lead to a solution, and restores state before trying alternatives.",
-      "Pruning can reduce explored states but does not automatically change exponential worst-case complexity.",
-      "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+      "first empty cell (0, 2)",
+      "try 1 (blocked), 2 (allowed)",
+      "branch fails later"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Place",
         "state": {
-          "scenario": "A Sudoku solver places a candidate, recurses, and clears that cell when the branch fails."
+          "cell (0,2)": "2",
+          "reason": "1 already in row"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The solver places a candidate that passes the row, column and box checks."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Recurse",
         "state": {
-          "invariant": "Backtracking explores a decision tree, abandons partial states that cannot lead to a solution, and restores state before trying alternatives."
+          "deeper": "later cell has no allowed digit",
+          "result": "False"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "It recurses, and this branch turns out to fail."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Undo",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "cell (0,2)": "0, then try 4"
         },
-        "explanation": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Pruning can reduce explored states but does not automatically change exponential worst-case complexity."
-        },
-        "explanation": "Verify the result and reject this misconception: Backtracking becomes polynomial whenever one pruning condition is added."
+        "explanation": "It clears that cell when the branch fails before trying the next digit."
       }
     ],
-    "textAlternative": "Starting artifact: A Sudoku solver places a candidate, recurses, and clears that cell when the branch fails. Step 1, Specification. State: scenario: A Sudoku solver places a candidate, recurses, and clears that cell when the branch fails.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Backtracking explores a decision tree, abandons partial states that cannot lead to a solution, and restores state before trying alternatives.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees. Step 4, Conclusion. State: correction: Pruning can reduce explored states but does not automatically change exponential worst-case complexity.. Verify the result and reject this misconception: Backtracking becomes polynomial whenever one pruning condition is added."
+    "textAlternative": "Tracing a backtrack in Sudoku. Step 1, Place: cell (0,2) is 2; reason is 1 already in row. The solver places a candidate that passes the row, column and box checks. Step 2, Recurse: deeper is later cell has no allowed digit; result is False. It recurses, and this branch turns out to fail. Step 3, Undo: cell (0,2) is 0, then try 4. It clears that cell when the branch fails before trying the next digit."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Backtracking search: language-neutral trace”: state its starting evidence, apply the Backtracking search rule, and give the observable result in three short lines.",
+      "prompt": "For \"A Sudoku solver that undoes its guesses\", explain how a Sudoku solver places a candidate, recurses, and clears that cell when the branch fails.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Place.",
+        "Recurse.",
+        "Clear."
       ],
       "expectedEvidence": [
-        "Named example: Backtracking search: language-neutral trace.",
-        "Starting evidence: A Sudoku solver places a candidate, recurses, and clears that cell when the branch fails.",
-        "Core rule: Backtracking explores a decision tree, abandons partial states that cannot lead to a solution, and restores state before trying alternatives.",
-        "Observable result: The conceptual result follows because Pruning can reduce explored states but does not automatically change exponential worst-case complexity.",
-        "Boundary check: Pruning can reduce explored states but does not automatically change exponential worst-case complexity."
+        "Names the example \"A Sudoku solver that undoes its guesses\": a failed guess was left in the grid.",
+        "The Sudoku solver places a candidate.",
+        "It recurses, and clears that cell when the branch fails.",
+        "The helper solves every valid daily puzzle."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Backtracking explores a decision tree, abandons partial states that cannot lead to a solution, and restores state before trying alternatives.",
+      "prompt": "Write `permutations(items)` with backtracking using a used-set, and test that 3 items give 6 orderings with no duplicates.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Mark used, recurse, unmark.",
+        "Append a copy of the current path."
       ],
       "expectedEvidence": [
-        "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
-        "Worst-case search remains exponential, pruning must be sound, and shared mutable state must be undone exactly."
+        "6 orderings for 3 items.",
+        "used and path restored after each branch."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Backtracking search case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Implement an N-Queens solver that counts solutions for N = 1 to 10, pruning with sets for columns and both diagonals. Compare the number of recursive calls with and without pruning.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Place one queen per row.",
+        "Undo by removing from the sets."
       ],
       "expectedEvidence": [
-        "Implement and test a permutation, subset or constraint-placement solver with pruning.",
-        "Pruning can reduce explored states but does not automatically change exponential worst-case complexity."
+        "Counts: 1, 0, 0, 2, 10, 4, 40, 92, 352, 724.",
+        "Pruning cuts calls dramatically."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.backtracking.search.misconception",
-      "explanation": "Pruning can reduce explored states but does not automatically change exponential worst-case complexity.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'exponential worst-case', then state one implementation-specific risk in the selected language."
+      "explanation": "For every recursive branch write the pair: **\"change X\" before the call and \"undo X\" after it.** Then ask: **what's the earliest point I can tell this branch is hopeless?** Prune there.",
+      "retryPrompt": "Apply this to \"Picking study topics within a time budget\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test a permutation, subset or constraint-placement solver with pruning. Keep this boundary in view: Worst-case search remains exponential, pruning must be sound, and shared mutable state must be undone exactly.",
+    "summary": "To implement a backtracking solver, make a choice, prune if the partial state already breaks a rule, recurse on the rest, and undo the choice before trying the next, as a Sudoku solver clears a cell when a branch fails; pruning helps greatly but the worst case usually stays exponential.",
     "retrievalPrompts": [
-      "State the Backtracking search invariant and complexity without code.",
-      "Why is this claim false: Backtracking becomes polynomial whenever one pruning condition is added.",
-      "Map checkpoint 'exponential worst-case' to C, C++, Java, and Python."
+      "What are the four steps of backtracking?",
+      "Why must state be restored after recursion?",
+      "Does pruning make backtracking polynomial?"
     ],
     "nextReviewPrompt": "Next: continue to “Overlapping subproblems and memoization”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

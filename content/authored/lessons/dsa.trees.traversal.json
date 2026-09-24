@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Preorder, inorder, postorder, and level order visit tree nodes in different structural sequences suited to different tasks.",
+    "summary": "Every traversal visits each node once, but in a **different order**, and the order is what makes it fit a task. **Preorder** (node, then children): print an outline, copy a tree top-down. **Postorder** (children, then node): delete folders, total up sizes, anything that needs the children's results first. **Inorder** (left, node, right) is for binary trees; on a binary search tree it gives **sorted order**. **Level order** (breadth-first, with a queue) visits by depth: show a tree level by level, or find the nearest node. Depth-first orders use recursion or an explicit **stack**.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Postorder processes both child subtrees before deleting or aggregating a node. Your goal is to choose, implement and test a traversal for a stated hierarchical task. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A course editor deletes a module and all its lessons. The first version deletes each node as soon as it visits it, top-down, and then can't reach the children because their parent is already gone, leaving orphaned lessons in storage. Postorder processes both child subtrees before deleting or aggregating a node. In this lesson you'll choose, implement and test a traversal for a stated hierarchical task.\n\n```predict\n{\"question\": \"Preorder and postorder both visit every node once. Do they produce the same order?\", \"options\": [\"Yes\", \"No: preorder visits a node before its children, postorder after\"], \"answer\": 1, \"why\": \"Same nodes, different order, and the order decides which tasks each can do.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Recursive problem design; Linked lists; Tree terminology and representation; Stack ADT; Queue and circular buffer. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Recursive problem design**, the **Linked lists** module, **Tree terminology and representation**, **Stack ADT** and **Queue and circular buffer**, which power iterative traversals."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Preorder, inorder, postorder, and level order visit tree nodes in different structural sequences suited to different tasks. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The distinction: when does the node get its turn?",
+        "body": "```python\nfrom collections import deque\n\nclass Node:\n    def __init__(self, name, children=None):\n        self.name, self.children = name, children or []\n\ndef preorder(n, out):               # node before children: outlines.\n    out.append(n.name)\n    for c in n.children:\n        preorder(c, out)\n\ndef postorder(n, out):              # children before node: delete, total.\n    for c in n.children:\n        postorder(c, out)\n    out.append(n.name)\n\ndef level_order(root):              # by depth, using a queue.\n    out, q = [], deque([root])\n    while q:\n        n = q.popleft()\n        out.append(n.name)\n        q.extend(n.children)\n    return out\n\ntree = Node(\"Web\", [Node(\"HTML\", [Node(\"Forms\")]), Node(\"CSS\")])\n# preorder:  Web, HTML, Forms, CSS\n# postorder: Forms, HTML, CSS, Web\n# level:     Web, HTML, CSS, Forms\n```\n\n| Task | Traversal |\n|---|---|\n| print an indented outline. | preorder. |\n| delete a subtree, sum sizes. | postorder. |\n| sorted keys from a BST. | inorder. |\n| show by level, nearest node. | level order. |\n\n```reveal\n{\"prompt\": \"How do you do preorder without recursion?\", \"answer\": \"Use a stack: pop a node, record it, push its children in reverse so the first child is processed next.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Inorder has special meaning for binary trees, recursion depth can overflow, and iterative versions need explicit stack or queue state. The draft therefore rejects: All tree traversals produce the same order because they visit every node once."
+        "heading": "Choose by the task",
+        "body": "```predict\n{\"question\": \"Compute each module's total minutes, where a module's total includes all its lessons. Which traversal?\", \"options\": [\"Preorder\", \"Postorder: children's totals are needed first\"], \"answer\": 1, \"why\": \"A node can only add up children after they've been processed.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Implement preorder, inorder, postorder and level-order traversals iteratively or recursively.",
-      "Choose, implement and test a traversal for a stated hierarchical task.",
-      "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+      "Implement preorder, postorder, inorder and level order.",
+      "Choose the traversal whose order matches the task and test it."
     ],
     "excludes": [
-      "Inorder has special meaning for binary trees, recursion depth can overflow, and iterative versions need explicit stack or queue state."
+      "Morris traversal.",
+      "Threaded trees."
     ]
   },
   "outcomes": [
@@ -68,142 +64,134 @@
   "examples": [
     {
       "id": "dsa.trees.traversal.example-a",
-      "title": "Depth and breadth traversals: language-neutral trace",
+      "title": "Deleting a folder, children first",
       "situation": "Postorder processes both child subtrees before deleting or aggregating a node.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: Postorder processes both child subtrees before deleting or aggregating a node.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Traversal order changes when the node action occurs relative to children; choose the order from the task."
+        "**Bug:** preorder deleted Web first, so its HTML and CSS subtrees were never reached.",
+        "**Postorder:** delete Forms, then HTML, then CSS, then Web, so each node's children are gone before it is.",
+        "**Test:** a test will record the deletion order [Forms, HTML, CSS, Web] and check storage is empty afterwards."
       ],
-      "result": "The conceptual result follows because Traversal order changes when the node action occurs relative to children; choose the order from the task."
+      "result": "Deleting a module removes every lesson under it, with no orphans left behind."
     },
     {
       "id": "dsa.trees.traversal.example-b",
-      "title": "Depth and breadth traversals: implementation transfer",
-      "situation": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
+      "title": "The org chart shown level by level",
+      "situation": "A mentoring app must show mentors grouped by level: the lead, then their direct mentors, then the next layer. Recursive preorder mixes the levels.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
-        "Step 3 — Retest this boundary in the selected implementation: Inorder has special meaning for binary trees, recursion depth can overflow, and iterative versions need explicit stack or queue state."
+        "Preorder dives deep before visiting siblings.",
+        "Level order with a queue finishes each depth before the next.",
+        "Record depth alongside each node to group them."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "The chart shows each level together, top to bottom."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.trees.traversal.misconception",
       "mistakenBelief": "All tree traversals produce the same order because they visit every node once.",
-      "correction": "Traversal order changes when the node action occurs relative to children; choose the order from the task.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: All tree traversals produce the same order because they visit every node once."
+      "correction": "They visit the same set of nodes but in different sequences: preorder before children, postorder after, inorder between left and right, and level order by depth. The order is what makes a traversal correct for a task.",
+      "diagnosticPrompt": "In the opening predict, how did preorder and postorder differ?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Depth and breadth traversals, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Traversals are like **ways to tour a building**. Preorder: announce each room as you enter it, then explore its inner rooms (an outline). Postorder: clean the inner rooms before you close the outer door (deleting). Level order: visit every room on floor 1, then floor 2 (by level).",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering when the node gets its turn",
+      "postorder = inner rooms first"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Inorder has special meaning for binary trees, recursion depth can overflow, and iterative versions need explicit stack or queue state."
+      "Buildings don't disappear as you clean; deleting nodes does, which is why order matters.",
+      "Inorder only makes sense when each room has a left and right side."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Postorder processes both child subtrees before deleting or aggregating a node.",
-      "Preorder, inorder, postorder, and level order visit tree nodes in different structural sequences suited to different tasks.",
-      "Traversal order changes when the node action occurs relative to children; choose the order from the task.",
-      "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+      "tree Web(HTML(Forms), CSS)",
+      "postorder",
+      "delete in that order"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Descend",
         "state": {
-          "scenario": "Postorder processes both child subtrees before deleting or aggregating a node."
+          "visit": "Web → HTML → Forms"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The traversal goes down to the deepest child first."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Process children",
         "state": {
-          "invariant": "Preorder, inorder, postorder, and level order visit tree nodes in different structural sequences suited to different tasks."
+          "deleted": "Forms, then HTML, then CSS"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "Postorder processes both child subtrees before the parent."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Parent last",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "deleted": "Web",
+          "orphans": "0"
         },
-        "explanation": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Traversal order changes when the node action occurs relative to children; choose the order from the task."
-        },
-        "explanation": "Verify the result and reject this misconception: All tree traversals produce the same order because they visit every node once."
+        "explanation": "Only then is the node itself deleted or aggregated."
       }
     ],
-    "textAlternative": "Starting artifact: Postorder processes both child subtrees before deleting or aggregating a node. Step 1, Specification. State: scenario: Postorder processes both child subtrees before deleting or aggregating a node.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Preorder, inorder, postorder, and level order visit tree nodes in different structural sequences suited to different tasks.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged. Step 4, Conclusion. State: correction: Traversal order changes when the node action occurs relative to children; choose the order from the task.. Verify the result and reject this misconception: All tree traversals produce the same order because they visit every node once."
+    "textAlternative": "Tracing a postorder delete. Step 1, Descend: visit is Web → HTML → Forms. The traversal goes down to the deepest child first. Step 2, Process children: deleted is Forms, then HTML, then CSS. Postorder processes both child subtrees before the parent. Step 3, Parent last: deleted is Web; orphans is 0. Only then is the node itself deleted or aggregated."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Depth and breadth traversals: language-neutral trace”: state its starting evidence, apply the Depth and breadth traversals rule, and give the observable result in three short lines.",
+      "prompt": "For \"Deleting a folder, children first\", explain how postorder processes both child subtrees before deleting or aggregating a node.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Bug.",
+        "Postorder.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Depth and breadth traversals: language-neutral trace.",
-        "Starting evidence: Postorder processes both child subtrees before deleting or aggregating a node.",
-        "Core rule: Preorder, inorder, postorder, and level order visit tree nodes in different structural sequences suited to different tasks.",
-        "Observable result: The conceptual result follows because Traversal order changes when the node action occurs relative to children; choose the order from the task.",
-        "Boundary check: Traversal order changes when the node action occurs relative to children; choose the order from the task."
+        "Names the example \"Deleting a folder, children first\": preorder deleted parents too early.",
+        "Postorder processes both child subtrees first.",
+        "Only then does it delete or aggregate the node.",
+        "Deleting a module removes every lesson with no orphans."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Preorder, inorder, postorder, and level order visit tree nodes in different structural sequences suited to different tasks.",
+      "prompt": "For the binary tree 8(3(1, 6), 10(-, 14)), write the preorder, inorder, postorder and level order.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Inorder: left, node, right.",
+        "Level order uses a queue."
       ],
       "expectedEvidence": [
-        "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
-        "Inorder has special meaning for binary trees, recursion depth can overflow, and iterative versions need explicit stack or queue state."
+        "Pre: 8 3 1 6 10 14; In: 1 3 6 8 10 14.",
+        "Post: 1 6 3 14 10 8; Level: 8 3 10 1 6 14."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Depth and breadth traversals case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Implement iterative preorder with a stack and level order with a queue for n-ary trees. Use postorder to compute every folder's total size. Test on a deep chain and a wide tree.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Push children reversed for preorder.",
+        "Return a dict of totals."
       ],
       "expectedEvidence": [
-        "Choose, implement and test a traversal for a stated hierarchical task.",
-        "Traversal order changes when the node action occurs relative to children; choose the order from the task."
+        "Orders match the recursive versions.",
+        "Totals correct for both shapes."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.trees.traversal.misconception",
-      "explanation": "Traversal order changes when the node action occurs relative to children; choose the order from the task.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'relative to children', then state one implementation-specific risk in the selected language."
+      "explanation": "Ask: **Does the task need the node's info before its children (preorder), after them (postorder), or by level (queue)?** Write the expected order for a three-node tree before coding.",
+      "retryPrompt": "Apply this to \"The org chart shown level by level\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to choose, implement and test a traversal for a stated hierarchical task. Keep this boundary in view: Inorder has special meaning for binary trees, recursion depth can overflow, and iterative versions need explicit stack or queue state.",
+    "summary": "To choose, implement and test a traversal, match the order to the task: preorder for top-down outlines and copies, postorder when children's results or deletion must come first, inorder for sorted binary search tree keys, and level order with a queue for level-by-level views.",
     "retrievalPrompts": [
-      "State the Depth and breadth traversals invariant and complexity without code.",
-      "Why is this claim false: All tree traversals produce the same order because they visit every node once.",
-      "Map checkpoint 'relative to children' to C, C++, Java, and Python."
+      "Which traversal deletes a subtree safely?",
+      "Which gives sorted keys from a BST?",
+      "Which structure does level order use?"
     ],
     "nextReviewPrompt": "Next: continue to “Binary search tree operations”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

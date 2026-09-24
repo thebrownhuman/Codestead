@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Python separates syntax diagnostics from exceptions and logic failures; a traceback shows the active call chain ending with the exception type and message, while chained causes preserve translated failure context.",
+    "summary": "A **traceback** is Python's crash report. Read it **from the bottom up**: the last line names the error type and message, and the frames above show the chain of calls that led there — your own code's frames are the ones to focus on. Not every bug crashes, though: logic errors run silently with wrong answers.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A ValueError traceback is read from its final type backward through application frames until the invalid conversion input is identified and tested. Your goal is to classify and repair representative syntax, runtime and logic failures. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Your script crashes with a wall of text. Beginners read it top-down and get lost in library files. Pros read it bottom-up. A ValueError traceback is read from its final type backward through application frames until the invalid conversion input is identified and tested. In this lesson you'll classify and repair representative syntax, runtime and logic failures, starting with the last line of the report.\n\n```predict\n{\"question\": \"Which line of a traceback tells you **what** went wrong?\", \"options\": [\"The first line: `Traceback (most recent call last):`\", \"The last line, e.g. `ValueError: invalid literal for int() with base 10: 'ten'`\"], \"answer\": 1, \"why\": \"The last line gives the error type and message. The first line is just a header.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: pf computing execution; pf tools terminal editor; Scripts, indentation and main guard. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Source-to-execution models**, **Editor and terminal workflow**, and **Scripts, indentation and main guard**."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Python separates syntax diagnostics from exceptions and logic failures; a traceback shows the active call chain ending with the exception type and message, while chained causes preserve translated failure context. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: bottom line, then your frames",
+        "body": "```text\nTraceback (most recent call last):\n  File \"app.py\", line 9, in <module>\n    main()\n  File \"app.py\", line 6, in main\n    total = parse_qty(\"ten\")\n  File \"app.py\", line 2, in parse_qty\n    return int(text)\nValueError: invalid literal for int() with base 10: 'ten'\n```\n\n| Read | It says |\n|---|---|\n| Last line. | ValueError — int() got the text 'ten'. |\n| Frame just above. | it failed inside parse_qty, line 2. |\n| Next frame up. | main passed \"ten\" on line 6 — the real source. |\n\n```reveal\n{\"prompt\": \"\\\"Most recent call last\\\" — what does that tell you about order?\", \"answer\": \"The deepest call, where it actually failed, is at the bottom. Reading upward walks back toward who called it.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "The last application frame is not always the root cause, handlers can alter chaining, one bad parse location can follow an earlier token error, and a normal exit can still produce an incorrect result. The learner must reject this documented misconception: The first line of a traceback names the faulty source line and every Python bug raises an exception."
+        "heading": "Three families of failure",
+        "body": "| Family | Traceback? | Example |\n|---|---|---|\n| Syntax. | yes, before running: `SyntaxError`. | missing `:` after `if`. |\n| Runtime. | yes, while running. | `ValueError`, `KeyError`, `ZeroDivisionError`. |\n| Logic. | **no**. | average uses `//` and drops decimals. |\n\n```predict\n{\"question\": \"A program finishes normally but prints the wrong total. Where's the traceback?\", \"options\": [\"At the bottom of the output\", \"There isn't one — it's a logic error\"], \"answer\": 1, \"why\": \"Logic errors don't raise exceptions. You find them by comparing output with expected results in tests.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Read syntax diagnostics and exception tracebacks from the relevant frame and causal chain.",
-      "Classify and repair representative syntax, runtime and logic failures."
+      "Read a traceback from the error line upward to the responsible application frame.",
+      "Classify failures as syntax, runtime or logic and repair them."
     ],
     "excludes": [
-      "The last application frame is not always the root cause, handlers can alter chaining, one bad parse location can follow an earlier token error, and a normal exit can still produce an incorrect result."
+      "Catching exceptions with try/except (errors module).",
+      "Debugger tools like pdb."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "python.toolchain.traceback.example.direct",
-      "title": "Tracebacks and error categories: direct language case",
+      "title": "Reading a ValueError traceback",
       "situation": "A ValueError traceback is read from its final type backward through application frames until the invalid conversion input is identified and tested.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A ValueError traceback is read from its final type backward through application frames until the invalid conversion input is identified and tested.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Classify syntax, exceptional runtime, and logic failures; read the exception type and relevant application frames, preserve causal chaining, and verify the repaired contract."
+        "**Final type:** the last line says `ValueError: invalid literal for int() ... 'ten'` — an invalid conversion input.",
+        "**Backward through application frames:** parse_qty line 2 called int(); main line 6 passed \"ten\".",
+        "**Identify and test:** the input came from main; add a test that parse_qty(\"ten\") is handled, and pass digits like \"10\"."
       ],
-      "result": "The example meets the atomic outcome because Classify syntax, exceptional runtime, and logic failures; read the exception type and relevant application frames, preserve causal chaining, and verify the repaired contract."
+      "result": "The invalid conversion input \"ten\" is identified at its source in main, and a test now covers it."
     },
     {
       "id": "python.toolchain.traceback.example.boundary",
-      "title": "Tracebacks and error categories: boundary and transfer case",
-      "situation": "A caught JSON error is raised as a domain ConfigurationError using raise ... from ..., preserving both the useful abstraction and original cause.",
+      "title": "The KeyError in a dictionary",
+      "situation": "`prices[\"tea\"]` crashes with `KeyError: 'tea'` inside `total_bill`, called from `checkout`.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A caught JSON error is raised as a domain ConfigurationError using raise ... from ..., preserving both the useful abstraction and original cause.",
-        "Step 2 — Keep the language boundary explicit: The last application frame is not always the root cause, handlers can alter chaining, one bad parse location can follow an earlier token error, and a normal exit can still produce an incorrect result.",
-        "Step 3 — Reject the tempting but incorrect rule: The first line of a traceback names the faulty source line and every Python bug raises an exception."
+        "The last line names the error type and the missing key: 'tea'.",
+        "The frame above shows the lookup line inside total_bill.",
+        "Fix: add tea to the prices dict, or use `prices.get(item)` and handle None with a clear message."
       ],
-      "result": "This case demonstrates the declared outcome: Classify and repair representative syntax, runtime and logic failures."
+      "result": "Reading from the bottom finds the missing key and its lookup line in one step."
     }
   ],
   "misconceptions": [
     {
       "id": "python.toolchain.traceback.misconception",
-      "mistakenBelief": "The first line of a traceback names the faulty source line and every Python bug raises an exception.",
-      "correction": "Classify syntax, exceptional runtime, and logic failures; read the exception type and relevant application frames, preserve causal chaining, and verify the repaired contract.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: The first line of a traceback names the faulty source line and every Python bug raises an exception."
+      "mistakenBelief": "The first line of a traceback names the faulty source line, and every Python bug raises an exception.",
+      "correction": "The first line is only a header; the error type and message are on the last line, with the failing frame just above it. Logic bugs raise nothing at all and must be caught by tests with expected results.",
+      "diagnosticPrompt": "In \"Reading a ValueError traceback\", which frame shows where \"ten\" came from?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "an experiment notebook that becomes a saved procedure executed by one identified interpreter in a known workspace can introduce Tracebacks and error categories, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "example": "A traceback is like a **chain of forwarded emails**: the newest message (bottom) says what went wrong; scroll up to see who forwarded it and where it started.",
     "usefulFor": [
-      "REPL experiments, scripts, environments, and tracebacks"
+      "remembering the answer is at the bottom",
+      "walking back up to the origin"
     ],
     "limitations": [
-      "import caching, module paths, display hooks, indentation grammar, and traceback chaining are Python-specific",
-      "The last application frame is not always the root cause, handlers can alter chaining, one bad parse location can follow an earlier token error, and a normal exit can still produce an incorrect result."
+      "Emails have a sender; tracebacks have frames with file and line numbers.",
+      "Some bugs (logic) never send an email at all."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A ValueError traceback is read from its final type backward through application frames until the invalid conversion input is identified and tested.",
-      "Python separates syntax diagnostics from exceptions and logic failures; a traceback shows the active call chain ending with the exception type and message, while chained causes preserve translated failure context.",
-      "Classify syntax, exceptional runtime, and logic failures; read the exception type and relevant application frames, preserve causal chaining, and verify the repaired contract."
+      "def parse_qty(text): return int(text)",
+      "def main(): total = parse_qty('ten')",
+      "main()"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Final type",
         "state": {
-          "evidence": "A ValueError traceback is read from its final type backward through application frames until the invalid conversion input is identified and tested."
+          "error": "ValueError",
+          "input": "'ten'"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "The last line names the error type and the invalid conversion input."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Failing frame",
         "state": {
-          "rule": "Python separates syntax diagnostics from exceptions and logic failures; a traceback shows the active call chain ending with the exception type and message, while chained causes preserve translated failure context."
+          "function": "parse_qty",
+          "line": "2"
         },
-        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "The frame above shows int() failed inside parse_qty on line 2."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Source frame",
         "state": {
-          "correction": "Classify syntax, exceptional runtime, and logic failures; read the exception type and relevant application frames, preserve causal chaining, and verify the repaired contract."
+          "function": "main",
+          "argument": "'ten'"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: The first line of a traceback names the faulty source line and every Python bug raises an exception."
+        "explanation": "Walking backward through application frames finds main passing the text ten."
       }
     ],
-    "textAlternative": "Starting artifact: A ValueError traceback is read from its final type backward through application frames until the invalid conversion input is identified and tested. Step 1, Observe. State: evidence: A ValueError traceback is read from its final type backward through application frames until the invalid conversion input is identified and tested.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Python separates syntax diagnostics from exceptions and logic failures; a traceback shows the active call chain ending with the exception type and message, while chained causes preserve translated failure context.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Classify syntax, exceptional runtime, and logic failures; read the exception type and relevant application frames, preserve causal chaining, and verify the repaired contract.. Compare the observation with the correction and explain why the misconception fails: The first line of a traceback names the faulty source line and every Python bug raises an exception."
+    "textAlternative": "Reading a traceback from the bottom up. Step 1, Final type: error is ValueError; input is 'ten'. The last line names the error type and the invalid conversion input. Step 2, Failing frame: function is parse_qty; line is 2. The frame above shows int() failed inside parse_qty on line 2. Step 3, Source frame: function is main; argument is 'ten'. Walking backward through application frames finds main passing the text ten."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Tracebacks and error categories: direct language case”: state its starting evidence, apply the Tracebacks and error categories rule, and give the observable result in three short lines.",
+      "prompt": "For \"Reading a ValueError traceback\", explain what the final type line says, how you walk backward through application frames, and where the invalid conversion input is identified and tested.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Last line.",
+        "Frames.",
+        "Source and test."
       ],
       "expectedEvidence": [
-        "Named example: Tracebacks and error categories: direct language case.",
-        "Starting evidence: A ValueError traceback is read from its final type backward through application frames until the invalid conversion input is identified and tested.",
-        "Core rule: Python separates syntax diagnostics from exceptions and logic failures; a traceback shows the active call chain ending with the exception type and message, while chained causes preserve translated failure context.",
-        "Observable result: The example meets the atomic outcome because Classify syntax, exceptional runtime, and logic failures; read the exception type and relevant application frames, preserve causal chaining, and verify the repaired contract.",
-        "Boundary check: Classify syntax, exceptional runtime, and logic failures; read the exception type and relevant application frames, preserve causal chaining, and verify the repaired contract."
+        "Names the example \"Reading a ValueError traceback\": a ValueError traceback read from its final type.",
+        "Walk backward through application frames: parse_qty, then main.",
+        "The invalid conversion input 'ten' is identified in main.",
+        "A test now covers the invalid input."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A caught JSON error is raised as a domain ConfigurationError using raise ... from ..., preserving both the useful abstraction and original cause.",
+      "prompt": "Classify and name the next step: (a) `SyntaxError: expected ':'` on line 4, (b) `ZeroDivisionError` in `average`, (c) prints 3 when the answer should be 3.5.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Did it run? Did it crash?",
+        "Which one has no traceback?"
       ],
       "expectedEvidence": [
-        "Python separates syntax diagnostics from exceptions and logic failures; a traceback shows the active call chain ending with the exception type and message, while chained causes preserve translated failure context.",
-        "The last application frame is not always the root cause, handlers can alter chaining, one bad parse location can follow an earlier token error, and a normal exit can still produce an incorrect result."
+        "(a) syntax — add the colon on line 4. (b) runtime — guard the empty list.",
+        "(c) logic — use `/` instead of `//`; add a test."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Tracebacks and error categories, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Write a 3-function script where the bottom function crashes on bad input. Run it, copy the traceback, and annotate each line with what it tells you.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Make main pass the bad input.",
+        "Label your frames."
       ],
       "expectedEvidence": [
-        "Classify and repair representative syntax, runtime and logic failures.",
-        "Classify syntax, exceptional runtime, and logic failures; read the exception type and relevant application frames, preserve causal chaining, and verify the repaired contract."
+        "A real traceback with every line annotated.",
+        "Correct identification of the source frame and a fix."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "python.toolchain.traceback.misconception",
-      "explanation": "Classify syntax, exceptional runtime, and logic failures; read the exception type and relevant application frames, preserve causal chaining, and verify the repaired contract.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A caught JSON error is raised as a domain ConfigurationError using raise ... from ..., preserving both the useful abstraction and original cause."
+      "explanation": "Cover everything but the last line. Read it aloud: type + message. Then uncover one frame at a time upward until you reach a file you wrote.",
+      "retryPrompt": "Do this for \"The KeyError in a dictionary\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to classify and repair representative syntax, runtime and logic failures. Keep this boundary in view: The last application frame is not always the root cause, handlers can alter chaining, one bad parse location can follow an earlier token error, and a normal exit can still produce an incorrect result.",
+    "summary": "To classify and repair a failure, read a traceback from the last line (type and message) back through your application frames to the source. Syntax errors stop before running, runtime errors crash while running, logic errors give no traceback.",
     "retrievalPrompts": [
-      "Explain Tracebacks and error categories using canonical Python: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: The first line of a traceback names the faulty source line and every Python bug raises an exception.",
-      "Predict this case from memory: A caught JSON error is raised as a domain ConfigurationError using raise ... from ..., preserving both the useful abstraction and original cause."
+      "Which traceback line names the error?",
+      "Why read frames bottom-up?",
+      "Which error family has no traceback?"
     ],
     "nextReviewPrompt": "Next: continue to “Numbers, booleans, None and text”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

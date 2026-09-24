@@ -2,7 +2,7 @@
 .spin { animation: spin 900ms linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.catalogPage { display: grid; gap: 24px; padding-bottom: 60px; }
+.catalogPage { display: grid; gap: 24px; }
 .catalogHero { display: grid; grid-template-columns: minmax(0, 1fr) 430px; gap: 36px; align-items: end; padding-top: 8px; }
 .catalogHero h1 { margin: 6px 0 10px; font-size: clamp(2.2rem, 4vw, 3.8rem); letter-spacing: -.055em; line-height: 1; }
 .catalogHero > div:first-child p { max-width: 720px; margin: 0; color: var(--ink-soft); }

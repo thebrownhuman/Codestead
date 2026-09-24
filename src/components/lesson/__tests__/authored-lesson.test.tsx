@@ -17,8 +17,8 @@ describe("authored lesson rendering", () => {
     expect(screen.getByText(/AI-assisted draft/i)).toBeInTheDocument();
     expect(screen.getByText(/No human editorial review yet/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Worked examples" })).toBeInTheDocument();
-    expect(screen.getByText("Finding the largest score")).toBeInTheDocument();
-    expect(screen.getByText("Choosing the shorter route")).toBeInTheDocument();
+    expect(screen.getByText("Finding the top score")).toBeInTheDocument();
+    expect(screen.getByText("The file that wouldn't run")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Trace and text alternative" })).toBeInTheDocument();
     expect(screen.getByText("Far transfer")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Source provenance" })).toBeInTheDocument();
@@ -38,7 +38,7 @@ describe("authored lesson rendering", () => {
     expect(screen.getByText(new RegExp(`Step 2: ${lesson!.trace.steps[1]!.focus}`, "i"))).toBeInTheDocument();
     for (const [name, value] of Object.entries(lesson!.trace.steps[1]!.state)) {
       expect(screen.getByText(name)).toBeInTheDocument();
-      expect(screen.getByText(value)).toBeInTheDocument();
+      expect(screen.getAllByText(value).length).toBeGreaterThan(0);
     }
   });
 });

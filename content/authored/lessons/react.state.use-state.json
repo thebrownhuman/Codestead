@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "useState stores component state between renders and its setter queues a replacement or updater for a later render.",
+    "summary": "`const [count, setCount] = useState(0)` gives a component memory that survives re-renders. Each render sees a **snapshot**: `count` is a constant for that render. Calling `setCount(...)` doesn't change `count` right away; it **queues** an update, and React re-renders later with the new value. So `setCount(count + 1)` three times in one handler queues the same value three times. When the next value depends on the previous one, pass an **updater**: `setCount(c => c + 1)` receives the latest queued value each time. Never mutate state objects or arrays; set a **new** one.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Three increments use functional updates so each derives from the latest queued count. Your goal is to trace and implement state updates without stale arithmetic or direct mutation. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A practice timer has a \"+3 minutes\" button whose handler calls `setMinutes(minutes + 1)` three times. Clicking it adds only 1 minute. Three increments use functional updates so each derives from the latest queued count. In this lesson you'll trace and implement state updates without stale arithmetic or direct mutation.\n\n```predict\n{\"question\": \"`count` is 0. The handler runs `setCount(count + 1); setCount(count + 1); setCount(count + 1);`. What's count after the re-render?\", \"options\": [\"3\", \"1: each call used the same snapshot, count = 0\"], \"answer\": 1, \"why\": \"All three calls compute 0 + 1. Use `setCount(c => c + 1)` to chain them.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Props and composition; javascript events model; Render purity and Strict Mode; javascript scope closures. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Props and composition** module, **Event propagation and delegation**, **Render purity and Strict Mode**, and **Closures and lifetime**, because handlers close over the snapshot."
       },
       {
-        "heading": "Technology rule",
-        "body": "useState stores component state between renders and its setter queues a replacement or updater for a later render. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: snapshots and a queue",
+        "body": "```jsx\nimport { useState } from \"react\";\n\nexport function Timer() {\n  const [minutes, setMinutes] = useState(10);\n  const [log, setLog] = useState([]);\n\n  function addThree() {\n    setMinutes((m) => m + 1);   // 11.\n    setMinutes((m) => m + 1);   // 12.\n    setMinutes((m) => m + 1);   // 13.\n    console.log(minutes);       // still 10: this render's snapshot.\n  }\n\n  function record() {\n    setLog((prev) => [...prev, `${minutes} min`]);   // new array, not push.\n  }\n\n  return (\n    <div>\n      <p>{minutes} minutes</p>\n      <button type=\"button\" onClick={addThree}>+3 minutes</button>\n      <button type=\"button\" onClick={record}>Record</button>\n    </div>\n  );\n}\n```\n\n| Call | Queued effect |\n|---|---|\n| `setMinutes(5)`. | replace with 5. |\n| `setMinutes(minutes + 1)`. | replace with snapshot + 1. |\n| `setMinutes(m => m + 1)`. | add 1 to the latest queued value. |\n| `log.push(x)`. | mutation: React may not re-render. |\n| `setLog(prev => [...prev, x])`. | new array: re-renders. |\n\n```reveal\n{\"prompt\": \"Why did console.log print 10?\", \"answer\": \"minutes is a constant in this render. The new value appears in the next render's snapshot.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Updates batch, stale closures see prior snapshots, objects need replacement, and initializers can run more than once in development. This draft therefore rejects: Calling setCount(count+1) three times always increases count by three."
+        "heading": "Mutation doesn't re-render",
+        "body": "```predict\n{\"question\": \"`log.push(\\\"x\\\"); setLog(log);` Does the list update?\", \"options\": [\"Yes\", \"No: it's the same array, so React sees no change and skips the update\"], \"answer\": 1, \"why\": \"React compares with Object.is. Always pass a new array or object.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Treat render state as a snapshot and use updater functions for queued changes based on prior state.",
-      "Trace and implement state updates without stale arithmetic or direct mutation."
+      "Declare state with useState and update it with values or updaters.",
+      "Trace snapshots and queued updates; update arrays and objects immutably."
     ],
     "excludes": [
-      "Updates batch, stale closures see prior snapshots, objects need replacement, and initializers can run more than once in development."
+      "useReducer (later lesson).",
+      "Batching internals across async boundaries."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "react.state.use-state.example-a",
-      "title": "useState and snapshots: concrete case",
+      "title": "The +3 button that added 1",
       "situation": "Three increments use functional updates so each derives from the latest queued count.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: Three increments use functional updates so each derives from the latest queued count.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations."
+        "**Bug:** `setMinutes(minutes + 1)` three times queues 11 three times, so the result is 11.",
+        "**Functional updates:** `setMinutes(m => m + 1)` three times queues 11, then 12, then 13.",
+        "**Test:** clicking \"+3 minutes\" once from 10 will show \"13 minutes\"."
       ],
-      "result": "The result follows because When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations."
+      "result": "The button adds exactly three minutes each click."
     },
     {
       "id": "react.state.use-state.example-b",
-      "title": "useState and snapshots: boundary case",
-      "situation": "Updates batch, stale closures see prior snapshots, objects need replacement, and initializers can run more than once in development.",
+      "title": "The history that never appeared",
+      "situation": "A Record button does `log.push(entry); setLog(log);` and nothing shows, though console.log(log) shows the entries.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Updates batch, stale closures see prior snapshots, objects need replacement, and initializers can run more than once in development.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Calling setCount(count+1) three times always increases count by three."
+        "push mutated the existing array.",
+        "setLog received the same array, so React skipped the re-render.",
+        "Fix: `setLog(prev => [...prev, entry])`."
       ],
-      "result": "The boundary requires this correction: When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations."
+      "result": "Each click adds a new entry to the visible history."
     }
   ],
   "misconceptions": [
     {
       "id": "react.state.use-state.misconception",
       "mistakenBelief": "Calling setCount(count+1) three times always increases count by three.",
-      "correction": "When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Calling setCount(count+1) three times always increases count by three."
+      "correction": "count is a snapshot for the current render. Each call computes the same next value, so they replace each other. Use an updater, setCount(c => c + 1), to build on the latest queued value.",
+      "diagnosticPrompt": "In \"The +3 button that added 1\", what value did each call queue?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model useState and snapshots, where inputs and state produce a UI description.",
+    "example": "State is like **a photo of a scoreboard** you hold during one render. Writing \"score + 1\" on three sticky notes, all based on the photo, gives three notes that say the same thing. An updater is a note that says **\"add one to whatever the board shows when you get to me\"**.",
     "usefulFor": [
-      "Building a first mental model for useState and snapshots before using exact platform terms"
+      "remembering the snapshot",
+      "updater = relative instruction"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Updates batch, stale closures see prior snapshots, objects need replacement, and initializers can run more than once in development."
+      "Photos don't update themselves; the next render gives a new photo.",
+      "Scribbling on the photo (mutation) doesn't change the real board."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Three increments use functional updates so each derives from the latest queued count.",
-      "useState stores component state between renders and its setter queues a replacement or updater for a later render.",
-      "When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations."
+      "minutes = 10",
+      "setMinutes(m => m + 1) x3",
+      "re-render"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Snapshot",
         "state": {
-          "evidence": "Three increments use functional updates so each derives from the latest queued count."
+          "minutes": "10",
+          "queue": "[]"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The render starts with a snapshot of 10."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Queue",
         "state": {
-          "rule": "useState stores component state between renders and its setter queues a replacement or updater for a later render."
+          "queue": "[m+1, m+1, m+1]",
+          "minutes (this render)": "10"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The handler queues three increments that use functional updates."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Next render",
         "state": {
-          "correction": "When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations."
+          "minutes": "13"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Calling setCount(count+1) three times always increases count by three."
+        "explanation": "Each derives from the latest queued count, giving 13."
       }
     ],
-    "textAlternative": "Starting artifact: Three increments use functional updates so each derives from the latest queued count. Step 1, Artifact. State: evidence: Three increments use functional updates so each derives from the latest queued count.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: useState stores component state between renders and its setter queues a replacement or updater for a later render.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations.. Check the result against the boundary and reject this misconception: Calling setCount(count+1) three times always increases count by three."
+    "textAlternative": "Tracing queued updates. Step 1, Snapshot: minutes is 10; queue is []. The render starts with a snapshot of 10. Step 2, Queue: queue is [m+1, m+1, m+1]; minutes (this render) is 10. The handler queues three increments that use functional updates. Step 3, Next render: minutes is 13. Each derives from the latest queued count, giving 13."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “useState and snapshots: concrete case”: state its starting evidence, apply the useState and snapshots rule, and give the observable result in three short lines.",
+      "prompt": "For \"The +3 button that added 1\", explain how three increments use functional updates so each derives from the latest queued count.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Stale snapshot.",
+        "Updaters.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: useState and snapshots: concrete case.",
-        "Starting evidence: Three increments use functional updates so each derives from the latest queued count.",
-        "Core rule: useState stores component state between renders and its setter queues a replacement or updater for a later render.",
-        "Observable result: The result follows because When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations.",
-        "Boundary check: When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations."
+        "Names the example \"The +3 button that added 1\": the snapshot made each call queue 11.",
+        "Three increments use functional updates.",
+        "Each derives from the latest queued count.",
+        "The button adds exactly three minutes each click."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Updates batch, stale closures see prior snapshots, objects need replacement, and initializers can run more than once in development.",
+      "prompt": "A to-do list stores `todos` in state. Write `addTodo(title)` and `toggle(id)` without mutating, using updaters.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Spread for add.",
+        "map with a new object for toggle."
       ],
       "expectedEvidence": [
-        "useState stores component state between renders and its setter queues a replacement or updater for a later render.",
-        "Updates batch, stale closures see prior snapshots, objects need replacement, and initializers can run more than once in development."
+        "`setTodos(prev => [...prev, newTodo])`.",
+        "`setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t))`."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for useState and snapshots and explain why the misconception fails.",
+      "prompt": "Build a quiz score component with +1, +5 and reset buttons plus an answer history array. Write tests that click +1 three times quickly and +5 once, and assert the score and history.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Updaters for increments.",
+        "New arrays for history."
       ],
       "expectedEvidence": [
-        "Trace and implement state updates without stale arithmetic or direct mutation.",
-        "When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations."
+        "Correct totals under rapid clicks.",
+        "History shows every entry."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.state.use-state.misconception",
-      "explanation": "When next state depends on previous state, pass a functional updater to avoid stale snapshot calculations.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'functional updater' and state the decisive evidence."
+      "explanation": "For each setter call ask: **Does the new value depend on the old one?** Then use an updater. **Am I changing an existing object or array?** Then build a new one instead.",
+      "retryPrompt": "Apply this to \"The history that never appeared\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to trace and implement state updates without stale arithmetic or direct mutation. Keep this boundary in view: Updates batch, stale closures see prior snapshots, objects need replacement, and initializers can run more than once in development.",
+    "summary": "To trace and implement state updates, remember each render sees a snapshot, setters queue changes for the next render, updaters like setCount(c => c + 1) build on the latest queued value, and arrays and objects must be replaced with new ones rather than mutated.",
     "retrievalPrompts": [
-      "Explain useState and snapshots using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: Calling setCount(count+1) three times always increases count by three.",
-      "Apply checkpoint 'functional updater' to a new artifact."
+      "Does setCount change count immediately?",
+      "When do you need an updater function?",
+      "Why doesn't push plus setLog(log) re-render?"
     ],
     "nextReviewPrompt": "Next: continue to “Event handlers”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

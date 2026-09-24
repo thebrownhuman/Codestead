@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Overload resolution selects an applicable declaration from compile-time argument types, while lexical scope determines which local, parameter, field, or type name a use denotes.",
+    "summary": "**Overloading** means several methods share a name with **different parameter lists**: `format(int)`, `format(double)`. The compiler picks one **at compile time** from the **declared types** of the arguments: exact match first, then widening (int to long to double), then boxing, then varargs. The **return type can't be used** to choose, and the run-time class of an object doesn't matter here. **Scope** decides what a name means where it's used: a local variable or parameter **shadows** a field with the same name, so inside a constructor `label = label;` just assigns the parameter to itself. Write **`this.label = label;`** to reach the field.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Calls to format(int) and format(double) select different overloads from argument types, while this.label distinguishes a field from a constructor parameter. Your goal is to resolve overload selection and repair shadowing or scope defects. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner's Badge constructor is `Badge(String label) { label = label; }`, and every badge prints null. Their format(Object) and format(String) overloads also surprise them: an Object variable holding a String calls format(Object). Calls to format(int) and format(double) select different overloads from argument types, while this.label distinguishes a field from a constructor parameter. In this lesson you'll resolve overload selection and repair shadowing or scope defects.\n\n```predict\n{\"question\": \"`Object o = \\\"hi\\\"; format(o);` with format(Object) and format(String). Which runs?\", \"options\": [\"format(String): o holds a String\", \"format(Object): overloads use the declared type at compile time\"], \"answer\": 1, \"why\": \"Overload choice is static; overriding (later) is what's dynamic.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Loops and branching; pf abstraction calls; Method contracts and parameters; Operators and conversions. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Loops and branching**, **Calls, parameters and returns**, **Method contracts and parameters** and **Operators and conversions**."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Overload resolution selects an applicable declaration from compile-time argument types, while lexical scope determines which local, parameter, field, or type name a use denotes. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The rule: compile-time types choose, scope resolves names",
+        "body": "```java\npublic class Badge {\n    private final String label;\n\n    Badge(String label) {\n        this.label = label;          // field = parameter. (label = label; does nothing.)\n    }\n\n    static String format(int n)    { return \"int \" + n; }\n    static String format(double d) { return \"double \" + d; }\n    static String format(Object o) { return \"object \" + o; }\n    static String format(String s) { return \"string \" + s; }\n\n    public static void main(String[] args) {\n        System.out.println(format(3));          // int 3.\n        System.out.println(format(3.0));        // double 3.0.\n        System.out.println(format(3L));         // double 3.0 (long widens to double).\n        Object o = \"hi\";\n        System.out.println(format(o));          // object hi (declared type Object).\n        System.out.println(format(\"hi\"));       // string hi.\n        System.out.println(new Badge(\"VIP\").label);   // VIP.\n    }\n}\n```\n\n| Priority | Example |\n|---|---|\n| exact match. | 3 to format(int). |\n| widening primitive. | 3L to format(double). |\n| boxing. | 3 to format(Integer) if no int version. |\n| varargs. | last resort. |\n\n```reveal\n{\"prompt\": \"Can you overload by return type only, like int parse(String) and double parse(String)?\", \"answer\": \"No: the compiler rejects it, because a call like parse(\\\"5\\\") gives no way to choose. Overloads must differ in their parameter lists.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "Return type alone cannot distinguish overloads, null can make unrelated reference overloads ambiguous, boxing and varargs affect applicability, and shadowing can hide fields. The learner must reject this documented misconception: Java chooses an overload from the runtime class of each argument and can use the expected return type to break every tie."
+        "heading": "Shadowing",
+        "body": "```predict\n{\"question\": \"In a constructor with parameter count and field count, what does `count = count;` do?\", \"options\": [\"Sets the field\", \"Assigns the parameter to itself; the field stays at its default\"], \"answer\": 1, \"why\": \"Use this.count = count; (many IDEs warn about the self-assignment).\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Create unambiguous overloads and reason about local, parameter and class-level names.",
-      "Resolve overload selection and repair shadowing or scope defects."
+      "Predict overload selection from declared argument types, widening and boxing.",
+      "Repair shadowing with this and keep local scopes narrow."
     ],
     "excludes": [
-      "Return type alone cannot distinguish overloads, null can make unrelated reference overloads ambiguous, boxing and varargs affect applicability, and shadowing can hide fields."
+      "Overriding and dynamic dispatch (abstraction module).",
+      "Generic method inference."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "java.methods.overload-scope.example.direct",
-      "title": "Overloading and local scope: direct language case",
+      "title": "format(int), format(double) and this.label",
       "situation": "Calls to format(int) and format(double) select different overloads from argument types, while this.label distinguishes a field from a constructor parameter.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: Calls to format(int) and format(double) select different overloads from argument types, while this.label distinguishes a field from a constructor parameter.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing."
+        "**Calls to format(int) and format(double) select different overloads from argument types:** format(3) and format(3.0) print int 3 and double 3.0.",
+        "**Declared types rule:** an Object variable holding \"hi\" picks format(Object).",
+        "**this.label distinguishes a field from a constructor parameter:** Badge(\"VIP\") will now store VIP instead of null."
       ],
-      "result": "The example meets the atomic outcome because Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing."
+      "result": "Every call resolves predictably, and badges keep their labels."
     },
     {
       "id": "java.methods.overload-scope.example.boundary",
-      "title": "Overloading and local scope: boundary and transfer case",
-      "situation": "Calling choose(null) is ambiguous between String and StringBuilder overloads, so the API is redesigned rather than relying on a surprising cast.",
+      "title": "The long that became a double",
+      "situation": "A learner calls format(10_000_000_000L) expecting an error or an int version, and gets \"double 1.0E10\".",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: Calling choose(null) is ambiguous between String and StringBuilder overloads, so the API is redesigned rather than relying on a surprising cast.",
-        "Step 2 — Keep the language boundary explicit: Return type alone cannot distinguish overloads, null can make unrelated reference overloads ambiguous, boxing and varargs affect applicability, and shadowing can hide fields.",
-        "Step 3 — Reject the tempting but incorrect rule: Java chooses an overload from the runtime class of each argument and can use the expected return type to break every tie."
+        "No format(long) exists.",
+        "long widens to double, which is applicable.",
+        "Add format(long) if long values need their own formatting."
       ],
-      "result": "This case demonstrates the declared outcome: Resolve overload selection and repair shadowing or scope defects."
+      "result": "Long values print through an overload chosen on purpose."
     }
   ],
   "misconceptions": [
     {
       "id": "java.methods.overload-scope.misconception",
       "mistakenBelief": "Java chooses an overload from the runtime class of each argument and can use the expected return type to break every tie.",
-      "correction": "Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Java chooses an overload from the runtime class of each argument and can use the expected return type to break every tie."
+      "correction": "Overload resolution uses the compile-time (declared) argument types only, and return types never participate. Runtime classes matter for overriding, not overloading.",
+      "diagnosticPrompt": "In the opening predict, why did format(Object) run?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a set of labeled workstations that accept copies of request values and process fixed trays or immutable text tickets can introduce Overloading and local scope, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "example": "Overload resolution is like **a post room sorting parcels by the label on the outside** (declared type), not by what's inside (runtime class). Scope is **the nearest person with that name answering**: in a room with your cousin Label, calling \"Label!\" gets the cousin; say **this.label** to reach the one in the family register (the field).",
     "usefulFor": [
-      "reasoning about method contracts, scope, arrays, and strings"
+      "remembering sort by outside label",
+      "nearest name answers first"
     ],
     "limitations": [
-      "reference values can still alias mutable objects and Unicode or overload rules have no exact workstation equivalent",
-      "Return type alone cannot distinguish overloads, null can make unrelated reference overloads ambiguous, boxing and varargs affect applicability, and shadowing can hide fields."
+      "Post rooms can open parcels; the compiler can't.",
+      "IDE warnings are a colleague pointing out the mix-up."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Calls to format(int) and format(double) select different overloads from argument types, while this.label distinguishes a field from a constructor parameter.",
-      "Overload resolution selects an applicable declaration from compile-time argument types, while lexical scope determines which local, parameter, field, or type name a use denotes.",
-      "Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing."
+      "format(3)",
+      "Object o = \"hi\"; format(o)",
+      "new Badge(\"VIP\")"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Exact",
         "state": {
-          "evidence": "Calls to format(int) and format(double) select different overloads from argument types, while this.label distinguishes a field from a constructor parameter."
+          "chosen": "format(int)",
+          "output": "int 3"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "Calls with an int select the int overload from argument types."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Declared type",
         "state": {
-          "rule": "Overload resolution selects an applicable declaration from compile-time argument types, while lexical scope determines which local, parameter, field, or type name a use denotes."
+          "chosen": "format(Object)",
+          "output": "object hi"
         },
-        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "The declared type Object decides, not the runtime String."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Scope",
         "state": {
-          "correction": "Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing."
+          "this.label": "VIP"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Java chooses an overload from the runtime class of each argument and can use the expected return type to break every tie."
+        "explanation": "this.label distinguishes a field from a constructor parameter."
       }
     ],
-    "textAlternative": "Starting artifact: Calls to format(int) and format(double) select different overloads from argument types, while this.label distinguishes a field from a constructor parameter. Step 1, Observe. State: evidence: Calls to format(int) and format(double) select different overloads from argument types, while this.label distinguishes a field from a constructor parameter.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Overload resolution selects an applicable declaration from compile-time argument types, while lexical scope determines which local, parameter, field, or type name a use denotes.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing.. Compare the observation with the correction and explain why the misconception fails: Java chooses an overload from the runtime class of each argument and can use the expected return type to break every tie."
+    "textAlternative": "Tracing overloads and scope. Step 1, Exact: chosen is format(int); output is int 3. Calls with an int select the int overload from argument types. Step 2, Declared type: chosen is format(Object); output is object hi. The declared type Object decides, not the runtime String. Step 3, Scope: this.label is VIP. this.label distinguishes a field from a constructor parameter."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Overloading and local scope: direct language case”: state its starting evidence, apply the Overloading and local scope rule, and give the observable result in three short lines.",
+      "prompt": "For \"format(int), format(double) and this.label\", explain how calls to format(int) and format(double) select different overloads from argument types, while this.label distinguishes a field from a constructor parameter.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Overload.",
+        "Declared type.",
+        "this."
       ],
       "expectedEvidence": [
-        "Named example: Overloading and local scope: direct language case.",
-        "Starting evidence: Calls to format(int) and format(double) select different overloads from argument types, while this.label distinguishes a field from a constructor parameter.",
-        "Core rule: Overload resolution selects an applicable declaration from compile-time argument types, while lexical scope determines which local, parameter, field, or type name a use denotes.",
-        "Observable result: The example meets the atomic outcome because Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing.",
-        "Boundary check: Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing."
+        "Names the example \"format(int), format(double) and this.label\": badges printed null.",
+        "Calls to format(int) and format(double) select different overloads from argument types.",
+        "this.label distinguishes a field from a constructor parameter.",
+        "Every call resolves predictably."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: Calling choose(null) is ambiguous between String and StringBuilder overloads, so the API is redesigned rather than relying on a surprising cast.",
+      "prompt": "With overloads show(int), show(long), show(Integer) and show(Object), predict which runs for show(5), show(5L), show((short) 5), show(Integer.valueOf(5)) and show(\"x\"). Check by running.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "short widens to int.",
+        "Exact beats boxing."
       ],
       "expectedEvidence": [
-        "Overload resolution selects an applicable declaration from compile-time argument types, while lexical scope determines which local, parameter, field, or type name a use denotes.",
-        "Return type alone cannot distinguish overloads, null can make unrelated reference overloads ambiguous, boxing and varargs affect applicability, and shadowing can hide fields."
+        "Five predictions checked.",
+        "Rules explained."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Overloading and local scope, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Write a Temperature class whose constructor and setters use parameters with the same names as fields. Introduce a shadowing bug, find it with a failing test and an IDE warning, then fix it with this.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Test that getters return what was set.",
+        "Check your IDE's inspection list."
       ],
       "expectedEvidence": [
-        "Resolve overload selection and repair shadowing or scope defects.",
-        "Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing."
+        "Bug found by the test.",
+        "Fixed with this."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "java.methods.overload-scope.misconception",
-      "explanation": "Resolve overloads from compile-time argument types and applicable signatures; use distinct contracts and explicit qualification to avoid ambiguity and accidental shadowing.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: Calling choose(null) is ambiguous between String and StringBuilder overloads, so the API is redesigned rather than relying on a surprising cast."
+      "explanation": "For each call write the **declared types** of the arguments and walk the priority list: exact, widening, boxing, varargs. For each assignment in a constructor, ask **which variable each name refers to**.",
+      "retryPrompt": "Apply this to \"The long that became a double\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to resolve overload selection and repair shadowing or scope defects. Keep this boundary in view: Return type alone cannot distinguish overloads, null can make unrelated reference overloads ambiguous, boxing and varargs affect applicability, and shadowing can hide fields.",
+    "summary": "To resolve overload selection and repair scope defects, remember the compiler chooses overloads from declared argument types by exact match, then widening, boxing and varargs, never by return type or runtime class, and that locals and parameters shadow fields, so use this.field to reach the field.",
     "retrievalPrompts": [
-      "Explain Overloading and local scope using canonical Java: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Java chooses an overload from the runtime class of each argument and can use the expected return type to break every tie.",
-      "Predict this case from memory: Calling choose(null) is ambiguous between String and StringBuilder overloads, so the API is redesigned rather than relying on a surprising cast."
+      "What decides which overload runs?",
+      "Can return type distinguish overloads?",
+      "What does label = label do in a constructor?"
     ],
     "nextReviewPrompt": "Next: continue to “Arrays and multidimensional arrays”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

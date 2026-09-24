@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A controlled form field receives its current value from React state and reports edits through onChange.",
+    "summary": "A **controlled** input gets its value **from state** and reports every edit through **onChange**: `<input value={name} onChange={e => setName(e.target.value)} />`. React is then the single source of truth, so you can validate, format or reset the field from code. Checkboxes use `checked` and `e.target.checked`; selects and radios use `value`. An **uncontrolled** input keeps its own value in the DOM and uses `defaultValue` just for the start. Pick one per field: switching from `undefined` to a string makes React warn, so always start controlled values with `\"\"`, not undefined.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: An input uses value={name} and updates name from event.target.value with a persistent label. Your goal is to implement and test text, choice and checkbox controls without controlled/uncontrolled warnings. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A profile form should show a live preview of the learner's name and let a \"Clear\" button empty the field. With `defaultValue`, the preview never updates and Clear does nothing to the input. An input uses value={name} and updates name from event.target.value with a persistent label. In this lesson you'll implement and test text, choice and checkbox controls without controlled/uncontrolled warnings.\n\n```predict\n{\"question\": \"`<input defaultValue=\\\"Asha\\\" />` and then `setName(\\\"\\\")` from a Clear button. Does the input empty?\", \"options\": [\"Yes\", \"No: defaultValue only sets the starting value; the DOM keeps what's typed\"], \"answer\": 1, \"why\": \"To control the value from React, use value plus onChange.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: State and events; html forms; useState and snapshots; html forms labels controls. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **State and events** module, **Forms and native controls**, **useState and snapshots**, and **Labels and input controls** (every field needs a label)."
       },
       {
-        "heading": "Technology rule",
-        "body": "A controlled form field receives its current value from React state and reports edits through onChange. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: state is the value, onChange reports edits",
+        "body": "```jsx\nimport { useState } from \"react\";\n\nexport function ProfileForm() {\n  const [name, setName] = useState(\"\");            // \"\" not undefined.\n  const [level, setLevel] = useState(\"beginner\");\n  const [newsletter, setNewsletter] = useState(false);\n\n  return (\n    <form>\n      <label>Display name\n        <input value={name} onChange={(e) => setName(e.target.value)} />\n      </label>\n      <label>Level\n        <select value={level} onChange={(e) => setLevel(e.target.value)}>\n          <option value=\"beginner\">Beginner</option>\n          <option value=\"intermediate\">Intermediate</option>\n        </select>\n      </label>\n      <label>\n        <input type=\"checkbox\" checked={newsletter} onChange={(e) => setNewsletter(e.target.checked)} />\n        Email me new lessons\n      </label>\n      <button type=\"button\" onClick={() => setName(\"\")}>Clear name</button>\n      <p>Preview: {name || \"(no name yet)\"}</p>\n    </form>\n  );\n}\n```\n\n| Control | Value prop | Read from event |\n|---|---|---|\n| text, textarea. | `value`. | `e.target.value`. |\n| select, radio. | `value` / `checked`. | `e.target.value`. |\n| checkbox. | `checked`. | `e.target.checked`. |\n\n```reveal\n{\"prompt\": \"What happens with `value={name}` but no onChange?\", \"answer\": \"The field becomes read-only: React keeps resetting it to name, and it warns you to add onChange or use defaultValue.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Every keystroke renders, nullish value transitions can switch control mode, and file inputs remain special. This draft therefore rejects: Providing an initial defaultValue makes an input controlled forever."
+        "heading": "The warning",
+        "body": "```predict\n{\"question\": \"`const [email, setEmail] = useState();` then `<input value={email} onChange=... />`. On first keystroke React warns…\", \"options\": [\"Nothing\", \"\\\"A component is changing an uncontrolled input to be controlled\\\"\"], \"answer\": 1, \"why\": \"value={undefined} counts as uncontrolled. Start with useState(\\\"\\\").\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Bind value or checked state to React while preserving labels, input semantics and responsive updates.",
-      "Implement and test text, choice and checkbox controls without controlled/uncontrolled warnings."
+      "Build controlled text, select and checkbox fields with labels.",
+      "Avoid controlled/uncontrolled warnings and test the fields."
     ],
     "excludes": [
-      "Every keystroke renders, nullish value transitions can switch control mode, and file inputs remain special."
+      "Validation (next lesson).",
+      "Form libraries."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "react.forms.controlled.example-a",
-      "title": "Controlled inputs: concrete case",
+      "title": "A name field React always knows",
       "situation": "An input uses value={name} and updates name from event.target.value with a persistent label.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: An input uses value={name} and updates name from event.target.value with a persistent label.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: A controlled input uses value plus an update handler; defaultValue initializes an uncontrolled input."
+        "**Problem:** defaultValue let the DOM own the text, so the preview and Clear didn't work.",
+        "**Controlled:** `value={name}` and `onChange={e => setName(e.target.value)}` inside a label that stays visible.",
+        "**Test:** type \"Asha\" and a test will see \"Preview: Asha\"; click Clear and the input's value will be empty."
       ],
-      "result": "The result follows because A controlled input uses value plus an update handler; defaultValue initializes an uncontrolled input."
+      "result": "The preview follows every keystroke, Clear empties the field, and the label always names it."
     },
     {
       "id": "react.forms.controlled.example-b",
-      "title": "Controlled inputs: boundary case",
-      "situation": "Every keystroke renders, nullish value transitions can switch control mode, and file inputs remain special.",
+      "title": "The checkbox that always said yes",
+      "situation": "A newsletter checkbox uses `value={newsletter}` and `setNewsletter(e.target.value)`. The box ticks, but the saved value is always the string \"false\", which is truthy, so everyone gets emails.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Every keystroke renders, nullish value transitions can switch control mode, and file inputs remain special.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Providing an initial defaultValue makes an input controlled forever."
+        "Checkboxes are controlled with checked, not value, so the tick wasn't tied to state.",
+        "e.target.value is the checkbox's value attribute (here \"false\"), not whether it's ticked.",
+        "Fix: `checked={newsletter}` and `setNewsletter(e.target.checked)`."
       ],
-      "result": "The boundary requires this correction: A controlled input uses value plus an update handler; defaultValue initializes an uncontrolled input."
+      "result": "The box ticks and unticks, and newsletter is a real true or false."
     }
   ],
   "misconceptions": [
     {
       "id": "react.forms.controlled.misconception",
       "mistakenBelief": "Providing an initial defaultValue makes an input controlled forever.",
-      "correction": "A controlled input uses value plus an update handler; defaultValue initializes an uncontrolled input.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Providing an initial defaultValue makes an input controlled forever."
+      "correction": "defaultValue only sets the starting value of an uncontrolled input; after that the DOM owns it. A controlled input needs value (or checked) from state plus onChange.",
+      "diagnosticPrompt": "In the opening predict, why didn't the input empty?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Controlled inputs, where inputs and state produce a UI description.",
+    "example": "A controlled input is like **a scoreboard operated from the control room**: the board shows exactly what the operator (state) sets, and every event on the field is reported back (onChange). An uncontrolled input is **a chalkboard** someone wrote a starting score on; after that, whoever holds the chalk decides.",
     "usefulFor": [
-      "Building a first mental model for Controlled inputs before using exact platform terms"
+      "remembering state as the source",
+      "defaultValue = the first chalk mark"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Every keystroke renders, nullish value transitions can switch control mode, and file inputs remain special."
+      "Scoreboards don't have labels; forms need them.",
+      "Leaving the operator out (no onChange) freezes the board."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "An input uses value={name} and updates name from event.target.value with a persistent label.",
-      "A controlled form field receives its current value from React state and reports edits through onChange.",
-      "A controlled input uses value plus an update handler; defaultValue initializes an uncontrolled input."
+      "name = ''",
+      "learner types 'A'",
+      "render"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Start",
         "state": {
-          "evidence": "An input uses value={name} and updates name from event.target.value with a persistent label."
+          "name": "''",
+          "input value": "''"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The input uses value={name} from state."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Edit",
         "state": {
-          "rule": "A controlled form field receives its current value from React state and reports edits through onChange."
+          "event.target.value": "'A'",
+          "setName": "'A'"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The onChange handler updates name from event.target.value."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Render",
         "state": {
-          "correction": "A controlled input uses value plus an update handler; defaultValue initializes an uncontrolled input."
+          "input value": "'A'",
+          "preview": "Preview: A"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Providing an initial defaultValue makes an input controlled forever."
+        "explanation": "The input and preview show the new state, with the label still in place."
       }
     ],
-    "textAlternative": "Starting artifact: An input uses value={name} and updates name from event.target.value with a persistent label. Step 1, Artifact. State: evidence: An input uses value={name} and updates name from event.target.value with a persistent label.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A controlled form field receives its current value from React state and reports edits through onChange.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: A controlled input uses value plus an update handler; defaultValue initializes an uncontrolled input.. Check the result against the boundary and reject this misconception: Providing an initial defaultValue makes an input controlled forever."
+    "textAlternative": "Tracing one keystroke. Step 1, Start: name is ''; input value is ''. The input uses value={name} from state. Step 2, Edit: event.target.value is 'A'; setName is 'A'. The onChange handler updates name from event.target.value. Step 3, Render: input value is 'A'; preview is Preview: A. The input and preview show the new state, with the label still in place."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Controlled inputs: concrete case”: state its starting evidence, apply the Controlled inputs rule, and give the observable result in three short lines.",
+      "prompt": "For \"A name field React always knows\", explain how an input uses value={name} and updates name from event.target.value with a persistent label.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Problem.",
+        "Controlled.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Controlled inputs: concrete case.",
-        "Starting evidence: An input uses value={name} and updates name from event.target.value with a persistent label.",
-        "Core rule: A controlled form field receives its current value from React state and reports edits through onChange.",
-        "Observable result: The result follows because A controlled input uses value plus an update handler; defaultValue initializes an uncontrolled input.",
-        "Boundary check: A controlled input uses value plus an update handler; defaultValue initializes an uncontrolled input."
+        "Names the example \"A name field React always knows\": defaultValue let the DOM own the text.",
+        "The input uses value={{name}}.",
+        "It updates name from event.target.value with a persistent label.",
+        "The preview follows every keystroke."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Every keystroke renders, nullish value transitions can switch control mode, and file inputs remain special.",
+      "prompt": "Build a controlled \"difficulty\" radio group (easy, medium, hard) inside a fieldset with a legend, and show the chosen difficulty below it.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "checked={level === \"easy\"} per radio.",
+        "Same name attribute."
       ],
       "expectedEvidence": [
-        "A controlled form field receives its current value from React state and reports edits through onChange.",
-        "Every keystroke renders, nullish value transitions can switch control mode, and file inputs remain special."
+        "Only one radio checked at a time.",
+        "Label text for each radio."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Controlled inputs and explain why the misconception fails.",
+      "prompt": "Create a settings form with a text field, a select, a checkbox and a textarea, all controlled, plus a Reset button. Write tests that change each control and reset them, with no console warnings.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Start every value defined.",
+        "Query by label."
       ],
       "expectedEvidence": [
-        "Implement and test text, choice and checkbox controls without controlled/uncontrolled warnings.",
-        "A controlled input uses value plus an update handler; defaultValue initializes an uncontrolled input."
+        "All controls follow state.",
+        "Reset restores defaults, no warnings."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.forms.controlled.misconception",
-      "explanation": "A controlled input uses value plus an update handler; defaultValue initializes an uncontrolled input.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'value plus an update handler' and state the decisive evidence."
+      "explanation": "For each field ask: **Who owns the value?** If React should (preview, reset, validation), use value/checked plus onChange and start with a defined value. Otherwise use defaultValue and leave it alone.",
+      "retryPrompt": "Apply this to \"The checkbox that always said yes\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test text, choice and checkbox controls without controlled/uncontrolled warnings. Keep this boundary in view: Every keystroke renders, nullish value transitions can switch control mode, and file inputs remain special.",
+    "summary": "To implement text, choice and checkbox controls without controlled/uncontrolled warnings, give each field its value (or checked) from state, update state in onChange from e.target.value or e.target.checked, start with defined values like \"\", keep visible labels, and test the fields through those labels.",
     "retrievalPrompts": [
-      "Explain Controlled inputs using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: Providing an initial defaultValue makes an input controlled forever.",
-      "Apply checkpoint 'value plus an update handler' to a new artifact."
+      "What makes an input controlled?",
+      "Which prop controls a checkbox?",
+      "Why start state with \"\" instead of undefined?"
     ],
     "nextReviewPrompt": "Next: continue to “Validation and error recovery”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

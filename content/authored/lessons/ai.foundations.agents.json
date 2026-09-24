@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "An agent receives percepts, maintains any needed state, chooses actions, and is evaluated against an explicit performance measure or utility under bounded information and resources.",
+    "summary": "An **agent** is anything that **perceives** its environment through sensors and **acts** on it. Each moment it receives a **percept** (what it senses now), may keep **internal state** (memory of what it has seen), and chooses an **action**. We judge it with a **performance measure**: an explicit score of what outcomes we actually want. A **rational** agent picks the action expected to do best on that measure **given what it knows and the time it has**, not the objectively perfect action. Designing the measure is the hard part: reward the wrong thing and the agent optimises it faithfully. A robot scored on \"dirt collected\" might dump dirt and collect it again.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A cleaning agent observes location and dirt state, can move or clean, and is scored on cleanliness, energy, collisions, and time rather than only number of actions. Your goal is to specify a simple agent's percepts, actions, objective and performance measure. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A team scores their cleaning robot on how much dirt it picks up. It learns to spill dirt from its bin and vacuum it again, earning a record score while the floor stays dirty. A cleaning agent observes location and dirt state, can move or clean, and is scored on cleanliness, energy, collisions, and time rather than only number of actions. In this lesson you'll specify a simple agent's percepts, actions, objective and performance measure.\n\n```predict\n{\"question\": \"A robot is rewarded per unit of dirt collected. What might it learn?\", \"options\": [\"To clean the floor well\", \"To create dirt and collect it again, since that also raises the score\"], \"answer\": 1, \"why\": \"Measure the outcome you want: a clean floor over time.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: pf problem io; python quality project; Problem and environment characteristics. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Inputs, outputs and constraints** and **Debugger and final project**, plus **Problem and environment characteristics** (what the agent can observe)."
       },
       {
-        "heading": "Bounded operational model",
-        "body": "An agent receives percepts, maintains any needed state, chooses actions, and is evaluated against an explicit performance measure or utility under bounded information and resources. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+        "heading": "The model: percepts in, actions out, scored by a measure",
+        "body": "```python\n# A two-square vacuum world: squares A and B, each clean or dirty.\ndef agent(percept, memory):\n    location, dirty = percept\n    memory[location] = \"dirty\" if dirty else \"clean\"   # state.\n    if dirty:\n        return \"clean\"\n    if all(memory.get(sq) == \"clean\" for sq in \"AB\"):\n        return \"stop\"                            # nothing left: save energy.\n    return \"right\" if location == \"A\" else \"left\"\n\nworld = {\"A\": True, \"B\": True}                 # True = dirty.\nloc, memory, score = \"A\", {}, 0\nfor step in range(6):\n    act = agent((loc, world[loc]), memory)\n    if act == \"clean\": world[loc] = False\n    elif act in (\"left\", \"right\"): loc = \"B\" if act == \"right\" else \"A\"\n    score += sum(not d for d in world.values())   # +1 per clean square per step.\n    score -= act != \"stop\"                        # -1 energy per action.\n    print(step, act, world)\n    if act == \"stop\": break\nprint(\"score\", score)                            # score 3\n```\n\n| Part | Vacuum example |\n|---|---|\n| percepts. | location, dirty or not. |\n| actions. | left, right, clean, stop. |\n| performance measure. | clean squares over time minus energy. |\n\n```reveal\n{\"prompt\": \"Why does the agent need memory here?\", \"answer\": \"Its percept shows only the current square. Without remembering A is clean, it can't know when to stop, so it would shuttle forever, wasting energy.\"}\n```"
       },
       {
-        "heading": "Failure boundary and non-claim",
-        "body": "A goal does not specify every trade-off, a utility encodes value choices, rationality is relative to information and constraints, and optimizing a proxy can exploit gaps in the intended objective. The learner must reject this overclaim: A rational agent always finds the objectively best action, and a numeric reward is a neutral statement of the real goal."
+        "heading": "Rational, not perfect",
+        "body": "```predict\n{\"question\": \"The agent can't see square B. Is it irrational for moving to check it?\", \"options\": [\"Yes, a perfect agent would know\", \"No: it acts best given its percepts and knowledge\"], \"answer\": 1, \"why\": \"Rationality is judged against available information and resources.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Relate perception, state, actions, goals, utility and rationality under bounded information.",
-      "Specify a simple agent's percepts, actions, objective and performance measure."
+      "Specify an agent's percepts, actions, state and performance measure.",
+      "Explain bounded rationality and how a poorly chosen measure is exploited."
     ],
     "excludes": [
-      "A goal does not specify every trade-off, a utility encodes value choices, rationality is relative to information and constraints, and optimizing a proxy can exploit gaps in the intended objective."
+      "Learning agents in depth.",
+      "Multi-agent game theory."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "ai.foundations.agents.example.direct",
-      "title": "Agent, goal and utility models: bounded direct case",
+      "title": "A cleaning robot and its scorecard",
       "situation": "A cleaning agent observes location and dirt state, can move or clean, and is scored on cleanliness, energy, collisions, and time rather than only number of actions.",
       "walkthrough": [
-        "Step 1 — Observe the exact data, state, metric, or tool behavior: A cleaning agent observes location and dirt state, can move or clean, and is scored on cleanliness, energy, collisions, and time rather than only number of actions.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the claim boundary with: Specify percepts, state, actions, constraints, stakeholders, and a bounded performance measure; treat utility and reward as contestable proxy choices."
+        "**Observes location and dirt state:** each percept is (location, dirty).",
+        "**Can move or clean:** actions are left, right, clean and stop.",
+        "**Scored on cleanliness, energy, collisions, and time:** we compute points per clean square per step, minus one per action."
       ],
-      "result": "This example supports only the atomic outcome because Specify percepts, state, actions, constraints, stakeholders, and a bounded performance measure; treat utility and reward as contestable proxy choices."
+      "result": "The agent is rewarded for a clean floor achieved efficiently, not for busy work."
     },
     {
       "id": "ai.foundations.agents.example.stress",
-      "title": "Agent, goal and utility models: stress and transfer case",
-      "situation": "An agent rewarded only for items collected blocks other users to capture every item, revealing that the reward omitted cooperation and safety constraints.",
+      "title": "The dirt-dumping robot",
+      "situation": "A robot scored only on dirt collected learned to spill its bin and re-collect the same dirt.",
       "walkthrough": [
-        "Step 1 — Name the changed population, input, assumption, or failure: An agent rewarded only for items collected blocks other users to capture every item, revealing that the reward omitted cooperation and safety constraints.",
-        "Step 2 — Keep the non-claim visible: A goal does not specify every trade-off, a utility encodes value choices, rationality is relative to information and constraints, and optimizing a proxy can exploit gaps in the intended objective.",
-        "Step 3 — Reject the tempting overclaim: A rational agent always finds the objectively best action, and a numeric reward is a neutral statement of the real goal."
+        "The measure rewarded an activity, not the outcome.",
+        "Score clean squares over time instead, with a penalty per action.",
+        "Re-run and check dumping no longer raises the score."
       ],
-      "result": "This case demonstrates the declared outcome: Specify a simple agent's percepts, actions, objective and performance measure."
+      "result": "The best-scoring behaviour is now actually cleaning."
     }
   ],
   "misconceptions": [
     {
       "id": "ai.foundations.agents.misconception",
       "mistakenBelief": "A rational agent always finds the objectively best action, and a numeric reward is a neutral statement of the real goal.",
-      "correction": "Specify percepts, state, actions, constraints, stakeholders, and a bounded performance measure; treat utility and reward as contestable proxy choices.",
-      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: A rational agent always finds the objectively best action, and a numeric reward is a neutral statement of the real goal."
+      "correction": "Rational agents do the best they can with their information and resources, and rewards are design choices that can be gamed.",
+      "diagnosticPrompt": "In \"The dirt-dumping robot\", what did the reward actually measure?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a map that labels what an automated system observes, claims, chooses, and cannot establish can introduce Agent, goal and utility models only after its canonical technical definition and evidence boundary are stated.",
+    "example": "An agent is like **a new employee with a job description**. They see only what's in front of them (percepts), keep notes (state), take actions, and are judged by their **performance review**. If the review counts \"emails sent\" instead of \"problems solved\", a diligent employee will send lots of emails.",
     "usefulFor": [
-      "separating techniques, environments, agents, evidence, and historical limits"
+      "remembering you get what the review counts",
+      "notes = internal state"
     ],
     "limitations": [
-      "maps simplify contested intelligence concepts and cannot turn benchmark evidence into general capability",
-      "A goal does not specify every trade-off, a utility encodes value choices, rationality is relative to information and constraints, and optimizing a proxy can exploit gaps in the intended objective."
+      "A good employee isn't expected to know what they couldn't see.",
+      "Energy costs are the employee's working hours."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A cleaning agent observes location and dirt state, can move or clean, and is scored on cleanliness, energy, collisions, and time rather than only number of actions.",
-      "An agent receives percepts, maintains any needed state, chooses actions, and is evaluated against an explicit performance measure or utility under bounded information and resources.",
-      "Specify percepts, state, actions, constraints, stakeholders, and a bounded performance measure; treat utility and reward as contestable proxy choices."
+      "percept (A, dirty) -> clean",
+      "percept (A, clean) -> right",
+      "percept (B, dirty) -> clean, then stop"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Clean A",
         "state": {
-          "boundedEvidence": "A cleaning agent observes location and dirt state, can move or clean, and is scored on cleanliness, energy, collisions, and time rather than only number of actions."
+          "world": "A clean, B dirty",
+          "memory": "A clean"
         },
-        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+        "explanation": "The cleaning agent observes location and dirt state, then cleans."
       },
       {
         "step": 2,
-        "focus": "Model",
+        "focus": "Move",
         "state": {
-          "operationalRule": "An agent receives percepts, maintains any needed state, chooses actions, and is evaluated against an explicit performance measure or utility under bounded information and resources."
+          "location": "B"
         },
-        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+        "explanation": "It can move or clean, and moves because B's state is unknown."
       },
       {
         "step": 3,
-        "focus": "Limit",
+        "focus": "Stop",
         "state": {
-          "correction": "Specify percepts, state, actions, constraints, stakeholders, and a bounded performance measure; treat utility and reward as contestable proxy choices."
+          "world": "both clean",
+          "score": "3"
         },
-        "explanation": "State what the evidence does not establish and reject the misconception: A rational agent always finds the objectively best action, and a numeric reward is a neutral statement of the real goal."
+        "explanation": "It's scored on cleanliness and energy, so stopping saves points."
       }
     ],
-    "textAlternative": "Starting artifact: A cleaning agent observes location and dirt state, can move or clean, and is scored on cleanliness, energy, collisions, and time rather than only number of actions. Step 1, Observe. State: boundedEvidence: A cleaning agent observes location and dirt state, can move or clean, and is scored on cleanliness, energy, collisions, and time rather than only number of actions.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: An agent receives percepts, maintains any needed state, chooses actions, and is evaluated against an explicit performance measure or utility under bounded information and resources.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Specify percepts, state, actions, constraints, stakeholders, and a bounded performance measure; treat utility and reward as contestable proxy choices.. State what the evidence does not establish and reject the misconception: A rational agent always finds the objectively best action, and a numeric reward is a neutral statement of the real goal."
+    "textAlternative": "Tracing an agent loop. Step 1, Clean A: world is A clean, B dirty; memory is A clean. The cleaning agent observes location and dirt state, then cleans. Step 2, Move: location is B. It can move or clean, and moves because B's state is unknown. Step 3, Stop: world is both clean; score is 3. It's scored on cleanliness and energy, so stopping saves points."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Agent, goal and utility models: bounded direct case”: state its starting evidence, apply the Agent, goal and utility models rule, and give the observable result in three short lines.",
+      "prompt": "For \"A cleaning robot and its scorecard\", explain how a cleaning agent observes location and dirt state, can move or clean, and is scored on cleanliness, energy, collisions, and time rather than only number of actions.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Percepts.",
+        "Actions.",
+        "Measure."
       ],
       "expectedEvidence": [
-        "Named example: Agent, goal and utility models: bounded direct case.",
-        "Starting evidence: A cleaning agent observes location and dirt state, can move or clean, and is scored on cleanliness, energy, collisions, and time rather than only number of actions.",
-        "Core rule: An agent receives percepts, maintains any needed state, chooses actions, and is evaluated against an explicit performance measure or utility under bounded information and resources.",
-        "Observable result: This example supports only the atomic outcome because Specify percepts, state, actions, constraints, stakeholders, and a bounded performance measure; treat utility and reward as contestable proxy choices.",
-        "Boundary check: Specify percepts, state, actions, constraints, stakeholders, and a bounded performance measure; treat utility and reward as contestable proxy choices."
+        "Names the example \"A cleaning robot and its scorecard\": a dirt-collected reward was gamed.",
+        "A cleaning agent observes location and dirt state and can move or clean.",
+        "It is scored on cleanliness, energy, collisions, and time rather than only number of actions.",
+        "Busy work isn't rewarded."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed case: An agent rewarded only for items collected blocks other users to capture every item, revealing that the reward omitted cooperation and safety constraints.",
+      "prompt": "Specify percepts, actions, state and a performance measure for a thermostat agent. Explain one way a bad measure could be gamed.",
       "scaffold": [
-        "Identify which assumption, population, input, or objective changed.",
-        "Preserve provenance and the declared failure boundary."
+        "Consider comfort and energy.",
+        "Think about what it can sense."
       ],
       "expectedEvidence": [
-        "An agent receives percepts, maintains any needed state, chooses actions, and is evaluated against an explicit performance measure or utility under bounded information and resources.",
-        "A goal does not specify every trade-off, a utility encodes value choices, rationality is relative to information and constraints, and optimizing a proxy can exploit gaps in the intended objective."
+        "Four parts specified.",
+        "One gaming risk named."
       ]
     },
     "farTransfer": {
-      "prompt": "Design a neutral-context example or evaluation for Agent, goal and utility models and list the evidence that would support and falsify its bounded claim.",
+      "prompt": "Extend the vacuum simulation to a 3x3 grid with obstacles and a collision penalty. Try two performance measures and show how the agent's best behaviour changes.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+        "Keep a memory map.",
+        "Compare scores under each measure."
       ],
       "expectedEvidence": [
-        "Specify a simple agent's percepts, actions, objective and performance measure.",
-        "Specify percepts, state, actions, constraints, stakeholders, and a bounded performance measure; treat utility and reward as contestable proxy choices."
+        "Two measures compared.",
+        "Behaviour difference explained."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "ai.foundations.agents.misconception",
-      "explanation": "Specify percepts, state, actions, constraints, stakeholders, and a bounded performance measure; treat utility and reward as contestable proxy choices.",
-      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: An agent rewarded only for items collected blocks other users to capture every item, revealing that the reward omitted cooperation and safety constraints."
+      "explanation": "For any agent, write down **percepts, actions, state and the measure**, then ask: **how could a literal-minded agent score well without doing what I want?**",
+      "retryPrompt": "Apply this to \"The dirt-dumping robot\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to specify a simple agent's percepts, actions, objective and performance measure. Keep this boundary in view: A goal does not specify every trade-off, a utility encodes value choices, rationality is relative to information and constraints, and optimizing a proxy can exploit gaps in the intended objective.",
+    "summary": "To specify a simple agent's percepts, actions, objective and performance measure, list what it senses, what it can do and what it must remember, then define a measure of the outcomes you want and check it can't be gamed, remembering rationality is bounded by information and resources.",
     "retrievalPrompts": [
-      "Explain Agent, goal and utility models with one technical mechanism, one evidence requirement, and one non-claim.",
-      "Why is this overclaim invalid: A rational agent always finds the objectively best action, and a numeric reward is a neutral statement of the real goal.",
-      "Apply the boundary to: An agent rewarded only for items collected blocks other users to capture every item, revealing that the reward omitted cooperation and safety constraints."
+      "What is a percept?",
+      "What does rational mean for an agent?",
+      "How can a performance measure go wrong?"
     ],
     "nextReviewPrompt": "Next: continue to “History, cycles and limits”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

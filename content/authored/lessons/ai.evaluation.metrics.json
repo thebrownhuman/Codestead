@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Evaluation chooses metrics, thresholds, baselines, slices, and uncertainty from the task and decision costs; a metric summarizes selected errors rather than establishing overall quality.",
+    "summary": "A **metric** summarises **some** kinds of error, never \"overall quality\". So an honest evaluation is a **table**, not one number. Include: the **prevalence** (how common the positive case is), a **baseline** to beat, the **threshold** used, **confusion counts**, metrics that match the decision (precision and recall for rare events, MAE for amounts, human ratings or task success for generated text), results for important **slices** (groups, regions, input types), and **uncertainty**, such as a **bootstrap interval** (re-sample the test set many times and see how much the score moves). A higher benchmark score may be within noise, may come from one slice, or may not matter to real users.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A rare-event classifier table includes prevalence, confusion counts, precision, recall, threshold, baseline, and bootstrap interval rather than accuracy alone. Your goal is to create and justify an evaluation table for regression, classification or generation. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner reports \"Model B: 97.4% vs Model A: 97.1%\" and declares B the winner. The positive class is 2% of cases, both models miss most of them, and the 0.3% gap is smaller than the score's bootstrap spread. A rare-event classifier table includes prevalence, confusion counts, precision, recall, threshold, baseline, and bootstrap interval rather than accuracy alone. In this lesson you'll create and justify an evaluation table for regression, classification or generation.\n\n```predict\n{\"question\": \"Model B beats A by 0.3% accuracy on one test set. Is B clearly better?\", \"options\": [\"Yes, it's higher\", \"Unknown until you check uncertainty, slices and the metrics that matter\"], \"answer\": 1, \"why\": \"A difference smaller than the noise isn't evidence.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Supervised learning; Generative AI, LLMs and retrieval; Classification and probabilities; Problem, target and success measure. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Supervised learning**, **Generative AI, LLMs and retrieval**, **Classification and probabilities** and **Problem, target and success measure**."
       },
       {
-        "heading": "Bounded operational model",
-        "body": "Evaluation chooses metrics, thresholds, baselines, slices, and uncertainty from the task and decision costs; a metric summarizes selected errors rather than establishing overall quality. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+        "heading": "The rule: a table, not a number",
+        "body": "```python\nimport random\n\n# (prediction, label) on 20 test cases with 4 positives.\nresults = [(1, 1), (1, 1), (0, 1), (1, 1)] + [(0, 0)] * 14 + [(1, 0), (0, 0)]\n\ndef metrics(rows):\n    tp = sum(p and y for p, y in rows); fp = sum(p and not y for p, y in rows)\n    fn = sum(not p and y for p, y in rows)\n    return tp / max(tp + fp, 1), tp / max(tp + fn, 1)      # precision, recall.\n\nprec, rec = metrics(results)\nprint(\"prevalence 0.2 | threshold 0.5 | precision\", round(prec, 2), \"| recall\", round(rec, 2))\n\nrandom.seed(0)                                            # bootstrap the recall.\nboot = sorted(metrics(random.choices(results, k=len(results)))[1] for _ in range(1000))\nprint(\"recall 90% interval:\", boot[50], \"to\", boot[949])   # 0.0 to 1.0: 4 positives is too few.\n```\n\n| Row | Value |\n|---|---|\n| baseline (always negative). | recall 0. |\n| confusion counts. | TP 3, FP 1, FN 1. |\n\n```reveal\n{\"prompt\": \"What goes in a table for text generation?\", \"answer\": \"Task success rate, factual error rate from human or reference checks, refusal and unsafe-output rates, and slices by topic or language, each with sample sizes.\"}\n```"
       },
       {
-        "heading": "Failure boundary and non-claim",
-        "body": "Metrics trade off, averages hide tails and groups, generated-output metrics are partial, threshold tuning can overfit, confidence intervals rely on sampling assumptions, and benchmark contamination inflates evidence. The learner must reject this overclaim: The model with the highest single benchmark score is best, and a metric improvement proves practical significance for every user."
+        "heading": "Practical significance",
+        "body": "```predict\n{\"question\": \"A new model raises recall from 0.80 to 0.81 but doubles review workload. Worth it?\", \"options\": [\"Yes, recall improved\", \"Depends on costs: the gain may not justify the extra work\"], \"answer\": 1, \"why\": \"Tie metric changes to real consequences.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Choose task and decision metrics, compare simple baselines and report uncertainty rather than one headline score.",
-      "Create and justify an evaluation table for regression, classification or generation."
+      "Build evaluation tables with prevalence, baseline, threshold, counts, task metrics, slices and uncertainty.",
+      "Judge whether metric differences are meaningful and practically significant."
     ],
     "excludes": [
-      "Metrics trade off, averages hide tails and groups, generated-output metrics are partial, threshold tuning can overfit, confidence intervals rely on sampling assumptions, and benchmark contamination inflates evidence."
+      "Formal hypothesis testing.",
+      "Benchmark leaderboards."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "ai.evaluation.metrics.example.direct",
-      "title": "Metrics, thresholds and baselines: bounded direct case",
+      "title": "An evaluation table for a rare-event classifier",
       "situation": "A rare-event classifier table includes prevalence, confusion counts, precision, recall, threshold, baseline, and bootstrap interval rather than accuracy alone.",
       "walkthrough": [
-        "Step 1 — Observe the exact data, state, metric, or tool behavior: A rare-event classifier table includes prevalence, confusion counts, precision, recall, threshold, baseline, and bootstrap interval rather than accuracy alone.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the claim boundary with: Predeclare decision-relevant metrics and baselines, report thresholds, uncertainty, slices, and failure examples, and limit claims to the evaluated population and conditions."
+        "**Includes prevalence, confusion counts:** 0.2 prevalence, TP 3, FP 1, FN 1.",
+        "**Precision, recall, threshold, baseline:** precision 0.75 and recall 0.75 at 0.5, versus recall 0 for always-negative.",
+        "**And bootstrap interval rather than accuracy alone:** we compute a 90% interval for recall from 1,000 resamples."
       ],
-      "result": "This example supports only the atomic outcome because Predeclare decision-relevant metrics and baselines, report thresholds, uncertainty, slices, and failure examples, and limit claims to the evaluated population and conditions."
+      "result": "Readers see what the model catches, what it costs and how certain the numbers are."
     },
     {
       "id": "ai.evaluation.metrics.example.stress",
-      "title": "Metrics, thresholds and baselines: stress and transfer case",
-      "situation": "A generation system has overlap and human groundedness results with disagreements reported, because neither measure alone captures correctness and usefulness.",
+      "title": "The 0.3% winner",
+      "situation": "Model B was declared better than A for 0.3% higher accuracy on a rare-event task.",
       "walkthrough": [
-        "Step 1 — Name the changed population, input, assumption, or failure: A generation system has overlap and human groundedness results with disagreements reported, because neither measure alone captures correctness and usefulness.",
-        "Step 2 — Keep the non-claim visible: Metrics trade off, averages hide tails and groups, generated-output metrics are partial, threshold tuning can overfit, confidence intervals rely on sampling assumptions, and benchmark contamination inflates evidence.",
-        "Step 3 — Reject the tempting overclaim: The model with the highest single benchmark score is best, and a metric improvement proves practical significance for every user."
+        "Accuracy was dominated by easy negatives.",
+        "Compare recall and precision with bootstrap intervals.",
+        "The intervals overlap heavily, so no winner can be claimed."
       ],
-      "result": "This case demonstrates the declared outcome: Create and justify an evaluation table for regression, classification or generation."
+      "result": "The team avoids switching models on noise."
     }
   ],
   "misconceptions": [
     {
       "id": "ai.evaluation.metrics.misconception",
       "mistakenBelief": "The model with the highest single benchmark score is best, and a metric improvement proves practical significance for every user.",
-      "correction": "Predeclare decision-relevant metrics and baselines, report thresholds, uncertainty, slices, and failure examples, and limit claims to the evaluated population and conditions.",
-      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: The model with the highest single benchmark score is best, and a metric improvement proves practical significance for every user."
+      "correction": "Single scores hide errors, slices and noise. Improvements must exceed uncertainty and matter for real users and costs.",
+      "diagnosticPrompt": "In \"The 0.3% winner\", why couldn't B be called better?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "an evidence and risk register linking metrics, stress cases, affected slices, accountable owners, controls, monitors, and stop decisions can introduce Metrics, thresholds and baselines only after its canonical technical definition and evidence boundary are stated.",
+    "example": "A metric is like **one line of a medical check-up**. Normal blood pressure doesn't mean you're healthy overall. A proper report lists **several measurements, what's normal (baseline), and how precise the test is**. A tiny change within measurement error isn't news.",
     "usefulFor": [
-      "evaluation, robustness, fairness, explanations, and lifecycle governance"
+      "remembering one line isn't the check-up",
+      "within error isn't news"
     ],
     "limitations": [
-      "no metric suite or framework checklist certifies safety, fairness, causality, or future robustness",
-      "Metrics trade off, averages hide tails and groups, generated-output metrics are partial, threshold tuning can overfit, confidence intervals rely on sampling assumptions, and benchmark contamination inflates evidence."
+      "Slices are checking each organ, not just the average.",
+      "Bootstrap is repeating the test to see how much it wobbles."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A rare-event classifier table includes prevalence, confusion counts, precision, recall, threshold, baseline, and bootstrap interval rather than accuracy alone.",
-      "Evaluation chooses metrics, thresholds, baselines, slices, and uncertainty from the task and decision costs; a metric summarizes selected errors rather than establishing overall quality.",
-      "Predeclare decision-relevant metrics and baselines, report thresholds, uncertainty, slices, and failure examples, and limit claims to the evaluated population and conditions."
+      "count outcomes",
+      "compute metrics",
+      "bootstrap"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Counts",
         "state": {
-          "boundedEvidence": "A rare-event classifier table includes prevalence, confusion counts, precision, recall, threshold, baseline, and bootstrap interval rather than accuracy alone."
+          "TP": "3",
+          "FP": "1",
+          "FN": "1"
         },
-        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+        "explanation": "The rare-event classifier table includes confusion counts and prevalence."
       },
       {
         "step": 2,
-        "focus": "Model",
+        "focus": "Metrics",
         "state": {
-          "operationalRule": "Evaluation chooses metrics, thresholds, baselines, slices, and uncertainty from the task and decision costs; a metric summarizes selected errors rather than establishing overall quality."
+          "precision": "0.75",
+          "recall": "0.75"
         },
-        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+        "explanation": "Precision and recall at the stated threshold are compared with the baseline."
       },
       {
         "step": 3,
-        "focus": "Limit",
+        "focus": "Uncertainty",
         "state": {
-          "correction": "Predeclare decision-relevant metrics and baselines, report thresholds, uncertainty, slices, and failure examples, and limit claims to the evaluated population and conditions."
+          "recall interval": "from bootstrap"
         },
-        "explanation": "State what the evidence does not establish and reject the misconception: The model with the highest single benchmark score is best, and a metric improvement proves practical significance for every user."
+        "explanation": "A bootstrap interval shows how much the score could move."
       }
     ],
-    "textAlternative": "Starting artifact: A rare-event classifier table includes prevalence, confusion counts, precision, recall, threshold, baseline, and bootstrap interval rather than accuracy alone. Step 1, Observe. State: boundedEvidence: A rare-event classifier table includes prevalence, confusion counts, precision, recall, threshold, baseline, and bootstrap interval rather than accuracy alone.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Evaluation chooses metrics, thresholds, baselines, slices, and uncertainty from the task and decision costs; a metric summarizes selected errors rather than establishing overall quality.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Predeclare decision-relevant metrics and baselines, report thresholds, uncertainty, slices, and failure examples, and limit claims to the evaluated population and conditions.. State what the evidence does not establish and reject the misconception: The model with the highest single benchmark score is best, and a metric improvement proves practical significance for every user."
+    "textAlternative": "Tracing an evaluation table. Step 1, Counts: TP is 3; FP is 1; FN is 1. The rare-event classifier table includes confusion counts and prevalence. Step 2, Metrics: precision is 0.75; recall is 0.75. Precision and recall at the stated threshold are compared with the baseline. Step 3, Uncertainty: recall interval is from bootstrap. A bootstrap interval shows how much the score could move."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Metrics, thresholds and baselines: bounded direct case”: state its starting evidence, apply the Metrics, thresholds and baselines rule, and give the observable result in three short lines.",
+      "prompt": "For \"An evaluation table for a rare-event classifier\", explain how a rare-event classifier table includes prevalence, confusion counts, precision, recall, threshold, baseline, and bootstrap interval rather than accuracy alone.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Counts.",
+        "Metrics.",
+        "Uncertainty."
       ],
       "expectedEvidence": [
-        "Named example: Metrics, thresholds and baselines: bounded direct case.",
-        "Starting evidence: A rare-event classifier table includes prevalence, confusion counts, precision, recall, threshold, baseline, and bootstrap interval rather than accuracy alone.",
-        "Core rule: Evaluation chooses metrics, thresholds, baselines, slices, and uncertainty from the task and decision costs; a metric summarizes selected errors rather than establishing overall quality.",
-        "Observable result: This example supports only the atomic outcome because Predeclare decision-relevant metrics and baselines, report thresholds, uncertainty, slices, and failure examples, and limit claims to the evaluated population and conditions.",
-        "Boundary check: Predeclare decision-relevant metrics and baselines, report thresholds, uncertainty, slices, and failure examples, and limit claims to the evaluated population and conditions."
+        "Names the example \"An evaluation table for a rare-event classifier\": a 0.3% gap was over-read.",
+        "A rare-event classifier table includes prevalence, confusion counts, precision, recall, threshold and baseline.",
+        "It adds a bootstrap interval rather than accuracy alone.",
+        "Readers see what the model catches, what it costs and how certain the numbers are."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed case: A generation system has overlap and human groundedness results with disagreements reported, because neither measure alone captures correctness and usefulness.",
+      "prompt": "Build the same table for a second model's predictions and compare. Decide whether the difference exceeds the bootstrap intervals.",
       "scaffold": [
-        "Identify which assumption, population, input, or objective changed.",
-        "Preserve provenance and the declared failure boundary."
+        "Same seed and resample count.",
+        "Compare intervals."
       ],
       "expectedEvidence": [
-        "Evaluation chooses metrics, thresholds, baselines, slices, and uncertainty from the task and decision costs; a metric summarizes selected errors rather than establishing overall quality.",
-        "Metrics trade off, averages hide tails and groups, generated-output metrics are partial, threshold tuning can overfit, confidence intervals rely on sampling assumptions, and benchmark contamination inflates evidence."
+        "Two tables.",
+        "Decision justified."
       ]
     },
     "farTransfer": {
-      "prompt": "Design a neutral-context example or evaluation for Metrics, thresholds and baselines and list the evidence that would support and falsify its bounded claim.",
+      "prompt": "Create an evaluation table for a regression model (MAE, baseline, residual slices, interval) and one for a text generator (task success, factual errors, slices), and justify every row.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+        "State sample sizes.",
+        "Explain each metric's link to the decision."
       ],
       "expectedEvidence": [
-        "Create and justify an evaluation table for regression, classification or generation.",
-        "Predeclare decision-relevant metrics and baselines, report thresholds, uncertainty, slices, and failure examples, and limit claims to the evaluated population and conditions."
+        "Two justified tables.",
+        "Uncertainty included."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "ai.evaluation.metrics.misconception",
-      "explanation": "Predeclare decision-relevant metrics and baselines, report thresholds, uncertainty, slices, and failure examples, and limit claims to the evaluated population and conditions.",
-      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A generation system has overlap and human groundedness results with disagreements reported, because neither measure alone captures correctness and usefulness."
+      "explanation": "Never report one number. Report **prevalence, baseline, threshold, counts, decision metrics, slices and an interval**, and ask whether any gain **matters in practice**.",
+      "retryPrompt": "Apply this to \"The 0.3% winner\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to create and justify an evaluation table for regression, classification or generation. Keep this boundary in view: Metrics trade off, averages hide tails and groups, generated-output metrics are partial, threshold tuning can overfit, confidence intervals rely on sampling assumptions, and benchmark contamination inflates evidence.",
+    "summary": "To create and justify an evaluation table for regression, classification or generation, choose metrics that match the decision, report baseline, threshold, counts, slices and bootstrap uncertainty, and treat differences as meaningful only when they exceed noise and matter in practice.",
     "retrievalPrompts": [
-      "Explain Metrics, thresholds and baselines with one technical mechanism, one evidence requirement, and one non-claim.",
-      "Why is this overclaim invalid: The model with the highest single benchmark score is best, and a metric improvement proves practical significance for every user.",
-      "Apply the boundary to: A generation system has overlap and human groundedness results with disagreements reported, because neither measure alone captures correctness and usefulness."
+      "What does a single metric miss?",
+      "What is a bootstrap interval?",
+      "What is practical significance?"
     ],
     "nextReviewPrompt": "Next: continue to “Robustness, drift and adversarial cases”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Grid defines explicit or implicit rows and columns, places items into grid areas, and sizes tracks with fixed, intrinsic, flexible, and minmax functions.",
+    "summary": "Grid lays out items in **rows and columns at once**. You define **tracks** with `grid-template-columns` / `grid-template-rows` using lengths, `fr` (a fraction of the **leftover** space after fixed tracks and content minimums), `minmax(min, max)` and `repeat()`. Items flow into cells automatically, or you place them with `grid-column: 1 / -1` or named areas. DevTools' grid overlay shows every line and track.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A card grid uses repeat(auto-fit,minmax(min(100%,18rem),1fr)) to create bounded responsive columns. Your goal is to implement and inspect a two-dimensional page or component grid. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A course listing needs cards in equal columns — three on a laptop, two on a tablet, one on a phone — and never so narrow that titles break badly. One line of grid does it. A card grid uses repeat(auto-fit, minmax(min(100%, 18rem), 1fr)) to create bounded responsive columns. In this lesson you'll implement and inspect a two-dimensional page or component grid.\n\n```predict\n{\"question\": \"`grid-template-columns: 200px 1fr 1fr` in a 1000px container (no gap). How wide is each 1fr column?\", \"options\": [\"333px\", \"400px\"], \"answer\": 1, \"why\": \"fr shares the space left over after the fixed 200px track: (1000 − 200) / 2 = 400px.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Normal flow and display; Intrinsic sizing and constraints. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Normal flow and display** and **Intrinsic sizing and constraints** — grid tracks respect content minimums too."
       },
       {
-        "heading": "Technology rule",
-        "body": "Grid defines explicit or implicit rows and columns, places items into grid areas, and sizes tracks with fixed, intrinsic, flexible, and minmax functions. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: define tracks, then items fill cells",
+        "body": "```css\n.cards {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));\n  gap: 1.5rem;\n}\n\n.page {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) 18rem;\n  grid-template-areas:\n    \"header header\"\n    \"main   aside\"\n    \"footer footer\";\n}\n.page > header { grid-area: header; }\n.page > main   { grid-area: main; }\n```\n\n| Piece | Meaning |\n|---|---|\n| `fr`. | share of leftover space (after fixed tracks and content minimums). |\n| `minmax(18rem, 1fr)`. | at least 18rem, grow to share space. |\n| `min(100%, 18rem)`. | never wider than the container on tiny screens. |\n| `repeat(auto-fit, …)`. | as many columns as fit. |\n| `grid-column: 1 / -1`. | span from the first line to the last. |\n\n```reveal\n{\"prompt\": \"Why `min(100%, 18rem)` instead of plain `18rem`?\", \"answer\": \"On a 300px screen, an 18rem (288px) minimum plus padding could overflow. min() caps the minimum at the container's width.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Implicit tracks can appear unexpectedly, fr shares leftover space after minimums, and dense placement can change visual order. This draft therefore rejects: 1fr means one equal fraction of the entire container before content minimums are considered."
+        "heading": "Inspect it",
+        "body": "```predict\n{\"question\": \"How can you see a grid's tracks and line numbers?\", \"options\": [\"Guess from the layout\", \"DevTools → Layout → enable the grid overlay\"], \"answer\": 1, \"why\": \"The overlay shows lines, track sizes, gaps and area names — essential for debugging placement.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Define explicit and implicit tracks with repeat, minmax, lines and named areas.",
-      "Implement and inspect a two-dimensional page or component grid."
+      "Define grid tracks with fr, minmax, repeat and auto-fit.",
+      "Place items by line numbers or named areas and inspect with the grid overlay."
     ],
     "excludes": [
-      "Implicit tracks can appear unexpectedly, fr shares leftover space after minimums, and dense placement can change visual order."
+      "Subgrid in depth.",
+      "Masonry layouts."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "css.grid.tracks.example-a",
-      "title": "Grid tracks and placement: concrete case",
+      "title": "A bounded responsive card grid",
       "situation": "A card grid uses repeat(auto-fit,minmax(min(100%,18rem),1fr)) to create bounded responsive columns.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A card grid uses repeat(auto-fit,minmax(min(100%,18rem),1fr)) to create bounded responsive columns.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Flexible fr tracks share leftover space after track minimums and other sizing contributions are resolved."
+        "**Tracks:** `repeat(auto-fit, minmax(min(100%, 18rem), 1fr))` — each column at least 18rem (or the full width on tiny screens), sharing leftover space.",
+        "**Widths:** at 1200px about three columns fit, at 700px two, at 360px one.",
+        "**Inspect:** the browser will render the grid overlay in DevTools showing each bounded responsive column and the 1.5rem gaps."
       ],
-      "result": "The result follows because Flexible fr tracks share leftover space after track minimums and other sizing contributions are resolved."
+      "result": "The cards form equal columns that adapt to the width without any media queries or overflow."
     },
     {
       "id": "css.grid.tracks.example-b",
-      "title": "Grid tracks and placement: boundary case",
-      "situation": "Implicit tracks can appear unexpectedly, fr shares leftover space after minimums, and dense placement can change visual order.",
+      "title": "The spanning header",
+      "situation": "A page grid has columns `minmax(0,1fr) 18rem`. The header only fills the first column.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Implicit tracks can appear unexpectedly, fr shares leftover space after minimums, and dense placement can change visual order.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: 1fr means one equal fraction of the entire container before content minimums are considered."
+        "Items fill one cell by default.",
+        "The header needs to span both columns.",
+        "Fix: `grid-column: 1 / -1` (or named areas with \"header header\")."
       ],
-      "result": "The boundary requires this correction: Flexible fr tracks share leftover space after track minimums and other sizing contributions are resolved."
+      "result": "The header spans the full width while main and aside sit side by side."
     }
   ],
   "misconceptions": [
     {
       "id": "css.grid.tracks.misconception",
       "mistakenBelief": "1fr means one equal fraction of the entire container before content minimums are considered.",
-      "correction": "Flexible fr tracks share leftover space after track minimums and other sizing contributions are resolved.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: 1fr means one equal fraction of the entire container before content minimums are considered."
+      "correction": "fr divides the space left after fixed-size tracks, gaps and content minimums. Tracks can also be forced wider by their content unless you use minmax(0, 1fr).",
+      "diagnosticPrompt": "In the opening predict, why was each 1fr column 400px?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Grid tracks and placement, where rules size, place, and paint existing content.",
+    "example": "Grid is like **a spreadsheet you design first**: you set column widths (tracks), and cells fill in. fr is like saying \"split whatever width is left between these columns\".",
     "usefulFor": [
-      "Building a first mental model for Grid tracks and placement before using exact platform terms"
+      "remembering tracks first, items second",
+      "fr = share of leftover space"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "Implicit tracks can appear unexpectedly, fr shares leftover space after minimums, and dense placement can change visual order."
+      "Spreadsheets don't reflow; auto-fit grids do.",
+      "Named areas are like labelling regions of the sheet."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A card grid uses repeat(auto-fit,minmax(min(100%,18rem),1fr)) to create bounded responsive columns.",
-      "Grid defines explicit or implicit rows and columns, places items into grid areas, and sizes tracks with fixed, intrinsic, flexible, and minmax functions.",
-      "Flexible fr tracks share leftover space after track minimums and other sizing contributions are resolved."
+      ".cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1.5rem }",
+      "container 1200px",
+      "container 360px"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Define",
         "state": {
-          "evidence": "A card grid uses repeat(auto-fit,minmax(min(100%,18rem),1fr)) to create bounded responsive columns."
+          "min column": "min(100%, 18rem)",
+          "max": "1fr"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "A card grid uses a bounded minimum and a flexible maximum."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Wide",
         "state": {
-          "rule": "Grid defines explicit or implicit rows and columns, places items into grid areas, and sizes tracks with fixed, intrinsic, flexible, and minmax functions."
+          "1200px": "3 columns"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "At 1200px three bounded columns fit and share the leftover space."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Narrow",
         "state": {
-          "correction": "Flexible fr tracks share leftover space after track minimums and other sizing contributions are resolved."
+          "360px": "1 column",
+          "overflow": "none"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: 1fr means one equal fraction of the entire container before content minimums are considered."
+        "explanation": "At 360px one column fills the width, creating bounded responsive columns."
       }
     ],
-    "textAlternative": "Starting artifact: A card grid uses repeat(auto-fit,minmax(min(100%,18rem),1fr)) to create bounded responsive columns. Step 1, Artifact. State: evidence: A card grid uses repeat(auto-fit,minmax(min(100%,18rem),1fr)) to create bounded responsive columns.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Grid defines explicit or implicit rows and columns, places items into grid areas, and sizes tracks with fixed, intrinsic, flexible, and minmax functions.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Flexible fr tracks share leftover space after track minimums and other sizing contributions are resolved.. Check the result against the boundary and reject this misconception: 1fr means one equal fraction of the entire container before content minimums are considered."
+    "textAlternative": "A responsive card grid. Step 1, Define: min column is min(100%, 18rem); max is 1fr. A card grid uses a bounded minimum and a flexible maximum. Step 2, Wide: 1200px is 3 columns. At 1200px three bounded columns fit and share the leftover space. Step 3, Narrow: 360px is 1 column; overflow is none. At 360px one column fills the width, creating bounded responsive columns."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Grid tracks and placement: concrete case”: state its starting evidence, apply the Grid tracks and placement rule, and give the observable result in three short lines.",
+      "prompt": "For \"A bounded responsive card grid\", explain how the card grid uses repeat(auto-fit,minmax(min(100%,18rem),1fr)) to create bounded responsive columns at wide and narrow widths.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Tracks.",
+        "Wide.",
+        "Narrow."
       ],
       "expectedEvidence": [
-        "Named example: Grid tracks and placement: concrete case.",
-        "Starting evidence: A card grid uses repeat(auto-fit,minmax(min(100%,18rem),1fr)) to create bounded responsive columns.",
-        "Core rule: Grid defines explicit or implicit rows and columns, places items into grid areas, and sizes tracks with fixed, intrinsic, flexible, and minmax functions.",
-        "Observable result: The result follows because Flexible fr tracks share leftover space after track minimums and other sizing contributions are resolved.",
-        "Boundary check: Flexible fr tracks share leftover space after track minimums and other sizing contributions are resolved."
+        "Names the example \"A bounded responsive card grid\": a card grid uses repeat(auto-fit,minmax(min(100%,18rem),1fr)).",
+        "It creates bounded responsive columns.",
+        "Three columns at 1200px.",
+        "One column at 360px with no overflow."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Implicit tracks can appear unexpectedly, fr shares leftover space after minimums, and dense placement can change visual order.",
+      "prompt": "Write a grid for a photo strip with columns: a 12rem sidebar and a flexible main area that can shrink below its content. What's the template?",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Fixed plus flexible.",
+        "Allow shrinking."
       ],
       "expectedEvidence": [
-        "Grid defines explicit or implicit rows and columns, places items into grid areas, and sizes tracks with fixed, intrinsic, flexible, and minmax functions.",
-        "Implicit tracks can appear unexpectedly, fr shares leftover space after minimums, and dense placement can change visual order."
+        "`grid-template-columns: 12rem minmax(0, 1fr);`",
+        "minmax(0,1fr) lets long content shrink."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Grid tracks and placement and explain why the misconception fails.",
+      "prompt": "Build a page layout with named areas (header, nav, main, aside, footer) that becomes a single column on narrow screens. Inspect both states with the grid overlay.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Change grid-template-areas in a media or container query.",
+        "Use minmax(0,1fr)."
       ],
       "expectedEvidence": [
-        "Implement and inspect a two-dimensional page or component grid.",
-        "Flexible fr tracks share leftover space after track minimums and other sizing contributions are resolved."
+        "Working named-area layout in both states.",
+        "Overlay screenshots showing tracks and areas."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.grid.tracks.misconception",
-      "explanation": "Flexible fr tracks share leftover space after track minimums and other sizing contributions are resolved.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'leftover space' and state the decisive evidence."
+      "explanation": "Turn on the grid overlay. Read each track's size, then ask: **Is it fixed, a share of leftover space (fr), or forced by content?** Adjust with minmax where content is forcing it.",
+      "retryPrompt": "Inspect \"The spanning header\" this way."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and inspect a two-dimensional page or component grid. Keep this boundary in view: Implicit tracks can appear unexpectedly, fr shares leftover space after minimums, and dense placement can change visual order.",
+    "summary": "To implement and inspect a two-dimensional grid, define tracks with fr, minmax, repeat and auto-fit, remember fr shares leftover space after fixed tracks and content minimums, place items by lines or named areas, and verify with the DevTools grid overlay.",
     "retrievalPrompts": [
-      "Explain Grid tracks and placement using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: 1fr means one equal fraction of the entire container before content minimums are considered.",
-      "Apply checkpoint 'leftover space' to a new artifact."
+      "What does fr divide?",
+      "What does repeat(auto-fit, minmax(…)) do?",
+      "How do you make an item span all columns?"
     ],
     "nextReviewPrompt": "Next: continue to “Intrinsic responsive grids”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

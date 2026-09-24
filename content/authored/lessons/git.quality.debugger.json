@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A debugger pauses controlled execution to inspect frames, variables, and control flow against a stated hypothesis, using breakpoints and stepping as observations rather than random exploration.",
+    "summary": "A **debugger** pauses your program so you can look inside: the **call stack** (which function called which), **local variables**, and the path the code actually takes. Use it **with a hypothesis**, not as a random walk: \"I think `count` is 0 when the list is empty\". Set a **breakpoint** just before the suspect line (or a **conditional breakpoint** like `items.length === 0`), run the failing case, inspect, then **step over** (next line), **step into** (enter a call) or **continue** (run to the next breakpoint). Write down what you observed. It either confirms the hypothesis or points to the next one.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A breakpoint before a failing division confirms the denominator becomes zero only on empty input, supporting one specific guard hypothesis. Your goal is to record and explain a debugger-assisted root-cause investigation. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A stats page shows `NaN` for some users. A learner starts the debugger at the top of the app and presses \"step\" 300 times, getting lost in framework code. A breakpoint before a failing division confirms the denominator becomes zero only on empty input, supporting one specific guard hypothesis. In this lesson you'll record and explain a debugger-assisted root-cause investigation.\n\n```predict\n{\"question\": \"Where is the most useful first breakpoint?\", \"options\": [\"The first line of the program\", \"Just before the line that produces the wrong value, on the failing input\"], \"answer\": 1, \"why\": \"Start near the symptom with a hypothesis, then work backwards if needed.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Dependencies and reproducible builds; Commits and history; pf tools debug test; Build and task commands. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Dependencies and reproducible builds**, **Commits and history**, **Debugging and testing loop** (reproducing a failure) and **Build and task commands**."
       },
       {
-        "heading": "Operational model",
-        "body": "A debugger pauses controlled execution to inspect frames, variables, and control flow against a stated hypothesis, using breakpoints and stepping as observations rather than random exploration. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The model: hypothesis, breakpoint, observation",
+        "body": "```js\nfunction average(scores) {\n  const total = scores.reduce((a, b) => a + b, 0);\n  const count = scores.length;\n  return total / count;          // breakpoint here, condition: count === 0.\n}\n```\n\n```text\nHypothesis: NaN appears when scores is empty.\nRun the failing case (a user with no scores) under the debugger.\nPaused at line 4.\n  Call stack:  average <- renderStats <- onLoad.\n  Variables:   scores = [], total = 0, count = 0.\nObservation: 0 / 0 = NaN. Hypothesis confirmed.\nNext: guard empty input; add a test for [].\n```\n\n| Control | Does |\n|---|---|\n| step over. | run the current line, stop at the next. |\n| step into. | enter the function called on this line. |\n| step out. | finish this function, stop in its caller. |\n| continue. | run until the next breakpoint. |\n\n```reveal\n{\"prompt\": \"Why a conditional breakpoint?\", \"answer\": \"average() may run hundreds of times with valid data. The condition pauses only on the interesting case, so you don't click through every call.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Breakpoints alter timing, optimized code can reorder or remove variables, and debugger state does not replace a reproducible test or explain external-system behavior. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: The best debugging strategy is to step through every line from program start until something looks suspicious."
+        "heading": "Record what you saw",
+        "body": "```predict\n{\"question\": \"The debugger shows count = 3 and total = 12 on the failing case. What now?\", \"options\": [\"Keep stepping randomly\", \"Reject this hypothesis, write it down, and form a new one (for example, a later formatting step)\"], \"answer\": 1, \"why\": \"A disproved hypothesis is progress: it narrows where the bug can be.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Set breakpoints, step, inspect variables and test a hypothesis rather than editing blindly.",
-      "Record and explain a debugger-assisted root-cause investigation."
+      "Form a hypothesis, set breakpoints near the symptom, and inspect stack and variables.",
+      "Use step over, into, out and continue, and record each observation."
     ],
     "excludes": [
-      "Breakpoints alter timing, optimized code can reorder or remove variables, and debugger state does not replace a reproducible test or explain external-system behavior."
+      "Debugger setup for every editor.",
+      "Remote and production debugging."
     ]
   },
   "outcomes": [
@@ -63,133 +64,136 @@
   "examples": [
     {
       "id": "git.quality.debugger.example-a",
-      "title": "Debugger workflow: direct case",
+      "title": "The average that divides by zero",
       "situation": "A breakpoint before a failing division confirms the denominator becomes zero only on empty input, supporting one specific guard hypothesis.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A breakpoint before a failing division confirms the denominator becomes zero only on empty input, supporting one specific guard hypothesis.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Reproduce narrowly, state what observation would support or refute a hypothesis, place targeted breakpoints, and preserve the exposing case as a test."
+        "**A breakpoint before a failing division:** conditional breakpoint on line 4 with count === 0.",
+        "**Confirms the denominator becomes zero only on empty input:** paused with scores = [] and count = 0; valid users never hit it.",
+        "**Supporting one specific guard hypothesis:** return null for empty input and show \"No scores yet\"; a test for [] will prove it."
       ],
-      "result": "The case supports the declared outcome because Reproduce narrowly, state what observation would support or refute a hypothesis, place targeted breakpoints, and preserve the exposing case as a test."
+      "result": "The root cause is identified and recorded in minutes, with a targeted fix and test."
     },
     {
       "id": "git.quality.debugger.example-b",
-      "title": "Debugger workflow: boundary case",
-      "situation": "Stepping into a helper reveals an argument is already wrong at the call boundary, moving investigation to the caller rather than the helper body.",
+      "title": "The wrong discount",
+      "situation": "An order total is 10% too high. The learner hypothesises the discount isn't applied.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: Stepping into a helper reveals an argument is already wrong at the call boundary, moving investigation to the caller rather than the helper body.",
-        "Step 2 — Keep this boundary explicit: Breakpoints alter timing, optimized code can reorder or remove variables, and debugger state does not replace a reproducible test or explain external-system behavior.",
-        "Step 3 — Reject the documented misconception: The best debugging strategy is to step through every line from program start until something looks suspicious."
+        "Breakpoint in applyDiscount: it's never hit.",
+        "Call stack at the total shows checkout skips it when a coupon has uppercase letters.",
+        "New hypothesis: case-sensitive coupon check; confirmed by inspecting the comparison."
       ],
-      "result": "This case demonstrates the declared outcome: Record and explain a debugger-assisted root-cause investigation."
+      "result": "Two hypotheses, two observations, one clear root cause."
     }
   ],
   "misconceptions": [
     {
       "id": "git.quality.debugger.misconception",
       "mistakenBelief": "The best debugging strategy is to step through every line from program start until something looks suspicious.",
-      "correction": "Reproduce narrowly, state what observation would support or refute a hypothesis, place targeted breakpoints, and preserve the exposing case as a test.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: The best debugging strategy is to step through every line from program start until something looks suspicious."
+      "correction": "Stepping without a hypothesis wastes time in unrelated code. Start near the symptom, predict what you'll see, and let each observation confirm or reject the idea.",
+      "diagnosticPrompt": "In the opening story, why did 300 steps not help?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A controlled investigation can model Debugger workflow: preserve evidence, state a hypothesis, inspect one clue, automate repeatable checks, and narrow the change point.",
+    "example": "Debugging with a hypothesis is like **a detective checking one alibi at a time**. You don't interview the whole city; you ask \"was the suspect at the station at 9?\" and check the camera at exactly that moment (breakpoint).",
     "usefulFor": [
-      "Linking debugging, static checks, history search, and automated local gates"
+      "remembering one alibi at a time",
+      "breakpoint = the camera at 9"
     ],
     "limitations": [
-      "Debuggers and hooks can alter timing or execute code, and tool findings remain bounded evidence rather than proof.",
-      "Breakpoints alter timing, optimized code can reorder or remove variables, and debugger state does not replace a reproducible test or explain external-system behavior."
+      "Detectives can't rerun the crime; you can rerun the program.",
+      "A broken alibi still moves the case forward."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A breakpoint before a failing division confirms the denominator becomes zero only on empty input, supporting one specific guard hypothesis.",
-      "A debugger pauses controlled execution to inspect frames, variables, and control flow against a stated hypothesis, using breakpoints and stepping as observations rather than random exploration.",
-      "Reproduce narrowly, state what observation would support or refute a hypothesis, place targeted breakpoints, and preserve the exposing case as a test."
+      "state hypothesis",
+      "conditional breakpoint; run failing case",
+      "inspect; record; fix"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Hypothesis",
         "state": {
-          "evidence": "A breakpoint before a failing division confirms the denominator becomes zero only on empty input, supporting one specific guard hypothesis."
+          "idea": "count is 0 for empty scores"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "The learner states one specific guess before running."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Pause",
         "state": {
-          "model": "A debugger pauses controlled execution to inspect frames, variables, and control flow against a stated hypothesis, using breakpoints and stepping as observations rather than random exploration."
+          "scores": "[]",
+          "count": "0",
+          "stack": "average <- renderStats"
         },
-        "explanation": "Apply the declared Debugger workflow model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "A breakpoint before the failing division confirms the denominator becomes zero."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Conclude",
         "state": {
-          "correction": "Reproduce narrowly, state what observation would support or refute a hypothesis, place targeted breakpoints, and preserve the exposing case as a test."
+          "cause": "empty input only",
+          "fix": "guard + test"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: The best debugging strategy is to step through every line from program start until something looks suspicious."
+        "explanation": "This supports one specific guard hypothesis for empty input."
       }
     ],
-    "textAlternative": "Starting artifact: A breakpoint before a failing division confirms the denominator becomes zero only on empty input, supporting one specific guard hypothesis. Step 1, Observe. State: evidence: A breakpoint before a failing division confirms the denominator becomes zero only on empty input, supporting one specific guard hypothesis.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A debugger pauses controlled execution to inspect frames, variables, and control flow against a stated hypothesis, using breakpoints and stepping as observations rather than random exploration.. Apply the declared Debugger workflow model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Reproduce narrowly, state what observation would support or refute a hypothesis, place targeted breakpoints, and preserve the exposing case as a test.. Compare the observation with the correction and reject the misconception: The best debugging strategy is to step through every line from program start until something looks suspicious."
+    "textAlternative": "Tracing a hypothesis-driven debug session. Step 1, Hypothesis: idea is count is 0 for empty scores. The learner states one specific guess before running. Step 2, Pause: scores is []; count is 0; stack is average <- renderStats. A breakpoint before the failing division confirms the denominator becomes zero. Step 3, Conclude: cause is empty input only; fix is guard + test. This supports one specific guard hypothesis for empty input."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Debugger workflow: direct case”: state its starting evidence, apply the Debugger workflow rule, and give the observable result in three short lines.",
+      "prompt": "For \"The average that divides by zero\", explain how a breakpoint before a failing division confirms the denominator becomes zero only on empty input, supporting one specific guard hypothesis.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Hypothesis.",
+        "Breakpoint.",
+        "Conclude."
       ],
       "expectedEvidence": [
-        "Named example: Debugger workflow: direct case.",
-        "Starting evidence: A breakpoint before a failing division confirms the denominator becomes zero only on empty input, supporting one specific guard hypothesis.",
-        "Core rule: A debugger pauses controlled execution to inspect frames, variables, and control flow against a stated hypothesis, using breakpoints and stepping as observations rather than random exploration.",
-        "Observable result: The case supports the declared outcome because Reproduce narrowly, state what observation would support or refute a hypothesis, place targeted breakpoints, and preserve the exposing case as a test.",
-        "Boundary check: Reproduce narrowly, state what observation would support or refute a hypothesis, place targeted breakpoints, and preserve the exposing case as a test."
+        "Names the example \"The average that divides by zero\": the stats page showed NaN.",
+        "A breakpoint before a failing division confirms the denominator becomes zero only on empty input.",
+        "It supports one specific guard hypothesis.",
+        "The root cause is identified with a targeted fix and test."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: Stepping into a helper reveals an argument is already wrong at the call boundary, moving investigation to the caller rather than the helper body.",
+      "prompt": "Take a small function with a seeded bug. Write a hypothesis, set one breakpoint (conditional if useful), run the failing input, and record the stack and variables you observed.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Predict the variable values first.",
+        "One breakpoint is often enough."
       ],
       "expectedEvidence": [
-        "A debugger pauses controlled execution to inspect frames, variables, and control flow against a stated hypothesis, using breakpoints and stepping as observations rather than random exploration.",
-        "Breakpoints alter timing, optimized code can reorder or remove variables, and debugger state does not replace a reproducible test or explain external-system behavior."
+        "Hypothesis confirmed or rejected with evidence.",
+        "Observations written down."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Debugger workflow, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Investigate a bug that spans two functions. Keep a debug log: each hypothesis, where you broke, what you saw, and what you concluded. Finish with the fix and a regression test.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Use step into and step out.",
+        "Check the call stack at each pause."
       ],
       "expectedEvidence": [
-        "Record and explain a debugger-assisted root-cause investigation.",
-        "Reproduce narrowly, state what observation would support or refute a hypothesis, place targeted breakpoints, and preserve the exposing case as a test."
+        "Clear chain of hypotheses.",
+        "Regression test fails before the fix."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.quality.debugger.misconception",
-      "explanation": "Reproduce narrowly, state what observation would support or refute a hypothesis, place targeted breakpoints, and preserve the exposing case as a test.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: Stepping into a helper reveals an argument is already wrong at the call boundary, moving investigation to the caller rather than the helper body."
+      "explanation": "Before touching the debugger write: **I think ___ because ___; I'll pause at ___ and expect to see ___.** Then compare.",
+      "retryPrompt": "Apply this to \"The wrong discount\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to record and explain a debugger-assisted root-cause investigation. Keep this boundary in view: Breakpoints alter timing, optimized code can reorder or remove variables, and debugger state does not replace a reproducible test or explain external-system behavior.",
+    "summary": "To record a debugger-assisted root-cause investigation, state a hypothesis, set a breakpoint (conditional if needed) just before the suspect line, run the failing case, inspect the call stack and variables, step deliberately, and write down each observation until the cause is confirmed and a fix and test follow.",
     "retrievalPrompts": [
-      "Explain Debugger workflow without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: The best debugging strategy is to step through every line from program start until something looks suspicious.",
-      "Apply the model to this case from memory: Stepping into a helper reveals an argument is already wrong at the call boundary, moving investigation to the caller rather than the helper body."
+      "Why start with a hypothesis?",
+      "What does a conditional breakpoint do?",
+      "What's the difference between step over and step into?"
     ],
     "nextReviewPrompt": "Next: continue to “Formatter and linter”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

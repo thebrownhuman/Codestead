@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Exceptions represent exceptional control transfer, and error handling should preserve cause, context, cleanup, and user-safe messaging.",
+    "summary": "`throw` stops the current function and jumps to the nearest `catch` up the call stack. Good error handling has four parts. **Type**: throw a specific error class, like `ImportError extends Error`, so callers can tell failures apart. **Cause**: wrap a low-level error with `new ImportError(\"...\", { cause: err })` so the original isn't lost. **Cleanup**: put code that must always run in `finally`. **Boundary**: catch at the layer that can decide what to do, usually the UI, and show a short, safe message while logging useful context without secrets. An empty `catch {}` hides bugs; it doesn't fix them.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A parser throws a typed error with cause and the UI converts it into a bounded message while logs retain safe context. Your goal is to design and test error behavior across domain, network and presentation modules. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A \"import my notes\" feature reads a pasted JSON file. When a learner pastes something broken, the code has `try { ... } catch {}`: nothing happens, no message, and the notes are half-imported. A parser throws a typed error with cause and the UI converts it into a bounded message while logs retain safe context. In this lesson you'll design and test error behavior across domain, network and presentation modules.\n\n```predict\n{\"question\": \"`try { importNotes(text); } catch {}` and the text is broken. What does the learner see?\", \"options\": [\"A helpful error\", \"Nothing: the empty catch swallowed the failure\"], \"answer\": 1, \"why\": \"An empty catch hides the problem from both the learner and the developer.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Browser state and security; Dependency boundaries; Sources, console and debugger; Promises and chains. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Browser state and security** module, **Dependency boundaries** (domain vs UI layers), **Sources, console and debugger** (reading stack traces), and **Promises and chains**, because async errors flow the same way."
       },
       {
-        "heading": "Technology rule",
-        "body": "Exceptions represent exceptional control transfer, and error handling should preserve cause, context, cleanup, and user-safe messaging. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: throw typed, wrap with cause, catch at the boundary",
+        "body": "```js\n// domain/notes-import.js.\nexport class ImportError extends Error {\n  constructor(message, options) { super(message, options); this.name = \"ImportError\"; }\n}\n\nexport function parseNotes(text) {\n  let data;\n  try {\n    data = JSON.parse(text);\n  } catch (err) {\n    throw new ImportError(\"The file isn't valid JSON.\", { cause: err });\n  }\n  if (!Array.isArray(data)) throw new ImportError(\"Expected a list of notes.\");\n  return data;\n}\n\n// ui/import-view.js: the boundary.\nfunction onImport(text) {\n  setBusy(true);\n  try {\n    const notes = parseNotes(text);\n    saveNotes(notes);\n    showStatus(`Imported ${notes.length} notes.`);\n  } catch (err) {\n    if (err instanceof ImportError) {\n      showStatus(err.message);                                   // safe, short.\n      console.warn(\"import failed\", { length: text.length, cause: err.cause?.message });\n    } else {\n      showStatus(\"Something went wrong. Your notes were not changed.\");\n      throw err;                                                 // unknown bug: don't hide it.\n    }\n  } finally {\n    setBusy(false);                                              // always runs.\n  }\n}\n```\n\n| Layer | Job |\n|---|---|\n| domain. | throw typed errors with cause. |\n| network. | turn HTTP and network failures into typed errors. |\n| UI boundary. | show a bounded message, log safe context, rethrow unknowns. |\n| finally. | cleanup such as spinners and locks. |\n\n```reveal\n{\"prompt\": \"Why log the text's length rather than the text itself?\", \"answer\": \"The text may contain personal notes. Length and the cause message are enough to debug without leaking content.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Catching too broadly hides defects, finally can override outcomes, and rejected promises require asynchronous handling. This draft therefore rejects: An empty catch block makes an operation robust by preventing crashes."
+        "heading": "finally always runs",
+        "body": "```predict\n{\"question\": \"In onImport, parsing throws. Does `setBusy(false)` run?\", \"options\": [\"No, the throw skipped it\", \"Yes: finally runs after try or catch, even when an error is thrown\"], \"answer\": 1, \"why\": \"That's why cleanup belongs in finally.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Create meaningful errors, preserve causes and recover only where a user or caller can act.",
-      "Design and test error behavior across domain, network and presentation modules."
+      "Throw typed errors with cause and handle them at a UI boundary.",
+      "Use finally for cleanup and test error paths across modules."
     ],
     "excludes": [
-      "Catching too broadly hides defects, finally can override outcomes, and rejected promises require asynchronous handling."
+      "Global error-reporting services.",
+      "Error handling in Node.js process events."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "javascript.errors.exceptions.example-a",
-      "title": "Errors, throw and recovery boundaries: concrete case",
+      "title": "From parser error to friendly message",
       "situation": "A parser throws a typed error with cause and the UI converts it into a bounded message while logs retain safe context.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A parser throws a typed error with cause and the UI converts it into a bounded message while logs retain safe context.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Catch only where recovery or context is possible; do not silently swallow errors."
+        "**Typed error with cause:** JSON.parse fails, and parseNotes throws ImportError with the SyntaxError as its cause.",
+        "**Bounded message:** the UI boundary shows \"The file isn't valid JSON.\", and the spinner stops in finally.",
+        "**Test:** a test will call onImport with \"{broken\" and check the status text and that no notes were saved."
       ],
-      "result": "The result follows because Catch only where recovery or context is possible; do not silently swallow errors."
+      "result": "Learners get a clear, short message, notes aren't half-imported, and developers can still see the original cause."
     },
     {
       "id": "javascript.errors.exceptions.example-b",
-      "title": "Errors, throw and recovery boundaries: boundary case",
-      "situation": "Catching too broadly hides defects, finally can override outcomes, and rejected promises require asynchronous handling.",
+      "title": "The catch that hid a real bug",
+      "situation": "After a refactor, saveNotes has a typo and throws ReferenceError. The UI's catch shows \"Invalid file\" for every import, so the team hunts for file problems for a day.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Catching too broadly hides defects, finally can override outcomes, and rejected promises require asynchronous handling.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: An empty catch block makes an operation robust by preventing crashes."
+        "The catch treated every error as a file problem.",
+        "Check `err instanceof ImportError` and handle only expected errors.",
+        "Rethrow anything else so the ReferenceError appears in the console with its stack."
       ],
-      "result": "The boundary requires this correction: Catch only where recovery or context is possible; do not silently swallow errors."
+      "result": "File problems show friendly messages, while real bugs surface immediately with their stack trace."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.errors.exceptions.misconception",
       "mistakenBelief": "An empty catch block makes an operation robust by preventing crashes.",
-      "correction": "Catch only where recovery or context is possible; do not silently swallow errors.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: An empty catch block makes an operation robust by preventing crashes."
+      "correction": "An empty catch hides the failure: the learner gets no feedback, state may be left half-changed, and developers lose the stack trace. Catch only errors you can handle, report them, and rethrow the rest.",
+      "diagnosticPrompt": "In \"From parser error to friendly message\", what went wrong with the empty catch?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Errors, throw and recovery boundaries, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "Error handling is like **a hospital's triage desk**. Each department (module) writes a clear note on the patient (typed error with cause). Triage (the UI boundary) tells the family a short, calm message, keeps the full chart for doctors (logs), and sends unknown cases straight to a specialist (rethrow).",
     "usefulFor": [
-      "Building a first mental model for Errors, throw and recovery boundaries before using exact platform terms"
+      "remembering who handles what",
+      "cause = the full chart"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Catching too broadly hides defects, finally can override outcomes, and rejected promises require asynchronous handling."
+      "Hospitals never ignore patients; empty catches do.",
+      "The chart shouldn't contain gossip: logs avoid personal data."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A parser throws a typed error with cause and the UI converts it into a bounded message while logs retain safe context.",
-      "Exceptions represent exceptional control transfer, and error handling should preserve cause, context, cleanup, and user-safe messaging.",
-      "Catch only where recovery or context is possible; do not silently swallow errors."
+      "onImport('{broken')",
+      "parseNotes throws ImportError(cause: SyntaxError)",
+      "catch shows message; finally clears busy"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Parse fails",
         "state": {
-          "evidence": "A parser throws a typed error with cause and the UI converts it into a bounded message while logs retain safe context."
+          "thrown": "SyntaxError"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "JSON.parse rejects the broken text inside the parser."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Wrap",
         "state": {
-          "rule": "Exceptions represent exceptional control transfer, and error handling should preserve cause, context, cleanup, and user-safe messaging."
+          "thrown": "ImportError",
+          "cause": "SyntaxError"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The parser throws a typed error with cause."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Boundary",
         "state": {
-          "correction": "Catch only where recovery or context is possible; do not silently swallow errors."
+          "status": "The file isn't valid JSON.",
+          "busy": "false",
+          "notes saved": "0"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: An empty catch block makes an operation robust by preventing crashes."
+        "explanation": "The UI converts it into a bounded message while logs retain safe context."
       }
     ],
-    "textAlternative": "Starting artifact: A parser throws a typed error with cause and the UI converts it into a bounded message while logs retain safe context. Step 1, Artifact. State: evidence: A parser throws a typed error with cause and the UI converts it into a bounded message while logs retain safe context.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Exceptions represent exceptional control transfer, and error handling should preserve cause, context, cleanup, and user-safe messaging.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Catch only where recovery or context is possible; do not silently swallow errors.. Check the result against the boundary and reject this misconception: An empty catch block makes an operation robust by preventing crashes."
+    "textAlternative": "Tracing an import failure. Step 1, Parse fails: thrown is SyntaxError. JSON.parse rejects the broken text inside the parser. Step 2, Wrap: thrown is ImportError; cause is SyntaxError. The parser throws a typed error with cause. Step 3, Boundary: status is The file isn't valid JSON.; busy is false; notes saved is 0. The UI converts it into a bounded message while logs retain safe context."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Errors, throw and recovery boundaries: concrete case”: state its starting evidence, apply the Errors, throw and recovery boundaries rule, and give the observable result in three short lines.",
+      "prompt": "For \"From parser error to friendly message\", explain how a parser throws a typed error with cause and the UI converts it into a bounded message while logs retain safe context.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Typed error.",
+        "Boundary.",
+        "Cleanup."
       ],
       "expectedEvidence": [
-        "Named example: Errors, throw and recovery boundaries: concrete case.",
-        "Starting evidence: A parser throws a typed error with cause and the UI converts it into a bounded message while logs retain safe context.",
-        "Core rule: Exceptions represent exceptional control transfer, and error handling should preserve cause, context, cleanup, and user-safe messaging.",
-        "Observable result: The result follows because Catch only where recovery or context is possible; do not silently swallow errors.",
-        "Boundary check: Catch only where recovery or context is possible; do not silently swallow errors."
+        "Names the example \"From parser error to friendly message\": the parser throws a typed error with cause.",
+        "The UI converts it into a bounded message.",
+        "Logs retain safe context such as the text length.",
+        "Notes aren't half-imported, and the spinner stops in finally."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Catching too broadly hides defects, finally can override outcomes, and rejected promises require asynchronous handling.",
+      "prompt": "Write `parseAge(text)` that throws a `ValidationError` for non-numbers and ages outside 5-120, and a UI handler that shows the message and rethrows other errors.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Custom error class with name.",
+        "instanceof at the boundary."
       ],
       "expectedEvidence": [
-        "Exceptions represent exceptional control transfer, and error handling should preserve cause, context, cleanup, and user-safe messaging.",
-        "Catching too broadly hides defects, finally can override outcomes, and rejected promises require asynchronous handling."
+        "ValidationError for bad input.",
+        "Unknown errors are rethrown."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Errors, throw and recovery boundaries and explain why the misconception fails.",
+      "prompt": "Design errors for a lesson loader across three modules (network, domain, UI): define the error types, where each is thrown and caught, and write tests for offline, 404, bad data and an unexpected bug.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Wrap fetch failures with cause.",
+        "One boundary in the UI."
       ],
       "expectedEvidence": [
-        "Design and test error behavior across domain, network and presentation modules.",
-        "Catch only where recovery or context is possible; do not silently swallow errors."
+        "An error map per layer.",
+        "Four tests with distinct user messages and a rethrown bug."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.errors.exceptions.misconception",
-      "explanation": "Catch only where recovery or context is possible; do not silently swallow errors.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'do not silently swallow' and state the decisive evidence."
+      "explanation": "For every catch ask: **Which errors can I actually handle here? What does the learner need to see? What do developers need in the log? What must be cleaned up?** Rethrow everything else.",
+      "retryPrompt": "Apply this to \"The catch that hid a real bug\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to design and test error behavior across domain, network and presentation modules. Keep this boundary in view: Catching too broadly hides defects, finally can override outcomes, and rejected promises require asynchronous handling.",
+    "summary": "To design and test error behavior across domain, network and presentation modules, throw typed errors that keep their cause, catch them at a UI boundary that shows short safe messages and logs useful context without secrets, put cleanup in finally, and rethrow unexpected errors instead of hiding them in an empty catch.",
     "retrievalPrompts": [
-      "Explain Errors, throw and recovery boundaries using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: An empty catch block makes an operation robust by preventing crashes.",
-      "Apply checkpoint 'do not silently swallow' to a new artifact."
+      "Why is an empty catch harmful?",
+      "What does { cause } preserve?",
+      "Where should errors usually be turned into messages?"
     ],
     "nextReviewPrompt": "Next: continue to “Pure and module tests”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Selector specificity compares id, class-like, and type-like components lexicographically after higher cascade factors tie.",
+    "summary": "**Specificity** is a score in three columns, compared **left to right**: (IDs, classes/attributes/pseudo-classes, types/pseudo-elements). `#nav` is (1,0,0); `.card .title` is (0,2,0); `h2` is (0,0,1). It's not one total number — one ID beats any number of classes. When specificity ties, the **later** rule wins. Keep selectors low and flat so components are easy to override without `!important`.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A component class beats a type selector without needing an id or !important escalation. Your goal is to explain and repair a specificity conflict without adding unnecessary important declarations. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Your card titles should be navy, but they stay black. A teammate's global `h2 { color: black; }` is winning? No — your `.card-title` class should beat it. Unless… Let's learn to compute the score. A component class beats a type selector without needing an id or !important escalation. In this lesson you'll explain and repair a specificity conflict without adding unnecessary !important declarations.\n\n```predict\n{\"question\": \"Which wins: `#main p` or `.article .content .text p`?\", \"options\": [\"The four-part class selector (it has more parts)\", \"#main p — one ID beats any number of classes\"], \"answer\": 1, \"why\": \"(1,0,1) vs (0,3,1). The first column is compared first, and 1 > 0. Columns never carry over.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: html document syntax; Origins, importance and layers. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Elements, attributes and nesting** and **Origins, importance and layers** — specificity is only compared when origin, importance and layer are tied."
       },
       {
-        "heading": "Technology rule",
-        "body": "Selector specificity compares id, class-like, and type-like components lexicographically after higher cascade factors tie. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The rule: compare columns left to right",
+        "body": "| Selector | (IDs, classes, types) |\n|---|---|\n| `h2`. | (0,0,1). |\n| `.card-title`. | (0,1,0). |\n| `.card h2`. | (0,1,1). |\n| `nav a:hover`. | (0,1,2). |\n| `#nav a`. | (1,0,1). |\n| `:where(.card) h2`. | (0,0,1) — :where adds nothing. |\n\nInline `style=\"\"` beats all selectors; `!important` jumps to a higher tier altogether.\n\n```reveal\n{\"prompt\": \"Do 11 classes beat 1 ID?\", \"answer\": \"No. (0,11,0) vs (1,0,0): the ID column is compared first. Specificity isn't a single number where 10 classes = 1 ID.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "The :where() pseudo-class contributes zero specificity, :is() uses its most specific argument, and inline styles have their own position. This draft therefore rejects: Specificity is one total number where ten classes always equal one id."
+        "heading": "Repair without escalation",
+        "body": "```predict\n{\"question\": \"A button style is being overridden. Best fix?\", \"options\": [\"Add `!important`\", \"Check the competing selectors' specificity and adjust (or use a class at the right level / a later layer)\"], \"answer\": 1, \"why\": \"!important starts an arms race. Understand why the other rule wins, then use an equally specific class, source order or layers.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Calculate selector specificity and prefer maintainable ordering over escalation.",
-      "Explain and repair a specificity conflict without adding unnecessary important declarations."
+      "Calculate specificity as (IDs, classes, types) and compare left to right.",
+      "Fix conflicts with classes, order or layers instead of IDs and !important."
     ],
     "excludes": [
-      "The :where() pseudo-class contributes zero specificity, :is() uses its most specific argument, and inline styles have their own position."
+      "Cascade layers in depth (previous lesson).",
+      "Scoping with @scope."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "css.cascade.specificity.example-a",
-      "title": "Specificity and source order: concrete case",
+      "title": "A class beats a type selector",
       "situation": "A component class beats a type selector without needing an id or !important escalation.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A component class beats a type selector without needing an id or !important escalation.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Treat specificity as compared components, not base-ten arithmetic, and keep component selectors intentionally low."
+        "**Conflict:** global `h2 { color: black; }` (0,0,1) vs component `.card-title { color: navy; }` (0,1,0).",
+        "**Compare:** the class column 1 beats 0, so `.card-title` wins regardless of order.",
+        "**Why it looked wrong:** the HTML used `class=\"card_title\"` — a typo meant the selector didn't match. Fix the class name; the browser will render navy."
       ],
-      "result": "The result follows because Treat specificity as compared components, not base-ten arithmetic, and keep component selectors intentionally low."
+      "result": "The component class wins by specificity, with no ID or !important escalation needed."
     },
     {
       "id": "css.cascade.specificity.example-b",
-      "title": "Specificity and source order: boundary case",
-      "situation": "The :where() pseudo-class contributes zero specificity, :is() uses its most specific argument, and inline styles have their own position.",
+      "title": "The !important arms race",
+      "situation": "A site has `.btn { background: blue !important; }`. A new `.btn-danger { background: red; }` never applies, so a developer adds `!important` there too — then another rule needs it as well.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: The :where() pseudo-class contributes zero specificity, :is() uses its most specific argument, and inline styles have their own position.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Specificity is one total number where ten classes always equal one id."
+        "The first !important moved .btn above every normal declaration.",
+        "Each fix adds another !important, making overrides ever harder.",
+        "Repair: remove !important, keep .btn and .btn-danger at equal specificity, and put the variant after the base."
       ],
-      "result": "The boundary requires this correction: Treat specificity as compared components, not base-ten arithmetic, and keep component selectors intentionally low."
+      "result": "The danger button turns red through normal source order, and no !important remains."
     }
   ],
   "misconceptions": [
     {
       "id": "css.cascade.specificity.misconception",
-      "mistakenBelief": "Specificity is one total number where ten classes always equal one id.",
-      "correction": "Treat specificity as compared components, not base-ten arithmetic, and keep component selectors intentionally low.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: Specificity is one total number where ten classes always equal one id."
+      "mistakenBelief": "Specificity is one total number where ten classes always equal one ID.",
+      "correction": "Specificity is compared column by column: IDs first, then classes/attributes/pseudo-classes, then types. Any number of classes loses to a single ID; columns never carry over.",
+      "diagnosticPrompt": "In the opening predict, why did the one-ID selector win?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Specificity and source order, where rules size, place, and paint existing content.",
+    "example": "Specificity is like **comparing version numbers**: 1.0.1 beats 0.11.0 because the first number is checked first, no matter how big the second one is.",
     "usefulFor": [
-      "Building a first mental model for Specificity and source order before using exact platform terms"
+      "remembering left-to-right comparison",
+      "seeing why classes never add up to an ID"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "The :where() pseudo-class contributes zero specificity, :is() uses its most specific argument, and inline styles have their own position."
+      "Versions change over time; specificity is fixed by the selector.",
+      "Ties go to the later rule, like a newer release date."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A component class beats a type selector without needing an id or !important escalation.",
-      "Selector specificity compares id, class-like, and type-like components lexicographically after higher cascade factors tie.",
-      "Treat specificity as compared components, not base-ten arithmetic, and keep component selectors intentionally low."
+      "h2 { color: black } → (0,0,1)",
+      ".card-title { color: navy } → (0,1,0)",
+      "compare columns"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Score type selector",
         "state": {
-          "evidence": "A component class beats a type selector without needing an id or !important escalation."
+          "h2": "(0,0,1)"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The global type selector has one type."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Score class",
         "state": {
-          "rule": "Selector specificity compares id, class-like, and type-like components lexicographically after higher cascade factors tie."
+          ".card-title": "(0,1,0)"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The component class has one class."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Compare",
         "state": {
-          "correction": "Treat specificity as compared components, not base-ten arithmetic, and keep component selectors intentionally low."
+          "winner": ".card-title",
+          "color": "navy"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Specificity is one total number where ten classes always equal one id."
+        "explanation": "A component class beats a type selector without needing an id or !important escalation."
       }
     ],
-    "textAlternative": "Starting artifact: A component class beats a type selector without needing an id or !important escalation. Step 1, Artifact. State: evidence: A component class beats a type selector without needing an id or !important escalation.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Selector specificity compares id, class-like, and type-like components lexicographically after higher cascade factors tie.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Treat specificity as compared components, not base-ten arithmetic, and keep component selectors intentionally low.. Check the result against the boundary and reject this misconception: Specificity is one total number where ten classes always equal one id."
+    "textAlternative": "Comparing specificity. Step 1, Score type selector: h2 is (0,0,1). The global type selector has one type. Step 2, Score class: .card-title is (0,1,0). The component class has one class. Step 3, Compare: winner is .card-title; color is navy. A component class beats a type selector without needing an id or !important escalation."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Specificity and source order: concrete case”: state its starting evidence, apply the Specificity and source order rule, and give the observable result in three short lines.",
+      "prompt": "For \"A class beats a type selector\", score both selectors and explain how the component class beats a type selector without needing an id or !important escalation.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Scores.",
+        "Comparison.",
+        "No escalation."
       ],
       "expectedEvidence": [
-        "Named example: Specificity and source order: concrete case.",
-        "Starting evidence: A component class beats a type selector without needing an id or !important escalation.",
-        "Core rule: Selector specificity compares id, class-like, and type-like components lexicographically after higher cascade factors tie.",
-        "Observable result: The result follows because Treat specificity as compared components, not base-ten arithmetic, and keep component selectors intentionally low.",
-        "Boundary check: Treat specificity as compared components, not base-ten arithmetic, and keep component selectors intentionally low."
+        "Names the example \"A class beats a type selector\": a component class beats a type selector.",
+        "h2 scores (0,0,1) and .card-title scores (0,1,0).",
+        "The class column wins, so no id or !important escalation is needed.",
+        "The title renders navy once the class name matches."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: The :where() pseudo-class contributes zero specificity, :is() uses its most specific argument, and inline styles have their own position.",
+      "prompt": "Score and rank: `ul li a`, `.menu a`, `#top .menu a`, `a:hover`.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Count each column.",
+        "Compare left to right."
       ],
       "expectedEvidence": [
-        "Selector specificity compares id, class-like, and type-like components lexicographically after higher cascade factors tie.",
-        "The :where() pseudo-class contributes zero specificity, :is() uses its most specific argument, and inline styles have their own position."
+        "(0,0,3), (0,1,1), (1,1,1), (0,1,1).",
+        "#top .menu a wins; .menu a and a:hover tie — later wins."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Specificity and source order and explain why the misconception fails.",
+      "prompt": "Find a stylesheet with !important or ID selectors used for overrides. Refactor to classes at consistent specificity (or layers), and verify nothing visually changes.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Screenshot before and after.",
+        "Keep selectors flat."
       ],
       "expectedEvidence": [
-        "Explain and repair a specificity conflict without adding unnecessary important declarations.",
-        "Treat specificity as compared components, not base-ten arithmetic, and keep component selectors intentionally low."
+        "No unnecessary !important or ID overrides remain.",
+        "Visual output unchanged."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.cascade.specificity.misconception",
-      "explanation": "Treat specificity as compared components, not base-ten arithmetic, and keep component selectors intentionally low.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'compared components' and state the decisive evidence."
+      "explanation": "In DevTools, hover a selector to see its specificity. Write both scores side by side and compare column by column. If they tie, check which comes later.",
+      "retryPrompt": "Do this for \"The !important arms race\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to explain and repair a specificity conflict without adding unnecessary important declarations. Keep this boundary in view: The :where() pseudo-class contributes zero specificity, :is() uses its most specific argument, and inline styles have their own position.",
+    "summary": "To explain and repair a specificity conflict, score selectors as (IDs, classes, types), compare left to right, and let source order break ties. Fix conflicts with matching classes, order or layers rather than unnecessary !important declarations.",
     "retrievalPrompts": [
-      "Explain Specificity and source order using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: Specificity is one total number where ten classes always equal one id.",
-      "Apply checkpoint 'compared components' to a new artifact."
+      "Do many classes beat one ID?",
+      "What breaks a specificity tie?",
+      "Why avoid !important for fixes?"
     ],
     "nextReviewPrompt": "Next: continue to “Inheritance, initial and computed values”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

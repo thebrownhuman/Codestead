@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Context can provide stable services such as analytics, API clients, or feature policy to a subtree with an explicit provider boundary.",
+    "summary": "Some dependencies are **services**, not changing data: an API client, an analytics tracker, a feature-flag policy. Providing them through **context** lets components ask for `useTutorApi()` instead of importing one fixed module. A provider near the top supplies the real client; a test or a story wraps the component in a provider with a **fake**. Keep the service **stable** (create it once, don't rebuild it on every render), give the context a **documented default** (often one that throws with a clear message), and keep the interface small.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A TutorApi interface is provided once and replaced with a fake provider in component tests. Your goal is to design and test a narrow context provider with a documented default and consumer contract. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A tutor-chat component imports `tutorApi` directly from `api.js`, which talks to the real server. Every component test ends up mocking the module path, and a storybook preview accidentally sends real requests. A TutorApi interface is provided once and replaced with a fake provider in component tests. In this lesson you'll design and test a narrow context provider with a documented default and consumer contract.\n\n```predict\n{\"question\": \"A component calls `useTutorApi()` but no provider is above it. What's the most helpful result?\", \"options\": [\"It silently uses a real client\", \"It throws \\\"useTutorApi must be used inside TutorApiProvider\\\"\"], \"answer\": 1, \"why\": \"A loud, clear default stops accidental real requests and explains the fix.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Remote data and asynchronous UI; javascript browser url; Reducer and context boundary; Component API design. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Remote data and asynchronous UI** module, **URL and history state** (building API URLs), **Reducer and context boundary**, and **Component API design**, since the service interface is a contract."
       },
       {
-        "heading": "Technology rule",
-        "body": "Context can provide stable services such as analytics, API clients, or feature policy to a subtree with an explicit provider boundary. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: provide an interface, inject the implementation",
+        "body": "```jsx\n// tutor-api.js.\nimport { createContext, useContext } from \"react\";\n\n/** @typedef {{ ask(question: string, signal?: AbortSignal): Promise<{ answer: string }> }} TutorApi */\nconst TutorApiContext = createContext(/** @type {TutorApi | null} */ (null));\n\nexport function TutorApiProvider({ api, children }) {\n  return <TutorApiContext.Provider value={api}>{children}</TutorApiContext.Provider>;\n}\n\nexport function useTutorApi() {\n  const api = useContext(TutorApiContext);\n  if (!api) throw new Error(\"useTutorApi must be used inside TutorApiProvider\");\n  return api;\n}\n\n// main.jsx: created once, outside render.\nconst realApi = createHttpTutorApi(new URL(\"/api/tutor\", location.origin));\nroot.render(<TutorApiProvider api={realApi}><App /></TutorApiProvider>);\n\n// Test: a fake with the same interface.\nconst fake = { ask: vi.fn().mockResolvedValue({ answer: \"Use a loop.\" }) };\nrender(<TutorApiProvider api={fake}><TutorChat /></TutorApiProvider>);\n```\n\n| Put in a service context | Keep as props or state |\n|---|---|\n| API clients, analytics, feature policy. | data that changes often. |\n| created once, stable. | per-component values. |\n| small interface. | anything a direct parent can pass. |\n\n```reveal\n{\"prompt\": \"Why create realApi outside render?\", \"answer\": \"If it were created inside a component, each render would make a new object and every consumer would re-render.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Mutable service instances, missing providers, server isolation, and test substitution require deliberate lifecycle design. This draft therefore rejects: Importing a global singleton is always equivalent to a contextual service provider."
+        "heading": "Import vs provider",
+        "body": "```predict\n{\"question\": \"Is importing a singleton `tutorApi` module the same as providing it?\", \"options\": [\"Yes\", \"No: an import is fixed for everyone; a provider can be swapped per subtree or test\"], \"answer\": 1, \"why\": \"Context gives you a seam to inject fakes and alternative implementations.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use context for theme, session or service boundaries without placing rapidly changing local state globally.",
-      "Design and test a narrow context provider with a documented default and consumer contract."
+      "Provide stable services like API clients through a narrow context.",
+      "Give the context a clear default and replace it with fakes in tests."
     ],
     "excludes": [
-      "Mutable service instances, missing providers, server isolation, and test substitution require deliberate lifecycle design."
+      "Dependency-injection frameworks.",
+      "Server-side rendering of providers."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "react.context.services.example-a",
-      "title": "Context for stable global dependencies: concrete case",
+      "title": "Swapping the tutor API in tests",
       "situation": "A TutorApi interface is provided once and replaced with a fake provider in component tests.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A TutorApi interface is provided once and replaced with a fake provider in component tests.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Context makes service dependency and substitution explicit; avoid hidden mutable global singletons."
+        "**Define the interface:** TutorApi has one method, `ask(question, signal)`, returning `{ answer }`.",
+        "**Provide once:** main.jsx builds the HTTP client outside render and wraps App in TutorApiProvider.",
+        "**Fake provider:** a test will wrap TutorChat with a fake whose ask resolves \"Use a loop.\" and check that answer appears."
       ],
-      "result": "The result follows because Context makes service dependency and substitution explicit; avoid hidden mutable global singletons."
+      "result": "Tests and previews never hit the real server, and TutorChat's code doesn't change between app and test."
     },
     {
       "id": "react.context.services.example-b",
-      "title": "Context for stable global dependencies: boundary case",
-      "situation": "Mutable service instances, missing providers, server isolation, and test substitution require deliberate lifecycle design.",
+      "title": "The analytics that fired in tests",
+      "situation": "Components call `analytics.track()` from an imported module. Running the test suite sends thousands of fake events to the real analytics dashboard.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Mutable service instances, missing providers, server isolation, and test substitution require deliberate lifecycle design.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Importing a global singleton is always equivalent to a contextual service provider."
+        "The import hard-wired the real tracker everywhere.",
+        "Provide an Analytics service through context instead.",
+        "Tests wrap components in a provider with a no-op or recording fake."
       ],
-      "result": "The boundary requires this correction: Context makes service dependency and substitution explicit; avoid hidden mutable global singletons."
+      "result": "Tests record events locally, and the real dashboard only sees real usage."
     }
   ],
   "misconceptions": [
     {
       "id": "react.context.services.misconception",
       "mistakenBelief": "Importing a global singleton is always equivalent to a contextual service provider.",
-      "correction": "Context makes service dependency and substitution explicit; avoid hidden mutable global singletons.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Importing a global singleton is always equivalent to a contextual service provider."
+      "correction": "An import fixes one implementation for the whole app and every test. A provider lets you choose the implementation per subtree, which is what makes fakes, previews and feature variants easy.",
+      "diagnosticPrompt": "In \"The analytics that fired in tests\", what made the fake impossible to swap in?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Context for stable global dependencies, where inputs and state produce a UI description.",
+    "example": "A service context is like **a wall socket**. Appliances (components) plug into the socket's shape (the interface) without caring whether the power comes from the grid (real API) or a battery pack (a fake in tests). Wiring the appliance straight to the power station (an import) makes that swap impossible.",
     "usefulFor": [
-      "Building a first mental model for Context for stable global dependencies before using exact platform terms"
+      "remembering interface vs implementation",
+      "provider = which power source feeds the socket"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Mutable service instances, missing providers, server isolation, and test substitution require deliberate lifecycle design."
+      "Sockets deliver the same thing every time; keep services stable.",
+      "A socket with no power should say so loudly: the throwing default."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A TutorApi interface is provided once and replaced with a fake provider in component tests.",
-      "Context can provide stable services such as analytics, API clients, or feature policy to a subtree with an explicit provider boundary.",
-      "Context makes service dependency and substitution explicit; avoid hidden mutable global singletons."
+      "render(<TutorApiProvider api={fake}><TutorChat /></TutorApiProvider>)",
+      "learner asks a question",
+      "TutorChat shows the answer"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Provide",
         "state": {
-          "evidence": "A TutorApi interface is provided once and replaced with a fake provider in component tests."
+          "context value": "fake TutorApi"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The TutorApi interface is provided once for the subtree."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Consume",
         "state": {
-          "rule": "Context can provide stable services such as analytics, API clients, or feature policy to a subtree with an explicit provider boundary."
+          "useTutorApi()": "fake",
+          "ask calls": "1"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "TutorChat reads the service from context and calls ask."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Result",
         "state": {
-          "correction": "Context makes service dependency and substitution explicit; avoid hidden mutable global singletons."
+          "screen": "Use a loop.",
+          "real requests": "0"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Importing a global singleton is always equivalent to a contextual service provider."
+        "explanation": "The fake provider replaces the real client in component tests."
       }
     ],
-    "textAlternative": "Starting artifact: A TutorApi interface is provided once and replaced with a fake provider in component tests. Step 1, Artifact. State: evidence: A TutorApi interface is provided once and replaced with a fake provider in component tests.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Context can provide stable services such as analytics, API clients, or feature policy to a subtree with an explicit provider boundary.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Context makes service dependency and substitution explicit; avoid hidden mutable global singletons.. Check the result against the boundary and reject this misconception: Importing a global singleton is always equivalent to a contextual service provider."
+    "textAlternative": "Tracing a service lookup in a test. Step 1, Provide: context value is fake TutorApi. The TutorApi interface is provided once for the subtree. Step 2, Consume: useTutorApi() is fake; ask calls is 1. TutorChat reads the service from context and calls ask. Step 3, Result: screen is Use a loop.; real requests is 0. The fake provider replaces the real client in component tests."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Context for stable global dependencies: concrete case”: state its starting evidence, apply the Context for stable global dependencies rule, and give the observable result in three short lines.",
+      "prompt": "For \"Swapping the tutor API in tests\", explain how a TutorApi interface is provided once and replaced with a fake provider in component tests.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Interface.",
+        "Provider.",
+        "Fake."
       ],
       "expectedEvidence": [
-        "Named example: Context for stable global dependencies: concrete case.",
-        "Starting evidence: A TutorApi interface is provided once and replaced with a fake provider in component tests.",
-        "Core rule: Context can provide stable services such as analytics, API clients, or feature policy to a subtree with an explicit provider boundary.",
-        "Observable result: The result follows because Context makes service dependency and substitution explicit; avoid hidden mutable global singletons.",
-        "Boundary check: Context makes service dependency and substitution explicit; avoid hidden mutable global singletons."
+        "Names the example \"Swapping the tutor API in tests\": TutorChat depends on a TutorApi interface.",
+        "It is provided once in main.jsx.",
+        "Component tests replace it with a fake provider.",
+        "Tests never hit the real server."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Mutable service instances, missing providers, server isolation, and test substitution require deliberate lifecycle design.",
+      "prompt": "Create a `FeatureFlags` context with `isEnabled(name)`, a provider taking a flags object, and a hook that throws outside the provider. Use it to show a beta banner.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Stable object.",
+        "Clear error."
       ],
       "expectedEvidence": [
-        "Context can provide stable services such as analytics, API clients, or feature policy to a subtree with an explicit provider boundary.",
-        "Mutable service instances, missing providers, server isolation, and test substitution require deliberate lifecycle design."
+        "Banner shows only when the flag is on.",
+        "Tests provide different flag sets."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Context for stable global dependencies and explain why the misconception fails.",
+      "prompt": "Refactor two components that import an API module directly to use a service context. Write tests with fakes for success and failure, and a test for the missing-provider error.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Small interface.",
+        "Create the real client once."
       ],
       "expectedEvidence": [
-        "Design and test a narrow context provider with a documented default and consumer contract.",
-        "Context makes service dependency and substitution explicit; avoid hidden mutable global singletons."
+        "No direct API imports in components.",
+        "Three passing tests."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.context.services.misconception",
-      "explanation": "Context makes service dependency and substitution explicit; avoid hidden mutable global singletons.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'dependency and substitution explicit' and state the decisive evidence."
+      "explanation": "For each import of a network client, tracker or policy ask: **Would a test or preview want a different one?** If yes, define a small interface, provide it with context, and give the hook a throwing default.",
+      "retryPrompt": "Apply this to \"The analytics that fired in tests\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to design and test a narrow context provider with a documented default and consumer contract. Keep this boundary in view: Mutable service instances, missing providers, server isolation, and test substitution require deliberate lifecycle design.",
+    "summary": "To design and test a narrow context provider for a service, define a small interface, create the real implementation once and provide it near the root, expose a hook whose default throws a clear error, and wrap components in a provider with a fake in tests and previews.",
     "retrievalPrompts": [
-      "Explain Context for stable global dependencies using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: Importing a global singleton is always equivalent to a contextual service provider.",
-      "Apply checkpoint 'dependency and substitution explicit' to a new artifact."
+      "Why provide an API client through context instead of importing it?",
+      "Why create the service outside render?",
+      "What should the hook do without a provider?"
     ],
     "nextReviewPrompt": "Next: continue to “Semantic and keyboard-accessible components”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

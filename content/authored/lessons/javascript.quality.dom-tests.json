@@ -38,33 +38,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "DOM tests should query by accessible role, name, label, or text and exercise realistic user events and state changes.",
+    "summary": "A DOM test should do what a learner does: find controls by their **accessible role and name** (`getByRole(\"button\", { name: \"Join\" })`), **label** (`getByLabelText(\"Email\")`) or visible text, type and click with realistic events, and then **wait** for what the learner would see or hear, such as a status message. Don't select generated class names or read internal variables; they change when the code is refactored even though the behaviour is the same. Replace `fetch` with a **controlled fake** so the test is deterministic and can cover success, failure and slow responses.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A test submits by button role and waits for an accessible status message instead of reading internal state. Your goal is to create deterministic tests for an accessible event and fetch workflow. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A sign-up test finds the button with `.css-1x9k2b` and checks a private `state.submitted` flag. A styling change renames the class and the test breaks, yet a real accessibility bug, a missing label, passes unnoticed. A test submits by button role and waits for an accessible status message instead of reading internal state. In this lesson you'll create deterministic tests for an accessible event and fetch workflow.\n\n```predict\n{\"question\": \"Which query is sturdier and also checks accessibility?\", \"options\": [\"container.querySelector(\\\".css-1x9k2b\\\")\", \"screen.getByRole(\\\"button\\\", { name: \\\"Join\\\" })\"], \"answer\": 1, \"why\": \"Role and name queries fail if the button loses its accessible name, and survive class renames.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Browser state and security; Dependency boundaries; Pure and module tests; Cancellation, timeout and stale results; Forms, validation and accessible state. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Browser state and security** module, **Dependency boundaries** (inject fetch), **Pure and module tests**, **Cancellation, timeout and stale results**, and **Forms, validation and accessible state**, the workflow being tested."
       },
       {
-        "heading": "Technology rule",
-        "body": "DOM tests should query by accessible role, name, label, or text and exercise realistic user events and state changes. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: query like a user, act like a user, wait for what they see",
+        "body": "```js\n// signup.test.js: Vitest + @testing-library/dom + user-event, jsdom environment.\nimport { it, expect, vi } from \"vitest\";\nimport { screen } from \"@testing-library/dom\";\nimport userEvent from \"@testing-library/user-event\";\nimport { mountSignup } from \"./signup.js\";\n\nit(\"shows success after a valid sign-up\", async () => {\n  const fakeFetch = vi.fn().mockResolvedValue(new Response(\"{}\", { status: 201 }));\n  mountSignup(document.body, { fetch: fakeFetch });       // dependency injected.\n  const user = userEvent.setup();\n\n  await user.type(screen.getByLabelText(\"Email\"), \"asha@example.com\");\n  await user.click(screen.getByRole(\"button\", { name: \"Join\" }));\n\n  expect(await screen.findByText(\"Account created.\")).toBeTruthy();\n  expect(fakeFetch).toHaveBeenCalledTimes(1);\n});\n\nit(\"announces a server error\", async () => {\n  const fakeFetch = vi.fn().mockResolvedValue(new Response(\"\", { status: 500 }));\n  mountSignup(document.body, { fetch: fakeFetch });\n  const user = userEvent.setup();\n  await user.type(screen.getByLabelText(\"Email\"), \"asha@example.com\");\n  await user.keyboard(\"{Enter}\");                        // keyboard submission too.\n  expect(await screen.findByText(/try again/i)).toBeTruthy();\n});\n```\n\n| Prefer | Avoid |\n|---|---|\n| getByRole, getByLabelText, getByText. | class names, test-only ids everywhere. |\n| user.type, user.click, keyboard. | calling handlers directly. |\n| findBy (waits). | fixed sleeps. |\n| fake fetch per test. | real network. |\n\n```reveal\n{\"prompt\": \"What does findByText do that getByText doesn't?\", \"answer\": \"It retries until the text appears or a timeout passes, so async updates are awaited without guessing a delay.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "jsdom differs from browsers, implementation selectors are brittle, and async updates require observable waiting. This draft therefore rejects: Tests should select generated class names because they identify exact implementation nodes."
+        "heading": "Why not sleep?",
+        "body": "```predict\n{\"question\": \"A test waits `await new Promise(r => setTimeout(r, 1000))` before checking the status. Problem?\", \"options\": [\"No problem\", \"Slow on fast runs and flaky on slow ones; use findBy or waitFor\"], \"answer\": 1, \"why\": \"Wait for the condition, not the clock.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Test user-observable state, events, loading, failure and cancellation rather than implementation details.",
-      "Create deterministic tests for an accessible event and fetch workflow."
+      "Query by role, label and text and drive realistic user events.",
+      "Fake fetch to test success, failure and waiting states deterministically."
     ],
     "excludes": [
-      "jsdom differs from browsers, implementation selectors are brittle, and async updates require observable waiting."
+      "End-to-end browser tests with Playwright.",
+      "Visual regression testing."
     ]
   },
   "outcomes": [
@@ -73,133 +74,136 @@
   "examples": [
     {
       "id": "javascript.quality.dom-tests.example-a",
-      "title": "DOM and asynchronous integration tests: concrete case",
-      "situation": "A test submits by button role and waits for an accessible status message instead of reading internal state.",
+      "title": "Testing the sign-up like a learner",
+      "situation": "A test submits by button role and waits for an accessible status message instead of reading internal sign-up state.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A test submits by button role and waits for an accessible status message instead of reading internal state.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Query the interface as users perceive it and assert observable behavior, not generated classes or private state."
+        "**Query accessibly:** the test finds the email field by its label and the Join button by role and name.",
+        "**Act like a learner:** user.type and user.click fire real input and submit events, and a fake fetch returns 201.",
+        "**Wait for the status:** findByText(\"Account created.\") will wait for the live region instead of reading internal state."
       ],
-      "result": "The result follows because Query the interface as users perceive it and assert observable behavior, not generated classes or private state."
+      "result": "The test survives class renames, fails if the label or button name is lost, and proves the learner sees success."
     },
     {
       "id": "javascript.quality.dom-tests.example-b",
-      "title": "DOM and asynchronous integration tests: boundary case",
-      "situation": "jsdom differs from browsers, implementation selectors are brittle, and async updates require observable waiting.",
+      "title": "The stale-result test",
+      "situation": "A search test types \"arr\" then \"array\", but the fake fetch for \"arr\" resolves last, and nobody knows whether old results can appear.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: jsdom differs from browsers, implementation selectors are brittle, and async updates require observable waiting.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Tests should select generated class names because they identify exact implementation nodes."
+        "Create fake responses with promises the test resolves by hand.",
+        "Resolve the \"array\" response first, then the \"arr\" one.",
+        "Assert with findByText that only \"array\" results are shown, and that the arr request was aborted."
       ],
-      "result": "The boundary requires this correction: Query the interface as users perceive it and assert observable behavior, not generated classes or private state."
+      "result": "The test proves latest-request-wins behaviour, in the same order every run."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.quality.dom-tests.misconception",
       "mistakenBelief": "Tests should select generated class names because they identify exact implementation nodes.",
-      "correction": "Query the interface as users perceive it and assert observable behavior, not generated classes or private state.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: Tests should select generated class names because they identify exact implementation nodes."
+      "correction": "Generated class names change with styling and say nothing about what learners experience. Role, label and text queries test behaviour and accessibility, and keep passing through refactors.",
+      "diagnosticPrompt": "In \"Testing the sign-up like a learner\", how did the test find the Join button?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model DOM and asynchronous integration tests, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "A good DOM test is like **a mystery shopper**: they walk in, read the signs (labels), press the buttons they can see (roles), and note what they're told (status messages). They don't open the back office to read the stock system (internal state).",
     "usefulFor": [
-      "Building a first mental model for DOM and asynchronous integration tests before using exact platform terms"
+      "remembering test like a learner",
+      "fake fetch = a pretend supplier the shopper can control"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "jsdom differs from browsers, implementation selectors are brittle, and async updates require observable waiting."
+      "Shoppers can't pause time; tests control fake responses.",
+      "A missing sign fails the mystery shopper, just like a missing label fails getByLabelText."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A test submits by button role and waits for an accessible status message instead of reading internal state.",
-      "DOM tests should query by accessible role, name, label, or text and exercise realistic user events and state changes.",
-      "Query the interface as users perceive it and assert observable behavior, not generated classes or private state."
+      "getByLabelText('Email') and type",
+      "getByRole('button', { name: 'Join' }) and click",
+      "await findByText('Account created.')"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Query",
         "state": {
-          "evidence": "A test submits by button role and waits for an accessible status message instead of reading internal state."
+          "email field": "found by label",
+          "button": "found by role"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The test finds controls the way assistive technology does."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Act",
         "state": {
-          "rule": "DOM tests should query by accessible role, name, label, or text and exercise realistic user events and state changes."
+          "events": "input, click, submit",
+          "fakeFetch calls": "1"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The test submits by button role with realistic user events."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Wait",
         "state": {
-          "correction": "Query the interface as users perceive it and assert observable behavior, not generated classes or private state."
+          "status": "Account created.",
+          "internal state read": "none"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Tests should select generated class names because they identify exact implementation nodes."
+        "explanation": "It waits for an accessible status message instead of reading internal state."
       }
     ],
-    "textAlternative": "Starting artifact: A test submits by button role and waits for an accessible status message instead of reading internal state. Step 1, Artifact. State: evidence: A test submits by button role and waits for an accessible status message instead of reading internal state.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: DOM tests should query by accessible role, name, label, or text and exercise realistic user events and state changes.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Query the interface as users perceive it and assert observable behavior, not generated classes or private state.. Check the result against the boundary and reject this misconception: Tests should select generated class names because they identify exact implementation nodes."
+    "textAlternative": "Running an accessible DOM test. Step 1, Query: email field is found by label; button is found by role. The test finds controls the way assistive technology does. Step 2, Act: events is input, click, submit; fakeFetch calls is 1. The test submits by button role with realistic user events. Step 3, Wait: status is Account created.; internal state read is none. It waits for an accessible status message instead of reading internal state."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “DOM and asynchronous integration tests: concrete case”: state its starting evidence, apply the DOM and asynchronous integration tests rule, and give the observable result in three short lines.",
+      "prompt": "For \"Testing the sign-up like a learner\", explain how a test submits by button role and waits for an accessible status message instead of reading internal state.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Query.",
+        "Act.",
+        "Wait."
       ],
       "expectedEvidence": [
-        "Named example: DOM and asynchronous integration tests: concrete case.",
-        "Starting evidence: A test submits by button role and waits for an accessible status message instead of reading internal state.",
-        "Core rule: DOM tests should query by accessible role, name, label, or text and exercise realistic user events and state changes.",
-        "Observable result: The result follows because Query the interface as users perceive it and assert observable behavior, not generated classes or private state.",
-        "Boundary check: Query the interface as users perceive it and assert observable behavior, not generated classes or private state."
+        "Names the example \"Testing the sign-up like a learner\": the test submits by button role.",
+        "The email field is found by its label.",
+        "It waits for an accessible status message.",
+        "The test survives class renames and fails if the label is lost."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: jsdom differs from browsers, implementation selectors are brittle, and async updates require observable waiting.",
+      "prompt": "Write a test for a newsletter form: type an invalid email, press Enter, and assert the field has aria-invalid=\"true\", has focus, and an error text appears.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "getByLabelText, user.keyboard.",
+        "document.activeElement."
       ],
       "expectedEvidence": [
-        "DOM tests should query by accessible role, name, label, or text and exercise realistic user events and state changes.",
-        "jsdom differs from browsers, implementation selectors are brittle, and async updates require observable waiting."
+        "Three assertions on accessible state.",
+        "No class-name queries."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for DOM and asynchronous integration tests and explain why the misconception fails.",
+      "prompt": "Write DOM tests for a lesson search: success, empty results, server error, slow response with a loading message, and out-of-order responses. Use controlled fake fetches and only accessible queries.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Manually resolved promises.",
+        "findBy for every async assertion."
       ],
       "expectedEvidence": [
-        "Create deterministic tests for an accessible event and fetch workflow.",
-        "Query the interface as users perceive it and assert observable behavior, not generated classes or private state."
+        "Five deterministic tests.",
+        "Stale results never appear."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.quality.dom-tests.misconception",
-      "explanation": "Query the interface as users perceive it and assert observable behavior, not generated classes or private state.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'users perceive it' and state the decisive evidence."
+      "explanation": "Before each query ask: **Could a learner using a screen reader find this the same way?** Before each wait ask: **am I waiting for something the learner sees, or for a guessed time?**",
+      "retryPrompt": "Apply this to \"The stale-result test\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to create deterministic tests for an accessible event and fetch workflow. Keep this boundary in view: jsdom differs from browsers, implementation selectors are brittle, and async updates require observable waiting.",
+    "summary": "To create deterministic tests for an accessible event and fetch workflow, query by role, label and text, drive realistic typing, clicks and keyboard submission, inject a controlled fake fetch, and wait with findBy for visible or announced results instead of reading internal state or sleeping.",
     "retrievalPrompts": [
-      "Explain DOM and asynchronous integration tests using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: Tests should select generated class names because they identify exact implementation nodes.",
-      "Apply checkpoint 'users perceive it' to a new artifact."
+      "Why avoid class-name selectors?",
+      "What does findBy do?",
+      "How do you make fetch deterministic in a test?"
     ],
     "nextReviewPrompt": "Next: continue to “Modular browser application”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

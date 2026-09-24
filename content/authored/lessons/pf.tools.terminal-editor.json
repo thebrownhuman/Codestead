@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "An editor changes source files, a terminal runs commands in a working directory, and saving the file is a separate action from executing a named tool on it.",
+    "summary": "Your **editor** changes the text of source files. Your **terminal** runs commands from one **working directory**. They're separate: typing code doesn't run it, saving doesn't run it, and running uses whatever is **saved on disk** in the folder the terminal is in. The everyday loop is: edit → save → check folder → run → read output.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A learner saves main.py, confirms the terminal is in the project folder, runs python main.py, and distinguishes program output from source text. Your goal is to use a terminal simulator to navigate a project and run a named tool. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You fix a bug, run your program… and see the old bug. Frustrating! Usually the file wasn't saved, or the terminal was in a different folder. A reliable routine avoids this: a learner saves main.py, confirms the terminal is in the project folder, runs python main.py, and distinguishes program output from source text. In this lesson you'll use a terminal simulator to navigate a project and run a named tool.\n\n```predict\n{\"question\": \"You edit `main.py` but don't save, then run `python main.py`. What runs?\", \"options\": [\"Your new edits\", \"The last saved version\"], \"answer\": 1, \"why\": \"Python reads the file **from disk**. Unsaved edits exist only in the editor window.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Source-to-execution models; Examples and edge cases; Files, folders and paths. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Source-to-execution models**, **Examples and edge cases**, and **Files, folders and paths** — the terminal's working directory decides how file names resolve."
       },
       {
-        "heading": "Operational model",
-        "body": "An editor changes source files, a terminal runs commands in a working directory, and saving the file is a separate action from executing a named tool on it. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The model: editor writes files, terminal runs tools",
+        "body": "| Step | Where | Command or action |\n|---|---|---|\n| 1. Edit. | editor. | change the code. |\n| 2. Save. | editor. | Ctrl+S / Cmd+S. |\n| 3. Check folder. | terminal. | `pwd` (macOS/Linux) or `cd` (Windows). |\n| 4. Move if needed. | terminal. | `cd project`, then `ls` or `dir` to see files. |\n| 5. Run. | terminal. | `python main.py`. |\n\n```reveal\n{\"prompt\": \"The terminal says `can't open file 'main.py': No such file or directory`. First thing to check?\", \"answer\": \"The working directory. Run `pwd` and `ls` — main.py probably isn't in this folder. `cd` into the project and try again.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Shell syntax, PATH lookup, quoting, environment variables, permissions, and editor autosave behavior differ, so commands and active files must be verified explicitly. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Typing code in an editor automatically runs it, and every terminal starts in the folder containing the visible file."
+        "heading": "Output vs source",
+        "body": "```predict\n{\"question\": \"`main.py` contains `print(\\\"Hello\\\")`. After running it, the terminal shows:\", \"options\": [\"print(\\\"Hello\\\")\", \"Hello\"], \"answer\": 1, \"why\": \"The terminal shows what the program **produces**, not the code itself. The code lives in the file; the output is the result of running it.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Edit, save, navigate and run a supplied command without confusing source and output.",
-      "Use a terminal simulator to navigate a project and run a named tool."
+      "Follow the edit–save–check folder–run loop.",
+      "Navigate with pwd, ls/dir and cd, and run a named tool."
     ],
     "excludes": [
-      "Shell syntax, PATH lookup, quoting, environment variables, permissions, and editor autosave behavior differ, so commands and active files must be verified explicitly."
+      "Shell scripting.",
+      "Editor plugins and debuggers."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "pf.tools.terminal-editor.example-a",
-      "title": "Editor and terminal workflow: direct case",
+      "title": "Save, check folder, run",
       "situation": "A learner saves main.py, confirms the terminal is in the project folder, runs python main.py, and distinguishes program output from source text.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A learner saves main.py, confirms the terminal is in the project folder, runs python main.py, and distinguishes program output from source text.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Save intentionally, inspect the working directory and command, run the declared tool, and read its output or diagnostic as a separate workflow step."
+        "**Save:** the learner saves main.py in the editor so the edits reach the disk.",
+        "**Confirm the folder:** `pwd` shows the terminal is in the project folder, and `ls` lists main.py.",
+        "**Run and read:** `python main.py` prints `Hello`, which is program output, not the source text."
       ],
-      "result": "The case supports the declared outcome because Save intentionally, inspect the working directory and command, run the declared tool, and read its output or diagnostic as a separate workflow step."
+      "result": "The learner sees the new output from the saved file, run in the correct project folder."
     },
     {
       "id": "pf.tools.terminal-editor.example-b",
-      "title": "Editor and terminal workflow: boundary case",
-      "situation": "A command fails because the terminal remains in the parent folder; printing the working directory reveals the mismatch before any code change.",
+      "title": "The terminal in the wrong place",
+      "situation": "A learner opens a new terminal (it starts in the home folder) and types `python main.py`.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A command fails because the terminal remains in the parent folder; printing the working directory reveals the mismatch before any code change.",
-        "Step 2 — Keep this boundary explicit: Shell syntax, PATH lookup, quoting, environment variables, permissions, and editor autosave behavior differ, so commands and active files must be verified explicitly.",
-        "Step 3 — Reject the documented misconception: Typing code in an editor automatically runs it, and every terminal starts in the folder containing the visible file."
+        "Python looks for main.py in the home folder and fails with \"No such file or directory\".",
+        "`cd Desktop/project` moves to the folder holding main.py.",
+        "Running `python main.py` again works."
       ],
-      "result": "This case demonstrates the declared outcome: Use a terminal simulator to navigate a project and run a named tool."
+      "result": "After changing to the project folder, the named tool finds and runs main.py."
     }
   ],
   "misconceptions": [
     {
       "id": "pf.tools.terminal-editor.misconception",
       "mistakenBelief": "Typing code in an editor automatically runs it, and every terminal starts in the folder containing the visible file.",
-      "correction": "Save intentionally, inspect the working directory and command, run the declared tool, and read its output or diagnostic as a separate workflow step.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Typing code in an editor automatically runs it, and every terminal starts in the folder containing the visible file."
+      "correction": "The editor only changes files; you must save and then run a tool in the terminal. A terminal starts in its own working directory — often your home folder — so check it with pwd and cd before running.",
+      "diagnosticPrompt": "In \"The terminal in the wrong place\", why did the first run fail?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A repair bench can model Editor and terminal workflow: identify the correct part, use a named tool, read the first reliable symptom, test one cause, and verify the repair.",
+    "example": "The editor is a **notepad** where you write a recipe; saving puts it in the recipe box. The terminal is the **cook**, who stands in one kitchen and only reads recipes from that kitchen's box.",
     "usefulFor": [
-      "Building a careful inspect, edit, run, diagnose, and verify workflow"
+      "remembering save is a separate step",
+      "seeing the working directory as \"which kitchen\""
     ],
     "limitations": [
-      "Software tools have shell parsing, filesystem, runtime, and diagnostic rules that physical tools do not share.",
-      "Shell syntax, PATH lookup, quoting, environment variables, permissions, and editor autosave behavior differ, so commands and active files must be verified explicitly."
+      "Many editors have a built-in terminal, but it's still a separate tool.",
+      "Some editors auto-save; don't rely on it without checking."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A learner saves main.py, confirms the terminal is in the project folder, runs python main.py, and distinguishes program output from source text.",
-      "An editor changes source files, a terminal runs commands in a working directory, and saving the file is a separate action from executing a named tool on it.",
-      "Save intentionally, inspect the working directory and command, run the declared tool, and read its output or diagnostic as a separate workflow step."
+      "(editor) save main.py",
+      "(terminal) pwd → /home/asha",
+      "(terminal) cd project; python main.py"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Saved",
         "state": {
-          "evidence": "A learner saves main.py, confirms the terminal is in the project folder, runs python main.py, and distinguishes program output from source text."
+          "main.py on disk": "latest version"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "Saving writes the edited main.py to the disk."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Wrong folder",
         "state": {
-          "model": "An editor changes source files, a terminal runs commands in a working directory, and saving the file is a separate action from executing a named tool on it."
+          "cwd": "/home/asha",
+          "main.py found": "no"
         },
-        "explanation": "Apply the declared Editor and terminal workflow model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "The terminal is not yet in the project folder, so main.py isn't found there."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Run",
         "state": {
-          "correction": "Save intentionally, inspect the working directory and command, run the declared tool, and read its output or diagnostic as a separate workflow step."
+          "cwd": "/home/asha/project",
+          "output": "Hello"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Typing code in an editor automatically runs it, and every terminal starts in the folder containing the visible file."
+        "explanation": "After cd, running python main.py prints the program output."
       }
     ],
-    "textAlternative": "Starting artifact: A learner saves main.py, confirms the terminal is in the project folder, runs python main.py, and distinguishes program output from source text. Step 1, Observe. State: evidence: A learner saves main.py, confirms the terminal is in the project folder, runs python main.py, and distinguishes program output from source text.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: An editor changes source files, a terminal runs commands in a working directory, and saving the file is a separate action from executing a named tool on it.. Apply the declared Editor and terminal workflow model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Save intentionally, inspect the working directory and command, run the declared tool, and read its output or diagnostic as a separate workflow step.. Compare the observation with the correction and reject the misconception: Typing code in an editor automatically runs it, and every terminal starts in the folder containing the visible file."
+    "textAlternative": "The edit, save, navigate and run loop. Step 1, Saved: main.py on disk is latest version. Saving writes the edited main.py to the disk. Step 2, Wrong folder: cwd is /home/asha; main.py found is no. The terminal is not yet in the project folder, so main.py isn't found there. Step 3, Run: cwd is /home/asha/project; output is Hello. After cd, running python main.py prints the program output."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Editor and terminal workflow: direct case”: state its starting evidence, apply the Editor and terminal workflow rule, and give the observable result in three short lines.",
+      "prompt": "For \"Save, check folder, run\", describe the three steps: saving main.py, confirming the terminal is in the project folder, and running python main.py — and what counts as program output.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Save.",
+        "Check folder.",
+        "Run and read."
       ],
       "expectedEvidence": [
-        "Named example: Editor and terminal workflow: direct case.",
-        "Starting evidence: A learner saves main.py, confirms the terminal is in the project folder, runs python main.py, and distinguishes program output from source text.",
-        "Core rule: An editor changes source files, a terminal runs commands in a working directory, and saving the file is a separate action from executing a named tool on it.",
-        "Observable result: The case supports the declared outcome because Save intentionally, inspect the working directory and command, run the declared tool, and read its output or diagnostic as a separate workflow step.",
-        "Boundary check: Save intentionally, inspect the working directory and command, run the declared tool, and read its output or diagnostic as a separate workflow step."
+        "Names the example \"Save, check folder, run\": the learner saves main.py.",
+        "Confirms with pwd that the terminal is in the project folder.",
+        "Runs python main.py.",
+        "Distinguishes program output like Hello from source text."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A command fails because the terminal remains in the parent folder; printing the working directory reveals the mismatch before any code change.",
+      "prompt": "Your terminal is in `/home/asha` and your file is `/home/asha/code/app/run.py`. Write the commands to get there, list the files, and run it.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Use cd with a relative path.",
+        "Then list and run."
       ],
       "expectedEvidence": [
-        "An editor changes source files, a terminal runs commands in a working directory, and saving the file is a separate action from executing a named tool on it.",
-        "Shell syntax, PATH lookup, quoting, environment variables, permissions, and editor autosave behavior differ, so commands and active files must be verified explicitly."
+        "`cd code/app`, then `ls`.",
+        "`python run.py`."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Editor and terminal workflow, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Create a folder with two Python files. From a terminal, navigate to it, run each one, then edit one, run it again **without** saving, and explain what you see.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Use pwd, ls, cd.",
+        "Note which version ran."
       ],
       "expectedEvidence": [
-        "Use a terminal simulator to navigate a project and run a named tool.",
-        "Save intentionally, inspect the working directory and command, run the declared tool, and read its output or diagnostic as a separate workflow step."
+        "Correct navigation and runs.",
+        "Explains that the unsaved edit didn't run because Python read the saved file."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "pf.tools.terminal-editor.misconception",
-      "explanation": "Save intentionally, inspect the working directory and command, run the declared tool, and read its output or diagnostic as a separate workflow step.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A command fails because the terminal remains in the parent folder; printing the working directory reveals the mismatch before any code change."
+      "explanation": "Before every run, say the checklist out loud: **\"Saved? Folder? Command?\"** Use `pwd` and `ls` to answer the folder question.",
+      "retryPrompt": "Use the checklist on \"The terminal in the wrong place\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to use a terminal simulator to navigate a project and run a named tool. Keep this boundary in view: Shell syntax, PATH lookup, quoting, environment variables, permissions, and editor autosave behavior differ, so commands and active files must be verified explicitly.",
+    "summary": "To navigate a project and run a named tool, save your file in the editor, confirm the terminal's working directory with pwd and ls, cd into the project if needed, then run the command and read its output. Editing and running are separate steps.",
     "retrievalPrompts": [
-      "Explain Editor and terminal workflow without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Typing code in an editor automatically runs it, and every terminal starts in the folder containing the visible file.",
-      "Apply the model to this case from memory: A command fails because the terminal remains in the parent folder; printing the working directory reveals the mismatch before any code change."
+      "What runs if you forget to save?",
+      "How do you check the terminal's folder?",
+      "What's the difference between source text and program output?"
     ],
     "nextReviewPrompt": "Next: continue to “Error categories and messages”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

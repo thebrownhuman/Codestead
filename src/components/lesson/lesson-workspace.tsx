@@ -2,7 +2,6 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { createPortal } from "react-dom";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -19,16 +18,16 @@ import {
   Lightbulb,
   ListChecks,
   LoaderCircle,
+  PanelLeftClose,
+  PanelLeftOpen,
   Pause,
   Play,
   RotateCcw,
-  Send,
   Sparkles,
   StepForward,
   TerminalSquare,
-  X,
 } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 import type {
   AtomicSkill,
@@ -52,6 +51,8 @@ import { ModalDialog } from "@/components/ui/modal-dialog";
 import { DeterministicLogicGame } from "./deterministic-logic-game";
 import { InteractiveLessonFlow } from "./interactive-lesson-flow";
 import { PracticePanel } from "./practice-panel";
+import { useRegisterTutorLesson } from "./tutor-context";
+import { LessonInline, LessonProse } from "./lesson-prose";
 import styles from "./lesson-workspace.module.css";
 
 const MonacoEditor = dynamic(() => import("./self-hosted-monaco-editor"), {
@@ -148,15 +149,15 @@ function blockSummary(block: LessonBlueprintBlock) {
 }
 
 function LessonBlock({ block }: { block: LessonBlueprintBlock }) {
-  if (block.kind === "objective") return <><p className={styles.lead}>By the end of this lesson, you should be able to:</p><ul className={styles.outcomes}>{block.outcomes.map((item) => <li key={item}><CheckCircle2 size={17} /> {item}</li>)}</ul><div className={styles.evidence}><span>Evidence we will look for</span>{block.evidenceTypes.map((item) => <i key={item}>{item}</i>)}</div></>;
+  if (block.kind === "objective") return <><p className={styles.lead}>By the end of this lesson, you should be able to:</p><ul className={styles.outcomes}>{block.outcomes.map((item) => <li key={item}><CheckCircle2 size={17} /> {item}</li>)}</ul><div className={styles.evidence}><span>Evidence we will look for</span>{block.evidenceTypes.map((item) => <i key={item}><LessonInline>{item}</LessonInline></i>)}</div></>;
   if (block.kind === "mental-model") return <><div className={styles.callout}><Lightbulb size={21} /><div><strong>The plain-language anchor</strong><p>{block.plainLanguageSeed}</p></div></div><p>{block.authorPrompt}</p><div className={styles.termRow}>{block.canonicalTerms.map((term) => <span key={term}>{term}</span>)}</div></>;
   if (block.kind === "source-linked-explanation-seed") return <><p className={styles.lead}>{block.seed}</p><p>This definition is intentionally short in the offline blueprint. Codestead may elaborate from this bounded source context, but cannot change the official skill or grading rule.</p><div className={styles.sourceList}>{block.sources.map((source) => <a href={source.url} key={source.id} target="_blank" rel="noreferrer"><ExternalLink size={14} /><span><strong>{source.title}</strong><small>{source.versionOrDate}</small></span></a>)}</div></>;
-  if (block.kind === "worked-example-specification") { const spec = block.specification; return <><p className={styles.lead}>{spec.goal}</p><div className={styles.exampleGrid}><div><span>Start from</span><p>{spec.startingState}</p></div><div><span>Build</span><p>{spec.artifactType}</p></div></div><ol className={styles.steps}>{spec.requiredSteps.map((item) => <li key={item}>{item}</li>)}</ol><h3>Verification gate</h3><ul>{spec.validationRequirements.map((item) => <li key={item}>{item}</li>)}</ul></>; }
-  if (block.kind === "misconception-prompts") return <><p className={styles.lead}>Before moving on, test these tempting assumptions.</p><div className={styles.misconceptions}>{block.prompts.map((prompt, index) => <details key={prompt}><summary><span>{index + 1}</span>{prompt}</summary><p>Write a prediction, then use a trace or a minimal run to confirm it. The application records the evidence; an AI guess never becomes mastery.</p></details>)}</div></>;
-  if ("mode" in block) return <><div className={styles.activityHeader}><span>{block.mode}</span><i>{block.applicability}</i></div><p className={styles.lead}>{block.promptSeed}</p><h3>What counts as evidence</h3><ul>{block.acceptanceSignals.map((item) => <li key={item}>{item}</li>)}</ul>{block.neutralContextRequired && <p className={styles.callout}><Sparkles size={18} /> This transfer check removes the hobby analogy so we know the concept—not the story—was learned.</p>}</>;
+  if (block.kind === "worked-example-specification") { const spec = block.specification; return <><p className={styles.lead}>{spec.goal}</p><div className={styles.exampleGrid}><div><span>Start from</span><p>{spec.startingState}</p></div><div><span>Build</span><p>{spec.artifactType}</p></div></div><ol className={styles.steps}>{spec.requiredSteps.map((item) => <li key={item}><LessonInline>{item}</LessonInline></li>)}</ol><h3>Verification gate</h3><ul>{spec.validationRequirements.map((item) => <li key={item}><LessonInline>{item}</LessonInline></li>)}</ul></>; }
+  if (block.kind === "misconception-prompts") return <><p className={styles.lead}>Before moving on, test these tempting assumptions.</p><div className={styles.misconceptions}>{block.prompts.map((prompt, index) => <details key={prompt}><summary><span>{index + 1}</span><LessonInline>{prompt}</LessonInline></summary><p>Write a prediction, then use a trace or a minimal run to confirm it. The application records the evidence; an AI guess never becomes mastery.</p></details>)}</div></>;
+  if ("mode" in block) return <><div className={styles.activityHeader}><span>{block.mode}</span><i>{block.applicability}</i></div><p className={styles.lead}>{block.promptSeed}</p><h3>What counts as evidence</h3><ul>{block.acceptanceSignals.map((item) => <li key={item}><LessonInline>{item}</LessonInline></li>)}</ul>{block.neutralContextRequired && <p className={styles.callout}><Sparkles size={18} /> This transfer check removes the hobby analogy so we know the concept—not the story—was learned.</p>}</>;
   if (block.kind === "analogy-slot") return <><div className={styles.callout}><Sparkles size={20} /><div><strong>Analogy is optional</strong><p>The canonical lesson must stand alone. If you enabled interests, Codestead can offer one analogy, explain where it breaks, and ask you to confirm it helps.</p></div></div><button className="button button-secondary" type="button">Use my confirmed interests</button></>;
-  if (block.kind === "recap") return <><p className={styles.lead}>Close the lesson without looking back first.</p><div className={styles.recap}>{block.prompts.map((prompt) => <label key={prompt}><span>{prompt}</span><textarea placeholder="Explain in your own words…" /></label>)}</div></>;
-  if (block.kind === "accessibility-text") return <><p className={styles.lead}>{block.textAlternativeSeed}</p><ul>{block.requirements.map((item) => <li key={item}>{item}</li>)}</ul></>;
+  if (block.kind === "recap") return <><p className={styles.lead}>Close the lesson without looking back first.</p><div className={styles.recap}>{block.prompts.map((prompt) => <label key={prompt}><span><LessonInline>{prompt}</LessonInline></span><textarea placeholder="Explain in your own words…" /></label>)}</div></>;
+  if (block.kind === "accessibility-text") return <><p className={styles.lead}>{block.textAlternativeSeed}</p><ul>{block.requirements.map((item) => <li key={item}><LessonInline>{item}</LessonInline></li>)}</ul></>;
   return null;
 }
 
@@ -811,181 +812,38 @@ function DraftSyncNotice({
   </div>;
 }
 
-function MentorPet({ state }: { state: "ready" | "thinking" }) {
-  return <div
-    aria-hidden="true"
-    className={styles.mentorPet}
-    data-state={state}
-    data-testid="codestead-mentor-pet"
-  >
-    <svg viewBox="0 0 80 80">
-      <circle className={styles.petOrbit} cx="40" cy="39" r="31" />
-      <ellipse className={styles.petShadow} cx="40" cy="69" rx="18" ry="4" />
-      <g className={styles.petCharacter}>
-        <path className={styles.petStem} d="M40 24V17" />
-        <path className={styles.petLeaf} d="M40 18c1-8 8-10 13-8-1 7-6 11-13 8Z" />
-        <path className={styles.petLeaf} d="M40 20c-1-6-6-9-11-7 1 6 5 9 11 7Z" />
-        <rect className={styles.petBody} height="39" rx="17" width="48" x="16" y="24" />
-        <rect className={styles.petFace} height="23" rx="10" width="36" x="22" y="32" />
-        <g className={styles.petEyes}>
-          <ellipse cx="32" cy="42" rx="2.4" ry="3.2" />
-          <ellipse cx="48" cy="42" rx="2.4" ry="3.2" />
-        </g>
-        <path className={styles.petSmile} d="M35 48c3 3 7 3 10 0" />
-        <path className={styles.petArm} d="M16 42c-5 1-6 5-4 8" />
-        <path className={styles.petArm} d="M64 42c5 1 6 5 4 8" />
-        <path className={styles.petFoot} d="M27 62v4m26-4v4" />
-      </g>
-    </svg>
-  </div>;
-}
-
-const mentorStarterPrompts = [
-  { label: "Explain with an analogy", prompt: "Explain this skill with a simple everyday analogy." },
-  { label: "Show a tiny example", prompt: "Show me one tiny example, then ask me what it does." },
-  { label: "Quiz me gently", prompt: "Quiz me with one beginner-friendly question about this skill." },
-] as const;
-
-function TutorPanel({ courseId, skillId, skillTitle, onClose }: { courseId: string; skillId: string; skillTitle: string; onClose: () => void }) {
-  const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<Array<{ id: string; role: "user" | "assistant"; content: string }>>([]);
-  const [busy, setBusy] = useState(false);
-  const [threadId, setThreadId] = useState<string | null>(null);
-  const messageListRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const list = messageListRef.current;
-    if (list) list.scrollTop = list.scrollHeight;
-  }, [messages, busy]);
-
-  async function send() {
-    const text = message.trim();
-    if (!text || busy) return;
-
-    const requestId = crypto.randomUUID();
-    const userMessageId = `user-${requestId}`;
-    const requestInit: RequestInit = {
-      method: "POST",
-      headers: { "content-type": "application/json", accept: "application/json" },
-      body: JSON.stringify({
-        requestId,
-        courseId,
-        skillId,
-        message: text,
-        ...(threadId ? { threadId } : {}),
-      }),
-    };
-
-    setMessage("");
-    setMessages((items) => [...items, { id: userMessageId, role: "user", content: text }]);
-    setBusy(true);
-    try {
-      let response: Response;
-      try {
-        response = await fetch("/api/ai/tutor", requestInit);
-      } catch {
-        // A provider call may have committed before its response was lost.
-        // Reusing the exact request ID makes this one retry replay-safe.
-        response = await fetch("/api/ai/tutor", requestInit);
-      }
-      const body = await response.json().catch(() => ({})) as {
-        acceptedMessage?: string;
-        callId?: string;
-        content?: string;
-        error?: string;
-        threadId?: string;
-      };
-      if (!response.ok || !body.content || !body.threadId) {
-        throw new Error(body.error ?? "Codestead is unavailable; the authored lesson and practice still work.");
-      }
-      const assistantContent = body.content;
-      setThreadId(body.threadId);
-      setMessages((items) => [
-        ...items.map((item) => item.id === userMessageId && body.acceptedMessage
-          ? { ...item, content: body.acceptedMessage }
-          : item),
-        {
-          id: body.callId ? `assistant-${body.callId}` : `assistant-${requestId}`,
-          role: "assistant",
-          content: assistantContent,
-        },
-      ]);
-    } catch (cause) {
-      setMessages((items) => [...items, {
-        id: `error-${requestId}`,
-        role: "assistant",
-        content: cause instanceof Error
-          ? cause.message
-          : "Codestead is offline right now. Keep going with the authored lesson, visualizer, or practice.",
-      }]);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return createPortal(<div
-    aria-labelledby="lesson-buddy-title"
-    className={styles.tutorPanel}
-    id="lesson-buddy-tutor"
-    onKeyDown={(event) => { if (event.key === "Escape") onClose(); }}
-    role="dialog"
-  >
-    <div className={styles.tutorHead}>
-      <div className={styles.mentorIdentity}>
-        <MentorPet state={busy ? "thinking" : "ready"} />
-        <span>
-          <strong id="lesson-buddy-title">Codestead mentor</strong>
-          <small aria-live="polite" className={styles.petStatus} role="status"><i />{busy ? "Patch is thinking" : "Patch is ready"}</small>
-        </span>
-      </div>
-      <button aria-label="Close tutor" onClick={onClose} type="button"><X size={18} /></button>
-    </div>
-    {messages.length === 0 && !busy && <section className={styles.mentorWelcome}>
-      <span className={styles.mentorEyebrow}><Sparkles aria-hidden="true" size={14} /> Learning sidekick</span>
-      <h2>What should we untangle?</h2>
-      <p>I know you are working on <strong>{skillTitle}</strong>. Pick a starting point or ask in your own words.</p>
-      <div aria-label="Starter prompts" className={styles.mentorPrompts}>
-        {mentorStarterPrompts.map((starter) => <button key={starter.label} onClick={() => setMessage(starter.prompt)} type="button">{starter.label}</button>)}
-      </div>
-    </section>}
-    {(messages.length > 0 || busy) && <div aria-busy={busy} aria-live="polite" className={styles.chatMessages} ref={messageListRef} role="log">
-      {messages.map((item) => <div className={item.role === "user" ? styles.userMessage : styles.aiMessage} key={item.id}>{item.content}</div>)}
-      {busy && <div className={`${styles.aiMessage} ${styles.thinkingMessage}`}><span>Thinking from this skill</span><i /><i /><i /></div>}
-    </div>}
-    <form className={styles.chatInput} onSubmit={(event) => { event.preventDefault(); void send(); }}>
-      <textarea aria-label="Message Codestead" autoFocus disabled={busy} placeholder="Ask Patch about this skill…" rows={1} value={message} onChange={(event) => setMessage(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }} />
-      <button aria-label="Send message" disabled={busy || !message.trim()} type="submit">{busy ? <LoaderCircle aria-hidden="true" className={styles.sendSpinner} size={18} /> : <Send aria-hidden="true" size={17} />}</button>
-    </form>
-    <p className={styles.mentorPrivacy}><span aria-hidden="true">✦</span> Lesson context only. Hidden tests and keys stay private.</p>
-  </div>, document.body);
-}
-
-export function AuthoredLessonCard({ lesson }: { lesson: AuthoredLesson }) {
-  const reviewLabel = lesson.publication.reviewer
-    ? `Human-reviewed by ${lesson.publication.reviewer.displayName}`
-    : "No human editorial review yet";
+export function AuthoredLessonCard({ lesson, publishedStage }: { lesson: AuthoredLesson; publishedStage?: "beta" | "verified" }) {
+  // The file records how the text was authored; publishedStage is what the owner
+  // actually published, which is what learners should see first.
+  const reviewLabel = publishedStage === "verified"
+    ? "Reviewed by the course owner and published as verified"
+    : lesson.publication.reviewer
+      ? `Human-reviewed by ${lesson.publication.reviewer.displayName}`
+      : "No human editorial review yet";
+  const stageLabel = publishedStage ?? `${lesson.publication.stage.replace("-", " ")} preview`;
   return <article className={styles.lessonCard} data-testid="authored-lesson">
-    <div className={styles.provenanceBanner} role="status">
+    {/* Published lessons show no status banner (owner preference); drafts keep the warning. */}
+    {!publishedStage && <div className={styles.provenanceBanner} role="status">
       <ListChecks size={18} />
       <span>
-        <strong>{lesson.publication.stage.replace("-", " ")} preview · {lesson.publication.aiAssisted ? "AI-assisted draft" : "human-authored"}</strong>
+        <strong>{stageLabel} · {lesson.publication.aiAssisted ? (publishedStage ? "AI-assisted" : "AI-assisted draft") : "human-authored"}</strong>
         <small>{reviewLabel}. This status is provenance, not a mastery or accuracy claim.</small>
       </span>
-    </div>
+    </div>}
     <h1>{lesson.title}</h1>
-    <p className={styles.lead}>{lesson.canonicalExplanation.summary}</p>
+    <div className={styles.lead}><LessonProse>{lesson.canonicalExplanation.summary}</LessonProse></div>
     <InteractiveLessonFlow key={lesson.id} lesson={lesson} />
     <details className={styles.referenceDisclosure}>
       <summary>Open the complete reading reference</summary>
-    <section aria-labelledby="reference-canonical-explanation"><h2 id="reference-canonical-explanation">Canonical explanation</h2>{lesson.canonicalExplanation.sections.map((section) => <div key={section.heading}><h3>{section.heading}</h3><p>{section.body}</p></div>)}</section>
-    <section className={styles.scopeGrid} aria-labelledby="reference-lesson-boundaries"><h2 id="reference-lesson-boundaries">Lesson boundaries</h2><div><h3>In scope</h3><ul>{lesson.scope.includes.map((item) => <li key={item}>{item}</li>)}</ul></div><div><h3>Not in scope</h3><ul>{lesson.scope.excludes.map((item) => <li key={item}>{item}</li>)}</ul></div></section>
-    <section aria-labelledby="reference-worked-examples"><h2 id="reference-worked-examples">Worked examples</h2><div className={styles.authoredExamples}>{lesson.examples.map((example) => <article key={example.id}><h3>{example.title}</h3><p>{example.situation}</p><ol>{example.walkthrough.map((step) => <li key={step}>{step}</li>)}</ol><strong>{example.result}</strong></article>)}</div></section>
-    <section aria-labelledby="reference-trace"><h2 id="reference-trace">Trace and text alternative</h2><pre className={styles.traceArtifact}>{lesson.trace.artifact.join("\n")}</pre><ol className={styles.traceSteps}>{lesson.trace.steps.map((step) => <li key={step.step}><strong>{step.step}. {step.focus}</strong><code>{Object.entries(step.state).map(([name, value]) => `${name}=${value}`).join(" · ")}</code><p>{step.explanation}</p></li>)}</ol><div className={styles.callout}><BookOpen size={18} /><div><strong>Linear text alternative</strong><p>{lesson.trace.textAlternative}</p></div></div></section>
-    <section aria-labelledby="reference-misconceptions"><h2 id="reference-misconceptions">Misconceptions and correction</h2><div className={styles.misconceptions}>{lesson.misconceptions.map((item) => <details key={item.id}><summary>{item.mistakenBelief}</summary><p><strong>Correction:</strong> {item.correction}</p><p><strong>Check:</strong> {item.diagnosticPrompt}</p></details>)}</div></section>
-    <section aria-labelledby="reference-analogy-limits"><h2 id="reference-analogy-limits">Optional analogy and its limits</h2><div className={styles.callout}><Sparkles size={18} /><div><p>{lesson.analogy.example}</p><strong>Where it stops helping</strong><ul>{lesson.analogy.limitations.map((limit) => <li key={limit}>{limit}</li>)}</ul></div></div></section>
-    <section aria-labelledby="reference-transfer-practice"><h2 id="reference-transfer-practice">Practice for transfer</h2><div className={styles.practiceGrid}>{([ ["Faded", lesson.practice.faded], ["Near transfer", lesson.practice.nearTransfer], ["Far transfer", lesson.practice.farTransfer] ] as const).map(([label, practice]) => <article key={label}><span>{label}</span><p>{practice.prompt}</p><h3>Scaffold</h3><ul>{practice.scaffold.map((item) => <li key={item}>{item}</li>)}</ul><h3>Evidence</h3><ul>{practice.expectedEvidence.map((item) => <li key={item}>{item}</li>)}</ul></article>)}</div></section>
-    <section aria-labelledby="reference-remediation"><h2 id="reference-remediation">Targeted remediation</h2>{lesson.remediation.map((branch) => <div className={styles.remediationCard} key={branch.misconceptionId}><p>{branch.explanation}</p><strong>Retry: {branch.retryPrompt}</strong></div>)}</section>
-    <section aria-labelledby="reference-recap"><h2 id="reference-recap">Recap and retrieval</h2><p>{lesson.recap.summary}</p><ul>{lesson.recap.retrievalPrompts.map((prompt) => <li key={prompt}>{prompt}</li>)}</ul><p><strong>Delayed review:</strong> {lesson.recap.nextReviewPrompt}</p></section>
+    <section aria-labelledby="reference-canonical-explanation"><h2 id="reference-canonical-explanation">Canonical explanation</h2>{lesson.canonicalExplanation.sections.map((section) => <div key={section.heading}><h3>{section.heading}</h3><LessonProse>{section.body}</LessonProse></div>)}</section>
+    <section className={styles.scopeGrid} aria-labelledby="reference-lesson-boundaries"><h2 id="reference-lesson-boundaries">Lesson boundaries</h2><div><h3>In scope</h3><ul>{lesson.scope.includes.map((item) => <li key={item}><LessonInline>{item}</LessonInline></li>)}</ul></div><div><h3>Not in scope</h3><ul>{lesson.scope.excludes.map((item) => <li key={item}><LessonInline>{item}</LessonInline></li>)}</ul></div></section>
+    <section aria-labelledby="reference-worked-examples"><h2 id="reference-worked-examples">Worked examples</h2><div className={styles.authoredExamples}>{lesson.examples.map((example) => <article key={example.id}><h3>{example.title}</h3><LessonProse>{example.situation}</LessonProse><ol>{example.walkthrough.map((step) => <li key={step}><LessonInline>{step}</LessonInline></li>)}</ol><strong><LessonInline>{example.result}</LessonInline></strong></article>)}</div></section>
+    <section aria-labelledby="reference-trace"><h2 id="reference-trace">Trace and text alternative</h2><pre className={styles.traceArtifact}>{lesson.trace.artifact.join("\n")}</pre><ol className={styles.traceSteps}>{lesson.trace.steps.map((step) => <li key={step.step}><strong>{step.step}. {step.focus}</strong><code>{Object.entries(step.state).map(([name, value]) => `${name}=${value}`).join(" · ")}</code><LessonProse>{step.explanation}</LessonProse></li>)}</ol><div className={styles.callout}><BookOpen size={18} /><div><strong>Linear text alternative</strong><p>{lesson.trace.textAlternative}</p></div></div></section>
+    <section aria-labelledby="reference-misconceptions"><h2 id="reference-misconceptions">Misconceptions and correction</h2><div className={styles.misconceptions}>{lesson.misconceptions.map((item) => <details key={item.id}><summary><LessonInline>{item.mistakenBelief}</LessonInline></summary><p><strong>Correction:</strong> <LessonInline>{item.correction}</LessonInline></p><p><strong>Check:</strong> <LessonInline>{item.diagnosticPrompt}</LessonInline></p></details>)}</div></section>
+    <section aria-labelledby="reference-analogy-limits"><h2 id="reference-analogy-limits">Optional analogy and its limits</h2><div className={styles.callout}><Sparkles size={18} /><div><LessonProse>{lesson.analogy.example}</LessonProse><strong>Where it stops helping</strong><ul>{lesson.analogy.limitations.map((limit) => <li key={limit}><LessonInline>{limit}</LessonInline></li>)}</ul></div></div></section>
+    <section aria-labelledby="reference-transfer-practice"><h2 id="reference-transfer-practice">Practice for transfer</h2><div className={styles.practiceGrid}>{([ ["Faded", lesson.practice.faded], ["Near transfer", lesson.practice.nearTransfer], ["Far transfer", lesson.practice.farTransfer] ] as const).map(([label, practice]) => <article key={label}><span>{label}</span><LessonProse>{practice.prompt}</LessonProse><h3>Scaffold</h3><ul>{practice.scaffold.map((item) => <li key={item}><LessonInline>{item}</LessonInline></li>)}</ul><h3>Evidence</h3><ul>{practice.expectedEvidence.map((item) => <li key={item}><LessonInline>{item}</LessonInline></li>)}</ul></article>)}</div></section>
+    <section aria-labelledby="reference-remediation"><h2 id="reference-remediation">Targeted remediation</h2>{lesson.remediation.map((branch) => <div className={styles.remediationCard} key={branch.misconceptionId}><LessonProse>{branch.explanation}</LessonProse><strong>Retry: <LessonInline>{branch.retryPrompt}</LessonInline></strong></div>)}</section>
+    <section aria-labelledby="reference-recap"><h2 id="reference-recap">Recap and retrieval</h2><LessonProse>{lesson.recap.summary}</LessonProse><ul>{lesson.recap.retrievalPrompts.map((prompt) => <li key={prompt}><LessonInline>{prompt}</LessonInline></li>)}</ul><p><strong>Delayed review:</strong> <LessonInline>{lesson.recap.nextReviewPrompt}</LessonInline></p></section>
     <section aria-labelledby="reference-source-provenance"><h2 id="reference-source-provenance">Source provenance</h2><div className={styles.sourceList}>{lesson.sources.map((source) => <div key={`${source.sourceRef}:${source.locator}`}><strong>{source.sourceRef}</strong><small>{source.locator}</small><p>{source.claim}</p></div>)}</div></section>
     </details>
   </article>;
@@ -1001,6 +859,8 @@ export type LessonWorkspaceProps = {
   dsaRunnerLanguage?: DsaParityLanguage;
   previousHref?: string;
   nextHref?: string;
+  /** Stage the course is actually published at (database), when published. */
+  publishedStage?: "beta" | "verified";
 };
 
 type LearningMode = "lesson" | "practice" | "code" | "visual" | "game";
@@ -1081,27 +941,78 @@ export function DsaLanguageRequired() {
   </div>;
 }
 
-function AuthoredLessonWorkspace({ authoredLesson, assessmentBank, blueprint, skill, courseTitle, moduleTitle, dsaRunnerLanguage, previousHref, nextHref }: LessonWorkspaceProps & { authoredLesson: AuthoredLesson }) {
+const OUTLINE_COLLAPSED_KEY = "codestead.lesson-outline-collapsed";
+const LESSON_OUTLINE = [
+  { id: "canonical-explanation", label: "Explanation" },
+  { id: "worked-examples", label: "Worked examples" },
+  { id: "trace", label: "Trace" },
+  { id: "misconceptions", label: "Misconceptions" },
+  { id: "transfer-practice", label: "Transfer practice" },
+  { id: "remediation", label: "Remediation" },
+  { id: "recap", label: "Recap" },
+  { id: "source-provenance", label: "Sources" },
+] as const;
+
+function AuthoredLessonWorkspace({ authoredLesson, assessmentBank, blueprint, skill, courseTitle, moduleTitle, dsaRunnerLanguage, previousHref, nextHref, publishedStage }: LessonWorkspaceProps & { authoredLesson: AuthoredLesson }) {
   const [mode, setMode] = useState<LearningMode>("lesson");
-  const [tutor, setTutor] = useState(false);
-  const tutorTriggerRef = useRef<HTMLButtonElement>(null);
-  const closeTutor = () => { setTutor(false); tutorTriggerRef.current?.focus(); };
-  return <div className={`${styles.workspace} ${tutor ? styles.withTutor : ""}`}>
+  const [outlineOpen, setOutlineOpen] = useState(true);
+  // Like the app sidebar: right after collapsing, stay collapsed until the pointer leaves.
+  const [outlineHoverSuppressed, setOutlineHoverSuppressed] = useState(false);
+  const [activeSection, setActiveSection] = useState<string>(LESSON_OUTLINE[0]!.id);
+
+  useEffect(() => {
+    try {
+      // Read after mount on purpose: localStorage is unavailable during the server render.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (window.localStorage.getItem(OUTLINE_COLLAPSED_KEY) === "true") setOutlineOpen(false);
+    } catch {
+      // Storage may be unavailable; the outline then starts open.
+    }
+  }, []);
+
+  // Highlight the outline entry for the section currently in view.
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries.filter((entry) => entry.isIntersecting)
+        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+      if (visible) setActiveSection(visible.target.id);
+    }, { rootMargin: "-20% 0px -60% 0px" });
+    for (const { id } of LESSON_OUTLINE) {
+      const element = document.getElementById(id);
+      if (element) observer.observe(element);
+    }
+    return () => observer.disconnect();
+  }, [mode]);
+
+  function toggleOutline() {
+    const next = !outlineOpen;
+    setOutlineOpen(next);
+    setOutlineHoverSuppressed(!next);
+    try {
+      window.localStorage.setItem(OUTLINE_COLLAPSED_KEY, String(!next));
+    } catch {
+      // Preference is a convenience only.
+    }
+  }
+  useRegisterTutorLesson({ courseId: blueprint.courseId, skillId: skill.id, skillTitle: skill.title });
+  return <div className={styles.workspace} data-lesson-workspace>
     <header className={styles.header}>
       <Link href={`/courses/${blueprint.courseId}`}><ArrowLeft size={16} /> {courseTitle}</Link>
       <div className={styles.lessonTitle}><span>{moduleTitle}</span><strong>{skill.title}</strong></div>
-      <div className={styles.headerProgress}><span>Draft preview</span></div>
-      <button aria-controls="lesson-buddy-tutor" aria-expanded={tutor} className={styles.askButton} onClick={() => setTutor(!tutor)} ref={tutorTriggerRef} type="button"><Bot size={16} /> Ask Codestead</button>
+      <div className={styles.headerProgress}>{!publishedStage && <span>Draft preview</span>}</div>
     </header>
-    <div className={styles.body}>
-      <aside className={styles.outline}>
-        <span>AUTHORED PILOT</span>
-        {["canonical-explanation", "worked-examples", "trace", "misconceptions", "transfer-practice", "remediation", "recap", "source-provenance"].map((id, index) => <a href={`#${id}`} key={id}><b>{index + 1}</b><span><strong>{id.replaceAll("-", " ")}</strong></span></a>)}
+    <div className={`${styles.body} ${outlineOpen ? "" : styles.outlineCollapsed}`}>
+      <aside className={`${styles.outline} ${outlineHoverSuppressed ? styles.outlineSuppressed : ""}`} onMouseLeave={() => setOutlineHoverSuppressed(false)}>
+        <button aria-expanded={outlineOpen} aria-label={outlineOpen ? "Collapse lesson outline" : "Pin lesson outline open"} className={styles.outlineToggle} onClick={toggleOutline} title={outlineOpen ? "Collapse outline" : "Pin outline open"} type="button">
+          {outlineOpen ? <PanelLeftClose aria-hidden="true" size={18} /> : <PanelLeftOpen aria-hidden="true" size={18} />}
+        </button>
+        {LESSON_OUTLINE.map(({ id, label }, index) => <a aria-current={activeSection === id ? "location" : undefined} className={activeSection === id ? styles.outlineActive : ""} href={`#${id}`} key={id} onClick={() => setActiveSection(id)} title={label}><b>{index + 1}</b><span><strong>{label}</strong></span></a>)}
       </aside>
       <main className={styles.content}>
         <LearningModeTabs mode={mode} onChange={setMode} />
         <section aria-labelledby={`learning-mode-tab-${mode}`} id="learning-mode-panel" role="tabpanel" tabIndex={0}>
-          {mode === "lesson" && <><AuthoredLessonCard lesson={authoredLesson} /><InlineTopicCheckpoint draftPreviewCount={assessmentBank?.items.length ?? 0} skillId={skill.id} /></>}
+          {mode === "lesson" && <><AuthoredLessonCard lesson={authoredLesson} publishedStage={publishedStage} /><InlineTopicCheckpoint draftPreviewCount={assessmentBank?.items.length ?? 0} skillId={skill.id} /></>}
           {mode === "practice" && <PracticePanel skillId={skill.id} draftPreviewCount={assessmentBank?.items.length ?? 0} />}
           {mode === "code" && <CodeLab courseId={blueprint.courseId} dsaRunnerLanguage={dsaRunnerLanguage} skillId={skill.id} />}
           {mode === "visual" && <Visualizer trace={authoredLesson.trace} />}
@@ -1112,7 +1023,6 @@ function AuthoredLessonWorkspace({ authoredLesson, assessmentBank, blueprint, sk
           {nextHref ? <Link className="button button-primary" href={nextHref}>Next skill <ArrowRight size={15} /></Link> : <Link className="button button-primary" href={`/courses/${blueprint.courseId}`}>Return to roadmap <CheckCircle2 size={15} /></Link>}
         </footer>
       </main>
-      {tutor && <TutorPanel courseId={blueprint.courseId} skillId={skill.id} skillTitle={skill.title} onClose={closeTutor} />}
     </div>
   </div>;
 }
@@ -1120,17 +1030,14 @@ function AuthoredLessonWorkspace({ authoredLesson, assessmentBank, blueprint, sk
 function BlueprintLessonWorkspace({ assessmentBank, blueprint, skill, courseTitle, moduleTitle, dsaRunnerLanguage, nextHref }: LessonWorkspaceProps) {
   const [active, setActive] = useState(0);
   const [mode, setMode] = useState<LearningMode>("lesson");
-  const [tutor, setTutor] = useState(false);
-  const tutorTriggerRef = useRef<HTMLButtonElement>(null);
-  const closeTutor = () => { setTutor(false); tutorTriggerRef.current?.focus(); };
+  useRegisterTutorLesson({ courseId: blueprint.courseId, skillId: skill.id, skillTitle: skill.title });
   const block = blueprint.blocks[active];
   const progress = Math.round(((active + 1) / blueprint.blocks.length) * 100);
-  return <div className={`${styles.workspace} ${tutor ? styles.withTutor : ""}`}>
+  return <div className={styles.workspace} data-lesson-workspace>
     <header className={styles.header}>
       <Link href={`/courses/${blueprint.courseId}`}><ArrowLeft size={16} /> {courseTitle}</Link>
       <div className={styles.lessonTitle}><span>{moduleTitle}</span><strong>{skill.title}</strong></div>
       <div className={styles.headerProgress}><span>{progress}%</span><div><i style={{ width: `${progress}%` }} /></div></div>
-      <button aria-controls="lesson-buddy-tutor" aria-expanded={tutor} className={styles.askButton} onClick={() => setTutor(!tutor)} ref={tutorTriggerRef} type="button"><Bot size={16} /> Ask Codestead</button>
     </header>
     <div className={styles.body}>
       <aside className={styles.outline}>
@@ -1160,7 +1067,6 @@ function BlueprintLessonWorkspace({ assessmentBank, blueprint, skill, courseTitl
               : <Link className="button button-primary" href={`/courses/${blueprint.courseId}`}>Return to roadmap <CheckCircle2 size={15} /></Link>}
         </footer>
       </main>
-      {tutor && <TutorPanel courseId={blueprint.courseId} skillId={skill.id} skillTitle={skill.title} onClose={closeTutor} />}
     </div>
   </div>;
 }

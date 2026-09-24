@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Java primitive variables hold values from fixed language-defined types, local variables require definite assignment, fields receive defaults, and final prevents reassignment after initialization.",
+    "summary": "Java has eight **primitive types** with sizes fixed by the language on every platform: `byte` (8 bits), `short` (16), `int` (32), `long` (64), `float` (32), `double` (64), `char` (16-bit UTF-16 unit) and `boolean`. Pick by meaning: `int` for counts, `long` for big counts or milliseconds, `double` for measurements, `boolean` for flags. Integers **overflow silently** (`Integer.MAX_VALUE + 1` wraps to a large negative), and `double` can't represent 0.1 exactly. **Local variables** have **no default**: the compiler refuses to read one before it's assigned. **Fields** get defaults (0, false, null). `final` means the variable can't be **reassigned** after initialisation.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A measurement uses double, an exact count uses int after a range check, and a local final conversion factor documents that the binding will not be reassigned. Your goal is to choose and use primitive types while explaining range, precision and default-value differences. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner stores a distance in an `int` and loses the decimals, sums sales in an int that overflows past 2.1 billion, and declares `int total;` then prints it, which the compiler rejects. A measurement uses double, an exact count uses int after a range check, and a local final conversion factor documents that the binding will not be reassigned. In this lesson you'll choose and use primitive types while explaining range, precision and default-value differences.\n\n```predict\n{\"question\": \"`int total; System.out.println(total);` inside a method. What happens?\", \"options\": [\"Prints 0\", \"Compile error: variable total might not have been initialized\"], \"answer\": 1, \"why\": \"Locals must be definitely assigned; only fields get defaults.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: First source and main; pf state expressions. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **First source and main** (a runnable class) and **Expressions and evaluation** (variables hold values)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Java primitive variables hold values from fixed language-defined types, local variables require definite assignment, fields receive defaults, and final prevents reassignment after initialization. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: fixed sizes, no local defaults",
+        "body": "```java\npublic class Units {\n    public static void main(String[] args) {\n        final double METRES_PER_MILE = 1609.344;   // final: never reassigned.\n        double miles = 3.5;                         // measurement: double.\n        double metres = miles * METRES_PER_MILE;    // 5632.704\n\n        long raw = 42L;                             // e.g. parsed from input.\n        if (raw < 0 || raw > Integer.MAX_VALUE) throw new IllegalArgumentException(\"bad count\");\n        int items = (int) raw;                      // exact count, range checked first.\n\n        boolean shipped = false;\n        char grade = 'A';\n        long bigTotal = 3_000_000_000L;             // too big for int.\n        System.out.println(metres + \" \" + items + \" \" + bigTotal);\n        System.out.println(Integer.MAX_VALUE + 1);  // -2147483648: silent overflow.\n    }\n}\n```\n\n| Type | Size | Use |\n|---|---|---|\n| `int`. | 32 bits. | counts, indexes. |\n| `long`. | 64 bits. | big totals, timestamps. |\n| `double`. | 64 bits. | measurements. |\n| `boolean`. | true/false. | flags. |\n| `char`. | 16 bits. | one UTF-16 unit. |\n\n```reveal\n{\"prompt\": \"Should money be a double?\", \"answer\": \"No: 0.1 + 0.2 isn't exactly 0.3 in binary floating point. Use long cents, or java.math.BigDecimal for exact decimal arithmetic.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "Integer ranges are fixed but arithmetic can overflow, floating values approximate many decimals, char is a UTF-16 code unit, and var infers only a local static type from an initializer. The learner must reject this documented misconception: All numeric primitives expand automatically to preserve mathematical results, and local primitives silently start at zero."
+        "heading": "Silent overflow",
+        "body": "```predict\n{\"question\": \"`int sales = 2_000_000_000; sales += 500_000_000;` What is sales?\", \"options\": [\"2500000000\", \"A negative number: int overflowed\"], \"answer\": 1, \"why\": \"Use long, or Math.addExact which throws on overflow.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Declare initialized primitive values, constants and inferred local variables with appropriate types.",
-      "Choose and use primitive types while explaining range, precision and default-value differences."
+      "Choose primitive types by meaning, range and precision.",
+      "Explain definite assignment for locals, field defaults, silent overflow and final."
     ],
     "excludes": [
-      "Integer ranges are fixed but arithmetic can overflow, floating values approximate many decimals, char is a UTF-16 code unit, and var infers only a local static type from an initializer."
+      "Wrapper classes and autoboxing (collections module).",
+      "BigDecimal in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "java.fundamentals.primitives.example.direct",
-      "title": "Primitive types and variables: direct language case",
+      "title": "Metres, a count and a conversion factor",
       "situation": "A measurement uses double, an exact count uses int after a range check, and a local final conversion factor documents that the binding will not be reassigned.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A measurement uses double, an exact count uses int after a range check, and a local final conversion factor documents that the binding will not be reassigned.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Choose a primitive by its specified range and precision, initialize every local before use, and check overflow or precision when the domain requires it."
+        "**A measurement uses double:** 3.5 miles becomes 5632.704 metres.",
+        "**An exact count uses int after a range check:** raw is checked against 0 and Integer.MAX_VALUE before the cast.",
+        "**A local final conversion factor documents that the binding will not be reassigned:** METRES_PER_MILE = 1609.344 will cause a compile error if anyone reassigns it."
       ],
-      "result": "The example meets the atomic outcome because Choose a primitive by its specified range and precision, initialize every local before use, and check overflow or precision when the domain requires it."
+      "result": "Each value has a type that fits its meaning and range."
     },
     {
       "id": "java.fundamentals.primitives.example.boundary",
-      "title": "Primitive types and variables: boundary and transfer case",
-      "situation": "A supplementary Unicode symbol occupies two char values, so code-point-aware APIs are used instead of assuming one char always means one visible character.",
+      "title": "The yearly sales overflow",
+      "situation": "Yearly sales in cents are summed in an int and suddenly go negative in November.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A supplementary Unicode symbol occupies two char values, so code-point-aware APIs are used instead of assuming one char always means one visible character.",
-        "Step 2 — Keep the language boundary explicit: Integer ranges are fixed but arithmetic can overflow, floating values approximate many decimals, char is a UTF-16 code unit, and var infers only a local static type from an initializer.",
-        "Step 3 — Reject the tempting but incorrect rule: All numeric primitives expand automatically to preserve mathematical results, and local primitives silently start at zero."
+        "int tops out at 2,147,483,647.",
+        "Switch the total to long.",
+        "Or use Math.addExact to throw instead of wrapping."
       ],
-      "result": "This case demonstrates the declared outcome: Choose and use primitive types while explaining range, precision and default-value differences."
+      "result": "Yearly totals stay correct from January through December."
     }
   ],
   "misconceptions": [
     {
       "id": "java.fundamentals.primitives.misconception",
       "mistakenBelief": "All numeric primitives expand automatically to preserve mathematical results, and local primitives silently start at zero.",
-      "correction": "Choose a primitive by its specified range and precision, initialize every local before use, and check overflow or precision when the domain requires it.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: All numeric primitives expand automatically to preserve mathematical results, and local primitives silently start at zero."
+      "correction": "Integer types overflow silently and doubles round, so types must be chosen for range and precision. Local variables have no default and must be assigned before use.",
+      "diagnosticPrompt": "In the opening predict, why didn't total print 0?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a control panel whose typed gauges, expressions, switches, and repeating cycles produce observable state can introduce Primitive types and variables, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "example": "Primitive types are like **measuring containers with fixed sizes**: an int is a 2-litre jug, a long a 10-litre bucket. Pour too much into the jug and it **silently spills over and starts again from the bottom** (overflow). A local variable is **an empty jug you haven't filled**: Java won't let you pour from it.",
     "usefulFor": [
-      "tracing primitive values, operators, decisions, and loop progress"
+      "remembering fixed-size jugs",
+      "spill wraps around"
     ],
     "limitations": [
-      "the panel does not model promotion, overflow, short-circuit evaluation, scope, or JVM representation exactly",
-      "Integer ranges are fixed but arithmetic can overflow, floating values approximate many decimals, char is a UTF-16 code unit, and var infers only a local static type from an initializer."
+      "Real jugs spill visibly; ints wrap silently.",
+      "final is a jug with a sealed lid."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A measurement uses double, an exact count uses int after a range check, and a local final conversion factor documents that the binding will not be reassigned.",
-      "Java primitive variables hold values from fixed language-defined types, local variables require definite assignment, fields receive defaults, and final prevents reassignment after initialization.",
-      "Choose a primitive by its specified range and precision, initialize every local before use, and check overflow or precision when the domain requires it."
+      "double metres = miles * METRES_PER_MILE;",
+      "range-check raw; int items = (int) raw;",
+      "Integer.MAX_VALUE + 1"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Measure",
         "state": {
-          "evidence": "A measurement uses double, an exact count uses int after a range check, and a local final conversion factor documents that the binding will not be reassigned."
+          "metres": "5632.704"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "A measurement uses double to keep the fractional part."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Count",
         "state": {
-          "rule": "Java primitive variables hold values from fixed language-defined types, local variables require definite assignment, fields receive defaults, and final prevents reassignment after initialization."
+          "raw": "42",
+          "items": "42"
         },
-        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "An exact count uses int after a range check."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Overflow",
         "state": {
-          "correction": "Choose a primitive by its specified range and precision, initialize every local before use, and check overflow or precision when the domain requires it."
+          "result": "-2147483648"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: All numeric primitives expand automatically to preserve mathematical results, and local primitives silently start at zero."
+        "explanation": "Without a check, int arithmetic wraps silently."
       }
     ],
-    "textAlternative": "Starting artifact: A measurement uses double, an exact count uses int after a range check, and a local final conversion factor documents that the binding will not be reassigned. Step 1, Observe. State: evidence: A measurement uses double, an exact count uses int after a range check, and a local final conversion factor documents that the binding will not be reassigned.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Java primitive variables hold values from fixed language-defined types, local variables require definite assignment, fields receive defaults, and final prevents reassignment after initialization.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Choose a primitive by its specified range and precision, initialize every local before use, and check overflow or precision when the domain requires it.. Compare the observation with the correction and explain why the misconception fails: All numeric primitives expand automatically to preserve mathematical results, and local primitives silently start at zero."
+    "textAlternative": "Tracing primitive choices. Step 1, Measure: metres is 5632.704. A measurement uses double to keep the fractional part. Step 2, Count: raw is 42; items is 42. An exact count uses int after a range check. Step 3, Overflow: result is -2147483648. Without a check, int arithmetic wraps silently."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Primitive types and variables: direct language case”: state its starting evidence, apply the Primitive types and variables rule, and give the observable result in three short lines.",
+      "prompt": "For \"Metres, a count and a conversion factor\", explain how a measurement uses double, an exact count uses int after a range check, and a local final conversion factor documents that the binding will not be reassigned.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Measure.",
+        "Count.",
+        "Final."
       ],
       "expectedEvidence": [
-        "Named example: Primitive types and variables: direct language case.",
-        "Starting evidence: A measurement uses double, an exact count uses int after a range check, and a local final conversion factor documents that the binding will not be reassigned.",
-        "Core rule: Java primitive variables hold values from fixed language-defined types, local variables require definite assignment, fields receive defaults, and final prevents reassignment after initialization.",
-        "Observable result: The example meets the atomic outcome because Choose a primitive by its specified range and precision, initialize every local before use, and check overflow or precision when the domain requires it.",
-        "Boundary check: Choose a primitive by its specified range and precision, initialize every local before use, and check overflow or precision when the domain requires it."
+        "Names the example \"Metres, a count and a conversion factor\": an int lost decimals and overflowed.",
+        "A measurement uses double and an exact count uses int after a range check.",
+        "A local final conversion factor documents that the binding will not be reassigned.",
+        "Each value has a fitting type."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A supplementary Unicode symbol occupies two char values, so code-point-aware APIs are used instead of assuming one char always means one visible character.",
+      "prompt": "Declare and justify types for: a person's age, the world population, a temperature, whether a door is open, and milliseconds since 1970. Then print Long.MAX_VALUE and Integer.MAX_VALUE.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Population exceeds int.",
+        "Milliseconds need long."
       ],
       "expectedEvidence": [
-        "Java primitive variables hold values from fixed language-defined types, local variables require definite assignment, fields receive defaults, and final prevents reassignment after initialization.",
-        "Integer ranges are fixed but arithmetic can overflow, floating values approximate many decimals, char is a UTF-16 code unit, and var infers only a local static type from an initializer."
+        "Five justified declarations.",
+        "Limits printed."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Primitive types and variables, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Write a method that sums an int[] of sales into a long, and another that uses Math.addExact on ints. Test both with values near Integer.MAX_VALUE, and show one wraps while the other throws ArithmeticException.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Try {Integer.MAX_VALUE, 1}.",
+        "Catch the exception in the test."
       ],
       "expectedEvidence": [
-        "Choose and use primitive types while explaining range, precision and default-value differences.",
-        "Choose a primitive by its specified range and precision, initialize every local before use, and check overflow or precision when the domain requires it."
+        "long version correct.",
+        "addExact throws."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "java.fundamentals.primitives.misconception",
-      "explanation": "Choose a primitive by its specified range and precision, initialize every local before use, and check overflow or precision when the domain requires it.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A supplementary Unicode symbol occupies two char values, so code-point-aware APIs are used instead of assuming one char always means one visible character."
+      "explanation": "For each variable ask: **whole or fractional, how big can it get, and is it assigned before every read?**",
+      "retryPrompt": "Apply this to \"The yearly sales overflow\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to choose and use primitive types while explaining range, precision and default-value differences. Keep this boundary in view: Integer ranges are fixed but arithmetic can overflow, floating values approximate many decimals, char is a UTF-16 code unit, and var infers only a local static type from an initializer.",
+    "summary": "To choose primitive types, use int for ordinary counts, long for large values, double for measurements (not money) and boolean for flags, remember sizes are fixed by the language and integers overflow silently, locals must be assigned before use while fields get defaults, and final prevents reassignment.",
     "retrievalPrompts": [
-      "Explain Primitive types and variables using canonical Java: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: All numeric primitives expand automatically to preserve mathematical results, and local primitives silently start at zero.",
-      "Predict this case from memory: A supplementary Unicode symbol occupies two char values, so code-point-aware APIs are used instead of assuming one char always means one visible character."
+      "Do local variables start at zero?",
+      "What happens when an int overflows?",
+      "What does final prevent?"
     ],
     "nextReviewPrompt": "Next: continue to “Operators and conversions”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

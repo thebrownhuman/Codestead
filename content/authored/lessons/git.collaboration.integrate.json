@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Integration applies the project's approved merge, squash, or rebase policy after required review and checks, then verifies the target branch and cleans up references safely.",
+    "summary": "Integrating a PR happens after review: **address feedback with new commits**, reply to each comment, and get **re-review** of what changed. Then the project's policy decides the button. **Merge commit** keeps every commit plus a merge marker. **Squash** combines the branch into one commit on main. **Rebase** replays each commit linearly. The same final code can produce very different history, so follow the policy. Crucially, **checks must pass on the exact head being merged**: a green tick from before your last push doesn't count. Afterwards, verify main and delete the merged branch.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A squash policy combines a noisy feature history into one target commit only after current required checks pass on the reviewed head. Your goal is to revise, re-review and integrate a pull request while preserving traceability. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner's PR has eight commits like \"wip\", \"typo\" and \"fix review\". Tests passed yesterday; this morning they pushed one more tweak and want to merge before CI finishes. A squash policy combines a noisy feature history into one target commit only after current required checks pass on the reviewed head. In this lesson you'll revise, re-review and integrate a pull request while preserving traceability.\n\n```predict\n{\"question\": \"Checks passed on your PR yesterday. You pushed a small change today. Are the old checks still valid?\", \"options\": [\"Yes, the change was small\", \"No: checks must pass on the current head commit\"], \"answer\": 1, \"why\": \"Any new commit can break something. Wait for checks on the exact code being merged.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Remotes and synchronization; Code review; Conflict resolution. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Remotes and synchronization**, **Code review** (blockers and re-review) and **Conflict resolution** (combining both intents)."
       },
       {
-        "heading": "Operational model",
-        "body": "Integration applies the project's approved merge, squash, or rebase policy after required review and checks, then verifies the target branch and cleans up references safely. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The rule: current checks, approved head, policy button",
+        "body": "```bash\n# Address review feedback with focused commits.\ngit commit -m \"Guard empty cart in total()\"\ngit push                                  # reply to each comment; request re-review.\n\ngh pr checks 61                           # all required checks green on this head?\ngh pr merge 61 --squash --delete-branch   # the project's policy: squash.\n\ngit switch main && git pull --ff-only\ngit log --oneline -3                      # one commit: \"Fix empty cart total (#61)\".\nnpm test                                  # verify main itself.\n```\n\n| Policy | Main's history | Good for |\n|---|---|---|\n| merge commit. | all branch commits + merge. | keeping full detail. |\n| squash. | one commit per PR. | noisy branches, simple history. |\n| rebase. | branch commits, linear. | clean, meaningful commits. |\n\n```reveal\n{\"prompt\": \"How does a squashed commit stay traceable?\", \"answer\": \"Its message includes the PR number, and the PR page keeps the full discussion and original commits. Edit the squash message to summarise the change, not list \\\"wip\\\" and \\\"typo\\\".\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Different strategies preserve different history, branch protection can change, and green checks may be stale relative to the final commit. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Any merge button produces equivalent history and a green check from an earlier commit remains valid after new changes."
+        "heading": "Revise, don't rewrite silently",
+        "body": "```predict\n{\"question\": \"A reviewer asked for changes. What's the most reviewable way to respond?\", \"options\": [\"Force-push a rewritten branch with no comment\", \"Push focused fix-up commits, reply to each comment, and request re-review\"], \"answer\": 1, \"why\": \"Reviewers can then see exactly what changed since their last look.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Respond to review, keep evidence current and merge only an approved passing revision.",
-      "Revise, re-review and integrate a pull request while preserving traceability."
+      "Address review feedback, request re-review and wait for checks on the current head.",
+      "Integrate using the project's merge, squash or rebase policy, then verify main and delete the branch."
     ],
     "excludes": [
-      "Different strategies preserve different history, branch protection can change, and green checks may be stale relative to the final commit."
+      "Configuring branch protection and merge queues.",
+      "Release tagging (history module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "git.collaboration.integrate.example-a",
-      "title": "Review updates and integration: direct case",
+      "title": "Squashing a noisy feature",
       "situation": "A squash policy combines a noisy feature history into one target commit only after current required checks pass on the reviewed head.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A squash policy combines a noisy feature history into one target commit only after current required checks pass on the reviewed head.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Use the declared integration strategy, require checks for the exact reviewed revision, inspect the resulting target, and preserve traceability to the request."
+        "**Noisy feature history:** eight commits including \"wip\" and \"typo\" on the branch.",
+        "**Current required checks pass on the reviewed head:** the learner waits for CI on today's commit to turn green and re-review to approve.",
+        "**A squash policy combines them into one target commit:** main gains \"Fix empty cart total (#61)\"; git log will show a single clean entry."
       ],
-      "result": "The case supports the declared outcome because Use the declared integration strategy, require checks for the exact reviewed revision, inspect the resulting target, and preserve traceability to the request."
+      "result": "Main's history stays readable, and the PR page keeps the full story."
     },
     {
       "id": "git.collaboration.integrate.example-b",
-      "title": "Review updates and integration: boundary case",
-      "situation": "After merge, the target branch is updated locally and the deployed or built artifact is verified before the feature branch is removed.",
+      "title": "The stale green tick",
+      "situation": "A PR was approved with passing checks. The author then merged main into it to resolve a conflict and clicked merge immediately. Main's build broke.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: After merge, the target branch is updated locally and the deployed or built artifact is verified before the feature branch is removed.",
-        "Step 2 — Keep this boundary explicit: Different strategies preserve different history, branch protection can change, and green checks may be stale relative to the final commit.",
-        "Step 3 — Reject the documented misconception: Any merge button produces equivalent history and a green check from an earlier commit remains valid after new changes."
+        "The conflict resolution created new code nobody tested.",
+        "Required checks should have run again on the new head.",
+        "Branch protection can enforce \"checks must pass on latest commit\"."
       ],
-      "result": "This case demonstrates the declared outcome: Revise, re-review and integrate a pull request while preserving traceability."
+      "result": "After enabling that rule, every merge is tested exactly as it lands."
     }
   ],
   "misconceptions": [
     {
       "id": "git.collaboration.integrate.misconception",
       "mistakenBelief": "Any merge button produces equivalent history and a green check from an earlier commit remains valid after new changes.",
-      "correction": "Use the declared integration strategy, require checks for the exact reviewed revision, inspect the resulting target, and preserve traceability to the request.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Any merge button produces equivalent history and a green check from an earlier commit remains valid after new changes."
+      "correction": "Merge, squash and rebase give different histories, so the project's policy matters. And checks only prove the commit they ran on; any new push needs new checks.",
+      "diagnosticPrompt": "In \"The stale green tick\", why did main's build break?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "An editorial desk can model Review updates and integration: a request defines the change, a draft presents evidence, reviewers comment, and approved work enters the edition.",
+    "example": "Integrating is like **publishing an edited article**. Changes from the editor are made and re-checked (re-review), the final proof is checked again after the last edit (current checks), and the house style decides whether drafts are kept or folded into one clean version (policy).",
     "usefulFor": [
-      "Connecting issues, bounded changes, actionable review, checks, and controlled integration"
+      "remembering re-check the final proof",
+      "house style = merge policy"
     ],
     "limitations": [
-      "Repository permissions, automated checks, security disclosure, and commit identity require explicit technical controls.",
-      "Different strategies preserve different history, branch protection can change, and green checks may be stale relative to the final commit."
+      "Articles rarely break other articles; merges can break main.",
+      "The drafts stay in the archive (the PR page)."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A squash policy combines a noisy feature history into one target commit only after current required checks pass on the reviewed head.",
-      "Integration applies the project's approved merge, squash, or rebase policy after required review and checks, then verifies the target branch and cleans up references safely.",
-      "Use the declared integration strategy, require checks for the exact reviewed revision, inspect the resulting target, and preserve traceability to the request."
+      "push review fixes; re-review",
+      "wait for checks on the head",
+      "squash merge; verify main"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Revise",
         "state": {
-          "evidence": "A squash policy combines a noisy feature history into one target commit only after current required checks pass on the reviewed head."
+          "commits": "8 (noisy)",
+          "review": "approved again"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "Feedback is addressed and the reviewed head is approved."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Check",
         "state": {
-          "model": "Integration applies the project's approved merge, squash, or rebase policy after required review and checks, then verifies the target branch and cleans up references safely."
+          "required checks": "green on current head"
         },
-        "explanation": "Apply the declared Review updates and integration model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "Current required checks pass on the reviewed head."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Integrate",
         "state": {
-          "correction": "Use the declared integration strategy, require checks for the exact reviewed revision, inspect the resulting target, and preserve traceability to the request."
+          "main": "+1 squashed commit (#61)",
+          "branch": "deleted"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Any merge button produces equivalent history and a green check from an earlier commit remains valid after new changes."
+        "explanation": "A squash policy combines the noisy feature history into one target commit."
       }
     ],
-    "textAlternative": "Starting artifact: A squash policy combines a noisy feature history into one target commit only after current required checks pass on the reviewed head. Step 1, Observe. State: evidence: A squash policy combines a noisy feature history into one target commit only after current required checks pass on the reviewed head.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Integration applies the project's approved merge, squash, or rebase policy after required review and checks, then verifies the target branch and cleans up references safely.. Apply the declared Review updates and integration model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Use the declared integration strategy, require checks for the exact reviewed revision, inspect the resulting target, and preserve traceability to the request.. Compare the observation with the correction and reject the misconception: Any merge button produces equivalent history and a green check from an earlier commit remains valid after new changes."
+    "textAlternative": "Tracing a policy-driven integration. Step 1, Revise: commits is 8 (noisy); review is approved again. Feedback is addressed and the reviewed head is approved. Step 2, Check: required checks is green on current head. Current required checks pass on the reviewed head. Step 3, Integrate: main is +1 squashed commit (#61); branch is deleted. A squash policy combines the noisy feature history into one target commit."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Review updates and integration: direct case”: state its starting evidence, apply the Review updates and integration rule, and give the observable result in three short lines.",
+      "prompt": "For \"Squashing a noisy feature\", explain how a squash policy combines a noisy feature history into one target commit only after current required checks pass on the reviewed head.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Revise.",
+        "Check.",
+        "Squash."
       ],
       "expectedEvidence": [
-        "Named example: Review updates and integration: direct case.",
-        "Starting evidence: A squash policy combines a noisy feature history into one target commit only after current required checks pass on the reviewed head.",
-        "Core rule: Integration applies the project's approved merge, squash, or rebase policy after required review and checks, then verifies the target branch and cleans up references safely.",
-        "Observable result: The case supports the declared outcome because Use the declared integration strategy, require checks for the exact reviewed revision, inspect the resulting target, and preserve traceability to the request.",
-        "Boundary check: Use the declared integration strategy, require checks for the exact reviewed revision, inspect the resulting target, and preserve traceability to the request."
+        "Names the example \"Squashing a noisy feature\": eight wip commits and an untested tweak.",
+        "Current required checks pass on the reviewed head.",
+        "A squash policy combines a noisy feature history into one target commit.",
+        "Main's history stays readable."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: After merge, the target branch is updated locally and the deployed or built artifact is verified before the feature branch is removed.",
+      "prompt": "In a sandbox, merge the same small branch three ways (merge commit, squash, rebase) into three copies of main. Compare git log --graph for each and write when you'd choose each one.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "git merge --no-ff, git merge --squash + commit, git rebase then fast-forward.",
+        "Reset between tries."
       ],
       "expectedEvidence": [
-        "Integration applies the project's approved merge, squash, or rebase policy after required review and checks, then verifies the target branch and cleans up references safely.",
-        "Different strategies preserve different history, branch protection can change, and green checks may be stale relative to the final commit."
+        "Three histories shown.",
+        "A reason for each policy."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Review updates and integration, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Take a PR through a full cycle with a partner: review comments, fix-up commits, replies, re-review, green checks on the final head, squash merge with an edited message referencing the PR, then verify main and delete the branch.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Edit the squash message.",
+        "Run tests on main after merging."
       ],
       "expectedEvidence": [
-        "Revise, re-review and integrate a pull request while preserving traceability.",
-        "Use the declared integration strategy, require checks for the exact reviewed revision, inspect the resulting target, and preserve traceability to the request."
+        "Traceable single commit on main.",
+        "Every review comment resolved."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.collaboration.integrate.misconception",
-      "explanation": "Use the declared integration strategy, require checks for the exact reviewed revision, inspect the resulting target, and preserve traceability to the request.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: After merge, the target branch is updated locally and the deployed or built artifact is verified before the feature branch is removed."
+      "explanation": "Before pressing merge, confirm: **approved on this head, checks green on this head, correct policy, good final message.** After: **pull main, test, delete branch.**",
+      "retryPrompt": "Apply this to \"The stale green tick\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to revise, re-review and integrate a pull request while preserving traceability. Keep this boundary in view: Different strategies preserve different history, branch protection can change, and green checks may be stale relative to the final commit.",
+    "summary": "To revise, re-review and integrate a pull request, answer feedback with visible commits and replies, get approval and passing required checks on the exact current head, use the project's merge, squash or rebase policy with a traceable message, then verify main and delete the merged branch.",
     "retrievalPrompts": [
-      "Explain Review updates and integration without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Any merge button produces equivalent history and a green check from an earlier commit remains valid after new changes.",
-      "Apply the model to this case from memory: After merge, the target branch is updated locally and the deployed or built artifact is verified before the feature branch is removed."
+      "Why must checks run on the latest head?",
+      "What does squash do to history?",
+      "What should you do after merging?"
     ],
     "nextReviewPrompt": "Next: continue to “Dependency manifests and lockfiles”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

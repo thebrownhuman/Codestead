@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "JavaScript primitives are immutable values including undefined, null, Boolean, number, bigint, string, and symbol.",
+    "summary": "JavaScript has seven **primitive** types — string, number, bigint, boolean, undefined, null, symbol — and everything else is an **object** (arrays, functions, dates…). Primitives are **immutable**: you can read `name[0]`, but you can't change it in place — string methods return **new** strings. `typeof` classifies values (with one historic quirk: `typeof null` is \"object\"). `undefined` means \"not set yet\"; `null` means \"deliberately empty\".",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Changing one character creates a new string value rather than mutating the existing primitive. Your goal is to classify primitive and object values and explain null and undefined use cases. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You try to capitalise a name with `name[0] = \"A\"`. No error — and nothing changes. Strings look like arrays of letters, but they don't behave like them. Changing one character creates a new string value rather than mutating the existing primitive. In this lesson you'll classify primitive and object values and explain null and undefined use cases.\n\n```predict\n{\"question\": \"`let s = \\\"asha\\\"; s[0] = \\\"A\\\"; console.log(s);` Output?\", \"options\": [\"\\\"Asha\\\"\", \"\\\"asha\\\"\"], \"answer\": 1, \"why\": \"Strings are immutable primitives. The assignment is silently ignored (or throws in strict mode). Build a new string instead.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Scripts and console; pf state expressions. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Scripts and console** and **Expressions and evaluation** — values are what expressions produce."
       },
       {
-        "heading": "Technology rule",
-        "body": "JavaScript primitives are immutable values including undefined, null, Boolean, number, bigint, string, and symbol. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The distinction: primitives vs objects",
+        "body": "| Value | typeof | Kind |\n|---|---|---|\n| `\"hi\"`. | \"string\". | primitive. |\n| `42`, `NaN`. | \"number\". | primitive. |\n| `10n`. | \"bigint\". | primitive. |\n| `true`. | \"boolean\". | primitive. |\n| `undefined`. | \"undefined\". | primitive. |\n| `null`. | \"object\" (historic quirk!). | primitive. |\n| `Symbol(\"id\")`. | \"symbol\". | primitive. |\n| `[1, 2]`, `{}`. | \"object\". | object. |\n| `function () {}`. | \"function\". | object. |\n\n```js\nconst name = \"asha\";\nconst fixed = name[0].toUpperCase() + name.slice(1);  // \"Asha\" — a NEW string\nconsole.log(name);   // still \"asha\"\n```\n\n```reveal\n{\"prompt\": \"How do you check for null correctly?\", \"answer\": \"`value === null`. Don't use typeof for null, because it says \\\"object\\\". Use `Array.isArray(x)` to detect arrays.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Wrapper objects differ from primitives, number has NaN and infinities, and bigint does not mix implicitly with number arithmetic. This draft therefore rejects: Strings are mutable arrays because bracket access returns characters."
+        "heading": "undefined vs null",
+        "body": "```predict\n{\"question\": \"A user hasn't chosen a delivery slot yet, and your API returns \\\"no slot selected\\\". Which value communicates that intentionally?\", \"options\": [\"undefined\", \"null\"], \"answer\": 1, \"why\": \"undefined usually means \\\"missing / never assigned\\\"; null is a deliberate \\\"empty\\\" value your code chose.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use undefined, null, Boolean, number, bigint, string and symbol with accurate type expectations.",
-      "Classify primitive and object values and explain null and undefined use cases."
+      "Classify values as primitives or objects with typeof, === null and Array.isArray.",
+      "Explain string immutability and when to use null vs undefined."
     ],
     "excludes": [
-      "Wrapper objects differ from primitives, number has NaN and infinities, and bigint does not mix implicitly with number arithmetic."
+      "Number precision (later lesson).",
+      "Symbols and bigint in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "javascript.values.primitives.example-a",
-      "title": "Primitive values and typeof: concrete case",
+      "title": "Changing one letter makes a new string",
       "situation": "Changing one character creates a new string value rather than mutating the existing primitive.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: Changing one character creates a new string value rather than mutating the existing primitive.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: String primitives are immutable; operations return new values rather than changing characters in place."
+        "**Attempt:** `name[0] = \"A\"` does nothing — the existing primitive can't be mutated.",
+        "**New string:** `const fixed = name[0].toUpperCase() + name.slice(1)` creates a new string value \"Asha\".",
+        "**Check:** `console.log(name, fixed)` will print \"asha Asha\" — the original is unchanged."
       ],
-      "result": "The result follows because String primitives are immutable; operations return new values rather than changing characters in place."
+      "result": "The capitalised name is a new string; the original primitive never changed."
     },
     {
       "id": "javascript.values.primitives.example-b",
-      "title": "Primitive values and typeof: boundary case",
-      "situation": "Wrapper objects differ from primitives, number has NaN and infinities, and bigint does not mix implicitly with number arithmetic.",
+      "title": "The null that passed a typeof check",
+      "situation": "`if (typeof user === \"object\") { show(user.name); }` crashes with \"Cannot read properties of null\".",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Wrapper objects differ from primitives, number has NaN and infinities, and bigint does not mix implicitly with number arithmetic.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Strings are mutable arrays because bracket access returns characters."
+        "`typeof null` is \"object\", so the check passes for null.",
+        "Reading `.name` on null throws.",
+        "Fix: `if (user !== null && typeof user === \"object\")` — or better, `if (user) { … }` when any object is fine."
       ],
-      "result": "The boundary requires this correction: String primitives are immutable; operations return new values rather than changing characters in place."
+      "result": "The code handles a deliberately empty user without crashing."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.values.primitives.misconception",
       "mistakenBelief": "Strings are mutable arrays because bracket access returns characters.",
-      "correction": "String primitives are immutable; operations return new values rather than changing characters in place.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: Strings are mutable arrays because bracket access returns characters."
+      "correction": "Bracket access only reads characters. Strings are immutable primitives: every change (toUpperCase, slice, replace, +) produces a new string, leaving the original unchanged.",
+      "diagnosticPrompt": "In \"Changing one letter makes a new string\", why did name stay \"asha\"?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Primitive values and typeof, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "A string is like a **printed word on a card**: you can read any letter, but to change one you print a new card. Objects are like **whiteboards** — you can wipe and rewrite parts in place.",
     "usefulFor": [
-      "Building a first mental model for Primitive values and typeof before using exact platform terms"
+      "remembering primitives are read-only values",
+      "objects can change"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Wrapper objects differ from primitives, number has NaN and infinities, and bigint does not mix implicitly with number arithmetic."
+      "Cards pile up physically; old strings are cleaned up automatically.",
+      "null is a blank card you placed on purpose; undefined is no card at all."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Changing one character creates a new string value rather than mutating the existing primitive.",
-      "JavaScript primitives are immutable values including undefined, null, Boolean, number, bigint, string, and symbol.",
-      "String primitives are immutable; operations return new values rather than changing characters in place."
+      "const name = 'asha'",
+      "name[0] = 'A'",
+      "const fixed = name[0].toUpperCase() + name.slice(1)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Original",
         "state": {
-          "evidence": "Changing one character creates a new string value rather than mutating the existing primitive."
+          "name": "'asha'",
+          "typeof name": "string"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The name holds an immutable string primitive."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Attempted change",
         "state": {
-          "rule": "JavaScript primitives are immutable values including undefined, null, Boolean, number, bigint, string, and symbol."
+          "name": "'asha' (unchanged)"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Assigning to one character cannot mutate the existing primitive."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "New value",
         "state": {
-          "correction": "String primitives are immutable; operations return new values rather than changing characters in place."
+          "fixed": "'Asha'",
+          "name": "'asha'"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Strings are mutable arrays because bracket access returns characters."
+        "explanation": "Changing one character creates a new string value instead."
       }
     ],
-    "textAlternative": "Starting artifact: Changing one character creates a new string value rather than mutating the existing primitive. Step 1, Artifact. State: evidence: Changing one character creates a new string value rather than mutating the existing primitive.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: JavaScript primitives are immutable values including undefined, null, Boolean, number, bigint, string, and symbol.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: String primitives are immutable; operations return new values rather than changing characters in place.. Check the result against the boundary and reject this misconception: Strings are mutable arrays because bracket access returns characters."
+    "textAlternative": "Trying to change a string. Step 1, Original: name is 'asha'; typeof name is string. The name holds an immutable string primitive. Step 2, Attempted change: name is 'asha' (unchanged). Assigning to one character cannot mutate the existing primitive. Step 3, New value: fixed is 'Asha'; name is 'asha'. Changing one character creates a new string value instead."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Primitive values and typeof: concrete case”: state its starting evidence, apply the Primitive values and typeof rule, and give the observable result in three short lines.",
+      "prompt": "For \"Changing one letter makes a new string\", explain why changing one character creates a new string value rather than mutating the existing primitive, and what name and fixed hold.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Attempt.",
+        "New string.",
+        "Result."
       ],
       "expectedEvidence": [
-        "Named example: Primitive values and typeof: concrete case.",
-        "Starting evidence: Changing one character creates a new string value rather than mutating the existing primitive.",
-        "Core rule: JavaScript primitives are immutable values including undefined, null, Boolean, number, bigint, string, and symbol.",
-        "Observable result: The result follows because String primitives are immutable; operations return new values rather than changing characters in place.",
-        "Boundary check: String primitives are immutable; operations return new values rather than changing characters in place."
+        "Names the example \"Changing one letter makes a new string\": changing one character creates a new string value.",
+        "It doesn't mutate the existing primitive.",
+        "fixed is \"Asha\".",
+        "name is still \"asha\"."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Wrapper objects differ from primitives, number has NaN and infinities, and bigint does not mix implicitly with number arithmetic.",
+      "prompt": "Give the typeof result for: `[]`, `null`, `undefined`, `() => {}`, `\"5\"`, `5`. How would you correctly detect the array and the null?",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Two quirks.",
+        "Special checks."
       ],
       "expectedEvidence": [
-        "JavaScript primitives are immutable values including undefined, null, Boolean, number, bigint, string, and symbol.",
-        "Wrapper objects differ from primitives, number has NaN and infinities, and bigint does not mix implicitly with number arithmetic."
+        "object, object, undefined, function, string, number.",
+        "Array.isArray([]) and value === null."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Primitive values and typeof and explain why the misconception fails.",
+      "prompt": "Write a `describe(value)` function that returns \"null\", \"array\", \"object\", or the typeof result for primitives. Test it with one value of every type.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Check null and arrays first.",
+        "Include a bigint and symbol."
       ],
       "expectedEvidence": [
-        "Classify primitive and object values and explain null and undefined use cases.",
-        "String primitives are immutable; operations return new values rather than changing characters in place."
+        "Correct classification for every type.",
+        "Tests covering all seven primitives plus arrays and objects."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.values.primitives.misconception",
-      "explanation": "String primitives are immutable; operations return new values rather than changing characters in place.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'immutable' and state the decisive evidence."
+      "explanation": "To classify: **=== null first → Array.isArray → typeof.** To change a string: always assign the result of a method to a variable.",
+      "retryPrompt": "Apply the classification order to \"The null that passed a typeof check\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to classify primitive and object values and explain null and undefined use cases. Keep this boundary in view: Wrapper objects differ from primitives, number has NaN and infinities, and bigint does not mix implicitly with number arithmetic.",
+    "summary": "To classify primitive and object values, use === null, Array.isArray and typeof (remembering typeof null is \"object\"). Strings and other primitives are immutable — methods return new values. Use undefined for \"not set\" and null for a deliberate empty value.",
     "retrievalPrompts": [
-      "Explain Primitive values and typeof using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: Strings are mutable arrays because bracket access returns characters.",
-      "Apply checkpoint 'immutable' to a new artifact."
+      "Why doesn't name[0] = \"A\" work?",
+      "What is typeof null?",
+      "When should you use null instead of undefined?"
     ],
     "nextReviewPrompt": "Next: continue to “let, const and binding”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

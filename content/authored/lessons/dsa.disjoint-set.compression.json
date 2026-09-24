@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Path compression rewrites parent links during find so visited nodes point closer or directly to the representative.",
+    "summary": "**Path compression** speeds up future finds: while `find(x)` walks up to the root, it **rewires** every node it passed to point **directly at the root** (or, in the lighter **path halving** version, at its grandparent). It changes only the **shape** of the tree, never **which set** anything is in: every node still reaches the same representative. Combined with union by rank or size, a long sequence of operations costs almost O(1) each: O(α(n)) amortised, where α, the inverse Ackermann function, is at most 4 for any realistic n.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A recursive find assigns parent[x] to the representative returned for its current parent. Your goal is to implement path compression and compare operation traces before and after optimization. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A study platform's disjoint-set answers \"same group?\" millions of times a day. Even with union by rank, the same learners are looked up again and again, each time walking the same parent links. A recursive find assigns parent[x] to the representative returned for its current parent. In this lesson you'll implement path compression and compare operation traces before and after optimization.\n\n```predict\n{\"question\": \"Path compression rewires Chen to point straight at the root. Can Chen end up in a different group?\", \"options\": [\"Yes, the links changed\", \"No: Chen points to the same representative, just directly\"], \"answer\": 1, \"why\": \"Compression only shortens paths. Group membership is exactly the same.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Tree terminology and representation; Array representation and operations; Union by rank or size; Time, space and asymptotic growth. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Tree terminology and representation**, **Array representation and operations**, **Union by rank or size**, and **Time, space and asymptotic growth**."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Path compression rewrites parent links during find so visited nodes point closer or directly to the representative. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The invariant: same root, shorter path",
+        "body": "```python\ndef find(parent, x):                     # recursive full compression.\n    if parent[x] != x:\n        parent[x] = find(parent, parent[x])   # point x straight at the root.\n    return parent[x]\n\ndef find_halving(parent, x):             # iterative, no recursion depth issues.\n    while parent[x] != x:\n        parent[x] = parent[parent[x]]         # skip to the grandparent.\n        x = parent[x]\n    return x\n\n# Chain 4 -> 3 -> 2 -> 1 -> 0 (root).\nparent = [0, 0, 1, 2, 3]\nprint(find(parent, 4), parent)          # 0 [0, 0, 0, 0, 0]\n```\n\n| | Before find(4) | After find(4) |\n|---|---|---|\n| parent array. | [0, 0, 1, 2, 3]. | [0, 0, 0, 0, 0]. |\n| steps for find(4). | 4. | next time: 1. |\n| find(3) next. | 3 steps. | 1 step. |\n| root of every node. | 0. | 0 (unchanged). |\n\n```reveal\n{\"prompt\": \"Should rank be updated after compression?\", \"answer\": \"No. Rank becomes an upper bound on height rather than the exact height, and that's all union by rank needs.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Compression changes internal parents but not partition membership and combines with union heuristics for inverse-Ackermann amortized cost. The draft therefore rejects: Path compression changes which elements belong to each set."
+        "heading": "Recursion depth",
+        "body": "```predict\n{\"question\": \"The recursive find on a very long chain in Python. Risk?\", \"options\": [\"None\", \"RecursionError before compression can help; use path halving or an iterative two-pass version\"], \"answer\": 1, \"why\": \"With union by rank, chains stay short, but the iterative version is safe regardless.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Shorten find paths while preserving component identity and explain its amortized benefit conceptually.",
-      "Implement path compression and compare operation traces before and after optimization.",
-      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      "Implement path compression (full or halving) in find.",
+      "Trace parent arrays before and after and explain near-constant amortised cost."
     ],
     "excludes": [
-      "Compression changes internal parents but not partition membership and combines with union heuristics for inverse-Ackermann amortized cost."
+      "Proof of the inverse Ackermann bound.",
+      "Path splitting variants in depth."
     ]
   },
   "outcomes": [
@@ -68,142 +64,134 @@
   "examples": [
     {
       "id": "dsa.disjoint-set.compression.example-a",
-      "title": "Path compression: language-neutral trace",
+      "title": "Shortcuts after the first long walk",
       "situation": "A recursive find assigns parent[x] to the representative returned for its current parent.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: A recursive find assigns parent[x] to the representative returned for its current parent.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Path compression changes representation only; it preserves partition membership while shortening future finds."
+        "**First walk:** find(4) on the chain 4 → 3 → 2 → 1 → 0 recurses up to the root 0.",
+        "**Assign parent[x] to the representative:** as the calls return, 1, 2, 3 and 4 each get parent 0.",
+        "**Compare traces:** a test will check the parent array becomes [0, 0, 0, 0, 0], every find returns 0 as before, and the next find(4) takes one step."
       ],
-      "result": "The conceptual result follows because Path compression changes representation only; it preserves partition membership while shortening future finds."
+      "result": "Repeated lookups for the same learners become one step each, with group membership unchanged."
     },
     {
       "id": "dsa.disjoint-set.compression.example-b",
-      "title": "Path compression: implementation transfer",
-      "situation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
+      "title": "The count that seemed wrong",
+      "situation": "After adding path compression, a developer checks `parent[x] == parent[y]` to compare groups, and some pairs in the same group are reported as different.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
-        "Step 3 — Retest this boundary in the selected implementation: Compression changes internal parents but not partition membership and combines with union heuristics for inverse-Ackermann amortized cost."
+        "Only nodes visited by a find were compressed; others still point to intermediate nodes.",
+        "Parents aren't representatives unless the node was just compressed.",
+        "Always compare find(x) == find(y)."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Group comparisons are always correct, compressed or not."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.disjoint-set.compression.misconception",
       "mistakenBelief": "Path compression changes which elements belong to each set.",
-      "correction": "Path compression changes representation only; it preserves partition membership while shortening future finds.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Path compression changes which elements belong to each set."
+      "correction": "Compression rewires nodes to point at the same root they already reached, so every set keeps exactly the same members and representative. Only the path length changes.",
+      "diagnosticPrompt": "In the opening predict, which group was Chen in after compression?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Path compression, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Path compression is like **a new employee asking \"who's the CEO?\" and being passed up the chain**; once they learn the answer, they (and everyone they asked) write the CEO's name on a sticky note, so next time they go straight there. The company and its CEO haven't changed.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering shortcut to the same root",
+      "halving = remembering your boss's boss"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Compression changes internal parents but not partition membership and combines with union heuristics for inverse-Ackermann amortized cost."
+      "Employees forget; compressed links persist.",
+      "Comparing sticky notes (parents) is unreliable unless everyone has asked recently."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A recursive find assigns parent[x] to the representative returned for its current parent.",
-      "Path compression rewrites parent links during find so visited nodes point closer or directly to the representative.",
-      "Path compression changes representation only; it preserves partition membership while shortening future finds.",
-      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      "parent = [0, 0, 1, 2, 3]",
+      "find(4) recursion",
+      "after returns"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Walk up",
         "state": {
-          "scenario": "A recursive find assigns parent[x] to the representative returned for its current parent."
+          "path": "4 → 3 → 2 → 1 → 0"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The recursive find reaches the root 0."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Rewire",
         "state": {
-          "invariant": "Path compression rewrites parent links during find so visited nodes point closer or directly to the representative."
+          "parent[1..4]": "0"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "A recursive find assigns parent[x] to the representative returned for its current parent."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "After",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "parent": "[0, 0, 0, 0, 0]",
+          "find(4) steps next time": "1"
         },
-        "explanation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Path compression changes representation only; it preserves partition membership while shortening future finds."
-        },
-        "explanation": "Verify the result and reject this misconception: Path compression changes which elements belong to each set."
+        "explanation": "Future finds are short, and every node's root is still 0."
       }
     ],
-    "textAlternative": "Starting artifact: A recursive find assigns parent[x] to the representative returned for its current parent. Step 1, Specification. State: scenario: A recursive find assigns parent[x] to the representative returned for its current parent.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Path compression rewrites parent links during find so visited nodes point closer or directly to the representative.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target. Step 4, Conclusion. State: correction: Path compression changes representation only; it preserves partition membership while shortening future finds.. Verify the result and reject this misconception: Path compression changes which elements belong to each set."
+    "textAlternative": "Tracing path compression. Step 1, Walk up: path is 4 → 3 → 2 → 1 → 0. The recursive find reaches the root 0. Step 2, Rewire: parent[1..4] is 0. A recursive find assigns parent[x] to the representative returned for its current parent. Step 3, After: parent is [0, 0, 0, 0, 0]; find(4) steps next time is 1. Future finds are short, and every node's root is still 0."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Path compression: language-neutral trace”: state its starting evidence, apply the Path compression rule, and give the observable result in three short lines.",
+      "prompt": "For \"Shortcuts after the first long walk\", explain how a recursive find assigns parent[x] to the representative returned for its current parent.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Walk.",
+        "Assign.",
+        "Compare."
       ],
       "expectedEvidence": [
-        "Named example: Path compression: language-neutral trace.",
-        "Starting evidence: A recursive find assigns parent[x] to the representative returned for its current parent.",
-        "Core rule: Path compression rewrites parent links during find so visited nodes point closer or directly to the representative.",
-        "Observable result: The conceptual result follows because Path compression changes representation only; it preserves partition membership while shortening future finds.",
-        "Boundary check: Path compression changes representation only; it preserves partition membership while shortening future finds."
+        "Names the example \"Shortcuts after the first long walk\": the same long paths were walked repeatedly.",
+        "A recursive find reaches the root first.",
+        "It assigns parent[x] to the representative returned for its current parent.",
+        "Repeated lookups become one step each."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Path compression rewrites parent links during find so visited nodes point closer or directly to the representative.",
+      "prompt": "Apply find_halving(4) to parent = [0, 0, 1, 2, 3] and show the parent array after it finishes.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Each step: parent[x] = parent[parent[x]].",
+        "Then move x to its new parent."
       ],
       "expectedEvidence": [
-        "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
-        "Compression changes internal parents but not partition membership and combines with union heuristics for inverse-Ackermann amortized cost."
+        "4 now points to 2, then 2 now points to 0.",
+        "Result: [0, 0, 0, 2, 2]."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Path compression case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Combine union by rank and path compression, then run 1,000,000 random unions and finds on 100,000 items. Count total parent steps and compare with rank-only and compression-only versions.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Same random sequence for each.",
+        "Count steps inside find."
       ],
       "expectedEvidence": [
-        "Implement path compression and compare operation traces before and after optimization.",
-        "Path compression changes representation only; it preserves partition membership while shortening future finds."
+        "Combined version has the fewest steps.",
+        "A short note on the near-constant result."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.disjoint-set.compression.misconception",
-      "explanation": "Path compression changes representation only; it preserves partition membership while shortening future finds.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'preserves partition membership', then state one implementation-specific risk in the selected language."
+      "explanation": "Remember two facts: **compression only shortens paths**, and **only find tells you the representative**. Never compare raw parents.",
+      "retryPrompt": "Apply this to \"The count that seemed wrong\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement path compression and compare operation traces before and after optimization. Keep this boundary in view: Compression changes internal parents but not partition membership and combines with union heuristics for inverse-Ackermann amortized cost.",
+    "summary": "To implement path compression, have find rewire each visited node to the root (or halve paths by skipping to grandparents), leaving every set's members and representative unchanged; with union by rank, operations become nearly constant amortised, and group checks must always compare find results.",
     "retrievalPrompts": [
-      "State the Path compression invariant and complexity without code.",
-      "Why is this claim false: Path compression changes which elements belong to each set.",
-      "Map checkpoint 'preserves partition membership' to C, C++, Java, and Python."
+      "Does path compression change set membership?",
+      "What does a recursive find assign to parent[x]?",
+      "Why compare find(x), not parent[x]?"
     ],
     "nextReviewPrompt": "Next: continue to “Connectivity applications”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

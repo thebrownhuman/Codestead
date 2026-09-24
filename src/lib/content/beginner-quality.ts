@@ -95,9 +95,12 @@ function directPrerequisites(
   course: CourseManifest,
   courseModule: CourseModule,
   skill: AtomicSkill,
+  otherCourses: readonly CourseManifest[],
 ) {
   const labels = new Map<string, string>();
-  for (const manifestModule of course.modules) {
+  // Cross-course prerequisites (e.g. C++ lessons requiring Programming Foundations
+  // skills) must resolve to learner-facing titles, not raw ids.
+  for (const manifestModule of [...otherCourses, course].flatMap((manifest) => manifest.modules)) {
     labels.set(manifestModule.id, manifestModule.title);
     for (const candidate of manifestModule.skills) labels.set(candidate.id, candidate.title);
   }
@@ -110,11 +113,12 @@ export function createBeginnerQualityContext(
   course: CourseManifest,
   courseModule: CourseModule,
   skill: AtomicSkill,
+  otherCourses: readonly CourseManifest[] = [],
 ): BeginnerQualityContext {
   const orderedSkills = course.modules.flatMap((module) => module.skills);
   const currentIndex = orderedSkills.findIndex((candidate) => candidate.id === skill.id);
   return {
-    prerequisiteLabels: directPrerequisites(course, courseModule, skill),
+    prerequisiteLabels: directPrerequisites(course, courseModule, skill, otherCourses),
     assumedKnowledge: course.audience.assumed_knowledge,
     nextSkillTitle: orderedSkills[currentIndex + 1]?.title ?? null,
     runtimeKind: course.runtime.kind,

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Iterators identify positions in ranges, commonly represented as half-open [first,last), and their valid operations depend on iterator category and container state.",
+    "summary": "An **iterator** marks a position in a container, like a smart pointer into it. Ranges are **half-open**: `[begin, end)`. `begin()` is the first element, and `end()` is **one past the last**, a boundary you compare against but **never dereference**. An empty range has `begin() == end()`, so loops run zero times. Iterators can be **invalidated** by operations that change the container: `push_back` that reallocates a vector invalidates **all** its iterators, and `erase` invalidates iterators **at and after** the erased position. So `erase` returns the **next valid iterator**: use it. For map, erasing one element only invalidates iterators to that element.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: An algorithm processes every vector element from begin up to but not including end and performs zero steps when begin equals end. Your goal is to repair an invalidated-iterator defect and document the governing container operation. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner removes odd numbers with `for (auto it = v.begin(); it != v.end(); ++it) if (*it % 2) v.erase(it);`. It crashes or skips elements, because `it` is invalid right after erase. An algorithm processes every vector element from begin up to but not including end and performs zero steps when begin equals end. In this lesson you'll repair an invalidated-iterator defect and document the governing container operation.\n\n```predict\n{\"question\": \"What does *v.end() give you?\", \"options\": [\"The last element\", \"Undefined behaviour: end() is one past the last element\"], \"answer\": 1, \"why\": \"The last element is *(v.end() - 1), or v.back(), when v isn't empty.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Loops and range iteration; Copy and assignment semantics; string, array and vector; map, unordered_map and set. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Loops and range iteration**, **Copy and assignment semantics**, **string, array and vector** and **map, unordered_map and set**."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "Iterators identify positions in ranges, commonly represented as half-open [first,last), and their valid operations depend on iterator category and container state. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The rule: half-open ranges, refresh after erase",
+        "body": "```cpp\n#include <vector>\n\nint sum(const std::vector<int>& v) {\n    int total = 0;\n    for (auto it = v.begin(); it != v.end(); ++it)   // [begin, end): end never read.\n        total += *it;\n    return total;                                   // empty v: zero steps.\n}\n\nvoid remove_odds(std::vector<int>& v) {\n    for (auto it = v.begin(); it != v.end();) {\n        if (*it % 2 != 0)\n            it = v.erase(it);          // erase returns the next valid iterator.\n        else\n            ++it;                      // only advance when nothing was erased.\n    }\n}\n// Simpler in C++20: std::erase_if(v, [](int x) { return x % 2 != 0; });\n```\n\n| Operation on vector | Invalidates |\n|---|---|\n| `push_back` with reallocation. | all iterators and references. |\n| `push_back` without reallocation. | only end(). |\n| `erase(it)`. | it and everything after it. |\n| reading, `[]`, `at`. | nothing. |\n\n```reveal\n{\"prompt\": \"Why ++it only in the else branch?\", \"answer\": \"erase already returned the element after the removed one. Incrementing too would skip that element, so two adjacent odd numbers would leave one behind.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "End iterators cannot be dereferenced, mutation can invalidate iterators, input iterators can be single-pass, and iterators from unrelated ranges cannot be compared freely. Therefore the draft explicitly rejects this beginner failure model: The end iterator refers to the last element and can be dereferenced before a loop stops."
+        "heading": "Invalidation after growth",
+        "body": "```predict\n{\"question\": \"`auto it = v.begin(); v.push_back(9); *it;` Is this safe?\", \"options\": [\"Yes\", \"Only if push_back didn't reallocate; in general, assume it's invalid\"], \"answer\": 1, \"why\": \"Re-obtain iterators after operations that may reallocate.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Traverse iterator ranges and reason about operations that invalidate iterators and references.",
-      "Repair an invalidated-iterator defect and document the governing container operation."
+      "Use half-open [begin, end) ranges, never dereferencing end.",
+      "Repair invalidation bugs using erase's return value and documented container rules."
     ],
     "excludes": [
-      "End iterators cannot be dereferenced, mutation can invalidate iterators, input iterators can be single-pass, and iterators from unrelated ranges cannot be compared freely."
+      "Writing custom iterators.",
+      "Iterator categories in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "cpp.containers.iterators.example-a",
-      "title": "Iterators and invalidation: defined case",
+      "title": "From begin up to, not including, end",
       "situation": "An algorithm processes every vector element from begin up to but not including end and performs zero steps when begin equals end.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: An algorithm processes every vector element from begin up to but not including end and performs zero steps when begin equals end.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Standard ranges are half-open: end is one past the final element and must never be dereferenced."
+        "**Processes every vector element from begin:** sum starts at v.begin() and will add each element.",
+        "**Up to but not including end:** the loop condition it != v.end() stops before dereferencing end.",
+        "**Performs zero steps when begin equals end:** sum of an empty vector will return 0 with no special case."
       ],
-      "result": "The defined result follows because Standard ranges are half-open: end is one past the final element and must never be dereferenced."
+      "result": "The loop visits each element once and handles empty input naturally."
     },
     {
       "id": "cpp.containers.iterators.example-b",
-      "title": "Iterators and invalidation: boundary case",
-      "situation": "After vector insertion triggers reallocation, previously saved iterators are discarded and reacquired.",
+      "title": "The skipping erase",
+      "situation": "remove_odds on {1, 3, 4} leaves {3, 4} in a version that always does ++it.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: After vector insertion triggers reallocation, previously saved iterators are discarded and reacquired.",
-        "Step 2 — Keep this standard boundary visible: End iterators cannot be dereferenced, mutation can invalidate iterators, input iterators can be single-pass, and iterators from unrelated ranges cannot be compared freely.",
-        "Step 3 — Reject the tempting rule: The end iterator refers to the last element and can be dereferenced before a loop stops."
+        "After erasing 1, erase returned an iterator to 3.",
+        "++it then skipped 3.",
+        "Advance only when nothing was erased (or use std::erase_if)."
       ],
-      "result": "This case demonstrates the declared outcome: Repair an invalidated-iterator defect and document the governing container operation."
+      "result": "All odd numbers are removed, including adjacent ones."
     }
   ],
   "misconceptions": [
     {
       "id": "cpp.containers.iterators.misconception",
       "mistakenBelief": "The end iterator refers to the last element and can be dereferenced before a loop stops.",
-      "correction": "Standard ranges are half-open: end is one past the final element and must never be dereferenced.",
-      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: The end iterator refers to the last element and can be dereferenced before a loop stops."
+      "correction": "end() is one past the last element. It marks where the range stops and must never be dereferenced.",
+      "diagnosticPrompt": "In the opening predict, what does *v.end() give?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A system of self-managing components can model Iterators and invalidation: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "example": "An iterator range is like **reading a book from page 1 up to the back cover**: you read every page, but the back cover (end) isn't a page. Tearing out a page (erase) renumbers everything after it, so ask the book \"what's the next page now?\" (erase's return value).",
     "usefulFor": [
-      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+      "remembering the back cover isn't a page",
+      "ask for the next page after tearing"
     ],
     "limitations": [
-      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
-      "End iterators cannot be dereferenced, mutation can invalidate iterators, input iterators can be single-pass, and iterators from unrelated ranges cannot be compared freely."
+      "Books don't move to new shelves; growing vectors do.",
+      "An empty book: front cover = back cover."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "An algorithm processes every vector element from begin up to but not including end and performs zero steps when begin equals end.",
-      "Iterators identify positions in ranges, commonly represented as half-open [first,last), and their valid operations depend on iterator category and container state.",
-      "Standard ranges are half-open: end is one past the final element and must never be dereferenced."
+      "v = {1, 3, 4}; it = begin",
+      "*it = 1: it = erase(it)",
+      "*it = 3: erase; *it = 4: ++it; it == end"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Start",
         "state": {
-          "evidence": "An algorithm processes every vector element from begin up to but not including end and performs zero steps when begin equals end."
+          "v": "{1, 3, 4}",
+          "it": "-> 1"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "Processing starts at begin and will stop at end."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Erase",
         "state": {
-          "rule": "Iterators identify positions in ranges, commonly represented as half-open [first,last), and their valid operations depend on iterator category and container state."
+          "v": "{3, 4}",
+          "it": "-> 3 (returned)"
         },
-        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+        "explanation": "erase returns the next valid iterator instead of invalidating the loop."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Finish",
         "state": {
-          "conclusion": "Standard ranges are half-open: end is one past the final element and must never be dereferenced."
+          "v": "{4}",
+          "it": "end"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: The end iterator refers to the last element and can be dereferenced before a loop stops."
+        "explanation": "Every element up to but not including end was processed."
       }
     ],
-    "textAlternative": "Starting artifact: An algorithm processes every vector element from begin up to but not including end and performs zero steps when begin equals end. Step 1, Source and state. State: evidence: An algorithm processes every vector element from begin up to but not including end and performs zero steps when begin equals end.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: Iterators identify positions in ranges, commonly represented as half-open [first,last), and their valid operations depend on iterator category and container state.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Standard ranges are half-open: end is one past the final element and must never be dereferenced.. Check the conclusion against the boundary and reject this misconception: The end iterator refers to the last element and can be dereferenced before a loop stops."
+    "textAlternative": "Tracing a safe erase loop. Step 1, Start: v is {1, 3, 4}; it is -> 1. Processing starts at begin and will stop at end. Step 2, Erase: v is {3, 4}; it is -> 3 (returned). erase returns the next valid iterator instead of invalidating the loop. Step 3, Finish: v is {4}; it is end. Every element up to but not including end was processed."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Iterators and invalidation: defined case”: state its starting evidence, apply the Iterators and invalidation rule, and give the observable result in three short lines.",
+      "prompt": "For \"From begin up to, not including, end\", explain how an algorithm processes every vector element from begin up to but not including end and performs zero steps when begin equals end.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Begin.",
+        "End.",
+        "Empty."
       ],
       "expectedEvidence": [
-        "Named example: Iterators and invalidation: defined case.",
-        "Starting evidence: An algorithm processes every vector element from begin up to but not including end and performs zero steps when begin equals end.",
-        "Core rule: Iterators identify positions in ranges, commonly represented as half-open [first,last), and their valid operations depend on iterator category and container state.",
-        "Observable result: The defined result follows because Standard ranges are half-open: end is one past the final element and must never be dereferenced.",
-        "Boundary check: Standard ranges are half-open: end is one past the final element and must never be dereferenced."
+        "Names the example \"From begin up to, not including, end\": erase invalidated the loop iterator.",
+        "An algorithm processes every vector element from begin up to but not including end.",
+        "It performs zero steps when begin equals end.",
+        "The loop handles empty input naturally."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same CPP rule to this related boundary case: After vector insertion triggers reallocation, previously saved iterators are discarded and reacquired.",
+      "prompt": "Write a loop that removes all empty strings from a std::vector<std::string> using erase's return value, then rewrite it with std::erase_if. Test {\"\", \"\", \"a\", \"\", \"b\"} and an empty vector.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Adjacent empties are the tricky case.",
+        "Compare results."
       ],
       "expectedEvidence": [
-        "Iterators identify positions in ranges, commonly represented as half-open [first,last), and their valid operations depend on iterator category and container state.",
-        "End iterators cannot be dereferenced, mutation can invalidate iterators, input iterators can be single-pass, and iterators from unrelated ranges cannot be compared freely."
+        "Both versions agree.",
+        "Adjacent cases handled."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CPP example for Iterators and invalidation, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Remove entries with value 0 from a std::map<std::string, int> during iteration, using the iterator returned by erase. Document which iterators map::erase invalidates and contrast with vector.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "it = m.erase(it) works for map too.",
+        "Only the erased element's iterators are invalidated."
       ],
       "expectedEvidence": [
-        "Repair an invalidated-iterator defect and document the governing container operation.",
-        "Standard ranges are half-open: end is one past the final element and must never be dereferenced."
+        "Zeros removed.",
+        "Rules documented."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "cpp.containers.iterators.misconception",
-      "explanation": "Standard ranges are half-open: end is one past the final element and must never be dereferenced.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'half-open' and state the decisive evidence: After vector insertion triggers reallocation, previously saved iterators are discarded and reacquired."
+      "explanation": "For every loop that changes its container ask: **which operation invalidates which iterators, and where does my loop get its next valid iterator?**",
+      "retryPrompt": "Apply this to \"The skipping erase\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to repair an invalidated-iterator defect and document the governing container operation. Keep this boundary in view: End iterators cannot be dereferenced, mutation can invalidate iterators, input iterators can be single-pass, and iterators from unrelated ranges cannot be compared freely.",
+    "summary": "To work with iterators safely, treat ranges as half-open [begin, end) and never dereference end, rely on begin == end meaning empty, know that vector reallocation invalidates all iterators and erase invalidates the erased position onward, and continue loops from the iterator erase returns (or use std::erase_if).",
     "retrievalPrompts": [
-      "Explain Iterators and invalidation using a concrete CPP rule rather than the optional analogy.",
-      "Why is this claim incorrect: The end iterator refers to the last element and can be dereferenced before a loop stops.",
-      "Apply the checkpoint 'half-open' to the boundary case from memory."
+      "What does end() point to?",
+      "Which vector operations invalidate iterators?",
+      "How should an erase loop advance?"
     ],
     "nextReviewPrompt": "Next: continue to “Standard algorithms”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

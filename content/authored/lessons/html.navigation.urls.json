@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A URL combines scheme, authority, path, query, and fragment, and relative references resolve against the document base URL.",
+    "summary": "A link's `href` can be **absolute** (`https://example.com/a`), **root-relative** (`/courses/css/`, from the site root), **relative** (`../css/`, from the **current page's folder**), or a **fragment** (`#forms`, a spot on the same page). Relative URLs resolve from the page they're written on — so moving a page can break them.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: From /courses/html/index.html, the relative link ../css/ resolves to /courses/css/ under the current base. Your goal is to construct and debug links across a multi-folder site and within a page. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Your course site has `/courses/html/index.html` and `/courses/css/index.html`. A link to the CSS course works on one page but 404s on another. The link didn't change — the page it's on did. From /courses/html/index.html, the relative link ../css/ resolves to /courses/css/ under the current base. In this lesson you'll construct and debug links across a multi-folder site and within a page.\n\n```predict\n{\"question\": \"On `/courses/html/index.html`, where does `href=\\\"forms.html\\\"` go?\", \"options\": [\"/forms.html\", \"/courses/html/forms.html\"], \"answer\": 1, \"why\": \"A plain relative URL resolves from the current page's folder: /courses/html/.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Sections and landmarks; pf tools files; Standards-mode document skeleton. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Sections and landmarks**, **Files, folders and paths** (relative paths and `..`), and the **Standards-mode document skeleton**."
       },
       {
-        "heading": "Technology rule",
-        "body": "A URL combines scheme, authority, path, query, and fragment, and relative references resolve against the document base URL. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: resolve from the current page's folder",
+        "body": "```text\nsite root /\n└── courses/\n    ├── html/index.html     ← you are here\n    └── css/index.html\n```\n\n| href on /courses/html/index.html | Resolves to |\n|---|---|\n| `forms.html` | /courses/html/forms.html. |\n| `../css/` | /courses/css/. |\n| `/courses/css/` | /courses/css/ (from the root). |\n| `https://mdn.dev/` | that exact site. |\n| `#forms` | the element with id=\"forms\" on this page. |\n\n```reveal\n{\"prompt\": \"What does `../css/` mean step by step?\", \"answer\": \"Start in /courses/html/, `..` goes up to /courses/, then `css/` enters the css folder → /courses/css/ (which serves its index.html).\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Encoding, trailing slashes, base elements, origin rules, and deployment subpaths can change resolution. This draft therefore rejects: Relative URLs always resolve from the website root."
+        "heading": "Fragments and ids",
+        "body": "```predict\n{\"question\": \"`<a href=\\\"#faq\\\">FAQ</a>` does nothing when clicked. Most likely cause?\", \"options\": [\"Fragments don't work in HTML\", \"No element on the page has id=\\\"faq\\\" (or the id is spelled differently)\"], \"answer\": 1, \"why\": \"A fragment jumps to the element whose id matches exactly, case included. `<h2 id=\\\"faq\\\">` fixes it.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Resolve paths, fragments, query strings and schemes from a document base.",
-      "Construct and debug links across a multi-folder site and within a page."
+      "Write absolute, root-relative, relative and fragment URLs.",
+      "Debug broken links by resolving them from the current page."
     ],
     "excludes": [
-      "Encoding, trailing slashes, base elements, origin rules, and deployment subpaths can change resolution."
+      "The base element and URL encoding in depth.",
+      "Server rewrites and routing."
     ]
   },
   "outcomes": [
@@ -68,133 +69,133 @@
   "examples": [
     {
       "id": "html.navigation.urls.example-a",
-      "title": "Relative and absolute URLs: concrete case",
+      "title": "From the HTML course to the CSS course",
       "situation": "From /courses/html/index.html, the relative link ../css/ resolves to /courses/css/ under the current base.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: From /courses/html/index.html, the relative link ../css/ resolves to /courses/css/ under the current base.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Resolve relative URLs against the document base URL, not automatically against the origin root."
+        "**Current base:** the page lives at /courses/html/index.html, so its folder is /courses/html/.",
+        "**Resolve ../css/:** `..` moves up to /courses/, then `css/` enters the css folder.",
+        "**Result:** the browser will navigate to /courses/css/, and that folder's index.html loads."
       ],
-      "result": "The result follows because Resolve relative URLs against the document base URL, not automatically against the origin root."
+      "result": "The link reaches the CSS course from the HTML course page."
     },
     {
       "id": "html.navigation.urls.example-b",
-      "title": "Relative and absolute URLs: boundary case",
-      "situation": "Encoding, trailing slashes, base elements, origin rules, and deployment subpaths can change resolution.",
+      "title": "The link that broke after moving a page",
+      "situation": "`about.html` at the root links to `img/team.jpg`. The page is moved to `/company/about.html`; the image disappears.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Encoding, trailing slashes, base elements, origin rules, and deployment subpaths can change resolution.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Relative URLs always resolve from the website root."
+        "From the root, `img/team.jpg` meant /img/team.jpg.",
+        "From /company/, the same URL now resolves to /company/img/team.jpg — which doesn't exist.",
+        "Fix: use the root-relative `/img/team.jpg`, or update it to `../img/team.jpg`."
       ],
-      "result": "The boundary requires this correction: Resolve relative URLs against the document base URL, not automatically against the origin root."
+      "result": "The image loads again from its real location."
     }
   ],
   "misconceptions": [
     {
       "id": "html.navigation.urls.misconception",
       "mistakenBelief": "Relative URLs always resolve from the website root.",
-      "correction": "Resolve relative URLs against the document base URL, not automatically against the origin root.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: Relative URLs always resolve from the website root."
+      "correction": "Relative URLs resolve from the current document's location (its base); only URLs starting with / resolve from the site root. The same relative href can point to different places on different pages.",
+      "diagnosticPrompt": "In \"The link that broke after moving a page\", why did the same href break?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model Relative and absolute URLs, with structure carrying meaning before decoration.",
+    "example": "Relative URLs are like **directions from where you're standing**: \"go back one street, then turn into Css Lane\". Root-relative is \"from the town square\"; absolute is a full postal address.",
     "usefulFor": [
-      "Building a first mental model for Relative and absolute URLs before using exact platform terms"
+      "remembering relative depends on your position",
+      "choosing the right kind of address"
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "Encoding, trailing slashes, base elements, origin rules, and deployment subpaths can change resolution."
+      "Streets don't have index.html; folders do.",
+      "Fragments are like \"room 12 in this building\"."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "From /courses/html/index.html, the relative link ../css/ resolves to /courses/css/ under the current base.",
-      "A URL combines scheme, authority, path, query, and fragment, and relative references resolve against the document base URL.",
-      "Resolve relative URLs against the document base URL, not automatically against the origin root."
+      "page: /courses/html/index.html",
+      "href: ../css/",
+      "resolve"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Current base",
         "state": {
-          "evidence": "From /courses/html/index.html, the relative link ../css/ resolves to /courses/css/ under the current base."
+          "folder": "/courses/html/"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The relative link resolves from the current page's folder."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Go up",
         "state": {
-          "rule": "A URL combines scheme, authority, path, query, and fragment, and relative references resolve against the document base URL."
+          "after ..": "/courses/"
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The .. segment moves up one folder."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Enter css",
         "state": {
-          "correction": "Resolve relative URLs against the document base URL, not automatically against the origin root."
+          "result": "/courses/css/"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Relative URLs always resolve from the website root."
+        "explanation": "The css/ segment enters the folder, so the link resolves to /courses/css/."
       }
     ],
-    "textAlternative": "Starting artifact: From /courses/html/index.html, the relative link ../css/ resolves to /courses/css/ under the current base. Step 1, Artifact. State: evidence: From /courses/html/index.html, the relative link ../css/ resolves to /courses/css/ under the current base.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A URL combines scheme, authority, path, query, and fragment, and relative references resolve against the document base URL.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Resolve relative URLs against the document base URL, not automatically against the origin root.. Check the result against the boundary and reject this misconception: Relative URLs always resolve from the website root."
+    "textAlternative": "Resolving a relative course link. Step 1, Current base: folder is /courses/html/. The relative link resolves from the current page's folder. Step 2, Go up: after .. is /courses/. The .. segment moves up one folder. Step 3, Enter css: result is /courses/css/. The css/ segment enters the folder, so the link resolves to /courses/css/."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Relative and absolute URLs: concrete case”: state its starting evidence, apply the Relative and absolute URLs rule, and give the observable result in three short lines.",
+      "prompt": "For \"From the HTML course to the CSS course\", resolve the relative link ../css/ from /courses/html/index.html step by step, under the current base.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Base folder.",
+        "..",
+        "Result."
       ],
       "expectedEvidence": [
-        "Named example: Relative and absolute URLs: concrete case.",
-        "Starting evidence: From /courses/html/index.html, the relative link ../css/ resolves to /courses/css/ under the current base.",
-        "Core rule: A URL combines scheme, authority, path, query, and fragment, and relative references resolve against the document base URL.",
-        "Observable result: The result follows because Resolve relative URLs against the document base URL, not automatically against the origin root.",
-        "Boundary check: Resolve relative URLs against the document base URL, not automatically against the origin root."
+        "Names the example \"From the HTML course to the CSS course\": from /courses/html/index.html.",
+        "The current base folder is /courses/html/.",
+        "The relative link ../css/ goes up then into css.",
+        "It resolves to /courses/css/."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Encoding, trailing slashes, base elements, origin rules, and deployment subpaths can change resolution.",
+      "prompt": "On `/blog/2026/post.html`, resolve: `photo.jpg`, `../index.html`, `/about/`, and `#comments`.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Base is /blog/2026/.",
+        "Fragment stays on the page."
       ],
       "expectedEvidence": [
-        "A URL combines scheme, authority, path, query, and fragment, and relative references resolve against the document base URL.",
-        "Encoding, trailing slashes, base elements, origin rules, and deployment subpaths can change resolution."
+        "/blog/2026/photo.jpg and /blog/index.html.",
+        "/about/ and the element id=comments on the same page."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Relative and absolute URLs and explain why the misconception fails.",
+      "prompt": "Build a 3-folder mini site (home, courses/html, courses/css) with links between all pages and a table of contents using fragments. Check every link with the browser and fix any 404s.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Mix relative and root-relative.",
+        "Match ids exactly."
       ],
       "expectedEvidence": [
-        "Construct and debug links across a multi-folder site and within a page.",
-        "Resolve relative URLs against the document base URL, not automatically against the origin root."
+        "All links resolve correctly.",
+        "Fragment links jump to the right headings."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.navigation.urls.misconception",
-      "explanation": "Resolve relative URLs against the document base URL, not automatically against the origin root.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'document base URL' and state the decisive evidence."
+      "explanation": "To debug a link: write the current page's folder, apply each segment of the href (`..` = up, name = into), and compare the result with where the file really is.",
+      "retryPrompt": "Debug \"The link that broke after moving a page\" this way."
     }
   ],
   "recap": {
-    "summary": "You should now be able to construct and debug links across a multi-folder site and within a page. Keep this boundary in view: Encoding, trailing slashes, base elements, origin rules, and deployment subpaths can change resolution.",
+    "summary": "To construct and debug links across a multi-folder site, resolve relative URLs from the current page's folder, use / for root-relative, full URLs for other sites, and #id fragments for spots within a page that match an id exactly.",
     "retrievalPrompts": [
-      "Explain Relative and absolute URLs using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: Relative URLs always resolve from the website root.",
-      "Apply checkpoint 'document base URL' to a new artifact."
+      "Where does a relative URL resolve from?",
+      "What does `../` do?",
+      "Why might a #fragment link do nothing?"
     ],
     "nextReviewPrompt": "Next: continue to “Meaningful links”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "An asyncio coroutine yields control at await points, tasks schedule coroutine progress on an event loop, and structured coordination must handle result, timeout, failure, and cancellation paths.",
+    "summary": "`async def` defines a **coroutine**: calling it just creates a coroutine object — nothing runs until you `await` it or wrap it in a **task**. Tasks run **concurrently on one thread**, switching only at `await` points. So `await asyncio.sleep(1)` lets others run, but a blocking `time.sleep(1)` or heavy loop freezes everything. Use `asyncio.timeout` and `TaskGroup` so failures cancel the rest cleanly.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Three bounded simulated I/O calls run as tasks under a timeout, results are gathered, and remaining tasks are cancelled and awaited on failure. Your goal is to implement and trace a small asynchronous workflow with timeout and cancellation handling. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A dashboard needs data from three slow services. Fetching them one by one takes 3 seconds; together, about 1. But if one service hangs forever, the dashboard must give up after 2 seconds and not leave stray work running. Three bounded simulated I/O calls run as tasks under a timeout, results are gathered, and remaining tasks are cancelled and awaited on failure. In this lesson you'll implement and trace a small asynchronous workflow with timeout and cancellation handling.\n\n```predict\n{\"question\": \"Inside an `async def`, you call `time.sleep(2)` instead of `await asyncio.sleep(2)`. What happens to other tasks?\", \"options\": [\"They keep running\", \"They all freeze for 2 seconds\"], \"answer\": 1, \"why\": \"`time.sleep` blocks the single event-loop thread. Only `await` points let other tasks run. async doesn't make blocking calls non-blocking.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Typing, tests, logging and debugging; Generators and lazy pipelines; Concurrency versus parallelism; Exception handling and propagation. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Typing, tests, logging and debugging**, **Generators and lazy pipelines**, **Concurrency versus parallelism** (I/O-bound work), and **Exception handling and propagation**."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "An asyncio coroutine yields control at await points, tasks schedule coroutine progress on an event loop, and structured coordination must handle result, timeout, failure, and cancellation paths. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: one thread, many tasks, switching at await",
+        "body": "```python\nimport asyncio\n\nasync def fetch(name: str, delay: float) -> str:\n    await asyncio.sleep(delay)          # simulated network wait\n    return f\"{name} ok\"\n\nasync def main() -> list[str]:\n    async with asyncio.timeout(2):      # give up after 2 s\n        async with asyncio.TaskGroup() as tg:\n            tasks = [tg.create_task(fetch(n, d))\n                     for n, d in [(\"users\", 1), (\"orders\", 0.5), (\"stock\", 0.8)]]\n    return [t.result() for t in tasks]\n\nprint(asyncio.run(main()))   # ['users ok', 'orders ok', 'stock ok'] in ~1 s\n```\n\n| Piece | Role |\n|---|---|\n| `async def`. | defines a coroutine. |\n| `await`. | pause here; let other tasks run. |\n| `create_task`. | schedule a coroutine to run concurrently. |\n| `TaskGroup`. | waits for all; if one fails, cancels and awaits the rest. |\n| `asyncio.timeout`. | cancels the work if the deadline passes. |\n\n```reveal\n{\"prompt\": \"What does `fetch(\\\"users\\\", 1)` do if you call it without await?\", \"answer\": \"It creates a coroutine object and runs nothing. Python warns \\\"coroutine was never awaited\\\". You must await it or make it a task.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "Blocking calls freeze the event loop, creating a coroutine does not schedule it, cancellation is injected at suspension points, background tasks need strong references and observation, and shared state still races logically. The learner must reject this documented misconception: Declaring async makes the function run in parallel immediately and every call inside it becomes nonblocking."
+        "heading": "Timeouts and cancellation",
+        "body": "```predict\n{\"question\": \"\\\"stock\\\" hangs for 10 s. With `asyncio.timeout(2)`, what happens?\", \"options\": [\"main waits 10 s\", \"After 2 s, the remaining tasks are cancelled and TimeoutError is raised\"], \"answer\": 1, \"why\": \"The timeout cancels the TaskGroup; it cancels and awaits the unfinished tasks, then TimeoutError propagates so the caller can show a fallback.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use async, await and task coordination for bounded I/O-style examples without blocking the event loop.",
-      "Implement and trace a small asynchronous workflow with timeout and cancellation handling."
+      "Write coroutines, create tasks, and gather results with TaskGroup.",
+      "Apply timeouts and handle cancellation without leaving stray tasks."
     ],
     "excludes": [
-      "Blocking calls freeze the event loop, creating a coroutine does not schedule it, cancellation is injected at suspension points, background tasks need strong references and observation, and shared state still races logically."
+      "Async generators and async iterators.",
+      "Choosing async web frameworks."
     ]
   },
   "outcomes": [
@@ -68,133 +69,138 @@
   "examples": [
     {
       "id": "python.concurrency.async.example.direct",
-      "title": "asyncio coroutines and tasks: direct language case",
+      "title": "Three fetches with a timeout",
       "situation": "Three bounded simulated I/O calls run as tasks under a timeout, results are gathered, and remaining tasks are cancelled and awaited on failure.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: Three bounded simulated I/O calls run as tasks under a timeout, results are gathered, and remaining tasks are cancelled and awaited on failure.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly."
+        "**Run as tasks:** `tg.create_task(fetch(...))` starts users (1 s), orders (0.5 s) and stock (0.8 s) concurrently.",
+        "**Under a timeout:** `asyncio.timeout(2)` bounds the whole group; results are gathered with `t.result()` after ~1 s.",
+        "**On failure:** if stock hangs, after 2 s the remaining tasks are cancelled and awaited, and TimeoutError reaches the caller."
       ],
-      "result": "The example meets the atomic outcome because Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly."
+      "result": "Normally all three results arrive in about 1 second; a hang produces a clean TimeoutError with no stray tasks."
     },
     {
       "id": "python.concurrency.async.example.boundary",
-      "title": "asyncio coroutines and tasks: boundary and transfer case",
-      "situation": "A blocking library call is moved to an appropriate thread boundary rather than called directly inside an async function.",
+      "title": "The coroutine that never ran",
+      "situation": "`async def save(data): ...` is called as `save(report)` inside another coroutine, without await. Nothing is saved, and a warning appears.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A blocking library call is moved to an appropriate thread boundary rather than called directly inside an async function.",
-        "Step 2 — Keep the language boundary explicit: Blocking calls freeze the event loop, creating a coroutine does not schedule it, cancellation is injected at suspension points, background tasks need strong references and observation, and shared state still races logically.",
-        "Step 3 — Reject the tempting but incorrect rule: Declaring async makes the function run in parallel immediately and every call inside it becomes nonblocking."
+        "Calling an async function only creates a coroutine object.",
+        "Without await or a task, it's never scheduled.",
+        "Fix: `await save(report)`, or `tg.create_task(save(report))` to run it alongside other work."
       ],
-      "result": "This case demonstrates the declared outcome: Implement and trace a small asynchronous workflow with timeout and cancellation handling."
+      "result": "Awaiting the coroutine makes the save actually run."
     }
   ],
   "misconceptions": [
     {
       "id": "python.concurrency.async.misconception",
-      "mistakenBelief": "Declaring async makes the function run in parallel immediately and every call inside it becomes nonblocking.",
-      "correction": "Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Declaring async makes the function run in parallel immediately and every call inside it becomes nonblocking."
+      "mistakenBelief": "Declaring async makes the function run in parallel immediately, and every call inside it becomes non-blocking.",
+      "correction": "An async function only creates a coroutine; it runs when awaited or scheduled as a task, concurrently on one thread. Only awaitable operations yield control — blocking calls like time.sleep or CPU-heavy loops still freeze every task.",
+      "diagnosticPrompt": "In the opening predict, why did time.sleep freeze everything?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a coordination desk that overlaps waiting jobs, assigns CPU work to separate rooms, and protects complete shared transitions can introduce asyncio coroutines and tasks, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "example": "asyncio is like **one waiter serving many tables**: take an order, and while the kitchen cooks (await), serve another table. If the waiter stops to wash dishes for 10 minutes (a blocking call), every table waits.",
     "usefulFor": [
-      "concurrency models, asyncio, threads, processes, cancellation, and safety"
+      "remembering one worker switching at waits",
+      "seeing blocking calls as the waiter stuck"
     ],
     "limitations": [
-      "the event loop, GIL, serialization, atomicity, scheduling, and cancellation points must be reasoned about technically",
-      "Blocking calls freeze the event loop, creating a coroutine does not schedule it, cancellation is injected at suspension points, background tasks need strong references and observation, and shared state still races logically."
+      "Waiters choose whom to serve; the event loop resumes whichever task is ready.",
+      "A timeout is the manager saying \"stop waiting on that table after 2 minutes\"."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Three bounded simulated I/O calls run as tasks under a timeout, results are gathered, and remaining tasks are cancelled and awaited on failure.",
-      "An asyncio coroutine yields control at await points, tasks schedule coroutine progress on an event loop, and structured coordination must handle result, timeout, failure, and cancellation paths.",
-      "Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly."
+      "async with asyncio.timeout(2):",
+      "    async with asyncio.TaskGroup() as tg: create 3 tasks",
+      "results = [t.result() for t in tasks]"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Start tasks",
         "state": {
-          "evidence": "Three bounded simulated I/O calls run as tasks under a timeout, results are gathered, and remaining tasks are cancelled and awaited on failure."
+          "running": "users, orders, stock"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "Three bounded simulated I/O calls run as tasks at the same time."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Complete",
         "state": {
-          "rule": "An asyncio coroutine yields control at await points, tasks schedule coroutine progress on an event loop, and structured coordination must handle result, timeout, failure, and cancellation paths."
+          "orders": "0.5 s",
+          "stock": "0.8 s",
+          "users": "1.0 s",
+          "total": "~1 s"
         },
-        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "Results are gathered after the slowest task, well under the timeout."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Failure path",
         "state": {
-          "correction": "Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly."
+          "stock": "hangs",
+          "at 2 s": "others cancelled and awaited",
+          "raised": "TimeoutError"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Declaring async makes the function run in parallel immediately and every call inside it becomes nonblocking."
+        "explanation": "On failure, remaining tasks are cancelled and awaited before the error propagates."
       }
     ],
-    "textAlternative": "Starting artifact: Three bounded simulated I/O calls run as tasks under a timeout, results are gathered, and remaining tasks are cancelled and awaited on failure. Step 1, Observe. State: evidence: Three bounded simulated I/O calls run as tasks under a timeout, results are gathered, and remaining tasks are cancelled and awaited on failure.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: An asyncio coroutine yields control at await points, tasks schedule coroutine progress on an event loop, and structured coordination must handle result, timeout, failure, and cancellation paths.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly.. Compare the observation with the correction and explain why the misconception fails: Declaring async makes the function run in parallel immediately and every call inside it becomes nonblocking."
+    "textAlternative": "An async workflow with a timeout. Step 1, Start tasks: running is users, orders, stock. Three bounded simulated I/O calls run as tasks at the same time. Step 2, Complete: orders is 0.5 s; stock is 0.8 s; users is 1.0 s; total is ~1 s. Results are gathered after the slowest task, well under the timeout. Step 3, Failure path: stock is hangs; at 2 s is others cancelled and awaited; raised is TimeoutError. On failure, remaining tasks are cancelled and awaited before the error propagates."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “asyncio coroutines and tasks: direct language case”: state its starting evidence, apply the asyncio coroutines and tasks rule, and give the observable result in three short lines.",
+      "prompt": "For \"Three fetches with a timeout\", explain how three bounded simulated I/O calls run as tasks under a timeout, how results are gathered, and what happens to remaining tasks on failure.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Tasks.",
+        "Timeout and results.",
+        "Failure."
       ],
       "expectedEvidence": [
-        "Named example: asyncio coroutines and tasks: direct language case.",
-        "Starting evidence: Three bounded simulated I/O calls run as tasks under a timeout, results are gathered, and remaining tasks are cancelled and awaited on failure.",
-        "Core rule: An asyncio coroutine yields control at await points, tasks schedule coroutine progress on an event loop, and structured coordination must handle result, timeout, failure, and cancellation paths.",
-        "Observable result: The example meets the atomic outcome because Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly.",
-        "Boundary check: Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly."
+        "Names the example \"Three fetches with a timeout\": three bounded simulated I/O calls run as tasks.",
+        "They run under a timeout of 2 seconds and results are gathered in about 1 second.",
+        "On failure, remaining tasks are cancelled and awaited.",
+        "The caller receives TimeoutError."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A blocking library call is moved to an appropriate thread boundary rather than called directly inside an async function.",
+      "prompt": "Rewrite a loop that awaits 5 sleeps of 1 s one after another so that they run concurrently. How long does each version take?",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Sequential awaits add up.",
+        "Tasks overlap."
       ],
       "expectedEvidence": [
-        "An asyncio coroutine yields control at await points, tasks schedule coroutine progress on an event loop, and structured coordination must handle result, timeout, failure, and cancellation paths.",
-        "Blocking calls freeze the event loop, creating a coroutine does not schedule it, cancellation is injected at suspension points, background tasks need strong references and observation, and shared state still races logically."
+        "Sequential version takes about 5 s.",
+        "TaskGroup version takes about 1 s."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of asyncio coroutines and tasks, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Write an async function that fetches 10 simulated pages with at most 3 running at once (use asyncio.Semaphore), a 5 s overall timeout, and a test for the timeout path.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "async with semaphore inside each task.",
+        "Simulate a hang for the test."
       ],
       "expectedEvidence": [
-        "Implement and trace a small asynchronous workflow with timeout and cancellation handling.",
-        "Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly."
+        "Bounded concurrency with a semaphore and TaskGroup.",
+        "A test proving TimeoutError and no leftover tasks."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "python.concurrency.async.misconception",
-      "explanation": "Calling async creates a coroutine; schedule or await it, keep blocking work off the event loop, and handle timeout plus cancellation cleanup explicitly.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A blocking library call is moved to an appropriate thread boundary rather than called directly inside an async function."
+      "explanation": "Scan async code for three things: **every coroutine call awaited or made a task? any blocking call (time.sleep, requests.get, big loops)? a timeout around external waits?**",
+      "retryPrompt": "Scan \"The coroutine that never ran\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and trace a small asynchronous workflow with timeout and cancellation handling. Keep this boundary in view: Blocking calls freeze the event loop, creating a coroutine does not schedule it, cancellation is injected at suspension points, background tasks need strong references and observation, and shared state still races logically.",
+    "summary": "To implement a small asynchronous workflow, define coroutines with async def, run them as tasks in a TaskGroup, and bound them with asyncio.timeout so failures cancel and await the rest. Tasks share one thread and switch only at await — blocking calls freeze everything.",
     "retrievalPrompts": [
-      "Explain asyncio coroutines and tasks using canonical Python: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Declaring async makes the function run in parallel immediately and every call inside it becomes nonblocking.",
-      "Predict this case from memory: A blocking library call is moved to an appropriate thread boundary rather than called directly inside an async function."
+      "What happens when you call an async function without await?",
+      "Why does time.sleep block other tasks?",
+      "What does TaskGroup do when one task fails?"
     ],
     "nextReviewPrompt": "Next: continue to “Threads and processes”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

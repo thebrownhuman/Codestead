@@ -133,7 +133,7 @@
     "worker:exam-finalization": "tsx scripts/process-exam-finalizations.ts",
     "worker:practice-recovery": "tsx scripts/process-practice-runner-recoveries.ts",
     "worker:rewards": "tsx scripts/process-rewards.ts",
-    "bootstrap:admin": "tsx scripts/bootstrap-admin.ts",
+    "bootstrap:admin": "tsx --env-file=.env scripts/bootstrap-admin.ts",
     "db:seed": "tsx scripts/seed-platform.ts",
     "worker:scan": "tsx scripts/scan-uploads.ts",
     "storage:reconcile": "tsx scripts/reconcile-storage.ts",

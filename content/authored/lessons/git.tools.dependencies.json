@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Dependency manifests declare requested packages and constraints, while lockfiles record a resolved graph for reproducible installation in a defined tool and platform context.",
+    "summary": "Projects depend on other people's packages. The **manifest** (`package.json`, `requirements.txt`, `pyproject.toml`) says **what you asked for**, often as a range like `^3.6.0`. The **lockfile** (`package-lock.json`, `poetry.lock`) records **exactly what got installed**: every package, including dependencies of dependencies, at precise versions with checksums. Commit **both**, and review both in PRs. Add packages **through the package manager** (`npm install date-fns`) so both files change together. On a fresh machine or CI, install from the lockfile (`npm ci`) to get the same tree.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A new library is added through the package manager so both manifest intent and lockfile resolution change and are reviewed together. Your goal is to install and reproduce a project from reviewed manifest and lockfile data. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner hand-edits package.json to add a library and pushes. Their laptop works because an older version was already in node_modules. CI installs fresh, resolves a newer release, and the build fails. A new library is added through the package manager so both manifest intent and lockfile resolution change and are reviewed together. In this lesson you'll install and reproduce a project from reviewed manifest and lockfile data.\n\n```predict\n{\"question\": \"The manifest says `\\\"date-fns\\\": \\\"^3.6.0\\\"`. Which exact version will a fresh install get without a lockfile?\", \"options\": [\"Always 3.6.0\", \"The newest 3.x available that day, which can change over time\"], \"answer\": 1, \"why\": \"Ranges allow drift. The lockfile pins the resolved version.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Ignore policy; Commits and history; Diffs and patch review. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Ignore policy**, **Commits and history** (what belongs in a commit) and **Diffs and patch review**."
       },
       {
-        "heading": "Operational model",
-        "body": "Dependency manifests declare requested packages and constraints, while lockfiles record a resolved graph for reproducible installation in a defined tool and platform context. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The distinction: manifest intent vs lockfile resolution",
+        "body": "```bash\nnpm install date-fns          # updates package.json AND package-lock.json.\ngit diff --stat               # package.json | 1 +, package-lock.json | 12 +.\ngit add package.json package-lock.json\ngit commit -m \"Add date-fns for due-date formatting\"\n\n# On a fresh clone or in CI:\nnpm ci                        # installs exactly the lockfile; fails if files disagree.\nnpm ls date-fns               # which version actually installed?\n```\n\n| File | Records | Commit? |\n|---|---|---|\n| package.json. | requested packages and ranges. | yes. |\n| package-lock.json. | exact resolved tree + checksums. | yes, for apps. |\n| node_modules/. | installed files. | no, ignore it. |\n\n```reveal\n{\"prompt\": \"What should a reviewer look for in a lockfile diff?\", \"answer\": \"Unexpected packages, big version jumps, changed download sources, or thousands of changed lines from a small request. Those can signal mistakes or supply-chain risk.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Optional and platform dependencies, registries, transitive updates, install scripts, integrity metadata, and tool versions can still affect reproducibility and security. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Editing a manifest version is sufficient, and lockfiles are generated noise that should never be reviewed or committed."
+        "heading": "Reproduce, don't guess",
+        "body": "```predict\n{\"question\": \"CI fails but your laptop works. What's the best first step?\", \"options\": [\"Delete the lockfile and reinstall\", \"Do a clean install from the lockfile (npm ci) in a fresh clone and compare\"], \"answer\": 1, \"why\": \"Deleting the lockfile throws away the record you need to reproduce.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Declare direct dependencies, review lockfile changes and avoid committing installed dependency directories.",
-      "Install and reproduce a project from reviewed manifest and lockfile data."
+      "Add dependencies through the package manager and commit manifest and lockfile together.",
+      "Install reproducibly from the lockfile and review lockfile diffs for surprises."
     ],
     "excludes": [
-      "Optional and platform dependencies, registries, transitive updates, install scripts, integrity metadata, and tool versions can still affect reproducibility and security."
+      "Publishing packages.",
+      "Dependency security scanning in depth (security module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "git.tools.dependencies.example-a",
-      "title": "Dependency manifests and lockfiles: direct case",
+      "title": "Adding date-fns the right way",
       "situation": "A new library is added through the package manager so both manifest intent and lockfile resolution change and are reviewed together.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A new library is added through the package manager so both manifest intent and lockfile resolution change and are reviewed together.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Use the ecosystem tool, review declared and resolved changes, pin the package-manager version where needed, and test the exact lockfile installed in CI."
+        "**Added through the package manager:** npm install date-fns instead of hand-editing package.json.",
+        "**Manifest intent and lockfile resolution change:** git diff shows ^3.6.0 in package.json and the exact tree in the lockfile.",
+        "**Reviewed together:** both files go in one commit; npm ci in CI will install the identical version."
       ],
-      "result": "The case supports the declared outcome because Use the ecosystem tool, review declared and resolved changes, pin the package-manager version where needed, and test the exact lockfile installed in CI."
+      "result": "CI and every teammate get the same dependency tree, and the build passes."
     },
     {
       "id": "git.tools.dependencies.example-b",
-      "title": "Dependency manifests and lockfiles: boundary case",
-      "situation": "A lockfile-only security update is inspected for unexpected package or lifecycle-script changes before tests run.",
+      "title": "The accidental major upgrade",
+      "situation": "A PR says \"fix typo\" but its lockfile diff shows react jumping from 18 to 19.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A lockfile-only security update is inspected for unexpected package or lifecycle-script changes before tests run.",
-        "Step 2 — Keep this boundary explicit: Optional and platform dependencies, registries, transitive updates, install scripts, integrity metadata, and tool versions can still affect reproducibility and security.",
-        "Step 3 — Reject the documented misconception: Editing a manifest version is sufficient, and lockfiles are generated noise that should never be reviewed or committed."
+        "The author ran a broad update command by mistake.",
+        "The reviewer flags the lockfile change as unrelated to the PR.",
+        "The author resets the lockfile to main's version and reinstalls."
       ],
-      "result": "This case demonstrates the declared outcome: Install and reproduce a project from reviewed manifest and lockfile data."
+      "result": "The typo fix merges alone, and any upgrade gets its own reviewed PR."
     }
   ],
   "misconceptions": [
     {
       "id": "git.tools.dependencies.misconception",
       "mistakenBelief": "Editing a manifest version is sufficient, and lockfiles are generated noise that should never be reviewed or committed.",
-      "correction": "Use the ecosystem tool, review declared and resolved changes, pin the package-manager version where needed, and test the exact lockfile installed in CI.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Editing a manifest version is sufficient, and lockfiles are generated noise that should never be reviewed or committed."
+      "correction": "The manifest only states intent; the lockfile records what actually installs. Without it installs drift, and unreviewed lockfile changes can hide unwanted upgrades.",
+      "diagnosticPrompt": "In the opening predict, why could a fresh install differ?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A recipe and packing line can model Dependency manifests and lockfiles: declared ingredients resolve to exact supplies, controlled steps produce an artifact, and labels preserve provenance.",
+    "example": "The manifest is like **a shopping list**: \"milk, any brand, 1 litre\". The lockfile is **the receipt**: \"Brand X, 1 L, batch 2291\". To cook the same dish again, you follow the receipt.",
     "usefulFor": [
-      "Understanding dependency resolution, configuration, repeatable builds, and generated artifacts"
+      "remembering list vs receipt",
+      "npm ci = shop from the receipt"
     ],
     "limitations": [
-      "Software supply chains include executable dependencies, caches, signatures, platform variance, and secret handling beyond a kitchen process.",
-      "Optional and platform dependencies, registries, transitive updates, install scripts, integrity metadata, and tool versions can still affect reproducibility and security."
+      "Receipts don't list the milk's ingredients; lockfiles list nested dependencies.",
+      "A surprising receipt is worth checking before paying."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A new library is added through the package manager so both manifest intent and lockfile resolution change and are reviewed together.",
-      "Dependency manifests declare requested packages and constraints, while lockfiles record a resolved graph for reproducible installation in a defined tool and platform context.",
-      "Use the ecosystem tool, review declared and resolved changes, pin the package-manager version where needed, and test the exact lockfile installed in CI."
+      "npm install date-fns",
+      "git diff --stat; commit both",
+      "npm ci in CI"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Install",
         "state": {
-          "evidence": "A new library is added through the package manager so both manifest intent and lockfile resolution change and are reviewed together."
+          "package.json": "+date-fns ^3.6.0",
+          "lock": "+exact tree"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "Adding through the package manager changes manifest intent and lockfile resolution."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Commit",
         "state": {
-          "model": "Dependency manifests declare requested packages and constraints, while lockfiles record a resolved graph for reproducible installation in a defined tool and platform context."
+          "commit": "both files"
         },
-        "explanation": "Apply the declared Dependency manifests and lockfiles model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "Both files are reviewed together in one commit."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Reproduce",
         "state": {
-          "correction": "Use the ecosystem tool, review declared and resolved changes, pin the package-manager version where needed, and test the exact lockfile installed in CI."
+          "CI version": "same as local"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Editing a manifest version is sufficient, and lockfiles are generated noise that should never be reviewed or committed."
+        "explanation": "A clean install from the lockfile reproduces the same tree."
       }
     ],
-    "textAlternative": "Starting artifact: A new library is added through the package manager so both manifest intent and lockfile resolution change and are reviewed together. Step 1, Observe. State: evidence: A new library is added through the package manager so both manifest intent and lockfile resolution change and are reviewed together.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Dependency manifests declare requested packages and constraints, while lockfiles record a resolved graph for reproducible installation in a defined tool and platform context.. Apply the declared Dependency manifests and lockfiles model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Use the ecosystem tool, review declared and resolved changes, pin the package-manager version where needed, and test the exact lockfile installed in CI.. Compare the observation with the correction and reject the misconception: Editing a manifest version is sufficient, and lockfiles are generated noise that should never be reviewed or committed."
+    "textAlternative": "Tracing a reproducible dependency. Step 1, Install: package.json is +date-fns ^3.6.0; lock is +exact tree. Adding through the package manager changes manifest intent and lockfile resolution. Step 2, Commit: commit is both files. Both files are reviewed together in one commit. Step 3, Reproduce: CI version is same as local. A clean install from the lockfile reproduces the same tree."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Dependency manifests and lockfiles: direct case”: state its starting evidence, apply the Dependency manifests and lockfiles rule, and give the observable result in three short lines.",
+      "prompt": "For \"Adding date-fns the right way\", explain how a new library is added through the package manager so both manifest intent and lockfile resolution change and are reviewed together.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Install.",
+        "Commit.",
+        "Reproduce."
       ],
       "expectedEvidence": [
-        "Named example: Dependency manifests and lockfiles: direct case.",
-        "Starting evidence: A new library is added through the package manager so both manifest intent and lockfile resolution change and are reviewed together.",
-        "Core rule: Dependency manifests declare requested packages and constraints, while lockfiles record a resolved graph for reproducible installation in a defined tool and platform context.",
-        "Observable result: The case supports the declared outcome because Use the ecosystem tool, review declared and resolved changes, pin the package-manager version where needed, and test the exact lockfile installed in CI.",
-        "Boundary check: Use the ecosystem tool, review declared and resolved changes, pin the package-manager version where needed, and test the exact lockfile installed in CI."
+        "Names the example \"Adding date-fns the right way\": a hand edit broke CI.",
+        "A new library is added through the package manager.",
+        "Both manifest intent and lockfile resolution change and are reviewed together.",
+        "CI and every teammate get the same dependency tree."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A lockfile-only security update is inspected for unexpected package or lifecycle-script changes before tests run.",
+      "prompt": "In a sandbox Node or Python project, add one package with the package manager, show the diff of both files, commit, then reproduce in a fresh clone and confirm the installed version matches.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "npm ci / pip install -r with pinned versions.",
+        "Compare with npm ls or pip show."
       ],
       "expectedEvidence": [
-        "Dependency manifests declare requested packages and constraints, while lockfiles record a resolved graph for reproducible installation in a defined tool and platform context.",
-        "Optional and platform dependencies, registries, transitive updates, install scripts, integrity metadata, and tool versions can still affect reproducibility and security."
+        "Both files committed.",
+        "Fresh install matches."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Dependency manifests and lockfiles, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Take a project with a lockfile, delete node_modules, reinstall with npm ci, run tests, and document the exact steps. Then deliberately introduce a manifest/lockfile mismatch and show that npm ci refuses.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Edit package.json by hand for the mismatch.",
+        "Restore afterwards."
       ],
       "expectedEvidence": [
-        "Install and reproduce a project from reviewed manifest and lockfile data.",
-        "Use the ecosystem tool, review declared and resolved changes, pin the package-manager version where needed, and test the exact lockfile installed in CI."
+        "Reproducible steps documented.",
+        "Mismatch detected by npm ci."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.tools.dependencies.misconception",
-      "explanation": "Use the ecosystem tool, review declared and resolved changes, pin the package-manager version where needed, and test the exact lockfile installed in CI.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A lockfile-only security update is inspected for unexpected package or lifecycle-script changes before tests run."
+      "explanation": "For every dependency change ask: **did I use the package manager, are both files in the commit, and does a clean install reproduce it?**",
+      "retryPrompt": "Apply this to \"The accidental major upgrade\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to install and reproduce a project from reviewed manifest and lockfile data. Keep this boundary in view: Optional and platform dependencies, registries, transitive updates, install scripts, integrity metadata, and tool versions can still affect reproducibility and security.",
+    "summary": "To install and reproduce a project, add packages through the package manager so the manifest records intent and the lockfile records the exact resolved tree, commit and review both, ignore installed folders, and use clean lockfile installs like npm ci to reproduce the same dependencies everywhere.",
     "retrievalPrompts": [
-      "Explain Dependency manifests and lockfiles without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Editing a manifest version is sufficient, and lockfiles are generated noise that should never be reviewed or committed.",
-      "Apply the model to this case from memory: A lockfile-only security update is inspected for unexpected package or lifecycle-script changes before tests run."
+      "What does a lockfile record?",
+      "Why add packages via the package manager?",
+      "What does npm ci do?"
     ],
     "nextReviewPrompt": "Next: continue to “Build and task commands”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

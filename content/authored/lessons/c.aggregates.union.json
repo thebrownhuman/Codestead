@@ -38,33 +38,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A union provides overlapping storage for alternative members; code must track which representation is active or otherwise permitted before reading a member.",
+    "summary": "A **union** is like a struct whose members **share the same memory**: it's as big as its largest member, and holds **one** of them at a time. Writing `u.d = 2.5` overwrites whatever `u.i` held. The union **doesn't remember** which member is active, so reading the wrong one gives meaningless bits. The safe pattern is a **tagged union**: a struct holding an **enum tag** that records which member is active, next to the union. Set the tag whenever you write, and check it (with a switch) before every read.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A tagged value stores an enum kind beside a union and reads integer or floating member only when the tag names that member. Your goal is to implement and safely inspect a simple tagged union. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A settings parser stores each value in `union { int i; double d; } v;`. A setting saved as the double 2.5 is later read with v.i and shows 0, or some huge number, depending on the machine. A tagged value stores an enum kind beside a union and reads integer or floating member only when the tag names that member. In this lesson you'll implement and safely inspect a simple tagged union.\n\n```predict\n{\"question\": \"You write u.d = 2.5, then read u.i. What do you get?\", \"options\": [\"2\", \"Meaningless bits: the union doesn't convert or track the active member\"], \"answer\": 1, \"why\": \"The tag is how your code knows which member is valid.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: One-dimensional arrays; Addresses and dereference; Structures; Enumerations. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **One-dimensional arrays**, **Addresses and dereference**, **Structures** and **Enumerations** (exhaustive switches)."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "A union provides overlapping storage for alternative members; code must track which representation is active or otherwise permitted before reading a member. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The model: shared storage plus a tag",
+        "body": "```c\n#include <stdio.h>\n\nenum Kind { KIND_INT, KIND_DOUBLE };\n\nstruct Value {\n    enum Kind kind;            /* which member is active. */\n    union {\n        int i;\n        double d;\n    } as;                      /* i and d share the same bytes. */\n};\n\nstruct Value make_int(int x)       { return (struct Value){.kind = KIND_INT, .as.i = x}; }\nstruct Value make_double(double x) { return (struct Value){.kind = KIND_DOUBLE, .as.d = x}; }\n\nvoid print_value(const struct Value *v) {\n    switch (v->kind) {\n    case KIND_INT:    printf(\"int %d\\n\", v->as.i); break;\n    case KIND_DOUBLE: printf(\"double %.2f\\n\", v->as.d); break;\n    }\n}\n\nint main(void) {\n    struct Value a = make_int(42), b = make_double(2.5);\n    print_value(&a);           /* int 42. */\n    print_value(&b);           /* double 2.50. */\n    return 0;\n}\n```\n\n```reveal\n{\"prompt\": \"How big is the union part?\", \"answer\": \"At least the size of its largest member (a double, usually 8 bytes), not the sum. That's the point: one slot reused for alternatives.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Reading a non-current member has limited implementation-defined or specified cases, padding and trap representations matter, and a union is not a self-tagging variant. Therefore the draft explicitly rejects this beginner failure model: A union remembers which member was last written and prevents code from reading the wrong alternative."
+        "heading": "Keep tag and data together",
+        "body": "```predict\n{\"question\": \"Code sets v.as.d = 1.5 but forgets to change v.kind from KIND_INT. What happens on print?\", \"options\": [\"It prints 1.5\", \"It reads the int member: wrong output\"], \"answer\": 1, \"why\": \"Only create values through constructor functions that set both.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Understand shared storage and pair a union with a valid discriminant.",
-      "Implement and safely inspect a simple tagged union."
+      "Explain shared storage in unions and why they don't track the active member.",
+      "Build tagged unions with an enum tag, constructors and a switch before every read."
     ],
     "excludes": [
-      "Reading a non-current member has limited implementation-defined or specified cases, padding and trap representations matter, and a union is not a self-tagging variant."
+      "Type punning through unions.",
+      "Anonymous unions in depth."
     ]
   },
   "outcomes": [
@@ -73,133 +74,134 @@
   "examples": [
     {
       "id": "c.aggregates.union.example-a",
-      "title": "Unions and tagged values: defined case",
+      "title": "A value that is an int or a double",
       "situation": "A tagged value stores an enum kind beside a union and reads integer or floating member only when the tag names that member.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A tagged value stores an enum kind beside a union and reads integer or floating member only when the tag names that member.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: A C union is not self-tagging; maintain and validate a separate discriminator before interpreting the overlapping storage."
+        "**A tagged value stores an enum kind beside a union:** struct Value holds kind and as.",
+        "**Constructors set both:** make_double(2.5) sets kind to KIND_DOUBLE and as.d to 2.5.",
+        "**Reads integer or floating member only when the tag names that member:** print_value switches on kind, so 2.5 will print as a double."
       ],
-      "result": "The defined result follows because A C union is not self-tagging; maintain and validate a separate discriminator before interpreting the overlapping storage."
+      "result": "Settings read back exactly as they were stored."
     },
     {
       "id": "c.aggregates.union.example-b",
-      "title": "Unions and tagged values: boundary case",
-      "situation": "Writing the double member and then assuming the int member contains a portable bit conversion is rejected.",
+      "title": "Adding a string kind",
+      "situation": "The parser must now also store short text values.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: Writing the double member and then assuming the int member contains a portable bit conversion is rejected.",
-        "Step 2 — Keep this standard boundary visible: Reading a non-current member has limited implementation-defined or specified cases, padding and trap representations matter, and a union is not a self-tagging variant.",
-        "Step 3 — Reject the tempting rule: A union remembers which member was last written and prevents code from reading the wrong alternative."
+        "Add KIND_TEXT to enum Kind and char text[16] to the union.",
+        "Add make_text with a bounded copy.",
+        "-Wswitch flags print_value until the new case is handled."
       ],
-      "result": "This case demonstrates the declared outcome: Implement and safely inspect a simple tagged union."
+      "result": "The new kind is supported everywhere, with the compiler pointing at each place."
     }
   ],
   "misconceptions": [
     {
       "id": "c.aggregates.union.misconception",
       "mistakenBelief": "A union remembers which member was last written and prevents code from reading the wrong alternative.",
-      "correction": "A C union is not self-tagging; maintain and validate a separate discriminator before interpreting the overlapping storage.",
-      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: A union remembers which member was last written and prevents code from reading the wrong alternative."
+      "correction": "A union is just shared storage with no record of the active member. Your code must track it with a tag and check before reading.",
+      "diagnosticPrompt": "In the opening story, why did 2.5 read back as nonsense?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A manually managed workshop can model Unions and tagged values: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "example": "A union is like **a single parking space** that can hold a car or a motorbike, but not both. The space doesn't know which is parked there; the **ticket on the windscreen** (the tag) tells you. Don't try to drive the car out if the ticket says motorbike.",
     "usefulFor": [
-      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+      "remembering one space, one vehicle",
+      "tag = the ticket"
     ],
     "limitations": [
-      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
-      "Reading a non-current member has limited implementation-defined or specified cases, padding and trap representations matter, and a union is not a self-tagging variant."
+      "You can see vehicles; you can't see which union member is active.",
+      "Updating the vehicle means updating the ticket too."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A tagged value stores an enum kind beside a union and reads integer or floating member only when the tag names that member.",
-      "A union provides overlapping storage for alternative members; code must track which representation is active or otherwise permitted before reading a member.",
-      "A C union is not self-tagging; maintain and validate a separate discriminator before interpreting the overlapping storage."
+      "make_double(2.5)",
+      "print_value(&b)",
+      "switch on kind"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Store",
         "state": {
-          "evidence": "A tagged value stores an enum kind beside a union and reads integer or floating member only when the tag names that member."
+          "kind": "KIND_DOUBLE",
+          "as.d": "2.5"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "The tagged value stores an enum kind beside the union."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Check",
         "state": {
-          "rule": "A union provides overlapping storage for alternative members; code must track which representation is active or otherwise permitted before reading a member."
+          "switch": "KIND_DOUBLE case"
         },
-        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+        "explanation": "The code reads the tag before touching any member."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Read",
         "state": {
-          "conclusion": "A C union is not self-tagging; maintain and validate a separate discriminator before interpreting the overlapping storage."
+          "output": "double 2.50"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: A union remembers which member was last written and prevents code from reading the wrong alternative."
+        "explanation": "It reads the floating member only when the tag names that member."
       }
     ],
-    "textAlternative": "Starting artifact: A tagged value stores an enum kind beside a union and reads integer or floating member only when the tag names that member. Step 1, Source and state. State: evidence: A tagged value stores an enum kind beside a union and reads integer or floating member only when the tag names that member.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A union provides overlapping storage for alternative members; code must track which representation is active or otherwise permitted before reading a member.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: A C union is not self-tagging; maintain and validate a separate discriminator before interpreting the overlapping storage.. Check the conclusion against the boundary and reject this misconception: A union remembers which member was last written and prevents code from reading the wrong alternative."
+    "textAlternative": "Tracing a tagged union. Step 1, Store: kind is KIND_DOUBLE; as.d is 2.5. The tagged value stores an enum kind beside the union. Step 2, Check: switch is KIND_DOUBLE case. The code reads the tag before touching any member. Step 3, Read: output is double 2.50. It reads the floating member only when the tag names that member."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Unions and tagged values: defined case”: state its starting evidence, apply the Unions and tagged values rule, and give the observable result in three short lines.",
+      "prompt": "For \"A value that is an int or a double\", explain how a tagged value stores an enum kind beside a union and reads integer or floating member only when the tag names that member.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Store.",
+        "Check.",
+        "Read."
       ],
       "expectedEvidence": [
-        "Named example: Unions and tagged values: defined case.",
-        "Starting evidence: A tagged value stores an enum kind beside a union and reads integer or floating member only when the tag names that member.",
-        "Core rule: A union provides overlapping storage for alternative members; code must track which representation is active or otherwise permitted before reading a member.",
-        "Observable result: The defined result follows because A C union is not self-tagging; maintain and validate a separate discriminator before interpreting the overlapping storage.",
-        "Boundary check: A C union is not self-tagging; maintain and validate a separate discriminator before interpreting the overlapping storage."
+        "Names the example \"A value that is an int or a double\": 2.5 was read back as an int.",
+        "A tagged value stores an enum kind beside a union.",
+        "It reads integer or floating member only when the tag names that member.",
+        "Settings read back exactly as they were stored."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same C rule to this related boundary case: Writing the double member and then assuming the int member contains a portable bit conversion is rejected.",
+      "prompt": "Add a bool kind to struct Value with make_bool and printing. Print sizeof(struct Value) before and after, and explain why it barely changes.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Largest member decides union size.",
+        "Update the switch."
       ],
       "expectedEvidence": [
-        "A union provides overlapping storage for alternative members; code must track which representation is active or otherwise permitted before reading a member.",
-        "Reading a non-current member has limited implementation-defined or specified cases, padding and trap representations matter, and a union is not a self-tagging variant."
+        "Bool values print correctly.",
+        "Size explained."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new C example for Unions and tagged values, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Write a tiny shape system: struct Shape with enum ShapeKind {CIRCLE, RECT} and a union of {radius} and {width, height}. Implement area() with a switch and test both shapes plus an invalid kind.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Constructors for each shape.",
+        "Return -1 or false for invalid kind."
       ],
       "expectedEvidence": [
-        "Implement and safely inspect a simple tagged union.",
-        "A C union is not self-tagging; maintain and validate a separate discriminator before interpreting the overlapping storage."
+        "Correct areas.",
+        "Invalid kind handled."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "c.aggregates.union.misconception",
-      "explanation": "A C union is not self-tagging; maintain and validate a separate discriminator before interpreting the overlapping storage.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'separate discriminator' and state the decisive evidence: Writing the double member and then assuming the int member contains a portable bit conversion is rejected."
+      "explanation": "For every union read ask: **what does the tag say, and am I reading that member?** Create values only through functions that set tag and data together.",
+      "retryPrompt": "Apply this to \"Adding a string kind\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and safely inspect a simple tagged union. Keep this boundary in view: Reading a non-current member has limited implementation-defined or specified cases, padding and trap representations matter, and a union is not a self-tagging variant.",
+    "summary": "To implement tagged unions, remember union members share storage and the union doesn't track which one is active, so pair it with an enum tag in a struct, create values through constructors that set both, and switch on the tag before reading any member.",
     "retrievalPrompts": [
-      "Explain Unions and tagged values using a concrete C rule rather than the optional analogy.",
-      "Why is this claim incorrect: A union remembers which member was last written and prevents code from reading the wrong alternative.",
-      "Apply the checkpoint 'separate discriminator' to the boundary case from memory."
+      "Why is a union as big as its largest member?",
+      "What does the tag record?",
+      "What happens if you read the wrong member?"
     ],
     "nextReviewPrompt": "Next: continue to “Type aliases and API clarity”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

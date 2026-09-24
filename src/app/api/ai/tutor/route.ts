@@ -250,7 +250,7 @@ export async function POST(request: NextRequest) {
       id: randomUUID(),
       provider: "nvidia_nim",
       operation: "tutor",
-      model: process.env.NVIDIA_NIM_TUTOR_MODEL ?? "meta/llama-3.1-8b-instruct",
+      model: process.env.NVIDIA_NIM_TUTOR_MODEL ?? "openai/gpt-oss-20b",
       priority: 1,
       enabled: true,
       maxInputTokens: 16_000,

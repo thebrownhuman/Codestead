@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "An overloaded operator should preserve the operator's conventional meaning, invariants, const correctness, and relationships such as equality consistency.",
+    "summary": "Overloading lets your types use operators: `a == b`, `a + b`, `std::cout << a`. The golden rule: **behave like the built-in version**. `==` compares every **value-significant** member, is `const`, and is consistent with `!=`. `+` returns a **new** value and leaves both operands unchanged; `+=` modifies the left operand and returns it by reference. Implement `+` in terms of `+=` to keep them consistent. In C++20, `= default` on `operator==` or `operator<=>` generates correct memberwise comparisons for you. You **can't** change precedence or invent new operators, and surprising meanings (like `+` that prints) make code unreadable.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: operator== compares all value-significant fields and is const, so equal objects produce equal observable value state. Your goal is to implement and test comparison or arithmetic operators with unsurprising semantics. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner writes `Money operator+(Money other) { cents_ += other.cents_; return *this; }`. After `Money c = a + b;`, a has mysteriously changed. Their `operator==` also ignores the currency, so 5 USD equals 5 EUR. operator== compares all value-significant fields and is const, so equal objects produce equal observable value state. In this lesson you'll implement and test comparison or arithmetic operators with unsurprising semantics.\n\n```predict\n{\"question\": \"For ints, does `c = a + b` change a?\", \"options\": [\"Sometimes\", \"Never, so your operator+ shouldn't either\"], \"answer\": 1, \"why\": \"Match built-in expectations.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Value, reference and const-reference parameters; pf data records; Copy and assignment semantics; Overloading and default arguments. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Value, reference and const-reference parameters**, **Records and entities**, **Copy and assignment semantics** and **Overloading and default arguments**."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "An overloaded operator should preserve the operator's conventional meaning, invariants, const correctness, and relationships such as equality consistency. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The rule: keep the built-in meaning",
+        "body": "```cpp\n#include <compare>\n#include <cstdint>\n#include <ostream>\n#include <stdexcept>\n#include <string>\n#include <utility>\n\nclass Money {\npublic:\n    Money(std::int64_t cents, std::string currency)\n        : cents_(cents), currency_(std::move(currency)) {}\n\n    bool operator==(const Money&) const = default;    // compares cents_ AND currency_.\n\n    Money& operator+=(const Money& o) {               // modifies left operand.\n        if (currency_ != o.currency_) throw std::invalid_argument(\"currency mismatch\");\n        cents_ += o.cents_;\n        return *this;\n    }\n    friend Money operator+(Money a, const Money& b) {  // copy a, add, return new value.\n        a += b;\n        return a;\n    }\n    friend std::ostream& operator<<(std::ostream& os, const Money& m) {\n        return os << m.cents_ / 100 << '.' << (m.cents_ % 100 < 10 ? \"0\" : \"\")\n                  << m.cents_ % 100 << ' ' << m.currency_;   // non-negative amounts.\n    }\nprivate:\n    std::int64_t cents_;\n    std::string currency_;\n};\n```\n\n| Operator | Convention |\n|---|---|\n| `==`. | const, all value-significant members. |\n| `+`. | returns new value; operands unchanged. |\n| `+=`. | modifies left, returns `*this` by reference. |\n| `<<` for output. | non-member, returns the stream. |\n\n```reveal\n{\"prompt\": \"Why make operator+ a non-member friend?\", \"answer\": \"Symmetry: both operands are treated the same way, and implicit conversions (if any are allowed) work on either side. The friend declaration lets it reach private members.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Precedence and arity cannot change, some operators must be members, implicit conversions affect symmetry, and surprising side effects make APIs unsafe. Therefore the draft explicitly rejects this beginner failure model: Operator overloading permits inventing new precedence or making + modify its left operand unexpectedly."
+        "heading": "Precedence stays",
+        "body": "```predict\n{\"question\": \"With overloaded + and *, how does `a + b * c` group for Money-like types?\", \"options\": [\"Left to right\", \"a + (b * c), the built-in precedence\"], \"answer\": 1, \"why\": \"Overloading changes behaviour, never grammar.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Define only conventional operators that preserve value meaning and symmetry.",
-      "Implement and test comparison or arithmetic operators with unsurprising semantics."
+      "Implement ==, +, += and << with conventional meanings and const correctness.",
+      "Use = default comparisons and test equality consistency."
     ],
     "excludes": [
-      "Precedence and arity cannot change, some operators must be members, implicit conversions affect symmetry, and surprising side effects make APIs unsafe."
+      "Overloading new and delete.",
+      "User-defined literals."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "cpp.classes.operators.example-a",
-      "title": "Operator overloading: defined case",
+      "title": "Two Money values compare equal",
       "situation": "operator== compares all value-significant fields and is const, so equal objects produce equal observable value state.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: operator== compares all value-significant fields and is const, so equal objects produce equal observable value state.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Overloading changes implementation, not grammar; preserve conventional operator semantics and keep invariant and equality rules explicit."
+        "**operator== compares all value-significant fields:** = default compares cents_ and currency_.",
+        "**And is const:** comparing never changes either object.",
+        "**So equal objects produce equal observable value state:** Money(500, \"USD\") == Money(500, \"EUR\") will be false."
       ],
-      "result": "The defined result follows because Overloading changes implementation, not grammar; preserve conventional operator semantics and keep invariant and equality rules explicit."
+      "result": "Equality means what readers expect, and 5 USD no longer equals 5 EUR."
     },
     {
       "id": "cpp.classes.operators.example-b",
-      "title": "Operator overloading: boundary case",
-      "situation": "operator+ returns a new normalized value while operator+= mutates and returns *this by reference for conventional chaining.",
+      "title": "The + that changed its operand",
+      "situation": "operator+ implemented as a member that modified *this. `Money c = a + b;` changed a.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: operator+ returns a new normalized value while operator+= mutates and returns *this by reference for conventional chaining.",
-        "Step 2 — Keep this standard boundary visible: Precedence and arity cannot change, some operators must be members, implicit conversions affect symmetry, and surprising side effects make APIs unsafe.",
-        "Step 3 — Reject the tempting rule: Operator overloading permits inventing new precedence or making + modify its left operand unexpectedly."
+        "Built-in + never modifies operands.",
+        "Implement += to modify, then + as copy-then-+=.",
+        "Test: after c = a + b, a and b are unchanged."
       ],
-      "result": "This case demonstrates the declared outcome: Implement and test comparison or arithmetic operators with unsurprising semantics."
+      "result": "Arithmetic behaves like it does for numbers."
     }
   ],
   "misconceptions": [
     {
       "id": "cpp.classes.operators.misconception",
       "mistakenBelief": "Operator overloading permits inventing new precedence or making + modify its left operand unexpectedly.",
-      "correction": "Overloading changes implementation, not grammar; preserve conventional operator semantics and keep invariant and equality rules explicit.",
-      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: Operator overloading permits inventing new precedence or making + modify its left operand unexpectedly."
+      "correction": "Precedence is fixed by the language, and good overloads keep built-in meanings: + returns a new value and leaves operands untouched.",
+      "diagnosticPrompt": "In the opening story, why did a change after c = a + b?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A system of self-managing components can model Operator overloading: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "example": "Overloaded operators are like **universal symbols on signs**: a red circle with a line means \"no\" everywhere. Using it to mean \"yes\" on your sign technically works, but everyone misreads it. Your + should mean \"combine into something new\", just like everyone expects.",
     "usefulFor": [
-      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+      "remembering signs mean what they always mean",
+      "+ makes new, += changes"
     ],
     "limitations": [
-      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
-      "Precedence and arity cannot change, some operators must be members, implicit conversions affect symmetry, and surprising side effects make APIs unsafe."
+      "Signs can't be tested; operators can.",
+      "You can't invent a new symbol either: only existing operators."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "operator== compares all value-significant fields and is const, so equal objects produce equal observable value state.",
-      "An overloaded operator should preserve the operator's conventional meaning, invariants, const correctness, and relationships such as equality consistency.",
-      "Overloading changes implementation, not grammar; preserve conventional operator semantics and keep invariant and equality rules explicit."
+      "Money a(500, \"USD\"), b(250, \"USD\");",
+      "Money c = a + b;",
+      "a == Money(500, \"USD\")"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Setup",
         "state": {
-          "evidence": "operator== compares all value-significant fields and is const, so equal objects produce equal observable value state."
+          "a": "5.00 USD",
+          "b": "2.50 USD"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "Two Money values are created with the same currency."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Add",
         "state": {
-          "rule": "An overloaded operator should preserve the operator's conventional meaning, invariants, const correctness, and relationships such as equality consistency."
+          "c": "7.50 USD",
+          "a": "5.00 USD"
         },
-        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+        "explanation": "operator+ returns a new value, leaving both operands unchanged."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Compare",
         "state": {
-          "conclusion": "Overloading changes implementation, not grammar; preserve conventional operator semantics and keep invariant and equality rules explicit."
+          "a == 500 USD": "true",
+          "a == 500 EUR": "false"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: Operator overloading permits inventing new precedence or making + modify its left operand unexpectedly."
+        "explanation": "operator== compares all value-significant fields and is const."
       }
     ],
-    "textAlternative": "Starting artifact: operator== compares all value-significant fields and is const, so equal objects produce equal observable value state. Step 1, Source and state. State: evidence: operator== compares all value-significant fields and is const, so equal objects produce equal observable value state.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: An overloaded operator should preserve the operator's conventional meaning, invariants, const correctness, and relationships such as equality consistency.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Overloading changes implementation, not grammar; preserve conventional operator semantics and keep invariant and equality rules explicit.. Check the conclusion against the boundary and reject this misconception: Operator overloading permits inventing new precedence or making + modify its left operand unexpectedly."
+    "textAlternative": "Tracing conventional operators. Step 1, Setup: a is 5.00 USD; b is 2.50 USD. Two Money values are created with the same currency. Step 2, Add: c is 7.50 USD; a is 5.00 USD. operator+ returns a new value, leaving both operands unchanged. Step 3, Compare: a == 500 USD is true; a == 500 EUR is false. operator== compares all value-significant fields and is const."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Operator overloading: defined case”: state its starting evidence, apply the Operator overloading rule, and give the observable result in three short lines.",
+      "prompt": "For \"Two Money values compare equal\", explain how operator== compares all value-significant fields and is const, so equal objects produce equal observable value state.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Fields.",
+        "const.",
+        "Consistency."
       ],
       "expectedEvidence": [
-        "Named example: Operator overloading: defined case.",
-        "Starting evidence: operator== compares all value-significant fields and is const, so equal objects produce equal observable value state.",
-        "Core rule: An overloaded operator should preserve the operator's conventional meaning, invariants, const correctness, and relationships such as equality consistency.",
-        "Observable result: The defined result follows because Overloading changes implementation, not grammar; preserve conventional operator semantics and keep invariant and equality rules explicit.",
-        "Boundary check: Overloading changes implementation, not grammar; preserve conventional operator semantics and keep invariant and equality rules explicit."
+        "Names the example \"Two Money values compare equal\": 5 USD equalled 5 EUR.",
+        "operator== compares all value-significant fields and is const.",
+        "Equal objects produce equal observable value state.",
+        "Equality means what readers expect."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same CPP rule to this related boundary case: operator+ returns a new normalized value while operator+= mutates and returns *this by reference for conventional chaining.",
+      "prompt": "Add operator-= and operator- to Money following the += / + pattern, and write tests showing operands are unchanged by - and that a == b implies !(a != b).",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Reuse the currency check.",
+        "!= comes free from == in C++20."
       ],
       "expectedEvidence": [
-        "An overloaded operator should preserve the operator's conventional meaning, invariants, const correctness, and relationships such as equality consistency.",
-        "Precedence and arity cannot change, some operators must be members, implicit conversions affect symmetry, and surprising side effects make APIs unsafe."
+        "Tests pass.",
+        "No operand modified by -."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CPP example for Operator overloading, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Write a Version class (major, minor, patch) with a defaulted operator<=> and operator==, then sort a vector of versions and test ordering edge cases like 1.10.0 vs 1.9.9.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Declare members in comparison order.",
+        "#include <compare>."
       ],
       "expectedEvidence": [
-        "Implement and test comparison or arithmetic operators with unsurprising semantics.",
-        "Overloading changes implementation, not grammar; preserve conventional operator semantics and keep invariant and equality rules explicit."
+        "Correct sort order.",
+        "Equality tests pass."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "cpp.classes.operators.misconception",
-      "explanation": "Overloading changes implementation, not grammar; preserve conventional operator semantics and keep invariant and equality rules explicit.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'not grammar' and state the decisive evidence: operator+ returns a new normalized value while operator+= mutates and returns *this by reference for conventional chaining."
+      "explanation": "For each operator ask: **would a reader expect this behaviour from the same symbol on ints?** Check const, which operand changes, and that == compares everything that matters.",
+      "retryPrompt": "Apply this to \"The + that changed its operand\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test comparison or arithmetic operators with unsurprising semantics. Keep this boundary in view: Precedence and arity cannot change, some operators must be members, implicit conversions affect symmetry, and surprising side effects make APIs unsafe.",
+    "summary": "To implement unsurprising operators, keep built-in meanings: == is const and compares every value-significant member (= default can generate it), + returns a new value built from +=, += modifies and returns *this, << returns the stream, and precedence never changes.",
     "retrievalPrompts": [
-      "Explain Operator overloading using a concrete CPP rule rather than the optional analogy.",
-      "Why is this claim incorrect: Operator overloading permits inventing new precedence or making + modify its left operand unexpectedly.",
-      "Apply the checkpoint 'not grammar' to the boundary case from memory."
+      "What should operator+ do to its operands?",
+      "Which members should == compare?",
+      "Can overloading change precedence?"
     ],
     "nextReviewPrompt": "Next: continue to “RAII and deterministic cleanup”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A loop needs an initial state, a continuation condition or next element, a body, progress toward completion, and a clear state when repetition stops.",
+    "summary": "A loop repeats a block of code. Every good loop has four parts: a **start state**, a **condition** (or next item) that decides whether to go again, a **body** that does the work, and **progress** that moves it toward stopping. Forget progress and it runs forever.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A counted loop visits indexes zero through length minus one exactly once and never reads the nonexistent index equal to length. Your goal is to design and trace loops while identifying initialization, condition, update and termination. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Your music app needs to show all 5 songs in a playlist. Writing `print` five times works — until the playlist has 5,000 songs. Loops let you say \"do this for every item\" once. But loops have two classic traps: running forever, and being off by one — visiting index 5 in a list whose last index is 4. By the end you'll trace any loop confidently and know exactly when it stops.\n\n```predict\n{\"code\": \"i = 0\\nwhile i < 3:\\n    print(i)\\n    i = i + 1\", \"question\": \"How many times does this loop print?\", \"options\": [\"3\", \"4\", \"It never stops\"], \"answer\": 0, \"why\": \"`i` takes the values 0, 1, 2. When `i` becomes 3, `3 < 3` is False, so the loop stops. Three prints.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Expressions and evaluation; Selection. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Expressions and evaluation** (how `i < 3` becomes True/False) and **Selection** (running code only when a condition holds). A loop is selection that keeps asking again."
       },
       {
-        "heading": "Operational model",
-        "body": "A loop needs an initial state, a continuation condition or next element, a body, progress toward completion, and a clear state when repetition stops. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The mental model: start, check, work, progress",
+        "body": "```python\nsongs = [\"Intro\", \"Rise\", \"Glow\"]\ni = 0                   # start\nwhile i < len(songs):   # check\n    print(songs[i])     # work\n    i = i + 1           # progress\n```\n\nIndexes go 0, 1, 2 — the last valid index is **length − 1**. The check `i < len(songs)` stops *before* the out-of-range index 3.\n\n```reveal\n{\"prompt\": \"What happens if you write `while i <= len(songs):` instead?\", \"answer\": \"On the last pass `i` is 3, and `songs[3]` doesn't exist → `IndexError`. That's the classic **off-by-one** bug. Use `<`, not `<=`, with length.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Empty input, one iteration, off-by-one bounds, mutation during traversal, and conditions that never change are distinct cases that can break termination or coverage. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: A loop terminates automatically once its body has run enough times, even if the condition never changes."
+        "heading": "Infinite loops: the missing progress",
+        "body": "```predict\n{\"code\": \"i = 0\\nwhile i < 3:\\n    print(i)\", \"question\": \"What does this loop do?\", \"options\": [\"Prints 0, 1, 2\", \"Prints 0 forever\"], \"answer\": 1, \"why\": \"Nothing inside the loop changes `i`, so `i < 3` stays True forever. A loop needs **progress** toward its stop condition.\"}\n```\n\nPython's `for` loop handles start, check and progress for you: `for song in songs:` visits each item exactly once."
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use counted and condition-controlled repetition with correct progress.",
-      "Design and trace loops while identifying initialization, condition, update and termination."
+      "Identify the start, condition, body and progress of a loop.",
+      "Predict how many times a loop runs and avoid off-by-one and infinite loops."
     ],
     "excludes": [
-      "Empty input, one iteration, off-by-one bounds, mutation during traversal, and conditions that never change are distinct cases that can break termination or coverage."
+      "Loops inside loops (next lesson).",
+      "`break`/`continue` details."
     ]
   },
   "outcomes": [
@@ -63,133 +64,137 @@
   "examples": [
     {
       "id": "pf.control.iteration.example-a",
-      "title": "Iteration: direct case",
-      "situation": "A counted loop visits indexes zero through length minus one exactly once and never reads the nonexistent index equal to length.",
+      "title": "Visiting every item exactly once",
+      "situation": "```python\nsongs = [\"Intro\", \"Rise\", \"Glow\"]\ni = 0\nwhile i < len(songs):\n    print(songs[i])\n    i = i + 1\n```",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A counted loop visits indexes zero through length minus one exactly once and never reads the nonexistent index equal to length.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Identify and test the progress measure on every path, then prove that the continuation condition eventually becomes false or input is exhausted."
+        "**Start:** `i = 0`, and `len(songs)` is 3, so valid indexes are 0, 1 and 2.",
+        "**Repeat:** check `i < 3`, print `songs[i]`, then add 1 to `i` — this happens for 0, 1 and 2.",
+        "**Stop:** when `i` becomes 3, `3 < 3` is False; the loop never reads the nonexistent `songs[3]`."
       ],
-      "result": "The case supports the declared outcome because Identify and test the progress measure on every path, then prove that the continuation condition eventually becomes false or input is exhausted."
+      "result": "It prints Intro, Rise, Glow — each index visited exactly once, with no IndexError."
     },
     {
       "id": "pf.control.iteration.example-b",
-      "title": "Iteration: boundary case",
-      "situation": "A password retry loop stops on success or after three failed attempts, updating the attempt count on every failed path.",
+      "title": "The countdown that never ends",
+      "situation": "```python\nn = 5\nwhile n > 0:\n    print(n)\n    n = n + 1\n```",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A password retry loop stops on success or after three failed attempts, updating the attempt count on every failed path.",
-        "Step 2 — Keep this boundary explicit: Empty input, one iteration, off-by-one bounds, mutation during traversal, and conditions that never change are distinct cases that can break termination or coverage.",
-        "Step 3 — Reject the documented misconception: A loop terminates automatically once its body has run enough times, even if the condition never changes."
+        "**Check:** `5 > 0` is True, so the body runs.",
+        "**Progress?** `n` goes 6, 7, 8… moving *away* from the stop condition.",
+        "**Fix:** the update must move toward stopping: `n = n - 1` gives 5, 4, 3, 2, 1 and then stops."
       ],
-      "result": "This case demonstrates the declared outcome: Design and trace loops while identifying initialization, condition, update and termination."
+      "result": "The original loops forever; with `n = n - 1` it prints 5 down to 1 and stops."
     }
   ],
   "misconceptions": [
     {
       "id": "pf.control.iteration.misconception",
-      "mistakenBelief": "A loop terminates automatically once its body has run enough times, even if the condition never changes.",
-      "correction": "Identify and test the progress measure on every path, then prove that the continuation condition eventually becomes false or input is exhausted.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: A loop terminates automatically once its body has run enough times, even if the condition never changes."
+      "mistakenBelief": "A loop stops automatically once its body has run \"enough\" times, even if the condition never changes.",
+      "correction": "A loop only stops when its condition becomes false (or it runs out of items). If the body never changes what the condition checks, it repeats forever — every loop needs progress toward its stopping state.",
+      "diagnosticPrompt": "In \"The countdown that never ends\", which line should change and why?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A route with ordered checkpoints, forks, and repeated laps can model Iteration while each decision uses the current conditions.",
+    "example": "Like **laps on a track** with a coach holding a clipboard: before each lap they check \"fewer than 3 done?\", you run, and they add a tick. Forget the tick and you're running laps forever.",
     "usefulFor": [
-      "Visualizing order, branching, repetition, progress, and nested routes"
+      "remembering the check happens *before* each lap",
+      "seeing why the tick (progress) matters"
     ],
     "limitations": [
-      "Real control flow can include calls, exceptions, concurrency, and evaluation rules absent from a physical route.",
-      "Empty input, one iteration, off-by-one bounds, mutation during traversal, and conditions that never change are distinct cases that can break termination or coverage."
+      "Computers never get tired — an infinite loop really runs until you stop the program.",
+      "A `for` loop over a list handles the ticks for you, which the coach picture hides."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A counted loop visits indexes zero through length minus one exactly once and never reads the nonexistent index equal to length.",
-      "A loop needs an initial state, a continuation condition or next element, a body, progress toward completion, and a clear state when repetition stops.",
-      "Identify and test the progress measure on every path, then prove that the continuation condition eventually becomes false or input is exhausted."
+      "songs = ['Intro', 'Rise', 'Glow']",
+      "i = 0",
+      "while i < len(songs):",
+      "    print(songs[i]); i = i + 1"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "First pass",
         "state": {
-          "evidence": "A counted loop visits indexes zero through length minus one exactly once and never reads the nonexistent index equal to length."
+          "i": "0",
+          "printed": "Intro"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "The check 0 < 3 is true, so the body prints Intro and i becomes 1."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Third pass",
         "state": {
-          "model": "A loop needs an initial state, a continuation condition or next element, a body, progress toward completion, and a clear state when repetition stops."
+          "i": "2",
+          "printed": "Glow"
         },
-        "explanation": "Apply the declared Iteration model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "After Rise, the check 2 < 3 is still true, so the body prints Glow and i becomes 3."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Stop check",
         "state": {
-          "correction": "Identify and test the progress measure on every path, then prove that the continuation condition eventually becomes false or input is exhausted."
+          "i": "3",
+          "i < 3": "False"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: A loop terminates automatically once its body has run enough times, even if the condition never changes."
+        "explanation": "Now 3 < 3 is false, so the loop ends without reading songs[3]."
       }
     ],
-    "textAlternative": "Starting artifact: A counted loop visits indexes zero through length minus one exactly once and never reads the nonexistent index equal to length. Step 1, Observe. State: evidence: A counted loop visits indexes zero through length minus one exactly once and never reads the nonexistent index equal to length.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A loop needs an initial state, a continuation condition or next element, a body, progress toward completion, and a clear state when repetition stops.. Apply the declared Iteration model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Identify and test the progress measure on every path, then prove that the continuation condition eventually becomes false or input is exhausted.. Compare the observation with the correction and reject the misconception: A loop terminates automatically once its body has run enough times, even if the condition never changes."
+    "textAlternative": "Looping over three songs by index. Step 1, First pass: i is 0; printed is Intro. The check 0 < 3 is true, so the body prints Intro and i becomes 1. Step 2, Third pass: i is 2; printed is Glow. After Rise, the check 2 < 3 is still true, so the body prints Glow and i becomes 3. Step 3, Stop check: i is 3; i < 3 is False. Now 3 < 3 is false, so the loop ends without reading songs[3]."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Iteration: direct case”: state its starting evidence, apply the Iteration rule, and give the observable result in three short lines.",
+      "prompt": "Using \"Visiting every item exactly once\", explain in three lines the loop's start, what repeats for each song index, and why it stops before index 3.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Line 1: start value and length.",
+        "Line 2: what repeats.",
+        "Line 3: the stop and why there's no error."
       ],
       "expectedEvidence": [
-        "Named example: Iteration: direct case.",
-        "Starting evidence: A counted loop visits indexes zero through length minus one exactly once and never reads the nonexistent index equal to length.",
-        "Core rule: A loop needs an initial state, a continuation condition or next element, a body, progress toward completion, and a clear state when repetition stops.",
-        "Observable result: The case supports the declared outcome because Identify and test the progress measure on every path, then prove that the continuation condition eventually becomes false or input is exhausted.",
-        "Boundary check: Identify and test the progress measure on every path, then prove that the continuation condition eventually becomes false or input is exhausted."
+        "Names the example \"Visiting every item exactly once\": printing songs Intro, Rise, Glow with a while loop and index i.",
+        "Starts at i = 0 with len(songs) equal to 3.",
+        "Prints songs[i] and adds 1 to i for each index 0, 1, 2.",
+        "Stops when i is 3, so it prints each song exactly once with no IndexError."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A password retry loop stops on success or after three failed attempts, updating the attempt count on every failed path.",
+      "prompt": "Loop over `scores = [4, 8, 6]` and add them into `total`. Write the start, condition, body and progress, and give the final total.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Start total at 0.",
+        "Use `for s in scores:` or an index loop."
       ],
       "expectedEvidence": [
-        "A loop needs an initial state, a continuation condition or next element, a body, progress toward completion, and a clear state when repetition stops.",
-        "Empty input, one iteration, off-by-one bounds, mutation during traversal, and conditions that never change are distinct cases that can break termination or coverage."
+        "A loop that visits all three scores once.",
+        "Final total is 18."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Iteration, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Write a loop that keeps asking \"Type yes to continue\" until the user types `yes`. Point out which part is the condition and which part makes progress.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "The progress here is new input each time.",
+        "What stops it?"
       ],
       "expectedEvidence": [
-        "Design and trace loops while identifying initialization, condition, update and termination.",
-        "Identify and test the progress measure on every path, then prove that the continuation condition eventually becomes false or input is exhausted."
+        "A while loop whose condition checks the latest answer.",
+        "Explains that reading new input each pass is the progress toward stopping."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "pf.control.iteration.misconception",
-      "explanation": "Identify and test the progress measure on every path, then prove that the continuation condition eventually becomes false or input is exhausted.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A password retry loop stops on success or after three failed attempts, updating the attempt count on every failed path."
+      "explanation": "Make a mini table with columns `i`, `condition`, `action`. Fill one row per pass until the condition is False. You'll see exactly how many times it runs.",
+      "retryPrompt": "Build that table for \"The countdown that never ends\" using the fixed `n = n - 1`."
     }
   ],
   "recap": {
-    "summary": "You should now be able to design and trace loops while identifying initialization, condition, update and termination. Keep this boundary in view: Empty input, one iteration, off-by-one bounds, mutation during traversal, and conditions that never change are distinct cases that can break termination or coverage.",
+    "summary": "Loop = start + condition + body + progress. It runs while the condition is true and stops only when that changes. With indexes, go from 0 while `i < len(list)` — never `<=`. No progress → infinite loop. `for item in list` handles the bookkeeping for you.",
     "retrievalPrompts": [
-      "Explain Iteration without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: A loop terminates automatically once its body has run enough times, even if the condition never changes.",
-      "Apply the model to this case from memory: A password retry loop stops on success or after three failed attempts, updating the attempt count on every failed path."
+      "Why does `while i < len(songs)` avoid an IndexError?",
+      "What makes a loop infinite?",
+      "Name the four parts of a loop."
     ],
     "nextReviewPrompt": "Next: continue to “Nested control and tables”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

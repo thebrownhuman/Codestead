@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Safe shell work scopes destructive commands to verified literal paths, previews targets, preserves recoverable copies, and avoids constructing commands from untrusted text.",
+    "summary": "Some commands can't be undone: `rm -rf` deletes without a recycle bin, `>` overwrites a file, and a wrong path in either can wipe real work. Safe habits: **preview** the targets first (`ls` the exact path, or `rm -ri` to confirm each), use **literal, quoted paths** you've checked with `pwd`, **never** build destructive commands from text you didn't write (a filename, a web page, an AI answer) without reading it, and keep a **recoverable copy** (commit or stash in Git, or copy to a backup) before bulk changes. When unsure what a command does, read its **help** (`man rm`, `rm --help`, `Get-Help Remove-Item`) before running it.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Before a recursive cleanup, the learner resolves and prints the intended build directory and removes only that verified path inside the repository. Your goal is to review a risky command sequence and propose a verifiable safer workflow. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner wants to delete the project's build output. They type `rm -rf $BUILD_DIR/*`, but BUILD_DIR isn't set in this terminal, so the command becomes `rm -rf /*`. They notice just before pressing Enter; run as written, it would try to delete everything their account can reach.Before a recursive cleanup, the learner resolves and prints the intended build directory and removes only that verified path inside the repository. In this lesson you'll review a risky command sequence and propose a verifiable safer workflow.\n\n```predict\n{\"question\": \"The path in a delete command \\\"looks about right\\\". Is that enough to run it?\", \"options\": [\"Yes, if you've used the command before\", \"No: print and check the exact resolved path first\"], \"answer\": 1, \"why\": \"Deletion is immediate and permanent in the shell. Verify, then act.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: pf tools files; Create, copy, move and rename. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Files, folders and paths** and **Create, copy, move and rename** (exact sources, destinations and verification)."
       },
       {
-        "heading": "Operational model",
-        "body": "Safe shell work scopes destructive commands to verified literal paths, previews targets, preserves recoverable copies, and avoids constructing commands from untrusted text. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The rule: resolve, preview, then act on the verified path",
+        "body": "```bash\n# Risky: variable may be empty; glob may match more than intended.\n# rm -rf $BUILD_DIR/*\n\n# Safer.\ncd \"$(git rev-parse --show-toplevel)\"   # start at the repo root.\ntarget=\"./dist\"                           # a literal path inside the repo.\n[ -d \"$target\" ] || { echo \"no $target\"; exit 1; }   # stop if it isn't there.\nls -la \"$target\"                          # preview what will go.\nrm -r -- \"$target\"                        # remove only that folder; -- ends options.\n\ngit clean -n                              # preview untracked files Git would delete.\ngit clean -f                              # only after reading the preview.\n```\n\n| Risk | Safer habit |\n|---|---|\n| empty or wrong variable. | print it; use `${VAR:?}` to stop if empty. |\n| broad globs like `*`. | `ls` the glob first to see the matches. |\n| overwriting with `>`. | check the filename; use `>>` to append. |\n| pasted commands. | read every part; never pipe unknown scripts to a shell. |\n| no way back. | commit or stash first; keep a copy. |\n\n```reveal\n{\"prompt\": \"What does `${BUILD_DIR:?}` do?\", \"answer\": \"It stops the command with an error if BUILD_DIR is empty or unset, so rm never runs on the wrong path.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Aliases, glob expansion, variable expansion, symlinks, elevated permissions, and different shell parsing can broaden a command beyond what its text appears to target. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: A familiar delete command is safe to run immediately if the typed path looks approximately correct."
+        "heading": "Help before harm",
+        "body": "```predict\n{\"question\": \"You're unsure what `git clean -fdx` deletes. What's the safe next step?\", \"options\": [\"Run it and see\", \"Run git clean -ndx to preview, and read git help clean\"], \"answer\": 1, \"why\": \"-n is a dry run: it lists what would be deleted without deleting anything.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Read help, preview scope, avoid destructive wildcards and stop when a computed target is uncertain.",
-      "Review a risky command sequence and propose a verifiable safer workflow."
+      "Preview and verify targets before destructive commands, using literal quoted paths.",
+      "Use dry runs, help pages and recoverable copies; avoid building commands from untrusted text."
     ],
     "excludes": [
-      "Aliases, glob expansion, variable expansion, symlinks, elevated permissions, and different shell parsing can broaden a command beyond what its text appears to target."
+      "Shell scripting best practices in depth.",
+      "Filesystem permissions and sudo policies."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "git.shell.safety.example-a",
-      "title": "Command safety and help: direct case",
+      "title": "Cleaning the build folder, and only the build folder",
       "situation": "Before a recursive cleanup, the learner resolves and prints the intended build directory and removes only that verified path inside the repository.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: Before a recursive cleanup, the learner resolves and prints the intended build directory and removes only that verified path inside the repository.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Verify resolved scope and current state, prefer non-destructive previews and exact-path APIs, and keep a recovery path before destructive execution."
+        "**Resolve and print the build directory:** from the repo root, target=\"./dist\" and `ls -la ./dist` shows only generated files.",
+        "**Remove only that verified path:** `rm -r -- ./dist` deletes that folder and nothing else in the repository.",
+        "**Check:** git status will show no tracked files lost, and the next build recreates dist/."
       ],
-      "result": "The case supports the declared outcome because Verify resolved scope and current state, prefer non-destructive previews and exact-path APIs, and keep a recovery path before destructive execution."
+      "result": "Build output is cleaned reliably, with no chance of deleting source code or anything outside the repo."
     },
     {
       "id": "git.shell.safety.example-b",
-      "title": "Command safety and help: boundary case",
-      "situation": "A script passes a user-supplied filename as a quoted argument rather than concatenating it into an executable shell command.",
+      "title": "The helpful one-liner from a forum",
+      "situation": "A forum post suggests `curl http://example.com/fix.sh | sudo bash` to fix a build error.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A script passes a user-supplied filename as a quoted argument rather than concatenating it into an executable shell command.",
-        "Step 2 — Keep this boundary explicit: Aliases, glob expansion, variable expansion, symlinks, elevated permissions, and different shell parsing can broaden a command beyond what its text appears to target.",
-        "Step 3 — Reject the documented misconception: A familiar delete command is safe to run immediately if the typed path looks approximately correct."
+        "That runs unknown code with full admin rights before anyone reads it.",
+        "Download the script to a file, read it, and understand each command.",
+        "Prefer the project's documented fix, or run the needed steps yourself in a disposable environment."
       ],
-      "result": "This case demonstrates the declared outcome: Review a risky command sequence and propose a verifiable safer workflow."
+      "result": "The build is fixed without running unreviewed code as administrator."
     }
   ],
   "misconceptions": [
     {
       "id": "git.shell.safety.misconception",
       "mistakenBelief": "A familiar delete command is safe to run immediately if the typed path looks approximately correct.",
-      "correction": "Verify resolved scope and current state, prefer non-destructive previews and exact-path APIs, and keep a recovery path before destructive execution.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: A familiar delete command is safe to run immediately if the typed path looks approximately correct."
+      "correction": "Shell deletion has no undo, and small differences (an empty variable, a stray space, the wrong folder) change what gets deleted. Resolve and preview the exact path, then act only on that.",
+      "diagnosticPrompt": "In \"Cleaning the build folder, and only the build folder\", what did the empty variable turn the command into?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled filing room can model Command safety and help: current location changes how relative directions resolve, and moving differs from copying a folder.",
+    "example": "Running a destructive command is like **using a paper shredder**: before feeding it, you look at exactly which pages are in your hand. A dry run is **reading the list of pages first**; a commit or backup is **keeping a photocopy** in case you shred the wrong one.",
     "usefulFor": [
-      "Reasoning about exact locations, inspection, file operations, and destructive scope"
+      "remembering look, then shred",
+      "dry run = read the list first"
     ],
     "limitations": [
-      "Shell expansion, permissions, links, filesystem rules, and command execution can behave unlike physical folders.",
-      "Aliases, glob expansion, variable expansion, symlinks, elevated permissions, and different shell parsing can broaden a command beyond what its text appears to target."
+      "Shredders are slow enough to stop; rm -rf isn't.",
+      "A pasted command is someone else's stack of pages; read them first."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Before a recursive cleanup, the learner resolves and prints the intended build directory and removes only that verified path inside the repository.",
-      "Safe shell work scopes destructive commands to verified literal paths, previews targets, preserves recoverable copies, and avoids constructing commands from untrusted text.",
-      "Verify resolved scope and current state, prefer non-destructive previews and exact-path APIs, and keep a recovery path before destructive execution."
+      "cd repo root",
+      "target=./dist; ls -la ./dist",
+      "rm -r -- ./dist"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Resolve",
         "state": {
-          "evidence": "Before a recursive cleanup, the learner resolves and prints the intended build directory and removes only that verified path inside the repository."
+          "pwd": "/home/asha/repo",
+          "target": "./dist"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "The learner resolves and prints the intended build directory."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Preview",
         "state": {
-          "model": "Safe shell work scopes destructive commands to verified literal paths, previews targets, preserves recoverable copies, and avoids constructing commands from untrusted text."
+          "ls": "index.html, assets/ (generated)"
         },
-        "explanation": "Apply the declared Command safety and help model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "Only generated files are in the target."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Act",
         "state": {
-          "correction": "Verify resolved scope and current state, prefer non-destructive previews and exact-path APIs, and keep a recovery path before destructive execution."
+          "removed": "./dist only",
+          "git status": "clean"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: A familiar delete command is safe to run immediately if the typed path looks approximately correct."
+        "explanation": "They remove only that verified path inside the repository."
       }
     ],
-    "textAlternative": "Starting artifact: Before a recursive cleanup, the learner resolves and prints the intended build directory and removes only that verified path inside the repository. Step 1, Observe. State: evidence: Before a recursive cleanup, the learner resolves and prints the intended build directory and removes only that verified path inside the repository.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Safe shell work scopes destructive commands to verified literal paths, previews targets, preserves recoverable copies, and avoids constructing commands from untrusted text.. Apply the declared Command safety and help model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Verify resolved scope and current state, prefer non-destructive previews and exact-path APIs, and keep a recovery path before destructive execution.. Compare the observation with the correction and reject the misconception: A familiar delete command is safe to run immediately if the typed path looks approximately correct."
+    "textAlternative": "Tracing a safe cleanup. Step 1, Resolve: pwd is /home/asha/repo; target is ./dist. The learner resolves and prints the intended build directory. Step 2, Preview: ls is index.html, assets/ (generated). Only generated files are in the target. Step 3, Act: removed is ./dist only; git status is clean. They remove only that verified path inside the repository."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Command safety and help: direct case”: state its starting evidence, apply the Command safety and help rule, and give the observable result in three short lines.",
+      "prompt": "For \"Cleaning the build folder, and only the build folder\", explain how before a recursive cleanup, the learner resolves and prints the intended build directory and removes only that verified path inside the repository.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Resolve.",
+        "Preview.",
+        "Remove."
       ],
       "expectedEvidence": [
-        "Named example: Command safety and help: direct case.",
-        "Starting evidence: Before a recursive cleanup, the learner resolves and prints the intended build directory and removes only that verified path inside the repository.",
-        "Core rule: Safe shell work scopes destructive commands to verified literal paths, previews targets, preserves recoverable copies, and avoids constructing commands from untrusted text.",
-        "Observable result: The case supports the declared outcome because Verify resolved scope and current state, prefer non-destructive previews and exact-path APIs, and keep a recovery path before destructive execution.",
-        "Boundary check: Verify resolved scope and current state, prefer non-destructive previews and exact-path APIs, and keep a recovery path before destructive execution."
+        "Names the example \"Cleaning the build folder, and only the build folder\": an empty variable nearly deleted everything.",
+        "Before a recursive cleanup, the learner resolves and prints the intended build directory.",
+        "They remove only that verified path inside the repository.",
+        "Build output is cleaned reliably."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A script passes a user-supplied filename as a quoted argument rather than concatenating it into an executable shell command.",
+      "prompt": "Rewrite this sequence safely: `cd $PROJECT; rm -rf node_modules *.log`. Explain each risk you removed.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "What if PROJECT is empty or cd fails?",
+        "Preview the *.log matches."
       ],
       "expectedEvidence": [
-        "Safe shell work scopes destructive commands to verified literal paths, previews targets, preserves recoverable copies, and avoids constructing commands from untrusted text.",
-        "Aliases, glob expansion, variable expansion, symlinks, elevated permissions, and different shell parsing can broaden a command beyond what its text appears to target."
+        "cd \"${PROJECT:?}\" || exit; ls *.log; rm -r -- node_modules ./*.log.",
+        "Stops on missing variables and previews targets."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Command safety and help, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Write a small cleanup script for a repo that deletes only dist/ and coverage/ inside the repository root, refuses to run outside a Git repo, prints what it will delete, and supports a --dry-run flag. Test it in a disposable repo.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "git rev-parse --show-toplevel.",
+        "Exit early on any surprise."
       ],
       "expectedEvidence": [
-        "Review a risky command sequence and propose a verifiable safer workflow.",
-        "Verify resolved scope and current state, prefer non-destructive previews and exact-path APIs, and keep a recovery path before destructive execution."
+        "Dry run lists targets without deleting.",
+        "Nothing outside the two folders is ever removed."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.shell.safety.misconception",
-      "explanation": "Verify resolved scope and current state, prefer non-destructive previews and exact-path APIs, and keep a recovery path before destructive execution.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A script passes a user-supplied filename as a quoted argument rather than concatenating it into an executable shell command."
+      "explanation": "Before any destructive command, run the three checks: **print the resolved path, preview the matches, and make sure there's a way back.** If a command came from someone else, read every part first.",
+      "retryPrompt": "Apply this to \"The helpful one-liner from a forum\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to review a risky command sequence and propose a verifiable safer workflow. Keep this boundary in view: Aliases, glob expansion, variable expansion, symlinks, elevated permissions, and different shell parsing can broaden a command beyond what its text appears to target.",
+    "summary": "To review a risky command sequence and propose a safer workflow, resolve and print exact paths, preview matches with ls or dry-run flags, use quoted literal paths and guards for empty variables, keep a recoverable copy, read help pages when unsure, and never run commands built from untrusted text without reading them.",
     "retrievalPrompts": [
-      "Explain Command safety and help without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: A familiar delete command is safe to run immediately if the typed path looks approximately correct.",
-      "Apply the model to this case from memory: A script passes a user-supplied filename as a quoted argument rather than concatenating it into an executable shell command."
+      "What should you check before rm -r?",
+      "What does a dry run do?",
+      "Why is piping a downloaded script to bash risky?"
     ],
     "nextReviewPrompt": "Next: continue to “Repository and working tree”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

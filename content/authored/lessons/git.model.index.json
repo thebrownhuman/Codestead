@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "The index, or staging area, records the exact proposed snapshot for the next commit separately from both the current working tree and the previous commit.",
+    "summary": "Git keeps **three versions** of your files. **HEAD** is the last commit. The **index** (staging area) is the **exact snapshot you're proposing for the next commit**. The **working tree** is what's on disk right now. `git add` copies **the current content** of a file (or just some of its changes, with `git add -p`) into the index. If you edit the file again afterwards, the index **still holds the older content** until you add again. Compare them with `git diff` (working tree vs index), `git diff --staged` (index vs HEAD) and `git status` (a summary of both).",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Only the tested half of a modified file is staged, so the staged diff differs from the remaining working-tree diff. Your goal is to use status and diff variants to explain every changed path before committing. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner fixes a bug in `score.js` and, in the same file, starts an unfinished experiment. They want to commit only the tested fix. After `git add score.js` they keep editing, and are then surprised that the commit doesn't include their latest changes. Only the tested half of a modified file is staged, so the staged diff differs from the remaining working-tree diff. In this lesson you'll use status and diff variants to explain every changed path before committing.\n\n```predict\n{\"question\": \"You `git add notes.md`, then edit notes.md again. What does the next commit contain?\", \"options\": [\"The latest version of notes.md\", \"The version from when you ran git add\"], \"answer\": 1, \"why\": \"git add snapshots content at that moment. Add again to include later edits.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Filesystem and terminal fluency; Repository and working tree. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Filesystem and terminal fluency** module and **Repository and working tree** (commits and untracked files)."
       },
       {
-        "heading": "Operational model",
-        "body": "The index, or staging area, records the exact proposed snapshot for the next commit separately from both the current working tree and the previous commit. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The model: three snapshots, two diffs",
+        "body": "```bash\ngit add -p score.js        # pick hunks: y for the fix, n for the experiment.\ngit status\n#   Changes to be committed:       modified: score.js   (the fix)\n#   Changes not staged for commit: modified: score.js   (the experiment)\n\ngit diff --staged          # index vs HEAD: what the commit WILL contain.\ngit diff                   # working tree vs index: what it will NOT contain.\ngit restore --staged score.js   # unstage, if you picked wrongly (keeps edits).\n```\n\n```text\n  HEAD (last commit)  <-- git diff --staged -->  index (proposed)  <-- git diff -->  working tree\n```\n\n| Command | Compares |\n|---|---|\n| `git diff`. | working tree vs index (unstaged). |\n| `git diff --staged`. | index vs HEAD (staged). |\n| `git diff HEAD`. | working tree vs HEAD (everything). |\n| `git status`. | summary of both, plus untracked files. |\n\n```reveal\n{\"prompt\": \"Can the same file appear in both \\\"staged\\\" and \\\"not staged\\\" lists?\", \"answer\": \"Yes: part of its changes are in the index and more changes exist only in the working tree. That's exactly the tested-fix-plus-experiment situation.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Partial staging, intent-to-add, conflict stages, file-mode changes, and generated files make the index more than a simple list of filenames. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Staging marks a filename, so later edits to that file automatically become part of the same staged snapshot."
+        "heading": "Check before committing",
+        "body": "```predict\n{\"question\": \"Which command shows exactly what `git commit` will record?\", \"options\": [\"git diff\", \"git diff --staged\"], \"answer\": 1, \"why\": \"The commit is built from the index, so review the index.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Predict differences among unstaged, staged and committed snapshots.",
-      "Use status and diff variants to explain every changed path before committing."
+      "Explain HEAD, the index and the working tree as three separate snapshots.",
+      "Stage selectively with git add -p and use status and diff variants to explain every change."
     ],
     "excludes": [
-      "Partial staging, intent-to-add, conflict stages, file-mode changes, and generated files make the index more than a simple list of filenames."
+      "Commit messages (next module).",
+      "Index internals and merge stages."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "git.model.index.example-a",
-      "title": "Working tree, index and HEAD: direct case",
+      "title": "Staging only the tested half",
       "situation": "Only the tested half of a modified file is staged, so the staged diff differs from the remaining working-tree diff.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: Only the tested half of a modified file is staged, so the staged diff differs from the remaining working-tree diff.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit."
+        "**Stage the tested half:** `git add -p score.js` accepts the fix hunk and skips the experiment hunk.",
+        "**Staged diff:** git diff --staged shows only the fix, exactly what the commit will contain.",
+        "**Remaining working-tree diff:** git diff shows only the experiment; after committing, git status will still list score.js as modified."
       ],
-      "result": "The case supports the declared outcome because Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit."
+      "result": "The commit contains just the tested fix, and the experiment stays safely uncommitted."
     },
     {
       "id": "git.model.index.example-b",
-      "title": "Working tree, index and HEAD: boundary case",
-      "situation": "A file is edited again after staging; the commit would contain the earlier staged version unless the index is updated.",
+      "title": "The half-committed rename",
+      "situation": "A learner edits app.js, runs git add app.js, then renames a function in app.js and commits. The build on main breaks because the commit has the old function name in one place and the new one nowhere.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A file is edited again after staging; the commit would contain the earlier staged version unless the index is updated.",
-        "Step 2 — Keep this boundary explicit: Partial staging, intent-to-add, conflict stages, file-mode changes, and generated files make the index more than a simple list of filenames.",
-        "Step 3 — Reject the documented misconception: Staging marks a filename, so later edits to that file automatically become part of the same staged snapshot."
+        "The second edit was never added, so the commit held the earlier snapshot.",
+        "git status before committing would have shown app.js in both lists.",
+        "Fix: git add the file again (or git add -p), review git diff --staged, then commit."
       ],
-      "result": "This case demonstrates the declared outcome: Use status and diff variants to explain every changed path before committing."
+      "result": "Commits contain complete, consistent snapshots that match what was tested."
     }
   ],
   "misconceptions": [
     {
       "id": "git.model.index.misconception",
       "mistakenBelief": "Staging marks a filename, so later edits to that file automatically become part of the same staged snapshot.",
-      "correction": "Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Staging marks a filename, so later edits to that file automatically become part of the same staged snapshot."
+      "correction": "git add copies the file's content at that moment into the index. Later edits live only in the working tree until you add again, so the next commit uses the older staged content.",
+      "diagnosticPrompt": "In the opening predict, which version did the commit contain?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A photo studio can model Working tree, index and HEAD: the set is the working tree, a selected proof is the index, and an archived photograph is a commit snapshot.",
+    "example": "The index is like **a packed box waiting to be posted**. `git add` puts copies of pages into the box. If you keep editing the page on your desk (working tree), the copy in the box doesn't change. `git commit` seals and posts exactly what's in the box.",
     "usefulFor": [
-      "Separating working changes, staged content, committed snapshots, and repository metadata"
+      "remembering the box holds copies",
+      "diff --staged = look in the box"
     ],
     "limitations": [
-      "Git stores content-addressed objects and references rather than physical photographs or one linear album.",
-      "Partial staging, intent-to-add, conflict stages, file-mode changes, and generated files make the index more than a simple list of filenames."
+      "Boxes can't hold half a page; git add -p can stage half a file's changes.",
+      "Unpacking the box (restore --staged) doesn't touch your desk."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Only the tested half of a modified file is staged, so the staged diff differs from the remaining working-tree diff.",
-      "The index, or staging area, records the exact proposed snapshot for the next commit separately from both the current working tree and the previous commit.",
-      "Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit."
+      "edit score.js: fix + experiment",
+      "git add -p (fix only)",
+      "status and diffs"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Edit",
         "state": {
-          "evidence": "Only the tested half of a modified file is staged, so the staged diff differs from the remaining working-tree diff."
+          "working tree": "fix + experiment",
+          "index": "same as HEAD"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "Both changes exist only in the working tree."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Stage",
         "state": {
-          "model": "The index, or staging area, records the exact proposed snapshot for the next commit separately from both the current working tree and the previous commit."
+          "index": "HEAD + fix"
         },
-        "explanation": "Apply the declared Working tree, index and HEAD model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "Only the tested half of a modified file is staged."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Compare",
         "state": {
-          "correction": "Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit."
+          "diff --staged": "fix",
+          "diff": "experiment"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Staging marks a filename, so later edits to that file automatically become part of the same staged snapshot."
+        "explanation": "The staged diff differs from the remaining working-tree diff."
       }
     ],
-    "textAlternative": "Starting artifact: Only the tested half of a modified file is staged, so the staged diff differs from the remaining working-tree diff. Step 1, Observe. State: evidence: Only the tested half of a modified file is staged, so the staged diff differs from the remaining working-tree diff.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: The index, or staging area, records the exact proposed snapshot for the next commit separately from both the current working tree and the previous commit.. Apply the declared Working tree, index and HEAD model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit.. Compare the observation with the correction and reject the misconception: Staging marks a filename, so later edits to that file automatically become part of the same staged snapshot."
+    "textAlternative": "Tracing selective staging. Step 1, Edit: working tree is fix + experiment; index is same as HEAD. Both changes exist only in the working tree. Step 2, Stage: index is HEAD + fix. Only the tested half of a modified file is staged. Step 3, Compare: diff --staged is fix; diff is experiment. The staged diff differs from the remaining working-tree diff."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Working tree, index and HEAD: direct case”: state its starting evidence, apply the Working tree, index and HEAD rule, and give the observable result in three short lines.",
+      "prompt": "For \"Staging only the tested half\", explain why when only the tested half of a modified file is staged, the staged diff differs from the remaining working-tree diff.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Stage.",
+        "Staged diff.",
+        "Remaining diff."
       ],
       "expectedEvidence": [
-        "Named example: Working tree, index and HEAD: direct case.",
-        "Starting evidence: Only the tested half of a modified file is staged, so the staged diff differs from the remaining working-tree diff.",
-        "Core rule: The index, or staging area, records the exact proposed snapshot for the next commit separately from both the current working tree and the previous commit.",
-        "Observable result: The case supports the declared outcome because Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit.",
-        "Boundary check: Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit."
+        "Names the example \"Staging only the tested half\": score.js held a fix and an experiment.",
+        "Only the tested half of a modified file is staged.",
+        "The staged diff differs from the remaining working-tree diff.",
+        "The commit contains just the tested fix."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A file is edited again after staging; the commit would contain the earlier staged version unless the index is updated.",
+      "prompt": "In a disposable repo, change two lines in one file, stage only one with git add -p, and write what git status, git diff and git diff --staged each show.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Answer y for one hunk, n for the other.",
+        "Split hunks with s if needed."
       ],
       "expectedEvidence": [
-        "The index, or staging area, records the exact proposed snapshot for the next commit separately from both the current working tree and the previous commit.",
-        "Partial staging, intent-to-add, conflict stages, file-mode changes, and generated files make the index more than a simple list of filenames."
+        "File appears in both status lists.",
+        "Each diff shows exactly one change."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Working tree, index and HEAD, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Make three kinds of change in a disposable repo: a staged edit, an unstaged edit to the same file, and an untracked new file. Explain every path shown by git status, then produce a commit containing only the staged edit and verify with git show.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Use git diff HEAD for the full picture.",
+        "git show --stat after committing."
       ],
       "expectedEvidence": [
-        "Use status and diff variants to explain every changed path before committing.",
-        "Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit."
+        "Every path explained.",
+        "The commit contains only the intended change."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.model.index.misconception",
-      "explanation": "Inspect both staged and unstaged diffs because the index stores content at staging time, and restage only the changes intended for the next commit.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A file is edited again after staging; the commit would contain the earlier staged version unless the index is updated."
+      "explanation": "Before every commit run **git status, then git diff --staged**. Ask: **is this exactly what I tested and meant to record?** If not, add, add -p or restore --staged until it is.",
+      "retryPrompt": "Apply this to \"The half-committed rename\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to use status and diff variants to explain every changed path before committing. Keep this boundary in view: Partial staging, intent-to-add, conflict stages, file-mode changes, and generated files make the index more than a simple list of filenames.",
+    "summary": "To explain every changed path before committing, remember HEAD is the last commit, the index is the proposed next snapshot filled by git add at that moment, and the working tree is what's on disk; use git diff for unstaged changes, git diff --staged for what will be committed, and git status for the summary.",
     "retrievalPrompts": [
-      "Explain Working tree, index and HEAD without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Staging marks a filename, so later edits to that file automatically become part of the same staged snapshot.",
-      "Apply the model to this case from memory: A file is edited again after staging; the commit would contain the earlier staged version unless the index is updated."
+      "What does the index hold?",
+      "Does git add track later edits automatically?",
+      "Which diff shows what will be committed?"
     ],
     "nextReviewPrompt": "Next: continue to “Ignore policy”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A Java class combines private representation with constructors and cohesive methods that preserve invariants and expose the smallest useful public interface.",
+    "summary": "A class bundles **private state** with the **methods that keep it valid**. The rule it protects is its **invariant**, for example \"value is never negative\". Keep fields `private`, validate in the constructor, and expose **operations** that each preserve the invariant (`increment()`, `reset()`), plus read-only accessors (`value()`). A getter and setter for every field is **not** encapsulation: `setValue(-5)` lets any caller break the rule. Also watch accessors that return a **mutable internal object** (like a `List`): callers could change it behind the class's back, so return a copy or an unmodifiable view.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A Counter keeps its value private, rejects a negative starting value, and exposes increment and value methods without returning mutable internals. Your goal is to design and implement a class with private representation and cohesive methods. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner's Counter has `private int value;` plus `getValue()` and `setValue(int)`. Other code does `c.setValue(c.getValue() - 10)` and counters go negative. Another class returns its internal `List<String> history` directly, and a caller clears it. A Counter keeps its value private, rejects a negative starting value, and exposes increment and value methods without returning mutable internals. In this lesson you'll design and implement a class with private representation and cohesive methods.\n\n```predict\n{\"question\": \"Every field is private but has a public setter. Is the invariant protected?\", \"options\": [\"Yes, fields are private\", \"No: any caller can set any value through the setters\"], \"answer\": 1, \"why\": \"Private fields help only if public methods enforce the rules.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Method contracts and parameters; pf data records. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Method contracts and parameters** (documented behaviour and side effects) and **Records and entities** (grouping related data)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "A Java class combines private representation with constructors and cohesive methods that preserve invariants and expose the smallest useful public interface. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The invariant: every public method keeps state valid",
+        "body": "```java\nimport java.util.ArrayList;\nimport java.util.List;\n\n// Invariant: value >= 0.\npublic class Counter {\n    private int value;\n    private final List<String> history = new ArrayList<>();\n\n    public Counter(int start) {\n        if (start < 0) throw new IllegalArgumentException(\"start must be >= 0\");\n        this.value = start;\n    }\n\n    public void increment() {\n        value++;\n        history.add(\"inc -> \" + value);\n    }\n\n    public void reset() { value = 0; history.add(\"reset\"); }\n\n    public int value() { return value; }                  // read-only view.\n\n    public List<String> history() { return List.copyOf(history); }   // not the internal list.\n\n    public static void main(String[] args) {\n        Counter c = new Counter(2);\n        c.increment();\n        System.out.println(c.value() + \" \" + c.history());   // 3 [inc -> 3]\n    }\n}\n```\n\n| Design choice | Why |\n|---|---|\n| private fields. | only the class changes them. |\n| validating constructor. | no invalid object is ever created. |\n| operations, not setters. | each keeps the rule. |\n| copies of internals. | callers can't mutate hidden state. |\n\n```reveal\n{\"prompt\": \"What happens if a caller tries c.history().clear()?\", \"answer\": \"List.copyOf returns an unmodifiable list, so clear() throws UnsupportedOperationException, and the Counter's real history is untouched either way.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "Getters can leak mutable state, public fields bypass validation, static state is shared across instances, and encapsulation is about enforceable contracts rather than accessor count. The learner must reject this documented misconception: A class is encapsulated as long as every field has a public getter and setter."
+        "heading": "Cohesion",
+        "body": "```predict\n{\"question\": \"A Counter class also sends emails and parses dates. Problem?\", \"options\": [\"No, it's handy\", \"Yes: unrelated jobs make its purpose and invariants unclear; split them\"], \"answer\": 1, \"why\": \"A class should have one clear responsibility.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Encapsulate state and behavior behind a minimal public interface.",
-      "Design and implement a class with private representation and cohesive methods."
+      "Design classes with private fields, a stated invariant and cohesive operations.",
+      "Avoid blanket setters and returning mutable internals."
     ],
     "excludes": [
-      "Getters can leak mutable state, public fields bypass validation, static state is shared across instances, and encapsulation is about enforceable contracts rather than accessor count."
+      "Constructor chaining (next lesson).",
+      "Inheritance (abstraction module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "java.objects.class.example.direct",
-      "title": "Classes, fields and methods: direct language case",
+      "title": "A Counter that can't go negative",
       "situation": "A Counter keeps its value private, rejects a negative starting value, and exposes increment and value methods without returning mutable internals.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A Counter keeps its value private, rejects a negative starting value, and exposes increment and value methods without returning mutable internals.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Keep representation private and expose behavior that preserves invariants; do not publish mutation merely to mirror each field."
+        "**A Counter keeps its value private:** no caller can assign value directly.",
+        "**Rejects a negative starting value:** new Counter(-1) throws IllegalArgumentException.",
+        "**Exposes increment and value methods without returning mutable internals:** history() returns List.copyOf, so callers will not be able to change the real list."
       ],
-      "result": "The example meets the atomic outcome because Keep representation private and expose behavior that preserves invariants; do not publish mutation merely to mirror each field."
+      "result": "The counter can never become negative, whatever callers do."
     },
     {
       "id": "java.objects.class.example.boundary",
-      "title": "Classes, fields and methods: boundary and transfer case",
-      "situation": "A class returns List.copyOf for a snapshot instead of returning the owned mutable list directly to callers.",
+      "title": "The leaked list",
+      "situation": "A Playlist returns its internal ArrayList from getSongs(), and a caller calls clear() on it, emptying the playlist.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A class returns List.copyOf for a snapshot instead of returning the owned mutable list directly to callers.",
-        "Step 2 — Keep the language boundary explicit: Getters can leak mutable state, public fields bypass validation, static state is shared across instances, and encapsulation is about enforceable contracts rather than accessor count.",
-        "Step 3 — Reject the tempting but incorrect rule: A class is encapsulated as long as every field has a public getter and setter."
+        "The caller got a reference to the real internal list.",
+        "Return List.copyOf(songs) or Collections.unmodifiableList(songs).",
+        "Offer addSong and removeSong operations instead."
       ],
-      "result": "This case demonstrates the declared outcome: Design and implement a class with private representation and cohesive methods."
+      "result": "Only the Playlist's own methods can change its songs."
     }
   ],
   "misconceptions": [
     {
       "id": "java.objects.class.misconception",
       "mistakenBelief": "A class is encapsulated as long as every field has a public getter and setter.",
-      "correction": "Keep representation private and expose behavior that preserves invariants; do not publish mutation merely to mirror each field.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: A class is encapsulated as long as every field has a public getter and setter."
+      "correction": "Blanket setters let callers put the object in any state, and getters of mutable internals leak control. Encapsulation means operations that preserve the invariant.",
+      "diagnosticPrompt": "In the opening story, how did counters go negative?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a secured service object whose constructor admits only valid state and whose public desk exposes approved behavior can introduce Classes, fields and methods, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "example": "A class is like **a vending machine**: its stock (fields) is locked inside, and you use buttons (methods) that check payment and availability. A \"set stock to anything\" button, or handing customers the key to the stock drawer (returning internals), defeats the machine.",
     "usefulFor": [
-      "understanding encapsulation, construction, identity, equality, and records"
+      "remembering buttons, not keys",
+      "invariant = the machine's rules"
     ],
     "limitations": [
-      "object references, hashing, shallow immutability, and garbage collection are not physical ownership rules",
-      "Getters can leak mutable state, public fields bypass validation, static state is shared across instances, and encapsulation is about enforceable contracts rather than accessor count."
+      "Vending machines are physical; Java uses access modifiers.",
+      "A display window is a read-only accessor."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A Counter keeps its value private, rejects a negative starting value, and exposes increment and value methods without returning mutable internals.",
-      "A Java class combines private representation with constructors and cohesive methods that preserve invariants and expose the smallest useful public interface.",
-      "Keep representation private and expose behavior that preserves invariants; do not publish mutation merely to mirror each field."
+      "new Counter(2)",
+      "c.increment()",
+      "c.history().clear()"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Construct",
         "state": {
-          "evidence": "A Counter keeps its value private, rejects a negative starting value, and exposes increment and value methods without returning mutable internals."
+          "value": "2"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "The Counter rejects negative starting values and stores a valid one."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Operate",
         "state": {
-          "rule": "A Java class combines private representation with constructors and cohesive methods that preserve invariants and expose the smallest useful public interface."
+          "value": "3",
+          "history": "[inc -> 3]"
         },
-        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "increment keeps the invariant that value is never negative."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Protect",
         "state": {
-          "correction": "Keep representation private and expose behavior that preserves invariants; do not publish mutation merely to mirror each field."
+          "clear()": "UnsupportedOperationException",
+          "real history": "unchanged"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: A class is encapsulated as long as every field has a public getter and setter."
+        "explanation": "It exposes methods without returning mutable internals."
       }
     ],
-    "textAlternative": "Starting artifact: A Counter keeps its value private, rejects a negative starting value, and exposes increment and value methods without returning mutable internals. Step 1, Observe. State: evidence: A Counter keeps its value private, rejects a negative starting value, and exposes increment and value methods without returning mutable internals.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A Java class combines private representation with constructors and cohesive methods that preserve invariants and expose the smallest useful public interface.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Keep representation private and expose behavior that preserves invariants; do not publish mutation merely to mirror each field.. Compare the observation with the correction and explain why the misconception fails: A class is encapsulated as long as every field has a public getter and setter."
+    "textAlternative": "Tracing an encapsulated class. Step 1, Construct: value is 2. The Counter rejects negative starting values and stores a valid one. Step 2, Operate: value is 3; history is [inc -> 3]. increment keeps the invariant that value is never negative. Step 3, Protect: clear() is UnsupportedOperationException; real history is unchanged. It exposes methods without returning mutable internals."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Classes, fields and methods: direct language case”: state its starting evidence, apply the Classes, fields and methods rule, and give the observable result in three short lines.",
+      "prompt": "For \"A Counter that can't go negative\", explain how a Counter keeps its value private, rejects a negative starting value, and exposes increment and value methods without returning mutable internals.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Private.",
+        "Validate.",
+        "Expose."
       ],
       "expectedEvidence": [
-        "Named example: Classes, fields and methods: direct language case.",
-        "Starting evidence: A Counter keeps its value private, rejects a negative starting value, and exposes increment and value methods without returning mutable internals.",
-        "Core rule: A Java class combines private representation with constructors and cohesive methods that preserve invariants and expose the smallest useful public interface.",
-        "Observable result: The example meets the atomic outcome because Keep representation private and expose behavior that preserves invariants; do not publish mutation merely to mirror each field.",
-        "Boundary check: Keep representation private and expose behavior that preserves invariants; do not publish mutation merely to mirror each field."
+        "Names the example \"A Counter that can't go negative\": setValue let counters go negative.",
+        "A Counter keeps its value private and rejects a negative starting value.",
+        "It exposes increment and value methods without returning mutable internals.",
+        "The counter can never become negative."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A class returns List.copyOf for a snapshot instead of returning the owned mutable list directly to callers.",
+      "prompt": "Design a Thermostat with invariant 5 <= target <= 30: a validating constructor, raise() and lower() that stay in range, and target(). Test at both limits.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Decide: clamp or throw at limits.",
+        "No setter."
       ],
       "expectedEvidence": [
-        "A Java class combines private representation with constructors and cohesive methods that preserve invariants and expose the smallest useful public interface.",
-        "Getters can leak mutable state, public fields bypass validation, static state is shared across instances, and encapsulation is about enforceable contracts rather than accessor count."
+        "Invariant holds in all tests.",
+        "Choice documented."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Classes, fields and methods, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Design a ShoppingCart holding items and quantities with invariants (quantity >= 1, no duplicate item entries). Provide add, remove, total and an unmodifiable items() view, with tests that try to break each invariant.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Map<String, Integer> inside.",
+        "Map.copyOf for the view."
       ],
       "expectedEvidence": [
-        "Design and implement a class with private representation and cohesive methods.",
-        "Keep representation private and expose behavior that preserves invariants; do not publish mutation merely to mirror each field."
+        "Tests can't break invariants.",
+        "Internals never leaked."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "java.objects.class.misconception",
-      "explanation": "Keep representation private and expose behavior that preserves invariants; do not publish mutation merely to mirror each field.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A class returns List.copyOf for a snapshot instead of returning the owned mutable list directly to callers."
+      "explanation": "State the invariant in one sentence. For each public method ask: **can calling it break that sentence, or give callers a way to?**",
+      "retryPrompt": "Apply this to \"The leaked list\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to design and implement a class with private representation and cohesive methods. Keep this boundary in view: Getters can leak mutable state, public fields bypass validation, static state is shared across instances, and encapsulation is about enforceable contracts rather than accessor count.",
+    "summary": "To design a class with private representation, state its invariant, keep fields private, validate in the constructor, expose cohesive operations that preserve the invariant instead of blanket setters, and return copies or unmodifiable views rather than mutable internals.",
     "retrievalPrompts": [
-      "Explain Classes, fields and methods using canonical Java: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: A class is encapsulated as long as every field has a public getter and setter.",
-      "Predict this case from memory: A class returns List.copyOf for a snapshot instead of returning the owned mutable list directly to callers."
+      "What is a class invariant?",
+      "Why are blanket setters a problem?",
+      "Why not return an internal list directly?"
     ],
     "nextReviewPrompt": "Next: continue to “Constructors and invariants”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -202,7 +202,7 @@ describe("administrator curriculum editorial queue", () => {
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
-    render(<AdminCurriculumPublication />);
+    render(<AdminCurriculumPublication detailedReviewChecklist />);
 
     const queue = await screen.findByLabelText("Outstanding curriculum artifacts");
     await user.click(within(queue).getByRole("button", { name: /lesson\.javascript\.variables\.v1/i }));

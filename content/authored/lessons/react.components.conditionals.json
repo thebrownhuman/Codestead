@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Conditional rendering selects node descriptions with if, ternary, logical expressions, variables, or early returns.",
+    "summary": "React has no special `if` tag; you choose what to render with plain JavaScript. **Early return** for whole-component states (`if (loading) return <Spinner />`). **Ternary** `cond ? <A /> : <B />` for either/or. **`&&`** for \"show or nothing\", but only with a real **boolean** on the left: `count && <Badge />` renders the number **0** when count is 0, because React renders numbers. Use `count > 0 && ...`. Returning `null`, `false` or `undefined` renders nothing. Cover every state a learner can meet: loading, error, empty and data.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A count check uses count > 0 && so zero does not appear as stray content. Your goal is to implement and test complete conditional UI states. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "An inbox header shows a badge with the unread count. With no unread messages, a lonely \"0\" appears next to the title. The code was `{unread && <Badge count={unread} />}`. A count check uses count > 0 && so zero does not appear as stray content. In this lesson you'll implement and test complete conditional UI states.\n\n```predict\n{\"question\": \"`const unread = 0; return <h2>Inbox {unread && <Badge count={unread} />}</h2>;` What's inside the heading?\", \"options\": [\"Inbox\", \"Inbox 0\"], \"answer\": 1, \"why\": \"0 && x evaluates to 0, and React renders the number 0. false, null and undefined render nothing.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Declarative UI and re-rendering; html semantics; JSX expressions and attributes; javascript control selection. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Declarative UI and re-rendering**, **Text and page semantics**, **JSX expressions and attributes** (only expressions in braces), and **Conditions and switch** (if, ternary, truthiness)."
       },
       {
-        "heading": "Technology rule",
-        "body": "Conditional rendering selects node descriptions with if, ternary, logical expressions, variables, or early returns. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The rule: pick the pattern by the shape of the choice",
+        "body": "```jsx\nexport function Inbox({ status, messages, error }) {\n  if (status === \"loading\") return <p role=\"status\">Loading messages...</p>;\n  if (status === \"error\") return <p role=\"alert\">Couldn't load messages. {error}</p>;\n\n  const unread = messages.filter((m) => !m.read).length;\n\n  return (\n    <section aria-labelledby=\"inbox-title\">\n      <h2 id=\"inbox-title\">\n        Inbox {unread > 0 && <span className=\"badge\">{unread} unread</span>}\n      </h2>\n      {messages.length === 0 ? (\n        <p>No messages yet.</p>\n      ) : (\n        <ul>{/* rows come in the lists lesson. */}</ul>\n      )}\n    </section>\n  );\n}\n```\n\n| Choice | Pattern |\n|---|---|\n| whole component differs (loading, error). | early return. |\n| A or B. | ternary. |\n| B or nothing. | `boolean && <B />`. |\n| complex logic. | compute a variable before return. |\n\n```reveal\n{\"prompt\": \"Is `{messages.length && <List />}` safe?\", \"answer\": \"No. An empty array gives 0, which renders. Use `messages.length > 0 &&`.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Falsy values such as zero can render unexpectedly with &&, and branch changes can preserve or reset state by identity. This draft therefore rejects: value && <Panel/> always renders nothing for every falsy value without displaying that value."
+        "heading": "Every state",
+        "body": "```predict\n{\"question\": \"Which state is most often forgotten?\", \"options\": [\"Data\", \"Empty: the list loaded fine but has no items\"], \"answer\": 1, \"why\": \"Without an empty state, learners see a blank area and think it's broken.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Render explicit loading, empty, success and conditional branches without leaking falsey values accidentally.",
-      "Implement and test complete conditional UI states."
+      "Use early returns, ternaries and boolean && correctly.",
+      "Implement and test loading, error, empty and data states."
     ],
     "excludes": [
-      "Falsy values such as zero can render unexpectedly with &&, and branch changes can preserve or reset state by identity."
+      "Suspense boundaries.",
+      "Animated transitions between states."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "react.components.conditionals.example-a",
-      "title": "Conditional rendering: concrete case",
-      "situation": "A count check uses count > 0 && so zero does not appear as stray content.",
+      "title": "The stray 0 in the inbox",
+      "situation": "A count check uses count > 0 && so zero does not appear as stray content in the inbox heading.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A count check uses count > 0 && so zero does not appear as stray content.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Logical AND can render zero; use an explicit Boolean condition when the left value is displayable."
+        "**Bug:** `{unread && <Badge />}` evaluates to 0 when there are no unread messages, and React renders \"0\".",
+        "**Count check:** `{unread > 0 && <span>{unread} unread</span>}` gives false for zero, which renders nothing.",
+        "**Test:** rendering with no unread messages will show the heading \"Inbox\" with no badge, and with 3 unread shows \"3 unread\"."
       ],
-      "result": "The result follows because Logical AND can render zero; use an explicit Boolean condition when the left value is displayable."
+      "result": "The heading reads just \"Inbox\" when everything is read, and shows the badge only when there are unread messages."
     },
     {
       "id": "react.components.conditionals.example-b",
-      "title": "Conditional rendering: boundary case",
-      "situation": "Falsy values such as zero can render unexpectedly with &&, and branch changes can preserve or reset state by identity.",
+      "title": "The blank lesson list",
+      "situation": "A lesson list renders `<ul>` with rows. When a new course has no lessons yet, learners see an empty page and report a bug.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Falsy values such as zero can render unexpectedly with &&, and branch changes can preserve or reset state by identity.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: value && <Panel/> always renders nothing for every falsy value without displaying that value."
+        "The component only handled the data state.",
+        "An empty array rendered an empty ul with nothing inside.",
+        "Fix: `lessons.length === 0 ? <p>No lessons yet. Check back soon.</p> : <ul>...</ul>`."
       ],
-      "result": "The boundary requires this correction: Logical AND can render zero; use an explicit Boolean condition when the left value is displayable."
+      "result": "Learners see a clear message for courses without lessons."
     }
   ],
   "misconceptions": [
     {
       "id": "react.components.conditionals.misconception",
       "mistakenBelief": "value && <Panel/> always renders nothing for every falsy value without displaying that value.",
-      "correction": "Logical AND can render zero; use an explicit Boolean condition when the left value is displayable.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: value && <Panel/> always renders nothing for every falsy value without displaying that value."
+      "correction": "&& returns its left side when it's falsy. React ignores false, null and undefined, but it renders 0 (and NaN) as text. Put a real boolean on the left, such as count > 0.",
+      "diagnosticPrompt": "In the opening predict, why did 0 appear?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Conditional rendering, where inputs and state produce a UI description.",
+    "example": "`&&` in JSX is like **a door with a sign-in sheet**: if the check passes you walk through to the room (the component). If it fails, whatever you wrote on the sheet is left on the desk. Write \"false\" and nobody sees it; write \"0\" and it sits there for everyone to read.",
     "usefulFor": [
-      "Building a first mental model for Conditional rendering before using exact platform terms"
+      "remembering 0 gets shown",
+      "boolean check = writing false on the sheet"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Falsy values such as zero can render unexpectedly with &&, and branch changes can preserve or reset state by identity."
+      "Doors don't render; React does.",
+      "A ternary is two doors: one always opens."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A count check uses count > 0 && so zero does not appear as stray content.",
-      "Conditional rendering selects node descriptions with if, ternary, logical expressions, variables, or early returns.",
-      "Logical AND can render zero; use an explicit Boolean condition when the left value is displayable."
+      "messages all read: unread = 0",
+      "unread > 0 && <span>",
+      "render heading"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Compute",
         "state": {
-          "evidence": "A count check uses count > 0 && so zero does not appear as stray content."
+          "unread": "0"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The count of unread messages is zero."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Check",
         "state": {
-          "rule": "Conditional rendering selects node descriptions with if, ternary, logical expressions, variables, or early returns."
+          "unread > 0": "false",
+          "expression value": "false"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "A count check uses count > 0 && instead of the raw count."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Render",
         "state": {
-          "correction": "Logical AND can render zero; use an explicit Boolean condition when the left value is displayable."
+          "heading": "Inbox",
+          "stray 0": "none"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: value && <Panel/> always renders nothing for every falsy value without displaying that value."
+        "explanation": "React ignores false, so zero does not appear as stray content."
       }
     ],
-    "textAlternative": "Starting artifact: A count check uses count > 0 && so zero does not appear as stray content. Step 1, Artifact. State: evidence: A count check uses count > 0 && so zero does not appear as stray content.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Conditional rendering selects node descriptions with if, ternary, logical expressions, variables, or early returns.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Logical AND can render zero; use an explicit Boolean condition when the left value is displayable.. Check the result against the boundary and reject this misconception: value && <Panel/> always renders nothing for every falsy value without displaying that value."
+    "textAlternative": "Rendering the inbox heading. Step 1, Compute: unread is 0. The count of unread messages is zero. Step 2, Check: unread > 0 is false; expression value is false. A count check uses count > 0 && instead of the raw count. Step 3, Render: heading is Inbox; stray 0 is none. React ignores false, so zero does not appear as stray content."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Conditional rendering: concrete case”: state its starting evidence, apply the Conditional rendering rule, and give the observable result in three short lines.",
+      "prompt": "For \"The stray 0 in the inbox\", explain how a count check uses count > 0 && so zero does not appear as stray content.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Bug.",
+        "Check.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Conditional rendering: concrete case.",
-        "Starting evidence: A count check uses count > 0 && so zero does not appear as stray content.",
-        "Core rule: Conditional rendering selects node descriptions with if, ternary, logical expressions, variables, or early returns.",
-        "Observable result: The result follows because Logical AND can render zero; use an explicit Boolean condition when the left value is displayable.",
-        "Boundary check: Logical AND can render zero; use an explicit Boolean condition when the left value is displayable."
+        "Names the example \"The stray 0 in the inbox\": raw count && rendered 0.",
+        "A count check uses count > 0 &&.",
+        "false renders nothing, so zero does not appear as stray content.",
+        "The heading reads just \"Inbox\" when everything is read."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Falsy values such as zero can render unexpectedly with &&, and branch changes can preserve or reset state by identity.",
+      "prompt": "Write `Score({ attempts, best })`: show \"Not attempted\" when attempts is 0, otherwise \"Best: N\", and a \"Perfect!\" badge only when best is 100.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Ternary for the either/or.",
+        "Boolean && for the badge."
       ],
       "expectedEvidence": [
-        "Conditional rendering selects node descriptions with if, ternary, logical expressions, variables, or early returns.",
-        "Falsy values such as zero can render unexpectedly with &&, and branch changes can preserve or reset state by identity."
+        "No stray 0 for zero attempts.",
+        "Badge only at 100."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Conditional rendering and explain why the misconception fails.",
+      "prompt": "Build a `LessonPanel` with loading, error (with retry), empty and data states. Write one test per state and one for a zero count, querying by role or text.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Early returns for loading and error.",
+        "Empty before data."
       ],
       "expectedEvidence": [
-        "Implement and test complete conditional UI states.",
-        "Logical AND can render zero; use an explicit Boolean condition when the left value is displayable."
+        "Four state tests plus the zero test.",
+        "No blank screens."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.components.conditionals.misconception",
-      "explanation": "Logical AND can render zero; use an explicit Boolean condition when the left value is displayable.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'explicit Boolean condition' and state the decisive evidence."
+      "explanation": "For every `&&`, ask: **Is the left side a real true/false?** If it could be a number, compare it. For every component, list: **loading, error, empty, data**, and check each one renders something useful.",
+      "retryPrompt": "Apply this to \"The blank lesson list\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test complete conditional UI states. Keep this boundary in view: Falsy values such as zero can render unexpectedly with &&, and branch changes can preserve or reset state by identity.",
+    "summary": "To implement and test complete conditional UI states, use early returns for whole-component states, ternaries for either/or, and && only with a real boolean such as count > 0, since React renders 0. Cover loading, error, empty and data, and test each one.",
     "retrievalPrompts": [
-      "Explain Conditional rendering using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: value && <Panel/> always renders nothing for every falsy value without displaying that value.",
-      "Apply checkpoint 'explicit Boolean condition' to a new artifact."
+      "Why does count && <Badge /> show 0?",
+      "When should you use an early return?",
+      "Which state is easiest to forget?"
     ],
     "nextReviewPrompt": "Next: continue to “Lists and stable keys”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A Python package organizes importable modules under a qualified namespace and exposes a deliberate public API while keeping implementation modules replaceable.",
+    "summary": "A **package** is a folder of modules with an `__init__.py`. That file is the package's **front door**: it re-exports the few names callers should use (the **public API**), while helper modules marked with a leading underscore (`_tokens.py`) stay internal. Relative imports (`from . import _tokens`) work only when the code is run as part of the package.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A package re-exports one stable parse function from __init__.py while callers do not depend on its internal _tokens module. Your goal is to create and import a small package with clear internal and public names. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You're building a small date parser. Internally it has tokenising, validation and formatting helpers — but callers should only ever need `parse()`. If they import your internals, you can never refactor without breaking them. A package re-exports one stable parse function from __init__.py, while callers do not depend on its internal _tokens module. In this lesson you'll create and import a small package with clear internal and public names.\n\n```predict\n{\"question\": \"In `dateparse/__init__.py` you write `from ._core import parse`. What can callers now write?\", \"options\": [\"`from dateparse import parse`\", \"Only `from dateparse._core import parse`\"], \"answer\": 0, \"why\": \"Re-exporting in `__init__.py` makes `parse` available at the package's front door.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Function contracts and returns; Interpreter and environment; Modules and imports. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Function contracts and returns**, **Interpreter and environment**, and **Modules and imports** (import runs a file once)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "A Python package organizes importable modules under a qualified namespace and exposes a deliberate public API while keeping implementation modules replaceable. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: public front door, private rooms",
+        "body": "```text\ndateparse/\n├── __init__.py      # from ._core import parse\n│                    # __all__ = [\"parse\"]\n├── _core.py         # def parse(text): ...\n└── _tokens.py       # internal helpers\n```\n\n| Name | Status | Callers may use it? |\n|---|---|---|\n| `dateparse.parse` | public, re-exported. | yes — stable. |\n| `dateparse._tokens` | internal (underscore). | no — may change any time. |\n\n```reveal\n{\"prompt\": \"What does `__all__ = [\\\"parse\\\"]` control?\", \"answer\": \"It lists the public names for `from dateparse import *` and signals intent to readers and tools. The underscore convention does the rest.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "Import packages differ from distribution packages, relative imports depend on package context, __init__ execution can create cycles, namespace packages differ, and underscore naming is convention rather than access control. The learner must reject this documented misconception: A directory with Python files is automatically the same thing as an installable distribution and relative imports work from any launch command."
+        "heading": "Relative imports need package context",
+        "body": "```predict\n{\"question\": \"Inside `_core.py` you have `from . import _tokens`. You run `python dateparse/_core.py`. What happens?\", \"options\": [\"It works\", \"ImportError: attempted relative import with no known parent package\"], \"answer\": 1, \"why\": \"Run directly, the file isn't part of a package. Run it as `python -m dateparse._core` from the project root, or import it through the package.\"}\n```\n\nAlso: a folder full of `.py` files isn't automatically something `pip` can install — that needs project metadata (a later lesson)."
       }
     ]
   },
   "scope": {
     "includes": [
-      "Organize related modules, use relative imports sparingly and expose a deliberate package interface.",
-      "Create and import a small package with clear internal and public names."
+      "Build a package with __init__.py that re-exports a small public API.",
+      "Keep internal modules private and use relative imports correctly."
     ],
     "excludes": [
-      "Import packages differ from distribution packages, relative imports depend on package context, __init__ execution can create cycles, namespace packages differ, and underscore naming is convention rather than access control."
+      "Namespace packages without __init__.py.",
+      "Publishing packages to PyPI."
     ]
   },
   "outcomes": [
@@ -68,133 +69,133 @@
   "examples": [
     {
       "id": "python.modules.packages.example.direct",
-      "title": "Packages and public APIs: direct language case",
+      "title": "A package with one public parse function",
       "situation": "A package re-exports one stable parse function from __init__.py while callers do not depend on its internal _tokens module.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A package re-exports one stable parse function from __init__.py while callers do not depend on its internal _tokens module.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Distinguish import package from distribution package, define a small public namespace, and launch modules with a valid package context."
+        "**Internal module:** `_tokens.py` splits text into pieces; the underscore marks it internal.",
+        "**Re-export:** `__init__.py` has `from ._core import parse` and `__all__ = [\"parse\"]`.",
+        "**Callers:** `from dateparse import parse; parse(\"2026-09-23\")` — they never import _tokens."
       ],
-      "result": "The example meets the atomic outcome because Distinguish import package from distribution package, define a small public namespace, and launch modules with a valid package context."
+      "result": "The team can rewrite _tokens freely, and callers' code keeps working because they only use the stable parse function."
     },
     {
       "id": "python.modules.packages.example.boundary",
-      "title": "Packages and public APIs: boundary and transfer case",
-      "situation": "The application launches with python -m package.cli so relative imports have a package context instead of running the nested file directly.",
+      "title": "The caller that reached inside",
+      "situation": "An app imports `from dateparse._tokens import split_parts` to save time. The package later renames it to `tokenize`.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: The application launches with python -m package.cli so relative imports have a package context instead of running the nested file directly.",
-        "Step 2 — Keep the language boundary explicit: Import packages differ from distribution packages, relative imports depend on package context, __init__ execution can create cycles, namespace packages differ, and underscore naming is convention rather than access control.",
-        "Step 3 — Reject the tempting but incorrect rule: A directory with Python files is automatically the same thing as an installable distribution and relative imports work from any launch command."
+        "The underscore said it was internal, but the app depended on it anyway.",
+        "After the rename, the app crashes with ImportError.",
+        "Fix: use the public `parse`, or ask the package to add a public function if one is truly needed."
       ],
-      "result": "This case demonstrates the declared outcome: Create and import a small package with clear internal and public names."
+      "result": "Depending only on public names keeps callers safe from internal refactors."
     }
   ],
   "misconceptions": [
     {
       "id": "python.modules.packages.misconception",
-      "mistakenBelief": "A directory with Python files is automatically the same thing as an installable distribution and relative imports work from any launch command.",
-      "correction": "Distinguish import package from distribution package, define a small public namespace, and launch modules with a valid package context.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: A directory with Python files is automatically the same thing as an installable distribution and relative imports work from any launch command."
+      "mistakenBelief": "A directory with Python files is automatically the same thing as an installable distribution, and relative imports work from any launch command.",
+      "correction": "A package makes modules importable from the right path, but installation needs project metadata. Relative imports need package context, so run with `python -m package.module` or import through the package.",
+      "diagnosticPrompt": "In the relative-import predict, why did running the file directly fail?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a library whose catalogs, shelves, isolated rooms, and shipping manifest separate import names from installable distributions can introduce Packages and public APIs, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "example": "A package is like a **restaurant**: the menu (`__init__.py`) lists what customers can order; the kitchen (`_modules`) is staff-only and can be rearranged anytime without changing the menu.",
     "usefulFor": [
-      "imports, packages, virtual environments, and pyproject builds"
+      "remembering public = menu, internal = kitchen",
+      "seeing refactoring freedom"
     ],
     "limitations": [
-      "sys.path, partial module initialization, build backends, editable installs, and wheel contents need direct inspection",
-      "Import packages differ from distribution packages, relative imports depend on package context, __init__ execution can create cycles, namespace packages differ, and underscore naming is convention rather than access control."
+      "Customers physically can't enter the kitchen; Python only asks politely via the underscore.",
+      "Relative imports are like staff using internal doors — only work from inside."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A package re-exports one stable parse function from __init__.py while callers do not depend on its internal _tokens module.",
-      "A Python package organizes importable modules under a qualified namespace and exposes a deliberate public API while keeping implementation modules replaceable.",
-      "Distinguish import package from distribution package, define a small public namespace, and launch modules with a valid package context."
+      "dateparse/__init__.py: from ._core import parse",
+      "app.py: from dateparse import parse",
+      "parse('2026-09-23')"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Package init runs",
         "state": {
-          "evidence": "A package re-exports one stable parse function from __init__.py while callers do not depend on its internal _tokens module."
+          "dateparse.parse": "re-exported"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "Importing the package runs __init__.py, which re-exports one stable parse function."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Caller imports",
         "state": {
-          "rule": "A Python package organizes importable modules under a qualified namespace and exposes a deliberate public API while keeping implementation modules replaceable."
+          "app uses": "dateparse.parse only"
         },
-        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "Callers do not depend on its internal _tokens module."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Call",
         "state": {
-          "correction": "Distinguish import package from distribution package, define a small public namespace, and launch modules with a valid package context."
+          "returned": "date(2026, 9, 23)"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: A directory with Python files is automatically the same thing as an installable distribution and relative imports work from any launch command."
+        "explanation": "The public function parses the text using internal helpers hidden from callers."
       }
     ],
-    "textAlternative": "Starting artifact: A package re-exports one stable parse function from __init__.py while callers do not depend on its internal _tokens module. Step 1, Observe. State: evidence: A package re-exports one stable parse function from __init__.py while callers do not depend on its internal _tokens module.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A Python package organizes importable modules under a qualified namespace and exposes a deliberate public API while keeping implementation modules replaceable.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Distinguish import package from distribution package, define a small public namespace, and launch modules with a valid package context.. Compare the observation with the correction and explain why the misconception fails: A directory with Python files is automatically the same thing as an installable distribution and relative imports work from any launch command."
+    "textAlternative": "Importing a package through its public API. Step 1, Package init runs: dateparse.parse is re-exported. Importing the package runs __init__.py, which re-exports one stable parse function. Step 2, Caller imports: app uses is dateparse.parse only. Callers do not depend on its internal _tokens module. Step 3, Call: returned is date(2026, 9, 23). The public function parses the text using internal helpers hidden from callers."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Packages and public APIs: direct language case”: state its starting evidence, apply the Packages and public APIs rule, and give the observable result in three short lines.",
+      "prompt": "For \"A package with one public parse function\", explain how the package re-exports one stable parse function from __init__.py and why callers do not depend on its internal _tokens module.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Re-export.",
+        "Internal module.",
+        "Benefit."
       ],
       "expectedEvidence": [
-        "Named example: Packages and public APIs: direct language case.",
-        "Starting evidence: A package re-exports one stable parse function from __init__.py while callers do not depend on its internal _tokens module.",
-        "Core rule: A Python package organizes importable modules under a qualified namespace and exposes a deliberate public API while keeping implementation modules replaceable.",
-        "Observable result: The example meets the atomic outcome because Distinguish import package from distribution package, define a small public namespace, and launch modules with a valid package context.",
-        "Boundary check: Distinguish import package from distribution package, define a small public namespace, and launch modules with a valid package context."
+        "Names the example \"A package with one public parse function\": the package re-exports one stable parse function from __init__.py.",
+        "_tokens is an internal module marked with an underscore.",
+        "Callers do not depend on its internal _tokens module.",
+        "Internals can be refactored without breaking callers."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: The application launches with python -m package.cli so relative imports have a package context instead of running the nested file directly.",
+      "prompt": "Design a package `shop` with internal `_tax.py` and `_discounts.py` and a public `checkout_total()`. Write the folder tree and the `__init__.py` contents.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Underscore internals.",
+        "Re-export one function."
       ],
       "expectedEvidence": [
-        "A Python package organizes importable modules under a qualified namespace and exposes a deliberate public API while keeping implementation modules replaceable.",
-        "Import packages differ from distribution packages, relative imports depend on package context, __init__ execution can create cycles, namespace packages differ, and underscore naming is convention rather than access control."
+        "Correct tree with __init__.py and underscored modules.",
+        "__init__.py re-exports checkout_total and sets __all__."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Packages and public APIs, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Turn one of your multi-module projects into a package with a clear public API. Write a test that imports only public names, then rename an internal function and confirm the test still passes.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Move internals behind underscores.",
+        "Tests use the front door only."
       ],
       "expectedEvidence": [
-        "Create and import a small package with clear internal and public names.",
-        "Distinguish import package from distribution package, define a small public namespace, and launch modules with a valid package context."
+        "Working package with a small re-exported API.",
+        "Test passes before and after an internal rename."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "python.modules.packages.misconception",
-      "explanation": "Distinguish import package from distribution package, define a small public namespace, and launch modules with a valid package context.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: The application launches with python -m package.cli so relative imports have a package context instead of running the nested file directly."
+      "explanation": "List every name callers use. Anything not on that list gets an underscore or stays out of `__init__.py`. Run modules with `python -m pkg.module` when they use relative imports.",
+      "retryPrompt": "Apply this to \"The caller that reached inside\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to create and import a small package with clear internal and public names. Keep this boundary in view: Import packages differ from distribution packages, relative imports depend on package context, __init__ execution can create cycles, namespace packages differ, and underscore naming is convention rather than access control.",
+    "summary": "To create and import a small package, add __init__.py that re-exports a few public names, mark internal modules with an underscore, and let callers import only the public API. Relative imports need package context such as `python -m`.",
     "retrievalPrompts": [
-      "Explain Packages and public APIs using canonical Python: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: A directory with Python files is automatically the same thing as an installable distribution and relative imports work from any launch command.",
-      "Predict this case from memory: The application launches with python -m package.cli so relative imports have a package context instead of running the nested file directly."
+      "What does __init__.py do in a package?",
+      "What does a leading underscore signal?",
+      "Why can a relative import fail when running a file directly?"
     ],
     "nextReviewPrompt": "Next: continue to “Virtual environments and dependencies”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

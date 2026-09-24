@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Pull is a compound operation that first fetches and then integrates an upstream branch by the configured merge or rebase policy.",
+    "summary": "`git pull` is **two commands in one**: `git fetch`, then an **integration** of the upstream branch into yours. How it integrates depends on policy: **merge** (may create a merge commit), **rebase** (replays your local commits on top of the new upstream, giving them new hashes), or **fast-forward only** (refuses if you've diverged). Because pull integrates, it **can create commits, rewrite your unpushed commits, and cause conflicts**. So pull with a **clean working tree**, know your project's policy, and set it explicitly (`git config pull.rebase true` or `pull.ff only`) instead of relying on defaults.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A learner with a clean branch fetches, inspects divergence, and pulls with an explicit rebase policy required by the project. Your goal is to predict and perform a pull under an explicit policy in a disposable repository. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner runs `git pull` on a branch with two local commits. Suddenly an editor opens asking for a merge message, and the history gains an unexpected merge commit that the project's rules forbid. A learner with a clean branch fetches, inspects divergence, and pulls with an explicit rebase policy required by the project. In this lesson you'll predict and perform a pull under an explicit policy in a disposable repository.\n\n```predict\n{\"question\": \"Can git pull ever cause a conflict?\", \"options\": [\"No, it only downloads\", \"Yes: its second step merges or rebases, which can conflict\"], \"answer\": 1, \"why\": \"Pull = fetch + integrate. Integration is where conflicts happen.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Branches, merges and conflicts; Fetch and compare; Fast-forward and three-way merge. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Branches, merges and conflicts**, **Fetch and compare** and **Fast-forward and three-way merge**."
       },
       {
-        "heading": "Operational model",
-        "body": "Pull is a compound operation that first fetches and then integrates an upstream branch by the configured merge or rebase policy. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The rule: pull is fetch plus a chosen integration",
+        "body": "```bash\ngit status                       # clean working tree first.\ngit fetch origin\ngit log --oneline --graph main origin/main -6   # see the divergence.\n\ngit pull --rebase origin main    # replay my commits on top of origin/main.\n# or: git pull --ff-only         # refuse unless a fast-forward is possible.\n# or: git pull --no-rebase       # merge, possibly with a merge commit.\n\ngit config pull.rebase true      # make the project's policy the default here.\n```\n\n| Policy | Diverged result | Rewrites local commits? |\n|---|---|---|\n| merge. | new merge commit. | no. |\n| rebase. | linear; my commits replayed on top. | yes (new hashes). |\n| ff-only. | refuses; you decide next. | no. |\n\n```reveal\n{\"prompt\": \"Why is rebasing unpushed commits OK, but rebasing pushed ones risky?\", \"answer\": \"Rebase gives commits new hashes. If others already have the old ones, histories split. Local-only commits have no other copies, so replaying them is safe.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Dirty worktrees, divergent history, force-updated upstreams, policy configuration, conflicts, and submodules can make pull unsafe or surprising. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Pull only downloads remote data and therefore cannot create commits, replay work, or cause conflicts."
+        "heading": "Clean first",
+        "body": "```predict\n{\"question\": \"You have uncommitted edits in a file the incoming commits also change. What's the safest step before pulling?\", \"options\": [\"Pull anyway\", \"Commit or stash the edits first, then pull\"], \"answer\": 1, \"why\": \"Git refuses or makes a mess when integration would overwrite uncommitted work.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Understand pull as fetch plus configured integration and choose merge, rebase or fast-forward-only policy intentionally.",
-      "Predict and perform a pull under an explicit policy in a disposable repository."
+      "Explain pull as fetch plus merge, rebase or fast-forward-only integration.",
+      "Set an explicit pull policy and pull from a clean tree after inspecting divergence."
     ],
     "excludes": [
-      "Dirty worktrees, divergent history, force-updated upstreams, policy configuration, conflicts, and submodules can make pull unsafe or surprising."
+      "Interactive rebase.",
+      "Resolving rebase conflicts in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "git.remotes.pull.example-a",
-      "title": "Pull policy: direct case",
+      "title": "Pulling with the project's rebase policy",
       "situation": "A learner with a clean branch fetches, inspects divergence, and pulls with an explicit rebase policy required by the project.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A learner with a clean branch fetches, inspects divergence, and pulls with an explicit rebase policy required by the project.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Treat pull as fetch plus integration, know the selected strategy, inspect state first, and test the resulting local history and files."
+        "**Clean branch fetches:** git status is clean; git fetch shows main diverged 2 and 3.",
+        "**Inspects divergence:** the graph shows two local commits and three from the team.",
+        "**Pulls with an explicit rebase policy:** git pull --rebase replays the two commits on top; git log will show a straight line with no merge commit."
       ],
-      "result": "The case supports the declared outcome because Treat pull as fetch plus integration, know the selected strategy, inspect state first, and test the resulting local history and files."
+      "result": "History stays linear as the project requires, and no surprise commit appears."
     },
     {
       "id": "git.remotes.pull.example-b",
-      "title": "Pull policy: boundary case",
-      "situation": "When local uncommitted edits exist, the learner stops and preserves them rather than using pull as an unexplained synchronization button.",
+      "title": "The ff-only safety net",
+      "situation": "A team sets pull.ff only. A learner's pull fails with \"Not possible to fast-forward\".",
       "walkthrough": [
-        "Step 1 — Identify the changed context: When local uncommitted edits exist, the learner stops and preserves them rather than using pull as an unexplained synchronization button.",
-        "Step 2 — Keep this boundary explicit: Dirty worktrees, divergent history, force-updated upstreams, policy configuration, conflicts, and submodules can make pull unsafe or surprising.",
-        "Step 3 — Reject the documented misconception: Pull only downloads remote data and therefore cannot create commits, replay work, or cause conflicts."
+        "That means main has diverged from origin/main.",
+        "The learner fetches and inspects both log ranges.",
+        "They choose deliberately: rebase their unpushed work, or merge, per the team rule."
       ],
-      "result": "This case demonstrates the declared outcome: Predict and perform a pull under an explicit policy in a disposable repository."
+      "result": "No integration happens by accident; each one is a conscious choice."
     }
   ],
   "misconceptions": [
     {
       "id": "git.remotes.pull.misconception",
       "mistakenBelief": "Pull only downloads remote data and therefore cannot create commits, replay work, or cause conflicts.",
-      "correction": "Treat pull as fetch plus integration, know the selected strategy, inspect state first, and test the resulting local history and files.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Pull only downloads remote data and therefore cannot create commits, replay work, or cause conflicts."
+      "correction": "Pull fetches and then integrates. The merge step can create commits and conflicts, and the rebase step rewrites local commits.",
+      "diagnosticPrompt": "In the opening story, where did the unexpected merge commit come from?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "Two libraries exchanging catalog updates can model Pull policy: each keeps an independent collection and synchronizes selected records deliberately.",
+    "example": "Pulling is **collecting your mail and immediately filing it into your folders** in one go. Merge files the new letters next to yours with a cover note; rebase re-files your letters after the new ones; ff-only refuses if your folder has letters the post office doesn't know about.",
     "usefulFor": [
-      "Separating local history, remote observations, download, integration, and publication"
+      "remembering collect + file",
+      "policy = filing rule"
     ],
     "limitations": [
-      "Git refspecs, authentication, ancestry checks, force updates, and object transfer have no exact library equivalent.",
-      "Dirty worktrees, divergent history, force-updated upstreams, policy configuration, conflicts, and submodules can make pull unsafe or surprising."
+      "Real filing rarely conflicts; overlapping code edits do.",
+      "Rebasing re-writes your letters' dates (hashes)."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A learner with a clean branch fetches, inspects divergence, and pulls with an explicit rebase policy required by the project.",
-      "Pull is a compound operation that first fetches and then integrates an upstream branch by the configured merge or rebase policy.",
-      "Treat pull as fetch plus integration, know the selected strategy, inspect state first, and test the resulting local history and files."
+      "git status (clean); git fetch",
+      "inspect graph",
+      "git pull --rebase"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Fetch",
         "state": {
-          "evidence": "A learner with a clean branch fetches, inspects divergence, and pulls with an explicit rebase policy required by the project."
+          "main": "local +2",
+          "origin/main": "+3"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "A learner with a clean branch fetches first."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Inspect",
         "state": {
-          "model": "Pull is a compound operation that first fetches and then integrates an upstream branch by the configured merge or rebase policy."
+          "state": "diverged 2 and 3"
         },
-        "explanation": "Apply the declared Pull policy model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "They inspect the divergence carefully before integrating anything."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Pull",
         "state": {
-          "correction": "Treat pull as fetch plus integration, know the selected strategy, inspect state first, and test the resulting local history and files."
+          "main": "origin/main + 2 replayed",
+          "merge commit": "none"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Pull only downloads remote data and therefore cannot create commits, replay work, or cause conflicts."
+        "explanation": "They pull with an explicit rebase policy required by the project."
       }
     ],
-    "textAlternative": "Starting artifact: A learner with a clean branch fetches, inspects divergence, and pulls with an explicit rebase policy required by the project. Step 1, Observe. State: evidence: A learner with a clean branch fetches, inspects divergence, and pulls with an explicit rebase policy required by the project.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Pull is a compound operation that first fetches and then integrates an upstream branch by the configured merge or rebase policy.. Apply the declared Pull policy model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Treat pull as fetch plus integration, know the selected strategy, inspect state first, and test the resulting local history and files.. Compare the observation with the correction and reject the misconception: Pull only downloads remote data and therefore cannot create commits, replay work, or cause conflicts."
+    "textAlternative": "Tracing a policy-driven pull. Step 1, Fetch: main is local +2; origin/main is +3. A learner with a clean branch fetches first. Step 2, Inspect: state is diverged 2 and 3. They inspect the divergence carefully before integrating anything. Step 3, Pull: main is origin/main + 2 replayed; merge commit is none. They pull with an explicit rebase policy required by the project."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Pull policy: direct case”: state its starting evidence, apply the Pull policy rule, and give the observable result in three short lines.",
+      "prompt": "For \"Pulling with the project's rebase policy\", explain how a learner with a clean branch fetches, inspects divergence, and pulls with an explicit rebase policy required by the project.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Fetch.",
+        "Inspect.",
+        "Pull."
       ],
       "expectedEvidence": [
-        "Named example: Pull policy: direct case.",
-        "Starting evidence: A learner with a clean branch fetches, inspects divergence, and pulls with an explicit rebase policy required by the project.",
-        "Core rule: Pull is a compound operation that first fetches and then integrates an upstream branch by the configured merge or rebase policy.",
-        "Observable result: The case supports the declared outcome because Treat pull as fetch plus integration, know the selected strategy, inspect state first, and test the resulting local history and files.",
-        "Boundary check: Treat pull as fetch plus integration, know the selected strategy, inspect state first, and test the resulting local history and files."
+        "Names the example \"Pulling with the project's rebase policy\": a default pull created a forbidden merge commit.",
+        "A learner with a clean branch fetches and inspects divergence.",
+        "They pull with an explicit rebase policy required by the project.",
+        "History stays linear and no surprise commit appears."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: When local uncommitted edits exist, the learner stops and preserves them rather than using pull as an unexplained synchronization button.",
+      "prompt": "In two clones of a sandbox remote, create a diverged main. Predict the result of pull --ff-only, pull --rebase and pull --no-rebase, then try each (resetting between tries).",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Reset with git reset --hard ORIG_HEAD in the sandbox only.",
+        "Check git log --graph after each."
       ],
       "expectedEvidence": [
-        "Pull is a compound operation that first fetches and then integrates an upstream branch by the configured merge or rebase policy.",
-        "Dirty worktrees, divergent history, force-updated upstreams, policy configuration, conflicts, and submodules can make pull unsafe or surprising."
+        "Predictions match results.",
+        "Graph shapes explained."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Pull policy, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Write a CONTRIBUTING note for a small project that states the pull policy, shows the config command, and walks through handling a diverged branch, including what to do on a rebase conflict. Test every command in a sandbox.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "git rebase --continue / --abort.",
+        "Explain why the policy was chosen."
       ],
       "expectedEvidence": [
-        "Predict and perform a pull under an explicit policy in a disposable repository.",
-        "Treat pull as fetch plus integration, know the selected strategy, inspect state first, and test the resulting local history and files."
+        "Tested commands.",
+        "Policy and reasoning stated."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.remotes.pull.misconception",
-      "explanation": "Treat pull as fetch plus integration, know the selected strategy, inspect state first, and test the resulting local history and files.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: When local uncommitted edits exist, the learner stops and preserves them rather than using pull as an unexplained synchronization button."
+      "explanation": "Before pulling, answer three questions: **Is my tree clean? What does fetch show? Which policy applies here?**",
+      "retryPrompt": "Apply this to \"The ff-only safety net\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to predict and perform a pull under an explicit policy in a disposable repository. Keep this boundary in view: Dirty worktrees, divergent history, force-updated upstreams, policy configuration, conflicts, and submodules can make pull unsafe or surprising.",
+    "summary": "To pull predictably, remember pull is fetch followed by merge, rebase or fast-forward-only integration, so start from a clean tree, fetch and inspect divergence first, and use the project's explicit policy, knowing integration can create commits, replay local work or cause conflicts.",
     "retrievalPrompts": [
-      "Explain Pull policy without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Pull only downloads remote data and therefore cannot create commits, replay work, or cause conflicts.",
-      "Apply the model to this case from memory: When local uncommitted edits exist, the learner stops and preserves them rather than using pull as an unexplained synchronization button."
+      "What two steps make up pull?",
+      "What does pull --rebase do to local commits?",
+      "What does ff-only refuse?"
     ],
     "nextReviewPrompt": "Next: continue to “Push and non-fast-forward rejection”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

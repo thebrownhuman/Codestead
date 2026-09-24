@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A structure groups ordered named members in one object, may contain padding for alignment, and supports whole-structure assignment and value passing when types match.",
+    "summary": "A **struct** groups related values under one name: `struct Point { int x; int y; };`. Initialise it clearly with **designated initialisers**: `struct Point p = {.x = 3, .y = 4};` (unnamed members become 0). Access members with `p.x`, or `ptr->x` through a pointer. Structs **copy by value**: `q = p;` copies every member, and passing a struct to a function passes a copy (pass a pointer, often `const`, for big structs or to modify). The compiler may insert **padding** bytes between members for alignment, and their contents are unspecified, so **compare structs member by member**, never with `memcmp`.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A struct Point stores named x and y members, is initialized with designated initializers, and is copied by structure assignment. Your goal is to model and process a small domain entity using a structure and functions. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner stores points as two parallel arrays, xs[] and ys[], and a sort mixes them up so that x values end up paired with the wrong y. Later they compare two points with memcmp and it sometimes says equal points differ. A struct Point stores named x and y members, is initialized with designated initializers, and is copied by structure assignment. In this lesson you'll model and process a small domain entity using a structure and functions.\n\n```predict\n{\"question\": \"After `struct Point q = p; q.x = 99;` what is p.x?\", \"options\": [\"99\", \"Unchanged: q is an independent copy\"], \"answer\": 1, \"why\": \"Struct assignment copies every member.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: One-dimensional arrays; Addresses and dereference. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **One-dimensional arrays** (grouping many values of one type) and **Addresses and dereference** (pointers to objects)."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "A structure groups ordered named members in one object, may contain padding for alignment, and supports whole-structure assignment and value passing when types match. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The object: named members, copied as a whole",
+        "body": "```c\n#include <stdio.h>\n#include <stdbool.h>\n\nstruct Point {\n    int x;\n    int y;\n};\n\nbool point_equal(struct Point a, struct Point b) {   /* member by member. */\n    return a.x == b.x && a.y == b.y;\n}\n\nvoid move_by(struct Point *p, int dx, int dy) {    /* pointer: modify caller's. */\n    p->x += dx;                                    /* p->x means (*p).x. */\n    p->y += dy;\n}\n\nint main(void) {\n    struct Point p = {.x = 3, .y = 4};             /* designated initialisers. */\n    struct Point q = p;                            /* full copy. */\n    move_by(&q, 1, 1);                             /* q = (4, 5), p unchanged. */\n    printf(\"(%d, %d) (%d, %d) %d\\n\", p.x, p.y, q.x, q.y, point_equal(p, q));\n    return 0;\n}\n```\n\n| Need | Use |\n|---|---|\n| read a member. | `p.x`. |\n| member through a pointer. | `ptr->x`. |\n| copy. | `q = p;`. |\n| compare. | member by member, not memcmp. |\n\n```reveal\n{\"prompt\": \"Why can memcmp say two equal structs differ?\", \"answer\": \"Padding bytes between members hold unspecified values. Two structs with equal members can have different padding bytes, so a byte-by-byte comparison fails.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Padding bytes can be indeterminate, member layout has implementation constraints, flexible array members need special allocation, and bytewise comparison is not field equality. Therefore the draft explicitly rejects this beginner failure model: memcmp is always a correct equality test for structures because all members occupy one contiguous object."
+        "heading": "Pass by value or pointer",
+        "body": "```predict\n{\"question\": \"`void grow(struct Point p) { p.x *= 2; }` then grow(pt). Does pt.x change?\", \"options\": [\"Yes\", \"No: p is a copy; pass struct Point * to change the caller's\"], \"answer\": 1, \"why\": \"Structs follow the same pass-by-value rule as ints.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Define, initialize, copy and access related named fields.",
-      "Model and process a small domain entity using a structure and functions."
+      "Define structs, initialise them with designated initialisers and access members with . and ->.",
+      "Copy structs by assignment, pass pointers to modify, and compare member by member."
     ],
     "excludes": [
-      "Padding bytes can be indeterminate, member layout has implementation constraints, flexible array members need special allocation, and bytewise comparison is not field equality."
+      "Flexible array members.",
+      "Bit-fields."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "c.aggregates.struct.example-a",
-      "title": "Structures: defined case",
+      "title": "A Point you can copy",
       "situation": "A struct Point stores named x and y members, is initialized with designated initializers, and is copied by structure assignment.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A struct Point stores named x and y members, is initialized with designated initializers, and is copied by structure assignment.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Compare structure values by their meaningful members; padding can differ or be indeterminate even when every member value is equal."
+        "**A struct Point stores named x and y members:** x and y can never drift apart like parallel arrays.",
+        "**Initialized with designated initializers:** {.x = 3, .y = 4} names each value.",
+        "**Copied by structure assignment:** q = p; move_by(&q, 1, 1) will leave p at (3, 4) and q at (4, 5)."
       ],
-      "result": "The defined result follows because Compare structure values by their meaningful members; padding can differ or be indeterminate even when every member value is equal."
+      "result": "Points stay consistent, copies are independent, and equality is checked correctly."
     },
     {
       "id": "c.aggregates.struct.example-b",
-      "title": "Structures: boundary case",
-      "situation": "Two logically equal structures are compared member by member rather than with memcmp because padding bytes need not match.",
+      "title": "The student record",
+      "situation": "A learner models students as struct Student { char name[32]; int age; double gpa; } and passes it by value to print it.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: Two logically equal structures are compared member by member rather than with memcmp because padding bytes need not match.",
-        "Step 2 — Keep this standard boundary visible: Padding bytes can be indeterminate, member layout has implementation constraints, flexible array members need special allocation, and bytewise comparison is not field equality.",
-        "Step 3 — Reject the tempting rule: memcmp is always a correct equality test for structures because all members occupy one contiguous object."
+        "Each call copies 48 or more bytes; fine here, wasteful for large structs.",
+        "print only reads, so pass const struct Student *s.",
+        "Use s->name, s->age inside."
       ],
-      "result": "This case demonstrates the declared outcome: Model and process a small domain entity using a structure and functions."
+      "result": "Printing is cheap, and the function can't change the record by accident."
     }
   ],
   "misconceptions": [
     {
       "id": "c.aggregates.struct.misconception",
       "mistakenBelief": "memcmp is always a correct equality test for structures because all members occupy one contiguous object.",
-      "correction": "Compare structure values by their meaningful members; padding can differ or be indeterminate even when every member value is equal.",
-      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: memcmp is always a correct equality test for structures because all members occupy one contiguous object."
+      "correction": "Structs may contain padding with unspecified bytes, so memcmp can report equal structs as different. Compare each member.",
+      "diagnosticPrompt": "In the opening story, why did memcmp say equal points differed?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A manually managed workshop can model Structures: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "example": "A struct is like **a labelled form**: one sheet with named boxes (x, y). Photocopying the form (assignment) gives an independent copy. Comparing two forms means comparing the filled-in boxes, not the smudges in the margins (padding).",
     "usefulFor": [
-      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+      "remembering one form, named boxes",
+      "ignore margin smudges"
     ],
     "limitations": [
-      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
-      "Padding bytes can be indeterminate, member layout has implementation constraints, flexible array members need special allocation, and bytewise comparison is not field equality."
+      "Forms can't nest easily; structs can contain structs.",
+      "Handing over the original (a pointer) lets someone edit it."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A struct Point stores named x and y members, is initialized with designated initializers, and is copied by structure assignment.",
-      "A structure groups ordered named members in one object, may contain padding for alignment, and supports whole-structure assignment and value passing when types match.",
-      "Compare structure values by their meaningful members; padding can differ or be indeterminate even when every member value is equal."
+      "struct Point p = {.x = 3, .y = 4};",
+      "struct Point q = p;",
+      "move_by(&q, 1, 1)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Init",
         "state": {
-          "evidence": "A struct Point stores named x and y members, is initialized with designated initializers, and is copied by structure assignment."
+          "p": "(3, 4)"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "A struct Point stores named x and y members from designated initializers."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Copy",
         "state": {
-          "rule": "A structure groups ordered named members in one object, may contain padding for alignment, and supports whole-structure assignment and value passing when types match."
+          "q": "(3, 4)",
+          "independent": "yes"
         },
-        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+        "explanation": "The point is copied by structure assignment."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Modify",
         "state": {
-          "conclusion": "Compare structure values by their meaningful members; padding can differ or be indeterminate even when every member value is equal."
+          "q": "(4, 5)",
+          "p": "(3, 4)"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: memcmp is always a correct equality test for structures because all members occupy one contiguous object."
+        "explanation": "Writing through a pointer changes only the copy that was passed."
       }
     ],
-    "textAlternative": "Starting artifact: A struct Point stores named x and y members, is initialized with designated initializers, and is copied by structure assignment. Step 1, Source and state. State: evidence: A struct Point stores named x and y members, is initialized with designated initializers, and is copied by structure assignment.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A structure groups ordered named members in one object, may contain padding for alignment, and supports whole-structure assignment and value passing when types match.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Compare structure values by their meaningful members; padding can differ or be indeterminate even when every member value is equal.. Check the conclusion against the boundary and reject this misconception: memcmp is always a correct equality test for structures because all members occupy one contiguous object."
+    "textAlternative": "Tracing struct copy and modification. Step 1, Init: p is (3, 4). A struct Point stores named x and y members from designated initializers. Step 2, Copy: q is (3, 4); independent is yes. The point is copied by structure assignment. Step 3, Modify: q is (4, 5); p is (3, 4). Writing through a pointer changes only the copy that was passed."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Structures: defined case”: state its starting evidence, apply the Structures rule, and give the observable result in three short lines.",
+      "prompt": "For \"A Point you can copy\", explain how a struct Point stores named x and y members, is initialized with designated initializers, and is copied by structure assignment.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Group.",
+        "Initialise.",
+        "Copy."
       ],
       "expectedEvidence": [
-        "Named example: Structures: defined case.",
-        "Starting evidence: A struct Point stores named x and y members, is initialized with designated initializers, and is copied by structure assignment.",
-        "Core rule: A structure groups ordered named members in one object, may contain padding for alignment, and supports whole-structure assignment and value passing when types match.",
-        "Observable result: The defined result follows because Compare structure values by their meaningful members; padding can differ or be indeterminate even when every member value is equal.",
-        "Boundary check: Compare structure values by their meaningful members; padding can differ or be indeterminate even when every member value is equal."
+        "Names the example \"A Point you can copy\": parallel arrays got mixed up.",
+        "A struct Point stores named x and y members and is initialized with designated initializers.",
+        "It is copied by structure assignment.",
+        "Points stay consistent and copies are independent."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same C rule to this related boundary case: Two logically equal structures are compared member by member rather than with memcmp because padding bytes need not match.",
+      "prompt": "Define struct Rect { struct Point top_left; int width, height; }. Write int area(const struct Rect *r) and bool contains(const struct Rect *r, struct Point p). Test edges and corners.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Nested access: r->top_left.x.",
+        "Decide if edges count as inside."
       ],
       "expectedEvidence": [
-        "A structure groups ordered named members in one object, may contain padding for alignment, and supports whole-structure assignment and value passing when types match.",
-        "Padding bytes can be indeterminate, member layout has implementation constraints, flexible array members need special allocation, and bytewise comparison is not field equality."
+        "Correct area.",
+        "Edge cases tested."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new C example for Structures, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Model a small inventory item (name, quantity, price in cents) with create, print, restock and equality functions. Use const pointers where functions only read, and test all functions.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Store money as integer cents.",
+        "Bound the name copy."
       ],
       "expectedEvidence": [
-        "Model and process a small domain entity using a structure and functions.",
-        "Compare structure values by their meaningful members; padding can differ or be indeterminate even when every member value is equal."
+        "All functions tested.",
+        "No memcmp for equality."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "c.aggregates.struct.misconception",
-      "explanation": "Compare structure values by their meaningful members; padding can differ or be indeterminate even when every member value is equal.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'meaningful members' and state the decisive evidence: Two logically equal structures are compared member by member rather than with memcmp because padding bytes need not match."
+      "explanation": "For each struct function ask: **does it read or modify?** Read: const pointer (or value for tiny structs). Modify: pointer. And **compare members, never bytes.**",
+      "retryPrompt": "Apply this to \"The student record\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to model and process a small domain entity using a structure and functions. Keep this boundary in view: Padding bytes can be indeterminate, member layout has implementation constraints, flexible array members need special allocation, and bytewise comparison is not field equality.",
+    "summary": "To model an entity with a struct, group related members, initialise with designated initialisers, access with . or ->, copy by assignment, pass pointers (const for read-only) to avoid copies or to modify, and compare member by member because padding makes memcmp unreliable.",
     "retrievalPrompts": [
-      "Explain Structures using a concrete C rule rather than the optional analogy.",
-      "Why is this claim incorrect: memcmp is always a correct equality test for structures because all members occupy one contiguous object.",
-      "Apply the checkpoint 'meaningful members' to the boundary case from memory."
+      "What does struct assignment do?",
+      "When should you pass a struct pointer?",
+      "Why not memcmp two structs?"
     ],
     "nextReviewPrompt": "Next: continue to “Enumerations”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

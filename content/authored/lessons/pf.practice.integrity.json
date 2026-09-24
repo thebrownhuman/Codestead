@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Academic and professional integrity requires distinguishing allowed collaboration, attributed reference use, licensed reuse, and work represented as one's own under the applicable rules.",
+    "summary": "Integrity means being honest about **whose work is whose**, under the rules that apply. Four situations look similar but differ: **allowed collaboration**, **attributed reference use**, **licensed reuse** of code, and work you present as **your own**. A link alone doesn't make copying acceptable — the license and the course rules decide.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A learner discusses an algorithm idea with a peer, writes an independent solution, and records the collaboration because the course policy allows conceptual discussion with attribution. Your goal is to choose and justify an ethical action in realistic learning and reuse scenarios. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You're stuck on an assignment and chat with a friend about approaches. Later you find a perfect solution online. Which of these is okay? It depends on the rules. A learner discusses an algorithm idea with a peer, writes an independent solution, and records the collaboration, because the course policy allows conceptual discussion with attribution. In this lesson you'll choose and justify an ethical action in realistic learning and reuse scenarios.\n\n```predict\n{\"question\": \"The course bans copying code. You paste a solution from a blog and add its link. Is that allowed?\", \"options\": [\"Yes — the link gives credit\", \"No — the rules ban copying, credit or not\"], \"answer\": 1, \"why\": \"Attribution is honest, but it doesn't override the assessment rules. If copying is banned, a link doesn't make it allowed.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Debugging and testing loop; Documentation and AI assistance. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Debugging and testing loop** and **Documentation and AI assistance**. Using sources well includes using them honestly."
       },
       {
-        "heading": "Operational model",
-        "body": "Academic and professional integrity requires distinguishing allowed collaboration, attributed reference use, licensed reuse, and work represented as one's own under the applicable rules. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The distinction: four kinds of help",
+        "body": "| Situation | What it means | Usually needs |\n|---|---|---|\n| Allowed collaboration. | talking ideas through within the rules. | a note saying who you discussed with. |\n| Reference use. | learning from docs or articles. | a citation. |\n| Licensed reuse. | copying code under its license (e.g. MIT). | keep the license notice, follow its terms. |\n| Your own work. | what you wrote and understand. | honesty that it's yours. |\n\n**Always check two things:** the rules of the course or job, and the license of the code.\n\n```reveal\n{\"prompt\": \"Code on a website has no license stated. Can you copy it into your company's product?\", \"answer\": \"No license usually means **all rights reserved** — you have no permission to reuse it. Ask the author or find licensed code.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Policies and licenses vary by course and project, common knowledge has limits, and attribution does not automatically grant permission or satisfy an independent-work requirement. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Adding a source link makes any copied solution acceptable, regardless of license or assessment rules."
+        "heading": "When unsure, ask and record",
+        "body": "```predict\n{\"question\": \"You're unsure if using an AI tool is allowed on a quiz. Best move?\", \"options\": [\"Use it quietly — nobody will know\", \"Check the policy or ask the instructor first\"], \"answer\": 1, \"why\": \"Ask before, not after. Then record what you used. Honesty protects you and keeps your grade meaningful.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Distinguish collaboration, reference use, attribution and plagiarism in programming work.",
-      "Choose and justify an ethical action in realistic learning and reuse scenarios."
+      "Distinguish allowed collaboration, attributed reference, licensed reuse and own work.",
+      "Choose and justify an honest action under stated rules."
     ],
     "excludes": [
-      "Policies and licenses vary by course and project, common knowledge has limits, and attribution does not automatically grant permission or satisfy an independent-work requirement."
+      "Detailed legal analysis of licenses.",
+      "Workplace intellectual-property contracts."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "pf.practice.integrity.example-a",
-      "title": "Integrity and attribution: direct case",
+      "title": "Discussing an idea with a peer",
       "situation": "A learner discusses an algorithm idea with a peer, writes an independent solution, and records the collaboration because the course policy allows conceptual discussion with attribution.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A learner discusses an algorithm idea with a peer, writes an independent solution, and records the collaboration because the course policy allows conceptual discussion with attribution.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Check both permission and attribution requirements, describe assistance accurately, and never represent another person's or tool's work as independent evidence of mastery."
+        "**Check the rules:** the course policy allows conceptual discussion with attribution, but not sharing code.",
+        "**Discuss, then write alone:** they talk through the algorithm idea, then each writes an independent solution.",
+        "**Record it:** the submission notes \"Discussed approach with Sam\"."
       ],
-      "result": "The case supports the declared outcome because Check both permission and attribution requirements, describe assistance accurately, and never represent another person's or tool's work as independent evidence of mastery."
+      "result": "The work is honestly the learner's own, and the collaboration is openly recorded within the policy."
     },
     {
       "id": "pf.practice.integrity.example-b",
-      "title": "Integrity and attribution: boundary case",
-      "situation": "Code copied from a repository is not submitted when its license and the assignment's independent-work rule do not permit that reuse.",
+      "title": "Reusing a helper at work",
+      "situation": "A developer finds a date-formatting helper on GitHub under the MIT license and wants it in a company project.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: Code copied from a repository is not submitted when its license and the assignment's independent-work rule do not permit that reuse.",
-        "Step 2 — Keep this boundary explicit: Policies and licenses vary by course and project, common knowledge has limits, and attribution does not automatically grant permission or satisfy an independent-work requirement.",
-        "Step 3 — Reject the documented misconception: Adding a source link makes any copied solution acceptable, regardless of license or assessment rules."
+        "MIT allows reuse, including commercial, **if** the copyright and license notice are kept.",
+        "They copy the file with its license header and note the source in the project's credits.",
+        "They also check the company's policy on third-party code."
       ],
-      "result": "This case demonstrates the declared outcome: Choose and justify an ethical action in realistic learning and reuse scenarios."
+      "result": "The reuse is legal and honest: license terms followed, source attributed, company rules checked."
     }
   ],
   "misconceptions": [
     {
       "id": "pf.practice.integrity.misconception",
       "mistakenBelief": "Adding a source link makes any copied solution acceptable, regardless of license or assessment rules.",
-      "correction": "Check both permission and attribution requirements, describe assistance accurately, and never represent another person's or tool's work as independent evidence of mastery.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Adding a source link makes any copied solution acceptable, regardless of license or assessment rules."
+      "correction": "Attribution is necessary but not sufficient. Whether you may copy depends on the license and on the course or workplace rules; a link can't override a ban on copying or a missing license.",
+      "diagnosticPrompt": "In the opening predict, why didn't the blog link make the paste acceptable?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "Sports coaching can model Integrity and attribution: study a play, attempt it, use specific feedback, retry independently, and credit the people or material that helped.",
+    "example": "Like **cooking for a competition**: learning a technique from a chef's video is fine, a teammate tasting and suggesting is fine if the rules allow teams, but serving a restaurant's dish as your own isn't — even if you tell them where it's from.",
     "usefulFor": [
-      "Connecting explanation, feedback, independent transfer, assistance, and integrity"
+      "remembering that rules decide what's allowed",
+      "seeing credit and permission as different things"
     ],
     "limitations": [
-      "Learning evidence and reuse permissions are governed by explicit course and software rules, not only informal coaching norms.",
-      "Policies and licenses vary by course and project, common knowledge has limits, and attribution does not automatically grant permission or satisfy an independent-work requirement."
+      "Code licenses are legal documents with specific terms; kitchens rarely have them.",
+      "Code is easy to copy exactly, which makes the line clearer to cross."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A learner discusses an algorithm idea with a peer, writes an independent solution, and records the collaboration because the course policy allows conceptual discussion with attribution.",
-      "Academic and professional integrity requires distinguishing allowed collaboration, attributed reference use, licensed reuse, and work represented as one's own under the applicable rules.",
-      "Check both permission and attribution requirements, describe assistance accurately, and never represent another person's or tool's work as independent evidence of mastery."
+      "policy: conceptual discussion allowed with attribution",
+      "discuss idea with peer",
+      "write own solution; note collaboration"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Read policy",
         "state": {
-          "evidence": "A learner discusses an algorithm idea with a peer, writes an independent solution, and records the collaboration because the course policy allows conceptual discussion with attribution."
+          "discussion": "allowed",
+          "sharing code": "not allowed"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "The learner checks the course policy before collaborating with a peer."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Independent work",
         "state": {
-          "model": "Academic and professional integrity requires distinguishing allowed collaboration, attributed reference use, licensed reuse, and work represented as one's own under the applicable rules."
+          "solution": "written alone"
         },
-        "explanation": "Apply the declared Integrity and attribution model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "After discussing the algorithm idea, the learner writes an independent solution."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Attribution",
         "state": {
-          "correction": "Check both permission and attribution requirements, describe assistance accurately, and never represent another person's or tool's work as independent evidence of mastery."
+          "note": "Discussed approach with Sam"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Adding a source link makes any copied solution acceptable, regardless of license or assessment rules."
+        "explanation": "The submission records the collaboration, as the course policy requires."
       }
     ],
-    "textAlternative": "Starting artifact: A learner discusses an algorithm idea with a peer, writes an independent solution, and records the collaboration because the course policy allows conceptual discussion with attribution. Step 1, Observe. State: evidence: A learner discusses an algorithm idea with a peer, writes an independent solution, and records the collaboration because the course policy allows conceptual discussion with attribution.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Academic and professional integrity requires distinguishing allowed collaboration, attributed reference use, licensed reuse, and work represented as one's own under the applicable rules.. Apply the declared Integrity and attribution model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Check both permission and attribution requirements, describe assistance accurately, and never represent another person's or tool's work as independent evidence of mastery.. Compare the observation with the correction and reject the misconception: Adding a source link makes any copied solution acceptable, regardless of license or assessment rules."
+    "textAlternative": "Collaborating within the course policy. Step 1, Read policy: discussion is allowed; sharing code is not allowed. The learner checks the course policy before collaborating with a peer. Step 2, Independent work: solution is written alone. After discussing the algorithm idea, the learner writes an independent solution. Step 3, Attribution: note is Discussed approach with Sam. The submission records the collaboration, as the course policy requires."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Integrity and attribution: direct case”: state its starting evidence, apply the Integrity and attribution rule, and give the observable result in three short lines.",
+      "prompt": "For \"Discussing an idea with a peer\", explain what the course policy allowed, what the learner did alone, and how they recorded the collaboration.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "The policy.",
+        "The independent part.",
+        "The record."
       ],
       "expectedEvidence": [
-        "Named example: Integrity and attribution: direct case.",
-        "Starting evidence: A learner discusses an algorithm idea with a peer, writes an independent solution, and records the collaboration because the course policy allows conceptual discussion with attribution.",
-        "Core rule: Academic and professional integrity requires distinguishing allowed collaboration, attributed reference use, licensed reuse, and work represented as one's own under the applicable rules.",
-        "Observable result: The case supports the declared outcome because Check both permission and attribution requirements, describe assistance accurately, and never represent another person's or tool's work as independent evidence of mastery.",
-        "Boundary check: Check both permission and attribution requirements, describe assistance accurately, and never represent another person's or tool's work as independent evidence of mastery."
+        "Names the example \"Discussing an idea with a peer\": an algorithm idea discussed with a peer.",
+        "The course policy allows conceptual discussion with attribution.",
+        "The learner writes an independent solution.",
+        "They record the collaboration in the submission."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: Code copied from a repository is not submitted when its license and the assignment's independent-work rule do not permit that reuse.",
+      "prompt": "A friend offers to send you their finished code \"just to look at\" before a graded assignment. The policy allows discussion but not sharing code. What do you do, and why?",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Which kind of help is this?",
+        "What does the policy say?"
       ],
       "expectedEvidence": [
-        "Academic and professional integrity requires distinguishing allowed collaboration, attributed reference use, licensed reuse, and work represented as one's own under the applicable rules.",
-        "Policies and licenses vary by course and project, common knowledge has limits, and attribution does not automatically grant permission or satisfy an independent-work requirement."
+        "Declines to receive the code, since sharing code isn't allowed.",
+        "Offers to discuss ideas instead and notes the discussion."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Integrity and attribution, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Find one open-source snippet you'd like to use. Identify its license, what that license requires, and write the attribution you'd include.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Look for a LICENSE file.",
+        "Note any conditions."
       ],
       "expectedEvidence": [
-        "Choose and justify an ethical action in realistic learning and reuse scenarios.",
-        "Check both permission and attribution requirements, describe assistance accurately, and never represent another person's or tool's work as independent evidence of mastery."
+        "Correct license identified with its key conditions.",
+        "An appropriate attribution note."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "pf.practice.integrity.misconception",
-      "explanation": "Check both permission and attribution requirements, describe assistance accurately, and never represent another person's or tool's work as independent evidence of mastery.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: Code copied from a repository is not submitted when its license and the assignment's independent-work rule do not permit that reuse."
+      "explanation": "For any help you use, answer: **What kind of help is it? What do the rules say? What does the license say? How will I record it?** If you can't answer, ask before using it.",
+      "retryPrompt": "Answer these for \"Reusing a helper at work\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to choose and justify an ethical action in realistic learning and reuse scenarios. Keep this boundary in view: Policies and licenses vary by course and project, common knowledge has limits, and attribution does not automatically grant permission or satisfy an independent-work requirement.",
+    "summary": "To choose an ethical action, identify the kind of help — collaboration, reference, licensed reuse or own work — and check both the rules and the license. Attribution is required but never overrides a ban. When unsure, ask first and record what you used.",
     "retrievalPrompts": [
-      "Explain Integrity and attribution without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Adding a source link makes any copied solution acceptable, regardless of license or assessment rules.",
-      "Apply the model to this case from memory: Code copied from a repository is not submitted when its license and the assignment's independent-work rule do not permit that reuse."
+      "Why doesn't a link make copying acceptable?",
+      "What does code without a license usually mean?",
+      "What should you do when unsure of a policy?"
     ],
     "nextReviewPrompt": "Next: use this skill in the module checkpoint and one independent practice attempt. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

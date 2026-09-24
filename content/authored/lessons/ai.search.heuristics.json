@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A heuristic estimates remaining cost; greedy best-first prioritizes that estimate alone, while A* prioritizes accumulated cost plus estimate and inherits optimality only under stated admissibility or consistency conditions.",
+    "summary": "A **heuristic** h(n) is a quick **estimate of the remaining cost** from a state to the goal. **Greedy best-first search** always expands the state with the smallest h: often fast, but it can be lured down a path that looks close and turns out long. **A\\*** expands the smallest **f(n) = g(n) + h(n)**, where g is the cost already paid. A* is guaranteed to find a **cheapest path** if h is **admissible**: it **never overestimates** the true remaining cost. (With duplicate detection, it also needs h to be **consistent**.) A better admissible heuristic (closer to the true cost) makes A* **expand fewer nodes**. h = 0 is admissible too, but then A* is just uniform-cost search.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Manhattan distance is used on a four-direction unit grid without teleportation and never exceeds the true remaining path cost. Your goal is to implement A* and compare path cost and nodes expanded under two heuristics. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner uses straight-line distance times 2 as a heuristic \"to make it more accurate\", and A* returns a route that isn't the cheapest. Another uses greedy search and gets a path twice as long as needed around a wall. Manhattan distance is used on a four-direction unit grid without teleportation and never exceeds the true remaining path cost. In this lesson you'll implement A* and compare path cost and nodes expanded under two heuristics.\n\n```predict\n{\"question\": \"A heuristic sometimes overestimates the remaining cost. Is A* still guaranteed optimal?\", \"options\": [\"Yes, A* is always optimal\", \"No: overestimating can make A* skip the cheapest path\"], \"answer\": 1, \"why\": \"Admissible means never overestimate.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Agent, goal and utility models; dsa graphs bfs dfs; Uninformed search; dsa graphs shortest path. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Agent, goal and utility models**, **Breadth-first and depth-first search**, **Uninformed search** and **Unweighted and Dijkstra shortest paths**."
       },
       {
-        "heading": "Bounded operational model",
-        "body": "A heuristic estimates remaining cost; greedy best-first prioritizes that estimate alone, while A* prioritizes accumulated cost plus estimate and inherits optimality only under stated admissibility or consistency conditions. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+        "heading": "The rule: f = g + h, with h never too high",
+        "body": "```python\nimport heapq\n\nGRID = [\"S...\",\n        \".##.\",\n        \"...G\"]\nR, C = len(GRID), len(GRID[0])\nstart, goal = (0, 0), (2, 3)\n\ndef neighbours(r, c):\n    for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n        nr, nc = r + dr, c + dc\n        if 0 <= nr < R and 0 <= nc < C and GRID[nr][nc] != \"#\":\n            yield nr, nc\n\ndef astar(h):\n    frontier, best, expanded = [(h(start), h(start), 0, start)], {start: 0}, 0\n    while frontier:\n        f, _, g, s = heapq.heappop(frontier)      # ties broken by smaller h.\n        if g > best[s]: continue                  # stale entry.\n        expanded += 1\n        if s == goal: return g, expanded\n        for n in neighbours(*s):\n            if g + 1 < best.get(n, 1e9):\n                best[n] = g + 1\n                heapq.heappush(frontier, (g + 1 + h(n), h(n), g + 1, n))\n\nmanhattan = lambda s: abs(s[0] - goal[0]) + abs(s[1] - goal[1])\nzero = lambda s: 0                                 # A* with h=0 is uniform-cost.\nprint(astar(manhattan))    # (5, 6): cost 5, fewer expansions.\nprint(astar(zero))         # (5, 10): same cost, more expansions.\n```\n\n```reveal\n{\"prompt\": \"Why is Manhattan distance admissible here?\", \"answer\": \"With only four-direction unit moves, you need at least |dr| + |dc| moves to reach the goal. Walls can only add moves, so it never overestimates.\"}\n```"
       },
       {
-        "heading": "Failure boundary and non-claim",
-        "body": "An admissible heuristic can still expand many states, inconsistency can require reopening, tie-breaking changes work not guaranteed cost, scaling must match costs, and an empirical estimate is not automatically admissible. The learner must reject this overclaim: A heuristic that often predicts accurately is admissible, and A* always returns an optimal path regardless of heuristic or duplicate handling."
+        "heading": "Greedy versus A*",
+        "body": "```predict\n{\"question\": \"Greedy best-first ignores g. What can go wrong?\", \"options\": [\"Nothing, it's just faster\", \"It can follow a path that looks close but is long, returning a non-optimal route\"], \"answer\": 1, \"why\": \"A* balances cost paid with estimated cost remaining.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Design heuristic estimates and relate admissibility or consistency to optimality guarantees.",
-      "Implement A* and compare path cost and nodes expanded under two heuristics."
+      "Implement A* with f = g + h and compare heuristics by nodes expanded.",
+      "Check admissibility and contrast greedy best-first with A*."
     ],
     "excludes": [
-      "An admissible heuristic can still expand many states, inconsistency can require reopening, tie-breaking changes work not guaranteed cost, scaling must match costs, and an empirical estimate is not automatically admissible."
+      "Proofs of optimality.",
+      "Memory-bounded A* variants."
     ]
   },
   "outcomes": [
@@ -63,133 +64,136 @@
   "examples": [
     {
       "id": "ai.search.heuristics.example.direct",
-      "title": "Heuristics, greedy search and A*: bounded direct case",
+      "title": "Manhattan distance on a four-way grid",
       "situation": "Manhattan distance is used on a four-direction unit grid without teleportation and never exceeds the true remaining path cost.",
       "walkthrough": [
-        "Step 1 — Observe the exact data, state, metric, or tool behavior: Manhattan distance is used on a four-direction unit grid without teleportation and never exceeds the true remaining path cost.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the claim boundary with: Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions."
+        "**Manhattan distance is used on a four-direction unit grid:** h = |dr| + |dc| to the goal.",
+        "**Without teleportation:** every move changes row or column by exactly one.",
+        "**Never exceeds the true remaining path cost:** so A* returns cost 5, and we compare 6 expansions against 10 with h = 0."
       ],
-      "result": "This example supports only the atomic outcome because Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions."
+      "result": "A* finds the cheapest path while exploring fewer states."
     },
     {
       "id": "ai.search.heuristics.example.stress",
-      "title": "Heuristics, greedy search and A*: stress and transfer case",
-      "situation": "Adding a multiplier greater than one expands fewer nodes on examples but removes the standard admissibility guarantee, so the trade-off is reported honestly.",
+      "title": "The doubled heuristic",
+      "situation": "A learner multiplies straight-line distance by 2 and A* returns a route costing more than the best one.",
       "walkthrough": [
-        "Step 1 — Name the changed population, input, assumption, or failure: Adding a multiplier greater than one expands fewer nodes on examples but removes the standard admissibility guarantee, so the trade-off is reported honestly.",
-        "Step 2 — Keep the non-claim visible: An admissible heuristic can still expand many states, inconsistency can require reopening, tie-breaking changes work not guaranteed cost, scaling must match costs, and an empirical estimate is not automatically admissible.",
-        "Step 3 — Reject the tempting overclaim: A heuristic that often predicts accurately is admissible, and A* always returns an optimal path regardless of heuristic or duplicate handling."
+        "The doubled estimate overestimates remaining cost.",
+        "A* trusted it and skipped the truly cheapest branch.",
+        "Remove the factor so h never overestimates."
       ],
-      "result": "This case demonstrates the declared outcome: Implement A* and compare path cost and nodes expanded under two heuristics."
+      "result": "A* again returns the cheapest route."
     }
   ],
   "misconceptions": [
     {
       "id": "ai.search.heuristics.misconception",
       "mistakenBelief": "A heuristic that often predicts accurately is admissible, and A* always returns an optimal path regardless of heuristic or duplicate handling.",
-      "correction": "Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions.",
-      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: A heuristic that often predicts accurately is admissible, and A* always returns an optimal path regardless of heuristic or duplicate handling."
+      "correction": "Admissible means never overestimating, even occasionally. A*'s optimality depends on that property and correct duplicate handling.",
+      "diagnosticPrompt": "In \"The doubled heuristic\", why did A* miss the best route?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a route planner that tracks states, legal moves, accumulated cost, estimates, and an ordered frontier can introduce Heuristics, greedy search and A* only after its canonical technical definition and evidence boundary are stated.",
+    "example": "A* is like **planning a trip with a map and a crow-flies estimate**. At each junction you compare **distance already driven plus straight-line distance left**. The straight line never overestimates the road distance, so you never wrongly dismiss the best road. **Greedy** is only looking at how close the destination looks, which leads you into dead-end valleys.",
     "usefulFor": [
-      "state-space representation, frontier policies, heuristics, and adversarial backup"
+      "remembering driven so far plus crow-flies left",
+      "never overestimate"
     ],
     "limitations": [
-      "real environments can be continuous, stochastic, changing, partially observed, or too large for the simplified route model",
-      "An admissible heuristic can still expand many states, inconsistency can require reopening, tie-breaking changes work not guaranteed cost, scaling must match costs, and an empirical estimate is not automatically admissible."
+      "h = 0 is driving with no map: you just explore by cost.",
+      "A sharper estimate means fewer detours explored."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Manhattan distance is used on a four-direction unit grid without teleportation and never exceeds the true remaining path cost.",
-      "A heuristic estimates remaining cost; greedy best-first prioritizes that estimate alone, while A* prioritizes accumulated cost plus estimate and inherits optimality only under stated admissibility or consistency conditions.",
-      "Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions."
+      "astar(manhattan)",
+      "astar(zero)",
+      "compare"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Estimate",
         "state": {
-          "boundedEvidence": "Manhattan distance is used on a four-direction unit grid without teleportation and never exceeds the true remaining path cost."
+          "h(start)": "5",
+          "f(start)": "5"
         },
-        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+        "explanation": "Manhattan distance never exceeds the true remaining path cost."
       },
       {
         "step": 2,
-        "focus": "Model",
+        "focus": "Search",
         "state": {
-          "operationalRule": "A heuristic estimates remaining cost; greedy best-first prioritizes that estimate alone, while A* prioritizes accumulated cost plus estimate and inherits optimality only under stated admissibility or consistency conditions."
+          "cost": "5",
+          "expanded": "6"
         },
-        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+        "explanation": "A* uses f = g + h to find the cheapest path."
       },
       {
         "step": 3,
-        "focus": "Limit",
+        "focus": "Compare",
         "state": {
-          "correction": "Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions."
+          "h=0 expanded": "10",
+          "cost": "5"
         },
-        "explanation": "State what the evidence does not establish and reject the misconception: A heuristic that often predicts accurately is admissible, and A* always returns an optimal path regardless of heuristic or duplicate handling."
+        "explanation": "A weaker admissible heuristic finds the same cost with more work."
       }
     ],
-    "textAlternative": "Starting artifact: Manhattan distance is used on a four-direction unit grid without teleportation and never exceeds the true remaining path cost. Step 1, Observe. State: boundedEvidence: Manhattan distance is used on a four-direction unit grid without teleportation and never exceeds the true remaining path cost.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: A heuristic estimates remaining cost; greedy best-first prioritizes that estimate alone, while A* prioritizes accumulated cost plus estimate and inherits optimality only under stated admissibility or consistency conditions.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions.. State what the evidence does not establish and reject the misconception: A heuristic that often predicts accurately is admissible, and A* always returns an optimal path regardless of heuristic or duplicate handling."
+    "textAlternative": "Tracing A with two heuristics. Step 1, Estimate: h(start) is 5; f(start) is 5. Manhattan distance never exceeds the true remaining path cost. Step 2, Search: cost is 5; expanded is 6. A uses f = g + h to find the cheapest path. Step 3, Compare: h=0 expanded is 10; cost is 5. A weaker admissible heuristic finds the same cost with more work."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Heuristics, greedy search and A*: bounded direct case”: state its starting evidence, apply the Heuristics, greedy search and A* rule, and give the observable result in three short lines.",
+      "prompt": "For \"Manhattan distance on a four-way grid\", explain why Manhattan distance is used on a four-direction unit grid without teleportation and never exceeds the true remaining path cost.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Estimate.",
+        "Check admissible.",
+        "Compare."
       ],
       "expectedEvidence": [
-        "Named example: Heuristics, greedy search and A*: bounded direct case.",
-        "Starting evidence: Manhattan distance is used on a four-direction unit grid without teleportation and never exceeds the true remaining path cost.",
-        "Core rule: A heuristic estimates remaining cost; greedy best-first prioritizes that estimate alone, while A* prioritizes accumulated cost plus estimate and inherits optimality only under stated admissibility or consistency conditions.",
-        "Observable result: This example supports only the atomic outcome because Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions.",
-        "Boundary check: Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions."
+        "Names the example \"Manhattan distance on a four-way grid\": a doubled heuristic broke optimality.",
+        "Manhattan distance is used on a four-direction unit grid without teleportation.",
+        "It never exceeds the true remaining path cost.",
+        "A* finds the cheapest path with fewer expansions."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed case: Adding a multiplier greater than one expands fewer nodes on examples but removes the standard admissibility guarantee, so the trade-off is reported honestly.",
+      "prompt": "Add greedy best-first (priority h only) to the code and run it on a grid with a U-shaped wall. Compare its path cost and expansions with A*.",
       "scaffold": [
-        "Identify which assumption, population, input, or objective changed.",
-        "Preserve provenance and the declared failure boundary."
+        "Priority = h(n).",
+        "Design the wall so greedy is lured in."
       ],
       "expectedEvidence": [
-        "A heuristic estimates remaining cost; greedy best-first prioritizes that estimate alone, while A* prioritizes accumulated cost plus estimate and inherits optimality only under stated admissibility or consistency conditions.",
-        "An admissible heuristic can still expand many states, inconsistency can require reopening, tie-breaking changes work not guaranteed cost, scaling must match costs, and an empirical estimate is not automatically admissible."
+        "Greedy path longer or equal.",
+        "A* optimal."
       ]
     },
     "farTransfer": {
-      "prompt": "Design a neutral-context example or evaluation for Heuristics, greedy search and A* and list the evidence that would support and falsify its bounded claim.",
+      "prompt": "Solve the 8-puzzle with A* using misplaced-tiles and Manhattan-sum heuristics. Argue both are admissible and compare nodes expanded on five puzzles.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+        "Ignore the blank in both heuristics.",
+        "Same puzzles for both."
       ],
       "expectedEvidence": [
-        "Implement A* and compare path cost and nodes expanded under two heuristics.",
-        "Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions."
+        "Admissibility argued.",
+        "Manhattan expands fewer nodes."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "ai.search.heuristics.misconception",
-      "explanation": "Prove or bound the heuristic against true remaining cost and implement the required reopen/duplicate policy; report optimality only under those conditions.",
-      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: Adding a multiplier greater than one expands fewer nodes on examples but removes the standard admissibility guarantee, so the trade-off is reported honestly."
+      "explanation": "Before using a heuristic, ask: **could this ever exceed the true remaining cost?** If yes, A* may not be optimal. Then measure **nodes expanded**.",
+      "retryPrompt": "Apply this to \"The doubled heuristic\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement A* and compare path cost and nodes expanded under two heuristics. Keep this boundary in view: An admissible heuristic can still expand many states, inconsistency can require reopening, tie-breaking changes work not guaranteed cost, scaling must match costs, and an empirical estimate is not automatically admissible.",
+    "summary": "To implement A* and compare path cost and nodes expanded under two heuristics, expand by f = g + h, use an admissible heuristic that never overestimates, handle duplicates carefully, and prefer tighter admissible heuristics to reduce expansions.",
     "retrievalPrompts": [
-      "Explain Heuristics, greedy search and A* with one technical mechanism, one evidence requirement, and one non-claim.",
-      "Why is this overclaim invalid: A heuristic that often predicts accurately is admissible, and A* always returns an optimal path regardless of heuristic or duplicate handling.",
-      "Apply the boundary to: Adding a multiplier greater than one expands fewer nodes on examples but removes the standard admissibility guarantee, so the trade-off is reported honestly."
+      "What does admissible mean?",
+      "How does greedy differ from A*?",
+      "What is A* with h = 0?"
     ],
     "nextReviewPrompt": "Next: continue to “Minimax and alpha-beta”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

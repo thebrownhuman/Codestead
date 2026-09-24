@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Data UI explicitly represents idle, loading, success, empty, stale, and error states rather than treating data as one nullable value.",
+    "summary": "Remote data isn't just \"there or not\". Model it as an explicit **status**: `loading` (no data yet), `success` with items, `empty` (success, but zero items), `error` (with a retry), and sometimes `stale` (showing old data while refreshing). Starting with `useState([])` blurs these: an empty array during loading looks exactly like \"there are no courses\". Keep one state object such as `{ status: \"loading\" }` or `{ status: \"success\", data }`, render each status on purpose, and test every one.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A course list distinguishes loading skeleton, empty catalog, loaded rows, and retryable server error. Your goal is to render and test every observable remote-data state. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A course catalog starts with `const [courses, setCourses] = useState([])` and renders \"No courses yet\" when the array is empty. On slow connections, learners see \"No courses yet\" for three seconds, then courses appear, and some leave before they load. A course list distinguishes loading skeleton, empty catalog, loaded rows, and retryable server error. In this lesson you'll render and test every observable remote-data state.\n\n```predict\n{\"question\": \"`courses` starts as `[]` and the request is still running. What does `courses.length === 0` tell you?\", \"options\": [\"There are no courses\", \"Nothing yet: it's true while loading and when the catalog is really empty\"], \"answer\": 1, \"why\": \"You need a separate status to tell \\\"not loaded\\\" from \\\"loaded, empty\\\".\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Cleanup and race prevention; javascript network fetch; Conditional rendering. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Cleanup and race prevention**, **Fetch and HTTP responses** (ok, status and errors), and **Conditional rendering** (early returns and ternaries)."
       },
       {
-        "heading": "Technology rule",
-        "body": "Data UI explicitly represents idle, loading, success, empty, stale, and error states rather than treating data as one nullable value. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: one status, one screen each",
+        "body": "```jsx\n// State shape: { status: \"loading\" } | { status: \"error\", message }\n//   | { status: \"success\", data: Course[] }.\nexport function CourseCatalog({ result, onRetry }) {\n  switch (result.status) {\n    case \"loading\":\n      return <p role=\"status\" aria-busy=\"true\">Loading courses...</p>;\n    case \"error\":\n      return (\n        <div role=\"alert\">\n          <p>Couldn't load courses. {result.message}</p>\n          <button type=\"button\" onClick={onRetry}>Try again</button>\n        </div>\n      );\n    case \"success\":\n      if (result.data.length === 0) return <p>No courses yet. New ones are added every month.</p>;\n      return (\n        <ul>{result.data.map((c) => <li key={c.id}>{c.title}</li>)}</ul>\n      );\n    default:\n      return null;\n  }\n}\n```\n\n| Status | Screen |\n|---|---|\n| loading. | skeleton or message with aria-busy. |\n| error. | alert text plus Try again. |\n| success, 0 items. | a helpful empty message. |\n| success, items. | the list. |\n| stale (refreshing). | old list plus a small \"updating\" note. |\n\n```reveal\n{\"prompt\": \"Why is CourseCatalog given `result` as a prop instead of fetching itself?\", \"answer\": \"Separating display from fetching lets you test each status by passing a result directly, with no network.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Previous data, background refresh, partial results, and permission failures can overlap these labels. This draft therefore rejects: An empty array during loading is equivalent to a confirmed empty result."
+        "heading": "Impossible states",
+        "body": "```predict\n{\"question\": \"State as `isLoading`, `error` and `data` booleans and values. Can you get isLoading = true and error set at once?\", \"options\": [\"No\", \"Yes, if one code path forgets to reset a flag; a single status field prevents it\"], \"answer\": 1, \"why\": \"One status field makes contradictory combinations impossible.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Model remote data as explicit states rather than ambiguous null checks.",
-      "Render and test every observable remote-data state."
+      "Model remote data with an explicit status.",
+      "Render and test loading, empty, success, error and stale states."
     ],
     "excludes": [
-      "Previous data, background refresh, partial results, and permission failures can overlap these labels."
+      "The fetch effect itself (next lesson).",
+      "Suspense and skeleton libraries."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "react.data.states.example-a",
-      "title": "Loading, empty, success and failure states: concrete case",
+      "title": "The catalog that said empty too soon",
       "situation": "A course list distinguishes loading skeleton, empty catalog, loaded rows, and retryable server error.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A course list distinguishes loading skeleton, empty catalog, loaded rows, and retryable server error.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Track loading and outcome separately so unknown data is not misrepresented as a confirmed empty state."
+        "**Replace []:** state starts as `{ status: \"loading\" }` instead of an empty array.",
+        "**Distinguish:** the component renders a loading message, the empty catalog note, loaded rows, or a retryable server error.",
+        "**Test each:** four tests will pass a result for each status and check the text or role that learners see."
       ],
-      "result": "The result follows because Track loading and outcome separately so unknown data is not misrepresented as a confirmed empty state."
+      "result": "Learners see \"Loading courses...\" while waiting, and \"No courses yet\" only when that's actually true."
     },
     {
       "id": "react.data.states.example-b",
-      "title": "Loading, empty, success and failure states: boundary case",
-      "situation": "Previous data, background refresh, partial results, and permission failures can overlap these labels.",
+      "title": "The error that looked like success",
+      "situation": "When the server returns 500, the catalog catches the error and calls `setCourses([])`. Learners are told there are no courses, with no way to retry.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Previous data, background refresh, partial results, and permission failures can overlap these labels.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: An empty array during loading is equivalent to a confirmed empty result."
+        "The error was turned into an empty success.",
+        "Store `{ status: \"error\", message }` instead.",
+        "Render an alert with a Try again button that refetches."
       ],
-      "result": "The boundary requires this correction: Track loading and outcome separately so unknown data is not misrepresented as a confirmed empty state."
+      "result": "Learners see that loading failed and can retry, instead of a false \"no courses\" message."
     }
   ],
   "misconceptions": [
     {
       "id": "react.data.states.misconception",
       "mistakenBelief": "An empty array during loading is equivalent to a confirmed empty result.",
-      "correction": "Track loading and outcome separately so unknown data is not misrepresented as a confirmed empty state.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: An empty array during loading is equivalent to a confirmed empty result."
+      "correction": "An empty array can mean \"not loaded yet\", \"loaded and empty\" or \"failed and hidden\". Only an explicit status tells them apart and lets each get the right screen.",
+      "diagnosticPrompt": "In \"The catalog that said empty too soon\", what did learners see while waiting?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Loading, empty, success and failure states, where inputs and state produce a UI description.",
+    "example": "Remote data is like **checking a parcel's tracking page**: \"out for delivery\" (loading), \"delivered\" (success), \"delivered: box was empty\" (empty), \"delivery failed, reschedule\" (error with retry). A blank page could mean any of them.",
     "usefulFor": [
-      "Building a first mental model for Loading, empty, success and failure states before using exact platform terms"
+      "remembering one status per screen",
+      "retry = reschedule delivery"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Previous data, background refresh, partial results, and permission failures can overlap these labels."
+      "Parcels don't refresh themselves; stale data may be showing while you refetch.",
+      "You'd never mark \"failed\" as \"empty box\"."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A course list distinguishes loading skeleton, empty catalog, loaded rows, and retryable server error.",
-      "Data UI explicitly represents idle, loading, success, empty, stale, and error states rather than treating data as one nullable value.",
-      "Track loading and outcome separately so unknown data is not misrepresented as a confirmed empty state."
+      "result = { status: 'loading' }",
+      "server replies 200 with []",
+      "render"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Loading",
         "state": {
-          "evidence": "A course list distinguishes loading skeleton, empty catalog, loaded rows, and retryable server error."
+          "status": "loading",
+          "screen": "Loading courses..."
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The course list shows a loading message, not an empty catalog."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Response",
         "state": {
-          "rule": "Data UI explicitly represents idle, loading, success, empty, stale, and error states rather than treating data as one nullable value."
+          "status": "success",
+          "data": "[]"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The server confirms there are zero courses."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Empty",
         "state": {
-          "correction": "Track loading and outcome separately so unknown data is not misrepresented as a confirmed empty state."
+          "screen": "No courses yet..."
         },
-        "explanation": "Check the result against the boundary and reject this misconception: An empty array during loading is equivalent to a confirmed empty result."
+        "explanation": "The list distinguishes the empty catalog from loading and error states."
       }
     ],
-    "textAlternative": "Starting artifact: A course list distinguishes loading skeleton, empty catalog, loaded rows, and retryable server error. Step 1, Artifact. State: evidence: A course list distinguishes loading skeleton, empty catalog, loaded rows, and retryable server error.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Data UI explicitly represents idle, loading, success, empty, stale, and error states rather than treating data as one nullable value.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Track loading and outcome separately so unknown data is not misrepresented as a confirmed empty state.. Check the result against the boundary and reject this misconception: An empty array during loading is equivalent to a confirmed empty result."
+    "textAlternative": "Tracing status through a load. Step 1, Loading: status is loading; screen is Loading courses.... The course list shows a loading message, not an empty catalog. Step 2, Response: status is success; data is []. The server confirms there are zero courses. Step 3, Empty: screen is No courses yet.... The list distinguishes the empty catalog from loading and error states."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Loading, empty, success and failure states: concrete case”: state its starting evidence, apply the Loading, empty, success and failure states rule, and give the observable result in three short lines.",
+      "prompt": "For \"The catalog that said empty too soon\", explain how a course list distinguishes loading skeleton, empty catalog, loaded rows, and retryable server error.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Status.",
+        "Screens.",
+        "Tests."
       ],
       "expectedEvidence": [
-        "Named example: Loading, empty, success and failure states: concrete case.",
-        "Starting evidence: A course list distinguishes loading skeleton, empty catalog, loaded rows, and retryable server error.",
-        "Core rule: Data UI explicitly represents idle, loading, success, empty, stale, and error states rather than treating data as one nullable value.",
-        "Observable result: The result follows because Track loading and outcome separately so unknown data is not misrepresented as a confirmed empty state.",
-        "Boundary check: Track loading and outcome separately so unknown data is not misrepresented as a confirmed empty state."
+        "Names the example \"The catalog that said empty too soon\": [] looked empty during loading.",
+        "The course list distinguishes loading, empty catalog and loaded rows.",
+        "A retryable server error has its own screen.",
+        "Learners see \"No courses yet\" only when that's actually true."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Previous data, background refresh, partial results, and permission failures can overlap these labels.",
+      "prompt": "Write the status type and render function for a learner's certificates list, including a stale state that shows old certificates with \"Updating...\".",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "One status field.",
+        "Stale keeps data."
       ],
       "expectedEvidence": [
-        "Data UI explicitly represents idle, loading, success, empty, stale, and error states rather than treating data as one nullable value.",
-        "Previous data, background refresh, partial results, and permission failures can overlap these labels."
+        "Five distinct screens.",
+        "No impossible combinations."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Loading, empty, success and failure states and explain why the misconception fails.",
+      "prompt": "Take a data component in your app that uses isLoading/error/data flags, refactor to a single status, and write a test per status by passing results directly.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Separate fetching from display.",
+        "Query by role and text."
       ],
       "expectedEvidence": [
-        "Render and test every observable remote-data state.",
-        "Track loading and outcome separately so unknown data is not misrepresented as a confirmed empty state."
+        "One status field.",
+        "Tests for loading, empty, success, error."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.data.states.misconception",
-      "explanation": "Track loading and outcome separately so unknown data is not misrepresented as a confirmed empty state.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'not misrepresented' and state the decisive evidence."
+      "explanation": "For every remote list, write the five lines: **loading, error, empty, success, stale**, and what each shows. If your state can't tell two of them apart, add a status.",
+      "retryPrompt": "Apply this to \"The error that looked like success\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to render and test every observable remote-data state. Keep this boundary in view: Previous data, background refresh, partial results, and permission failures can overlap these labels.",
+    "summary": "To render and test every observable remote-data state, store an explicit status instead of a nullable value or an empty array, render loading, error with retry, empty, success and stale screens deliberately, and test each by passing a result straight to the display component.",
     "retrievalPrompts": [
-      "Explain Loading, empty, success and failure states using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: An empty array during loading is equivalent to a confirmed empty result.",
-      "Apply checkpoint 'not misrepresented' to a new artifact."
+      "Why is [] a bad loading state?",
+      "What does a single status field prevent?",
+      "What should an error state offer?"
     ],
     "nextReviewPrompt": "Next: continue to “Client fetch lifecycle”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

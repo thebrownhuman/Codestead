@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A Python virtual environment selects an isolated interpreter prefix and site-packages location so project dependencies do not modify the base interpreter's package set.",
+    "summary": "A **virtual environment** (`.venv`) is a private copy of Python's package folder for one project. Create it with `python -m venv .venv`, install into it with **that environment's** `python -m pip`, record what you installed in `requirements.txt`, and check you're really inside it: `sys.prefix` differs from `sys.base_prefix`. \"Activating\" only changes the current terminal — editors and other terminals choose their own interpreter.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: The learner creates .venv, invokes that environment's python -m pip, records requirements, and confirms sys.prefix differs from sys.base_prefix. Your goal is to reproduce a project environment from documented interpreter and dependency requirements. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Project A needs `requests` version 2.28; project B needs 2.32. Install both globally and one project breaks. Virtual environments give each project its own shelf of packages. The learner creates .venv, invokes that environment's python -m pip, records requirements, and confirms sys.prefix differs from sys.base_prefix. In this lesson you'll reproduce a project environment from documented interpreter and dependency requirements.\n\n```predict\n{\"question\": \"You activate `.venv` in terminal 1. Is it active in terminal 2 and in your editor's Run button?\", \"options\": [\"Yes, activation is global\", \"No — activation only affects that one terminal session\"], \"answer\": 1, \"why\": \"Activation just edits PATH in the current shell. Other terminals, the editor and scheduled tasks pick their interpreter separately.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Function contracts and returns; Interpreter and environment; Packages and public APIs. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Function contracts and returns**, **Interpreter and environment** (sys.executable, working directory) and **Packages and public APIs**."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "A Python virtual environment selects an isolated interpreter prefix and site-packages location so project dependencies do not modify the base interpreter's package set. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: one environment per project",
+        "body": "```bash\npython -m venv .venv                 # create\n.venv/bin/python -m pip install requests==2.32.3   # (Windows: .venv\\Scripts\\python)\n.venv/bin/python -m pip freeze > requirements.txt  # record\n.venv/bin/python -c \"import sys; print(sys.prefix != sys.base_prefix)\"  # True = inside venv\n```\n\n| Step | Why |\n|---|---|\n| `python -m venv .venv` | private package folder for this project. |\n| env's `python -m pip` | installs into exactly that interpreter. |\n| `requirements.txt` | teammates can rebuild the same set. |\n| prefix check | proves which environment is running. |\n\n```reveal\n{\"prompt\": \"Should `.venv/` be committed to git?\", \"answer\": \"No — it's large and machine-specific. Commit `requirements.txt` (or pyproject) and a note of the Python version; others recreate the venv.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "Activation only adjusts shell command lookup, the environment is not generally portable by copying, system packages can be exposed by option, and dependency declarations still need versions and platform context. The learner must reject this documented misconception: Activating a virtual environment changes Python globally and guarantees every editor, task, and subprocess uses it."
+        "heading": "Reproducing on another machine",
+        "body": "```predict\n{\"question\": \"A teammate clones the repo. What rebuilds your environment?\", \"options\": [\"Copy your .venv folder\", \"`python -m venv .venv` then `.venv/bin/python -m pip install -r requirements.txt`\"], \"answer\": 1, \"why\": \"Recreate from the recorded requirements with a matching Python version. Copied venvs often break because they contain absolute paths.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Create isolated environments and install only declared dependencies.",
-      "Reproduce a project environment from documented interpreter and dependency requirements."
+      "Create a venv, install with its own python -m pip, and record requirements.",
+      "Verify the active environment and reproduce it elsewhere."
     ],
     "excludes": [
-      "Activation only adjusts shell command lookup, the environment is not generally portable by copying, system packages can be exposed by option, and dependency declarations still need versions and platform context."
+      "Lock-file tools like Poetry, uv or pip-tools in depth.",
+      "Conda environments."
     ]
   },
   "outcomes": [
@@ -63,133 +64,134 @@
   "examples": [
     {
       "id": "python.modules.venv.example.direct",
-      "title": "Virtual environments and dependencies: direct language case",
+      "title": "Creating and checking a .venv",
       "situation": "The learner creates .venv, invokes that environment's python -m pip, records requirements, and confirms sys.prefix differs from sys.base_prefix.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: The learner creates .venv, invokes that environment's python -m pip, records requirements, and confirms sys.prefix differs from sys.base_prefix.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: A virtual environment is selected by its interpreter path; activation is a shell convenience, so verify the executable used by every tool."
+        "**Create .venv:** `python -m venv .venv` in the project folder.",
+        "**Install with that environment's python -m pip:** `.venv/bin/python -m pip install requests==2.32.3`, then `pip freeze > requirements.txt` records requirements.",
+        "**Confirm:** `.venv/bin/python -c \"import sys; print(sys.prefix != sys.base_prefix)\"` prints True."
       ],
-      "result": "The example meets the atomic outcome because A virtual environment is selected by its interpreter path; activation is a shell convenience, so verify the executable used by every tool."
+      "result": "The project has its own verified environment and a requirements file that recreates it."
     },
     {
       "id": "python.modules.venv.example.boundary",
-      "title": "Virtual environments and dependencies: boundary and transfer case",
-      "situation": "An editor is configured to the same .venv interpreter as the terminal after imports differ despite an activated shell.",
+      "title": "The package that installed somewhere else",
+      "situation": "A learner runs `pip install rich`, then `python app.py` fails with `ModuleNotFoundError: No module named 'rich'`.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: An editor is configured to the same .venv interpreter as the terminal after imports differ despite an activated shell.",
-        "Step 2 — Keep the language boundary explicit: Activation only adjusts shell command lookup, the environment is not generally portable by copying, system packages can be exposed by option, and dependency declarations still need versions and platform context.",
-        "Step 3 — Reject the tempting but incorrect rule: Activating a virtual environment changes Python globally and guarantees every editor, task, and subprocess uses it."
+        "`pip` on PATH belonged to a different Python than the `python` that ran the app.",
+        "`python -m pip --version` shows which interpreter pip targets.",
+        "Fix: always install with `python -m pip install rich` using the same python that runs the app (ideally the venv's)."
       ],
-      "result": "This case demonstrates the declared outcome: Reproduce a project environment from documented interpreter and dependency requirements."
+      "result": "Installing through the running interpreter puts rich where the app can import it."
     }
   ],
   "misconceptions": [
     {
       "id": "python.modules.venv.misconception",
-      "mistakenBelief": "Activating a virtual environment changes Python globally and guarantees every editor, task, and subprocess uses it.",
-      "correction": "A virtual environment is selected by its interpreter path; activation is a shell convenience, so verify the executable used by every tool.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Activating a virtual environment changes Python globally and guarantees every editor, task, and subprocess uses it."
+      "mistakenBelief": "Activating a virtual environment changes Python globally and guarantees every editor, task and subprocess uses it.",
+      "correction": "Activation only modifies the current shell's PATH. Each editor, terminal, task or subprocess selects its own interpreter, so point them at the venv's python explicitly and verify with sys.prefix.",
+      "diagnosticPrompt": "In \"The package that installed somewhere else\", which two interpreters were involved?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a library whose catalogs, shelves, isolated rooms, and shipping manifest separate import names from installable distributions can introduce Virtual environments and dependencies, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "example": "A venv is like a **separate toolbox per job**: the plumbing box and the electrical box each hold the exact tools that job needs. `requirements.txt` is the packing list so anyone can pack an identical box.",
     "usefulFor": [
-      "imports, packages, virtual environments, and pyproject builds"
+      "remembering one environment per project",
+      "seeing requirements as a packing list"
     ],
     "limitations": [
-      "sys.path, partial module initialization, build backends, editable installs, and wheel contents need direct inspection",
-      "Activation only adjusts shell command lookup, the environment is not generally portable by copying, system packages can be exposed by option, and dependency declarations still need versions and platform context."
+      "Toolboxes can be carried around; venvs should be rebuilt, not copied.",
+      "Picking up a toolbox in one room doesn't give it to people in other rooms — like activation."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "The learner creates .venv, invokes that environment's python -m pip, records requirements, and confirms sys.prefix differs from sys.base_prefix.",
-      "A Python virtual environment selects an isolated interpreter prefix and site-packages location so project dependencies do not modify the base interpreter's package set.",
-      "A virtual environment is selected by its interpreter path; activation is a shell convenience, so verify the executable used by every tool."
+      "python -m venv .venv",
+      ".venv/bin/python -m pip install requests==2.32.3",
+      ".venv/bin/python -c 'import sys; print(sys.prefix != sys.base_prefix)'"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Create .venv",
         "state": {
-          "evidence": "The learner creates .venv, invokes that environment's python -m pip, records requirements, and confirms sys.prefix differs from sys.base_prefix."
+          ".venv": "created"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "The learner creates .venv as a private package folder for the project."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Install",
         "state": {
-          "rule": "A Python virtual environment selects an isolated interpreter prefix and site-packages location so project dependencies do not modify the base interpreter's package set."
+          "requests": "2.32.3 in .venv"
         },
-        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "Using that environment's python -m pip installs into the right place."
       },
       {
         "step": 3,
         "focus": "Verify",
         "state": {
-          "correction": "A virtual environment is selected by its interpreter path; activation is a shell convenience, so verify the executable used by every tool."
+          "sys.prefix != sys.base_prefix": "True"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Activating a virtual environment changes Python globally and guarantees every editor, task, and subprocess uses it."
+        "explanation": "The check confirms sys.prefix differs from sys.base_prefix, so the venv is active."
       }
     ],
-    "textAlternative": "Starting artifact: The learner creates .venv, invokes that environment's python -m pip, records requirements, and confirms sys.prefix differs from sys.base_prefix. Step 1, Observe. State: evidence: The learner creates .venv, invokes that environment's python -m pip, records requirements, and confirms sys.prefix differs from sys.base_prefix.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A Python virtual environment selects an isolated interpreter prefix and site-packages location so project dependencies do not modify the base interpreter's package set.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: A virtual environment is selected by its interpreter path; activation is a shell convenience, so verify the executable used by every tool.. Compare the observation with the correction and explain why the misconception fails: Activating a virtual environment changes Python globally and guarantees every editor, task, and subprocess uses it."
+    "textAlternative": "Creating and verifying a virtual environment. Step 1, Create .venv: .venv is created. The learner creates .venv as a private package folder for the project. Step 2, Install: requests is 2.32.3 in .venv. Using that environment's python -m pip installs into the right place. Step 3, Verify: sys.prefix != sys.base_prefix is True. The check confirms sys.prefix differs from sys.base_prefix, so the venv is active."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Virtual environments and dependencies: direct language case”: state its starting evidence, apply the Virtual environments and dependencies rule, and give the observable result in three short lines.",
+      "prompt": "For \"Creating and checking a .venv\", explain how the learner creates .venv, why they invoke that environment's python -m pip, how they record requirements, and what the sys.prefix check confirms.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Create.",
+        "Install.",
+        "Record.",
+        "Verify."
       ],
       "expectedEvidence": [
-        "Named example: Virtual environments and dependencies: direct language case.",
-        "Starting evidence: The learner creates .venv, invokes that environment's python -m pip, records requirements, and confirms sys.prefix differs from sys.base_prefix.",
-        "Core rule: A Python virtual environment selects an isolated interpreter prefix and site-packages location so project dependencies do not modify the base interpreter's package set.",
-        "Observable result: The example meets the atomic outcome because A virtual environment is selected by its interpreter path; activation is a shell convenience, so verify the executable used by every tool.",
-        "Boundary check: A virtual environment is selected by its interpreter path; activation is a shell convenience, so verify the executable used by every tool."
+        "Names the example \"Creating and checking a .venv\": the learner creates .venv.",
+        "Invokes that environment's python -m pip to install.",
+        "Records requirements with pip freeze.",
+        "Confirms sys.prefix differs from sys.base_prefix."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: An editor is configured to the same .venv interpreter as the terminal after imports differ despite an activated shell.",
+      "prompt": "Your editor still says \"No module named rich\" after you installed it in .venv. Which setting do you check, and how do you verify the fix?",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Editor interpreter selection.",
+        "Print sys.executable."
       ],
       "expectedEvidence": [
-        "A Python virtual environment selects an isolated interpreter prefix and site-packages location so project dependencies do not modify the base interpreter's package set.",
-        "Activation only adjusts shell command lookup, the environment is not generally portable by copying, system packages can be exposed by option, and dependency declarations still need versions and platform context."
+        "Select the .venv interpreter in the editor.",
+        "Verify with sys.executable / sys.prefix in the editor run."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Virtual environments and dependencies, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Create a fresh project, a venv, install two packages, record requirements, delete the venv, recreate it from requirements, and confirm the app still runs. Document the Python version.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Use python -m pip everywhere.",
+        "Record the version with python --version."
       ],
       "expectedEvidence": [
-        "Reproduce a project environment from documented interpreter and dependency requirements.",
-        "A virtual environment is selected by its interpreter path; activation is a shell convenience, so verify the executable used by every tool."
+        "Environment rebuilt purely from requirements.",
+        "Documented Python version and a successful run."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "python.modules.venv.misconception",
-      "explanation": "A virtual environment is selected by its interpreter path; activation is a shell convenience, so verify the executable used by every tool.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: An editor is configured to the same .venv interpreter as the terminal after imports differ despite an activated shell."
+      "explanation": "Never type bare `pip`. Always: `<the python you'll run with> -m pip ...`. When unsure, print `sys.executable` and `sys.prefix != sys.base_prefix`.",
+      "retryPrompt": "Apply this rule to \"The package that installed somewhere else\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to reproduce a project environment from documented interpreter and dependency requirements. Keep this boundary in view: Activation only adjusts shell command lookup, the environment is not generally portable by copying, system packages can be exposed by option, and dependency declarations still need versions and platform context.",
+    "summary": "To reproduce a project environment, create a .venv, install with its own python -m pip, record requirements and the Python version, and verify with sys.prefix vs sys.base_prefix. Activation is per-shell; point editors and tasks at the venv explicitly.",
     "retrievalPrompts": [
-      "Explain Virtual environments and dependencies using canonical Python: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Activating a virtual environment changes Python globally and guarantees every editor, task, and subprocess uses it.",
-      "Predict this case from memory: An editor is configured to the same .venv interpreter as the terminal after imports differ despite an activated shell."
+      "Does activation affect other terminals?",
+      "Why use `python -m pip` instead of `pip`?",
+      "Should .venv be committed?"
     ],
     "nextReviewPrompt": "Next: continue to “Project metadata and command entry”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Flex sizing combines basis, grow, shrink, intrinsic minimums, gaps, and alignment to distribute available or negative space.",
+    "summary": "Within a flex line, `align-self` overrides one item's cross-axis alignment, and `margin-inline-start: auto` pushes an item to the far end. `flex: 1` shares **free space**, but items still won't shrink below their min-content size unless you add `min-width: 0` — so \"equal\" columns can end up unequal. `order` and `row-reverse` change only the **visual** order: keyboard focus and screen readers still follow the HTML, so keep visual and source order matching.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A text item gets min-width:0 so it can shrink beside a fixed icon without overflowing. Your goal is to debug alignment and verify meaningful source and focus order. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A notification row has an icon, a message and a close button. A long message pushes the close button off-screen, and \"fixing\" it with `order: -1` makes the Tab key jump around unpredictably. A text item gets min-width:0 so it can shrink beside a fixed icon without overflowing. In this lesson you'll debug alignment and verify meaningful source and focus order.\n\n```predict\n{\"question\": \"Three items all have `flex: 1`. One contains a very long unbreakable word. Are they equal widths?\", \"options\": [\"Always equal\", \"Not necessarily — the long word's min-content can force that item wider\"], \"answer\": 1, \"why\": \"flex: 1 shares free space, but automatic minimum sizes still apply. Add min-width: 0 (and let text wrap) for truly equal shares.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Normal flow and display; Intrinsic sizing and constraints; Flex axes and sizing; html navigation skip. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Normal flow and display**, **Intrinsic sizing and constraints**, **Flex axes and sizing**, and **Keyboard navigation and skip links** (keyboard order matters)."
       },
       {
-        "heading": "Technology rule",
-        "body": "Flex sizing combines basis, grow, shrink, intrinsic minimums, gaps, and alignment to distribute available or negative space. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The rule: align individually, shrink deliberately, keep order honest",
+        "body": "```css\n.note { display: flex; align-items: center; gap: 0.75rem; }\n.note__icon  { flex: none; }                    /* fixed size */\n.note__text  { flex: 1; min-width: 0; overflow-wrap: anywhere; }\n.note__close { margin-inline-start: auto; align-self: flex-start; }\n```\n\n| Tool | Effect |\n|---|---|\n| `align-self`. | one item's cross-axis alignment. |\n| `margin-inline-start: auto`. | pushes the item to the end. |\n| `min-width: 0`. | lets a flex item shrink below its content. |\n| `order`, `row-reverse`. | visual order only — not focus order. |\n\n```reveal\n{\"prompt\": \"Why is `order` risky?\", \"answer\": \"Keyboard Tab order and screen-reader reading order follow the DOM. If visuals say A-B-C but focus goes B-A-C, users get lost. Reorder the HTML instead.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "The default min-size can prevent shrinking, auto margins absorb space, and align-content affects lines rather than a single line. This draft therefore rejects: flex:1 guarantees equal final widths regardless of content and minimum size."
+        "heading": "Check focus order",
+        "body": "```predict\n{\"question\": \"Buttons appear as [Cancel] [Save] visually via `flex-direction: row-reverse`, but the HTML is Save, Cancel. What does Tab do?\", \"options\": [\"Cancel first, then Save\", \"Save first, then Cancel — following the HTML\"], \"answer\": 1, \"why\": \"Visual order changed; DOM order didn't. Put the HTML in the order you want people to experience it.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Align items and groups while avoiding visual order that contradicts DOM and keyboard order.",
-      "Debug alignment and verify meaningful source and focus order."
+      "Use align-self, auto margins and min-width: 0 to debug flex alignment and overflow.",
+      "Keep visual order matching source and focus order; avoid order for meaningful content."
     ],
     "excludes": [
-      "The default min-size can prevent shrinking, auto margins absorb space, and align-content affects lines rather than a single line."
+      "Grid alignment (grid lessons).",
+      "Baseline alignment in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "css.flex.alignment.example-a",
-      "title": "Flex alignment and order: concrete case",
+      "title": "Text that shrinks beside a fixed icon",
       "situation": "A text item gets min-width:0 so it can shrink beside a fixed icon without overflowing.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A text item gets min-width:0 so it can shrink beside a fixed icon without overflowing.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Account for basis and intrinsic minimums; flex growth alone does not guarantee equal final sizes."
+        "**Problem:** a long message's min-content width pushes the close button out of the notification row.",
+        "**Fix:** the icon gets `flex: none`; the text item gets `flex: 1; min-width: 0; overflow-wrap: anywhere` so it can shrink and wrap.",
+        "**Verify:** at 320px the browser will render icon, wrapped text and close button inside the row, and Tab reaches the close button in source order."
       ],
-      "result": "The result follows because Account for basis and intrinsic minimums; flex growth alone does not guarantee equal final sizes."
+      "result": "The fixed icon and close button stay visible while the text shrinks and wraps."
     },
     {
       "id": "css.flex.alignment.example-b",
-      "title": "Flex alignment and order: boundary case",
-      "situation": "The default min-size can prevent shrinking, auto margins absorb space, and align-content affects lines rather than a single line.",
+      "title": "The reordered form buttons",
+      "situation": "A dialog uses `flex-direction: row-reverse` so \"Save\" appears on the right, but HTML order is Save then Cancel.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: The default min-size can prevent shrinking, auto margins absorb space, and align-content affects lines rather than a single line.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: flex:1 guarantees equal final widths regardless of content and minimum size."
+        "Visually: Cancel, Save. Tab order: Save, Cancel.",
+        "Keyboard users hit Save first while expecting Cancel.",
+        "Fix: write the HTML as Cancel, Save and use `justify-content: flex-end` for placement."
       ],
-      "result": "The boundary requires this correction: Account for basis and intrinsic minimums; flex growth alone does not guarantee equal final sizes."
+      "result": "Visual, reading and focus order now match."
     }
   ],
   "misconceptions": [
     {
       "id": "css.flex.alignment.misconception",
       "mistakenBelief": "flex:1 guarantees equal final widths regardless of content and minimum size.",
-      "correction": "Account for basis and intrinsic minimums; flex growth alone does not guarantee equal final sizes.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: flex:1 guarantees equal final widths regardless of content and minimum size."
+      "correction": "flex: 1 distributes free space, but items keep an automatic minimum size based on their content. Long content can make items wider unless min-width: 0 and wrapping are applied.",
+      "diagnosticPrompt": "In the opening predict, what made one item wider?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Flex alignment and order, where rules size, place, and paint existing content.",
+    "example": "Flex items sharing space are like **people sharing a bench**: everyone gets an equal share of the free space, but someone carrying a long plank (unbreakable content) still needs room — unless they're allowed to fold it (wrap) and squeeze (min-width: 0).",
     "usefulFor": [
-      "Building a first mental model for Flex alignment and order before using exact platform terms"
+      "remembering automatic minimums",
+      "order changes seats, not the queue"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "The default min-size can prevent shrinking, auto margins absorb space, and align-content affects lines rather than a single line."
+      "People can negotiate; items follow fixed rules.",
+      "Moving seats (order) doesn't change who's first in the queue (focus)."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A text item gets min-width:0 so it can shrink beside a fixed icon without overflowing.",
-      "Flex sizing combines basis, grow, shrink, intrinsic minimums, gaps, and alignment to distribute available or negative space.",
-      "Account for basis and intrinsic minimums; flex growth alone does not guarantee equal final sizes."
+      ".note__icon { flex: none }",
+      ".note__text { flex: 1; min-width: 0; overflow-wrap: anywhere }",
+      ".note__close { margin-inline-start: auto }"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Overflow",
         "state": {
-          "evidence": "A text item gets min-width:0 so it can shrink beside a fixed icon without overflowing."
+          "text min-content": "wider than row",
+          "close button": "off-screen"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "Long text sets a large automatic minimum."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Allow shrinking",
         "state": {
-          "rule": "Flex sizing combines basis, grow, shrink, intrinsic minimums, gaps, and alignment to distribute available or negative space."
+          "min-width": "0",
+          "text": "wraps"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The text item gets min-width:0 so it can shrink beside a fixed icon."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Result",
         "state": {
-          "correction": "Account for basis and intrinsic minimums; flex growth alone does not guarantee equal final sizes."
+          "row": "fits 320px",
+          "Tab order": "message link, then close button"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: flex:1 guarantees equal final widths regardless of content and minimum size."
+        "explanation": "Nothing overflows, and focus follows the source order."
       }
     ],
-    "textAlternative": "Starting artifact: A text item gets min-width:0 so it can shrink beside a fixed icon without overflowing. Step 1, Artifact. State: evidence: A text item gets min-width:0 so it can shrink beside a fixed icon without overflowing.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Flex sizing combines basis, grow, shrink, intrinsic minimums, gaps, and alignment to distribute available or negative space.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Account for basis and intrinsic minimums; flex growth alone does not guarantee equal final sizes.. Check the result against the boundary and reject this misconception: flex:1 guarantees equal final widths regardless of content and minimum size."
+    "textAlternative": "Debugging a flex row. Step 1, Overflow: text min-content is wider than row; close button is off-screen. Long text sets a large automatic minimum. Step 2, Allow shrinking: min-width is 0; text is wraps. The text item gets min-width:0 so it can shrink beside a fixed icon. Step 3, Result: row is fits 320px; Tab order is message link, then close button. Nothing overflows, and focus follows the source order."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Flex alignment and order: concrete case”: state its starting evidence, apply the Flex alignment and order rule, and give the observable result in three short lines.",
+      "prompt": "For \"Text that shrinks beside a fixed icon\", explain why the text item gets min-width:0 so it can shrink beside a fixed icon without overflowing, and how you check focus order.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Problem.",
+        "min-width: 0.",
+        "Focus order."
       ],
       "expectedEvidence": [
-        "Named example: Flex alignment and order: concrete case.",
-        "Starting evidence: A text item gets min-width:0 so it can shrink beside a fixed icon without overflowing.",
-        "Core rule: Flex sizing combines basis, grow, shrink, intrinsic minimums, gaps, and alignment to distribute available or negative space.",
-        "Observable result: The result follows because Account for basis and intrinsic minimums; flex growth alone does not guarantee equal final sizes.",
-        "Boundary check: Account for basis and intrinsic minimums; flex growth alone does not guarantee equal final sizes."
+        "Names the example \"Text that shrinks beside a fixed icon\": the text item gets min-width:0.",
+        "It can shrink beside a fixed icon without overflowing.",
+        "The close button stays visible.",
+        "Tab follows the source order."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: The default min-size can prevent shrinking, auto margins absorb space, and align-content affects lines rather than a single line.",
+      "prompt": "In a header row (logo, nav, login button), push the login button to the far end without extra wrappers. Which property?",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Auto margins.",
+        "Logical property."
       ],
       "expectedEvidence": [
-        "Flex sizing combines basis, grow, shrink, intrinsic minimums, gaps, and alignment to distribute available or negative space.",
-        "The default min-size can prevent shrinking, auto margins absorb space, and align-content affects lines rather than a single line."
+        "`margin-inline-start: auto` on the login button.",
+        "Works in LTR and RTL."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Flex alignment and order and explain why the misconception fails.",
+      "prompt": "Build a media object (image + text + actions). Stress-test with long text and narrow widths, fix overflow with min-width and wrapping, and verify Tab order matches visual order.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "No order property.",
+        "Test at 320px."
       ],
       "expectedEvidence": [
-        "Debug alignment and verify meaningful source and focus order.",
-        "Account for basis and intrinsic minimums; flex growth alone does not guarantee equal final sizes."
+        "No overflow in stress tests.",
+        "Focus order matches the visual layout."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.flex.alignment.misconception",
-      "explanation": "Account for basis and intrinsic minimums; flex growth alone does not guarantee equal final sizes.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'intrinsic minimums' and state the decisive evidence."
+      "explanation": "When a flex row misbehaves: **1) which item is too wide? → min-width: 0 + wrap. 2) Is anything visually reordered? → fix HTML order instead.**",
+      "retryPrompt": "Apply both checks to \"The reordered form buttons\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to debug alignment and verify meaningful source and focus order. Keep this boundary in view: The default min-size can prevent shrinking, auto margins absorb space, and align-content affects lines rather than a single line.",
+    "summary": "To debug alignment and verify meaningful source and focus order, use align-self and auto margins for placement, add min-width: 0 and wrapping so text can shrink beside fixed items, and avoid order/row-reverse for meaningful content — reorder the HTML instead.",
     "retrievalPrompts": [
-      "Explain Flex alignment and order using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: flex:1 guarantees equal final widths regardless of content and minimum size.",
-      "Apply checkpoint 'intrinsic minimums' to a new artifact."
+      "Why doesn't flex: 1 guarantee equal widths?",
+      "What does margin-inline-start: auto do?",
+      "Does order change Tab order?"
     ],
     "nextReviewPrompt": "Next: continue to “Grid tracks and placement”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

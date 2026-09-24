@@ -38,33 +38,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "An object's storage duration and lifetime determine when storage exists and values may be accessed; pointers do not extend the lifetime of the objects they designate.",
+    "summary": "Every object has a **lifetime**: the time its storage exists. **Automatic** objects (locals) live until their block `{ }` ends. **Static** objects live for the whole program. **Allocated** objects (from malloc) live until `free`. A pointer **doesn't keep anything alive**: when the object's lifetime ends, every pointer to it becomes **dangling**, even though the address bits look unchanged. So think in terms of **ownership**. The **owner** is responsible for releasing the resource; **borrowers** may use it only while the owner keeps it alive. Write down who owns what and **where it's released**.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A pointer to a block automatic array becomes dangling when execution leaves that block even if the address bits remain unchanged. Your goal is to identify owner, borrowers and release point for each resource in a routine. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner keeps a pointer to a buffer declared inside an `if` block so they can use it later. Printing through it works in a debug build and shows garbage in an optimised one. A pointer to a block automatic array becomes dangling when execution leaves that block even if the address bits remain unchanged. In this lesson you'll identify owner, borrowers and release point for each resource in a routine.\n\n```predict\n{\"question\": \"A pointer still holds an object's address after the object's block ends. Is the object alive?\", \"options\": [\"Yes, the pointer keeps it\", \"No: the pointer is now dangling\"], \"answer\": 1, \"why\": \"Lifetime belongs to the object, not to pointers that refer to it.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Pointers, arrays and arithmetic; Structures; Addresses and dereference; Scope, linkage and storage duration. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Pointers, arrays and arithmetic**, **Structures**, **Addresses and dereference** and **Scope, linkage and storage duration** (automatic vs static)."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "An object's storage duration and lifetime determine when storage exists and values may be accessed; pointers do not extend the lifetime of the objects they designate. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The model: owner, borrowers, release point",
+        "body": "```c\n#include <stdio.h>\n#include <string.h>\n\nvoid print_label(const char *text) {      /* BORROWER: uses text during the call. */\n    printf(\"[%s]\\n\", text);\n}\n\nint main(void) {\n    const char *saved = NULL;\n    if (1) {\n        char buf[16];                     /* automatic: lives until this } ends. */\n        strcpy(buf, \"hello\");\n        print_label(buf);                 /* fine: buf is alive. */\n        saved = buf;                      /* copy of the address... */\n    }                                     /* buf's lifetime ends HERE. */\n    /* printf(\"%s\", saved);  undefined: saved is dangling. */\n\n    static char keep[16] = \"kept\";       /* static: lives for the whole program. */\n    saved = keep;\n    print_label(saved);                   /* fine. */\n    return 0;\n}\n```\n\n| Storage | Lifetime ends | Owner releases by |\n|---|---|---|\n| automatic. | end of its block. | leaving the block (automatic). |\n| static. | program end. | nothing needed. |\n| allocated. | `free`. | calling free exactly once. |\n\n```reveal\n{\"prompt\": \"Why might the dangling print \\\"work\\\" in a debug build?\", \"answer\": \"The stack memory hasn't been reused yet, so the old bytes are still there. Undefined behaviour can look correct, then change with optimisation or another function call.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Automatic, static, thread, and allocated storage have different start and end rules, and effective type or indeterminate values can invalidate access even while bytes exist. Therefore the draft explicitly rejects this beginner failure model: Keeping a pointer variable alive keeps its pointed-to object alive as well."
+        "heading": "Borrowers must not keep",
+        "body": "```predict\n{\"question\": \"A function receives `const char *name` and stores it in a global for later use. Is that safe?\", \"options\": [\"Yes\", \"Only if the caller guarantees name lives long enough; otherwise copy the text\"], \"answer\": 1, \"why\": \"A borrower that keeps a pointer must document that lifetime requirement.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Relate automatic, static and allocated objects to valid reference lifetimes.",
-      "Identify owner, borrowers and release point for each resource in a routine."
+      "Relate automatic, static and allocated lifetimes to when pointers become dangling.",
+      "Label owners, borrowers and release points for each resource in a routine."
     ],
     "excludes": [
-      "Automatic, static, thread, and allocated storage have different start and end rules, and effective type or indeterminate values can invalidate access even while bytes exist."
+      "malloc and free mechanics (next lesson).",
+      "Thread lifetimes."
     ]
   },
   "outcomes": [
@@ -73,133 +74,135 @@
   "examples": [
     {
       "id": "c.memory.lifetime.example-a",
-      "title": "Object lifetime and ownership: defined case",
+      "title": "The array that left its block",
       "situation": "A pointer to a block automatic array becomes dangling when execution leaves that block even if the address bits remain unchanged.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A pointer to a block automatic array becomes dangling when execution leaves that block even if the address bits remain unchanged.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Track object lifetime independently from pointer lifetime; a surviving pointer can be dangling after scope exit or free."
+        "**A pointer to a block automatic array:** saved = buf inside the if block.",
+        "**Becomes dangling when execution leaves that block:** buf's lifetime ends at the closing brace.",
+        "**Even if the address bits remain unchanged:** saved still prints the same address, but reading through it will be undefined; point at static keep or copy the text instead."
       ],
-      "result": "The defined result follows because Track object lifetime independently from pointer lifetime; a surviving pointer can be dangling after scope exit or free."
+      "result": "The label prints reliably in every build."
     },
     {
       "id": "c.memory.lifetime.example-b",
-      "title": "Object lifetime and ownership: boundary case",
-      "situation": "Allocated storage remains until free, but every pointer to it becomes invalid for access immediately after deallocation.",
+      "title": "The config pointer",
+      "situation": "load_config() reads a file into a local char array and returns a struct holding a pointer into that array.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: Allocated storage remains until free, but every pointer to it becomes invalid for access immediately after deallocation.",
-        "Step 2 — Keep this standard boundary visible: Automatic, static, thread, and allocated storage have different start and end rules, and effective type or indeterminate values can invalidate access even while bytes exist.",
-        "Step 3 — Reject the tempting rule: Keeping a pointer variable alive keeps its pointed-to object alive as well."
+        "The array dies when load_config returns, so the struct holds dangling pointers.",
+        "Owner options: store the text inside the struct (char name[64]) or allocate it and make the caller the owner.",
+        "Document: \"caller frees config with free_config()\"."
       ],
-      "result": "This case demonstrates the declared outcome: Identify owner, borrowers and release point for each resource in a routine."
+      "result": "Every field of the config stays valid as long as the config itself."
     }
   ],
   "misconceptions": [
     {
       "id": "c.memory.lifetime.misconception",
       "mistakenBelief": "Keeping a pointer variable alive keeps its pointed-to object alive as well.",
-      "correction": "Track object lifetime independently from pointer lifetime; a surviving pointer can be dangling after scope exit or free.",
-      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: Keeping a pointer variable alive keeps its pointed-to object alive as well."
+      "correction": "Pointers don't affect lifetime. When the object's block ends, or it's freed, every pointer to it becomes dangling.",
+      "diagnosticPrompt": "In the opening predict, what ended buf's lifetime?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A manually managed workshop can model Object lifetime and ownership: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "example": "Lifetime is like **a library book loan**. The library (owner) decides when the book is returned. Your note of its shelf number (pointer) doesn't keep the book on the shelf: after it's returned, the shelf may hold something else. Borrowers read only during the loan.",
     "usefulFor": [
-      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+      "remembering the note doesn't keep the book",
+      "owner decides the return"
     ],
     "limitations": [
-      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
-      "Automatic, static, thread, and allocated storage have different start and end rules, and effective type or indeterminate values can invalidate access even while bytes exist."
+      "Libraries tell you the due date; C doesn't.",
+      "Static storage is a book the library never lends out."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A pointer to a block automatic array becomes dangling when execution leaves that block even if the address bits remain unchanged.",
-      "An object's storage duration and lifetime determine when storage exists and values may be accessed; pointers do not extend the lifetime of the objects they designate.",
-      "Track object lifetime independently from pointer lifetime; a surviving pointer can be dangling after scope exit or free."
+      "if block: char buf[16]; saved = buf;",
+      "leave the block",
+      "use saved?"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Borrow",
         "state": {
-          "evidence": "A pointer to a block automatic array becomes dangling when execution leaves that block even if the address bits remain unchanged."
+          "buf": "alive",
+          "saved": "&buf[0]"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "A pointer to a block automatic array is stored while buf is alive."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "End",
         "state": {
-          "rule": "An object's storage duration and lifetime determine when storage exists and values may be accessed; pointers do not extend the lifetime of the objects they designate."
+          "buf": "lifetime over",
+          "saved": "same address bits"
         },
-        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+        "explanation": "The pointer becomes dangling when execution leaves that block."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Fix",
         "state": {
-          "conclusion": "Track object lifetime independently from pointer lifetime; a surviving pointer can be dangling after scope exit or free."
+          "saved": "&keep[0] (static)"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: Keeping a pointer variable alive keeps its pointed-to object alive as well."
+        "explanation": "Pointing at an object that lives long enough makes later use valid."
       }
     ],
-    "textAlternative": "Starting artifact: A pointer to a block automatic array becomes dangling when execution leaves that block even if the address bits remain unchanged. Step 1, Source and state. State: evidence: A pointer to a block automatic array becomes dangling when execution leaves that block even if the address bits remain unchanged.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: An object's storage duration and lifetime determine when storage exists and values may be accessed; pointers do not extend the lifetime of the objects they designate.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Track object lifetime independently from pointer lifetime; a surviving pointer can be dangling after scope exit or free.. Check the conclusion against the boundary and reject this misconception: Keeping a pointer variable alive keeps its pointed-to object alive as well."
+    "textAlternative": "Tracing a dangling pointer. Step 1, Borrow: buf is alive; saved is &buf[0]. A pointer to a block automatic array is stored while buf is alive. Step 2, End: buf is lifetime over; saved is same address bits. The pointer becomes dangling when execution leaves that block. Step 3, Fix: saved is &keep[0] (static). Pointing at an object that lives long enough makes later use valid."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Object lifetime and ownership: defined case”: state its starting evidence, apply the Object lifetime and ownership rule, and give the observable result in three short lines.",
+      "prompt": "For \"The array that left its block\", explain how a pointer to a block automatic array becomes dangling when execution leaves that block even if the address bits remain unchanged.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Point.",
+        "End.",
+        "Fix."
       ],
       "expectedEvidence": [
-        "Named example: Object lifetime and ownership: defined case.",
-        "Starting evidence: A pointer to a block automatic array becomes dangling when execution leaves that block even if the address bits remain unchanged.",
-        "Core rule: An object's storage duration and lifetime determine when storage exists and values may be accessed; pointers do not extend the lifetime of the objects they designate.",
-        "Observable result: The defined result follows because Track object lifetime independently from pointer lifetime; a surviving pointer can be dangling after scope exit or free.",
-        "Boundary check: Track object lifetime independently from pointer lifetime; a surviving pointer can be dangling after scope exit or free."
+        "Names the example \"The array that left its block\": garbage appeared in optimised builds.",
+        "A pointer to a block automatic array becomes dangling when execution leaves that block.",
+        "The address bits remain unchanged even though the object is gone.",
+        "The label prints reliably in every build."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same C rule to this related boundary case: Allocated storage remains until free, but every pointer to it becomes invalid for access immediately after deallocation.",
+      "prompt": "For a given function with a local array, a static counter and a malloc'd buffer, write a table: owner, borrowers, lifetime end, release point. Mark any pointer used after its object's lifetime.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Look for addresses stored beyond their block.",
+        "malloc'd memory lives until free."
       ],
       "expectedEvidence": [
-        "An object's storage duration and lifetime determine when storage exists and values may be accessed; pointers do not extend the lifetime of the objects they designate.",
-        "Automatic, static, thread, and allocated storage have different start and end rules, and effective type or indeterminate values can invalidate access even while bytes exist."
+        "Table complete.",
+        "Dangling uses identified."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new C example for Object lifetime and ownership, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Rewrite load_config so every pointer it returns is valid until free_config is called. Document ownership in the header, and test with -fsanitize=address, including a deliberate use-after-free to see the report.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Allocate the text or embed arrays.",
+        "free_config frees in reverse order."
       ],
       "expectedEvidence": [
-        "Identify owner, borrowers and release point for each resource in a routine.",
-        "Track object lifetime independently from pointer lifetime; a surviving pointer can be dangling after scope exit or free."
+        "Ownership documented.",
+        "Sanitizer clean except the deliberate test."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "c.memory.lifetime.misconception",
-      "explanation": "Track object lifetime independently from pointer lifetime; a surviving pointer can be dangling after scope exit or free.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'object lifetime' and state the decisive evidence: Allocated storage remains until free, but every pointer to it becomes invalid for access immediately after deallocation."
+      "explanation": "For every pointer write: **who owns the object, when does its lifetime end, and is every use before that point?**",
+      "retryPrompt": "Apply this to \"The config pointer\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to identify owner, borrowers and release point for each resource in a routine. Keep this boundary in view: Automatic, static, thread, and allocated storage have different start and end rules, and effective type or indeterminate values can invalidate access even while bytes exist.",
+    "summary": "To identify owners, borrowers and release points, remember automatic objects end with their block, static ones with the program and allocated ones at free, pointers never extend lifetime and become dangling when their object ends, and each resource needs one clear owner who releases it.",
     "retrievalPrompts": [
-      "Explain Object lifetime and ownership using a concrete C rule rather than the optional analogy.",
-      "Why is this claim incorrect: Keeping a pointer variable alive keeps its pointed-to object alive as well.",
-      "Apply the checkpoint 'object lifetime' to the boundary case from memory."
+      "When does an automatic object's lifetime end?",
+      "Does a pointer keep its object alive?",
+      "What's the difference between an owner and a borrower?"
     ],
     "nextReviewPrompt": "Next: continue to “Allocation and deallocation”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

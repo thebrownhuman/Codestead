@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Composition builds behavior from owned or referenced components and is preferred when the relationship is has-a or implemented-in-terms-of rather than substitutable is-a.",
+    "summary": "There are two ways to reuse a class. **Inheritance** says \"B **is a** kind of A\" and can be used wherever an A is expected. **Composition** says \"B **has an** A\" (or is \"implemented using\" one): B holds an A as a member and **delegates** to it. Prefer composition whenever you don't need substitution. It exposes **only** what you choose (not every public method of A), keeps A replaceable, and avoids odd claims like \"a Report is a Formatter\". The cost is a few short **forwarding** functions, which is usually a feature: they document exactly what B offers.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A Report owns a Formatter component and delegates formatting without claiming that a Report is a kind of Formatter. Your goal is to refactor an inheritance-shaped design into composition when substitution is not needed. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner writes `class Report : public Formatter` to reuse its format() code. Soon every Formatter method (set_locale, reset_buffer...) is callable on Report objects, and a function taking `Formatter&` accepts Reports, which makes no sense. A Report owns a Formatter component and delegates formatting without claiming that a Report is a kind of Formatter. In this lesson you'll refactor an inheritance-shaped design into composition when substitution is not needed.\n\n```predict\n{\"question\": \"Should a Car inherit from Engine to reuse start()?\", \"options\": [\"Yes, reuse is reuse\", \"No: a car has an engine; hold one and delegate start()\"], \"answer\": 1, \"why\": \"Ask \\\"is-a\\\" or \\\"has-a\\\" before choosing.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Class interface and invariants; unique_ptr, shared_ptr and non-owning access. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Class interface and invariants** (public operations protect state) and **unique_ptr, shared_ptr and non-owning access** (owning members)."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "Composition builds behavior from owned or referenced components and is preferred when the relationship is has-a or implemented-in-terms-of rather than substitutable is-a. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The distinction: has-a with delegation vs is-a",
+        "body": "```cpp\n#include <string>\n#include <vector>\n\nclass Formatter {\npublic:\n    std::string format(double value) const;   // e.g. \"12.50\".\n    void set_locale(const std::string& loc);\n    void reset_buffer();\n};\n\n// Composition: Report HAS a Formatter.\nclass Report {\npublic:\n    void add(double v) { values_.push_back(v); }\n    std::string render() const {\n        std::string out;\n        for (double v : values_) out += fmt_.format(v) + '\\n';   // delegate.\n        return out;\n    }\nprivate:\n    Formatter fmt_;                 // owned component, hidden from callers.\n    std::vector<double> values_;\n};\n// Report exposes add and render only; set_locale and reset_buffer stay private details.\n```\n\n| Question | Yes means |\n|---|---|\n| can B be used everywhere an A is expected? | consider public inheritance. |\n| does B just need A's help? | composition. |\n| would callers be confused by A's methods on B? | composition. |\n\n```reveal\n{\"prompt\": \"How could Report switch between different formatters later?\", \"answer\": \"Hold a std::unique_ptr<Formatter> (or a reference) to an abstract Formatter interface and pass the concrete one in the constructor. Composition makes that swap easy.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Composition still needs ownership and lifetime design, forwarding can enlarge interfaces, and runtime strategy replacement can require indirection. Therefore the draft explicitly rejects this beginner failure model: Inheritance is always the best reuse mechanism because composition requires writing forwarding methods."
+        "heading": "Leaky interfaces",
+        "body": "```predict\n{\"question\": \"Report publicly inherits Formatter. Can callers call report.reset_buffer()?\", \"options\": [\"No\", \"Yes: every public Formatter method becomes part of Report's interface\"], \"answer\": 1, \"why\": \"Inheritance exposes the base's whole public interface.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Build behavior from owned member objects with explicit responsibilities.",
-      "Refactor an inheritance-shaped design into composition when substitution is not needed."
+      "Distinguish is-a (inheritance) from has-a (composition) relationships.",
+      "Refactor inheritance used only for reuse into owned components with delegation."
     ],
     "excludes": [
-      "Composition still needs ownership and lifetime design, forwarding can enlarge interfaces, and runtime strategy replacement can require indirection."
+      "Private inheritance.",
+      "Mixins and CRTP."
     ]
   },
   "outcomes": [
@@ -63,133 +64,134 @@
   "examples": [
     {
       "id": "cpp.polymorphism.composition.example-a",
-      "title": "Composition and delegation: defined case",
+      "title": "A Report that has a Formatter",
       "situation": "A Report owns a Formatter component and delegates formatting without claiming that a Report is a kind of Formatter.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A Report owns a Formatter component and delegates formatting without claiming that a Report is a kind of Formatter.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Choose composition for has-a collaboration and inheritance only for a sound substitutable abstraction with an intentionally virtual interface."
+        "**A Report owns a Formatter component:** fmt_ is a private member.",
+        "**Delegates formatting:** render() calls fmt_.format(v) for each value.",
+        "**Without claiming that a Report is a kind of Formatter:** functions taking Formatter& will no longer accept Reports, and set_locale isn't exposed."
       ],
-      "result": "The defined result follows because Choose composition for has-a collaboration and inheritance only for a sound substitutable abstraction with an intentionally virtual interface."
+      "result": "Report's interface is exactly add and render, and the design says what it means."
     },
     {
       "id": "cpp.polymorphism.composition.example-b",
-      "title": "Composition and delegation: boundary case",
-      "situation": "A service receives a Clock interface component for testing rather than inheriting unrelated clock state.",
+      "title": "The Stack that was a vector",
+      "situation": "`class Stack : public std::vector<int>` lets callers insert into the middle, breaking stack order.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A service receives a Clock interface component for testing rather than inheriting unrelated clock state.",
-        "Step 2 — Keep this standard boundary visible: Composition still needs ownership and lifetime design, forwarding can enlarge interfaces, and runtime strategy replacement can require indirection.",
-        "Step 3 — Reject the tempting rule: Inheritance is always the best reuse mechanism because composition requires writing forwarding methods."
+        "A stack isn't substitutable for a vector: it has fewer, stricter operations.",
+        "Hold a std::vector<int> member and offer push, pop and top only.",
+        "Each method delegates in one line."
       ],
-      "result": "This case demonstrates the declared outcome: Refactor an inheritance-shaped design into composition when substitution is not needed."
+      "result": "The stack's invariant (last in, first out) can't be broken."
     }
   ],
   "misconceptions": [
     {
       "id": "cpp.polymorphism.composition.misconception",
       "mistakenBelief": "Inheritance is always the best reuse mechanism because composition requires writing forwarding methods.",
-      "correction": "Choose composition for has-a collaboration and inheritance only for a sound substitutable abstraction with an intentionally virtual interface.",
-      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: Inheritance is always the best reuse mechanism because composition requires writing forwarding methods."
+      "correction": "Inheritance claims substitutability and exposes the whole base interface. Composition reuses behaviour while exposing only chosen operations; short forwarding methods are a small, explicit cost.",
+      "diagnosticPrompt": "In \"The Stack that was a vector\", which invariant did inheritance break?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A system of self-managing components can model Composition and delegation: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "example": "Composition is like **a restaurant that has a dishwasher**. The restaurant uses it (delegates) but customers don't press the dishwasher's buttons. Inheritance would be declaring **\"this restaurant is a dishwasher\"**: now every dishwasher button is on the menu.",
     "usefulFor": [
-      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+      "remembering has-a vs is-a",
+      "only chosen buttons on the menu"
     ],
     "limitations": [
-      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
-      "Composition still needs ownership and lifetime design, forwarding can enlarge interfaces, and runtime strategy replacement can require indirection."
+      "Restaurants can replace dishwashers; composed components are swappable too.",
+      "Some things really are a kind of another: that's when inheritance fits."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A Report owns a Formatter component and delegates formatting without claiming that a Report is a kind of Formatter.",
-      "Composition builds behavior from owned or referenced components and is preferred when the relationship is has-a or implemented-in-terms-of rather than substitutable is-a.",
-      "Choose composition for has-a collaboration and inheritance only for a sound substitutable abstraction with an intentionally virtual interface."
+      "Report r; r.add(12.5); r.add(3);",
+      "r.render()",
+      "print_formatter(r)?"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Build",
         "state": {
-          "evidence": "A Report owns a Formatter component and delegates formatting without claiming that a Report is a kind of Formatter."
+          "values_": "12.5, 3"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "The Report owns a Formatter component and its own data."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Render",
         "state": {
-          "rule": "Composition builds behavior from owned or referenced components and is preferred when the relationship is has-a or implemented-in-terms-of rather than substitutable is-a."
+          "calls": "fmt_.format twice",
+          "output": "12.50\\n3.00\\n"
         },
-        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+        "explanation": "It delegates formatting to the component for each value."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Reject",
         "state": {
-          "conclusion": "Choose composition for has-a collaboration and inheritance only for a sound substitutable abstraction with an intentionally virtual interface."
+          "print_formatter(r)": "compile error"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: Inheritance is always the best reuse mechanism because composition requires writing forwarding methods."
+        "explanation": "A Report is not claimed to be a kind of Formatter."
       }
     ],
-    "textAlternative": "Starting artifact: A Report owns a Formatter component and delegates formatting without claiming that a Report is a kind of Formatter. Step 1, Source and state. State: evidence: A Report owns a Formatter component and delegates formatting without claiming that a Report is a kind of Formatter.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: Composition builds behavior from owned or referenced components and is preferred when the relationship is has-a or implemented-in-terms-of rather than substitutable is-a.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Choose composition for has-a collaboration and inheritance only for a sound substitutable abstraction with an intentionally virtual interface.. Check the conclusion against the boundary and reject this misconception: Inheritance is always the best reuse mechanism because composition requires writing forwarding methods."
+    "textAlternative": "Tracing composition and delegation. Step 1, Build: values_ is 12.5, 3. The Report owns a Formatter component and its own data. Step 2, Render: calls is fmt_.format twice; output is 12.50\\n3.00\\n. It delegates formatting to the component for each value. Step 3, Reject: print_formatter(r) is compile error. A Report is not claimed to be a kind of Formatter."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Composition and delegation: defined case”: state its starting evidence, apply the Composition and delegation rule, and give the observable result in three short lines.",
+      "prompt": "For \"A Report that has a Formatter\", explain how a Report owns a Formatter component and delegates formatting without claiming that a Report is a kind of Formatter.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Own.",
+        "Delegate.",
+        "Interface."
       ],
       "expectedEvidence": [
-        "Named example: Composition and delegation: defined case.",
-        "Starting evidence: A Report owns a Formatter component and delegates formatting without claiming that a Report is a kind of Formatter.",
-        "Core rule: Composition builds behavior from owned or referenced components and is preferred when the relationship is has-a or implemented-in-terms-of rather than substitutable is-a.",
-        "Observable result: The defined result follows because Choose composition for has-a collaboration and inheritance only for a sound substitutable abstraction with an intentionally virtual interface.",
-        "Boundary check: Choose composition for has-a collaboration and inheritance only for a sound substitutable abstraction with an intentionally virtual interface."
+        "Names the example \"A Report that has a Formatter\": inheritance leaked Formatter's methods.",
+        "A Report owns a Formatter component and delegates formatting.",
+        "It does so without claiming that a Report is a kind of Formatter.",
+        "Report's interface is exactly add and render."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same CPP rule to this related boundary case: A service receives a Clock interface component for testing rather than inheriting unrelated clock state.",
+      "prompt": "Classify each as is-a or has-a and justify: Car/Engine, Circle/Shape, Logger/File, Manager/Employee (in a payroll system), Playlist/std::vector.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Can one be used everywhere the other is?",
+        "Explain the tricky ones."
       ],
       "expectedEvidence": [
-        "Composition builds behavior from owned or referenced components and is preferred when the relationship is has-a or implemented-in-terms-of rather than substitutable is-a.",
-        "Composition still needs ownership and lifetime design, forwarding can enlarge interfaces, and runtime strategy replacement can require indirection."
+        "Five classifications.",
+        "Reasons given."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CPP example for Composition and delegation, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Refactor `class Stack : public std::vector<int>` into composition, write tests proving the stack only allows push, pop, top, size and empty, and then change the internal container to std::deque without changing any test.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Private member container.",
+        "Tests use the public API only."
       ],
       "expectedEvidence": [
-        "Refactor an inheritance-shaped design into composition when substitution is not needed.",
-        "Choose composition for has-a collaboration and inheritance only for a sound substitutable abstraction with an intentionally virtual interface."
+        "Tests pass with both containers.",
+        "Middle insertion impossible."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "cpp.polymorphism.composition.misconception",
-      "explanation": "Choose composition for has-a collaboration and inheritance only for a sound substitutable abstraction with an intentionally virtual interface.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'has-a' and state the decisive evidence: A service receives a Clock interface component for testing rather than inheriting unrelated clock state."
+      "explanation": "Before inheriting ask: **could every function that takes the base safely receive this class?** If not, or if you only want its code, **hold it as a member and delegate**.",
+      "retryPrompt": "Apply this to \"The Stack that was a vector\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to refactor an inheritance-shaped design into composition when substitution is not needed. Keep this boundary in view: Composition still needs ownership and lifetime design, forwarding can enlarge interfaces, and runtime strategy replacement can require indirection.",
+    "summary": "To refactor inheritance used only for reuse, check whether the relationship is has-a rather than substitutable is-a, hold the component as a private member, delegate to it through a small chosen interface, and keep public inheritance for types that truly substitute for their base.",
     "retrievalPrompts": [
-      "Explain Composition and delegation using a concrete CPP rule rather than the optional analogy.",
-      "Why is this claim incorrect: Inheritance is always the best reuse mechanism because composition requires writing forwarding methods.",
-      "Apply the checkpoint 'has-a' to the boundary case from memory."
+      "What does public inheritance claim?",
+      "What does composition expose?",
+      "When is a forwarding method worth writing?"
     ],
     "nextReviewPrompt": "Next: continue to “Public inheritance and substitution”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

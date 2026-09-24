@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Collision resolution uses separate chaining or open addressing to distinguish unequal keys sharing a bucket.",
+    "summary": "When two different keys map to the same bucket, the table must keep **both**. **Separate chaining**: each bucket holds a small list; insert appends, find walks that list comparing keys with equality. **Open addressing with linear probing**: if slot i is taken by another key, try i + 1, i + 2, ... (wrapping around). Find follows the same path until it meets the key or a **truly empty** slot. Deleting in open addressing leaves a **tombstone** (a \"deleted\" marker), because making the slot empty would cut the probe path and hide keys stored after it.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Linear probing continues until the key or a truly empty slot, not merely the first deleted slot, is resolved. Your goal is to trace insert, find and delete through collisions in a teaching hash table. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A teaching hash table stores course codes with linear probing. After deleting \"CS101\", looking up \"CS205\", which had been placed after it because of a collision, returns \"not found\", even though it's still in the table. Linear probing continues until the key or a truly empty slot, not merely the first deleted slot, is resolved. In this lesson you'll trace insert, find and delete through collisions in a teaching hash table.\n\n```predict\n{\"question\": \"Two different keys hash to bucket 3. Does the second insert overwrite the first?\", \"options\": [\"Yes, it's the same bucket\", \"No: chaining adds it to bucket 3's list; probing moves it to the next free slot\"], \"answer\": 1, \"why\": \"Collision handling keeps both keys and uses equality to tell them apart.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Array representation and operations; Linked lists; Hash and equality contract; Singly linked representation. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Array representation and operations**, the **Linked lists** module, the **Hash and equality contract**, and **Singly linked representation**, since chains are small linked lists."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Collision resolution uses separate chaining or open addressing to distinguish unequal keys sharing a bucket. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The model: probe until the key or a truly empty slot",
+        "body": "```python\nEMPTY, DELETED = object(), object()\n\nclass ProbingTable:\n    def __init__(self, capacity=8):\n        self.slots = [EMPTY] * capacity           # each slot: EMPTY, DELETED or (key, value).\n\n    def _probe(self, key):\n        i = hash(key) % len(self.slots)\n        for _ in range(len(self.slots)):\n            yield i\n            i = (i + 1) % len(self.slots)          # linear probing, wraps around.\n\n    def find(self, key):\n        for i in self._probe(key):\n            s = self.slots[i]\n            if s is EMPTY:\n                return None                      # a real gap: key can't be further on.\n            if s is not DELETED and s[0] == key:   # DELETED or other key: keep going.\n                return s[1]\n        return None                              # checked every slot.\n\n    def delete(self, key):\n        for i in self._probe(key):\n            s = self.slots[i]\n            if s is EMPTY:\n                return False\n            if s is not DELETED and s[0] == key:\n                self.slots[i] = DELETED          # tombstone, not EMPTY.\n                return True\n        return False\n```\n\n| Strategy | Insert | Find stops at | Delete |\n|---|---|---|---|\n| chaining. | append to bucket list. | end of that list. | remove from the list. |\n| linear probing. | first EMPTY or DELETED slot. | the key or an EMPTY slot. | leave a tombstone. |\n\n```reveal\n{\"prompt\": \"Can insert reuse a DELETED slot?\", \"answer\": \"Yes, after first checking the key isn't already stored further along the probe path, so you don't create a duplicate.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Probe deletion needs tombstones, clustering affects cost, and adversarial hashes can degrade expected constant time. The draft therefore rejects: Two different keys with one hash value overwrite each other automatically."
+        "heading": "Chaining in one picture",
+        "body": "```predict\n{\"question\": \"With chaining, bucket 3 holds CS101 -> CS205. Deleting CS101 affects finding CS205?\", \"options\": [\"Yes, the chain breaks\", \"No: remove CS101 from the list; CS205 is still in bucket 3\"], \"answer\": 1, \"why\": \"Chains have no probe path to break, so tombstones aren't needed.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Explain chaining and open addressing with load factor, probing and clustering trade-offs.",
-      "Trace insert, find and delete through collisions in a teaching hash table.",
-      "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
+      "Trace separate chaining and linear probing through collisions.",
+      "Delete safely with tombstones and find keys past deleted slots."
     ],
     "excludes": [
-      "Probe deletion needs tombstones, clustering affects cost, and adversarial hashes can degrade expected constant time."
+      "Quadratic probing and double hashing in depth.",
+      "Cuckoo and Robin Hood hashing."
     ]
   },
   "outcomes": [
@@ -68,142 +64,135 @@
   "examples": [
     {
       "id": "dsa.hashing.collisions.example-a",
-      "title": "Collision resolution: language-neutral trace",
+      "title": "The deleted slot that hid a key",
       "situation": "Linear probing continues until the key or a truly empty slot, not merely the first deleted slot, is resolved.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: Linear probing continues until the key or a truly empty slot, not merely the first deleted slot, is resolved.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: A collision strategy stores and compares colliding keys rather than treating the hash as unique identity."
+        "**Collision:** CS101 and CS205 both hash to slot 3, so CS205 is placed in slot 4.",
+        "**Bug:** deleting CS101 set slot 3 to EMPTY, so find(CS205) stopped at slot 3.",
+        "**Fix and test:** delete writes DELETED; find continues past it to slot 4, and a test will delete CS101 then find CS205 successfully."
       ],
-      "result": "The conceptual result follows because A collision strategy stores and compares colliding keys rather than treating the hash as unique identity."
+      "result": "Deleting one course never hides another, and lookups stay correct through collisions."
     },
     {
       "id": "dsa.hashing.collisions.example-b",
-      "title": "Collision resolution: implementation transfer",
-      "situation": "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__.",
+      "title": "The chain that grew too long",
+      "situation": "A chaining table uses `hash(code) % 8` where every course code ends in the same digit pattern, and one bucket holds 900 of 1,000 codes.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__.",
-        "Step 3 — Retest this boundary in the selected implementation: Probe deletion needs tombstones, clustering affects cost, and adversarial hashes can degrade expected constant time."
+        "All keys collided into one chain, so find is O(n) there.",
+        "The contract still holds, but the hash spreads keys badly.",
+        "Fix: hash the whole normalised code with the language's built-in hash, and resize as the table fills."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Chains stay short, and lookups return to expected O(1)."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.hashing.collisions.misconception",
       "mistakenBelief": "Two different keys with one hash value overwrite each other automatically.",
-      "correction": "A collision strategy stores and compares colliding keys rather than treating the hash as unique identity.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Two different keys with one hash value overwrite each other automatically."
+      "correction": "Collision resolution keeps both keys: chaining stores them together in the bucket, and probing places the second in another slot. Equality then tells them apart on lookup.",
+      "diagnosticPrompt": "In the opening predict, where did the second key go?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Collision resolution, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Linear probing is like **parking in a row when your usual space is taken**: you take the next free space. To find your car later, walk from your usual space until you see it or reach **a space that has never been used**. A space someone just left (tombstone) doesn't mean your car isn't further along.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering walk until truly empty",
+      "tombstone = a recently vacated space"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Probe deletion needs tombstones, clustering affects cost, and adversarial hashes can degrade expected constant time."
+      "Car parks don't wrap around; tables do.",
+      "Chaining is a multi-storey space: several cars share one number."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Linear probing continues until the key or a truly empty slot, not merely the first deleted slot, is resolved.",
-      "Collision resolution uses separate chaining or open addressing to distinguish unequal keys sharing a bucket.",
-      "A collision strategy stores and compares colliding keys rather than treating the hash as unique identity.",
-      "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
+      "insert CS101 (slot 3), CS205 (collides, slot 4)",
+      "delete CS101",
+      "find CS205"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Insert",
         "state": {
-          "scenario": "Linear probing continues until the key or a truly empty slot, not merely the first deleted slot, is resolved."
+          "slot 3": "CS101",
+          "slot 4": "CS205"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The second key probes past the collision into slot 4."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Delete",
         "state": {
-          "invariant": "Collision resolution uses separate chaining or open addressing to distinguish unequal keys sharing a bucket."
+          "slot 3": "DELETED"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "Deletion leaves a tombstone instead of an empty slot."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Find",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "checked": "slot 3 (DELETED), slot 4 (CS205)",
+          "result": "found"
         },
-        "explanation": "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "A collision strategy stores and compares colliding keys rather than treating the hash as unique identity."
-        },
-        "explanation": "Verify the result and reject this misconception: Two different keys with one hash value overwrite each other automatically."
+        "explanation": "Linear probing continues until the key or a truly empty slot is reached."
       }
     ],
-    "textAlternative": "Starting artifact: Linear probing continues until the key or a truly empty slot, not merely the first deleted slot, is resolved. Step 1, Specification. State: scenario: Linear probing continues until the key or a truly empty slot, not merely the first deleted slot, is resolved.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Collision resolution uses separate chaining or open addressing to distinguish unequal keys sharing a bucket.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__. Step 4, Conclusion. State: correction: A collision strategy stores and compares colliding keys rather than treating the hash as unique identity.. Verify the result and reject this misconception: Two different keys with one hash value overwrite each other automatically."
+    "textAlternative": "Tracing probing through a deletion. Step 1, Insert: slot 3 is CS101; slot 4 is CS205. The second key probes past the collision into slot 4. Step 2, Delete: slot 3 is DELETED. Deletion leaves a tombstone instead of an empty slot. Step 3, Find: checked is slot 3 (DELETED), slot 4 (CS205); result is found. Linear probing continues until the key or a truly empty slot is reached."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Collision resolution: language-neutral trace”: state its starting evidence, apply the Collision resolution rule, and give the observable result in three short lines.",
+      "prompt": "For \"The deleted slot that hid a key\", explain how linear probing continues until the key or a truly empty slot, not merely the first deleted slot, is resolved.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Collision.",
+        "Bug.",
+        "Fix."
       ],
       "expectedEvidence": [
-        "Named example: Collision resolution: language-neutral trace.",
-        "Starting evidence: Linear probing continues until the key or a truly empty slot, not merely the first deleted slot, is resolved.",
-        "Core rule: Collision resolution uses separate chaining or open addressing to distinguish unequal keys sharing a bucket.",
-        "Observable result: The conceptual result follows because A collision strategy stores and compares colliding keys rather than treating the hash as unique identity.",
-        "Boundary check: A collision strategy stores and compares colliding keys rather than treating the hash as unique identity."
+        "Names the example \"The deleted slot that hid a key\": emptying the slot hid CS205.",
+        "Linear probing continues until the key or a truly empty slot.",
+        "It doesn't stop at the first deleted slot.",
+        "Deleting one course never hides another."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Collision resolution uses separate chaining or open addressing to distinguish unequal keys sharing a bucket.",
+      "prompt": "With capacity 7 and hash(k) = k % 7, insert 10, 17 and 24 with linear probing. Show the slots, then delete 17 and trace find(24).",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "All three hash to 3.",
+        "Tombstone at 17's slot."
       ],
       "expectedEvidence": [
-        "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__.",
-        "Probe deletion needs tombstones, clustering affects cost, and adversarial hashes can degrade expected constant time."
+        "Slots 3, 4, 5 hold 10, 17, 24.",
+        "find(24) passes the tombstone at 4 and succeeds at 5."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Collision resolution case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Implement a chaining table with insert, find and delete, and a probing table with tombstones. Test both with forced collisions (a tiny capacity) and compare how deletes behave.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Use capacity 4 to force collisions.",
+        "Same tests for both."
       ],
       "expectedEvidence": [
-        "Trace insert, find and delete through collisions in a teaching hash table.",
-        "A collision strategy stores and compares colliding keys rather than treating the hash as unique identity."
+        "Both pass identical tests.",
+        "A note on why only probing needs tombstones."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.hashing.collisions.misconception",
-      "explanation": "A collision strategy stores and compares colliding keys rather than treating the hash as unique identity.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'compares colliding keys', then state one implementation-specific risk in the selected language."
+      "explanation": "Trace the **probe path** for the key you're finding. Ask at each slot: **Is it the key? Truly empty (stop)? Deleted or another key (keep going)?**",
+      "retryPrompt": "Apply this to \"The chain that grew too long\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to trace insert, find and delete through collisions in a teaching hash table. Keep this boundary in view: Probe deletion needs tombstones, clustering affects cost, and adversarial hashes can degrade expected constant time.",
+    "summary": "To trace insert, find and delete through collisions, remember chaining keeps colliding keys in one bucket's list, while linear probing places them in following slots, finds by walking until the key or a truly empty slot, and deletes with tombstones so later keys on the path stay reachable.",
     "retrievalPrompts": [
-      "State the Collision resolution invariant and complexity without code.",
-      "Why is this claim false: Two different keys with one hash value overwrite each other automatically.",
-      "Map checkpoint 'compares colliding keys' to C, C++, Java, and Python."
+      "Where does a colliding key go with chaining? With probing?",
+      "When does a probing find stop?",
+      "Why use a tombstone instead of an empty slot?"
     ],
     "nextReviewPrompt": "Next: continue to “Resizing and expected complexity”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

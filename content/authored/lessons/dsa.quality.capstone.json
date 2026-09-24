@@ -33,38 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A DSA capstone specifies behavior and constraints, justifies structure and algorithm choice, proves key invariants, tests adversarial cases, and measures complexity.",
+    "summary": "The DSA capstone asks you to solve one realistic problem **and defend every choice**. A strong submission has six parts: a **specification** (inputs, outputs, constraints, edge cases), a justified **representation** (why adjacency lists, why a heap), a **correctness argument** (the key invariant and why it holds), an **adversarial test matrix** plus property tests, a **complexity analysis** checked by measurement, and a **comparison** with at least one alternative (what you'd lose or gain). Visible examples passing is where the work starts, not where it ends.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A route planner documents graph representation, shortest-path assumptions, tests disconnected and large graphs, and reports complexity. Your goal is to deliver, test and explain a selected-language solution with correctness argument, complexity analysis and alternative comparison. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner submits a campus route planner that passes the three example routes given in the brief. The reviewer asks: what happens with unreachable buildings, one-way paths, 50,000 corridors, or a zero-minute path? Nobody knows. A route planner documents graph representation, shortest-path assumptions, tests disconnected and large graphs, and reports complexity. In this lesson you'll deliver, test and explain a selected-language solution with correctness argument, complexity analysis and alternative comparison.\n\n```predict\n{\"question\": \"The planner passes every visible example. Is it portfolio-ready?\", \"options\": [\"Yes\", \"Not yet: it needs a spec, invariants, adversarial tests, measured complexity and a comparison\"], \"answer\": 1, \"why\": \"Visible examples show one path; a capstone shows the reasoning and evidence.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Greedy, backtracking and dynamic programming; Directed and weighted graph algorithms; Sequence and range problem patterns; Language-switch diagnostic; Adversarial and property tests; All-pairs path reasoning; Intervals and sweep ordering. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Greedy, backtracking and dynamic programming** module, the **Directed and weighted graph algorithms** module, the **Sequence and range problem patterns** module, **Language-switch diagnostic**, **Adversarial and property tests**, **All-pairs path reasoning**, and **Intervals and sweep ordering**."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "A DSA capstone specifies behavior and constraints, justifies structure and algorithm choice, proves key invariants, tests adversarial cases, and measures complexity. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The model: six pieces of evidence",
+        "body": "```text\nREADME outline: Campus route planner.\n\n1. Specification.\n   Input: buildings (V <= 50,000), directed paths with minutes >= 0.\n   Output: fastest time and route from A to B, or \"unreachable\".\n2. Representation.\n   Adjacency lists (sparse: E about 4V). Min-heap priority queue.\n3. Correctness.\n   Dijkstra invariant: a popped vertex's distance is final because weights >= 0.\n   Stale heap entries are skipped by comparing with the best table.\n4. Tests.\n   Matrix: same start and end, unreachable, zero-weight edge, one-way path,\n   disconnected campus, single building, 50,000-building grid.\n   Property: agrees with Bellman-Ford on 500 random small graphs.\n5. Complexity.\n   O((V + E) log V) time, O(V + E) space. Measured: 0.4 s for V = 50,000.\n6. Alternatives.\n   BFS: wrong for weights. Floyd-Warshall: O(V^3), too slow.\n```\n\n| Part | Question it answers |\n|---|---|\n| specification. | what exactly is promised? |\n| representation. | why these structures? |\n| correctness. | why is every answer right? |\n| tests. | which edges were tried on purpose? |\n| complexity. | how does it scale, and was that measured? |\n| alternatives. | why this approach and not another? |\n\n```reveal\n{\"prompt\": \"Why include alternatives you didn't use?\", \"answer\": \"It shows you chose, rather than defaulted. Stating what BFS or Floyd-Warshall would cost here makes your choice defensible.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "A working demo can hide scale failure, language-specific undefined behavior, weak evidence, or an unjustified copied solution. The draft therefore rejects: Passing the visible examples is sufficient evidence for a portfolio DSA project."
+        "heading": "Measure, don't just claim",
+        "body": "```predict\n{\"question\": \"Your analysis says O((V + E) log V). What makes that claim convincing?\", \"options\": [\"Writing it in the README\", \"Timing growing inputs and checking the trend matches\"], \"answer\": 1, \"why\": \"Doubling V and seeing slightly more than double the time supports the bound.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Solve an integrated problem with multiple candidate structures or strategies and defend the final choice.",
-      "Deliver, test and explain a selected-language solution with correctness argument, complexity analysis and alternative comparison.",
-      "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence."
+      "Specify, implement and test a solution with a correctness argument.",
+      "Analyse and measure complexity, and compare with alternatives."
     ],
     "excludes": [
-      "A working demo can hide scale failure, language-specific undefined behavior, weak evidence, or an unjustified copied solution."
+      "Production deployment.",
+      "Competitive-programming speed tricks."
     ]
   },
   "outcomes": [
@@ -73,142 +69,137 @@
   "examples": [
     {
       "id": "dsa.quality.capstone.example-a",
-      "title": "Comparative DSA capstone: language-neutral trace",
+      "title": "A campus route planner, defended",
       "situation": "A route planner documents graph representation, shortest-path assumptions, tests disconnected and large graphs, and reports complexity.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: A route planner documents graph representation, shortest-path assumptions, tests disconnected and large graphs, and reports complexity.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: A capstone needs reproducible correctness, adversarial tests, complexity evidence, and an independently explained implementation."
+        "**Graph representation and assumptions:** adjacency lists for a sparse campus, and non-negative minutes, which justify Dijkstra.",
+        "**Tests disconnected and large graphs:** the matrix includes unreachable buildings, a one-way path, a zero-minute path and a 50,000-building grid, plus a Bellman-Ford property check.",
+        "**Reports complexity:** O((V + E) log V) is stated and will be backed by timings at 12,500, 25,000 and 50,000 buildings."
       ],
-      "result": "The conceptual result follows because A capstone needs reproducible correctness, adversarial tests, complexity evidence, and an independently explained implementation."
+      "result": "The reviewer can see exactly what the planner promises, why it's correct, how it was tested and how it scales."
     },
     {
       "id": "dsa.quality.capstone.example-b",
-      "title": "Comparative DSA capstone: implementation transfer",
-      "situation": "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence.",
+      "title": "The interval booking capstone",
+      "situation": "Another learner builds a tutor-booking service: merge busy slots, find free gaps, book without overlap.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence.",
-        "Step 3 — Retest this boundary in the selected implementation: A working demo can hide scale failure, language-specific undefined behavior, weak evidence, or an unjustified copied solution."
+        "Spec: half-open slots in minutes, one tutor, bookings may touch.",
+        "Invariant: stored busy slots are sorted and non-overlapping after every change; tests include touching, nested and identical slots.",
+        "Compare: a sorted list with bisect (O(n) insert) vs a balanced tree (O(log n)), and measure both at 10,000 bookings."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "The submission explains its endpoint rule, its invariant and why its structure fits the expected load."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.quality.capstone.misconception",
       "mistakenBelief": "Passing the visible examples is sufficient evidence for a portfolio DSA project.",
-      "correction": "A capstone needs reproducible correctness, adversarial tests, complexity evidence, and an independently explained implementation.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Passing the visible examples is sufficient evidence for a portfolio DSA project."
+      "correction": "Visible examples exercise a few normal paths. A portfolio project needs a specification, a correctness argument, adversarial and property tests, measured complexity and a comparison with alternatives.",
+      "diagnosticPrompt": "In \"A campus route planner, defended\", which questions couldn't the learner answer?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Comparative DSA capstone, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "A capstone is like **a building's handover file**: not just \"the lights turn on\", but the plans (spec), materials list (representation), structural calculations (correctness), inspection reports (tests), load ratings (complexity) and why this design beat the alternatives.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering six pieces of evidence",
+      "measure = the load test"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "A working demo can hide scale failure, language-specific undefined behavior, weak evidence, or an unjustified copied solution."
+      "Buildings are inspected once; your tests run on every change.",
+      "A handover without calculations wouldn't be accepted either."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A route planner documents graph representation, shortest-path assumptions, tests disconnected and large graphs, and reports complexity.",
-      "A DSA capstone specifies behavior and constraints, justifies structure and algorithm choice, proves key invariants, tests adversarial cases, and measures complexity.",
-      "A capstone needs reproducible correctness, adversarial tests, complexity evidence, and an independently explained implementation.",
-      "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence."
+      "write spec and representation",
+      "argue correctness, build tests",
+      "measure and compare"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Plan",
         "state": {
-          "scenario": "A route planner documents graph representation, shortest-path assumptions, tests disconnected and large graphs, and reports complexity."
+          "spec": "non-negative minutes, unreachable allowed",
+          "structures": "adjacency lists, min-heap"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The route planner documents graph representation and shortest-path assumptions."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Evidence",
         "state": {
-          "invariant": "A DSA capstone specifies behavior and constraints, justifies structure and algorithm choice, proves key invariants, tests adversarial cases, and measures complexity."
+          "matrix": "disconnected, zero-weight, one-way, large",
+          "property": "vs Bellman-Ford"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "It tests disconnected and large graphs against a reference."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Report",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "bound": "O((V + E) log V)",
+          "timings": "match the trend",
+          "alternatives": "BFS, Floyd-Warshall"
         },
-        "explanation": "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "A capstone needs reproducible correctness, adversarial tests, complexity evidence, and an independently explained implementation."
-        },
-        "explanation": "Verify the result and reject this misconception: Passing the visible examples is sufficient evidence for a portfolio DSA project."
+        "explanation": "It reports complexity and compares approaches."
       }
     ],
-    "textAlternative": "Starting artifact: A route planner documents graph representation, shortest-path assumptions, tests disconnected and large graphs, and reports complexity. Step 1, Specification. State: scenario: A route planner documents graph representation, shortest-path assumptions, tests disconnected and large graphs, and reports complexity.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: A DSA capstone specifies behavior and constraints, justifies structure and algorithm choice, proves key invariants, tests adversarial cases, and measures complexity.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence. Step 4, Conclusion. State: correction: A capstone needs reproducible correctness, adversarial tests, complexity evidence, and an independently explained implementation.. Verify the result and reject this misconception: Passing the visible examples is sufficient evidence for a portfolio DSA project."
+    "textAlternative": "Assembling the capstone evidence. Step 1, Plan: spec is non-negative minutes, unreachable allowed; structures is adjacency lists, min-heap. The route planner documents graph representation and shortest-path assumptions. Step 2, Evidence: matrix is disconnected, zero-weight, one-way, large; property is vs Bellman-Ford. It tests disconnected and large graphs against a reference. Step 3, Report: bound is O((V + E) log V); timings is match the trend; alternatives is BFS, Floyd-Warshall. It reports complexity and compares approaches."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Comparative DSA capstone: language-neutral trace”: state its starting evidence, apply the Comparative DSA capstone rule, and give the observable result in three short lines.",
+      "prompt": "For \"A campus route planner, defended\", explain how a route planner documents graph representation, shortest-path assumptions, tests disconnected and large graphs, and reports complexity.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Representation.",
+        "Tests.",
+        "Complexity."
       ],
       "expectedEvidence": [
-        "Named example: Comparative DSA capstone: language-neutral trace.",
-        "Starting evidence: A route planner documents graph representation, shortest-path assumptions, tests disconnected and large graphs, and reports complexity.",
-        "Core rule: A DSA capstone specifies behavior and constraints, justifies structure and algorithm choice, proves key invariants, tests adversarial cases, and measures complexity.",
-        "Observable result: The conceptual result follows because A capstone needs reproducible correctness, adversarial tests, complexity evidence, and an independently explained implementation.",
-        "Boundary check: A capstone needs reproducible correctness, adversarial tests, complexity evidence, and an independently explained implementation."
+        "Names the example \"A campus route planner, defended\": visible examples alone weren't enough.",
+        "The route planner documents graph representation and shortest-path assumptions.",
+        "It tests disconnected and large graphs and reports complexity.",
+        "The reviewer can see what it promises and how it scales."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: A DSA capstone specifies behavior and constraints, justifies structure and algorithm choice, proves key invariants, tests adversarial cases, and measures complexity.",
+      "prompt": "Write the six-part outline (spec, representation, correctness, tests, complexity, alternatives) for a \"study streak\" feature that finds the longest run of consecutive study days.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Sliding window or a single pass.",
+        "Tests: empty, one day, gaps, all days."
       ],
       "expectedEvidence": [
-        "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence.",
-        "A working demo can hide scale failure, language-specific undefined behavior, weak evidence, or an unjustified copied solution."
+        "A complete outline.",
+        "O(n) justified."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Comparative DSA capstone case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Complete a capstone in your selected language: choose a realistic problem, write the spec, implement it with a stated invariant, build an adversarial matrix and property tests, measure scaling at three sizes, and compare with one alternative in a README.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Pick something you can test with a brute-force reference.",
+        "Keep the README honest about limits."
       ],
       "expectedEvidence": [
-        "Deliver, test and explain a selected-language solution with correctness argument, complexity analysis and alternative comparison.",
-        "A capstone needs reproducible correctness, adversarial tests, complexity evidence, and an independently explained implementation."
+        "All six evidence parts present.",
+        "Tests and measurements reproducible from the README."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.quality.capstone.misconception",
-      "explanation": "A capstone needs reproducible correctness, adversarial tests, complexity evidence, and an independently explained implementation.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'reproducible correctness', then state one implementation-specific risk in the selected language."
+      "explanation": "Before submitting, check the six boxes: **spec, representation, correctness, tests, complexity (measured), alternatives.** Any empty box is the next thing to write.",
+      "retryPrompt": "Apply this to \"The interval booking capstone\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to deliver, test and explain a selected-language solution with correctness argument, complexity analysis and alternative comparison. Keep this boundary in view: A working demo can hide scale failure, language-specific undefined behavior, weak evidence, or an unjustified copied solution.",
+    "summary": "To deliver, test and explain a DSA capstone in your selected language, write a precise specification, justify the representation, argue correctness with the key invariant, test an adversarial matrix and properties against a reference, state and measure complexity, and compare with alternatives, because passing visible examples alone proves very little.",
     "retrievalPrompts": [
-      "State the Comparative DSA capstone invariant and complexity without code.",
-      "Why is this claim false: Passing the visible examples is sufficient evidence for a portfolio DSA project.",
-      "Map checkpoint 'reproducible correctness' to C, C++, Java, and Python."
+      "What six parts does a strong capstone include?",
+      "Why measure complexity as well as state it?",
+      "Why compare with alternatives you didn't choose?"
     ],
     "nextReviewPrompt": "Next: use this skill in the module checkpoint and one independent practice attempt. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

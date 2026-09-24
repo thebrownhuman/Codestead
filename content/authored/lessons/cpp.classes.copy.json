@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Copy construction and assignment create or replace independent object state according to value semantics, while compiler-generated special members perform memberwise operations.",
+    "summary": "C++ objects have **value semantics** by default: `Playlist b = a;` (**copy construction**) and `b = a;` (**copy assignment**) produce an **independent** object. If you don't write them, the compiler generates **memberwise** copies: each member is copied with its own copy operation. That's exactly right when members are **value types that own their data**, like `std::string` and `std::vector`: the vector copies its elements, so the playlists don't share anything. It's **wrong** when a member is a **raw pointer that owns memory**: the generated copy copies the address, and both objects then \"own\" the same block. The fix is usually to hold data in standard containers or smart pointers so the **Rule of Zero** applies: write no copy operations at all.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A class containing std::vector safely uses generated copy operations because the vector owns and copies its elements. Your goal is to predict and test copying and assignment for a value-like class. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner copies a Playlist and adds a song to the copy, expecting the original to change too, and it doesn't. Separately, their hand-made Buffer class with a `char* data` member crashes on exit after one copy. A class containing std::vector safely uses generated copy operations because the vector owns and copies its elements. In this lesson you'll predict and test copying and assignment for a value-like class.\n\n```predict\n{\"question\": \"`Playlist b = a; b.add(\\\"New\\\");` Does a gain the song?\", \"options\": [\"Yes, they share songs\", \"No: b is an independent copy\"], \"answer\": 1, \"why\": \"Value semantics: copies don't affect each other.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Value, reference and const-reference parameters; pf data records; Constructors and initialization. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Value, reference and const-reference parameters**, **Records and entities** and **Constructors and initialization**."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "Copy construction and assignment create or replace independent object state according to value semantics, while compiler-generated special members perform memberwise operations. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The model: memberwise copies of owning members",
+        "body": "```cpp\n#include <string>\n#include <vector>\n\nclass Playlist {\npublic:\n    void add(std::string title) { songs_.push_back(std::move(title)); }\n    std::size_t size() const { return songs_.size(); }\nprivate:\n    std::string name_;\n    std::vector<std::string> songs_;       // owns and copies its elements.\n};                                          // Rule of Zero: no copy code written.\n\nint main() {\n    Playlist a;\n    a.add(\"Song A\");\n    Playlist b = a;          // copy construction: independent vector.\n    b.add(\"Song B\");         // a.size() == 1, b.size() == 2.\n    a = b;                   // copy assignment: a now has 2, still independent.\n}\n\n// Danger: raw owning pointer.\nstruct Buffer {\n    char* data = new char[100];\n    ~Buffer() { delete[] data; }\n};  // generated copy duplicates the ADDRESS: two deletes of one block.\n```\n\n| Member type | Generated copy does |\n|---|---|\n| `int`, `double`. | copies the value. |\n| `std::string`, `std::vector`. | deep copy of contents. |\n| raw owning `T*`. | copies the address only: shared, double delete. |\n\n```reveal\n{\"prompt\": \"How do you fix Buffer without writing copy operations?\", \"answer\": \"Replace char* data with std::vector<char> data(100) (or std::string). The vector knows how to copy and free itself, so the generated operations become correct.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Raw ownership, self-assignment, base members, exception safety, and user-declared destructor or move operations affect generated special-member behavior. Therefore the draft explicitly rejects this beginner failure model: Compiler-generated copying always performs a deep copy of every resource a class can reach."
+        "heading": "Copy vs assignment",
+        "body": "```predict\n{\"question\": \"Which line calls copy assignment rather than copy construction? `Playlist c = a;` or `c = a;` (c already exists)\", \"options\": [\"Playlist c = a;\", \"c = a;\"], \"answer\": 1, \"why\": \"Construction makes a new object; assignment replaces an existing one's state.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Reason about independent values, memberwise copying and when compiler-generated operations suffice.",
-      "Predict and test copying and assignment for a value-like class."
+      "Predict copy construction and copy assignment results for value-like classes.",
+      "Rely on the Rule of Zero with owning standard members, and spot raw owning pointers that break generated copies."
     ],
     "excludes": [
-      "Raw ownership, self-assignment, base members, exception safety, and user-declared destructor or move operations affect generated special-member behavior."
+      "Writing custom copy operations (Rule of Five) in depth.",
+      "Move semantics (resources module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "cpp.classes.copy.example-a",
-      "title": "Copy and assignment semantics: defined case",
+      "title": "Copying a Playlist",
       "situation": "A class containing std::vector safely uses generated copy operations because the vector owns and copies its elements.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A class containing std::vector safely uses generated copy operations because the vector owns and copies its elements.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Generated copying is memberwise; use RAII value members or define deliberate copy semantics when memberwise behavior does not represent an independent value."
+        "**A class containing std::vector:** Playlist holds songs_ as std::vector<std::string>.",
+        "**Safely uses generated copy operations:** Playlist b = a; needs no custom code.",
+        "**Because the vector owns and copies its elements:** b.add(\"Song B\") will leave a with one song."
       ],
-      "result": "The defined result follows because Generated copying is memberwise; use RAII value members or define deliberate copy semantics when memberwise behavior does not represent an independent value."
+      "result": "Copies behave like independent values with zero hand-written copy code."
     },
     {
       "id": "cpp.classes.copy.example-b",
-      "title": "Copy and assignment semantics: boundary case",
-      "situation": "A raw owning pointer would be copied shallowly by a generated copy operation, risking double deletion, so ownership is redesigned with a value or smart pointer.",
+      "title": "The double delete",
+      "situation": "Buffer b2 = b1; runs fine, then the program crashes at the end of main.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A raw owning pointer would be copied shallowly by a generated copy operation, risking double deletion, so ownership is redesigned with a value or smart pointer.",
-        "Step 2 — Keep this standard boundary visible: Raw ownership, self-assignment, base members, exception safety, and user-declared destructor or move operations affect generated special-member behavior.",
-        "Step 3 — Reject the tempting rule: Compiler-generated copying always performs a deep copy of every resource a class can reach."
+        "The generated copy copied b1.data's address into b2.data.",
+        "Both destructors delete[] the same block: undefined behaviour.",
+        "Use std::vector<char> so the member owns and copies its storage."
       ],
-      "result": "This case demonstrates the declared outcome: Predict and test copying and assignment for a value-like class."
+      "result": "Copies are independent and cleanup is automatic."
     }
   ],
   "misconceptions": [
     {
       "id": "cpp.classes.copy.misconception",
       "mistakenBelief": "Compiler-generated copying always performs a deep copy of every resource a class can reach.",
-      "correction": "Generated copying is memberwise; use RAII value members or define deliberate copy semantics when memberwise behavior does not represent an independent value.",
-      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: Compiler-generated copying always performs a deep copy of every resource a class can reach."
+      "correction": "Generated copies are memberwise. Standard containers deep-copy, but raw pointers copy only the address, so the two objects end up sharing (and double-freeing) one resource.",
+      "diagnosticPrompt": "In \"The double delete\", what did the generated copy actually copy?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A system of self-managing components can model Copy and assignment semantics: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "example": "Copying a class is like **photocopying a folder of documents**. Pages inside the folder (vector elements, string text) get photocopied. But a sticky note saying \"the real file is in cabinet 7\" (a raw pointer) is copied as a note: both folders now point at one cabinet, and both owners try to shred it.",
     "usefulFor": [
-      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+      "remembering pages vs pointer notes",
+      "Rule of Zero = keep pages in the folder"
     ],
     "limitations": [
-      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
-      "Raw ownership, self-assignment, base members, exception safety, and user-declared destructor or move operations affect generated special-member behavior."
+      "Photocopiers can't follow notes; generated copies don't either.",
+      "Smart containers are folders that copy their own contents."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A class containing std::vector safely uses generated copy operations because the vector owns and copies its elements.",
-      "Copy construction and assignment create or replace independent object state according to value semantics, while compiler-generated special members perform memberwise operations.",
-      "Generated copying is memberwise; use RAII value members or define deliberate copy semantics when memberwise behavior does not represent an independent value."
+      "Playlist a; a.add(\"Song A\");",
+      "Playlist b = a; b.add(\"Song B\");",
+      "a = b;"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Setup",
         "state": {
-          "evidence": "A class containing std::vector safely uses generated copy operations because the vector owns and copies its elements."
+          "a": "1 song"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "The class contains a std::vector that owns its songs."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Copy-construct",
         "state": {
-          "rule": "Copy construction and assignment create or replace independent object state according to value semantics, while compiler-generated special members perform memberwise operations."
+          "a": "1 song",
+          "b": "2 songs"
         },
-        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+        "explanation": "Generated copy operations duplicate the vector, so b is independent."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Copy-assign",
         "state": {
-          "conclusion": "Generated copying is memberwise; use RAII value members or define deliberate copy semantics when memberwise behavior does not represent an independent value."
+          "a": "2 songs",
+          "shared": "nothing"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: Compiler-generated copying always performs a deep copy of every resource a class can reach."
+        "explanation": "The vector owns and copies its elements again on assignment."
       }
     ],
-    "textAlternative": "Starting artifact: A class containing std::vector safely uses generated copy operations because the vector owns and copies its elements. Step 1, Source and state. State: evidence: A class containing std::vector safely uses generated copy operations because the vector owns and copies its elements.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: Copy construction and assignment create or replace independent object state according to value semantics, while compiler-generated special members perform memberwise operations.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Generated copying is memberwise; use RAII value members or define deliberate copy semantics when memberwise behavior does not represent an independent value.. Check the conclusion against the boundary and reject this misconception: Compiler-generated copying always performs a deep copy of every resource a class can reach."
+    "textAlternative": "Tracing value-semantic copies. Step 1, Setup: a is 1 song. The class contains a std::vector that owns its songs. Step 2, Copy-construct: a is 1 song; b is 2 songs. Generated copy operations duplicate the vector, so b is independent. Step 3, Copy-assign: a is 2 songs; shared is nothing. The vector owns and copies its elements again on assignment."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Copy and assignment semantics: defined case”: state its starting evidence, apply the Copy and assignment semantics rule, and give the observable result in three short lines.",
+      "prompt": "For \"Copying a Playlist\", explain why a class containing std::vector safely uses generated copy operations because the vector owns and copies its elements.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Members.",
+        "Copy.",
+        "Independence."
       ],
       "expectedEvidence": [
-        "Named example: Copy and assignment semantics: defined case.",
-        "Starting evidence: A class containing std::vector safely uses generated copy operations because the vector owns and copies its elements.",
-        "Core rule: Copy construction and assignment create or replace independent object state according to value semantics, while compiler-generated special members perform memberwise operations.",
-        "Observable result: The defined result follows because Generated copying is memberwise; use RAII value members or define deliberate copy semantics when memberwise behavior does not represent an independent value.",
-        "Boundary check: Generated copying is memberwise; use RAII value members or define deliberate copy semantics when memberwise behavior does not represent an independent value."
+        "Names the example \"Copying a Playlist\": the copy didn't change the original.",
+        "A class containing std::vector safely uses generated copy operations.",
+        "The vector owns and copies its elements.",
+        "Copies behave like independent values."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same CPP rule to this related boundary case: A raw owning pointer would be copied shallowly by a generated copy operation, risking double deletion, so ownership is redesigned with a value or smart pointer.",
+      "prompt": "For a class with members int, std::string, std::vector<int> and a non-owning const Config* pointer, predict what a copy shares and what it duplicates. Write a test that proves each.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "A non-owning pointer shared is usually fine.",
+        "Compare addresses of vector data."
       ],
       "expectedEvidence": [
-        "Copy construction and assignment create or replace independent object state according to value semantics, while compiler-generated special members perform memberwise operations.",
-        "Raw ownership, self-assignment, base members, exception safety, and user-declared destructor or move operations affect generated special-member behavior."
+        "Predictions tested.",
+        "Sharing explained."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CPP example for Copy and assignment semantics, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Take a class with a raw owning pointer, show the crash from copying under -fsanitize=address, then rewrite it to follow the Rule of Zero with a standard container, and test copy construction, copy assignment and self-assignment.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "a = a; must be safe.",
+        "No hand-written copy code at the end."
       ],
       "expectedEvidence": [
-        "Predict and test copying and assignment for a value-like class.",
-        "Generated copying is memberwise; use RAII value members or define deliberate copy semantics when memberwise behavior does not represent an independent value."
+        "Sanitizer clean.",
+        "All copy tests pass."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "cpp.classes.copy.misconception",
-      "explanation": "Generated copying is memberwise; use RAII value members or define deliberate copy semantics when memberwise behavior does not represent an independent value.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'memberwise' and state the decisive evidence: A raw owning pointer would be copied shallowly by a generated copy operation, risking double deletion, so ownership is redesigned with a value or smart pointer."
+      "explanation": "For each member ask: **does copying it copy the resource, or just a handle to it?** If just a handle to something it owns, switch to an owning standard type.",
+      "retryPrompt": "Apply this to \"The double delete\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to predict and test copying and assignment for a value-like class. Keep this boundary in view: Raw ownership, self-assignment, base members, exception safety, and user-declared destructor or move operations affect generated special-member behavior.",
+    "summary": "To predict copying, remember copy construction creates a new independent object and copy assignment replaces an existing one's state, generated operations copy member by member, standard containers deep-copy while raw owning pointers only copy addresses, so hold resources in owning types and follow the Rule of Zero.",
     "retrievalPrompts": [
-      "Explain Copy and assignment semantics using a concrete CPP rule rather than the optional analogy.",
-      "Why is this claim incorrect: Compiler-generated copying always performs a deep copy of every resource a class can reach.",
-      "Apply the checkpoint 'memberwise' to the boundary case from memory."
+      "What does a generated copy do?",
+      "Why is a raw owning pointer dangerous to copy?",
+      "What is the Rule of Zero?"
     ],
     "nextReviewPrompt": "Next: continue to “Operator overloading”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

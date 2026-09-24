@@ -174,3 +174,37 @@ export function InterfaceThemeMenu() {
     </div>
   );
 }
+
+// Inline theme choices for the sidebar account menu (no trigger of its own).
+export function InterfaceThemeOptions({ onChosen }: { readonly onChosen?: () => void }) {
+  const preferences = useSyncExternalStore(
+    subscribeToAccessibilityPreferences,
+    getAccessibilityPreferencesSnapshot,
+    getServerAccessibilityPreferencesSnapshot,
+  );
+  return (
+    <>
+      <span className={styles.themeMenuHeading} role="presentation">Appearance</span>
+      {themeOptions.map(({ value, label, icon: Icon }) => {
+        const selected = preferences.interfaceTheme === value;
+        return (
+          <button
+            aria-checked={selected}
+            className={selected ? styles.themeOptionActive : undefined}
+            key={value}
+            onClick={() => {
+              persistAndApplyAccessibilityPreference("interfaceTheme", value);
+              onChosen?.();
+            }}
+            role="menuitemradio"
+            tabIndex={-1}
+            type="button"
+          >
+            <Icon aria-hidden="true" size={15} /> {label}
+            {selected && <Check aria-hidden="true" className={styles.themeCheck} size={14} />}
+          </button>
+        );
+      })}
+    </>
+  );
+}

@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "State should be minimal, normalized, and free of redundant values that can be derived from props or other state during render.",
+    "summary": "Keep state **minimal**: store only what can't be calculated. If a value can be **derived** from props or other state (a total, a filtered list, a count, \"is the form valid?\"), compute it during render instead of storing it. Duplicated state drifts: update one copy, forget the other, and the screen disagrees with itself. **Normalise** too: store a selected item's **id**, not a copy of the item, and group values that always change together. Every state variable should answer \"what does the learner or the server change here?\"",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A cart stores items and derives total rather than storing an independently editable total that can drift. Your goal is to refactor a component to one source of truth and explain each remaining state variable. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A course-shop cart keeps `items` in state and a separate `total` in state. Removing an item updates items, but one code path forgets to update total, and the cart shows ₹1,200 for an empty basket. A cart stores items and derives total rather than storing an independently editable total that can drift. In this lesson you'll refactor a component to one source of truth and explain each remaining state variable.\n\n```predict\n{\"question\": \"A cart has `items` state. Should `itemCount` be separate state?\", \"options\": [\"Yes, every displayed value needs state\", \"No: compute `items.length` during render\"], \"answer\": 1, \"why\": \"If you can calculate it from existing state, don't store it.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Props and composition; javascript events model; useState and snapshots; Props and one-way data flow. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Props and composition** module, **Event propagation and delegation**, **useState and snapshots**, and **Props and one-way data flow**, since props are another source you can derive from."
       },
       {
-        "heading": "Technology rule",
-        "body": "State should be minimal, normalized, and free of redundant values that can be derived from props or other state during render. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The rule: store the source, derive the rest",
+        "body": "```jsx\nimport { useState } from \"react\";\n\nexport function Cart({ catalog }) {\n  const [items, setItems] = useState([]);          // [{ id, qty }]: the source.\n  const [selectedId, setSelectedId] = useState(null); // an id, not a copied object.\n\n  // Derived during render: always in sync.\n  const lines = items.map((it) => ({ ...catalog[it.id], qty: it.qty }));\n  const total = lines.reduce((sum, l) => sum + l.price * l.qty, 0);\n  const count = items.reduce((n, it) => n + it.qty, 0);\n  const selected = selectedId ? catalog[selectedId] : null;\n\n  function remove(id) {\n    setItems((prev) => prev.filter((it) => it.id !== id));   // total follows automatically.\n  }\n\n  return <p>{count} items, total ₹{total}</p>;\n}\n```\n\n| Value | State or derived? |\n|---|---|\n| items and quantities. | state (the learner changes them). |\n| total, count. | derived. |\n| selected course. | state as selectedId; course derived from catalog. |\n| \"cart is empty\". | derived: `items.length === 0`. |\n\n```reveal\n{\"prompt\": \"Why store selectedId instead of the selected course object?\", \"answer\": \"If the catalog updates the course's price, a copied object keeps the old price. An id always looks up the current one.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Caching expensive derivations differs from storing truth, nested mutation hides changes, and state shape controls update complexity. This draft therefore rejects: Every displayed value should have its own state variable."
+        "heading": "Spot redundant state",
+        "body": "```predict\n{\"question\": \"A form has `firstName`, `lastName` and `fullName` states. Which is redundant?\", \"options\": [\"firstName\", \"fullName: derive it as `${firstName} ${lastName}`\"], \"answer\": 1, \"why\": \"Derived values can't drift.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Avoid redundant, contradictory or duplicated state and derive values during render when cheap.",
-      "Refactor a component to one source of truth and explain each remaining state variable."
+      "Identify and remove derivable and duplicated state.",
+      "Store ids instead of copies and explain each remaining state variable."
     ],
     "excludes": [
-      "Caching expensive derivations differs from storing truth, nested mutation hides changes, and state shape controls update complexity."
+      "Global state libraries.",
+      "Memoising expensive derivations (robustness module)."
     ]
   },
   "outcomes": [
@@ -63,133 +64,134 @@
   "examples": [
     {
       "id": "react.state.structure.example-a",
-      "title": "Minimal and normalized state: concrete case",
+      "title": "The cart total that drifted",
       "situation": "A cart stores items and derives total rather than storing an independently editable total that can drift.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A cart stores items and derives total rather than storing an independently editable total that can drift.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Store the minimal source of truth and derive dependent values to avoid inconsistent redundant state."
+        "**Find the duplicate:** total was state, updated separately from items, and one path forgot it.",
+        "**Stores items and derives total:** total is computed with reduce during render from items and catalog prices.",
+        "**Test:** add two courses, remove one, and a test will check the total equals the remaining course's price, and ₹0 when empty."
       ],
-      "result": "The result follows because Store the minimal source of truth and derive dependent values to avoid inconsistent redundant state."
+      "result": "The total always matches the items, including ₹0 for an empty basket."
     },
     {
       "id": "react.state.structure.example-b",
-      "title": "Minimal and normalized state: boundary case",
-      "situation": "Caching expensive derivations differs from storing truth, nested mutation hides changes, and state shape controls update complexity.",
+      "title": "The renamed lesson that stayed old",
+      "situation": "A lesson picker stores the whole selected lesson object in state. After an editor renames the lesson, the list shows the new title but the details panel shows the old one.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Caching expensive derivations differs from storing truth, nested mutation hides changes, and state shape controls update complexity.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Every displayed value should have its own state variable."
+        "The selected state held a copy made before the rename.",
+        "Store `selectedId` instead.",
+        "Derive `lessons.find(l => l.id === selectedId)` during render."
       ],
-      "result": "The boundary requires this correction: Store the minimal source of truth and derive dependent values to avoid inconsistent redundant state."
+      "result": "The details panel always shows the lesson's current title."
     }
   ],
   "misconceptions": [
     {
       "id": "react.state.structure.misconception",
       "mistakenBelief": "Every displayed value should have its own state variable.",
-      "correction": "Store the minimal source of truth and derive dependent values to avoid inconsistent redundant state.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Every displayed value should have its own state variable."
+      "correction": "Only values that can't be calculated need state. Anything derivable from props or other state should be computed during render, so it can never get out of sync.",
+      "diagnosticPrompt": "In \"The cart total that drifted\", which value was derivable?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Minimal and normalized state, where inputs and state produce a UI description.",
+    "example": "State is like **the ingredients you buy**; derived values are **the dishes you cook from them**. You don't buy a separate \"salad\" and \"lettuce\" and hope they match. Keep the ingredients and cook the dish when you need it.",
     "usefulFor": [
-      "Building a first mental model for Minimal and normalized state before using exact platform terms"
+      "remembering store sources",
+      "derived = cooked fresh each render"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Caching expensive derivations differs from storing truth, nested mutation hides changes, and state shape controls update complexity."
+      "Cooking takes time; if a derivation is really slow, you'll learn memoising later.",
+      "An id is like a recipe reference instead of a photocopy of the dish."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A cart stores items and derives total rather than storing an independently editable total that can drift.",
-      "State should be minimal, normalized, and free of redundant values that can be derived from props or other state during render.",
-      "Store the minimal source of truth and derive dependent values to avoid inconsistent redundant state."
+      "items = [A ₹700, B ₹500]",
+      "remove A",
+      "render"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Start",
         "state": {
-          "evidence": "A cart stores items and derives total rather than storing an independently editable total that can drift."
+          "items": "[A, B]",
+          "total (derived)": "1200"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The cart stores items and computes the total during render."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Remove",
         "state": {
-          "rule": "State should be minimal, normalized, and free of redundant values that can be derived from props or other state during render."
+          "items": "[B]"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Only items change; there's no independently editable total to forget."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Render",
         "state": {
-          "correction": "Store the minimal source of truth and derive dependent values to avoid inconsistent redundant state."
+          "total (derived)": "500"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Every displayed value should have its own state variable."
+        "explanation": "Deriving the total means it cannot drift from items."
       }
     ],
-    "textAlternative": "Starting artifact: A cart stores items and derives total rather than storing an independently editable total that can drift. Step 1, Artifact. State: evidence: A cart stores items and derives total rather than storing an independently editable total that can drift.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: State should be minimal, normalized, and free of redundant values that can be derived from props or other state during render.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Store the minimal source of truth and derive dependent values to avoid inconsistent redundant state.. Check the result against the boundary and reject this misconception: Every displayed value should have its own state variable."
+    "textAlternative": "Deriving a cart total. Step 1, Start: items is [A, B]; total (derived) is 1200. The cart stores items and computes the total during render. Step 2, Remove: items is [B]. Only items change; there's no independently editable total to forget. Step 3, Render: total (derived) is 500. Deriving the total means it cannot drift from items."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Minimal and normalized state: concrete case”: state its starting evidence, apply the Minimal and normalized state rule, and give the observable result in three short lines.",
+      "prompt": "For \"The cart total that drifted\", explain how a cart stores items and derives total rather than storing an independently editable total that can drift.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Duplicate.",
+        "Derive.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Minimal and normalized state: concrete case.",
-        "Starting evidence: A cart stores items and derives total rather than storing an independently editable total that can drift.",
-        "Core rule: State should be minimal, normalized, and free of redundant values that can be derived from props or other state during render.",
-        "Observable result: The result follows because Store the minimal source of truth and derive dependent values to avoid inconsistent redundant state.",
-        "Boundary check: Store the minimal source of truth and derive dependent values to avoid inconsistent redundant state."
+        "Names the example \"The cart total that drifted\": total was duplicated state.",
+        "The cart stores items and derives total.",
+        "An independently editable total can drift.",
+        "The total always matches the items, including ₹0 for an empty basket."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Caching expensive derivations differs from storing truth, nested mutation hides changes, and state shape controls update complexity.",
+      "prompt": "A search page stores `query`, `results` (filtered from a lessons prop) and `resultCount`. Refactor to minimal state.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "What does the learner change?",
+        "Derive the rest."
       ],
       "expectedEvidence": [
-        "State should be minimal, normalized, and free of redundant values that can be derived from props or other state during render.",
-        "Caching expensive derivations differs from storing truth, nested mutation hides changes, and state shape controls update complexity."
+        "Only query is state.",
+        "results and resultCount computed in render."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Minimal and normalized state and explain why the misconception fails.",
+      "prompt": "Take a form component with at least six state variables. Classify each as source or derived, refactor to minimal state, and write a comment explaining why each remaining variable exists. Add tests showing nothing drifts.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Table: variable, source or derived, reason.",
+        "Store ids, not copies."
       ],
       "expectedEvidence": [
-        "Refactor a component to one source of truth and explain each remaining state variable.",
-        "Store the minimal source of truth and derive dependent values to avoid inconsistent redundant state."
+        "Fewer state variables with reasons.",
+        "Tests for consistency after edits."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.state.structure.misconception",
-      "explanation": "Store the minimal source of truth and derive dependent values to avoid inconsistent redundant state.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'source of truth' and state the decisive evidence."
+      "explanation": "For each state variable ask: **Could I compute this from props or other state right now?** If yes, delete it and compute it. **Is it a copy of something that exists elsewhere?** Store its id.",
+      "retryPrompt": "Apply this to \"The renamed lesson that stayed old\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to refactor a component to one source of truth and explain each remaining state variable. Keep this boundary in view: Caching expensive derivations differs from storing truth, nested mutation hides changes, and state shape controls update complexity.",
+    "summary": "To refactor a component to one source of truth, keep only state that the learner or server changes, derive totals, counts and filtered lists during render, store ids instead of copied objects, and be able to explain why each remaining state variable exists.",
     "retrievalPrompts": [
-      "Explain Minimal and normalized state using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: Every displayed value should have its own state variable.",
-      "Apply checkpoint 'source of truth' to a new artifact."
+      "Why is duplicated state risky?",
+      "Should a total be state?",
+      "Why store an id instead of an object?"
     ],
     "nextReviewPrompt": "Next: continue to “Lifting and preserving state”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

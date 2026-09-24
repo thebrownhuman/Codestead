@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Sequential statements complete in a defined order, and each statement reads the state produced by earlier statements before creating the next state.",
+    "summary": "Code runs **top to bottom, one statement at a time**. Each line sees whatever the lines above it left behind. Swap two lines that depend on each other and the program breaks — even though \"all the same lines still run\".",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A receipt routine reads price, computes tax from price, then computes total from both values; moving total before tax breaks its dependency. Your goal is to produce a correct state table for sequential pseudocode. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You're coding a checkout receipt: read the price, compute the tax from the price, then add them up for the total. Easy. Now a teammate \"tidies up\" by moving the total line to the top — and the receipt shows garbage. Why? Because order is meaning. In this lesson you'll learn to read code like the computer does, line by line, tracking what each statement reads and what it changes.\n\n```predict\n{\"code\": \"total = price + tax\\nprice = 100\\ntax = price * 0.18\\nprint(total)\", \"question\": \"What does this print?\", \"options\": [\"15\", \"Error: `tax` is used before it exists\"], \"answer\": 1, \"why\": \"Python runs line 1 first — and `tax` hasn't been created yet. Order matters: a line can only use what earlier lines produced.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Expressions and evaluation. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Expressions and evaluation** — how something like `price * 0.18` is worked out into a value. Here we chain several of those together."
       },
       {
-        "heading": "Operational model",
-        "body": "Sequential statements complete in a defined order, and each statement reads the state produced by earlier statements before creating the next state. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The mental model: each line reads the state, then updates it",
+        "body": "Think of the program's variables as a whiteboard. Each statement **reads** the whiteboard, then **writes** something new on it.\n\n```python\nprice = 100            # whiteboard: price=100\ntax = price * 0.18     # reads price → tax=18.0\ntotal = price + tax    # reads both → total=118.0\nprint(total)           # 118.0\n```\n\nA line can only read what's *already* on the whiteboard.\n\n```reveal\n{\"prompt\": \"Which lines could safely swap places here: `a = 1`, `b = 2`, `c = a + b`?\", \"answer\": \"`a = 1` and `b = 2` can swap — neither reads the other. But `c = a + b` must come after both, because it **reads** them.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Function calls, exceptions, asynchronous work, and concurrency can interrupt or defer apparent textual order, so this model applies to the declared synchronous path. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Independent-looking lines may be freely reordered because a program eventually executes all of them anyway."
+        "heading": "Overwrites happen in order too",
+        "body": "```predict\n{\"code\": \"x = 5\\nx = x * 2\\nprint(x)\", \"question\": \"What's printed?\", \"options\": [\"5\", \"10\", \"15\"], \"answer\": 1, \"why\": \"`x` becomes 5, then line 2 overwrites it with 10, and line 3 prints the *current* value: 10. The old 5 is gone.\"}\n```\n\nWhen you debug, walk line by line and write the whiteboard down. Most \"impossible\" bugs are just a line running earlier or later than you assumed."
       }
     ]
   },
   "scope": {
     "includes": [
-      "Trace ordered statements and identify dependencies between them.",
-      "Produce a correct state table for sequential pseudocode."
+      "Trace sequential statements and the state each one produces.",
+      "Spot when reordering two lines breaks a dependency."
     ],
     "excludes": [
-      "Function calls, exceptions, asynchronous work, and concurrency can interrupt or defer apparent textual order, so this model applies to the declared synchronous path."
+      "Branches and loops — they change *which* line runs next (next lessons).",
+      "Functions that run code elsewhere."
     ]
   },
   "outcomes": [
@@ -63,133 +64,136 @@
   "examples": [
     {
       "id": "pf.control.sequence.example-a",
-      "title": "Sequence: direct case",
-      "situation": "A receipt routine reads price, computes tax from price, then computes total from both values; moving total before tax breaks its dependency.",
+      "title": "The receipt calculator",
+      "situation": "```python\nprice = 100\ntax = price * 0.18\ntotal = price + tax\nprint(total)\n```",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A receipt routine reads price, computes tax from price, then computes total from both values; moving total before tax breaks its dependency.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Preserve data and effect dependencies by tracing the state after each statement and moving a statement only when its reads and writes remain valid."
+        "`price = 100` writes the price. The whiteboard now has `price=100`.",
+        "`tax = price * 0.18` reads price and writes `tax=18.0`. It depends on the line above.",
+        "`total = price + tax` reads both and writes `total=118.0`; `print` shows it."
       ],
-      "result": "The case supports the declared outcome because Preserve data and effect dependencies by tracing the state after each statement and moving a statement only when its reads and writes remain valid."
+      "result": "It prints `118.0`. Move the total line above tax and Python stops with a `NameError`, because tax doesn't exist yet."
     },
     {
       "id": "pf.control.sequence.example-b",
-      "title": "Sequence: boundary case",
-      "situation": "A conversion routine parses text before multiplying the number and formats output only after the calculation succeeds.",
+      "title": "The swapped greeting",
+      "situation": "```python\nname = \"Asha\"\ngreeting = \"Hi \" + name\nname = \"Ben\"\nprint(greeting)\n```",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A conversion routine parses text before multiplying the number and formats output only after the calculation succeeds.",
-        "Step 2 — Keep this boundary explicit: Function calls, exceptions, asynchronous work, and concurrency can interrupt or defer apparent textual order, so this model applies to the declared synchronous path.",
-        "Step 3 — Reject the documented misconception: Independent-looking lines may be freely reordered because a program eventually executes all of them anyway."
+        "`greeting` is built when line 2 runs, using the name at that moment: \"Asha\".",
+        "Line 3 changes `name` to \"Ben\", but `greeting` was already computed — it doesn't update itself.",
+        "`print(greeting)` shows the value stored earlier."
       ],
-      "result": "This case demonstrates the declared outcome: Produce a correct state table for sequential pseudocode."
+      "result": "It prints `Hi Asha`. A variable holds the value computed at the time its line ran."
     }
   ],
   "misconceptions": [
     {
       "id": "pf.control.sequence.misconception",
-      "mistakenBelief": "Independent-looking lines may be freely reordered because a program eventually executes all of them anyway.",
-      "correction": "Preserve data and effect dependencies by tracing the state after each statement and moving a statement only when its reads and writes remain valid.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Independent-looking lines may be freely reordered because a program eventually executes all of them anyway."
+      "mistakenBelief": "Independent-looking lines can be freely reordered, because the program runs all of them eventually anyway.",
+      "correction": "Each statement reads the state left by the statements before it. If one line reads a value another line writes, their order decides the result — reordering can crash the program or change the answer.",
+      "diagnosticPrompt": "In \"The receipt calculator\", which line must come before `total = price + tax`, and why?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A route with ordered checkpoints, forks, and repeated laps can model Sequence while each decision uses the current conditions.",
+    "example": "Like **making tea**: boil water, then pour it on the tea bag, then add milk. All the steps happen either way — but pour before boiling and you get cold, sad tea.",
     "usefulFor": [
-      "Visualizing order, branching, repetition, progress, and nested routes"
+      "remembering that steps depend on earlier steps",
+      "spotting which steps are truly independent"
     ],
     "limitations": [
-      "Real control flow can include calls, exceptions, concurrency, and evaluation rules absent from a physical route.",
-      "Function calls, exceptions, asynchronous work, and concurrency can interrupt or defer apparent textual order, so this model applies to the declared synchronous path."
+      "Computers follow the order exactly; a person making tea would notice the mistake and adapt.",
+      "Some steps really are independent and can be reordered safely — the analogy can make everything seem fixed."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A receipt routine reads price, computes tax from price, then computes total from both values; moving total before tax breaks its dependency.",
-      "Sequential statements complete in a defined order, and each statement reads the state produced by earlier statements before creating the next state.",
-      "Preserve data and effect dependencies by tracing the state after each statement and moving a statement only when its reads and writes remain valid."
+      "price = 100",
+      "tax = price * 0.18",
+      "total = price + tax",
+      "print(total)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Set price",
         "state": {
-          "evidence": "A receipt routine reads price, computes tax from price, then computes total from both values; moving total before tax breaks its dependency."
+          "price": "100"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "The first statement writes price onto the whiteboard."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Compute tax",
         "state": {
-          "model": "Sequential statements complete in a defined order, and each statement reads the state produced by earlier statements before creating the next state."
+          "price": "100",
+          "tax": "18.0"
         },
-        "explanation": "Apply the declared Sequence model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "The second statement reads price and writes tax as 18.0."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Compute total",
         "state": {
-          "correction": "Preserve data and effect dependencies by tracing the state after each statement and moving a statement only when its reads and writes remain valid."
+          "tax": "18.0",
+          "total": "118.0"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Independent-looking lines may be freely reordered because a program eventually executes all of them anyway."
+        "explanation": "The third statement reads price and tax, writes total 118.0, and print shows it."
       }
     ],
-    "textAlternative": "Starting artifact: A receipt routine reads price, computes tax from price, then computes total from both values; moving total before tax breaks its dependency. Step 1, Observe. State: evidence: A receipt routine reads price, computes tax from price, then computes total from both values; moving total before tax breaks its dependency.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Sequential statements complete in a defined order, and each statement reads the state produced by earlier statements before creating the next state.. Apply the declared Sequence model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Preserve data and effect dependencies by tracing the state after each statement and moving a statement only when its reads and writes remain valid.. Compare the observation with the correction and reject the misconception: Independent-looking lines may be freely reordered because a program eventually executes all of them anyway."
+    "textAlternative": "Running the receipt calculator line by line. Step 1, Set price: price is 100. The first statement writes price onto the whiteboard. Step 2, Compute tax: price is 100; tax is 18.0. The second statement reads price and writes tax as 18.0. Step 3, Compute total: tax is 18.0; total is 118.0. The third statement reads price and tax, writes total 118.0, and print shows it."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Sequence: direct case”: state its starting evidence, apply the Sequence rule, and give the observable result in three short lines.",
+      "prompt": "In \"The receipt calculator\", explain in three lines what each of the first three statements reads and writes, and what prints.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Line 1: price.",
+        "Line 2: tax — what does it read?",
+        "Line 3: total — and the printed value."
       ],
       "expectedEvidence": [
-        "Named example: Sequence: direct case.",
-        "Starting evidence: A receipt routine reads price, computes tax from price, then computes total from both values; moving total before tax breaks its dependency.",
-        "Core rule: Sequential statements complete in a defined order, and each statement reads the state produced by earlier statements before creating the next state.",
-        "Observable result: The case supports the declared outcome because Preserve data and effect dependencies by tracing the state after each statement and moving a statement only when its reads and writes remain valid.",
-        "Boundary check: Preserve data and effect dependencies by tracing the state after each statement and moving a statement only when its reads and writes remain valid."
+        "Names the example \"The receipt calculator\": price = 100, then tax, then total, then print.",
+        "price is written first as 100.",
+        "tax reads price and becomes 18.0.",
+        "total reads price and tax; the program prints 118.0, and moving total earlier would cause a NameError."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A conversion routine parses text before multiplying the number and formats output only after the calculation succeeds.",
+      "prompt": "A shopping cart: `items = 3`, `shipping = 0 if items > 2 else 50`, `items = 1`, `print(shipping)`. What's printed, and why doesn't changing items later affect shipping?",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "When is shipping computed?",
+        "Does a variable recompute itself?"
       ],
       "expectedEvidence": [
-        "Sequential statements complete in a defined order, and each statement reads the state produced by earlier statements before creating the next state.",
-        "Function calls, exceptions, asynchronous work, and concurrency can interrupt or defer apparent textual order, so this model applies to the declared synchronous path."
+        "Prints 0: shipping was computed while items was 3.",
+        "Changing items afterwards doesn't re-run the line that set shipping."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Sequence, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Write 4 lines that convert minutes to hours-and-minutes (e.g. 135 → 2 h 15 m). Then show one reordering that breaks it and explain why.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Use `//` and `%`.",
+        "Show the broken order too."
       ],
       "expectedEvidence": [
-        "Produce a correct state table for sequential pseudocode.",
-        "Preserve data and effect dependencies by tracing the state after each statement and moving a statement only when its reads and writes remain valid."
+        "A correct sequence where each line uses values computed earlier.",
+        "A broken reordering with an explanation naming the missing dependency."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "pf.control.sequence.misconception",
-      "explanation": "Preserve data and effect dependencies by tracing the state after each statement and moving a statement only when its reads and writes remain valid.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A conversion routine parses text before multiplying the number and formats output only after the calculation succeeds."
+      "explanation": "Grab paper. For each line write what it **reads** and what it **writes**. If a line reads something no earlier line wrote, that's your bug.",
+      "retryPrompt": "Do this for \"The swapped greeting\" and confirm why it prints Hi Asha."
     }
   ],
   "recap": {
-    "summary": "You should now be able to produce a correct state table for sequential pseudocode. Keep this boundary in view: Function calls, exceptions, asynchronous work, and concurrency can interrupt or defer apparent textual order, so this model applies to the declared synchronous path.",
+    "summary": "Statements run top to bottom. Each one reads the current state and writes new state. Order matters whenever a line reads what another writes; truly independent lines can swap. A variable keeps the value from when its line ran — it doesn't update itself later.",
     "retrievalPrompts": [
-      "Explain Sequence without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Independent-looking lines may be freely reordered because a program eventually executes all of them anyway.",
-      "Apply the model to this case from memory: A conversion routine parses text before multiplying the number and formats output only after the calculation succeeds."
+      "Why does moving `total` above `tax` crash?",
+      "After `x = 5; x = x * 2`, what is x?",
+      "Why does `greeting` still say Asha after name changes?"
     ],
     "nextReviewPrompt": "Next: continue to “Selection”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

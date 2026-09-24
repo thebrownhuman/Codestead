@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Disjoint-set union maintains a partition through make-set, find representative, and union operations.",
+    "summary": "A **disjoint-set** (union-find) keeps items split into **non-overlapping groups** and answers \"are x and y in the same group?\" quickly as groups merge. Three operations: `make_set(x)` puts x in its own group; `find(x)` returns the group's **representative** (its root); `union(x, y)` merges two groups. Store it as a **parent array**: each item points to a parent, and a root points to itself. Two items are in the same group **exactly when find returns the same representative**. Which item is the representative doesn't matter; it's just a label that's the same for everyone in the group.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Two vertices are connected exactly when find returns the same representative after processed unions. Your goal is to implement and test a basic parent-array disjoint-set structure. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A study platform merges learners into groups as they pair up: Asha with Ben, then Ben with Chen, later Dev with Ema. A teacher asks, \"Are Asha and Chen in the same group?\" Nobody paired them directly. Two vertices are connected exactly when find returns the same representative after processed unions. In this lesson you'll implement and test a basic parent-array disjoint-set structure.\n\n```predict\n{\"question\": \"After union(Asha, Ben) and union(Ben, Chen), must find(Chen) return the smallest id in the group?\", \"options\": [\"Yes\", \"No: any consistent member can be the representative\"], \"answer\": 1, \"why\": \"Only one rule matters: everyone in the same group gets the same answer from find.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Tree terminology and representation; Array representation and operations. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Tree terminology and representation** (parents and roots) and **Array representation and operations**."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Disjoint-set union maintains a partition through make-set, find representative, and union operations. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The model: a forest of parent pointers",
+        "body": "```python\nclass DisjointSet:\n    def __init__(self, n):\n        self.parent = list(range(n))       # make_set for 0..n-1: each is its own root.\n\n    def find(self, x):                     # walk up to the root.\n        while self.parent[x] != x:\n            x = self.parent[x]\n        return x\n\n    def union(self, x, y):\n        rx, ry = self.find(x), self.find(y)\n        if rx == ry:\n            return False                   # already in one group.\n        self.parent[rx] = ry               # attach one root under the other.\n        return True\n\n    def same(self, x, y):\n        return self.find(x) == self.find(y)\n\nASHA, BEN, CHEN, DEV, EMA = range(5)\nds = DisjointSet(5)\nds.union(ASHA, BEN); ds.union(BEN, CHEN); ds.union(DEV, EMA)\nprint(ds.same(ASHA, CHEN), ds.same(ASHA, DEV))   # True False\n```\n\n| Operation | What it does | Basic cost |\n|---|---|---|\n| make_set. | parent[x] = x. | O(1). |\n| find(x). | follow parents to the root. | O(height). |\n| union(x, y). | link one root under the other. | O(height). |\n\n```reveal\n{\"prompt\": \"Why link roots, not x and y directly?\", \"answer\": \"Setting parent[x] = y would detach x from the rest of its old group. Linking the roots merges whole groups.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "It tracks connectivity, not paths or deletion, and representative identity is an implementation detail. The draft therefore rejects: The representative returned by find must be the smallest value in the set."
+        "heading": "Height matters",
+        "body": "```predict\n{\"question\": \"Unions always attach the old root under the new item, making a chain of 10,000. What does find cost?\", \"options\": [\"O(1)\", \"Up to O(n): the chain is 10,000 long\"], \"answer\": 1, \"why\": \"The next two lessons, union by rank and path compression, keep trees flat.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Represent disjoint components and query or combine their representatives.",
-      "Implement and test a basic parent-array disjoint-set structure.",
-      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      "Implement make_set, find and union on a parent array.",
+      "Test group membership through representatives after unions."
     ],
     "excludes": [
-      "It tracks connectivity, not paths or deletion, and representative identity is an implementation detail."
+      "Union by rank and path compression (next lessons).",
+      "Deleting items from sets."
     ]
   },
   "outcomes": [
@@ -68,142 +64,135 @@
   "examples": [
     {
       "id": "dsa.disjoint-set.adt.example-a",
-      "title": "Make, find and union: language-neutral trace",
+      "title": "Are these two learners in the same study group?",
       "situation": "Two vertices are connected exactly when find returns the same representative after processed unions.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: Two vertices are connected exactly when find returns the same representative after processed unions.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Representatives need only be consistent within a set; their concrete identity is not part of the ADT contract."
+        "**Process unions:** union(Asha, Ben) links Asha's root under Ben; union(Ben, Chen) links Ben's root under Chen.",
+        "**Same representative:** find(Asha) and find(Chen) both walk up to Chen, so they're connected.",
+        "**Test:** a test will check same(Asha, Chen) is True, same(Asha, Dev) is False, and that repeating a union returns False."
       ],
-      "result": "The conceptual result follows because Representatives need only be consistent within a set; their concrete identity is not part of the ADT contract."
+      "result": "The teacher gets correct answers about group membership, even for learners who never paired directly."
     },
     {
       "id": "dsa.disjoint-set.adt.example-b",
-      "title": "Make, find and union: implementation transfer",
-      "situation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
+      "title": "The union that split a group",
+      "situation": "A buggy union does `parent[x] = y` instead of linking roots. After union(Asha, Ben) and union(Asha, Dev), Ben is no longer with Asha.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
-        "Step 3 — Retest this boundary in the selected implementation: It tracks connectivity, not paths or deletion, and representative identity is an implementation detail."
+        "Setting parent[Asha] = Dev moved Asha out from under Ben's root.",
+        "Ben's group lost Asha.",
+        "Fix: find both roots and link one root under the other."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Every union merges whole groups, and nobody is dropped."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.disjoint-set.adt.misconception",
       "mistakenBelief": "The representative returned by find must be the smallest value in the set.",
-      "correction": "Representatives need only be consistent within a set; their concrete identity is not part of the ADT contract.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: The representative returned by find must be the smallest value in the set."
+      "correction": "The representative is any member that all members agree on. Comparing find(x) and find(y) only needs them to be consistent within a group, not to be a particular value.",
+      "diagnosticPrompt": "In the opening predict, which member had to be the representative?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Make, find and union, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "A disjoint-set is like **each learner pointing to a group captain**, who may point to a higher captain. To know your group, follow the pointing until you reach someone pointing at themselves. Two learners are in the same group if they end at the same person.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering follow parents to the root",
+      "union = one captain now points to the other"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "It tracks connectivity, not paths or deletion, and representative identity is an implementation detail."
+      "Real captains have names on badges; here it's whoever is at the top.",
+      "Long pointing chains are slow, which later lessons fix."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Two vertices are connected exactly when find returns the same representative after processed unions.",
-      "Disjoint-set union maintains a partition through make-set, find representative, and union operations.",
-      "Representatives need only be consistent within a set; their concrete identity is not part of the ADT contract.",
-      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      "parent = [0, 1, 2, 3, 4]",
+      "union(0, 1), union(1, 2), union(3, 4)",
+      "find(0), find(2)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Unions",
         "state": {
-          "scenario": "Two vertices are connected exactly when find returns the same representative after processed unions."
+          "parent": "[1, 2, 2, 4, 4]"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "Each union links one root under another root."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "find(0)",
         "state": {
-          "invariant": "Disjoint-set union maintains a partition through make-set, find representative, and union operations."
+          "path": "0 → 1 → 2",
+          "root": "2"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "find walks up to the representative."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Compare",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "find(2)": "2",
+          "same?": "yes"
         },
-        "explanation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Representatives need only be consistent within a set; their concrete identity is not part of the ADT contract."
-        },
-        "explanation": "Verify the result and reject this misconception: The representative returned by find must be the smallest value in the set."
+        "explanation": "Two vertices are connected exactly when find returns the same representative."
       }
     ],
-    "textAlternative": "Starting artifact: Two vertices are connected exactly when find returns the same representative after processed unions. Step 1, Specification. State: scenario: Two vertices are connected exactly when find returns the same representative after processed unions.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Disjoint-set union maintains a partition through make-set, find representative, and union operations.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target. Step 4, Conclusion. State: correction: Representatives need only be consistent within a set; their concrete identity is not part of the ADT contract.. Verify the result and reject this misconception: The representative returned by find must be the smallest value in the set."
+    "textAlternative": "Tracing a parent array. Step 1, Unions: parent is [1, 2, 2, 4, 4]. Each union links one root under another root. Step 2, find(0): path is 0 → 1 → 2; root is 2. find walks up to the representative. Step 3, Compare: find(2) is 2; same? is yes. Two vertices are connected exactly when find returns the same representative."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Make, find and union: language-neutral trace”: state its starting evidence, apply the Make, find and union rule, and give the observable result in three short lines.",
+      "prompt": "For \"Are these two learners in the same study group?\", explain how two vertices are connected exactly when find returns the same representative after processed unions.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Unions.",
+        "Representatives.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Make, find and union: language-neutral trace.",
-        "Starting evidence: Two vertices are connected exactly when find returns the same representative after processed unions.",
-        "Core rule: Disjoint-set union maintains a partition through make-set, find representative, and union operations.",
-        "Observable result: The conceptual result follows because Representatives need only be consistent within a set; their concrete identity is not part of the ADT contract.",
-        "Boundary check: Representatives need only be consistent within a set; their concrete identity is not part of the ADT contract."
+        "Names the example \"Are these two learners in the same study group?\": Asha and Chen never paired directly.",
+        "After processed unions, find walks to each root.",
+        "Two vertices are connected exactly when find returns the same representative.",
+        "The teacher gets correct answers about group membership."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Disjoint-set union maintains a partition through make-set, find representative, and union operations.",
+      "prompt": "Starting from 6 singletons, apply union(0, 1), union(2, 3), union(1, 3), union(4, 5). Draw the parent array and list the groups.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Link roots only.",
+        "Groups by representative."
       ],
       "expectedEvidence": [
-        "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
-        "It tracks connectivity, not paths or deletion, and representative identity is an implementation detail."
+        "Groups: {0, 1, 2, 3} and {4, 5}.",
+        "same(0, 2) is True; same(0, 4) is False."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Make, find and union case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Add `count()` (number of groups) and `size(x)` to DisjointSet, updating counts during union. Test with random unions against a brute-force BFS on the same pairs.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Track a group counter.",
+        "Track size at roots."
       ],
       "expectedEvidence": [
-        "Implement and test a basic parent-array disjoint-set structure.",
-        "Representatives need only be consistent within a set; their concrete identity is not part of the ADT contract."
+        "Counts match brute force.",
+        "Repeated unions don't change counts."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.disjoint-set.adt.misconception",
-      "explanation": "Representatives need only be consistent within a set; their concrete identity is not part of the ADT contract.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'not part of the ADT contract', then state one implementation-specific risk in the selected language."
+      "explanation": "For every union: **find both roots first; if equal, stop; otherwise link one root under the other.** For every query: **compare roots, never parents.**",
+      "retryPrompt": "Apply this to \"The union that split a group\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test a basic parent-array disjoint-set structure. Keep this boundary in view: It tracks connectivity, not paths or deletion, and representative identity is an implementation detail.",
+    "summary": "To implement and test a basic parent-array disjoint-set, start each item as its own root, find by following parents to the root, union by linking one root under another, and treat two items as in the same group exactly when find returns the same representative, whichever member that is.",
     "retrievalPrompts": [
-      "State the Make, find and union invariant and complexity without code.",
-      "Why is this claim false: The representative returned by find must be the smallest value in the set.",
-      "Map checkpoint 'not part of the ADT contract' to C, C++, Java, and Python."
+      "What does find return?",
+      "Why link roots rather than the items themselves?",
+      "Must the representative be the smallest item?"
     ],
     "nextReviewPrompt": "Next: continue to “Union by rank or size”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

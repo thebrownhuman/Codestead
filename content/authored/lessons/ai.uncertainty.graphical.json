@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A Bayesian network is a directed acyclic factorization of a joint distribution in which graph structure encodes conditional independences under the modeled probability assumptions.",
+    "summary": "A **Bayesian network** draws uncertain knowledge as a **directed acyclic graph**: each node is a variable, and arrows point from **parents** to children. Each node stores a small table: its probabilities **given its parents**. Multiplying these tables gives the full **joint distribution** with far fewer numbers than listing every combination. The graph also shows **independence**: rain and sprinkler have no arrow between them, so they're independent... until you **observe their common effect**. Once you know the grass is wet, learning it rained makes the sprinkler **less likely** (\"explaining away\"). Arrows encode **modelled dependence**, not proven **causation**: an arrow is an assumption you must justify.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Rain and sprinkler both point to wet grass, so they become dependent after observing the common effect even if they were marginally independent in the model. Your goal is to construct and reason over a small directed probabilistic model without claiming causal meaning automatically. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner builds a network with Rain -> WetGrass and Sprinkler -> WetGrass. They're surprised when, after observing wet grass, learning it rained lowers the chance the sprinkler was on, even though rain and sprinkler were independent. Then they tell a manager the arrows prove rain causes wet grass. Rain and sprinkler both point to wet grass, so they become dependent after observing the common effect even if they were marginally independent in the model. In this lesson you'll construct and reason over a small directed probabilistic model without claiming causal meaning automatically.\n\n```predict\n{\"question\": \"The grass is wet and you learn it rained. What happens to P(sprinkler was on)?\", \"options\": [\"Stays the same: they're independent\", \"Goes down: rain already explains the wet grass\"], \"answer\": 1, \"why\": \"Observing a common effect links its causes.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: AI problems and agents; Problem and environment characteristics; Conditional probability and Bayes rule; dsa graphs model. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **AI problems and agents**, **Problem and environment characteristics**, **Conditional probability and Bayes rule** and **Graph terminology and models**."
       },
       {
-        "heading": "Bounded operational model",
-        "body": "A Bayesian network is a directed acyclic factorization of a joint distribution in which graph structure encodes conditional independences under the modeled probability assumptions. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+        "heading": "The model: local tables that multiply into a joint",
+        "body": "```python\nfrom itertools import product\n\nP_rain = {True: 0.2, False: 0.8}\nP_sprk = {True: 0.3, False: 0.7}\n# P(wet | rain, sprinkler). One number per parent combination.\nP_wet = {(True, True): 0.99, (True, False): 0.9,\n         (False, True): 0.8, (False, False): 0.05}\n\ndef joint(r, s, w):                  # multiply the local tables.\n    pw = P_wet[(r, s)]\n    return P_rain[r] * P_sprk[s] * (pw if w else 1 - pw)\n\ndef prob(query, given):              # enumerate matching worlds.\n    num = den = 0.0\n    for r, s, w in product([True, False], repeat=3):\n        world = {\"rain\": r, \"sprinkler\": s, \"wet\": w}\n        if all(world[k] == v for k, v in given.items()):\n            p = joint(r, s, w)\n            den += p                     # all worlds matching the evidence.\n            if all(world[k] == v for k, v in query.items()):\n                num += p\n    return round(num / den, 2)       # normalise.\n\nprint(prob({\"sprinkler\": True}, {}))                         # 0.3\nprint(prob({\"sprinkler\": True}, {\"wet\": True}))             # 0.62\nprint(prob({\"sprinkler\": True}, {\"wet\": True, \"rain\": True}))  # 0.32\n```\n\n```reveal\n{\"prompt\": \"How many numbers does this network need?\", \"answer\": \"One free number for rain, one for sprinkler and four for wet grass (one per parent combination): 6, versus 7 for the full joint of three yes/no variables. The saving is small here but grows enormously with more variables.\"}\n```"
       },
       {
-        "heading": "Failure boundary and non-claim",
-        "body": "An edge does not by itself establish causation, missing edges assert conditional independence only relative to the graph, latent variables can distort interpretation, and parameters need valid normalized distributions. The learner must reject this overclaim: Every directed edge in a Bayesian network proves that changing the parent will cause the child to change."
+        "heading": "Arrows are not proof of cause",
+        "body": "```predict\n{\"question\": \"The network has an arrow Ice-cream sales -> Drownings. Does it show ice cream causes drowning?\", \"options\": [\"Yes, arrows mean causes\", \"No: arrows encode modelled dependence; hot weather could explain both\"], \"answer\": 1, \"why\": \"Causal claims need causal evidence, not just a graph.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Read dependencies and conditional independence from a small Bayesian-network structure.",
-      "Construct and reason over a small directed probabilistic model without claiming causal meaning automatically."
+      "Build a small Bayesian network with conditional probability tables and query it by enumeration.",
+      "Explain explaining-away and why arrows don't automatically mean causation."
     ],
     "excludes": [
-      "An edge does not by itself establish causation, missing edges assert conditional independence only relative to the graph, latent variables can distort interpretation, and parameters need valid normalized distributions."
+      "Exact inference algorithms like variable elimination.",
+      "Causal inference methods."
     ]
   },
   "outcomes": [
@@ -63,133 +64,133 @@
   "examples": [
     {
       "id": "ai.uncertainty.graphical.example.direct",
-      "title": "Probabilistic graphical models concept: bounded direct case",
+      "title": "Rain, sprinkler and wet grass",
       "situation": "Rain and sprinkler both point to wet grass, so they become dependent after observing the common effect even if they were marginally independent in the model.",
       "walkthrough": [
-        "Step 1 — Observe the exact data, state, metric, or tool behavior: Rain and sprinkler both point to wet grass, so they become dependent after observing the common effect even if they were marginally independent in the model.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the claim boundary with: Read the graph as a probabilistic factorization and conditional-independence claim; causal interpretation requires additional assumptions and evidence."
+        "**Rain and sprinkler both point to wet grass:** WetGrass has two parents.",
+        "**Marginally independent in the model:** P(sprinkler) is 0.3 with no evidence.",
+        "**They become dependent after observing the common effect:** we compute 0.62 given wet, then 0.32 once rain is also known."
       ],
-      "result": "This example supports only the atomic outcome because Read the graph as a probabilistic factorization and conditional-independence claim; causal interpretation requires additional assumptions and evidence."
+      "result": "The model correctly lets rain explain away the sprinkler."
     },
     {
       "id": "ai.uncertainty.graphical.example.stress",
-      "title": "Probabilistic graphical models concept: stress and transfer case",
-      "situation": "A learned arrow between advertising and sales is reported as probabilistic dependency, not causal effect, because intervention and confounding evidence are absent.",
+      "title": "The causal slide",
+      "situation": "A slide claims the network proves marketing emails cause purchases because of an arrow between them.",
       "walkthrough": [
-        "Step 1 — Name the changed population, input, assumption, or failure: A learned arrow between advertising and sales is reported as probabilistic dependency, not causal effect, because intervention and confounding evidence are absent.",
-        "Step 2 — Keep the non-claim visible: An edge does not by itself establish causation, missing edges assert conditional independence only relative to the graph, latent variables can distort interpretation, and parameters need valid normalized distributions.",
-        "Step 3 — Reject the tempting overclaim: Every directed edge in a Bayesian network proves that changing the parent will cause the child to change."
+        "The arrow was a modelling choice fitted to observational data.",
+        "Both could depend on a hidden variable like customer interest.",
+        "Say the model shows dependence; test causation with an experiment."
       ],
-      "result": "This case demonstrates the declared outcome: Construct and reason over a small directed probabilistic model without claiming causal meaning automatically."
+      "result": "The claim now matches what the evidence can support."
     }
   ],
   "misconceptions": [
     {
       "id": "ai.uncertainty.graphical.misconception",
       "mistakenBelief": "Every directed edge in a Bayesian network proves that changing the parent will cause the child to change.",
-      "correction": "Read the graph as a probabilistic factorization and conditional-independence claim; causal interpretation requires additional assumptions and evidence.",
-      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: Every directed edge in a Bayesian network proves that changing the parent will cause the child to change."
+      "correction": "Edges encode assumed conditional dependence in the model. Causal conclusions need separate evidence such as experiments.",
+      "diagnosticPrompt": "In \"The causal slide\", what hidden variable might explain both?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "an evidence board that distinguishes explicit facts, supported rule chains, missing knowledge, probabilities, and dependency assumptions can introduce Probabilistic graphical models concept only after its canonical technical definition and evidence boundary are stated.",
+    "example": "A Bayesian network is like **a family tree of rumours**. Each person only listens to their direct sources (parents). If two unrelated friends could each have told you a secret, and you learn one did, the other **probably didn't need to**: that's explaining away. But the tree shows **who listens to whom in your model**, not proof of who actually started it.",
     "usefulFor": [
-      "symbolic representation, inference, Bayesian updating, and graphical dependencies"
+      "remembering listen only to parents",
+      "one explanation reduces the need for another"
     ],
     "limitations": [
-      "encoded facts can be incomplete or inconsistent and probabilistic edges do not automatically establish causation",
-      "An edge does not by itself establish causation, missing edges assert conditional independence only relative to the graph, latent variables can distort interpretation, and parameters need valid normalized distributions."
+      "A missing arrow is a claim that they don't talk directly.",
+      "Tables are each person's habits of passing things on."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Rain and sprinkler both point to wet grass, so they become dependent after observing the common effect even if they were marginally independent in the model.",
-      "A Bayesian network is a directed acyclic factorization of a joint distribution in which graph structure encodes conditional independences under the modeled probability assumptions.",
-      "Read the graph as a probabilistic factorization and conditional-independence claim; causal interpretation requires additional assumptions and evidence."
+      "P(sprinkler)",
+      "P(sprinkler | wet)",
+      "P(sprinkler | wet, rain)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Prior",
         "state": {
-          "boundedEvidence": "Rain and sprinkler both point to wet grass, so they become dependent after observing the common effect even if they were marginally independent in the model."
+          "P": "0.3"
         },
-        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+        "explanation": "Rain and sprinkler are marginally independent in the model."
       },
       {
         "step": 2,
-        "focus": "Model",
+        "focus": "Observe effect",
         "state": {
-          "operationalRule": "A Bayesian network is a directed acyclic factorization of a joint distribution in which graph structure encodes conditional independences under the modeled probability assumptions."
+          "P": "0.62"
         },
-        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+        "explanation": "Wet grass makes the sprinkler more likely."
       },
       {
         "step": 3,
-        "focus": "Limit",
+        "focus": "Explain away",
         "state": {
-          "correction": "Read the graph as a probabilistic factorization and conditional-independence claim; causal interpretation requires additional assumptions and evidence."
+          "P": "0.32"
         },
-        "explanation": "State what the evidence does not establish and reject the misconception: Every directed edge in a Bayesian network proves that changing the parent will cause the child to change."
+        "explanation": "They become dependent after observing the common effect, so rain lowers the sprinkler's probability."
       }
     ],
-    "textAlternative": "Starting artifact: Rain and sprinkler both point to wet grass, so they become dependent after observing the common effect even if they were marginally independent in the model. Step 1, Observe. State: boundedEvidence: Rain and sprinkler both point to wet grass, so they become dependent after observing the common effect even if they were marginally independent in the model.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: A Bayesian network is a directed acyclic factorization of a joint distribution in which graph structure encodes conditional independences under the modeled probability assumptions.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Read the graph as a probabilistic factorization and conditional-independence claim; causal interpretation requires additional assumptions and evidence.. State what the evidence does not establish and reject the misconception: Every directed edge in a Bayesian network proves that changing the parent will cause the child to change."
+    "textAlternative": "Tracing explaining away. Step 1, Prior: P is 0.3. Rain and sprinkler are marginally independent in the model. Step 2, Observe effect: P is 0.62. Wet grass makes the sprinkler more likely. Step 3, Explain away: P is 0.32. They become dependent after observing the common effect, so rain lowers the sprinkler's probability."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Probabilistic graphical models concept: bounded direct case”: state its starting evidence, apply the Probabilistic graphical models concept rule, and give the observable result in three short lines.",
+      "prompt": "For \"Rain, sprinkler and wet grass\", explain how rain and sprinkler both point to wet grass, so they become dependent after observing the common effect even if they were marginally independent in the model.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Structure.",
+        "Observe.",
+        "Explain away."
       ],
       "expectedEvidence": [
-        "Named example: Probabilistic graphical models concept: bounded direct case.",
-        "Starting evidence: Rain and sprinkler both point to wet grass, so they become dependent after observing the common effect even if they were marginally independent in the model.",
-        "Core rule: A Bayesian network is a directed acyclic factorization of a joint distribution in which graph structure encodes conditional independences under the modeled probability assumptions.",
-        "Observable result: This example supports only the atomic outcome because Read the graph as a probabilistic factorization and conditional-independence claim; causal interpretation requires additional assumptions and evidence.",
-        "Boundary check: Read the graph as a probabilistic factorization and conditional-independence claim; causal interpretation requires additional assumptions and evidence."
+        "Names the example \"Rain, sprinkler and wet grass\": rain surprisingly lowered the sprinkler's chance.",
+        "Rain and sprinkler both point to wet grass.",
+        "They become dependent after observing the common effect even if they were marginally independent in the model.",
+        "Rain explains away the sprinkler."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed case: A learned arrow between advertising and sales is reported as probabilistic dependency, not causal effect, because intervention and confounding evidence are absent.",
+      "prompt": "Compute P(rain | wet) and P(rain | wet, sprinkler) with the same code and explain the change.",
       "scaffold": [
-        "Identify which assumption, population, input, or objective changed.",
-        "Preserve provenance and the declared failure boundary."
+        "Change the query.",
+        "Compare the two numbers."
       ],
       "expectedEvidence": [
-        "A Bayesian network is a directed acyclic factorization of a joint distribution in which graph structure encodes conditional independences under the modeled probability assumptions.",
-        "An edge does not by itself establish causation, missing edges assert conditional independence only relative to the graph, latent variables can distort interpretation, and parameters need valid normalized distributions."
+        "Both values computed.",
+        "Explaining away described."
       ]
     },
     "farTransfer": {
-      "prompt": "Design a neutral-context example or evaluation for Probabilistic graphical models concept and list the evidence that would support and falsify its bounded claim.",
+      "prompt": "Design a four-node network (Season -> Rain, Season -> Sprinkler, Rain and Sprinkler -> WetGrass). Choose tables, compute three queries by enumeration, and write two sentences on what the arrows do and don't claim.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+        "Season has two values.",
+        "Reuse enumeration."
       ],
       "expectedEvidence": [
-        "Construct and reason over a small directed probabilistic model without claiming causal meaning automatically.",
-        "Read the graph as a probabilistic factorization and conditional-independence claim; causal interpretation requires additional assumptions and evidence."
+        "Three queries computed.",
+        "Causation caveat stated."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "ai.uncertainty.graphical.misconception",
-      "explanation": "Read the graph as a probabilistic factorization and conditional-independence claim; causal interpretation requires additional assumptions and evidence.",
-      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A learned arrow between advertising and sales is reported as probabilistic dependency, not causal effect, because intervention and confounding evidence are absent."
+      "explanation": "For every network, write what each arrow **assumes**, and before claiming a cause ask: **what experiment or causal evidence supports it?**",
+      "retryPrompt": "Apply this to \"The causal slide\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to construct and reason over a small directed probabilistic model without claiming causal meaning automatically. Keep this boundary in view: An edge does not by itself establish causation, missing edges assert conditional independence only relative to the graph, latent variables can distort interpretation, and parameters need valid normalized distributions.",
+    "summary": "To construct and reason over a small directed probabilistic model without claiming causal meaning automatically, draw a directed acyclic graph with a table per node given its parents, multiply tables to get the joint, answer queries by enumeration, recognise explaining away, and treat arrows as modelled dependence.",
     "retrievalPrompts": [
-      "Explain Probabilistic graphical models concept with one technical mechanism, one evidence requirement, and one non-claim.",
-      "Why is this overclaim invalid: Every directed edge in a Bayesian network proves that changing the parent will cause the child to change.",
-      "Apply the boundary to: A learned arrow between advertising and sales is reported as probabilistic dependency, not causal effect, because intervention and confounding evidence are absent."
+      "What does each node's table store?",
+      "What is explaining away?",
+      "Do arrows prove causation?"
     ],
     "nextReviewPrompt": "Next: continue to “Actions, preconditions and effects”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "C scalar types include integer, real floating, complex where supported, Boolean, enumeration, and pointer types, each with implementation-defined representation and operation rules.",
+    "summary": "A **scalar** holds one value: integers (`char`, `short`, `int`, `long`, `long long`, signed or `unsigned`), floating point (`float`, `double`), `bool` (from `<stdbool.h>`), enumerations and pointers. C sets only **minimum ranges**: `int` is at least 16 bits (usually 32), `long` at least 32 (64 on Linux, 32 on Windows). Whether plain `char` is signed is up to the implementation. So **pick types by meaning**: `size_t` for sizes and counts of objects, `int32_t` from `<stdint.h>` when you need an exact width, `double` for measurements, `bool` for flags. Check real sizes with `sizeof`.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: An object count uses size_t because it represents object sizes and array bounds rather than assuming unsigned int has the same range. Your goal is to choose and declare a suitable scalar type while avoiding unjustified size assumptions. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner stores the number of items in an array as `unsigned int`. It works on their laptop, but a code reviewer points out that on large 64-bit data sets the count can exceed what unsigned int holds. An object count uses size_t because it represents object sizes and array bounds rather than assuming unsigned int has the same range. In this lesson you'll choose and declare a suitable scalar type while avoiding unjustified size assumptions.\n\n```predict\n{\"question\": \"Does C guarantee that int is exactly 32 bits?\", \"options\": [\"Yes\", \"No: only that it's at least 16 bits; 32 is common but not promised\"], \"answer\": 1, \"why\": \"Use int32_t when you need exactly 32 bits.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Translation unit and main; pf state expressions. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Translation unit and main** (a minimal program) and **Expressions and evaluation** (variables hold values)."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "C scalar types include integer, real floating, complex where supported, Boolean, enumeration, and pointer types, each with implementation-defined representation and operation rules. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The model: types by meaning, sizes checked",
+        "body": "```c\n#include <stdio.h>\n#include <stdbool.h>\n#include <stddef.h>\n#include <stdint.h>\n\nint main(void) {\n    size_t count = 3;          /* sizes, counts, array indexes. */\n    int32_t balance = -250;    /* exactly 32 bits when that's required. */\n    double price = 19.99;      /* measurements, fractions. */\n    bool paid = false;         /* true or false. */\n    char grade = 'A';          /* one character (a small integer). */\n\n    printf(\"int: %zu bytes, long: %zu bytes\\n\", sizeof(int), sizeof(long));\n    return 0;\n}\n```\n\n| Need | Type |\n|---|---|\n| size or count of objects. | `size_t`. |\n| exact width (file formats, protocols). | `int32_t`, `uint8_t`... |\n| ordinary whole numbers. | `int`. |\n| fractional measurements. | `double`. |\n| yes/no flag. | `bool`. |\n\n```reveal\n{\"prompt\": \"Why not use float for money?\", \"answer\": \"Binary floating point can't represent 0.10 exactly, so sums drift. Store money as an integer number of cents, like int64_t cents = 1999.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Widths, signed representation details, plain char signedness, floating formats, alignment, and pointer representation vary by implementation despite minimum standard guarantees. Therefore the draft explicitly rejects this beginner failure model: C guarantees int is exactly 32 bits and plain char is always signed on every supported system."
+        "heading": "Don't assume, check",
+        "body": "```predict\n{\"question\": \"On 64-bit Windows, sizeof(long) is...\", \"options\": [\"8, like Linux\", \"4: Windows keeps long at 32 bits\"], \"answer\": 1, \"why\": \"Portable code uses int64_t or long long when it needs 64 bits.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use integer, floating, Boolean, character and void-related declarations appropriately.",
-      "Choose and declare a suitable scalar type while avoiding unjustified size assumptions."
+      "Choose scalar types by meaning: size_t, fixed-width integers, double and bool.",
+      "Check sizes with sizeof instead of assuming widths or char signedness."
     ],
     "excludes": [
-      "Widths, signed representation details, plain char signedness, floating formats, alignment, and pointer representation vary by implementation despite minimum standard guarantees."
+      "Floating-point representation in depth.",
+      "Complex numbers."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "c.types.scalar.example-a",
-      "title": "Scalar types and declarations: defined case",
+      "title": "Counting items with size_t",
       "situation": "An object count uses size_t because it represents object sizes and array bounds rather than assuming unsigned int has the same range.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: An object count uses size_t because it represents object sizes and array bounds rather than assuming unsigned int has the same range.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Use limits and fixed-width types only when their documented guarantees fit; sizeof and the implementation headers describe actual scalar ranges and widths."
+        "**An object count uses size_t:** `size_t count = sizeof marks / sizeof marks[0];`.",
+        "**It represents object sizes and array bounds:** sizeof itself returns size_t, so no conversion is needed.",
+        "**Rather than assuming unsigned int has the same range:** on 64-bit systems size_t is usually 64 bits; the loop index will also be size_t."
       ],
-      "result": "The defined result follows because Use limits and fixed-width types only when their documented guarantees fit; sizeof and the implementation headers describe actual scalar ranges and widths."
+      "result": "The count is correct for any array the system can hold."
     },
     {
       "id": "c.types.scalar.example-b",
-      "title": "Scalar types and declarations: boundary case",
-      "situation": "A byte read through unsigned char preserves all possible object-representation byte values without negative plain-char surprises.",
+      "title": "The signed char surprise",
+      "situation": "A learner reads bytes into a plain char and checks `if (c > 127)` to detect high bytes. It never triggers on their machine.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A byte read through unsigned char preserves all possible object-representation byte values without negative plain-char surprises.",
-        "Step 2 — Keep this standard boundary visible: Widths, signed representation details, plain char signedness, floating formats, alignment, and pointer representation vary by implementation despite minimum standard guarantees.",
-        "Step 3 — Reject the tempting rule: C guarantees int is exactly 32 bits and plain char is always signed on every supported system."
+        "Plain char is signed there, so byte 200 reads as -56.",
+        "Signedness of char is implementation-defined.",
+        "Use unsigned char (or uint8_t) for raw bytes."
       ],
-      "result": "This case demonstrates the declared outcome: Choose and declare a suitable scalar type while avoiding unjustified size assumptions."
+      "result": "High bytes are detected on every platform."
     }
   ],
   "misconceptions": [
     {
       "id": "c.types.scalar.misconception",
       "mistakenBelief": "C guarantees int is exactly 32 bits and plain char is always signed on every supported system.",
-      "correction": "Use limits and fixed-width types only when their documented guarantees fit; sizeof and the implementation headers describe actual scalar ranges and widths.",
-      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: C guarantees int is exactly 32 bits and plain char is always signed on every supported system."
+      "correction": "C only guarantees minimum ranges, and char signedness varies between implementations. Use fixed-width types when width matters and check with sizeof.",
+      "diagnosticPrompt": "In \"The signed char surprise\", why did 200 read as -56?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A manually managed workshop can model Scalar types and declarations: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "example": "Choosing a type is like **choosing a container**: a measuring jug for liquid (double), an egg box for countable items (size_t), a single light switch for yes/no (bool). C tells you the **minimum** size of each container, not the exact one, so you check the label (sizeof).",
     "usefulFor": [
-      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+      "remembering container by contents",
+      "sizeof = read the label"
     ],
     "limitations": [
-      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
-      "Widths, signed representation details, plain char signedness, floating formats, alignment, and pointer representation vary by implementation despite minimum standard guarantees."
+      "Containers overflow visibly; integers overflow silently.",
+      "Exact-size boxes exist when you need them (int32_t)."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "An object count uses size_t because it represents object sizes and array bounds rather than assuming unsigned int has the same range.",
-      "C scalar types include integer, real floating, complex where supported, Boolean, enumeration, and pointer types, each with implementation-defined representation and operation rules.",
-      "Use limits and fixed-width types only when their documented guarantees fit; sizeof and the implementation headers describe actual scalar ranges and widths."
+      "int marks[] = {7, 9, 8};",
+      "size_t count = sizeof marks / sizeof marks[0];",
+      "printf(\"%zu\\n\", count);"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Declare",
         "state": {
-          "evidence": "An object count uses size_t because it represents object sizes and array bounds rather than assuming unsigned int has the same range."
+          "marks": "3 ints",
+          "sizeof marks": "12 (if int is 4 bytes)"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "The array's total size depends on the platform's int size."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Count",
         "state": {
-          "rule": "C scalar types include integer, real floating, complex where supported, Boolean, enumeration, and pointer types, each with implementation-defined representation and operation rules."
+          "count": "3",
+          "type": "size_t"
         },
-        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+        "explanation": "An object count uses size_t because it represents object sizes."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Print",
         "state": {
-          "conclusion": "Use limits and fixed-width types only when their documented guarantees fit; sizeof and the implementation headers describe actual scalar ranges and widths."
+          "output": "3"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: C guarantees int is exactly 32 bits and plain char is always signed on every supported system."
+        "explanation": "Printing with %zu matches size_t on every system."
       }
     ],
-    "textAlternative": "Starting artifact: An object count uses size_t because it represents object sizes and array bounds rather than assuming unsigned int has the same range. Step 1, Source and state. State: evidence: An object count uses size_t because it represents object sizes and array bounds rather than assuming unsigned int has the same range.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: C scalar types include integer, real floating, complex where supported, Boolean, enumeration, and pointer types, each with implementation-defined representation and operation rules.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Use limits and fixed-width types only when their documented guarantees fit; sizeof and the implementation headers describe actual scalar ranges and widths.. Check the conclusion against the boundary and reject this misconception: C guarantees int is exactly 32 bits and plain char is always signed on every supported system."
+    "textAlternative": "Tracing a size_t count. Step 1, Declare: marks is 3 ints; sizeof marks is 12 (if int is 4 bytes). The array's total size depends on the platform's int size. Step 2, Count: count is 3; type is size_t. An object count uses size_t because it represents object sizes. Step 3, Print: output is 3. Printing with %zu matches size_t on every system."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Scalar types and declarations: defined case”: state its starting evidence, apply the Scalar types and declarations rule, and give the observable result in three short lines.",
+      "prompt": "For \"Counting items with size_t\", explain why an object count uses size_t because it represents object sizes and array bounds rather than assuming unsigned int has the same range.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Declare.",
+        "Count.",
+        "Print."
       ],
       "expectedEvidence": [
-        "Named example: Scalar types and declarations: defined case.",
-        "Starting evidence: An object count uses size_t because it represents object sizes and array bounds rather than assuming unsigned int has the same range.",
-        "Core rule: C scalar types include integer, real floating, complex where supported, Boolean, enumeration, and pointer types, each with implementation-defined representation and operation rules.",
-        "Observable result: The defined result follows because Use limits and fixed-width types only when their documented guarantees fit; sizeof and the implementation headers describe actual scalar ranges and widths.",
-        "Boundary check: Use limits and fixed-width types only when their documented guarantees fit; sizeof and the implementation headers describe actual scalar ranges and widths."
+        "Names the example \"Counting items with size_t\": unsigned int could overflow.",
+        "An object count uses size_t because it represents object sizes and array bounds.",
+        "It avoids assuming unsigned int has the same range.",
+        "The count is correct for any array."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same C rule to this related boundary case: A byte read through unsigned char preserves all possible object-representation byte values without negative plain-char surprises.",
+      "prompt": "Pick and declare a type for each: number of students, temperature in °C, a pixel's red channel (0-255), a file size in bytes, whether a door is locked. Justify each choice.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "uint8_t for 0-255.",
+        "size_t or int64_t for file sizes."
       ],
       "expectedEvidence": [
-        "C scalar types include integer, real floating, complex where supported, Boolean, enumeration, and pointer types, each with implementation-defined representation and operation rules.",
-        "Widths, signed representation details, plain char signedness, floating formats, alignment, and pointer representation vary by implementation despite minimum standard guarantees."
+        "Five declarations.",
+        "A reason for each."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new C example for Scalar types and declarations, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Write a program that prints sizeof for char, short, int, long, long long, float, double, size_t and a pointer. Run it (or compare published tables) for 64-bit Linux and 64-bit Windows and explain the differences.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Use %zu for sizeof results.",
+        "Look at long."
       ],
       "expectedEvidence": [
-        "Choose and declare a suitable scalar type while avoiding unjustified size assumptions.",
-        "Use limits and fixed-width types only when their documented guarantees fit; sizeof and the implementation headers describe actual scalar ranges and widths."
+        "Table of sizes.",
+        "Differences explained."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "c.types.scalar.misconception",
-      "explanation": "Use limits and fixed-width types only when their documented guarantees fit; sizeof and the implementation headers describe actual scalar ranges and widths.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'sizeof' and state the decisive evidence: A byte read through unsigned char preserves all possible object-representation byte values without negative plain-char surprises."
+      "explanation": "For each variable ask: **what does it mean (count, measurement, flag, byte, exact field)?** Then pick the type that matches that meaning, not your machine's habits.",
+      "retryPrompt": "Apply this to \"The signed char surprise\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to choose and declare a suitable scalar type while avoiding unjustified size assumptions. Keep this boundary in view: Widths, signed representation details, plain char signedness, floating formats, alignment, and pointer representation vary by implementation despite minimum standard guarantees.",
+    "summary": "To choose scalar types well, pick by meaning (size_t for sizes and counts, fixed-width integers when width matters, double for measurements, bool for flags, unsigned char for bytes), remember C only guarantees minimum ranges and leaves char signedness to the implementation, and check with sizeof.",
     "retrievalPrompts": [
-      "Explain Scalar types and declarations using a concrete C rule rather than the optional analogy.",
-      "Why is this claim incorrect: C guarantees int is exactly 32 bits and plain char is always signed on every supported system.",
-      "Apply the checkpoint 'sizeof' to the boundary case from memory."
+      "What type counts array elements?",
+      "Is int always 32 bits?",
+      "Which type suits raw bytes?"
     ],
     "nextReviewPrompt": "Next: continue to “Literals and formatted I/O types”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

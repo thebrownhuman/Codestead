@@ -7,6 +7,7 @@ import {
 } from "@/lib/content";
 import { pool } from "@/lib/db/client";
 
+import { unreviewedCurriculumWaived } from "./gate";
 import { aggregateArtifactHash, hashCurriculumValue } from "./hash";
 
 interface RuntimeArtifactRow {
@@ -191,7 +192,16 @@ export async function listPublishedExamCourses(): Promise<readonly PublishedExam
     rows.push(row);
     byVersion.set(row.course_version_id, rows);
   }
-  return [...byVersion.values()].map(materializePublishedCourse);
+  const versions = [...byVersion.values()];
+  // Local development may publish unreviewed drafts as beta (see
+  // unreviewedCurriculumWaived in ./gate). Such courses can never offer exams, so
+  // leave them out of the exam catalog instead of failing every learner page.
+  // Integrity problems (hashes, mixed versions, manifests) still throw.
+  const examReady = unreviewedCurriculumWaived()
+    ? versions.filter((rows) => rows.every((row) => row.review_event_exists && row.review_status === "approved")
+      && rows[0]?.release_evidence_exists === true)
+    : versions;
+  return examReady.map(materializePublishedCourse);
 }
 
 export async function loadPublishedExamModule(
@@ -202,4 +212,17 @@ export async function loadPublishedExamModule(
     if (courseModule) return { ...publication, module: courseModule };
   }
   return null;
+}
+
+// Stage of the version each course's catalog pointer currently publishes. Course
+// manifests on disk carry the authored status; this is what was actually published.
+export async function listPublishedCourseStages(): Promise<ReadonlyMap<string, "beta" | "verified">> {
+  const result = await pool.query<{ slug: string; stage: string }>(`
+    select c.slug, cv.stage
+      from curriculum_publication_pointer cpp
+      join course c on c.id = cpp.course_id
+      join course_version cv on cv.id = cpp.current_course_version_id
+     where cv.stage in ('beta', 'verified')
+  `);
+  return new Map(result.rows.map((row) => [row.slug, row.stage as "beta" | "verified"]));
 }

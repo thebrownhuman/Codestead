@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Map stores key-value associations using arbitrary identity keys, while Set stores unique values using SameValueZero equality.",
+    "summary": "Pick the structure for the job. **Array**: ordered list. **Object**: a record with known string keys. **Map**: key → value lookups where keys can be **any value** (objects, DOM nodes, numbers) without being turned into strings. **Set**: unique values. Both Map and Set compare keys by **identity** — two separate objects with the same contents are different keys. Copies with spread are **shallow**; use `structuredClone` for a deep copy of plain data.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A Map uses a DOM node object as a key without string coercion. Your goal is to select and use Array, Object, Map or Set and identify aliasing in a nested copy. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You want to remember which buttons on a page have been clicked. Using an object with the button as a key turns every button into the same string \"[object HTMLButtonElement]\" — all buttons collide! A Map uses a DOM node object as a key without string coercion. In this lesson you'll select and use Array, Object, Map or Set, and identify aliasing in a nested copy.\n\n```predict\n{\"question\": \"`const s = new Set([{ id: 1 }, { id: 1 }]); console.log(s.size);` Output?\", \"options\": [\"1\", \"2 — two separate objects, even with equal contents\"], \"answer\": 1, \"why\": \"Set membership is by identity. Two object literals are two different objects.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Control flow and functions; pf data selection; Arrays and indexed data; Object records and property access; pf state mutation. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Control flow and functions** module, **Data-structure choice**, **Arrays and indexed data**, **Object records and property access**, and **Mutation and aliases** (aliases)."
       },
       {
-        "heading": "Technology rule",
-        "body": "Map stores key-value associations using arbitrary identity keys, while Set stores unique values using SameValueZero equality. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: choose by the operation",
+        "body": "```js\nconst clicks = new Map();                  // key: a DOM node\nfor (const btn of document.querySelectorAll(\"button\")) {\n  btn.addEventListener(\"click\", () => {\n    clicks.set(btn, (clicks.get(btn) ?? 0) + 1);\n  });\n}\n\nconst tags = new Set([\"js\", \"css\", \"js\"]); // Set {\"js\", \"css\"}\ntags.has(\"css\");                           // true\n\nconst original = { title: \"Loops\", tags: [\"js\"] };\nconst shallow = { ...original };\nshallow.tags.push(\"arrays\");               // also changes original.tags!\nconst deep = structuredClone(original);    // independent copy of nested data\n```\n\n| Need | Choose |\n|---|---|\n| ordered items, duplicates allowed. | Array. |\n| fixed named fields. | Object. |\n| lookup by any key type; frequent add/remove. | Map. |\n| unique values, fast has(). | Set. |\n\n```reveal\n{\"prompt\": \"Why not an object for the clicks?\", \"answer\": \"Object keys become strings, so every button turns into \\\"[object HTMLButtonElement]\\\" and they all share one counter.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Object and Map have different key semantics, iteration order is insertion order, and object keys compare by identity. This draft therefore rejects: Two separate objects with identical properties are one Set value because their contents match."
+        "heading": "Shallow copies share nested data",
+        "body": "```predict\n{\"question\": \"After `const b = { ...a }; b.tags.push(\\\"x\\\");` does `a.tags` change?\", \"options\": [\"No, b is a copy\", \"Yes — the spread copied the reference to the same tags array\"], \"answer\": 1, \"why\": \"Spread copies one level. Nested arrays/objects are shared. structuredClone copies deeply.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Choose keyed or unique-value collections and understand spread as a shallow operation.",
-      "Select and use Array, Object, Map or Set and identify aliasing in a nested copy."
+      "Choose Array, Object, Map or Set by the operations needed.",
+      "Explain identity-based keys and spot aliasing in shallow copies; use structuredClone for deep copies."
     ],
     "excludes": [
-      "Object and Map have different key semantics, iteration order is insertion order, and object keys compare by identity."
+      "WeakMap and WeakSet in depth.",
+      "Immutable data libraries."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "javascript.collections.map-set.example-a",
-      "title": "Map, Set and structured copying: concrete case",
+      "title": "A Map keyed by DOM nodes",
       "situation": "A Map uses a DOM node object as a key without string coercion.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A Map uses a DOM node object as a key without string coercion.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Object keys use identity in Map and Set; structurally equal but distinct objects remain distinct entries."
+        "**Problem:** `counts[btn]` converts every button to the same string key, so counts collide.",
+        "**Map uses a DOM node object as a key:** `clicks.set(btn, (clicks.get(btn) ?? 0) + 1)` keeps one entry per button, without string coercion.",
+        "**Check:** clicking button A twice and B once, `clicks.get(A)` will read 2 and `clicks.get(B)` 1."
       ],
-      "result": "The result follows because Object keys use identity in Map and Set; structurally equal but distinct objects remain distinct entries."
+      "result": "Each button has its own click count, stored against the button itself."
     },
     {
       "id": "javascript.collections.map-set.example-b",
-      "title": "Map, Set and structured copying: boundary case",
-      "situation": "Object and Map have different key semantics, iteration order is insertion order, and object keys compare by identity.",
+      "title": "The copied course that changed the original",
+      "situation": "An editor makes a draft with `const draft = { ...course }`, adds a tag to `draft.tags`, then cancels — but the published course now shows the new tag.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Object and Map have different key semantics, iteration order is insertion order, and object keys compare by identity.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Two separate objects with identical properties are one Set value because their contents match."
+        "Spread copied the top level; tags is the same array in both.",
+        "Pushing to draft.tags mutated course.tags too.",
+        "Fix: `const draft = structuredClone(course)` so nested arrays are independent."
       ],
-      "result": "The boundary requires this correction: Object keys use identity in Map and Set; structurally equal but distinct objects remain distinct entries."
+      "result": "Cancelling a draft leaves the published course unchanged."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.collections.map-set.misconception",
       "mistakenBelief": "Two separate objects with identical properties are one Set value because their contents match.",
-      "correction": "Object keys use identity in Map and Set; structurally equal but distinct objects remain distinct entries.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: Two separate objects with identical properties are one Set value because their contents match."
+      "correction": "Sets and Maps compare objects by identity (same reference), not by contents. Two separate objects with equal properties are two members; use primitive keys (like an id) if you mean equal content.",
+      "diagnosticPrompt": "In the opening predict, why was the Set size 2?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Map, Set and structured copying, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "A Map with object keys is like a **coat check that tags the actual coat**, not a description of it — two identical-looking coats get two different tickets. A Set is a **guest list of actual people**: twins are still two guests.",
     "usefulFor": [
-      "Building a first mental model for Map, Set and structured copying before using exact platform terms"
+      "remembering identity-based keys",
+      "choosing by operation"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Object and Map have different key semantics, iteration order is insertion order, and object keys compare by identity."
+      "Coat checks don't copy coats; shallow copies share inner items.",
+      "structuredClone is like buying a new identical coat."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A Map uses a DOM node object as a key without string coercion.",
-      "Map stores key-value associations using arbitrary identity keys, while Set stores unique values using SameValueZero equality.",
-      "Object keys use identity in Map and Set; structurally equal but distinct objects remain distinct entries."
+      "const clicks = new Map()",
+      "click A, click A, click B",
+      "clicks.get(A), clicks.get(B)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Empty map",
         "state": {
-          "evidence": "A Map uses a DOM node object as a key without string coercion."
+          "size": "0"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The Map starts empty before any clicks."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Clicks",
         "state": {
-          "rule": "Map stores key-value associations using arbitrary identity keys, while Set stores unique values using SameValueZero equality."
+          "A": "2",
+          "B": "1"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The Map uses a DOM node object as a key without string coercion."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Read",
         "state": {
-          "correction": "Object keys use identity in Map and Set; structurally equal but distinct objects remain distinct entries."
+          "clicks.get(A)": "2",
+          "clicks.get(B)": "1"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Two separate objects with identical properties are one Set value because their contents match."
+        "explanation": "Each button node keeps its own separate count."
       }
     ],
-    "textAlternative": "Starting artifact: A Map uses a DOM node object as a key without string coercion. Step 1, Artifact. State: evidence: A Map uses a DOM node object as a key without string coercion.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Map stores key-value associations using arbitrary identity keys, while Set stores unique values using SameValueZero equality.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Object keys use identity in Map and Set; structurally equal but distinct objects remain distinct entries.. Check the result against the boundary and reject this misconception: Two separate objects with identical properties are one Set value because their contents match."
+    "textAlternative": "Counting clicks per button with a Map. Step 1, Empty map: size is 0. The Map starts empty before any clicks. Step 2, Clicks: A is 2; B is 1. The Map uses a DOM node object as a key without string coercion. Step 3, Read: clicks.get(A) is 2; clicks.get(B) is 1. Each button node keeps its own separate count."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Map, Set and structured copying: concrete case”: state its starting evidence, apply the Map, Set and structured copying rule, and give the observable result in three short lines.",
+      "prompt": "For \"A Map keyed by DOM nodes\", explain how a Map uses a DOM node object as a key without string coercion, and why an object failed.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Object problem.",
+        "Map.",
+        "Check."
       ],
       "expectedEvidence": [
-        "Named example: Map, Set and structured copying: concrete case.",
-        "Starting evidence: A Map uses a DOM node object as a key without string coercion.",
-        "Core rule: Map stores key-value associations using arbitrary identity keys, while Set stores unique values using SameValueZero equality.",
-        "Observable result: The result follows because Object keys use identity in Map and Set; structurally equal but distinct objects remain distinct entries.",
-        "Boundary check: Object keys use identity in Map and Set; structurally equal but distinct objects remain distinct entries."
+        "Names the example \"A Map keyed by DOM nodes\": a Map uses a DOM node object as a key.",
+        "It works without string coercion.",
+        "An object turned every button into the same string key.",
+        "Each button has its own click count."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Object and Map have different key semantics, iteration order is insertion order, and object keys compare by identity.",
+      "prompt": "For each need pick a structure: unique visited URLs; lesson by id with frequent adds/removes; a user's profile fields; a playlist with repeats.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Uniqueness, lookup, record, order.",
+        "Justify each."
       ],
       "expectedEvidence": [
-        "Map stores key-value associations using arbitrary identity keys, while Set stores unique values using SameValueZero equality.",
-        "Object and Map have different key semantics, iteration order is insertion order, and object keys compare by identity."
+        "Set; Map.",
+        "Object; Array."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Map, Set and structured copying and explain why the misconception fails.",
+      "prompt": "Write `dedupeById(items)` that removes objects with duplicate ids (keeping the first) using a Set of ids. Test with equal-content objects that have different ids and same ids.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Set of primitive ids.",
+        "Identity vs id."
       ],
       "expectedEvidence": [
-        "Select and use Array, Object, Map or Set and identify aliasing in a nested copy.",
-        "Object keys use identity in Map and Set; structurally equal but distinct objects remain distinct entries."
+        "Correct dedupe by id.",
+        "Tests showing identity vs id behaviour."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.collections.map-set.misconception",
-      "explanation": "Object keys use identity in Map and Set; structurally equal but distinct objects remain distinct entries.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'use identity' and state the decisive evidence."
+      "explanation": "Ask: **What operation dominates — order, named fields, lookup by any key, or uniqueness?** Then, for copies: **does it contain nested objects? → structuredClone.**",
+      "retryPrompt": "Apply this to \"The copied course that changed the original\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to select and use Array, Object, Map or Set and identify aliasing in a nested copy. Keep this boundary in view: Object and Map have different key semantics, iteration order is insertion order, and object keys compare by identity.",
+    "summary": "To select and use Array, Object, Map or Set, pick by operation: order, named fields, lookup by any key type, or uniqueness. Maps and Sets use identity for object keys. Spread copies are shallow — identify aliasing in nested copies and use structuredClone when you need independence.",
     "retrievalPrompts": [
-      "Explain Map, Set and structured copying using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: Two separate objects with identical properties are one Set value because their contents match.",
-      "Apply checkpoint 'use identity' to a new artifact."
+      "Why can't an object use DOM nodes as keys?",
+      "Are two equal-content objects one Set member?",
+      "When do you need structuredClone?"
     ],
     "nextReviewPrompt": "Next: continue to “Method calls and this”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Java reference equality tests whether references denote the same object, equals defines value equality, and equal objects must produce equal hash codes for hashed collections.",
+    "summary": "For objects, `==` asks **\"are these the same object?\"** (identity). `equals` asks **\"do these represent the same value?\"**, but only if the class **overrides** it; the inherited `Object.equals` is just `==`. If you override `equals`, you **must** override `hashCode` consistently: **equal objects must have equal hash codes**. `HashSet` and `HashMap` look in a bucket chosen by hashCode **first**, then check equals, so inconsistent hashing means \"equal\" objects are stored twice or can't be found. Base both on the same **value-significant fields**, and avoid mutating fields used in hashCode while an object sits in a hashed collection.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Two separately constructed Money values compare equal through equals and produce the same hash code, so a HashSet stores one logical value. Your goal is to implement and test equality and hashing for a value-like class. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner writes a Money class with an `equals` that compares amount and currency, but no `hashCode`. `new Money(500, \"USD\").equals(new Money(500, \"USD\"))` is true, yet a HashSet happily stores both, and `set.contains(...)` returns false for an equal value. Two separately constructed Money values compare equal through equals and produce the same hash code, so a HashSet stores one logical value. In this lesson you'll implement and test equality and hashing for a value-like class.\n\n```predict\n{\"question\": \"Two separately created objects have identical fields. What does == return?\", \"options\": [\"true\", \"false: they're different objects\"], \"answer\": 1, \"why\": \"Use equals for value comparison, after overriding it.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Method contracts and parameters; pf data records; Constructors and invariants; String and text processing. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Method contracts and parameters**, **Records and entities**, **Constructors and invariants** and **String and text processing** (equals vs ==)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Java reference equality tests whether references denote the same object, equals defines value equality, and equal objects must produce equal hash codes for hashed collections. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The rule: equals and hashCode agree",
+        "body": "```java\nimport java.util.HashSet;\nimport java.util.Objects;\nimport java.util.Set;\n\npublic final class Money {\n    private final long cents;\n    private final String currency;\n\n    public Money(long cents, String currency) {\n        this.cents = cents;\n        this.currency = Objects.requireNonNull(currency);\n    }\n\n    @Override public boolean equals(Object o) {\n        if (this == o) return true;\n        if (!(o instanceof Money other)) return false;\n        return cents == other.cents && currency.equals(other.currency);\n    }\n\n    @Override public int hashCode() {\n        return Objects.hash(cents, currency);      // same fields as equals.\n    }\n\n    public static void main(String[] args) {\n        Money a = new Money(500, \"USD\"), b = new Money(500, \"USD\");\n        System.out.println((a == b) + \" \" + a.equals(b));   // false true\n        Set<Money> set = new HashSet<>();\n        set.add(a); set.add(b);\n        System.out.println(set.size() + \" \" + set.contains(new Money(500, \"USD\")));   // 1 true\n    }\n}\n```\n\n| Contract | Means |\n|---|---|\n| reflexive. | a.equals(a). |\n| symmetric. | a.equals(b) iff b.equals(a). |\n| transitive and consistent. | stable, chainable answers. |\n| hashCode agreement. | a.equals(b) implies equal hash codes. |\n\n```reveal\n{\"prompt\": \"Why is the class final with final fields?\", \"answer\": \"If fields used in hashCode could change while the object is in a HashSet, it would sit in the wrong bucket and become unfindable. Immutable value classes avoid that trap entirely.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "null needs safe handling, mutable equality fields break hashed lookup, inheritance can threaten symmetry, arrays use identity equality by default, and records derive component-based behavior. The learner must reject this documented misconception: Overriding equals is enough; hashCode may remain inherited because maps compare keys with equals eventually."
+        "heading": "Hash first, equals second",
+        "body": "```predict\n{\"question\": \"equals is overridden but hashCode isn't. Can a HashSet contain two \\\"equal\\\" Money objects?\", \"options\": [\"No, equals prevents it\", \"Yes: different identity hash codes put them in different buckets, so equals is never compared\"], \"answer\": 1, \"why\": \"Override both, based on the same fields.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Distinguish object references, null, identity, value equality and hashing contracts.",
-      "Implement and test equality and hashing for a value-like class."
+      "Distinguish identity (==) from value equality (equals).",
+      "Override equals and hashCode consistently and test them with hashed collections."
     ],
     "excludes": [
-      "null needs safe handling, mutable equality fields break hashed lookup, inheritance can threaten symmetry, arrays use identity equality by default, and records derive component-based behavior."
+      "Comparable and ordering (collections module).",
+      "Records' generated equality (next lesson)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "java.objects.identity.example.direct",
-      "title": "References, identity and equality: direct language case",
+      "title": "Two Money objects, one logical value",
       "situation": "Two separately constructed Money values compare equal through equals and produce the same hash code, so a HashSet stores one logical value.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: Two separately constructed Money values compare equal through equals and produce the same hash code, so a HashSet stores one logical value.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Implement equals and hashCode as one stable contract: equal objects must have equal hash codes, and fields used by the contract should not change while hashed."
+        "**Two separately constructed Money values:** a and b are different objects, so a == b is false.",
+        "**Compare equal through equals and produce the same hash code:** both use cents and currency.",
+        "**So a HashSet stores one logical value:** adding a and b leaves size 1, and contains will find an equal new Money."
       ],
-      "result": "The example meets the atomic outcome because Implement equals and hashCode as one stable contract: equal objects must have equal hash codes, and fields used by the contract should not change while hashed."
+      "result": "Hashed collections treat equal money amounts as one value."
     },
     {
       "id": "java.objects.identity.example.boundary",
-      "title": "References, identity and equality: boundary and transfer case",
-      "situation": "A key's amount is not mutated after insertion into a HashMap because changing equality/hash state can make the entry unreachable by lookup.",
+      "title": "The unfindable key",
+      "situation": "A learner uses a mutable Point as a HashMap key, then changes its x. map.get(point) now returns null.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A key's amount is not mutated after insertion into a HashMap because changing equality/hash state can make the entry unreachable by lookup.",
-        "Step 2 — Keep the language boundary explicit: null needs safe handling, mutable equality fields break hashed lookup, inheritance can threaten symmetry, arrays use identity equality by default, and records derive component-based behavior.",
-        "Step 3 — Reject the tempting but incorrect rule: Overriding equals is enough; hashCode may remain inherited because maps compare keys with equals eventually."
+        "The key moved to a different hash value after being stored.",
+        "The map looks in the new bucket and finds nothing.",
+        "Make keys immutable (final fields, or a record)."
       ],
-      "result": "This case demonstrates the declared outcome: Implement and test equality and hashing for a value-like class."
+      "result": "Keys stay findable for as long as they're in the map."
     }
   ],
   "misconceptions": [
     {
       "id": "java.objects.identity.misconception",
       "mistakenBelief": "Overriding equals is enough; hashCode may remain inherited because maps compare keys with equals eventually.",
-      "correction": "Implement equals and hashCode as one stable contract: equal objects must have equal hash codes, and fields used by the contract should not change while hashed.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Overriding equals is enough; hashCode may remain inherited because maps compare keys with equals eventually."
+      "correction": "Hash-based collections choose a bucket by hashCode before calling equals. Equal objects with different hash codes land in different buckets and are never compared.",
+      "diagnosticPrompt": "In the opening story, why did the HashSet store both Money objects?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a secured service object whose constructor admits only valid state and whose public desk exposes approved behavior can introduce References, identity and equality, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "example": "A HashSet is like **a library that shelves books by the first letter of the title** (hashCode), then checks the full title (equals) on that shelf. If two copies of the same book get different first letters, they're shelved apart and the library thinks it has two different books.",
     "usefulFor": [
-      "understanding encapsulation, construction, identity, equality, and records"
+      "remembering shelf first, then title",
+      "same book, same shelf"
     ],
     "limitations": [
-      "object references, hashing, shallow immutability, and garbage collection are not physical ownership rules",
-      "null needs safe handling, mutable equality fields break hashed lookup, inheritance can threaten symmetry, arrays use identity equality by default, and records derive component-based behavior."
+      "Libraries rarely change titles; mutable keys do.",
+      "== is asking whether it's the exact same physical copy."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Two separately constructed Money values compare equal through equals and produce the same hash code, so a HashSet stores one logical value.",
-      "Java reference equality tests whether references denote the same object, equals defines value equality, and equal objects must produce equal hash codes for hashed collections.",
-      "Implement equals and hashCode as one stable contract: equal objects must have equal hash codes, and fields used by the contract should not change while hashed."
+      "a = new Money(500, \"USD\"); b = new Money(500, \"USD\")",
+      "a == b; a.equals(b)",
+      "set.add(a); set.add(b)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Create",
         "state": {
-          "evidence": "Two separately constructed Money values compare equal through equals and produce the same hash code, so a HashSet stores one logical value."
+          "a": "object #1",
+          "b": "object #2"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "Two separately constructed Money values are different objects."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Compare",
         "state": {
-          "rule": "Java reference equality tests whether references denote the same object, equals defines value equality, and equal objects must produce equal hash codes for hashed collections."
+          "==": "false",
+          "equals": "true",
+          "hashes": "equal"
         },
-        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "They compare equal through equals and produce the same hash code."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Store",
         "state": {
-          "correction": "Implement equals and hashCode as one stable contract: equal objects must have equal hash codes, and fields used by the contract should not change while hashed."
+          "set.size()": "1"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Overriding equals is enough; hashCode may remain inherited because maps compare keys with equals eventually."
+        "explanation": "A HashSet stores one logical value because hash and equals agree."
       }
     ],
-    "textAlternative": "Starting artifact: Two separately constructed Money values compare equal through equals and produce the same hash code, so a HashSet stores one logical value. Step 1, Observe. State: evidence: Two separately constructed Money values compare equal through equals and produce the same hash code, so a HashSet stores one logical value.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Java reference equality tests whether references denote the same object, equals defines value equality, and equal objects must produce equal hash codes for hashed collections.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Implement equals and hashCode as one stable contract: equal objects must have equal hash codes, and fields used by the contract should not change while hashed.. Compare the observation with the correction and explain why the misconception fails: Overriding equals is enough; hashCode may remain inherited because maps compare keys with equals eventually."
+    "textAlternative": "Tracing identity, equality and hashing. Step 1, Create: a is object #1; b is object #2. Two separately constructed Money values are different objects. Step 2, Compare: == is false; equals is true; hashes is equal. They compare equal through equals and produce the same hash code. Step 3, Store: set.size() is 1. A HashSet stores one logical value because hash and equals agree."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “References, identity and equality: direct language case”: state its starting evidence, apply the References, identity and equality rule, and give the observable result in three short lines.",
+      "prompt": "For \"Two Money objects, one logical value\", explain how two separately constructed Money values compare equal through equals and produce the same hash code, so a HashSet stores one logical value.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Identity.",
+        "Equality.",
+        "Hashing."
       ],
       "expectedEvidence": [
-        "Named example: References, identity and equality: direct language case.",
-        "Starting evidence: Two separately constructed Money values compare equal through equals and produce the same hash code, so a HashSet stores one logical value.",
-        "Core rule: Java reference equality tests whether references denote the same object, equals defines value equality, and equal objects must produce equal hash codes for hashed collections.",
-        "Observable result: The example meets the atomic outcome because Implement equals and hashCode as one stable contract: equal objects must have equal hash codes, and fields used by the contract should not change while hashed.",
-        "Boundary check: Implement equals and hashCode as one stable contract: equal objects must have equal hash codes, and fields used by the contract should not change while hashed."
+        "Names the example \"Two Money objects, one logical value\": missing hashCode stored duplicates.",
+        "Two separately constructed Money values compare equal through equals and produce the same hash code.",
+        "A HashSet stores one logical value.",
+        "Hashed collections treat equal amounts as one value."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A key's amount is not mutated after insertion into a HashMap because changing equality/hash state can make the entry unreachable by lookup.",
+      "prompt": "Write equals and hashCode for a Book (isbn only is value-significant). Test: two Books with the same isbn and different titles are equal, a HashSet keeps one, and a Book never equals null or a String.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "instanceof pattern.",
+        "Objects.hash(isbn)."
       ],
       "expectedEvidence": [
-        "Java reference equality tests whether references denote the same object, equals defines value equality, and equal objects must produce equal hash codes for hashed collections.",
-        "null needs safe handling, mutable equality fields break hashed lookup, inheritance can threaten symmetry, arrays use identity equality by default, and records derive component-based behavior."
+        "All tests pass.",
+        "Contract respected."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of References, identity and equality, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Demonstrate the mutable-key bug with a mutable Point in a HashMap, then fix it by making Point immutable. Write a test for each equals contract property (reflexive, symmetric, transitive, consistent, null).",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Change a field after put, then get.",
+        "Final fields and no setters."
       ],
       "expectedEvidence": [
-        "Implement and test equality and hashing for a value-like class.",
-        "Implement equals and hashCode as one stable contract: equal objects must have equal hash codes, and fields used by the contract should not change while hashed."
+        "Bug reproduced and fixed.",
+        "Contract tests pass."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "java.objects.identity.misconception",
-      "explanation": "Implement equals and hashCode as one stable contract: equal objects must have equal hash codes, and fields used by the contract should not change while hashed.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A key's amount is not mutated after insertion into a HashMap because changing equality/hash state can make the entry unreachable by lookup."
+      "explanation": "Whenever you override equals, **override hashCode using the same fields**, and ask: **can those fields change while the object is in a hashed collection?**",
+      "retryPrompt": "Apply this to \"The unfindable key\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test equality and hashing for a value-like class. Keep this boundary in view: null needs safe handling, mutable equality fields break hashed lookup, inheritance can threaten symmetry, arrays use identity equality by default, and records derive component-based behavior.",
+    "summary": "To implement equality for a value-like class, use == only for identity, override equals to compare value-significant fields, override hashCode from the same fields so equal objects hash equally, prefer immutable fields for keys, and test with HashSet and HashMap.",
     "retrievalPrompts": [
-      "Explain References, identity and equality using canonical Java: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Overriding equals is enough; hashCode may remain inherited because maps compare keys with equals eventually.",
-      "Predict this case from memory: A key's amount is not mutated after insertion into a HashMap because changing equality/hash state can make the entry unreachable by lookup."
+      "What does == compare for objects?",
+      "Why must hashCode match equals?",
+      "Why are mutable keys dangerous?"
     ],
     "nextReviewPrompt": "Next: continue to “Records and immutable data”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

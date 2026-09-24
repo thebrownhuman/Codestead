@@ -20,6 +20,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { AuthoredLesson, AuthoredPracticePrompt } from "@/lib/content";
 
 import styles from "./interactive-lesson-flow.module.css";
+import { LessonInline, LessonProse } from "./lesson-prose";
 
 const MIN_SCRATCHPAD_LENGTH = 12;
 
@@ -174,7 +175,7 @@ export function InteractiveLessonFlow({ lesson }: { readonly lesson: AuthoredLes
         <div>
           <strong>Prediction saved locally. Now compare, do not score yourself.</strong>
           <h3>Step 1: {firstTrace.focus}</h3>
-          <p>{firstTrace.explanation}</p>
+          <LessonProse>{firstTrace.explanation}</LessonProse>
           <code>{stateSummary(firstTrace.state)}</code>
         </div>
       </div>}
@@ -188,25 +189,25 @@ export function InteractiveLessonFlow({ lesson }: { readonly lesson: AuthoredLes
       </header>
       <div className={styles.plainCard}>
         <span>Plain English</span>
-        <p>{lesson.canonicalExplanation.summary}</p>
+        <LessonProse>{lesson.canonicalExplanation.summary}</LessonProse>
       </div>
       <div className={styles.explanationGrid}>{lesson.canonicalExplanation.sections.map((section, index) => <article key={section.heading}>
         <b>{String(index + 1).padStart(2, "0")}</b>
-        <div><h3>{section.heading}</h3><p>{section.body}</p></div>
+        <div><h3>{section.heading}</h3><LessonProse>{section.body}</LessonProse></div>
       </article>)}</div>
       <details className={styles.boundaryDisclosure}>
         <summary>See exactly what this lesson does and does not cover</summary>
         <div className={styles.boundaryGrid}>
-          <div><h3>Learn now</h3><ul>{lesson.scope.includes.map((item) => <li key={item}>{item}</li>)}</ul></div>
-          <div><h3>Save for later</h3><ul>{lesson.scope.excludes.map((item) => <li key={item}>{item}</li>)}</ul></div>
+          <div><h3>Learn now</h3><ul>{lesson.scope.includes.map((item) => <li key={item}><LessonInline>{item}</LessonInline></li>)}</ul></div>
+          <div><h3>Save for later</h3><ul>{lesson.scope.excludes.map((item) => <li key={item}><LessonInline>{item}</LessonInline></li>)}</ul></div>
         </div>
       </details>
       <div className={styles.analogyCard}>
         <Sparkles aria-hidden="true" size={20} />
         <div>
           <span>Optional analogy</span>
-          <p>{lesson.analogy.example}</p>
-          <details><summary>Where this analogy stops being accurate</summary><ul>{lesson.analogy.limitations.map((limit) => <li key={limit}>{limit}</li>)}</ul></details>
+          <LessonProse>{lesson.analogy.example}</LessonProse>
+          <details><summary>Where this analogy stops being accurate</summary><ul>{lesson.analogy.limitations.map((limit) => <li key={limit}><LessonInline>{limit}</LessonInline></li>)}</ul></details>
         </div>
       </div>
     </section>
@@ -226,16 +227,16 @@ export function InteractiveLessonFlow({ lesson }: { readonly lesson: AuthoredLes
         >Example {index + 1}: {candidate.title}</button>)}
       </div>
       <div className={styles.workedCard}>
-        <div><small>Situation</small><p>{example.situation}</p></div>
+        <div><small>Situation</small><LessonProse>{example.situation}</LessonProse></div>
         <div aria-live="polite" className={styles.workedStep}>
           <span>Step {workedStep + 1} of {example.walkthrough.length}</span>
-          <p>{example.walkthrough[workedStep]}</p>
+          <LessonProse>{example.walkthrough[workedStep]!}</LessonProse>
         </div>
         <div className={styles.stepControls}>
           <button aria-label="Previous worked step" disabled={workedStep === 0} onClick={() => moveWorkedStep(-1)} type="button"><ChevronLeft aria-hidden="true" size={18} /> Previous</button>
           <button aria-label="Next worked step" disabled={workedStep === example.walkthrough.length - 1} onClick={() => moveWorkedStep(1)} type="button">Next <ChevronRight aria-hidden="true" size={18} /></button>
         </div>
-        {workedStep === example.walkthrough.length - 1 && <div className={styles.resultStrip}><Check aria-hidden="true" size={17} /><strong>Result:</strong> {example.result}</div>}
+        {workedStep === example.walkthrough.length - 1 && <div className={styles.resultStrip}><Check aria-hidden="true" size={17} /><strong>Result:</strong> <span><LessonInline>{example.result}</LessonInline></span></div>}
       </div>
     </section>
 
@@ -250,7 +251,7 @@ export function InteractiveLessonFlow({ lesson }: { readonly lesson: AuthoredLes
         <div className={styles.traceProgress}><span style={{ width: `${((traceStep + 1) / lesson.trace.steps.length) * 100}%` }} /></div>
         <small>Machine step {traceStep + 1} of {lesson.trace.steps.length}</small>
         <h3>{lesson.trace.steps[traceStep]!.focus}</h3>
-        <p>{lesson.trace.steps[traceStep]!.explanation}</p>
+        <LessonProse>{lesson.trace.steps[traceStep]!.explanation}</LessonProse>
         <dl>{Object.entries(lesson.trace.steps[traceStep]!.state).map(([name, value]) => <div key={name}><dt>{name}</dt><dd>{value}</dd></div>)}</dl>
       </div>
       <div className={styles.stepControls}>
@@ -266,7 +267,7 @@ export function InteractiveLessonFlow({ lesson }: { readonly lesson: AuthoredLes
         <div><small>Catch the tempting mistake</small><h2 id="misconceptions-heading">Which mental model will survive a new problem?</h2></div>
         <CircleHelp aria-hidden="true" size={24} />
       </header>
-      <p className={styles.stageLead}>{misconception.diagnosticPrompt}</p>
+      <p className={styles.stageLead}><LessonInline>{misconception.diagnosticPrompt}</LessonInline></p>
       <div aria-describedby={misconceptionFeedbackId} className={styles.choiceGrid}>
         <button aria-pressed={misconceptionChoice === "belief"} onClick={() => setMisconceptionChoice("belief")} type="button">
           <small>Tempting shortcut</small>{misconception.mistakenBelief}
@@ -277,8 +278,8 @@ export function InteractiveLessonFlow({ lesson }: { readonly lesson: AuthoredLes
       </div>
       <div aria-live="polite" className={styles.feedback} id={misconceptionFeedbackId}>
         {misconceptionChoice === null && <p>Choose one, then the lesson will explain the consequence.</p>}
-        {misconceptionChoice === "belief" && <p><Lightbulb aria-hidden="true" size={18} /><span><strong>That shortcut breaks at the boundary.</strong> {misconception.correction}</span></p>}
-        {misconceptionChoice === "correction" && <p><Check aria-hidden="true" size={18} /><span><strong>That is the safer mental model.</strong> {misconception.correction}</span></p>}
+        {misconceptionChoice === "belief" && <p><Lightbulb aria-hidden="true" size={18} /><span><strong>That shortcut breaks at the boundary.</strong> <LessonInline>{misconception.correction}</LessonInline></span></p>}
+        {misconceptionChoice === "correction" && <p><Check aria-hidden="true" size={18} /><span><strong>That is the safer mental model.</strong> <LessonInline>{misconception.correction}</LessonInline></span></p>}
         {misconceptionChoice !== null && <small>This is a practice-only check; it creates no official evidence.</small>}
       </div>
     </section>
@@ -294,19 +295,19 @@ export function InteractiveLessonFlow({ lesson }: { readonly lesson: AuthoredLes
       </ol>
       <div className={styles.practiceCard}>
         <h3>{activePractice.heading}</h3>
-        <p>{activePractice.practice.prompt}</p>
+        <LessonProse>{activePractice.practice.prompt}</LessonProse>
         <label className={styles.answerField}>
           <span>{activePractice.answerLabel}</span>
           <textarea onChange={(event) => updatePracticeAnswer(event.target.value)} placeholder="Write your reasoning, pseudocode, or small code idea…" value={practiceAnswers[practiceRung]} />
         </label>
         <div className={styles.hintStack}>
-          {activePractice.practice.scaffold.slice(0, visibleHints[practiceRung]).map((hint, index) => <p key={hint}><Lightbulb aria-hidden="true" size={16} /><span><strong>Hint {index + 1}:</strong> {hint}</span></p>)}
+          {activePractice.practice.scaffold.slice(0, visibleHints[practiceRung]).map((hint, index) => <p key={hint}><Lightbulb aria-hidden="true" size={16} /><span><strong>Hint {index + 1}:</strong> <LessonInline>{hint}</LessonInline></span></p>)}
         </div>
         <div className={styles.actionRow}>
           <button disabled={visibleHints[practiceRung] >= activePractice.practice.scaffold.length} onClick={revealHint} type="button"><Lightbulb aria-hidden="true" size={17} /> Show one hint</button>
           <button className={styles.primaryAction} disabled={!enoughToContinue(practiceAnswers[practiceRung]!)} onClick={advancePractice} type="button">{activePractice.nextLabel} <ArrowRight aria-hidden="true" size={17} /></button>
         </div>
-        <details className={styles.selfCheck}><summary>When you are done, use this evidence checklist</summary><ul>{activePractice.practice.expectedEvidence.map((item) => <li key={item}>{item}</li>)}</ul></details>
+        <details className={styles.selfCheck}><summary>When you are done, use this evidence checklist</summary><ul>{activePractice.practice.expectedEvidence.map((item) => <li key={item}><LessonInline>{item}</LessonInline></li>)}</ul></details>
       </div>
       {ladderComplete && <div aria-live="polite" className={styles.completionNote} role="status"><Check aria-hidden="true" size={18} /><span><strong>Practice ladder complete in this tab.</strong> Use the published checkpoint for official evidence when a human-reviewed item is available.</span></div>}
     </section>
@@ -317,7 +318,7 @@ export function InteractiveLessonFlow({ lesson }: { readonly lesson: AuthoredLes
         <div><small>If it still feels fuzzy</small><h2 id="remediation-heading">One smaller retry</h2></div>
         <Lightbulb aria-hidden="true" size={24} />
       </header>
-      <div className={styles.remediationGrid}>{lesson.remediation.map((branch) => <article key={branch.misconceptionId}><p>{branch.explanation}</p><strong>Try this next</strong><p>{branch.retryPrompt}</p></article>)}</div>
+      <div className={styles.remediationGrid}>{lesson.remediation.map((branch) => <article key={branch.misconceptionId}><LessonProse>{branch.explanation}</LessonProse><strong>Try this next</strong><LessonProse>{branch.retryPrompt}</LessonProse></article>)}</div>
     </section>
 
     <section aria-labelledby="recap-heading" className={`${styles.stage} ${styles.retrievalStage}`} id="recap">
@@ -326,7 +327,7 @@ export function InteractiveLessonFlow({ lesson }: { readonly lesson: AuthoredLes
         <div><small>Close the lesson, then retrieve</small><h2 id="recap-heading">Teach it back without copying</h2></div>
         <Brain aria-hidden="true" size={24} />
       </header>
-      <blockquote>{lesson.recap.retrievalPrompts[0]}</blockquote>
+      <blockquote><LessonInline>{lesson.recap.retrievalPrompts[0]}</LessonInline></blockquote>
       <label className={styles.answerField}>
         <span>Teach it back in your own words</span>
         <textarea onChange={(event) => { setTeachBack(event.target.value); setRecapRevealed(false); }} placeholder="Imagine you are explaining this to a friend…" value={teachBack} />
@@ -334,9 +335,9 @@ export function InteractiveLessonFlow({ lesson }: { readonly lesson: AuthoredLes
       <button className={styles.primaryAction} disabled={!enoughToContinue(teachBack)} onClick={() => setRecapRevealed(true)} type="button"><Eye aria-hidden="true" size={17} /> Compare with the recap</button>
       {recapRevealed && <div aria-live="polite" className={styles.reveal}>
         <Check aria-hidden="true" size={18} />
-        <div><strong>Authored recap</strong><p>{lesson.recap.summary}</p><small>This is reflection, not a correctness grade.</small></div>
+        <div><strong>Authored recap</strong><LessonProse>{lesson.recap.summary}</LessonProse><small>This is reflection, not a correctness grade.</small></div>
       </div>}
-      <details className={styles.retrievalMore}><summary>Two more retrieval prompts for later</summary><ul>{lesson.recap.retrievalPrompts.slice(1).map((prompt) => <li key={prompt}>{prompt}</li>)}</ul><p><strong>Next review:</strong> {lesson.recap.nextReviewPrompt}</p></details>
+      <details className={styles.retrievalMore}><summary>Two more retrieval prompts for later</summary><ul>{lesson.recap.retrievalPrompts.slice(1).map((prompt) => <li key={prompt}><LessonInline>{prompt}</LessonInline></li>)}</ul><p><strong>Next review:</strong> <LessonInline>{lesson.recap.nextReviewPrompt}</LessonInline></p></details>
     </section>
 
     <section aria-labelledby="source-provenance-heading" className={`${styles.stage} ${styles.sources}`} id="source-provenance">

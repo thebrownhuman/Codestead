@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Memoization caches results of overlapping subproblems in a top-down recurrence keyed by all state that affects the answer.",
+    "summary": "Some recursive solutions solve the **same subproblem** again and again: counting routes to a grid cell recomputes each cell's count exponentially many times. **Memoization** caches each answer the first time it's computed and reuses it. The cache key must include **every piece of state that affects the answer**: for a grid path that's the **row and the column**, not just the row. With a correct key, the running time becomes (number of distinct states) × (work per state). In Python, `functools.cache` does this for you when the function's arguments are the full state.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A grid-path memo key includes both row and column rather than row alone. Your goal is to convert an exponential recursive solution into a tested memoized solution. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A campus-map feature counts how many different routes go from the top-left gate to each building, moving only right or down across a grid of blocks, avoiding blocked squares. The plain recursive version freezes on a 20 × 20 grid. A first memoized version caches by row only and returns wrong counts. A grid-path memo key includes both row and column rather than row alone. In this lesson you'll convert an exponential recursive solution into a tested memoized solution.\n\n```predict\n{\"question\": \"A memo caches `paths(r, c)` under the key r only. What goes wrong?\", \"options\": [\"Nothing, it's faster\", \"Different columns in the same row share one cached answer, so results are wrong\"], \"answer\": 1, \"why\": \"The key must capture all state that changes the answer.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Recursion and divide-and-conquer; Hash tables, sets and maps; Recurrence reasoning; Frequency and lookup patterns. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Recursion and divide-and-conquer** module, the **Hash tables, sets and maps** module, **Recurrence reasoning**, and **Frequency and lookup patterns** (dictionaries as caches)."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Memoization caches results of overlapping subproblems in a top-down recurrence keyed by all state that affects the answer. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The rule: cache by the full state",
+        "body": "```python\nfrom functools import cache\n\ndef count_routes(grid):                 # grid[r][c] == '#' means blocked.\n    R, C = len(grid), len(grid[0])\n\n    @cache                              # key = (r, c): the full state.\n    def paths(r, c):\n        if r >= R or c >= C or grid[r][c] == \"#\":\n            return 0\n        if (r, c) == (R - 1, C - 1):\n            return 1\n        return paths(r + 1, c) + paths(r, c + 1)   # down + right.\n\n    return paths(0, 0)\n\ncampus = [\"...\",\n          \".#.\",\n          \"...\"]\nprint(count_routes(campus))            # 2 routes around the blocked square.\nprint(count_routes([\".\" * 20] * 20))   # 35345263800, instantly.\n```\n\n| | Plain recursion | Memoized |\n|---|---|---|\n| calls for 20 × 20. | billions (exponential). | about 400 states. |\n| time. | O(2^(R+C)). | O(R × C). |\n| extra space. | O(R + C) stack. | O(R × C) cache + stack. |\n\n```reveal\n{\"prompt\": \"What if the function also used a variable from outside, like a blocked-cell set that changes?\", \"answer\": \"Then that set is part of the state. Either include it in the key, or clear the cache whenever it changes.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Missing key dimensions gives wrong reuse, recursion depth remains, and cycles need special handling. The draft therefore rejects: Memoization caches function calls safely even when omitted parameters affect the result."
+        "heading": "Spot overlap",
+        "body": "```predict\n{\"question\": \"Does memoizing merge sort's recursion help?\", \"options\": [\"Yes, always\", \"No: its halves are different subproblems, so nothing repeats\"], \"answer\": 1, \"why\": \"Memoization pays off only when the same state is reached many times.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Identify repeated state, define a recurrence and cache results with a complete state key.",
-      "Convert an exponential recursive solution into a tested memoized solution.",
-      "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+      "Identify overlapping subproblems and the full state that defines each.",
+      "Memoize an exponential recursion and test it against brute force."
     ],
     "excludes": [
-      "Missing key dimensions gives wrong reuse, recursion depth remains, and cycles need special handling."
+      "Bottom-up tables (next lesson).",
+      "Cache eviction policies."
     ]
   },
   "outcomes": [
@@ -68,142 +64,133 @@
   "examples": [
     {
       "id": "dsa.dp.memoization.example-a",
-      "title": "Overlapping subproblems and memoization: language-neutral trace",
+      "title": "Counting routes across the campus grid",
       "situation": "A grid-path memo key includes both row and column rather than row alone.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: A grid-path memo key includes both row and column rather than row alone.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: A memo key must include the complete subproblem state that determines its result."
+        "**Overlap:** paths(1, 1) is needed by both paths(0, 1) and paths(1, 0), and deeper cells are needed far more often.",
+        "**Key includes both row and column:** caching by (r, c) stores one answer per cell; caching by r alone mixed different cells' answers.",
+        "**Test:** memoized count_routes will match plain recursion on small random grids and return 35345263800 for an open 20 × 20 grid."
       ],
-      "result": "The conceptual result follows because A memo key must include the complete subproblem state that determines its result."
+      "result": "The campus map counts routes instantly and correctly, even around blocked squares."
     },
     {
       "id": "dsa.dp.memoization.example-b",
-      "title": "Overlapping subproblems and memoization: implementation transfer",
-      "situation": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
+      "title": "The cache that ignored a budget",
+      "situation": "A planner caches `best_score(lesson_index)` for picking lessons under a time budget, but the budget also changes the answer.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
-        "Step 3 — Retest this boundary in the selected implementation: Missing key dimensions gives wrong reuse, recursion depth remains, and cycles need special handling."
+        "Two calls with the same index but different remaining minutes get the same cached result.",
+        "The state is (lesson_index, minutes_left).",
+        "Fix the key and test with two budgets."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "The planner gives the right best score for every budget."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.dp.memoization.misconception",
       "mistakenBelief": "Memoization caches function calls safely even when omitted parameters affect the result.",
-      "correction": "A memo key must include the complete subproblem state that determines its result.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Memoization caches function calls safely even when omitted parameters affect the result."
+      "correction": "A cache returns whatever was stored for the key. If some input that changes the answer isn't in the key, different situations collide and return wrong results.",
+      "diagnosticPrompt": "In \"The cache that ignored a budget\", which state was missing from the key?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Overlapping subproblems and memoization, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Memoization is like **writing each answered question on a whiteboard** so nobody works it out again. But the question must be written in full: \"routes from row 3\" isn't the same question as \"routes from row 3, column 5\".",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering cache by full state",
+      "overlap = the same question asked often"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Missing key dimensions gives wrong reuse, recursion depth remains, and cycles need special handling."
+      "Whiteboards fill up; memo caches use O(states) memory.",
+      "If the rules change mid-day, wipe the board."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A grid-path memo key includes both row and column rather than row alone.",
-      "Memoization caches results of overlapping subproblems in a top-down recurrence keyed by all state that affects the answer.",
-      "A memo key must include the complete subproblem state that determines its result.",
-      "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
+      "campus 3 × 3 with centre blocked",
+      "paths(0, 0)",
+      "cache"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Split",
         "state": {
-          "scenario": "A grid-path memo key includes both row and column rather than row alone."
+          "paths(0,0)": "paths(1,0) + paths(0,1)"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "Each cell asks for down and right."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Reuse",
         "state": {
-          "invariant": "Memoization caches results of overlapping subproblems in a top-down recurrence keyed by all state that affects the answer."
+          "cached": "(2,1), (1,2), (2,2)"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "A grid-path memo key includes both row and column, so each cell is computed once."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Result",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "paths(0,0)": "1 + 1 = 2"
         },
-        "explanation": "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "A memo key must include the complete subproblem state that determines its result."
-        },
-        "explanation": "Verify the result and reject this misconception: Memoization caches function calls safely even when omitted parameters affect the result."
+        "explanation": "Two routes go around the blocked square."
       }
     ],
-    "textAlternative": "Starting artifact: A grid-path memo key includes both row and column rather than row alone. Step 1, Specification. State: scenario: A grid-path memo key includes both row and column rather than row alone.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Memoization caches results of overlapping subproblems in a top-down recurrence keyed by all state that affects the answer.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees. Step 4, Conclusion. State: correction: A memo key must include the complete subproblem state that determines its result.. Verify the result and reject this misconception: Memoization caches function calls safely even when omitted parameters affect the result."
+    "textAlternative": "Tracing a memoized route count. Step 1, Split: paths(0,0) is paths(1,0) + paths(0,1). Each cell asks for down and right. Step 2, Reuse: cached is (2,1), (1,2), (2,2). A grid-path memo key includes both row and column, so each cell is computed once. Step 3, Result: paths(0,0) is 1 + 1 = 2. Two routes go around the blocked square."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Overlapping subproblems and memoization: language-neutral trace”: state its starting evidence, apply the Overlapping subproblems and memoization rule, and give the observable result in three short lines.",
+      "prompt": "For \"Counting routes across the campus grid\", explain why a grid-path memo key includes both row and column rather than row alone.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Overlap.",
+        "Key.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Overlapping subproblems and memoization: language-neutral trace.",
-        "Starting evidence: A grid-path memo key includes both row and column rather than row alone.",
-        "Core rule: Memoization caches results of overlapping subproblems in a top-down recurrence keyed by all state that affects the answer.",
-        "Observable result: The conceptual result follows because A memo key must include the complete subproblem state that determines its result.",
-        "Boundary check: A memo key must include the complete subproblem state that determines its result."
+        "Names the example \"Counting routes across the campus grid\": plain recursion froze on 20 × 20.",
+        "A grid-path memo key includes both row and column.",
+        "Caching by row alone mixed different cells' answers.",
+        "The campus map counts routes instantly and correctly."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Memoization caches results of overlapping subproblems in a top-down recurrence keyed by all state that affects the answer.",
+      "prompt": "Memoize `ways(n)`: the number of ways to climb n stairs taking 1 or 2 steps. State the key, the number of states and the time.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "ways(n) = ways(n-1) + ways(n-2).",
+        "Key: n."
       ],
       "expectedEvidence": [
-        "Across C, C++, Java, and Python, keep the state transition and invariant language-neutral first; then map indexes, numeric overflow, recursion, mutable collections, hashing, and library operations to the selected language and retest their guarantees.",
-        "Missing key dimensions gives wrong reuse, recursion depth remains, and cycles need special handling."
+        "O(n) states and time.",
+        "ways(10) = 89."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Overlapping subproblems and memoization case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Write a memoized `min_coins(amount, coins)` (return None if impossible). Test it against a brute-force search for amounts 0 to 30 with coins [1, 3, 4] and [5, 7], including impossible amounts.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "State: remaining amount.",
+        "coins are fixed, so not in the key."
       ],
       "expectedEvidence": [
-        "Convert an exponential recursive solution into a tested memoized solution.",
-        "A memo key must include the complete subproblem state that determines its result."
+        "Matches brute force.",
+        "min_coins(6, [1, 3, 4]) = 2."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.dp.memoization.misconception",
-      "explanation": "A memo key must include the complete subproblem state that determines its result.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'complete subproblem state', then state one implementation-specific risk in the selected language."
+      "explanation": "List **every input that can change the answer**. That tuple is your key. Then count the distinct keys: that's roughly your running time.",
+      "retryPrompt": "Apply this to \"The cache that ignored a budget\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to convert an exponential recursive solution into a tested memoized solution. Keep this boundary in view: Missing key dimensions gives wrong reuse, recursion depth remains, and cycles need special handling.",
+    "summary": "To convert an exponential recursive solution into a memoized one, find the repeated subproblems, cache each answer under a key containing all state that affects it (row and column for grid paths), and reuse cached answers, making time about states × work per state, then test against brute force on small inputs.",
     "retrievalPrompts": [
-      "State the Overlapping subproblems and memoization invariant and complexity without code.",
-      "Why is this claim false: Memoization caches function calls safely even when omitted parameters affect the result.",
-      "Map checkpoint 'complete subproblem state' to C, C++, Java, and Python."
+      "When does memoization help?",
+      "What must a memo key include?",
+      "How do you estimate memoized running time?"
     ],
     "nextReviewPrompt": "Next: continue to “Tabulation and state reconstruction”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

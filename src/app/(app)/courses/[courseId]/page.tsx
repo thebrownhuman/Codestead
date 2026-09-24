@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, CheckCircle2, ExternalLink, ShieldCheck } from "lucide-react";
 
 import { createContentRepository } from "@/lib/content";
+import { listPublishedCourseStages } from "@/lib/curriculum-publication/runtime";
 import styles from "@/components/courses/courses.module.css";
 
 export async function generateStaticParams() {
@@ -13,6 +14,7 @@ export async function generateStaticParams() {
 export default async function CoursePage({ params }: { params: Promise<{ courseId: string }> }) {
   const { courseId } = await params;
   const course = await createContentRepository().getCourse(courseId);
+  const publishedStage = (await listPublishedCourseStages().catch(() => new Map<string, "beta" | "verified">())).get(courseId);
   if (!course) notFound();
   const total = course.coverage_summary.total_skills;
   const coverage = Math.round((course.coverage_summary.covered / total) * 100);
@@ -20,7 +22,7 @@ export default async function CoursePage({ params }: { params: Promise<{ courseI
     <div className={styles.page}>
       <nav className={styles.breadcrumbs}><Link href="/courses"><ArrowLeft size={14} /> Courses</Link><span>/</span><span>{course.title}</span></nav>
       <section className={styles.courseHero}>
-        <div className={styles.courseHeroTitle}><span className={styles.largeCode}>{course.id === "programming-foundations" ? "PF" : course.id.slice(0,3).toUpperCase()}</span><div><span className={styles.eyebrow}>{course.status} · {course.version}</span><h1>{course.title}</h1><p>{course.summary}</p></div></div>
+        <div className={styles.courseHeroTitle}><span className={styles.largeCode}>{course.id === "programming-foundations" ? "PF" : course.id.slice(0,3).toUpperCase()}</span><div><span className={styles.eyebrow}>{publishedStage ?? course.status} · {course.version}</span><h1>{course.title}</h1><p>{course.summary}</p></div></div>
         <aside className={`${styles.outcomeCard} card`}><span><ShieldCheck size={15} /> Exit capability</span><p>{course.audience.target_capability}</p><div className={styles.runtime}>{course.runtime.toolchain.slice(0,4).map((tool) => <i key={tool}>{tool}</i>)}</div><div className={styles.coverageBar}><span><b>Declared coverage</b><b>{coverage}%</b></span><div><i style={{ width: `${coverage}%` }} /></div><span><small>{total} required/elective skills</small><small>{course.modules.length} modules</small></span></div></aside>
       </section>
       <section className={styles.courseLayout}>

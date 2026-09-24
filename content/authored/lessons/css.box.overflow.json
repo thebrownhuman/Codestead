@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Overflow controls clipping and scroll containers when content exceeds a box, while wrapping and min-size choices determine whether overflow occurs.",
+    "summary": "When content is bigger than its box, `overflow` decides what happens: `visible` (spills out — the default), `hidden` (clips it, possibly hiding important content), `auto` (adds a scrollbar only when needed), or `scroll`. `overflow: hidden` is not a universal fix — it can cut off text, focus outlines and dropdowns. Prefer letting content **wrap** or **scroll deliberately**, and make scroll areas reachable by keyboard.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A code sample uses overflow:auto and remains keyboard-scrollable without clipping long lines permanently. Your goal is to repair overflow across narrow, zoomed and long-content scenarios. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A tutorial shows long lines of code. On a phone they burst out of the page, so someone adds `overflow: hidden` to the body — now the end of each line is simply gone, along with a menu that opened past the edge. A code sample uses overflow:auto and remains keyboard-scrollable without clipping long lines permanently. In this lesson you'll repair overflow across narrow, zoomed and long-content scenarios.\n\n```predict\n{\"question\": \"`overflow: hidden` on a card with a long word inside. Can users read the whole word?\", \"options\": [\"Yes, it wraps automatically\", \"No — the part outside the box is clipped and unreachable\"], \"answer\": 1, \"why\": \"hidden cuts content off. Users can't scroll to it, and focus rings or menus near the edge get clipped too.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Rules, declarations and values; Intrinsic sizing and constraints; Pseudo-classes and pseudo-elements. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Rules, declarations and values**, **Intrinsic sizing and constraints**, and **Pseudo-classes and pseudo-elements** (focus styles can be clipped by overflow)."
       },
       {
-        "heading": "Technology rule",
-        "body": "Overflow controls clipping and scroll containers when content exceeds a box, while wrapping and min-size choices determine whether overflow occurs. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: spill, clip or scroll",
+        "body": "```css\npre {\n  overflow-x: auto;      /* horizontal scrollbar only when needed */\n  max-width: 100%;\n}\npre:focus-visible { outline: 3px solid #f59e0b; }\n\n.prose { overflow-wrap: anywhere; }  /* long words wrap instead */\n```\n\n```html\n<pre tabindex=\"0\" aria-label=\"Code sample: fetch example\"><code>…long lines…</code></pre>\n```\n\n| Value | Effect | Risk |\n|---|---|---|\n| `visible`. | content spills out. | overlaps other content. |\n| `hidden`. | clips. | hides content, focus rings, menus. |\n| `auto`. | scrollbar when needed. | needs keyboard access. |\n| `clip`. | clips, no scrolling at all. | same as hidden, stricter. |\n\n```reveal\n{\"prompt\": \"Why add `tabindex=\\\"0\\\"` to a scrollable pre?\", \"answer\": \"So keyboard users can focus it and scroll with arrow keys. Some browsers make scroll containers focusable automatically; adding it (with a label) makes it reliable.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Hidden content can become inaccessible, scrollbars affect layout, focus can move into clipped regions, and two-axis scrolling harms reading. This draft therefore rejects: overflow:hidden is a safe universal fix for any layout that becomes too large."
+        "heading": "Test three scenarios",
+        "body": "```predict\n{\"question\": \"Which test catches overflow problems early?\", \"options\": [\"Only a wide desktop screen\", \"A 320px width, 200% zoom, and deliberately long content\"], \"answer\": 1, \"why\": \"Narrow screens, zoom and long translations are where overflow bugs appear.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Handle long words, scroll regions and clipping without hiding essential content or focus.",
-      "Repair overflow across narrow, zoomed and long-content scenarios."
+      "Choose overflow values and prefer wrapping or deliberate scrolling over clipping.",
+      "Keep scroll areas keyboard-accessible and test narrow, zoomed and long content."
     ],
     "excludes": [
-      "Hidden content can become inaccessible, scrollbars affect layout, focus can move into clipped regions, and two-axis scrolling harms reading."
+      "Scroll snapping.",
+      "Containment (contain property) in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "css.box.overflow.example-a",
-      "title": "Overflow and containment: concrete case",
+      "title": "A scrollable code sample",
       "situation": "A code sample uses overflow:auto and remains keyboard-scrollable without clipping long lines permanently.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A code sample uses overflow:auto and remains keyboard-scrollable without clipping long lines permanently.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Resolve the sizing cause first and use accessible scrolling where content must remain available; do not hide meaningful overflow blindly."
+        "**Problem:** long code lines burst out of the page at 320px wide; a global `overflow: hidden` had been clipping them.",
+        "**Fix:** remove the global hidden; `pre { overflow-x: auto }` adds a scrollbar only when needed.",
+        "**Keyboard:** `tabindex=\"0\"` plus a focus style lets keyboard users focus the block and read long lines with the arrow keys."
       ],
-      "result": "The result follows because Resolve the sizing cause first and use accessible scrolling where content must remain available; do not hide meaningful overflow blindly."
+      "result": "Every character of the code is reachable by mouse, touch and keyboard, and the page no longer scrolls sideways."
     },
     {
       "id": "css.box.overflow.example-b",
-      "title": "Overflow and containment: boundary case",
-      "situation": "Hidden content can become inaccessible, scrollbars affect layout, focus can move into clipped regions, and two-axis scrolling harms reading.",
+      "title": "The clipped dropdown",
+      "situation": "A card with `overflow: hidden` (added to crop a rounded image) contains a menu. When opened, the menu is cut off at the card's edge.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Hidden content can become inaccessible, scrollbars affect layout, focus can move into clipped regions, and two-axis scrolling harms reading.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: overflow:hidden is a safe universal fix for any layout that becomes too large."
+        "overflow: hidden clips all descendants, including the menu.",
+        "Users can't reach the lower menu items.",
+        "Fix: remove hidden from the card; round the image itself with `border-radius`, or clip only the image wrapper."
       ],
-      "result": "The boundary requires this correction: Resolve the sizing cause first and use accessible scrolling where content must remain available; do not hide meaningful overflow blindly."
+      "result": "The menu opens fully while the image stays neatly rounded."
     }
   ],
   "misconceptions": [
     {
       "id": "css.box.overflow.misconception",
       "mistakenBelief": "overflow:hidden is a safe universal fix for any layout that becomes too large.",
-      "correction": "Resolve the sizing cause first and use accessible scrolling where content must remain available; do not hide meaningful overflow blindly.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: overflow:hidden is a safe universal fix for any layout that becomes too large."
+      "correction": "hidden clips content, focus indicators and popups, making them unreachable. Fix the cause — allow wrapping, lift min-size constraints, or scroll deliberately with overflow:auto and keyboard access.",
+      "diagnosticPrompt": "In \"The clipped dropdown\", what else did overflow:hidden cut off?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Overflow and containment, where rules size, place, and paint existing content.",
+    "example": "overflow: hidden is like **cutting a poster to fit a small frame** — the edges are gone for good. overflow: auto is like a **scroll** you can unroll. Wrapping is folding the text so it fits properly.",
     "usefulFor": [
-      "Building a first mental model for Overflow and containment before using exact platform terms"
+      "remembering hidden = lost content",
+      "auto = reachable by scrolling"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "Hidden content can become inaccessible, scrollbars affect layout, focus can move into clipped regions, and two-axis scrolling harms reading."
+      "Posters don't have focus rings or menus that also get cut.",
+      "A scroll must be reachable by keyboard, not just a mouse wheel."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A code sample uses overflow:auto and remains keyboard-scrollable without clipping long lines permanently.",
-      "Overflow controls clipping and scroll containers when content exceeds a box, while wrapping and min-size choices determine whether overflow occurs.",
-      "Resolve the sizing cause first and use accessible scrolling where content must remain available; do not hide meaningful overflow blindly."
+      "body { overflow: hidden } (old fix)",
+      "pre { overflow-x: auto } + tabindex=0",
+      "320px width, keyboard"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Clipped",
         "state": {
-          "evidence": "A code sample uses overflow:auto and remains keyboard-scrollable without clipping long lines permanently."
+          "long lines": "cut off",
+          "reachable": "no"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The global hidden fix clipped long lines permanently."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Scrollable",
         "state": {
-          "rule": "Overflow controls clipping and scroll containers when content exceeds a box, while wrapping and min-size choices determine whether overflow occurs."
+          "overflow-x": "auto",
+          "scrollbar": "when needed"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The code sample uses overflow:auto instead."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Keyboard",
         "state": {
-          "correction": "Resolve the sizing cause first and use accessible scrolling where content must remain available; do not hide meaningful overflow blindly."
+          "focus": "pre",
+          "arrow keys": "scroll"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: overflow:hidden is a safe universal fix for any layout that becomes too large."
+        "explanation": "It remains keyboard-scrollable without clipping long lines."
       }
     ],
-    "textAlternative": "Starting artifact: A code sample uses overflow:auto and remains keyboard-scrollable without clipping long lines permanently. Step 1, Artifact. State: evidence: A code sample uses overflow:auto and remains keyboard-scrollable without clipping long lines permanently.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Overflow controls clipping and scroll containers when content exceeds a box, while wrapping and min-size choices determine whether overflow occurs.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Resolve the sizing cause first and use accessible scrolling where content must remain available; do not hide meaningful overflow blindly.. Check the result against the boundary and reject this misconception: overflow:hidden is a safe universal fix for any layout that becomes too large."
+    "textAlternative": "Repairing clipped code with deliberate scrolling. Step 1, Clipped: long lines is cut off; reachable is no. The global hidden fix clipped long lines permanently. Step 2, Scrollable: overflow-x is auto; scrollbar is when needed. The code sample uses overflow:auto instead. Step 3, Keyboard: focus is pre; arrow keys is scroll. It remains keyboard-scrollable without clipping long lines."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Overflow and containment: concrete case”: state its starting evidence, apply the Overflow and containment rule, and give the observable result in three short lines.",
+      "prompt": "For \"A scrollable code sample\", explain how the code sample uses overflow:auto and remains keyboard-scrollable without clipping long lines permanently.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Problem.",
+        "overflow:auto.",
+        "Keyboard."
       ],
       "expectedEvidence": [
-        "Named example: Overflow and containment: concrete case.",
-        "Starting evidence: A code sample uses overflow:auto and remains keyboard-scrollable without clipping long lines permanently.",
-        "Core rule: Overflow controls clipping and scroll containers when content exceeds a box, while wrapping and min-size choices determine whether overflow occurs.",
-        "Observable result: The result follows because Resolve the sizing cause first and use accessible scrolling where content must remain available; do not hide meaningful overflow blindly.",
-        "Boundary check: Resolve the sizing cause first and use accessible scrolling where content must remain available; do not hide meaningful overflow blindly."
+        "Names the example \"A scrollable code sample\": the code sample uses overflow:auto.",
+        "It adds a scrollbar only when needed.",
+        "It remains keyboard-scrollable via tabindex and focus style.",
+        "Long lines are never clipped permanently."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Hidden content can become inaccessible, scrollbars affect layout, focus can move into clipped regions, and two-axis scrolling harms reading.",
+      "prompt": "A table is wider than the phone screen. How do you let users see all columns without the whole page scrolling sideways?",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Wrap it in a scroll container.",
+        "Keyboard + label."
       ],
       "expectedEvidence": [
-        "Overflow controls clipping and scroll containers when content exceeds a box, while wrapping and min-size choices determine whether overflow occurs.",
-        "Hidden content can become inaccessible, scrollbars affect layout, focus can move into clipped regions, and two-axis scrolling harms reading."
+        "A wrapper div with overflow-x: auto around the table.",
+        "tabindex=\"0\", a label and a visible focus style on the wrapper."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Overflow and containment and explain why the misconception fails.",
+      "prompt": "Audit a page for every `overflow: hidden`. For each, decide whether it clips anything important at 320px, 200% zoom and with long text; replace harmful ones.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Search the stylesheet.",
+        "Test all three scenarios."
       ],
       "expectedEvidence": [
-        "Repair overflow across narrow, zoomed and long-content scenarios.",
-        "Resolve the sizing cause first and use accessible scrolling where content must remain available; do not hide meaningful overflow blindly."
+        "List of each hidden with a decision.",
+        "Harmful clipping replaced; tests pass."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.box.overflow.misconception",
-      "explanation": "Resolve the sizing cause first and use accessible scrolling where content must remain available; do not hide meaningful overflow blindly.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'accessible scrolling' and state the decisive evidence."
+      "explanation": "Before adding overflow: hidden, ask: **What will be cut off at 320px, at 200% zoom, with twice the text?** If anything important, choose wrapping or overflow: auto instead.",
+      "retryPrompt": "Ask this for \"The clipped dropdown\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to repair overflow across narrow, zoomed and long-content scenarios. Keep this boundary in view: Hidden content can become inaccessible, scrollbars affect layout, focus can move into clipped regions, and two-axis scrolling harms reading.",
+    "summary": "To repair overflow across narrow, zoomed and long-content scenarios, prefer wrapping and lifting size constraints, use overflow:auto for deliberate scroll areas with keyboard access, and avoid overflow:hidden when it would clip content, focus rings or menus.",
     "retrievalPrompts": [
-      "Explain Overflow and containment using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: overflow:hidden is a safe universal fix for any layout that becomes too large.",
-      "Apply checkpoint 'accessible scrolling' to a new artifact."
+      "What's the risk of overflow: hidden?",
+      "How do you make a scroll area keyboard-accessible?",
+      "Which three scenarios should you test?"
     ],
     "nextReviewPrompt": "Next: continue to “Font families and loading”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

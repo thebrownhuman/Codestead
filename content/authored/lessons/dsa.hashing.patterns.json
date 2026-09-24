@@ -33,38 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Hash-based patterns trade memory for fast expected lookup in frequency counting, membership, indexing, grouping, and prefix-state matching.",
+    "summary": "Hash maps and sets turn many \"search again and again\" problems into one pass with **expected O(1)** lookups, paid for with O(n) extra memory. Common patterns: **membership** (have I seen this?), **frequency counting** (how many of each?), **index lookup** (where did I see this value?), **grouping** (bucket items by a key), and **prefix-state matching** (have I seen this running total before?). When keys are small integers in a known range, a plain **array of counts** is simpler and faster than a hash map. And hash maps don't promise a meaningful order, so when order matters, drive the loop from the original sequence.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A frequency map finds the first repeated value while preserving a separate traversal for order. Your goal is to recognize and solve lookup and frequency problems with justified expected complexity. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A quiz log lists learner ids in submission order. Staff want the first learner who submitted twice. Checking each id against all earlier ids takes O(n²) and times out on 200,000 submissions. A frequency map finds the first repeated value while preserving a separate traversal for order. In this lesson you'll recognize and solve lookup and frequency problems with justified expected complexity.\n\n```predict\n{\"question\": \"Scores are whole numbers from 0 to 100. What's the simplest structure to count how many learners got each score?\", \"options\": [\"A hash map from score to count\", \"An array of 101 counts indexed by score\"], \"answer\": 1, \"why\": \"With a small, known integer range, an array is simpler and faster. Hash maps shine when keys are sparse or not integers.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Array representation and operations; Linked lists; Resizing and expected complexity. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Array representation and operations**, the **Linked lists** module, and **Resizing and expected complexity**, which is why lookups are expected O(1)."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Hash-based patterns trade memory for fast expected lookup in frequency counting, membership, indexing, grouping, and prefix-state matching. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The model: one pass, remember what you've seen",
+        "body": "```python\nfrom collections import Counter, defaultdict\n\ndef first_repeat(ids):                  # O(n) expected time, O(n) space.\n    seen = set()\n    for learner in ids:                   # the list decides the order.\n        if learner in seen:\n            return learner\n        seen.add(learner)\n    return None\n\ndef most_common_answer(answers):\n    return Counter(answers).most_common(1)[0][0] if answers else None\n\ndef group_by_course(submissions):       # grouping.\n    groups = defaultdict(list)\n    for sub in submissions:\n        groups[sub[\"course\"]].append(sub[\"learner\"])\n    return dict(groups)\n\ndef count_zero_sum_ranges(changes):     # prefix-state matching.\n    counts, total, found = {0: 1}, 0, 0\n    for x in changes:\n        total += x\n        found += counts.get(total, 0)     # same total seen before: range sums to 0.\n        counts[total] = counts.get(total, 0) + 1\n    return found\n```\n\n| Pattern | Map from | Example |\n|---|---|---|\n| membership. | item → seen. | first repeat, duplicates. |\n| frequency. | item → count. | most common answer. |\n| index. | value → position. | two-sum. |\n| grouping. | key → list. | submissions per course. |\n| prefix state. | running total → count. | ranges summing to zero. |\n\n```reveal\n{\"prompt\": \"Why is it \\\"expected\\\" O(1), not guaranteed?\", \"answer\": \"With a good hash and resizing, lookups average O(1). A terrible hash or adversarial keys could still pile into one bucket.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Ordering requirements, worst-case guarantees, key mutation, and bounded alphabets can favor other structures. The draft therefore rejects: A hash map is always better than an array for counting values."
+        "heading": "Order comes from the loop",
+        "body": "```predict\n{\"question\": \"To find the first repeat, can you count everything with Counter and then pick any id with count 2?\", \"options\": [\"Yes\", \"Not reliably: the map doesn't tell you which repeat happened first; walk the original list\"], \"answer\": 1, \"why\": \"Use the map for lookups and the sequence for order.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use sets and maps for membership, counting, indexing and complements without unnecessary nested scans.",
-      "Recognize and solve lookup and frequency problems with justified expected complexity.",
-      "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
+      "Recognise membership, frequency, index, grouping and prefix-state problems.",
+      "Solve them with hash maps or arrays and justify expected time and space."
     ],
     "excludes": [
-      "Ordering requirements, worst-case guarantees, key mutation, and bounded alphabets can favor other structures."
+      "Bloom filters and probabilistic counting.",
+      "Sorted maps (trees module)."
     ]
   },
   "outcomes": [
@@ -73,142 +69,135 @@
   "examples": [
     {
       "id": "dsa.hashing.patterns.example-a",
-      "title": "Frequency and lookup patterns: language-neutral trace",
+      "title": "The first learner to submit twice",
       "situation": "A frequency map finds the first repeated value while preserving a separate traversal for order.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: A frequency map finds the first repeated value while preserving a separate traversal for order.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Choose hashing when key range is broad and expected lookup fits; bounded dense keys may favor an array."
+        "**Problem:** comparing each id with all earlier ids is O(n²).",
+        "**Frequency map with separate traversal:** walk ids in order and check a set of seen ids; the first hit is the first repeat.",
+        "**Test:** [7, 3, 9, 3, 7] will return 3 (its second copy comes before 7's); [1, 2] returns None."
       ],
-      "result": "The conceptual result follows because Choose hashing when key range is broad and expected lookup fits; bounded dense keys may favor an array."
+      "result": "The report finds the first double submission in one O(n) expected pass over 200,000 entries."
     },
     {
       "id": "dsa.hashing.patterns.example-b",
-      "title": "Frequency and lookup patterns: implementation transfer",
-      "situation": "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__.",
+      "title": "The streak that broke even",
+      "situation": "A progress chart stores daily point changes. Staff ask how many stretches of consecutive days had a net change of zero.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__.",
-        "Step 3 — Retest this boundary in the selected implementation: Ordering requirements, worst-case guarantees, key mutation, and bounded alphabets can favor other structures."
+        "A range sums to zero when two running totals are equal.",
+        "Count running totals in a map, starting with {0: 1}.",
+        "For [2, -2, 3, -3] the totals are 2, 0, 3, 0, giving 3 zero-sum stretches."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "The chart counts zero-change stretches in one pass instead of checking every range."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.hashing.patterns.misconception",
       "mistakenBelief": "A hash map is always better than an array for counting values.",
-      "correction": "Choose hashing when key range is broad and expected lookup fits; bounded dense keys may favor an array.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: A hash map is always better than an array for counting values."
+      "correction": "For small, dense integer keys, an array of counts is simpler, uses less memory and has no hashing cost. Hash maps are the better choice for sparse, large or non-integer keys.",
+      "diagnosticPrompt": "In the opening predict, why was an array simpler for scores 0 to 100?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Frequency and lookup patterns, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "A hash set is like **a guest list at a door**: you check each arriving name against the list instantly instead of asking everyone already inside. The queue of arrivals (the original sequence) still decides who came first.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering one pass with a memory",
+      "order = the arrival queue"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Ordering requirements, worst-case guarantees, key mutation, and bounded alphabets can favor other structures."
+      "Guest lists are small; hash maps grow with n.",
+      "For numbered seats 0 to 100, a simple seat chart (array) is enough."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A frequency map finds the first repeated value while preserving a separate traversal for order.",
-      "Hash-based patterns trade memory for fast expected lookup in frequency counting, membership, indexing, grouping, and prefix-state matching.",
-      "Choose hashing when key range is broad and expected lookup fits; bounded dense keys may favor an array.",
-      "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
+      "ids = [7, 3, 9, 3, 7]",
+      "walk in order",
+      "stop at first repeat"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Start",
         "state": {
-          "scenario": "A frequency map finds the first repeated value while preserving a separate traversal for order."
+          "seen": "{}"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The pass begins with an empty set."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Walk",
         "state": {
-          "invariant": "Hash-based patterns trade memory for fast expected lookup in frequency counting, membership, indexing, grouping, and prefix-state matching."
+          "seen after 7, 3, 9": "{7, 3, 9}"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "Each id is checked, then remembered, preserving a separate traversal for order."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Repeat",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "id": "3",
+          "in seen": "yes",
+          "return": "3"
         },
-        "explanation": "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Choose hashing when key range is broad and expected lookup fits; bounded dense keys may favor an array."
-        },
-        "explanation": "Verify the result and reject this misconception: A hash map is always better than an array for counting values."
+        "explanation": "The frequency map finds the first repeated value."
       }
     ],
-    "textAlternative": "Starting artifact: A frequency map finds the first repeated value while preserving a separate traversal for order. Step 1, Specification. State: scenario: A frequency map finds the first repeated value while preserving a separate traversal for order.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Hash-based patterns trade memory for fast expected lookup in frequency counting, membership, indexing, grouping, and prefix-state matching.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__. Step 4, Conclusion. State: correction: Choose hashing when key range is broad and expected lookup fits; bounded dense keys may favor an array.. Verify the result and reject this misconception: A hash map is always better than an array for counting values."
+    "textAlternative": "Tracing first_repeat. Step 1, Start: seen is {}. The pass begins with an empty set. Step 2, Walk: seen after 7, 3, 9 is {7, 3, 9}. Each id is checked, then remembered, preserving a separate traversal for order. Step 3, Repeat: id is 3; in seen is yes; return is 3. The frequency map finds the first repeated value."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Frequency and lookup patterns: language-neutral trace”: state its starting evidence, apply the Frequency and lookup patterns rule, and give the observable result in three short lines.",
+      "prompt": "For \"The first learner to submit twice\", explain how a frequency map finds the first repeated value while preserving a separate traversal for order.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Problem.",
+        "Pattern.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Frequency and lookup patterns: language-neutral trace.",
-        "Starting evidence: A frequency map finds the first repeated value while preserving a separate traversal for order.",
-        "Core rule: Hash-based patterns trade memory for fast expected lookup in frequency counting, membership, indexing, grouping, and prefix-state matching.",
-        "Observable result: The conceptual result follows because Choose hashing when key range is broad and expected lookup fits; bounded dense keys may favor an array.",
-        "Boundary check: Choose hashing when key range is broad and expected lookup fits; bounded dense keys may favor an array."
+        "Names the example \"The first learner to submit twice\": pairwise checks were O(n²).",
+        "A frequency map finds the first repeated value.",
+        "A separate traversal of the list preserves order.",
+        "The report finds the first double submission in one O(n) expected pass."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Hash-based patterns trade memory for fast expected lookup in frequency counting, membership, indexing, grouping, and prefix-state matching.",
+      "prompt": "Write `anagram_groups(words)` that groups words that are anagrams of each other, using the sorted letters as the key. State its cost.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Key: ''.join(sorted(word)).",
+        "defaultdict(list)."
       ],
       "expectedEvidence": [
-        "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__.",
-        "Ordering requirements, worst-case guarantees, key mutation, and bounded alphabets can favor other structures."
+        "[\"eat\", \"tea\", \"tan\", \"nat\"] → two groups.",
+        "O(n × k log k) for words of length k."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Frequency and lookup patterns case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Given submissions (learner, course, score), produce per course: count, average, and the first learner to score 100. Use one pass with maps, and test courses with no 100 and ties.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Map course → running stats.",
+        "Order from the input sequence."
       ],
       "expectedEvidence": [
-        "Recognize and solve lookup and frequency problems with justified expected complexity.",
-        "Choose hashing when key range is broad and expected lookup fits; bounded dense keys may favor an array."
+        "Correct stats per course.",
+        "O(n) expected time."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.hashing.patterns.misconception",
-      "explanation": "Choose hashing when key range is broad and expected lookup fits; bounded dense keys may favor an array.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'bounded dense keys', then state one implementation-specific risk in the selected language."
+      "explanation": "Ask: **What question do I repeat for each item?** \"Seen before?\" → set. \"How many?\" → counter. \"Where?\" → value→index. \"Which group?\" → key→list. \"Same running total?\" → prefix map. Then check if a small array would do.",
+      "retryPrompt": "Apply this to \"The streak that broke even\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to recognize and solve lookup and frequency problems with justified expected complexity. Keep this boundary in view: Ordering requirements, worst-case guarantees, key mutation, and bounded alphabets can favor other structures.",
+    "summary": "To recognize and solve lookup and frequency problems, replace repeated searches with one pass that remembers state in a set or map (membership, frequency, index, grouping, prefix totals), justify expected O(1) lookups and O(n) space, take order from the original sequence, and use an array when keys are small integers.",
     "retrievalPrompts": [
-      "State the Frequency and lookup patterns invariant and complexity without code.",
-      "Why is this claim false: A hash map is always better than an array for counting values.",
-      "Map checkpoint 'bounded dense keys' to C, C++, Java, and Python."
+      "Which pattern finds the first repeat?",
+      "When is an array better than a hash map for counting?",
+      "Why take order from the original list?"
     ],
     "nextReviewPrompt": "Next: continue to “Linear and binary search”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

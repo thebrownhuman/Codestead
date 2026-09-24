@@ -280,7 +280,7 @@ async function main() {
         }
         const qualityIssues = auditBeginnerLessonQuality(
           lesson,
-          createBeginnerQualityContext(course, courseModule, skill),
+          createBeginnerQualityContext(course, courseModule, skill, [...manifests.values()]),
         );
         for (const issue of qualityIssues) {
           report(`${relative}: beginner-quality[${issue.code}] ${issue.message}`);

@@ -33,38 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A recurrence expresses work in terms of smaller inputs and nonrecursive cost, then expansion or a theorem derives an asymptotic bound.",
+    "summary": "A **recurrence** writes a recursive algorithm's cost in terms of its smaller calls: `T(n) = (cost of the recursive calls) + (work done in this call)`. Solve it by **expanding** it level by level, or by a known pattern. Common results: `T(n) = T(n - 1) + O(1)` → O(n) (counting a list). `T(n) = T(n - 1) + O(n)` → O(n²) (naive recursive selection). `T(n) = T(n/2) + O(1)` → O(log n) (binary search). `T(n) = 2T(n/2) + O(n)` → O(n log n) (merge sort). You can't ignore the recursive term: it's usually where most of the work is.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: T(n)=2T(n/2)+O(n) yields O(n log n) for merge sort under its assumptions. Your goal is to derive and solve or bound simple decrease-by-one and divide-by-factor recurrences. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner says merge sort must be O(n): \"each call only does a linear merge\". But the calls themselves call more calls, and all that merging adds up. T(n)=2T(n/2)+O(n) yields O(n log n) for merge sort under its assumptions. In this lesson you'll derive and solve or bound simple decrease-by-one and divide-by-factor recurrences.\n\n```predict\n{\"question\": \"`T(n) = T(n - 1) + O(1)`, like recursively counting a list. What's T(n)?\", \"options\": [\"O(1)\", \"O(n): n levels of constant work\"], \"answer\": 1, \"why\": \"Expanding gives c + c + ... + c, n times.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Readiness, algorithms and analysis; Array representation and operations; Call stack and resource cost; Time, space and asymptotic growth. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Readiness, algorithms and analysis** module, **Array representation and operations**, **Call stack and resource cost**, and **Time, space and asymptotic growth**."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "A recurrence expresses work in terms of smaller inputs and nonrecursive cost, then expansion or a theorem derives an asymptotic bound. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The model: expand the tree of work",
+        "body": "```text\nMerge sort: T(n) = 2T(n/2) + cn,  T(1) = c.\n\nLevel 0:  one call of size n        work cn.\nLevel 1:  two calls of size n/2     work 2 x c(n/2) = cn.\nLevel 2:  four calls of size n/4    work 4 x c(n/4) = cn.\n...\nLevel k:  2^k calls of size n/2^k   work cn.\nLevels stop when n/2^k = 1, so k = log2 n.\n\nTotal = cn per level x (log2 n + 1) levels = O(n log n).\n```\n\n| Recurrence | Example | Solution |\n|---|---|---|\n| T(n) = T(n - 1) + O(1). | count a list. | O(n). |\n| T(n) = T(n - 1) + O(n). | recursive selection sort. | O(n²). |\n| T(n) = T(n/2) + O(1). | binary search. | O(log n). |\n| T(n) = 2T(n/2) + O(n). | merge sort. | O(n log n). |\n| T(n) = 2T(n - 1) + O(1). | naive Fibonacci-like branching. | O(2ⁿ). |\n\n```reveal\n{\"prompt\": \"What are the assumptions behind merge sort's recurrence?\", \"answer\": \"That the split is into two halves of equal size, and that merging n items costs about cn. Uneven splits (as in bad quicksort) give a different recurrence.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Master-theorem cases do not cover every recurrence, floors and uneven splits may need other arguments. The draft therefore rejects: Dropping the recursive term and keeping only local work gives the total complexity."
+        "heading": "Don't drop the recursive term",
+        "body": "```predict\n{\"question\": \"Binary search does O(1) work per call. Is it O(1) overall?\", \"options\": [\"Yes\", \"No: T(n) = T(n/2) + O(1) has log n levels, so O(log n)\"], \"answer\": 1, \"why\": \"The number of levels multiplies the per-call work.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Express recursive work as a recurrence and estimate common growth patterns.",
-      "Derive and solve or bound simple decrease-by-one and divide-by-factor recurrences.",
-      "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
+      "Write recurrences from recursive code.",
+      "Solve decrease-by-one and halving recurrences by expansion and match common patterns."
     ],
     "excludes": [
-      "Master-theorem cases do not cover every recurrence, floors and uneven splits may need other arguments."
+      "The master theorem's full proof.",
+      "Recurrences with uneven splits in depth."
     ]
   },
   "outcomes": [
@@ -73,142 +69,136 @@
   "examples": [
     {
       "id": "dsa.recursion.recurrence.example-a",
-      "title": "Recurrence reasoning: language-neutral trace",
+      "title": "Why merge sort is n log n",
       "situation": "T(n)=2T(n/2)+O(n) yields O(n log n) for merge sort under its assumptions.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: T(n)=2T(n/2)+O(n) yields O(n log n) for merge sort under its assumptions.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Include every recursive subproblem and combine level work across the recursion tree."
+        "**Write it:** merge sort makes two calls of size n/2 and merges in cn, so T(n) = 2T(n/2) + cn.",
+        "**Expand:** every level of the recursion tree does cn total work, and there are about log2 n levels.",
+        "**Check:** a counter will show about n log2 n comparisons for n = 1,024 (about 10,000), far from n² (about 1,000,000)."
       ],
-      "result": "The conceptual result follows because Include every recursive subproblem and combine level work across the recursion tree."
+      "result": "The learner sees why merge sort is O(n log n), not O(n), and can predict its growth."
     },
     {
       "id": "dsa.recursion.recurrence.example-b",
-      "title": "Recurrence reasoning: implementation transfer",
-      "situation": "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input.",
+      "title": "The recursive sort that crawled",
+      "situation": "A recursive sort finds the minimum (O(n)), swaps it to the front, then sorts the remaining n - 1 items recursively.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input.",
-        "Step 3 — Retest this boundary in the selected implementation: Master-theorem cases do not cover every recurrence, floors and uneven splits may need other arguments."
+        "The recurrence is T(n) = T(n - 1) + cn.",
+        "Expanding: cn + c(n - 1) + ... + c = about cn²/2.",
+        "So it's O(n²), the same as selection sort; recursion didn't make it faster."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "The team replaces it with merge sort or the library sort for large inputs."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.recursion.recurrence.misconception",
       "mistakenBelief": "Dropping the recursive term and keeping only local work gives the total complexity.",
-      "correction": "Include every recursive subproblem and combine level work across the recursion tree.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Dropping the recursive term and keeping only local work gives the total complexity."
+      "correction": "The recursive calls do work too, often most of it. Expand the recurrence, or count levels times work per level, to get the total.",
+      "diagnosticPrompt": "In \"Why merge sort is n log n\", what did the learner leave out?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Recurrence reasoning, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "A recurrence is like **working out a phone tree's cost**: you know what one person does (call two others and write a note) and that each of them does the same. The total is per-person work times how many people are in the tree, not just the first person's work.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering levels × work per level",
+      "halving = a tree only log n deep"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Master-theorem cases do not cover every recurrence, floors and uneven splits may need other arguments."
+      "Phone trees can branch unevenly; so can quicksort.",
+      "A chain (each calls one) is n people long."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "T(n)=2T(n/2)+O(n) yields O(n log n) for merge sort under its assumptions.",
-      "A recurrence expresses work in terms of smaller inputs and nonrecursive cost, then expansion or a theorem derives an asymptotic bound.",
-      "Include every recursive subproblem and combine level work across the recursion tree.",
-      "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
+      "T(8) = 2T(4) + 8c",
+      "T(4) = 2T(2) + 4c; T(2) = 2T(1) + 2c",
+      "sum levels"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Level 0",
         "state": {
-          "scenario": "T(n)=2T(n/2)+O(n) yields O(n log n) for merge sort under its assumptions."
+          "calls": "1 of size 8",
+          "work": "8c"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The top merge handles all eight items."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Levels 1-2",
         "state": {
-          "invariant": "A recurrence expresses work in terms of smaller inputs and nonrecursive cost, then expansion or a theorem derives an asymptotic bound."
+          "work per level": "8c",
+          "levels": "2"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "Each level of T(n)=2T(n/2)+O(n) does the same total work."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Total",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "levels": "log2 8 + 1 = 4",
+          "work": "about 32c = O(n log n)"
         },
-        "explanation": "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Include every recursive subproblem and combine level work across the recursion tree."
-        },
-        "explanation": "Verify the result and reject this misconception: Dropping the recursive term and keeping only local work gives the total complexity."
+        "explanation": "Summing the levels yields O(n log n) for merge sort under its assumptions."
       }
     ],
-    "textAlternative": "Starting artifact: T(n)=2T(n/2)+O(n) yields O(n log n) for merge sort under its assumptions. Step 1, Specification. State: scenario: T(n)=2T(n/2)+O(n) yields O(n log n) for merge sort under its assumptions.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: A recurrence expresses work in terms of smaller inputs and nonrecursive cost, then expansion or a theorem derives an asymptotic bound.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input. Step 4, Conclusion. State: correction: Include every recursive subproblem and combine level work across the recursion tree.. Verify the result and reject this misconception: Dropping the recursive term and keeping only local work gives the total complexity."
+    "textAlternative": "Expanding merge sort's recurrence for n = 8. Step 1, Level 0: calls is 1 of size 8; work is 8c. The top merge handles all eight items. Step 2, Levels 1-2: work per level is 8c; levels is 2. Each level of T(n)=2T(n/2)+O(n) does the same total work. Step 3, Total: levels is log2 8 + 1 = 4; work is about 32c = O(n log n). Summing the levels yields O(n log n) for merge sort under its assumptions."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Recurrence reasoning: language-neutral trace”: state its starting evidence, apply the Recurrence reasoning rule, and give the observable result in three short lines.",
+      "prompt": "For \"Why merge sort is n log n\", explain how T(n)=2T(n/2)+O(n) yields O(n log n) for merge sort under its assumptions.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Write.",
+        "Expand.",
+        "Check."
       ],
       "expectedEvidence": [
-        "Named example: Recurrence reasoning: language-neutral trace.",
-        "Starting evidence: T(n)=2T(n/2)+O(n) yields O(n log n) for merge sort under its assumptions.",
-        "Core rule: A recurrence expresses work in terms of smaller inputs and nonrecursive cost, then expansion or a theorem derives an asymptotic bound.",
-        "Observable result: The conceptual result follows because Include every recursive subproblem and combine level work across the recursion tree.",
-        "Boundary check: Include every recursive subproblem and combine level work across the recursion tree."
+        "Names the example \"Why merge sort is n log n\": merge sort's cost includes its calls.",
+        "T(n)=2T(n/2)+O(n) describes two half-size calls plus a merge.",
+        "Expanding yields O(n log n) under its assumptions.",
+        "The learner can predict merge sort's growth."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: A recurrence expresses work in terms of smaller inputs and nonrecursive cost, then expansion or a theorem derives an asymptotic bound.",
+      "prompt": "Write and solve the recurrence for `def power(x, n): return 1 if n == 0 else x * power(x, n - 1)`, then for a version that halves n using x^n = (x^(n/2))².",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "First: decrease by one.",
+        "Second: halving."
       ],
       "expectedEvidence": [
-        "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input.",
-        "Master-theorem cases do not cover every recurrence, floors and uneven splits may need other arguments."
+        "T(n) = T(n - 1) + O(1) → O(n).",
+        "T(n) = T(n/2) + O(1) → O(log n)."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Recurrence reasoning case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Write a recursive function that sums an array by splitting it into thirds. Write its recurrence, solve it by expansion, and confirm by counting additions for n = 3, 9, 27, 81.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "T(n) = 3T(n/3) + O(1).",
+        "Count the leaves."
       ],
       "expectedEvidence": [
-        "Derive and solve or bound simple decrease-by-one and divide-by-factor recurrences.",
-        "Include every recursive subproblem and combine level work across the recursion tree."
+        "O(n) derived and explained.",
+        "Counts grow linearly."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.recursion.recurrence.misconception",
-      "explanation": "Include every recursive subproblem and combine level work across the recursion tree.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'recursion tree', then state one implementation-specific risk in the selected language."
+      "explanation": "From the code, write **T(n) = (number of calls) × T(size of each) + (work here)**. Then draw levels: **how many levels, and how much work per level?** Multiply.",
+      "retryPrompt": "Apply this to \"The recursive sort that crawled\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to derive and solve or bound simple decrease-by-one and divide-by-factor recurrences. Keep this boundary in view: Master-theorem cases do not cover every recurrence, floors and uneven splits may need other arguments.",
+    "summary": "To derive and solve simple recurrences, write T(n) as the recursive calls plus local work, then expand level by level: decrease-by-one with constant work gives O(n), with linear work O(n²), halving with constant work O(log n), and two halves with linear work, like merge sort, O(n log n).",
     "retrievalPrompts": [
-      "State the Recurrence reasoning invariant and complexity without code.",
-      "Why is this claim false: Dropping the recursive term and keeping only local work gives the total complexity.",
-      "Map checkpoint 'recursion tree' to C, C++, Java, and Python."
+      "What does a recurrence describe?",
+      "What does T(n) = T(n/2) + O(1) solve to?",
+      "Why is merge sort O(n log n)?"
     ],
     "nextReviewPrompt": "Next: continue to “Divide-and-conquer strategy”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

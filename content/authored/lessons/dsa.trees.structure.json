@@ -33,38 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A tree connects nodes by parent-child edges with one root and no cycles, giving depth, height, subtree, and leaf relationships.",
+    "summary": "A **tree** is a set of **nodes** joined by **parent-child edges**, with one **root** at the top, every other node having exactly **one parent**, and **no cycles**. Useful words: a **leaf** has no children; a node's **subtree** is it plus everything below it; **depth** is how many edges from the root down to a node (root depth 0); **height** is the most edges from a node down to a leaf. A connected tree with n nodes always has exactly **n - 1 edges**: add one more and you create a cycle, remove one and it falls into pieces. Store trees as node objects with a children list, or as a **parent array**.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A tree with n nodes has n-1 edges when connected and acyclic. Your goal is to represent and annotate a tree and compute node depths and tree height. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A course map shows modules as a tree: Programming at the root, then Python and Web, then their lessons. An editor adds a link from \"Loops\" back to \"Python\" for convenience, and the \"print outline\" feature now loops forever. A tree with n nodes has n-1 edges when connected and acyclic. In this lesson you'll represent and annotate a tree and compute node depths and tree height.\n\n```predict\n{\"question\": \"Every node can be reached from the root. Does that make it a tree?\", \"options\": [\"Yes\", \"Not necessarily: it must also have no cycles (and n - 1 edges)\"], \"answer\": 1, \"why\": \"Connected is only half the definition. A cycle makes it a general graph.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Recursive problem design; Linked lists; Singly linked representation. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Recursive problem design**, the **Linked lists** module, and **Singly linked representation** (nodes joined by references)."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "A tree connects nodes by parent-child edges with one root and no cycles, giving depth, height, subtree, and leaf relationships. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The model: one root, one parent each, no cycles",
+        "body": "```python\n# Parent array: parent[i] is the parent of node i; the root has None.\nnames  = [\"Programming\", \"Python\", \"Web\", \"Loops\", \"Lists\", \"HTML\"]\nparent = [None,          0,        0,     1,       1,       2]\n\ndef depth(i):                         # edges from root to node i.\n    d = 0\n    while parent[i] is not None:\n        i = parent[i]\n        d += 1\n    return d\n\ndef children_lists(parent):\n    kids = [[] for _ in parent]\n    for child, p in enumerate(parent):\n        if p is not None:\n            kids[p].append(child)\n    return kids\n\ndef height(i, kids):                  # edges from node i down to its deepest leaf.\n    return 0 if not kids[i] else 1 + max(height(c, kids) for c in kids[i])\n\nkids = children_lists(parent)\nprint(depth(3), height(0, kids))      # Loops is at depth 2; tree height is 2.\nprint(sum(p is not None for p in parent))   # 5 edges for 6 nodes.\n```\n\n| Term | Meaning |\n|---|---|\n| depth(v). | edges from the root to v. |\n| height(v). | edges from v to its deepest leaf. |\n| edges. | exactly n - 1 in a tree. |\n\n```reveal\n{\"prompt\": \"Some books count height in nodes, not edges. Does it matter?\", \"answer\": \"Only for consistency: a single node has height 0 in edges or 1 in nodes. Pick one convention, state it, and test it.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Empty-tree conventions, n-ary children, stored parents, and representation differ across implementations. The draft therefore rejects: Every connected graph is a tree because all nodes are reachable."
+        "heading": "Spot the non-tree",
+        "body": "```predict\n{\"question\": \"6 nodes, all connected, with 6 edges. Tree?\", \"options\": [\"Yes\", \"No: a connected graph with n nodes and n edges has exactly one cycle\"], \"answer\": 1, \"why\": \"The edge count is a quick sanity check before you trust any tree algorithm.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use root, parent, child, leaf, depth, height and subtree accurately for binary and n-ary trees.",
-      "Represent and annotate a tree and compute node depths and tree height.",
-      "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+      "Represent a tree with child lists or a parent array and name root, leaf, subtree, depth and height.",
+      "Compute depths and height and check the n - 1 edge rule."
     ],
     "excludes": [
-      "Empty-tree conventions, n-ary children, stored parents, and representation differ across implementations."
+      "Binary search trees (later lesson).",
+      "General graphs (graphs module)."
     ]
   },
   "outcomes": [
@@ -73,142 +69,135 @@
   "examples": [
     {
       "id": "dsa.trees.structure.example-a",
-      "title": "Tree terminology and representation: language-neutral trace",
-      "situation": "A tree with n nodes has n-1 edges when connected and acyclic.",
+      "title": "The course map with one extra link",
+      "situation": "A tree with n nodes has n-1 edges when connected and acyclic, so the course map's extra link broke it.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: A tree with n nodes has n-1 edges when connected and acyclic.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: A tree is connected and acyclic; adding one cycle or removing one connecting edge breaks that definition."
+        "**Count:** the map has 6 nodes and should have 5 parent-child edges.",
+        "**Spot the extra edge:** the Loops-to-Python link makes 6 edges and a cycle, so the outline walk loops forever.",
+        "**Annotate:** without the extra link, Loops is at depth 2 and the tree's height is 2; a test will check depths and the edge count."
       ],
-      "result": "The conceptual result follows because A tree is connected and acyclic; adding one cycle or removing one connecting edge breaks that definition."
+      "result": "The editor keeps the map a true tree, and the outline prints each lesson once with correct depths."
     },
     {
       "id": "dsa.trees.structure.example-b",
-      "title": "Tree terminology and representation: implementation transfer",
-      "situation": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
+      "title": "The node with two parents",
+      "situation": "A lesson \"Lists\" is added under both Python and Data Structures in the course map. Counting lessons now counts Lists twice.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
-        "Step 3 — Retest this boundary in the selected implementation: Empty-tree conventions, n-ary children, stored parents, and representation differ across implementations."
+        "A tree node has exactly one parent.",
+        "Two parents mean the structure is a graph (a DAG here), not a tree.",
+        "Either pick one parent, or treat the map as a graph and track visited nodes."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Lesson counts are correct, and the structure matches the algorithm used on it."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.trees.structure.misconception",
       "mistakenBelief": "Every connected graph is a tree because all nodes are reachable.",
-      "correction": "A tree is connected and acyclic; adding one cycle or removing one connecting edge breaks that definition.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Every connected graph is a tree because all nodes are reachable."
+      "correction": "A tree must be connected and have no cycles; equivalently it has exactly n - 1 edges. Reachability alone allows cycles and nodes with several parents.",
+      "diagnosticPrompt": "In \"The course map with one extra link\", what did the extra link create?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Tree terminology and representation, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "A tree is like **a family tree going downward from one ancestor**: everyone except the ancestor has exactly one parent listed, and nobody is their own great-grandparent. Depth is **how many generations below the ancestor** you are; height is **how many generations below you the youngest descendant is**.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering one parent, no cycles",
+      "depth down from the root, height down to leaves"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Empty-tree conventions, n-ary children, stored parents, and representation differ across implementations."
+      "Real families have two parents; tree nodes have one.",
+      "A cycle would make someone their own ancestor."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A tree with n nodes has n-1 edges when connected and acyclic.",
-      "A tree connects nodes by parent-child edges with one root and no cycles, giving depth, height, subtree, and leaf relationships.",
-      "A tree is connected and acyclic; adding one cycle or removing one connecting edge breaks that definition.",
-      "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
+      "parent = [None, 0, 0, 1, 1, 2]",
+      "depth(3) for Loops",
+      "height(0)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Edges",
         "state": {
-          "scenario": "A tree with n nodes has n-1 edges when connected and acyclic."
+          "nodes": "6",
+          "edges": "5"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "A tree with n nodes has n-1 edges when connected and acyclic."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Depth",
         "state": {
-          "invariant": "A tree connects nodes by parent-child edges with one root and no cycles, giving depth, height, subtree, and leaf relationships."
+          "path": "Loops → Python → Programming",
+          "depth(3)": "2"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "Following parents to the root counts Loops' depth."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Height",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "height(Programming)": "2"
         },
-        "explanation": "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "A tree is connected and acyclic; adding one cycle or removing one connecting edge breaks that definition."
-        },
-        "explanation": "Verify the result and reject this misconception: Every connected graph is a tree because all nodes are reachable."
+        "explanation": "The deepest leaves are two edges below the root."
       }
     ],
-    "textAlternative": "Starting artifact: A tree with n nodes has n-1 edges when connected and acyclic. Step 1, Specification. State: scenario: A tree with n nodes has n-1 edges when connected and acyclic.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: A tree connects nodes by parent-child edges with one root and no cycles, giving depth, height, subtree, and leaf relationships.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged. Step 4, Conclusion. State: correction: A tree is connected and acyclic; adding one cycle or removing one connecting edge breaks that definition.. Verify the result and reject this misconception: Every connected graph is a tree because all nodes are reachable."
+    "textAlternative": "Annotating the course map. Step 1, Edges: nodes is 6; edges is 5. A tree with n nodes has n-1 edges when connected and acyclic. Step 2, Depth: path is Loops → Python → Programming; depth(3) is 2. Following parents to the root counts Loops' depth. Step 3, Height: height(Programming) is 2. The deepest leaves are two edges below the root."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Tree terminology and representation: language-neutral trace”: state its starting evidence, apply the Tree terminology and representation rule, and give the observable result in three short lines.",
+      "prompt": "For \"The course map with one extra link\", explain why a tree with n nodes has n-1 edges when connected and acyclic, and what the extra link broke.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Count.",
+        "Extra edge.",
+        "Annotate."
       ],
       "expectedEvidence": [
-        "Named example: Tree terminology and representation: language-neutral trace.",
-        "Starting evidence: A tree with n nodes has n-1 edges when connected and acyclic.",
-        "Core rule: A tree connects nodes by parent-child edges with one root and no cycles, giving depth, height, subtree, and leaf relationships.",
-        "Observable result: The conceptual result follows because A tree is connected and acyclic; adding one cycle or removing one connecting edge breaks that definition.",
-        "Boundary check: A tree is connected and acyclic; adding one cycle or removing one connecting edge breaks that definition."
+        "Names the example \"The course map with one extra link\": the map had 6 nodes.",
+        "A tree with n nodes has n-1 edges when connected and acyclic.",
+        "The sixth edge created a cycle.",
+        "The outline prints each lesson once with correct depths."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: A tree connects nodes by parent-child edges with one root and no cycles, giving depth, height, subtree, and leaf relationships.",
+      "prompt": "Given parent = [None, 0, 0, 1, 1, 1, 4], list the leaves, the depth of node 6, the height of the tree and the number of edges.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Leaves have no children.",
+        "Follow parents for depth."
       ],
       "expectedEvidence": [
-        "In C, tree nodes and heap buffers need explicit lifetime and bounds; C++ can combine RAII nodes with vector heaps; Java uses object references and PriorityQueue contracts; Python uses objects plus heapq's min-heap functions, while the conceptual invariant stays unchanged.",
-        "Empty-tree conventions, n-ary children, stored parents, and representation differ across implementations."
+        "Leaves: 2, 3, 5, 6.",
+        "Depth of 6 is 3; height 3; 6 edges."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Tree terminology and representation case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Write `is_tree(n, edges)` that returns True only if the edges connect all n nodes with no cycle. Test a proper tree, an extra edge, a missing edge and a node with two parents.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Check len(edges) == n - 1.",
+        "Then check connectivity from node 0."
       ],
       "expectedEvidence": [
-        "Represent and annotate a tree and compute node depths and tree height.",
-        "A tree is connected and acyclic; adding one cycle or removing one connecting edge breaks that definition."
+        "Correct results for all four tests.",
+        "Explanation of why both checks are needed."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.trees.structure.misconception",
-      "explanation": "A tree is connected and acyclic; adding one cycle or removing one connecting edge breaks that definition.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'connected and acyclic', then state one implementation-specific risk in the selected language."
+      "explanation": "Before running a tree algorithm, check: **one root? each other node one parent? n - 1 edges?** Then state whether depth and height count edges or nodes.",
+      "retryPrompt": "Apply this to \"The node with two parents\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to represent and annotate a tree and compute node depths and tree height. Keep this boundary in view: Empty-tree conventions, n-ary children, stored parents, and representation differ across implementations.",
+    "summary": "To represent and annotate a tree, store children lists or a parent array, remember a tree has one root, one parent per other node, no cycles and exactly n - 1 edges, and compute depth as edges up to the root and height as edges down to the deepest leaf.",
     "retrievalPrompts": [
-      "State the Tree terminology and representation invariant and complexity without code.",
-      "Why is this claim false: Every connected graph is a tree because all nodes are reachable.",
-      "Map checkpoint 'connected and acyclic' to C, C++, Java, and Python."
+      "How many edges does a tree with n nodes have?",
+      "What's the difference between depth and height?",
+      "Is every connected graph a tree?"
     ],
     "nextReviewPrompt": "Next: continue to “Depth and breadth traversals”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

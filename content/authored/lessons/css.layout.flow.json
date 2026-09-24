@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Normal flow lays out block and inline content in writing-mode order and provides the resilient baseline before specialized layout.",
+    "summary": "**Normal flow** is how the browser lays out elements with no layout CSS: **block** boxes (div, p, h1, section) stack top to bottom and take the full width; **inline** boxes (a, em, span) sit side by side within lines of text. `display` changes a box's behaviour: `block`, `inline`, `inline-block`, `flex`, `grid`, `none`. Start from a document that reads well in normal flow, then **enhance** the arrangement — don't pull everything out of flow.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A document remains readable in source order before grid enhances the card arrangement. Your goal is to predict and repair layout using normal flow and appropriate display behavior. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A developer positions every card on a page with `position: absolute` and exact pixel offsets. It looks perfect on their laptop — and overlaps into chaos on a phone, at zoom, or when a title gets longer. A document remains readable in source order before grid enhances the card arrangement. In this lesson you'll predict and repair layout using normal flow and appropriate display behaviour.\n\n```predict\n{\"question\": \"Three `<p>` elements with no CSS. How are they arranged?\", \"options\": [\"Side by side\", \"Stacked vertically, each full width\"], \"answer\": 1, \"why\": \"p is a block element: in normal flow, blocks stack top to bottom.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Box model, sizing and overflow; html semantics landmarks; Content, padding, border and margin; html document dom. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Box model, sizing and overflow** module, **Sections and landmarks**, **Content, padding, border and margin**, and **Document tree and DOM concept**."
       },
       {
-        "heading": "Technology rule",
-        "body": "Normal flow lays out block and inline content in writing-mode order and provides the resilient baseline before specialized layout. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: blocks stack, inlines flow in lines",
+        "body": "| display | Behaviour | Typical elements |\n|---|---|---|\n| `block`. | new line, full available width. | div, p, h1, section. |\n| `inline`. | flows in text; width/height ignored. | a, span, em. |\n| `inline-block`. | flows in text but accepts width/padding. | buttons in a sentence. |\n| `flex` / `grid`. | block outside, new layout for children. | component containers. |\n| `none`. | removed from layout and accessibility tree. | hidden content. |\n\n```css\n.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; }\n/* without this rule, the cards simply stack in source order — still readable */\n```\n\n```reveal\n{\"prompt\": \"Why doesn't `width: 200px` work on a span?\", \"answer\": \"A span is inline by default; inline boxes ignore width and height. Change it to inline-block (or block) if it needs a size.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Floats, out-of-flow positioning, fragmentation, margin collapse, and replaced elements can alter expected flow. This draft therefore rejects: Modern layouts should remove every element from normal flow for precise control."
+        "heading": "Stay in flow",
+        "body": "```predict\n{\"question\": \"Which approach adapts best to long titles and small screens?\", \"options\": [\"Absolute positions for every card\", \"Normal flow enhanced with grid or flex\"], \"answer\": 1, \"why\": \"Flow-based layouts make room for content automatically. Absolute boxes don't know about each other and overlap.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Reason about block, inline and flow-root participation before choosing a layout system.",
-      "Predict and repair layout using normal flow and appropriate display behavior."
+      "Predict block and inline behaviour in normal flow and choose display values.",
+      "Enhance a readable source-order document with grid or flex instead of taking elements out of flow."
     ],
     "excludes": [
-      "Floats, out-of-flow positioning, fragmentation, margin collapse, and replaced elements can alter expected flow."
+      "Positioning (next lesson).",
+      "Floats for layout."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "css.layout.flow.example-a",
-      "title": "Normal flow and display: concrete case",
+      "title": "Readable first, arranged second",
       "situation": "A document remains readable in source order before grid enhances the card arrangement.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A document remains readable in source order before grid enhances the card arrangement.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Preserve meaningful source and normal flow, then add layout without breaking reading order or content expansion."
+        "**Normal flow first:** with no layout CSS, the heading, intro and six course cards stack in source order — fully readable.",
+        "**Enhance:** `.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }` arranges cards in columns when space allows.",
+        "**Check:** at 320px the browser will render one column, at 1200px three — and the reading order never changes."
       ],
-      "result": "The result follows because Preserve meaningful source and normal flow, then add layout without breaking reading order or content expansion."
+      "result": "The page reads correctly with or without the grid, and the layout adapts to any width."
     },
     {
       "id": "css.layout.flow.example-b",
-      "title": "Normal flow and display: boundary case",
-      "situation": "Floats, out-of-flow positioning, fragmentation, margin collapse, and replaced elements can alter expected flow.",
+      "title": "The absolutely positioned page",
+      "situation": "Cards use `position: absolute; top: 120px; left: 340px;` etc. A longer title in card 2 overlaps card 5.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Floats, out-of-flow positioning, fragmentation, margin collapse, and replaced elements can alter expected flow.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Modern layouts should remove every element from normal flow for precise control."
+        "Absolute boxes are removed from flow, so they don't push each other.",
+        "Any change in content or screen size causes overlap.",
+        "Fix: remove the absolute positions and use grid with gaps; content now reflows."
       ],
-      "result": "The boundary requires this correction: Preserve meaningful source and normal flow, then add layout without breaking reading order or content expansion."
+      "result": "Cards never overlap, whatever their content length."
     }
   ],
   "misconceptions": [
     {
       "id": "css.layout.flow.misconception",
       "mistakenBelief": "Modern layouts should remove every element from normal flow for precise control.",
-      "correction": "Preserve meaningful source and normal flow, then add layout without breaking reading order or content expansion.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: Modern layouts should remove every element from normal flow for precise control."
+      "correction": "Normal flow automatically handles content length, zoom and screen size. Layouts should start from a readable flow and enhance it with flex or grid; taking elements out of flow should be the exception.",
+      "diagnosticPrompt": "In \"The absolutely positioned page\", why did the cards overlap?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Normal flow and display, where rules size, place, and paint existing content.",
+    "example": "Normal flow is like **text in a book**: paragraphs stack, words wrap onto new lines. Grid is like arranging the book's pages on a table in rows. Absolute positioning is like gluing each paragraph to a fixed spot — fine until the text changes.",
     "usefulFor": [
-      "Building a first mental model for Normal flow and display before using exact platform terms"
+      "remembering blocks stack, inlines wrap",
+      "enhance instead of glue"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "Floats, out-of-flow positioning, fragmentation, margin collapse, and replaced elements can alter expected flow."
+      "Books don't resize; web pages do constantly.",
+      "display:none is like tearing a page out — nobody can read it."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A document remains readable in source order before grid enhances the card arrangement.",
-      "Normal flow lays out block and inline content in writing-mode order and provides the resilient baseline before specialized layout.",
-      "Preserve meaningful source and normal flow, then add layout without breaking reading order or content expansion."
+      "<h1>, <p>, <ul class='cards'> six cards",
+      "no layout CSS",
+      ".cards { display: grid; … }"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Normal flow",
         "state": {
-          "evidence": "A document remains readable in source order before grid enhances the card arrangement."
+          "order": "h1, p, cards",
+          "layout": "stacked"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The document remains readable in source order."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Enhance",
         "state": {
-          "rule": "Normal flow lays out block and inline content in writing-mode order and provides the resilient baseline before specialized layout."
+          "cards": "grid columns"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Grid then enhances the card arrangement into columns."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Adapt",
         "state": {
-          "correction": "Preserve meaningful source and normal flow, then add layout without breaking reading order or content expansion."
+          "320px": "1 column",
+          "1200px": "3 columns",
+          "reading order": "unchanged"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Modern layouts should remove every element from normal flow for precise control."
+        "explanation": "The same source adapts without breaking its order."
       }
     ],
-    "textAlternative": "Starting artifact: A document remains readable in source order before grid enhances the card arrangement. Step 1, Artifact. State: evidence: A document remains readable in source order before grid enhances the card arrangement.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Normal flow lays out block and inline content in writing-mode order and provides the resilient baseline before specialized layout.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Preserve meaningful source and normal flow, then add layout without breaking reading order or content expansion.. Check the result against the boundary and reject this misconception: Modern layouts should remove every element from normal flow for precise control."
+    "textAlternative": "Enhancing normal flow with grid. Step 1, Normal flow: order is h1, p, cards; layout is stacked. The document remains readable in source order. Step 2, Enhance: cards is grid columns. Grid then enhances the card arrangement into columns. Step 3, Adapt: 320px is 1 column; 1200px is 3 columns; reading order is unchanged. The same source adapts without breaking its order."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Normal flow and display: concrete case”: state its starting evidence, apply the Normal flow and display rule, and give the observable result in three short lines.",
+      "prompt": "For \"Readable first, arranged second\", explain how the document remains readable in source order before grid enhances the card arrangement, and what changes at different widths.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Flow.",
+        "Grid.",
+        "Widths."
       ],
       "expectedEvidence": [
-        "Named example: Normal flow and display: concrete case.",
-        "Starting evidence: A document remains readable in source order before grid enhances the card arrangement.",
-        "Core rule: Normal flow lays out block and inline content in writing-mode order and provides the resilient baseline before specialized layout.",
-        "Observable result: The result follows because Preserve meaningful source and normal flow, then add layout without breaking reading order or content expansion.",
-        "Boundary check: Preserve meaningful source and normal flow, then add layout without breaking reading order or content expansion."
+        "Names the example \"Readable first, arranged second\": the document remains readable in source order.",
+        "Grid enhances the card arrangement.",
+        "One column at 320px, three at 1200px.",
+        "Reading order never changes, so the page reads correctly with or without the grid."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Floats, out-of-flow positioning, fragmentation, margin collapse, and replaced elements can alter expected flow.",
+      "prompt": "A nav list's links stack vertically. Which display change puts them in a row, and what's a more flexible option?",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "li are blocks.",
+        "Flex on the ul."
       ],
       "expectedEvidence": [
-        "Normal flow lays out block and inline content in writing-mode order and provides the resilient baseline before specialized layout.",
-        "Floats, out-of-flow positioning, fragmentation, margin collapse, and replaced elements can alter expected flow."
+        "`li { display: inline-block }` works.",
+        "`ul { display: flex; gap: 1rem }` is more flexible."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Normal flow and display and explain why the misconception fails.",
+      "prompt": "Take a layout built with absolute positioning or fixed heights. Rebuild it with normal flow plus flex/grid, and test long content, 320px and 200% zoom.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Start by deleting positions.",
+        "Add grid last."
       ],
       "expectedEvidence": [
-        "Predict and repair layout using normal flow and appropriate display behavior.",
-        "Preserve meaningful source and normal flow, then add layout without breaking reading order or content expansion."
+        "Flow-based layout without overlaps.",
+        "Passes long-content, narrow and zoom tests."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.layout.flow.misconception",
-      "explanation": "Preserve meaningful source and normal flow, then add layout without breaking reading order or content expansion.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'normal flow' and state the decisive evidence."
+      "explanation": "Delete your layout CSS temporarily. Does the page still read in a sensible order? If not, fix the HTML order first. Then add flex or grid back.",
+      "retryPrompt": "Do this for \"The absolutely positioned page\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to predict and repair layout using normal flow and appropriate display behavior. Keep this boundary in view: Floats, out-of-flow positioning, fragmentation, margin collapse, and replaced elements can alter expected flow.",
+    "summary": "To predict and repair layout using normal flow, remember blocks stack and inlines flow in lines, choose display values deliberately, keep a readable source order, and enhance it with flex or grid rather than removing elements from flow.",
     "retrievalPrompts": [
-      "Explain Normal flow and display using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: Modern layouts should remove every element from normal flow for precise control.",
-      "Apply checkpoint 'normal flow' to a new artifact."
+      "How do block elements arrange in normal flow?",
+      "Why doesn't width apply to inline elements?",
+      "Why avoid absolute positioning for page layout?"
     ],
     "nextReviewPrompt": "Next: continue to “Relative, absolute, fixed and sticky positioning”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

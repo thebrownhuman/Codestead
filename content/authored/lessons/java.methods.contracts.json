@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A Java method defines a typed call contract, receives copies of argument values, returns a declared value or completes void, and should make observable side effects explicit.",
+    "summary": "A method's signature gives types; its **contract** adds what callers must know: valid inputs, the result, failure behaviour and side effects. Java is **always pass-by-value**. For primitives the parameter is a copy of the number. For objects the parameter is a **copy of the reference**, so both point at the **same object**. The method **can modify that object** (visible to the caller), but **reassigning the parameter** to a new object only changes its own copy of the reference; the caller's variable is untouched. Methods that return a value and change nothing are easiest to test.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A static clamp method documents its inclusive bounds, returns a value for normal and boundary cases, and has no hidden mutation. Your goal is to implement and test methods while explaining Java's value-passing semantics. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner writes `void reset(int[] scores) { scores = new int[3]; }` expecting the caller's array to be cleared, and nothing happens. Yet `void zero(int[] s) { s[0] = 0; }` does change it. They conclude Java is \"sometimes by reference\". A static clamp method documents its inclusive bounds, returns a value for normal and boundary cases, and has no hidden mutation. In this lesson you'll implement and test methods while explaining Java's value-passing semantics.\n\n```predict\n{\"question\": \"`void grow(int[] a) { a = new int[10]; }` then grow(arr). Is arr now length 10?\", \"options\": [\"Yes\", \"No: only the method's copy of the reference was reassigned\"], \"answer\": 1, \"why\": \"Changing the object through a parameter is visible; reassigning the parameter isn't.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Loops and branching; pf abstraction calls; Primitive types and variables; pf abstraction functions. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Loops and branching**, **Calls, parameters and returns**, **Primitive types and variables** and **Functions as contracts** (inputs, outputs, side effects)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "A Java method defines a typed call contract, receives copies of argument values, returns a declared value or completes void, and should make observable side effects explicit. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: copies of values and of references",
+        "body": "```java\npublic class Methods {\n    /** Returns value limited to [low, high], inclusive. Requires low <= high. No side effects. */\n    static int clamp(int value, int low, int high) {\n        if (low > high) throw new IllegalArgumentException(\"low > high\");\n        return Math.max(low, Math.min(value, high));\n    }\n\n    static void zeroFirst(int[] s) { s[0] = 0; }          // modifies the shared object.\n    static void replace(int[] s) { s = new int[]{9, 9}; }   // reassigns the local copy only.\n\n    public static void main(String[] args) {\n        System.out.println(clamp(15, 0, 10));   // 10\n        System.out.println(clamp(0, 0, 10));    // 0  (boundary)\n        int[] scores = {5, 6, 7};\n        zeroFirst(scores);                      // scores is now {0, 6, 7}.\n        replace(scores);                        // scores still {0, 6, 7}.\n        System.out.println(java.util.Arrays.toString(scores));\n    }\n}\n```\n\n| Inside the method | Caller sees it? |\n|---|---|\n| change a primitive parameter. | no. |\n| modify the object a parameter refers to. | yes. |\n| assign a new object to the parameter. | no. |\n\n```reveal\n{\"prompt\": \"How can a method \\\"replace\\\" the caller's array then?\", \"answer\": \"Return the new array and let the caller assign it: scores = makeFresh(); The caller decides what its own variable refers to.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "A copied reference still refers to the same object, reassignment of a parameter is local, mutable arguments can be changed through aliases, and exceptions are part of failure behavior. The learner must reject this documented misconception: Java passes objects by reference, so assigning a new object to a parameter also changes the caller's variable."
+        "heading": "Hidden mutation",
+        "body": "```predict\n{\"question\": \"A method called average(int[] a) sorts the array before computing. Problem?\", \"options\": [\"No\", \"Yes: it silently changes the caller's array order, a side effect the name hides\"], \"answer\": 1, \"why\": \"Copy first, or document the mutation, or choose a different algorithm.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Design static methods with cohesive purpose, typed parameters, return values and effects.",
-      "Implement and test methods while explaining Java's value-passing semantics."
+      "Write methods with documented inputs, results, failures and side effects.",
+      "Explain pass-by-value for primitives and references, and test normal and boundary cases."
     ],
     "excludes": [
-      "A copied reference still refers to the same object, reassignment of a parameter is local, mutable arguments can be changed through aliases, and exceptions are part of failure behavior."
+      "Varargs.",
+      "Records as parameter objects (objects module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,133 @@
   "examples": [
     {
       "id": "java.methods.contracts.example.direct",
-      "title": "Method contracts and parameters: direct language case",
+      "title": "A clamp with inclusive bounds",
       "situation": "A static clamp method documents its inclusive bounds, returns a value for normal and boundary cases, and has no hidden mutation.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A static clamp method documents its inclusive bounds, returns a value for normal and boundary cases, and has no hidden mutation.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Java is pass-by-value: a reference value is copied for an object argument, so parameter reassignment stays local while mutation through the shared reference remains observable."
+        "**A static clamp method documents its inclusive bounds:** the Javadoc says [low, high] and low <= high.",
+        "**Returns a value for normal and boundary cases:** clamp(15, 0, 10) is 10, clamp(0, 0, 10) is 0, clamp(5, 0, 10) is 5.",
+        "**Has no hidden mutation:** it only reads its int copies, so tests will just compare return values."
       ],
-      "result": "The example meets the atomic outcome because Java is pass-by-value: a reference value is copied for an object argument, so parameter reassignment stays local while mutation through the shared reference remains observable."
+      "result": "The method is trivially testable and callers know exactly what it does."
     },
     {
       "id": "java.methods.contracts.example.boundary",
-      "title": "Method contracts and parameters: boundary and transfer case",
-      "situation": "A method reassigns a List parameter without changing the caller's variable, but adding through that copied reference changes the shared list object.",
+      "title": "The average that reordered data",
+      "situation": "A report shows students in sorted order right after average() was called, though the list was meant to stay in enrolment order.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A method reassigns a List parameter without changing the caller's variable, but adding through that copied reference changes the shared list object.",
-        "Step 2 — Keep the language boundary explicit: A copied reference still refers to the same object, reassignment of a parameter is local, mutable arguments can be changed through aliases, and exceptions are part of failure behavior.",
-        "Step 3 — Reject the tempting but incorrect rule: Java passes objects by reference, so assigning a new object to a parameter also changes the caller's variable."
+        "average sorted its parameter array in place to find a median.",
+        "The caller's array changed because both refer to one object.",
+        "Sort a copy: int[] sorted = a.clone(); Arrays.sort(sorted);"
       ],
-      "result": "This case demonstrates the declared outcome: Implement and test methods while explaining Java's value-passing semantics."
+      "result": "The caller's data keeps its original order after computing statistics."
     }
   ],
   "misconceptions": [
     {
       "id": "java.methods.contracts.misconception",
       "mistakenBelief": "Java passes objects by reference, so assigning a new object to a parameter also changes the caller's variable.",
-      "correction": "Java is pass-by-value: a reference value is copied for an object argument, so parameter reassignment stays local while mutation through the shared reference remains observable.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Java passes objects by reference, so assigning a new object to a parameter also changes the caller's variable."
+      "correction": "Java passes a copy of the reference. Modifying the shared object is visible, but assigning a new object to the parameter only changes the method's own copy.",
+      "diagnosticPrompt": "In the opening predict, why was arr still its old length?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a set of labeled workstations that accept copies of request values and process fixed trays or immutable text tickets can introduce Method contracts and parameters, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "example": "Passing an object is like **giving someone a copy of your house key**. They can go in and move the furniture (modify the object), and you'll see it. But if they **throw their key away and get a key to another house** (reassign the parameter), your key still opens your house.",
     "usefulFor": [
-      "reasoning about method contracts, scope, arrays, and strings"
+      "remembering copy of the key",
+      "new key doesn't move your house"
     ],
     "limitations": [
-      "reference values can still alias mutable objects and Unicode or overload rules have no exact workstation equivalent",
-      "A copied reference still refers to the same object, reassignment of a parameter is local, mutable arguments can be changed through aliases, and exceptions are part of failure behavior."
+      "Real keys can be lost; references are just copied.",
+      "Primitives are like handing over a photo of a number."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A static clamp method documents its inclusive bounds, returns a value for normal and boundary cases, and has no hidden mutation.",
-      "A Java method defines a typed call contract, receives copies of argument values, returns a declared value or completes void, and should make observable side effects explicit.",
-      "Java is pass-by-value: a reference value is copied for an object argument, so parameter reassignment stays local while mutation through the shared reference remains observable."
+      "clamp(15, 0, 10)",
+      "clamp(0, 0, 10)",
+      "zeroFirst(scores); replace(scores)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Normal",
         "state": {
-          "evidence": "A static clamp method documents its inclusive bounds, returns a value for normal and boundary cases, and has no hidden mutation."
+          "result": "10"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "The static clamp method returns the upper bound for values above it."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Boundary",
         "state": {
-          "rule": "A Java method defines a typed call contract, receives copies of argument values, returns a declared value or completes void, and should make observable side effects explicit."
+          "result": "0"
         },
-        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "It documents inclusive bounds, so the boundary value is returned unchanged."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "References",
         "state": {
-          "correction": "Java is pass-by-value: a reference value is copied for an object argument, so parameter reassignment stays local while mutation through the shared reference remains observable."
+          "scores": "{0, 6, 7}"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Java passes objects by reference, so assigning a new object to a parameter also changes the caller's variable."
+        "explanation": "Modifying the shared array is visible, while reassignment isn't, and clamp itself has no hidden mutation."
       }
     ],
-    "textAlternative": "Starting artifact: A static clamp method documents its inclusive bounds, returns a value for normal and boundary cases, and has no hidden mutation. Step 1, Observe. State: evidence: A static clamp method documents its inclusive bounds, returns a value for normal and boundary cases, and has no hidden mutation.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A Java method defines a typed call contract, receives copies of argument values, returns a declared value or completes void, and should make observable side effects explicit.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Java is pass-by-value: a reference value is copied for an object argument, so parameter reassignment stays local while mutation through the shared reference remains observable.. Compare the observation with the correction and explain why the misconception fails: Java passes objects by reference, so assigning a new object to a parameter also changes the caller's variable."
+    "textAlternative": "Tracing value passing. Step 1, Normal: result is 10. The static clamp method returns the upper bound for values above it. Step 2, Boundary: result is 0. It documents inclusive bounds, so the boundary value is returned unchanged. Step 3, References: scores is {0, 6, 7}. Modifying the shared array is visible, while reassignment isn't, and clamp itself has no hidden mutation."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Method contracts and parameters: direct language case”: state its starting evidence, apply the Method contracts and parameters rule, and give the observable result in three short lines.",
+      "prompt": "For \"A clamp with inclusive bounds\", explain how a static clamp method documents its inclusive bounds, returns a value for normal and boundary cases, and has no hidden mutation.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Document.",
+        "Return.",
+        "No mutation."
       ],
       "expectedEvidence": [
-        "Named example: Method contracts and parameters: direct language case.",
-        "Starting evidence: A static clamp method documents its inclusive bounds, returns a value for normal and boundary cases, and has no hidden mutation.",
-        "Core rule: A Java method defines a typed call contract, receives copies of argument values, returns a declared value or completes void, and should make observable side effects explicit.",
-        "Observable result: The example meets the atomic outcome because Java is pass-by-value: a reference value is copied for an object argument, so parameter reassignment stays local while mutation through the shared reference remains observable.",
-        "Boundary check: Java is pass-by-value: a reference value is copied for an object argument, so parameter reassignment stays local while mutation through the shared reference remains observable."
+        "Names the example \"A clamp with inclusive bounds\": reset(scores) seemed to do nothing.",
+        "A static clamp method documents its inclusive bounds.",
+        "It returns a value for normal and boundary cases and has no hidden mutation.",
+        "The method is trivially testable."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A method reassigns a List parameter without changing the caller's variable, but adding through that copied reference changes the shared list object.",
+      "prompt": "Write and test isLeapYear(int year), documenting the rule. Then predict and check what happens to the caller after a method sets its int parameter to 0 and after one sets arr[0] = 0.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Divisible by 4, not 100 unless 400.",
+        "Print before and after."
       ],
       "expectedEvidence": [
-        "A Java method defines a typed call contract, receives copies of argument values, returns a declared value or completes void, and should make observable side effects explicit.",
-        "A copied reference still refers to the same object, reassignment of a parameter is local, mutable arguments can be changed through aliases, and exceptions are part of failure behavior."
+        "Leap-year tests pass.",
+        "Predictions confirmed."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Method contracts and parameters, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Write stats(int[] data) returning a small result object (min, max, mean, median) without modifying data, and prove it with a test that compares the array before and after the call.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Clone before sorting.",
+        "Arrays.equals in the test."
       ],
       "expectedEvidence": [
-        "Implement and test methods while explaining Java's value-passing semantics.",
-        "Java is pass-by-value: a reference value is copied for an object argument, so parameter reassignment stays local while mutation through the shared reference remains observable."
+        "Correct statistics.",
+        "Input unchanged."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "java.methods.contracts.misconception",
-      "explanation": "Java is pass-by-value: a reference value is copied for an object argument, so parameter reassignment stays local while mutation through the shared reference remains observable.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A method reassigns a List parameter without changing the caller's variable, but adding through that copied reference changes the shared list object."
+      "explanation": "For each method write: **valid inputs, the result, what it throws, and what it changes.** If it changes an argument's object, say so in the name or docs.",
+      "retryPrompt": "Apply this to \"The average that reordered data\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test methods while explaining Java's value-passing semantics. Keep this boundary in view: A copied reference still refers to the same object, reassignment of a parameter is local, mutable arguments can be changed through aliases, and exceptions are part of failure behavior.",
+    "summary": "To implement and test methods, document inputs, results, failures and side effects, remember Java always passes values (primitives copied, references copied so objects are shared), avoid hidden mutation of arguments, and test normal and boundary cases through return values.",
     "retrievalPrompts": [
-      "Explain Method contracts and parameters using canonical Java: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Java passes objects by reference, so assigning a new object to a parameter also changes the caller's variable.",
-      "Predict this case from memory: A method reassigns a List parameter without changing the caller's variable, but adding through that copied reference changes the shared list object."
+      "Does reassigning a parameter affect the caller?",
+      "Can a method change an object the caller passed?",
+      "Why avoid hidden mutation?"
     ],
     "nextReviewPrompt": "Next: continue to “Overloading and local scope”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

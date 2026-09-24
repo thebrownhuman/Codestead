@@ -92,7 +92,7 @@ describe("mail template authority policy", () => {
     })).toEqual(denied("TEMPLATE_VERSION_NOT_ALLOWED"));
   });
 
-  it("requires a pending unverified learner for verification mail", () => {
+  it("requires a pending unverified account for verification mail", () => {
     const input = { template: "verify-email", templateVersion: "1" } as const;
     expect(evaluateTemplateAccountSnapshot({
       ...input,
@@ -106,6 +106,18 @@ describe("mail template authority policy", () => {
         role: "learner", status: "pending", banned: false, emailVerified: true,
       },
     })).toEqual(denied("ACCOUNT_EMAIL_VERIFICATION_NOT_ALLOWED"));
+    expect(evaluateTemplateAccountSnapshot({
+      ...input,
+      account: {
+        role: "admin", status: "pending", banned: false, emailVerified: false,
+      },
+    })).toEqual(satisfied());
+    expect(evaluateTemplateAccountSnapshot({
+      ...input,
+      account: {
+        role: "admin", status: "active", banned: false, emailVerified: false,
+      },
+    }).kind).toBe("account-snapshot-denied");
   });
 
   it("allows reset mail for pending accounts or a verified active account", () => {

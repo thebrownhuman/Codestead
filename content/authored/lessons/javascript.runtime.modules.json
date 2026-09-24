@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "ECMAScript modules have explicit imports and exports, per-module scope, strict semantics, and a dependency graph evaluated once.",
+    "summary": "An **ES module** is a JavaScript file with its own scope that shares values through `export` and `import`. Load the entry file with `<script type=\"module\" src=\"main.js\">`. Named imports must match the exported name exactly, paths need the file extension (`./cart.js`), and each module **runs once** no matter how many files import it. Imports are **live bindings** — read-only views of the exporting module's variable, not copies.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A named export is imported by exact name and remains linked to the exporting module binding. Your goal is to create and load a minimal two-module browser program. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You split a shopping app into `cart.js` and `main.js`. `main.js` imports `count` from the cart module, then calls `addItem()`. Does `count` in main.js update — or is it stuck at its old value? A named export is imported by exact name and remains linked to the exporting module binding. In this lesson you'll create and load a minimal two-module browser program.\n\n```predict\n{\"question\": \"cart.js: `export let count = 0; export function addItem() { count++; }`. main.js imports both, calls `addItem()`, then logs `count`. Output?\", \"options\": [\"0 — the import was a copy\", \"1 — the import is a live binding\"], \"answer\": 1, \"why\": \"Imports stay linked to the exporting module's variable, so main.js sees the updated value.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: pf computing execution; html document skeleton; Scripts and console; html navigation urls. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Source-to-execution models**, **Standards-mode document skeleton**, **Scripts and console**, and **Relative and absolute URLs** — module paths are URLs."
       },
       {
-        "heading": "Technology rule",
-        "body": "ECMAScript modules have explicit imports and exports, per-module scope, strict semantics, and a dependency graph evaluated once. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: export, import, run once, live links",
+        "body": "```js\n// cart.js\nexport let count = 0;\nexport function addItem() { count++; }\n\n// main.js\nimport { count, addItem } from \"./cart.js\";   // exact names, extension included\naddItem();\nconsole.log(count);   // 1\n```\n\n```html\n<script type=\"module\" src=\"./main.js\"></script>\n```\n\n| Rule | Why |\n|---|---|\n| `type=\"module\"`. | enables import/export; deferred by default. |\n| exact export names. | `import { cnt }` fails if the export is `count`. |\n| `./cart.js` with extension. | browsers resolve module paths as URLs. |\n| runs once. | a second importer gets the same module instance. |\n| read-only import. | `count = 5` in main.js throws; change it via the exporter's function. |\n\n```reveal\n{\"prompt\": \"Why doesn't opening index.html from your file system load modules?\", \"answer\": \"Browsers block module loading from file:// URLs for security. Serve the folder with a local server (e.g. `npx serve` or the editor's live server).\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Live bindings are not copied values, cycles need careful initialization, and browser imports require resolvable URLs. This draft therefore rejects: Importing a value copies it permanently and each import re-executes the module."
+        "heading": "One instance",
+        "body": "```predict\n{\"question\": \"Both main.js and ui.js import cart.js. How many times does cart.js's top-level code run?\", \"options\": [\"Twice\", \"Once\"], \"answer\": 1, \"why\": \"Modules are evaluated once and cached. Every importer shares the same instance and state.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Load a module with deferred execution, strict semantics and explicit imports.",
-      "Create and load a minimal two-module browser program."
+      "Write named exports and imports and load an entry module with type=\"module\".",
+      "Explain live bindings, one-time evaluation and path resolution."
     ],
     "excludes": [
-      "Live bindings are not copied values, cycles need careful initialization, and browser imports require resolvable URLs."
+      "Default exports and module architecture (scope-modules module).",
+      "Bundlers and npm packages."
     ]
   },
   "outcomes": [
@@ -68,133 +69,133 @@
   "examples": [
     {
       "id": "javascript.runtime.modules.example-a",
-      "title": "Module loading baseline: concrete case",
+      "title": "A live binding between two modules",
       "situation": "A named export is imported by exact name and remains linked to the exporting module binding.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A named export is imported by exact name and remains linked to the exporting module binding.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Module imports are live bindings and a module is evaluated once per realm after dependency linking."
+        "**Export:** cart.js exports `count` and `addItem` by name.",
+        "**Import by exact name:** main.js writes `import { count, addItem } from \"./cart.js\"`.",
+        "**Linked binding:** after `addItem()`, `console.log(count)` will print 1 — the import remains linked to the exporting module binding."
       ],
-      "result": "The result follows because Module imports are live bindings and a module is evaluated once per realm after dependency linking."
+      "result": "main.js always sees the cart's current count, because the import is a live link, not a copy."
     },
     {
       "id": "javascript.runtime.modules.example-b",
-      "title": "Module loading baseline: boundary case",
-      "situation": "Live bindings are not copied values, cycles need careful initialization, and browser imports require resolvable URLs.",
+      "title": "The module that wouldn't load",
+      "situation": "`import { addItem } from \"./cart\"` fails with a 404, and opening the page by double-click shows a CORS error.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Live bindings are not copied values, cycles need careful initialization, and browser imports require resolvable URLs.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Importing a value copies it permanently and each import re-executes the module."
+        "The browser requested `/cart` — no `.js` extension, so no file.",
+        "Pages opened from file:// can't load modules.",
+        "Fix: `from \"./cart.js\"` and serve the folder with a local development server."
       ],
-      "result": "The boundary requires this correction: Module imports are live bindings and a module is evaluated once per realm after dependency linking."
+      "result": "The module loads and the app runs from a local server."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.runtime.modules.misconception",
-      "mistakenBelief": "Importing a value copies it permanently and each import re-executes the module.",
-      "correction": "Module imports are live bindings and a module is evaluated once per realm after dependency linking.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: Importing a value copies it permanently and each import re-executes the module."
+      "mistakenBelief": "Importing a value copies it permanently, and each import re-executes the module.",
+      "correction": "Imports are live, read-only bindings to the exporter's variables, and each module is evaluated once and shared by all importers.",
+      "diagnosticPrompt": "In \"A live binding between two modules\", why did main.js see 1?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Module loading baseline, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "An import is like **a window into another room**, not a photo of it: when something changes in the room (the exporting module), you see it through the window. But you can't reach through and move things yourself.",
     "usefulFor": [
-      "Building a first mental model for Module loading baseline before using exact platform terms"
+      "remembering live, read-only bindings",
+      "one room shared by all windows"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Live bindings are not copied values, cycles need careful initialization, and browser imports require resolvable URLs."
+      "Photos are copies; imports aren't.",
+      "Changing the room requires the room's own tools (exported functions)."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A named export is imported by exact name and remains linked to the exporting module binding.",
-      "ECMAScript modules have explicit imports and exports, per-module scope, strict semantics, and a dependency graph evaluated once.",
-      "Module imports are live bindings and a module is evaluated once per realm after dependency linking."
+      "import { count, addItem } from './cart.js'",
+      "addItem()",
+      "console.log(count)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Import",
         "state": {
-          "evidence": "A named export is imported by exact name and remains linked to the exporting module binding."
+          "count": "linked to cart.js (0)"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "A named export is imported by exact name."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Call",
         "state": {
-          "rule": "ECMAScript modules have explicit imports and exports, per-module scope, strict semantics, and a dependency graph evaluated once."
+          "cart.js count": "1"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "addItem updates the variable inside the exporting module."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Read",
         "state": {
-          "correction": "Module imports are live bindings and a module is evaluated once per realm after dependency linking."
+          "main.js count": "1"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Importing a value copies it permanently and each import re-executes the module."
+        "explanation": "The import remains linked to the exporting module binding, so it reads 1."
       }
     ],
-    "textAlternative": "Starting artifact: A named export is imported by exact name and remains linked to the exporting module binding. Step 1, Artifact. State: evidence: A named export is imported by exact name and remains linked to the exporting module binding.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: ECMAScript modules have explicit imports and exports, per-module scope, strict semantics, and a dependency graph evaluated once.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Module imports are live bindings and a module is evaluated once per realm after dependency linking.. Check the result against the boundary and reject this misconception: Importing a value copies it permanently and each import re-executes the module."
+    "textAlternative": "Following a live module binding. Step 1, Import: count is linked to cart.js (0). A named export is imported by exact name. Step 2, Call: cart.js count is 1. addItem updates the variable inside the exporting module. Step 3, Read: main.js count is 1. The import remains linked to the exporting module binding, so it reads 1."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Module loading baseline: concrete case”: state its starting evidence, apply the Module loading baseline rule, and give the observable result in three short lines.",
+      "prompt": "For \"A live binding between two modules\", explain how a named export is imported by exact name and remains linked to the exporting module binding, and what gets logged.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Export.",
+        "Import.",
+        "Live link."
       ],
       "expectedEvidence": [
-        "Named example: Module loading baseline: concrete case.",
-        "Starting evidence: A named export is imported by exact name and remains linked to the exporting module binding.",
-        "Core rule: ECMAScript modules have explicit imports and exports, per-module scope, strict semantics, and a dependency graph evaluated once.",
-        "Observable result: The result follows because Module imports are live bindings and a module is evaluated once per realm after dependency linking.",
-        "Boundary check: Module imports are live bindings and a module is evaluated once per realm after dependency linking."
+        "Names the example \"A live binding between two modules\": a named export is imported by exact name.",
+        "main.js imports count and addItem from ./cart.js.",
+        "The import remains linked to the exporting module binding.",
+        "After addItem(), count logs 1."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Live bindings are not copied values, cycles need careful initialization, and browser imports require resolvable URLs.",
+      "prompt": "Write two modules: `math.js` exporting `add` and `PI`, and `main.js` importing both and logging `add(2, 3)` and `PI`. Include the script tag.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Exact names, .js extension.",
+        "type=module."
       ],
       "expectedEvidence": [
-        "ECMAScript modules have explicit imports and exports, per-module scope, strict semantics, and a dependency graph evaluated once.",
-        "Live bindings are not copied values, cycles need careful initialization, and browser imports require resolvable URLs."
+        "`export function add(a, b) { return a + b; } export const PI = 3.14159;`",
+        "main.js imports `{ add, PI }` and is loaded with `<script type=\"module\" src=\"./main.js\">`."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Module loading baseline and explain why the misconception fails.",
+      "prompt": "Create three modules where two import a shared `store.js` that logs \"store loaded\" at top level. Show it logs once, and that both importers see the same updated value.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Serve locally.",
+        "Export a mutator function."
       ],
       "expectedEvidence": [
-        "Create and load a minimal two-module browser program.",
-        "Module imports are live bindings and a module is evaluated once per realm after dependency linking."
+        "\"store loaded\" appears once.",
+        "Both importers read the same updated value."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.runtime.modules.misconception",
-      "explanation": "Module imports are live bindings and a module is evaluated once per realm after dependency linking.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'live bindings' and state the decisive evidence."
+      "explanation": "When an import fails: **exact name? path starts with ./ and ends with .js? loaded with type=module? served over http?** When a value seems wrong: remember it's live, not copied.",
+      "retryPrompt": "Run the checks on \"The module that wouldn't load\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to create and load a minimal two-module browser program. Keep this boundary in view: Live bindings are not copied values, cycles need careful initialization, and browser imports require resolvable URLs.",
+    "summary": "To create and load a minimal two-module browser program, export named values, import them by exact name with a ./file.js path, load the entry with type=\"module\" from a server, and remember imports are live read-only bindings to a module that runs only once.",
     "retrievalPrompts": [
-      "Explain Module loading baseline using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: Importing a value copies it permanently and each import re-executes the module.",
-      "Apply checkpoint 'live bindings' to a new artifact."
+      "Is an import a copy?",
+      "How many times does an imported module run?",
+      "Why include .js in module paths?"
     ],
     "nextReviewPrompt": "Next: continue to “Sources, console and debugger”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

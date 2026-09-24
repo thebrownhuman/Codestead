@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Text and meaningful graphical objects need contrast against their actual backgrounds across default, hover, focus, disabled, and theme states.",
+    "summary": "**Contrast ratio** compares the lightness of two colours, from 1:1 (identical) to 21:1 (black on white). WCAG asks for at least **4.5:1** for normal text, **3:1** for large text, and **3:1** for meaningful UI parts like input borders and **focus indicators**. A colour that passes on white may fail on grey, over a photo or on a translucent panel — so measure it on **every background it can appear on**.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A focus indicator and error text are measured on every background they can overlap, not only the design canvas. Your goal is to measure and repair text, component and focus-indicator contrast. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Your error text is `#e11d48` — it passes on the white form. But the same error also appears on the grey card and the dark header, and the orange focus ring sits right on an orange button. The design file only showed the white case. A focus indicator and error text are measured on every background they can overlap, not only the design canvas. In this lesson you'll measure and repair text, component and focus-indicator contrast.\n\n```predict\n{\"question\": \"Grey text `#9ca3af` on white: about 2.5:1. Is it fine for body text?\", \"options\": [\"Yes, it's readable enough\", \"No — body text needs at least 4.5:1\"], \"answer\": 1, \"why\": \"2.5:1 is too faint for many readers, especially outdoors or with low vision. Use a darker grey like #4b5563 (≈7.5:1).\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Lengths, percentages and viewport units; html semantics text; Custom properties and design tokens; Readable text metrics. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Lengths, percentages and viewport units**, **Paragraph and inline meaning**, **Custom properties and design tokens**, and **Readable text metrics**."
       },
       {
-        "heading": "Technology rule",
-        "body": "Text and meaningful graphical objects need contrast against their actual backgrounds across default, hover, focus, disabled, and theme states. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The rule: minimum ratios, measured in context",
+        "body": "| What | Minimum ratio (WCAG AA) |\n|---|---|\n| normal text. | 4.5:1. |\n| large text (≥ 24px, or ≥ 18.66px bold). | 3:1. |\n| UI components and graphics (borders, icons). | 3:1 against adjacent colours. |\n| focus indicator. | 3:1 against what's next to it. |\n\n```css\n:root {\n  --color-error: #b91c1c;          /* 6.5:1 on white, 5.9:1 on #f3f4f6 */\n  --color-focus: #1d4ed8;\n}\n.btn-primary:focus-visible {\n  outline: 3px solid var(--color-focus);\n  outline-offset: 3px;             /* gap so the ring sits on the page, not the button */\n}\n```\n\n```reveal\n{\"prompt\": \"How do you measure contrast?\", \"answer\": \"DevTools' colour picker shows the ratio for text against its background; tools like the WebAIM contrast checker take two hex values. For text over images, test the lightest and darkest spots.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Transparency, gradients, images, thin fonts, antialiasing, and user themes can change effective contrast. This draft therefore rejects: A contrast-safe text hex value remains compliant on every translucent or image background."
+        "heading": "Don't rely on colour alone",
+        "body": "```predict\n{\"question\": \"Invalid fields are shown only by a red border. Enough?\", \"options\": [\"Yes, red means error\", \"No — add a text message and/or an icon, since some users can't distinguish red\"], \"answer\": 1, \"why\": \"Colour can support meaning but shouldn't carry it alone.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Choose foreground, background, focus and state colors that satisfy contrast and do not encode meaning alone.",
-      "Measure and repair text, component and focus-indicator contrast."
+      "Measure contrast for text, UI components and focus indicators against every background they meet.",
+      "Repair failures using tokens and never rely on colour alone."
     ],
     "excludes": [
-      "Transparency, gradients, images, thin fonts, antialiasing, and user themes can change effective contrast."
+      "APCA and future contrast methods in depth.",
+      "Colour theory and palettes."
     ]
   },
   "outcomes": [
@@ -68,133 +69,137 @@
   "examples": [
     {
       "id": "css.color.contrast.example-a",
-      "title": "Color and contrast: concrete case",
+      "title": "Measuring focus and error colours everywhere",
       "situation": "A focus indicator and error text are measured on every background they can overlap, not only the design canvas.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A focus indicator and error text are measured on every background they can overlap, not only the design canvas.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Measure the rendered foreground-background pair in each state; a color value alone has no contrast ratio."
+        "**List backgrounds:** error text appears on white, #f3f4f6 cards, and the dark #111827 header.",
+        "**Measure each:** #e11d48 passes on white (4.7:1) but only 4.3:1 on #f3f4f6 and 3.8:1 on #111827 — two failures. The orange focus ring on an orange button is ~1.2:1.",
+        "**Repair:** use #b91c1c on light backgrounds and #fca5a5 on the dark header; change the focus token to #1d4ed8 with a 3px offset, then measure again."
       ],
-      "result": "The result follows because Measure the rendered foreground-background pair in each state; a color value alone has no contrast ratio."
+      "result": "Error text and focus rings meet their ratios on every background they can overlap."
     },
     {
       "id": "css.color.contrast.example-b",
-      "title": "Color and contrast: boundary case",
-      "situation": "Transparency, gradients, images, thin fonts, antialiasing, and user themes can change effective contrast.",
+      "title": "Text over a hero photo",
+      "situation": "White headline text sits on a sunset photo. It's readable on the dark sky, invisible over the bright sun.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Transparency, gradients, images, thin fonts, antialiasing, and user themes can change effective contrast.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: A contrast-safe text hex value remains compliant on every translucent or image background."
+        "Contrast varies across the image.",
+        "The worst spot (white on yellow) is about 1.1:1.",
+        "Fix: add a dark translucent overlay or a solid panel behind the text, then measure against the lightest area under it."
       ],
-      "result": "The boundary requires this correction: Measure the rendered foreground-background pair in each state; a color value alone has no contrast ratio."
+      "result": "The headline meets 4.5:1 over every part of the photo it covers."
     }
   ],
   "misconceptions": [
     {
       "id": "css.color.contrast.misconception",
       "mistakenBelief": "A contrast-safe text hex value remains compliant on every translucent or image background.",
-      "correction": "Measure the rendered foreground-background pair in each state; a color value alone has no contrast ratio.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: A contrast-safe text hex value remains compliant on every translucent or image background."
+      "correction": "Contrast depends on both colours. A value that passes on white can fail on grey, dark, translucent or photographic backgrounds. Measure against every background where the text or indicator can appear.",
+      "diagnosticPrompt": "In \"Measuring focus and error colours everywhere\", on which backgrounds did the original error colour fail?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Color and contrast, where rules size, place, and paint existing content.",
+    "example": "Contrast is like **a sign's readability at night and day**: the same letters can be clear on a white board and invisible on a grey wall. You check the sign everywhere it's hung, not just in the print shop.",
     "usefulFor": [
-      "Building a first mental model for Color and contrast before using exact platform terms"
+      "remembering contrast is a pair, not a colour",
+      "checking every background"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "Transparency, gradients, images, thin fonts, antialiasing, and user themes can change effective contrast."
+      "Signs have fixed backgrounds; web components move between them.",
+      "Focus rings are like signs that appear only when you point at something."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A focus indicator and error text are measured on every background they can overlap, not only the design canvas.",
-      "Text and meaningful graphical objects need contrast against their actual backgrounds across default, hover, focus, disabled, and theme states.",
-      "Measure the rendered foreground-background pair in each state; a color value alone has no contrast ratio."
+      "--color-error: #e11d48 on white, #f3f4f6, #111827",
+      "focus ring orange on an orange button",
+      "repair tokens and re-measure"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Measure error text",
         "state": {
-          "evidence": "A focus indicator and error text are measured on every background they can overlap, not only the design canvas."
+          "white": "4.7:1 pass",
+          "#f3f4f6": "4.3:1 fail",
+          "#111827": "3.8:1 fail"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "Error text is measured on every background it can overlap."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Measure focus",
         "state": {
-          "rule": "Text and meaningful graphical objects need contrast against their actual backgrounds across default, hover, focus, disabled, and theme states."
+          "ring vs button": "≈1.2:1 fail"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The focus indicator is measured against what it sits next to."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Repair",
         "state": {
-          "correction": "Measure the rendered foreground-background pair in each state; a color value alone has no contrast ratio."
+          "error": "#b91c1c / #fca5a5 on dark",
+          "focus": "#1d4ed8 + offset",
+          "all": "pass"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: A contrast-safe text hex value remains compliant on every translucent or image background."
+        "explanation": "Tokens are updated and every combination is measured again."
       }
     ],
-    "textAlternative": "Starting artifact: A focus indicator and error text are measured on every background they can overlap, not only the design canvas. Step 1, Artifact. State: evidence: A focus indicator and error text are measured on every background they can overlap, not only the design canvas.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Text and meaningful graphical objects need contrast against their actual backgrounds across default, hover, focus, disabled, and theme states.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Measure the rendered foreground-background pair in each state; a color value alone has no contrast ratio.. Check the result against the boundary and reject this misconception: A contrast-safe text hex value remains compliant on every translucent or image background."
+    "textAlternative": "A contrast audit across backgrounds. Step 1, Measure error text: white is 4.7:1 pass; #f3f4f6 is 4.3:1 fail; #111827 is 3.8:1 fail. Error text is measured on every background it can overlap. Step 2, Measure focus: ring vs button is ≈1.2:1 fail. The focus indicator is measured against what it sits next to. Step 3, Repair: error is #b91c1c / #fca5a5 on dark; focus is #1d4ed8 + offset; all is pass. Tokens are updated and every combination is measured again."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Color and contrast: concrete case”: state its starting evidence, apply the Color and contrast rule, and give the observable result in three short lines.",
+      "prompt": "For \"Measuring focus and error colours everywhere\", explain how the focus indicator and error text are measured on every background they can overlap, not only the design canvas, and what was repaired.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Backgrounds.",
+        "Failures.",
+        "Repairs."
       ],
       "expectedEvidence": [
-        "Named example: Color and contrast: concrete case.",
-        "Starting evidence: A focus indicator and error text are measured on every background they can overlap, not only the design canvas.",
-        "Core rule: Text and meaningful graphical objects need contrast against their actual backgrounds across default, hover, focus, disabled, and theme states.",
-        "Observable result: The result follows because Measure the rendered foreground-background pair in each state; a color value alone has no contrast ratio.",
-        "Boundary check: Measure the rendered foreground-background pair in each state; a color value alone has no contrast ratio."
+        "Names the example \"Measuring focus and error colours everywhere\": a focus indicator and error text are measured on every background.",
+        "They were checked where they can overlap, not only the design canvas.",
+        "Error text failed on grey and the dark header; the focus ring failed on the button.",
+        "New tokens pass everywhere."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Transparency, gradients, images, thin fonts, antialiasing, and user themes can change effective contrast.",
+      "prompt": "A placeholder colour is #a1a1aa on white (≈2.6:1). Does it need to pass 4.5:1? What would you change?",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Placeholder is text.",
+        "Better: don't rely on it."
       ],
       "expectedEvidence": [
-        "Text and meaningful graphical objects need contrast against their actual backgrounds across default, hover, focus, disabled, and theme states.",
-        "Transparency, gradients, images, thin fonts, antialiasing, and user themes can change effective contrast."
+        "Yes, if it conveys information it should meet 4.5:1 — darken it.",
+        "Better still: move essential hints into visible help text."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Color and contrast and explain why the misconception fails.",
+      "prompt": "Audit a page's colour tokens: list every text/background and UI/background pair, measure each, and fix failures in the token layer so all components update at once.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Include hover/focus/disabled states.",
+        "Check dark mode too."
       ],
       "expectedEvidence": [
-        "Measure and repair text, component and focus-indicator contrast.",
-        "Measure the rendered foreground-background pair in each state; a color value alone has no contrast ratio."
+        "Complete pair list with measured ratios.",
+        "Token fixes resolving all failures."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.color.contrast.misconception",
-      "explanation": "Measure the rendered foreground-background pair in each state; a color value alone has no contrast ratio.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'foreground-background pair' and state the decisive evidence."
+      "explanation": "For each colour, write down **every background it can appear on** (including hover, dark mode, photos). Measure each pair. Any below its minimum gets a new token value.",
+      "retryPrompt": "Do this for \"Text over a hero photo\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to measure and repair text, component and focus-indicator contrast. Keep this boundary in view: Transparency, gradients, images, thin fonts, antialiasing, and user themes can change effective contrast.",
+    "summary": "To measure and repair text, component and focus-indicator contrast, check 4.5:1 for normal text, 3:1 for large text, UI parts and focus rings — against every background they meet — fix failures in your tokens, and never rely on colour alone to convey meaning.",
     "retrievalPrompts": [
-      "Explain Color and contrast using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: A contrast-safe text hex value remains compliant on every translucent or image background.",
-      "Apply checkpoint 'foreground-background pair' to a new artifact."
+      "What ratio does normal text need?",
+      "Why can a passing colour fail elsewhere?",
+      "What ratio do focus indicators need?"
     ],
     "nextReviewPrompt": "Next: continue to “Borders, shadows, gradients and backgrounds”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

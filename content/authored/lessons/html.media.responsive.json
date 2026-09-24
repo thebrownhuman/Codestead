@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "srcset, sizes, and picture let the browser choose an appropriate image resource for density, viewport, format, or art direction.",
+    "summary": "CSS can **shrink** a huge image on a phone, but the phone still **downloads** the huge file. To let the browser pick a suitably sized file, list candidates in `srcset` with their real widths (`photo-480.jpg 480w`) and tell it, with `sizes`, how wide the image will be displayed at each layout. The browser then downloads the smallest file that looks sharp.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: An img supplies width descriptors and an accurate sizes rule so a narrow layout downloads an appropriately sized source. Your goal is to implement and inspect responsive image selection for two viewport scenarios. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Your hero photo is a 2400-pixel JPEG, about 900 KB. On a phone it's displayed 360 pixels wide — CSS makes it fit, but the phone downloads all 900 KB on mobile data. An img supplies width descriptors and an accurate sizes rule, so a narrow layout downloads an appropriately sized source. In this lesson you'll implement and inspect responsive image selection for two viewport scenarios.\n\n```predict\n{\"question\": \"`<img src=\\\"hero-2400.jpg\\\" style=\\\"width:100%\\\">` on a 360 px phone. Which file downloads?\", \"options\": [\"A smaller version automatically\", \"The full 2400 px file\"], \"answer\": 1, \"why\": \"CSS width controls display size, not which file is fetched. Only srcset/sizes give the browser choices.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Relative and absolute URLs; Paragraph and inline meaning; Images and alternative text. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Relative and absolute URLs**, **Paragraph and inline meaning**, and **Images and alternative text**."
       },
       {
-        "heading": "Technology rule",
-        "body": "srcset, sizes, and picture let the browser choose an appropriate image resource for density, viewport, format, or art direction. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: candidates + displayed size → browser chooses",
+        "body": "```html\n<img\n  src=\"hero-1200.jpg\"\n  srcset=\"hero-480.jpg 480w, hero-800.jpg 800w, hero-1200.jpg 1200w, hero-2400.jpg 2400w\"\n  sizes=\"(max-width: 600px) 100vw, 50vw\"\n  width=\"1200\" height=\"800\"\n  alt=\"Students coding together in a sunny classroom\">\n```\n\n| Part | Tells the browser |\n|---|---|\n| `srcset … 480w`. | this file is 480 pixels wide. |\n| `sizes`. | on screens ≤ 600 px the image fills the viewport; otherwise half of it. |\n| `width`/`height`. | the aspect ratio, so the layout doesn't jump while loading. |\n| `src`. | fallback for old browsers. |\n\n```reveal\n{\"prompt\": \"A 360 px phone with a 2× screen: which file does the browser likely pick?\", \"answer\": \"Needed width ≈ 360 × 2 = 720 px, so it picks hero-800.jpg — not the 2400 px file.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Incorrect sizes estimates waste bandwidth, art direction differs from resolution switching, and every candidate still needs stable dimensions and alternatives. This draft therefore rejects: CSS width alone guarantees the browser downloads the smallest suitable image file."
+        "heading": "Inspect the result",
+        "body": "```predict\n{\"question\": \"How can you check which candidate was downloaded?\", \"options\": [\"Guess from how sharp it looks\", \"DevTools: inspect the img and read `currentSrc`, or check the Network panel\"], \"answer\": 1, \"why\": \"Always verify: `document.querySelector(\\\"img\\\").currentSrc` shows the chosen file; the Network panel shows its size.\"}\n```\n\nUse `<picture>` only when you need **different crops** or formats (art direction), not just sizes."
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use width descriptors, sizes and picture sources for resolution or art-direction needs.",
-      "Implement and inspect responsive image selection for two viewport scenarios."
+      "Write srcset with width descriptors and an accurate sizes rule.",
+      "Inspect which file the browser chose for two viewport widths."
     ],
     "excludes": [
-      "Incorrect sizes estimates waste bandwidth, art direction differs from resolution switching, and every candidate still needs stable dimensions and alternatives."
+      "Image CDNs and automatic resizing.",
+      "Lazy loading strategies in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "html.media.responsive.example-a",
-      "title": "Responsive image selection: concrete case",
+      "title": "Phone and desktop get different files",
       "situation": "An img supplies width descriptors and an accurate sizes rule so a narrow layout downloads an appropriately sized source.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: An img supplies width descriptors and an accurate sizes rule so a narrow layout downloads an appropriately sized source.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Provide truthful srcset and sizes metadata; CSS layout size alone does not tell resource selection which file to fetch."
+        "**Width descriptors:** srcset lists hero-480, 800, 1200 and 2400 with `w` values matching the files' real widths.",
+        "**Accurate sizes rule:** `(max-width: 600px) 100vw, 50vw` matches the CSS layout.",
+        "**Inspect two scenarios:** on a 360 px phone the browser will select hero-800.jpg (~120 KB); on a 1440 px desktop, hero-800 or hero-1200 for a 720 px slot."
       ],
-      "result": "The result follows because Provide truthful srcset and sizes metadata; CSS layout size alone does not tell resource selection which file to fetch."
+      "result": "The phone downloads about 120 KB instead of 900 KB, and both layouts stay sharp."
     },
     {
       "id": "html.media.responsive.example-b",
-      "title": "Responsive image selection: boundary case",
-      "situation": "Incorrect sizes estimates waste bandwidth, art direction differs from resolution switching, and every candidate still needs stable dimensions and alternatives.",
+      "title": "The sizes that lied",
+      "situation": "An image in a 300 px sidebar uses `sizes=\"100vw\"`. On desktop, the browser downloads the 2400 px file.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Incorrect sizes estimates waste bandwidth, art direction differs from resolution switching, and every candidate still needs stable dimensions and alternatives.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: CSS width alone guarantees the browser downloads the smallest suitable image file."
+        "sizes said the image fills the whole viewport (1440 px wide).",
+        "The browser trusted it and picked a huge file for a 300 px slot.",
+        "Fix: `sizes=\"300px\"` (or a media-query list matching the real layout)."
       ],
-      "result": "The boundary requires this correction: Provide truthful srcset and sizes metadata; CSS layout size alone does not tell resource selection which file to fetch."
+      "result": "With an accurate sizes rule, the browser picks the small file."
     }
   ],
   "misconceptions": [
     {
       "id": "html.media.responsive.misconception",
       "mistakenBelief": "CSS width alone guarantees the browser downloads the smallest suitable image file.",
-      "correction": "Provide truthful srcset and sizes metadata; CSS layout size alone does not tell resource selection which file to fetch.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: CSS width alone guarantees the browser downloads the smallest suitable image file."
+      "correction": "CSS only controls how big the image is displayed. The browser chooses a file from srcset using the sizes hint before layout is known, so you must provide width descriptors and an accurate sizes rule.",
+      "diagnosticPrompt": "In \"The sizes that lied\", why did the browser download the huge file?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model Responsive image selection, with structure carrying meaning before decoration.",
+    "example": "srcset is like **offering T-shirts in S, M, L, XL**; sizes is **telling the shop the person's measurements**. The shop hands over the right size. CSS width alone is like buying XL and tucking it in — it fits, but you paid for the whole shirt.",
     "usefulFor": [
-      "Building a first mental model for Responsive image selection before using exact platform terms"
+      "remembering candidates + measurements",
+      "seeing CSS as squeezing, not choosing"
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "Incorrect sizes estimates waste bandwidth, art direction differs from resolution switching, and every candidate still needs stable dimensions and alternatives."
+      "Shops don't consider screen density; browsers do (2× screens need more pixels).",
+      "Wrong measurements (sizes) get you the wrong shirt."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "An img supplies width descriptors and an accurate sizes rule so a narrow layout downloads an appropriately sized source.",
-      "srcset, sizes, and picture let the browser choose an appropriate image resource for density, viewport, format, or art direction.",
-      "Provide truthful srcset and sizes metadata; CSS layout size alone does not tell resource selection which file to fetch."
+      "srcset: 480w, 800w, 1200w, 2400w",
+      "sizes: (max-width: 600px) 100vw, 50vw",
+      "viewport 360 px @2x"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Candidates",
         "state": {
-          "evidence": "An img supplies width descriptors and an accurate sizes rule so a narrow layout downloads an appropriately sized source."
+          "files": "480, 800, 1200, 2400 w"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The img supplies width descriptors for each candidate file."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Displayed size",
         "state": {
-          "rule": "srcset, sizes, and picture let the browser choose an appropriate image resource for density, viewport, format, or art direction."
+          "slot": "360 px",
+          "needed": "720 px at 2x"
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The accurate sizes rule tells the browser the narrow layout's slot width."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Selection",
         "state": {
-          "correction": "Provide truthful srcset and sizes metadata; CSS layout size alone does not tell resource selection which file to fetch."
+          "currentSrc": "hero-800.jpg",
+          "download": "~120 KB"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: CSS width alone guarantees the browser downloads the smallest suitable image file."
+        "explanation": "The narrow layout downloads an appropriately sized source."
       }
     ],
-    "textAlternative": "Starting artifact: An img supplies width descriptors and an accurate sizes rule so a narrow layout downloads an appropriately sized source. Step 1, Artifact. State: evidence: An img supplies width descriptors and an accurate sizes rule so a narrow layout downloads an appropriately sized source.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: srcset, sizes, and picture let the browser choose an appropriate image resource for density, viewport, format, or art direction.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Provide truthful srcset and sizes metadata; CSS layout size alone does not tell resource selection which file to fetch.. Check the result against the boundary and reject this misconception: CSS width alone guarantees the browser downloads the smallest suitable image file."
+    "textAlternative": "Responsive image selection on a phone. Step 1, Candidates: files is 480, 800, 1200, 2400 w. The img supplies width descriptors for each candidate file. Step 2, Displayed size: slot is 360 px; needed is 720 px at 2x. The accurate sizes rule tells the browser the narrow layout's slot width. Step 3, Selection: currentSrc is hero-800.jpg; download is ~120 KB. The narrow layout downloads an appropriately sized source."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Responsive image selection: concrete case”: state its starting evidence, apply the Responsive image selection rule, and give the observable result in three short lines.",
+      "prompt": "For \"Phone and desktop get different files\", explain how the img supplies width descriptors and an accurate sizes rule, and which appropriately sized source a narrow layout downloads.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "srcset.",
+        "sizes.",
+        "Result."
       ],
       "expectedEvidence": [
-        "Named example: Responsive image selection: concrete case.",
-        "Starting evidence: An img supplies width descriptors and an accurate sizes rule so a narrow layout downloads an appropriately sized source.",
-        "Core rule: srcset, sizes, and picture let the browser choose an appropriate image resource for density, viewport, format, or art direction.",
-        "Observable result: The result follows because Provide truthful srcset and sizes metadata; CSS layout size alone does not tell resource selection which file to fetch.",
-        "Boundary check: Provide truthful srcset and sizes metadata; CSS layout size alone does not tell resource selection which file to fetch."
+        "Names the example \"Phone and desktop get different files\": an img supplies width descriptors in srcset.",
+        "An accurate sizes rule matches the layout.",
+        "A narrow layout downloads an appropriately sized source, hero-800.jpg.",
+        "Desktop picks a larger file for its wider slot."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Incorrect sizes estimates waste bandwidth, art direction differs from resolution switching, and every candidate still needs stable dimensions and alternatives.",
+      "prompt": "An avatar is always shown 64 px wide. Write srcset and sizes for files avatar-64.jpg, avatar-128.jpg and avatar-256.jpg.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Fixed size → simple sizes.",
+        "2× and 3× screens."
       ],
       "expectedEvidence": [
-        "srcset, sizes, and picture let the browser choose an appropriate image resource for density, viewport, format, or art direction.",
-        "Incorrect sizes estimates waste bandwidth, art direction differs from resolution switching, and every candidate still needs stable dimensions and alternatives."
+        "srcset with 64w, 128w, 256w.",
+        "sizes=\"64px\"."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Responsive image selection and explain why the misconception fails.",
+      "prompt": "Make three sizes of one photo, add srcset/sizes to a page, and record currentSrc and bytes downloaded at 375 px and 1440 px viewports using DevTools device mode.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Disable cache while testing.",
+        "Check Network panel sizes."
       ],
       "expectedEvidence": [
-        "Implement and inspect responsive image selection for two viewport scenarios.",
-        "Provide truthful srcset and sizes metadata; CSS layout size alone does not tell resource selection which file to fetch."
+        "Working srcset/sizes markup.",
+        "Recorded currentSrc and download size for both viewports."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.media.responsive.misconception",
-      "explanation": "Provide truthful srcset and sizes metadata; CSS layout size alone does not tell resource selection which file to fetch.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'srcset and sizes' and state the decisive evidence."
+      "explanation": "Measure how wide the image is displayed at each breakpoint (DevTools). Write those widths into sizes. Then check currentSrc at a narrow and a wide viewport.",
+      "retryPrompt": "Measure and fix \"The sizes that lied\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and inspect responsive image selection for two viewport scenarios. Keep this boundary in view: Incorrect sizes estimates waste bandwidth, art direction differs from resolution switching, and every candidate still needs stable dimensions and alternatives.",
+    "summary": "To implement responsive image selection, give srcset candidates with real width descriptors, an accurate sizes rule matching the layout, and width/height for layout stability. Inspect currentSrc and network size for two viewport scenarios — CSS width alone doesn't choose files.",
     "retrievalPrompts": [
-      "Explain Responsive image selection using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: CSS width alone guarantees the browser downloads the smallest suitable image file.",
-      "Apply checkpoint 'srcset and sizes' to a new artifact."
+      "Does CSS width change which file downloads?",
+      "What does sizes tell the browser?",
+      "How do you verify the chosen file?"
     ],
     "nextReviewPrompt": "Next: continue to “Audio, video, tracks and embeds”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

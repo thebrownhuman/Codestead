@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Content review checks headings, link purpose, plain language, alternatives, instructions, errors, and reading order against real user tasks.",
+    "summary": "Valid, semantic markup is only half the job — the **words** must be clear too. A semantic content review checks each page with a **traceable checklist**: do headings describe their sections? Is link text unique and specific? Are acronyms explained on first use? Are instructions short and plain? Do alt texts and error messages actually help? Each finding is written down with its location and fix, so nothing is fixed by memory.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A reviewer replaces three Learn more links with destination-specific names and simplifies an unexplained acronym. Your goal is to produce a traceable review checklist and repair semantic inconsistencies. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "The course page validates and uses perfect landmarks. Yet learners write in: \"Which 'Learn more' is the HTML course?\" and \"What does LMS mean?\" The structure is right; the words aren't. A reviewer replaces three Learn more links with destination-specific names and simplifies an unexplained acronym. In this lesson you'll produce a traceable review checklist and repair semantic inconsistencies.\n\n```predict\n{\"question\": \"The page uses `<h2>` correctly for every section. Does that make the headings clear?\", \"options\": [\"Yes, semantic elements guarantee clarity\", \"No — \\\"Section 2\\\" is valid but tells readers nothing\"], \"answer\": 1, \"why\": \"Elements give structure; only the words inside give meaning. Review both.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Metadata and accessibility audit; Images and media; Data tables; Forms and native controls; Markup conformance; Keyboard and accessibility-tree audit. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Metadata and accessibility audit**, **Images and media**, **Data tables** and **Forms and native controls** modules, plus **Markup conformance** and the **Keyboard and accessibility-tree audit**."
       },
       {
-        "heading": "Technology rule",
-        "body": "Content review checks headings, link purpose, plain language, alternatives, instructions, errors, and reading order against real user tasks. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: a checklist that leaves a trail",
+        "body": "| Check | Pass when |\n|---|---|\n| page title and h1. | unique, and they match the page's purpose. |\n| headings. | each names what its section contains. |\n| link text. | unique and describes the destination. |\n| acronyms and jargon. | explained on first use, or replaced with plain words. |\n| alt text. | fits the image's job. |\n| form labels and errors. | say what to enter and how to fix it. |\n\n**Record format:** page · element · check failed · original text · new text · reviewer · date.\n\n```reveal\n{\"prompt\": \"Why write findings down instead of just fixing them?\", \"answer\": \"A trail lets others verify the fix, spot patterns across pages (\\\"we use 'Learn more' everywhere\\\"), and recheck later.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Correct syntax cannot guarantee comprehensible wording, and accessibility depends on language and context as well as elements. This draft therefore rejects: Semantic elements automatically make the words inside them clear and accessible."
+        "heading": "Consistency across pages",
+        "body": "```predict\n{\"question\": \"Page A calls it \\\"Sign in\\\", page B \\\"Log in\\\", page C \\\"Enter account\\\". Problem?\", \"options\": [\"No, they mean the same\", \"Yes — inconsistent labels make users unsure they're the same action\"], \"answer\": 1, \"why\": \"Pick one term and use it everywhere: in buttons, links, headings and help text.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Review page purpose, outline, landmarks, link names, media alternatives, tables and forms together.",
-      "Produce a traceable review checklist and repair semantic inconsistencies."
+      "Review headings, links, acronyms, alt text and form text with a checklist.",
+      "Record findings traceably and fix inconsistent wording across pages."
     ],
     "excludes": [
-      "Correct syntax cannot guarantee comprehensible wording, and accessibility depends on language and context as well as elements."
+      "Full plain-language style guides.",
+      "Translation and localisation."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "html.quality.content-review.example-a",
-      "title": "Semantic content review: concrete case",
+      "title": "Fixing three \"Learn more\" links",
       "situation": "A reviewer replaces three Learn more links with destination-specific names and simplifies an unexplained acronym.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A reviewer replaces three Learn more links with destination-specific names and simplifies an unexplained acronym.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Review the actual language and task context; semantic markup supports but does not create understandable content."
+        "**Check link text:** three cards say \"Learn more\"; the checklist fails \"unique and describes the destination\".",
+        "**Replace:** \"Learn more about HTML\", \"…CSS\", \"…JavaScript\" — destination-specific names recorded with the old text.",
+        "**Acronym:** \"Access it via the LMS\" becomes \"Access it in your course dashboard\"; the reviewer will read the page aloud to validate it."
       ],
-      "result": "The result follows because Review the actual language and task context; semantic markup supports but does not create understandable content."
+      "result": "The links read clearly out of context, the acronym is gone, and every change is logged."
     },
     {
       "id": "html.quality.content-review.example-b",
-      "title": "Semantic content review: boundary case",
-      "situation": "Correct syntax cannot guarantee comprehensible wording, and accessibility depends on language and context as well as elements.",
+      "title": "The mismatched title",
+      "situation": "A page titled \"Pricing – Codestead\" has the h1 \"Plans\" and a nav link \"Costs\".",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Correct syntax cannot guarantee comprehensible wording, and accessibility depends on language and context as well as elements.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Semantic elements automatically make the words inside them clear and accessible."
+        "Three names for one page confuse users and search results.",
+        "The checklist fails \"title and h1 match the page's purpose\".",
+        "Fix: use \"Pricing\" in the title, h1 and nav link; record it."
       ],
-      "result": "The boundary requires this correction: Review the actual language and task context; semantic markup supports but does not create understandable content."
+      "result": "One consistent name identifies the page everywhere."
     }
   ],
   "misconceptions": [
     {
       "id": "html.quality.content-review.misconception",
       "mistakenBelief": "Semantic elements automatically make the words inside them clear and accessible.",
-      "correction": "Review the actual language and task context; semantic markup supports but does not create understandable content.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: Semantic elements automatically make the words inside them clear and accessible."
+      "correction": "Elements provide structure and roles, but clarity comes from the text: specific headings, unique link names, explained acronyms and helpful messages. Review the content itself with a checklist.",
+      "diagnosticPrompt": "In \"Fixing three Learn more links\", which checklist item failed?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model Semantic content review, with structure carrying meaning before decoration.",
+    "example": "A content review is like **proof-reading a building's signage**: the signs are in the right places (semantics), but \"Room\" on every door still gets people lost. Each fix goes in the maintenance log.",
     "usefulFor": [
-      "Building a first mental model for Semantic content review before using exact platform terms"
+      "remembering words carry meaning",
+      "keeping a log"
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "Correct syntax cannot guarantee comprehensible wording, and accessibility depends on language and context as well as elements."
+      "Signs are physical; web text can be updated instantly.",
+      "Consistency matters in both — one name per place."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A reviewer replaces three Learn more links with destination-specific names and simplifies an unexplained acronym.",
-      "Content review checks headings, link purpose, plain language, alternatives, instructions, errors, and reading order against real user tasks.",
-      "Review the actual language and task context; semantic markup supports but does not create understandable content."
+      "checklist: link text unique and descriptive",
+      "three 'Learn more' links",
+      "record and replace"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Check",
         "state": {
-          "evidence": "A reviewer replaces three Learn more links with destination-specific names and simplifies an unexplained acronym."
+          "link text": "Learn more ×3",
+          "result": "fail"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The reviewer runs the checklist item for link text."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Replace",
         "state": {
-          "rule": "Content review checks headings, link purpose, plain language, alternatives, instructions, errors, and reading order against real user tasks."
+          "new text": "Learn more about HTML / CSS / JavaScript"
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The reviewer replaces three Learn more links with destination-specific names."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Acronym",
         "state": {
-          "correction": "Review the actual language and task context; semantic markup supports but does not create understandable content."
+          "before": "LMS",
+          "after": "course dashboard"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Semantic elements automatically make the words inside them clear and accessible."
+        "explanation": "An unexplained acronym is simplified and the change is recorded."
       }
     ],
-    "textAlternative": "Starting artifact: A reviewer replaces three Learn more links with destination-specific names and simplifies an unexplained acronym. Step 1, Artifact. State: evidence: A reviewer replaces three Learn more links with destination-specific names and simplifies an unexplained acronym.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Content review checks headings, link purpose, plain language, alternatives, instructions, errors, and reading order against real user tasks.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Review the actual language and task context; semantic markup supports but does not create understandable content.. Check the result against the boundary and reject this misconception: Semantic elements automatically make the words inside them clear and accessible."
+    "textAlternative": "A traceable content review. Step 1, Check: link text is Learn more ×3; result is fail. The reviewer runs the checklist item for link text. Step 2, Replace: new text is Learn more about HTML / CSS / JavaScript. The reviewer replaces three Learn more links with destination-specific names. Step 3, Acronym: before is LMS; after is course dashboard. An unexplained acronym is simplified and the change is recorded."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Semantic content review: concrete case”: state its starting evidence, apply the Semantic content review rule, and give the observable result in three short lines.",
+      "prompt": "For \"Fixing three \"Learn more\" links\", describe how the reviewer replaces three Learn more links with destination-specific names and simplifies an unexplained acronym, and how the changes are recorded.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Links.",
+        "Acronym.",
+        "Record."
       ],
       "expectedEvidence": [
-        "Named example: Semantic content review: concrete case.",
-        "Starting evidence: A reviewer replaces three Learn more links with destination-specific names and simplifies an unexplained acronym.",
-        "Core rule: Content review checks headings, link purpose, plain language, alternatives, instructions, errors, and reading order against real user tasks.",
-        "Observable result: The result follows because Review the actual language and task context; semantic markup supports but does not create understandable content.",
-        "Boundary check: Review the actual language and task context; semantic markup supports but does not create understandable content."
+        "Names the example \"Fixing three \"Learn more\" links\": the reviewer replaces three Learn more links.",
+        "They get destination-specific names like Learn more about HTML.",
+        "An unexplained acronym, LMS, is simplified.",
+        "Each change is recorded with old and new text."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Correct syntax cannot guarantee comprehensible wording, and accessibility depends on language and context as well as elements.",
+      "prompt": "Review: heading \"Stuff\", link \"Click here\", error \"Invalid input\". Write the finding and fixed text for each.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Name, destination, fix instruction.",
+        "Record format."
       ],
       "expectedEvidence": [
-        "Content review checks headings, link purpose, plain language, alternatives, instructions, errors, and reading order against real user tasks.",
-        "Correct syntax cannot guarantee comprehensible wording, and accessibility depends on language and context as well as elements."
+        "Heading renamed to describe its section; link names its destination.",
+        "Error says what to enter, e.g. 'Enter a date like 23/09/2026'."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Semantic content review and explain why the misconception fails.",
+      "prompt": "Create a review checklist for your own site and run it on three pages. Log every finding, fix them, and note any pattern that repeats across pages.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Use the record format.",
+        "Look for repeated wording issues."
       ],
       "expectedEvidence": [
-        "Produce a traceable review checklist and repair semantic inconsistencies.",
-        "Review the actual language and task context; semantic markup supports but does not create understandable content."
+        "Completed checklist with logged findings for three pages.",
+        "Fixes applied and a cross-page pattern identified."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.quality.content-review.misconception",
-      "explanation": "Review the actual language and task context; semantic markup supports but does not create understandable content.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'actual language' and state the decisive evidence."
+      "explanation": "Read only the headings, then only the links, then only the buttons and errors — each list must make sense on its own. Log every item that doesn't.",
+      "retryPrompt": "Do this for \"The mismatched title\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to produce a traceable review checklist and repair semantic inconsistencies. Keep this boundary in view: Correct syntax cannot guarantee comprehensible wording, and accessibility depends on language and context as well as elements.",
+    "summary": "To produce a traceable review checklist and repair semantic inconsistencies, check titles, headings, link text, acronyms, alt text and form wording page by page, record each finding with its location and fix, and use one consistent term for each thing across the site.",
     "retrievalPrompts": [
-      "Explain Semantic content review using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: Semantic elements automatically make the words inside them clear and accessible.",
-      "Apply checkpoint 'actual language' to a new artifact."
+      "Do semantic elements make text clear?",
+      "Why keep a record of findings?",
+      "Why must labels be consistent across pages?"
     ],
     "nextReviewPrompt": "Next: continue to “Progressive baseline”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

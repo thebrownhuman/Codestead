@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "C++ ranges combine range-aware algorithms and composable lazy views, with concepts checking operations and borrowed or owning relationships determining lifetime safety.",
+    "summary": "C++20 **ranges** make algorithms take whole containers (`std::ranges::sort(v)` instead of `v.begin(), v.end()`) and add **views**: lightweight, **lazy** adaptors you chain with `|`. `v | std::views::filter(is_even) | std::views::transform(square)` describes a pipeline; **nothing is computed until you iterate** it. Views **don't own** data: they **refer to** the underlying container. So the container must **stay alive and unchanged** (no push_back or erase) while you use the view. To keep results, **materialise** them into a new container.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A filter view over a live vector is iterated while the vector remains alive and structurally unchanged. Your goal is to build and explain a simple filtered and transformed range pipeline. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner returns `v | std::views::filter(...)` from a function where v is a local vector. Iterating the returned view reads a destroyed vector. Separately, they push_back into the vector while a view over it is being iterated. A filter view over a live vector is iterated while the vector remains alive and structurally unchanged. In this lesson you'll build and explain a simple filtered and transformed range pipeline.\n\n```predict\n{\"question\": \"Does creating `auto evens = v | std::views::filter(is_even);` copy or compute anything?\", \"options\": [\"Yes, it builds a new vector of evens\", \"No: it's a lazy view; filtering happens as you iterate\"], \"answer\": 1, \"why\": \"Views describe work; iteration performs it.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Iterators and invalidation; Overloading and default arguments; Lambdas and captures. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Iterators and invalidation**, **Overloading and default arguments** and **Lambdas and captures**."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "C++ ranges combine range-aware algorithms and composable lazy views, with concepts checking operations and borrowed or owning relationships determining lifetime safety. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The model: lazy, non-owning pipelines",
+        "body": "```cpp\n#include <algorithm>\n#include <iostream>\n#include <ranges>\n#include <vector>\n\nint main() {\n    std::vector<int> nums{1, 2, 3, 4, 5, 6};\n    std::ranges::sort(nums);                                   // whole-range algorithm.\n\n    auto even_squares = nums\n        | std::views::filter([](int n) { return n % 2 == 0; })\n        | std::views::transform([](int n) { return n * n; });  // nothing computed yet.\n\n    for (int x : even_squares) std::cout << x << ' ';           // 4 16 36 (computed now).\n\n    std::vector<int> saved(even_squares.begin(), even_squares.end());  // materialise to keep.\n    // nums.push_back(8);   while iterating even_squares: iterators may be invalidated.\n}\n```\n\n| Idea | Meaning |\n|---|---|\n| `std::ranges::sort(v)`. | algorithm on a whole range. |\n| `views::filter`, `views::transform`. | lazy steps in a pipeline. |\n| view lifetime. | valid only while the source is alive and unchanged. |\n| materialise. | copy into a container to keep results. |\n\n```reveal\n{\"prompt\": \"Why does filter's laziness matter for performance?\", \"answer\": \"No intermediate vectors are created, and you can stop early (e.g. with views::take(3)) so only the needed elements are ever computed.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Views often do not own elements, temporary or mutated sources can dangle or invalidate, lazy evaluation defers work, and not every range is common or sized. Therefore the draft explicitly rejects this beginner failure model: Every range view owns a copied collection, so it remains valid after the original container is destroyed."
+        "heading": "Returning views",
+        "body": "```predict\n{\"question\": \"A function builds a local vector and returns a filter view over it. Is the view usable by the caller?\", \"options\": [\"Yes\", \"No: the vector is destroyed on return, leaving the view dangling; return a vector instead\"], \"answer\": 1, \"why\": \"Return owning containers, or take the source by reference from a caller who owns it.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Read and use simple C++20 range views without hiding ownership or lifetime problems.",
-      "Build and explain a simple filtered and transformed range pipeline."
+      "Build filter and transform pipelines with views and whole-range algorithms.",
+      "Explain lazy evaluation and keep sources alive and unchanged, materialising results to keep them."
     ],
     "excludes": [
-      "Views often do not own elements, temporary or mutated sources can dangle or invalidate, lazy evaluation defers work, and not every range is common or sized."
+      "Writing custom views.",
+      "Range adaptor closures in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "cpp.algorithms.ranges.example-a",
-      "title": "Range-based composition basics: defined case",
+      "title": "Even squares from a live vector",
       "situation": "A filter view over a live vector is iterated while the vector remains alive and structurally unchanged.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A filter view over a live vector is iterated while the vector remains alive and structurally unchanged.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Views commonly borrow and evaluate lazily; prove the source and captured state outlive iteration or return an owning result."
+        "**A filter view over a live vector:** nums | views::filter(even) | views::transform(square).",
+        "**Is iterated while the vector remains alive:** the loop runs inside main, where nums lives.",
+        "**And structurally unchanged:** no push_back until the loop ends; the output will be 4 16 36."
       ],
-      "result": "The defined result follows because Views commonly borrow and evaluate lazily; prove the source and captured state outlive iteration or return an owning result."
+      "result": "The pipeline computes exactly the needed values without dangling or invalidation."
     },
     {
       "id": "cpp.algorithms.ranges.example-b",
-      "title": "Range-based composition basics: boundary case",
-      "situation": "A view pipeline is not returned when it would refer to a local source destroyed at function exit.",
+      "title": "The dangling returned view",
+      "situation": "get_evens() returns a view over its local vector. The caller prints garbage.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A view pipeline is not returned when it would refer to a local source destroyed at function exit.",
-        "Step 2 — Keep this standard boundary visible: Views often do not own elements, temporary or mutated sources can dangle or invalidate, lazy evaluation defers work, and not every range is common or sized.",
-        "Step 3 — Reject the tempting rule: Every range view owns a copied collection, so it remains valid after the original container is destroyed."
+        "The view referred to a vector destroyed on return.",
+        "Return std::vector<int> built from the view (materialise).",
+        "Or let the caller own the vector and pass it by reference."
       ],
-      "result": "This case demonstrates the declared outcome: Build and explain a simple filtered and transformed range pipeline."
+      "result": "The caller receives data it owns."
     }
   ],
   "misconceptions": [
     {
       "id": "cpp.algorithms.ranges.misconception",
       "mistakenBelief": "Every range view owns a copied collection, so it remains valid after the original container is destroyed.",
-      "correction": "Views commonly borrow and evaluate lazily; prove the source and captured state outlive iteration or return an owning result.",
-      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: Every range view owns a copied collection, so it remains valid after the original container is destroyed."
+      "correction": "Views over containers refer to the original elements and don't own them. They dangle when the container is destroyed and misbehave when it's modified structurally.",
+      "diagnosticPrompt": "In \"The dangling returned view\", what did the view refer to?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A system of self-managing components can model Range-based composition basics: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "example": "A view is like **a set of instructions for reading a book**: \"only even pages, and read each aloud twice\". The instructions don't contain the book. If the book is taken away (destroyed) or pages are inserted mid-reading (push_back), the instructions stop making sense. To keep the result, **write it down** (materialise).",
     "usefulFor": [
-      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+      "remembering instructions, not a copy",
+      "write it down to keep it"
     ],
     "limitations": [
-      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
-      "Views often do not own elements, temporary or mutated sources can dangle or invalidate, lazy evaluation defers work, and not every range is common or sized."
+      "Reading instructions are free; so is creating a view.",
+      "Stopping after 3 pages is views::take."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A filter view over a live vector is iterated while the vector remains alive and structurally unchanged.",
-      "C++ ranges combine range-aware algorithms and composable lazy views, with concepts checking operations and borrowed or owning relationships determining lifetime safety.",
-      "Views commonly borrow and evaluate lazily; prove the source and captured state outlive iteration or return an owning result."
+      "build pipeline over nums",
+      "iterate even_squares",
+      "materialise into saved"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Describe",
         "state": {
-          "evidence": "A filter view over a live vector is iterated while the vector remains alive and structurally unchanged."
+          "computed": "nothing yet"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "A filter view over a live vector only describes the work."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Iterate",
         "state": {
-          "rule": "C++ ranges combine range-aware algorithms and composable lazy views, with concepts checking operations and borrowed or owning relationships determining lifetime safety."
+          "output": "4 16 36",
+          "nums": "alive, unchanged"
         },
-        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+        "explanation": "The view is iterated while the vector remains alive and structurally unchanged."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Keep",
         "state": {
-          "conclusion": "Views commonly borrow and evaluate lazily; prove the source and captured state outlive iteration or return an owning result."
+          "saved": "{4, 16, 36}"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: Every range view owns a copied collection, so it remains valid after the original container is destroyed."
+        "explanation": "Materialising copies results into a container that owns them."
       }
     ],
-    "textAlternative": "Starting artifact: A filter view over a live vector is iterated while the vector remains alive and structurally unchanged. Step 1, Source and state. State: evidence: A filter view over a live vector is iterated while the vector remains alive and structurally unchanged.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: C++ ranges combine range-aware algorithms and composable lazy views, with concepts checking operations and borrowed or owning relationships determining lifetime safety.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Views commonly borrow and evaluate lazily; prove the source and captured state outlive iteration or return an owning result.. Check the conclusion against the boundary and reject this misconception: Every range view owns a copied collection, so it remains valid after the original container is destroyed."
+    "textAlternative": "Tracing a lazy pipeline. Step 1, Describe: computed is nothing yet. A filter view over a live vector only describes the work. Step 2, Iterate: output is 4 16 36; nums is alive, unchanged. The view is iterated while the vector remains alive and structurally unchanged. Step 3, Keep: saved is {4, 16, 36}. Materialising copies results into a container that owns them."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Range-based composition basics: defined case”: state its starting evidence, apply the Range-based composition basics rule, and give the observable result in three short lines.",
+      "prompt": "For \"Even squares from a live vector\", explain how a filter view over a live vector is iterated while the vector remains alive and structurally unchanged.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Describe.",
+        "Iterate.",
+        "Keep."
       ],
       "expectedEvidence": [
-        "Named example: Range-based composition basics: defined case.",
-        "Starting evidence: A filter view over a live vector is iterated while the vector remains alive and structurally unchanged.",
-        "Core rule: C++ ranges combine range-aware algorithms and composable lazy views, with concepts checking operations and borrowed or owning relationships determining lifetime safety.",
-        "Observable result: The defined result follows because Views commonly borrow and evaluate lazily; prove the source and captured state outlive iteration or return an owning result.",
-        "Boundary check: Views commonly borrow and evaluate lazily; prove the source and captured state outlive iteration or return an owning result."
+        "Names the example \"Even squares from a live vector\": a returned view dangled.",
+        "A filter view over a live vector is iterated.",
+        "The vector remains alive and structurally unchanged.",
+        "The pipeline computes exactly the needed values."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same CPP rule to this related boundary case: A view pipeline is not returned when it would refer to a local source destroyed at function exit.",
+      "prompt": "Build a pipeline over a vector of words: keep words longer than 3 letters, transform to their lengths, take the first 3. Print it, then materialise to a vector<std::size_t>.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "views::take(3).",
+        "Print inside the vector's scope."
       ],
       "expectedEvidence": [
-        "C++ ranges combine range-aware algorithms and composable lazy views, with concepts checking operations and borrowed or owning relationships determining lifetime safety.",
-        "Views often do not own elements, temporary or mutated sources can dangle or invalidate, lazy evaluation defers work, and not every range is common or sized."
+        "Correct output.",
+        "Materialised copy."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CPP example for Range-based composition basics, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Rewrite a hand-written loop that filters, transforms and sums into a ranges pipeline plus std::ranges::fold_left or accumulate over the view. Write a test, then write a buggy version returning a view from a function, and fix it by returning a vector.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "fold_left is C++23; accumulate works on begin/end.",
+        "Test with an empty input."
       ],
       "expectedEvidence": [
-        "Build and explain a simple filtered and transformed range pipeline.",
-        "Views commonly borrow and evaluate lazily; prove the source and captured state outlive iteration or return an owning result."
+        "Pipeline equals loop.",
+        "Dangling version fixed."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "cpp.algorithms.ranges.misconception",
-      "explanation": "Views commonly borrow and evaluate lazily; prove the source and captured state outlive iteration or return an owning result.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'borrow' and state the decisive evidence: A view pipeline is not returned when it would refer to a local source destroyed at function exit."
+      "explanation": "For every view ask: **who owns the data, is it still alive, and will anyone change its size while I iterate?** Materialise if the answer is uncertain.",
+      "retryPrompt": "Apply this to \"The dangling returned view\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to build and explain a simple filtered and transformed range pipeline. Keep this boundary in view: Views often do not own elements, temporary or mutated sources can dangle or invalidate, lazy evaluation defers work, and not every range is common or sized.",
+    "summary": "To build range pipelines, chain lazy views like filter and transform with |, use whole-range algorithms like std::ranges::sort, remember views compute on iteration and don't own their data, keep the source alive and structurally unchanged while iterating, and materialise results into containers to keep them.",
     "retrievalPrompts": [
-      "Explain Range-based composition basics using a concrete CPP rule rather than the optional analogy.",
-      "Why is this claim incorrect: Every range view owns a copied collection, so it remains valid after the original container is destroyed.",
-      "Apply the checkpoint 'borrow' to the boundary case from memory."
+      "When does a view compute its results?",
+      "Does a view own its data?",
+      "How do you keep a view's results?"
     ],
     "nextReviewPrompt": "Next: continue to “Function templates”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Safe recovery chooses an operation from the state to preserve: restore working changes, unstage the index, revert a published commit, or reset/reflog only with understood history consequences.",
+    "summary": "Git has no single \"undo\"; pick the tool by **what you want to keep**. Discard working-tree edits to a file: `git restore file`. Unstage but keep edits: `git restore --staged file`. Undo a commit that's **already shared**: `git revert <hash>` adds a **new commit** that reverses it, so history stays intact for everyone. Move a branch back on **unpushed** local work: `git reset` (`--soft` keeps changes staged, `--mixed` keeps them unstaged, `--hard` **discards them**). Lost a commit after a reset? `git reflog` lists where HEAD has been, so you can recover it. Before anything destructive, run `git status` and consider a backup branch.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A bad commit already on main is undone with a new revert commit, preserving public history and reviewability. Your goal is to recover staged, committed and lost-ref mistakes in disposable repositories without overwriting shared history. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A commit that breaks checkout was merged to main an hour ago, and teammates have already pulled it. A learner runs `git reset --hard HEAD~1` and force-pushes. Now everyone's main disagrees with the server's. A bad commit already on main is undone with a new revert commit, preserving public history and reviewability. In this lesson you'll recover staged, committed and lost-ref mistakes in disposable repositories without overwriting shared history.\n\n```predict\n{\"question\": \"A bad commit is already on the shared main. Which is safer?\", \"options\": [\"git reset --hard and force-push\", \"git revert, which adds a new commit undoing it\"], \"answer\": 1, \"why\": \"Revert changes nothing others already have; it only adds.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Issues, pull requests and review; Debugging and quality automation; Working tree, index and HEAD; Push and non-fast-forward rejection; Log, show and graph. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Issues, pull requests and review**, **Debugging and quality automation**, **Working tree, index and HEAD**, **Push and non-fast-forward rejection** and **Log, show and graph**."
       },
       {
-        "heading": "Operational model",
-        "body": "Safe recovery chooses an operation from the state to preserve: restore working changes, unstage the index, revert a published commit, or reset/reflog only with understood history consequences. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The rule: choose by the state to preserve",
+        "body": "```bash\ngit restore app.js              # discard unstaged edits to app.js (gone for good).\ngit restore --staged app.js     # unstage; edits stay in the working tree.\n\ngit revert 4c1e2f9              # new commit that reverses 4c1e2f9 (safe when shared).\n\ngit branch backup               # safety net before rewriting local history.\ngit reset --soft HEAD~1         # undo last local commit, keep changes staged.\ngit reset --hard HEAD~1         # undo it and DISCARD its changes.\n\ngit reflog                      # HEAD@{1}: the commit before the reset.\ngit branch rescue HEAD@{1}      # recover it onto a branch.\n```\n\n| I want to... | Use | Safe on shared history? |\n|---|---|---|\n| drop file edits. | restore. | n/a (local). |\n| unstage. | restore --staged. | n/a (local). |\n| undo a pushed commit. | revert. | yes. |\n| rework unpushed commits. | reset --soft/--mixed. | only if unpushed. |\n| find \"lost\" commits. | reflog. | n/a (local). |\n\n```reveal\n{\"prompt\": \"Can reflog recover uncommitted edits destroyed by reset --hard?\", \"answer\": \"No. Reflog tracks where refs pointed, so it recovers commits. Edits that were never committed (or at least staged) are usually unrecoverable, which is why --hard needs care.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Uncommitted data may be unrecoverable, reflog is local and expires, reset modes differ, and rewriting shared history can discard collaborators' work. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Git undo is one universal command, and hard reset is the fastest safe way to reverse any mistake."
+        "heading": "Look before you reset",
+        "body": "```predict\n{\"question\": \"You're about to run git reset --hard. What should you check first?\", \"options\": [\"Nothing, it's quick\", \"git status for uncommitted work, and whether the commits were pushed; make a backup branch\"], \"answer\": 1, \"why\": \"--hard discards uncommitted changes permanently.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Choose working-tree restoration, a new inverse commit, local ref movement or reflog recovery based on publication state.",
-      "Recover staged, committed and lost-ref mistakes in disposable repositories without overwriting shared history."
+      "Choose restore, restore --staged, revert or reset by what must be preserved.",
+      "Recover lost commits with reflog, and never rewrite shared history to undo mistakes."
     ],
     "excludes": [
-      "Uncommitted data may be unrecoverable, reflog is local and expires, reset modes differ, and rewriting shared history can discard collaborators' work."
+      "Interactive rebase for editing history.",
+      "Recovering from corrupted repositories."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "git.recovery.undo.example-a",
-      "title": "Restore, revert, reset and reflog: direct case",
+      "title": "Reverting a bad commit on main",
       "situation": "A bad commit already on main is undone with a new revert commit, preserving public history and reviewability.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A bad commit already on main is undone with a new revert commit, preserving public history and reviewability.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Inspect working tree, index, commits, remotes, and reflog first; state what must survive, then choose the least destructive operation that changes only the intended layer."
+        "**A bad commit already on main:** 4c1e2f9 broke checkout and has been pulled by teammates.",
+        "**Undone with a new revert commit:** git revert 4c1e2f9 creates \"Revert 'Change cart rounding'\", opened as a PR.",
+        "**Preserving public history and reviewability:** nobody's clone disagrees with the server, and the revert will be reviewed like any change."
       ],
-      "result": "The case supports the declared outcome because Inspect working tree, index, commits, remotes, and reflog first; state what must survive, then choose the least destructive operation that changes only the intended layer."
+      "result": "Checkout works again, and everyone's history stays consistent."
     },
     {
       "id": "git.recovery.undo.example-b",
-      "title": "Restore, revert, reset and reflog: boundary case",
-      "situation": "A staged file is unstaged without discarding its working-tree edit because the learner distinguishes index recovery from content deletion.",
+      "title": "The accidental reset",
+      "situation": "A learner runs git reset --hard HEAD~3 on a local branch, then realises two of those commits were needed.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A staged file is unstaged without discarding its working-tree edit because the learner distinguishes index recovery from content deletion.",
-        "Step 2 — Keep this boundary explicit: Uncommitted data may be unrecoverable, reflog is local and expires, reset modes differ, and rewriting shared history can discard collaborators' work.",
-        "Step 3 — Reject the documented misconception: Git undo is one universal command, and hard reset is the fastest safe way to reverse any mistake."
+        "git reflog shows HEAD@{1} pointing at the old tip.",
+        "git branch rescue HEAD@{1} restores those commits onto a branch.",
+        "Cherry-pick or reset back to recover the work."
       ],
-      "result": "This case demonstrates the declared outcome: Recover staged, committed and lost-ref mistakes in disposable repositories without overwriting shared history."
+      "result": "The commits are back within a minute, thanks to reflog."
     }
   ],
   "misconceptions": [
     {
       "id": "git.recovery.undo.misconception",
       "mistakenBelief": "Git undo is one universal command, and hard reset is the fastest safe way to reverse any mistake.",
-      "correction": "Inspect working tree, index, commits, remotes, and reflog first; state what must survive, then choose the least destructive operation that changes only the intended layer.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Git undo is one universal command, and hard reset is the fastest safe way to reverse any mistake."
+      "correction": "Each tool preserves different state. Hard reset discards uncommitted work and rewrites history, which breaks shared branches; revert is the safe undo for published commits.",
+      "diagnosticPrompt": "In the opening story, why did everyone's main disagree with the server's?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A secured checkpoint system can model Restore, revert, reset and reflog: each revision is inspected, credentials are restricted, incidents revoke access, and recovery preserves known-good state.",
+    "example": "Undoing in Git is like **correcting a shared ledger**. You never tear out a page others have copied (reset shared history); you add a correcting entry (revert). On your own scratch pad, you can erase freely (reset). And the ledger's audit trail (reflog) shows where pages went.",
     "usefulFor": [
-      "Connecting pipeline evidence, secret response, reversible change, and collaborative policy"
+      "remembering add a correcting entry",
+      "reflog = audit trail"
     ],
     "limitations": [
-      "CI isolation, credential propagation, Git reachability, and distributed copies require technical controls beyond checkpoint paperwork.",
-      "Uncommitted data may be unrecoverable, reflog is local and expires, reset modes differ, and rewriting shared history can discard collaborators' work."
+      "Scratch-pad erasing can still destroy uncommitted notes.",
+      "Audit trails expire eventually (reflog entries age out)."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A bad commit already on main is undone with a new revert commit, preserving public history and reviewability.",
-      "Safe recovery chooses an operation from the state to preserve: restore working changes, unstage the index, revert a published commit, or reset/reflog only with understood history consequences.",
-      "Inspect working tree, index, commits, remotes, and reflog first; state what must survive, then choose the least destructive operation that changes only the intended layer."
+      "git log: find 4c1e2f9",
+      "git revert 4c1e2f9",
+      "PR, CI, merge"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Identify",
         "state": {
-          "evidence": "A bad commit already on main is undone with a new revert commit, preserving public history and reviewability."
+          "bad commit": "4c1e2f9 on main",
+          "pulled by": "teammates"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "A bad commit is already on shared main."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Revert",
         "state": {
-          "model": "Safe recovery chooses an operation from the state to preserve: restore working changes, unstage the index, revert a published commit, or reset/reflog only with understood history consequences."
+          "new commit": "Revert 'Change cart rounding'"
         },
-        "explanation": "Apply the declared Restore, revert, reset and reflog model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "It is undone with a new revert commit, not a reset."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Integrate",
         "state": {
-          "correction": "Inspect working tree, index, commits, remotes, and reflog first; state what must survive, then choose the least destructive operation that changes only the intended layer."
+          "history": "unchanged + 1 commit",
+          "review": "done"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Git undo is one universal command, and hard reset is the fastest safe way to reverse any mistake."
+        "explanation": "Public history and reviewability are preserved for everyone."
       }
     ],
-    "textAlternative": "Starting artifact: A bad commit already on main is undone with a new revert commit, preserving public history and reviewability. Step 1, Observe. State: evidence: A bad commit already on main is undone with a new revert commit, preserving public history and reviewability.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Safe recovery chooses an operation from the state to preserve: restore working changes, unstage the index, revert a published commit, or reset/reflog only with understood history consequences.. Apply the declared Restore, revert, reset and reflog model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Inspect working tree, index, commits, remotes, and reflog first; state what must survive, then choose the least destructive operation that changes only the intended layer.. Compare the observation with the correction and reject the misconception: Git undo is one universal command, and hard reset is the fastest safe way to reverse any mistake."
+    "textAlternative": "Tracing a safe revert. Step 1, Identify: bad commit is 4c1e2f9 on main; pulled by is teammates. A bad commit is already on shared main. Step 2, Revert: new commit is Revert 'Change cart rounding'. It is undone with a new revert commit, not a reset. Step 3, Integrate: history is unchanged + 1 commit; review is done. Public history and reviewability are preserved for everyone."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Restore, revert, reset and reflog: direct case”: state its starting evidence, apply the Restore, revert, reset and reflog rule, and give the observable result in three short lines.",
+      "prompt": "For \"Reverting a bad commit on main\", explain how a bad commit already on main is undone with a new revert commit, preserving public history and reviewability.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Identify.",
+        "Revert.",
+        "Integrate."
       ],
       "expectedEvidence": [
-        "Named example: Restore, revert, reset and reflog: direct case.",
-        "Starting evidence: A bad commit already on main is undone with a new revert commit, preserving public history and reviewability.",
-        "Core rule: Safe recovery chooses an operation from the state to preserve: restore working changes, unstage the index, revert a published commit, or reset/reflog only with understood history consequences.",
-        "Observable result: The case supports the declared outcome because Inspect working tree, index, commits, remotes, and reflog first; state what must survive, then choose the least destructive operation that changes only the intended layer.",
-        "Boundary check: Inspect working tree, index, commits, remotes, and reflog first; state what must survive, then choose the least destructive operation that changes only the intended layer."
+        "Names the example \"Reverting a bad commit on main\": a force-push confused everyone.",
+        "A bad commit already on main is undone with a new revert commit.",
+        "This preserves public history and reviewability.",
+        "Checkout works again, and everyone's history stays consistent."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A staged file is unstaged without discarding its working-tree edit because the learner distinguishes index recovery from content deletion.",
+      "prompt": "In a disposable repo, practise each: discard an edit with restore, unstage with restore --staged, undo a commit with revert, undo a local commit with reset --soft. Show git status and git log after each.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "One scenario at a time.",
+        "Predict the state first."
       ],
       "expectedEvidence": [
-        "Safe recovery chooses an operation from the state to preserve: restore working changes, unstage the index, revert a published commit, or reset/reflog only with understood history consequences.",
-        "Uncommitted data may be unrecoverable, reflog is local and expires, reset modes differ, and rewriting shared history can discard collaborators' work."
+        "Each outcome matches the prediction.",
+        "No shared history rewritten."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Restore, revert, reset and reflog, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "In a sandbox, reset --hard away three commits, recover them with reflog onto a branch, then write a one-page \"undo decision guide\" for your team with the right command for each situation.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Use HEAD@{n} from reflog.",
+        "Include what each command preserves."
       ],
       "expectedEvidence": [
-        "Recover staged, committed and lost-ref mistakes in disposable repositories without overwriting shared history.",
-        "Inspect working tree, index, commits, remotes, and reflog first; state what must survive, then choose the least destructive operation that changes only the intended layer."
+        "Commits recovered.",
+        "Guide covers all five situations."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.recovery.undo.misconception",
-      "explanation": "Inspect working tree, index, commits, remotes, and reflog first; state what must survive, then choose the least destructive operation that changes only the intended layer.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A staged file is unstaged without discarding its working-tree edit because the learner distinguishes index recovery from content deletion."
+      "explanation": "Before undoing, answer two questions: **what do I need to keep?** and **has this been pushed?** Pushed means revert; unpushed means reset is allowed, with a backup branch first.",
+      "retryPrompt": "Apply this to \"The accidental reset\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to recover staged, committed and lost-ref mistakes in disposable repositories without overwriting shared history. Keep this boundary in view: Uncommitted data may be unrecoverable, reflog is local and expires, reset modes differ, and rewriting shared history can discard collaborators' work.",
+    "summary": "To recover mistakes safely, use restore for working-tree edits, restore --staged to unstage, revert for commits already shared, reset only on unpushed history (knowing --hard discards changes), and reflog to find lost commits, never rewriting shared history to undo a mistake.",
     "retrievalPrompts": [
-      "Explain Restore, revert, reset and reflog without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Git undo is one universal command, and hard reset is the fastest safe way to reverse any mistake.",
-      "Apply the model to this case from memory: A staged file is unstaged without discarding its working-tree edit because the learner distinguishes index recovery from content deletion."
+      "How do you undo a pushed commit?",
+      "What does reset --hard discard?",
+      "What does reflog let you recover?"
     ],
     "nextReviewPrompt": "Next: continue to “Collaborative repository capstone”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

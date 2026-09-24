@@ -33,38 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A queue is a first-in-first-out abstract data type with enqueue at the back and dequeue at the front.",
+    "summary": "A **queue** is first-in, first-out (**FIFO**): `enqueue(x)` adds at the **back**, `dequeue()` removes from the **front**, like a line at a help desk. Removing from the front of a plain array would shift everything, which is O(n). A **circular buffer** avoids that: keep a fixed-size array plus a `head` index (the front) and a `size`. The back slot is `(head + size) % capacity`. Enqueue writes there; dequeue reads `data[head]` and moves `head = (head + 1) % capacity`. Both are O(1), and the indexes **wrap around** to reuse freed slots.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A circular buffer advances head and tail modulo capacity without shifting every queued item. Your goal is to implement and test enqueue, dequeue and wraparound behavior. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A tutoring help desk queues learner questions in an array and removes the first with `pop(0)`. With 50,000 questions during exam week, each removal shifts all the rest and the desk slows to a crawl. A circular buffer advances head and tail modulo capacity without shifting every queued item. In this lesson you'll implement and test enqueue, dequeue and wraparound behavior.\n\n```predict\n{\"question\": \"Capacity 4, head = 3, size = 2. Which array slot holds the back item?\", \"options\": [\"Slot 5\", \"Slot 0: (3 + 2 - 1) % 4 = 0\"], \"answer\": 1, \"why\": \"Indexes wrap: the queue occupies slots 3 and 0.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Array representation and operations; Linked lists; Insertion and deletion. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Array representation and operations** (why front removal shifts), the **Linked lists** module, and **Insertion and deletion**, since a linked list with a tail pointer is the other O(1) queue."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "A queue is a first-in-first-out abstract data type with enqueue at the back and dequeue at the front. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The model: head, size and wrap-around",
+        "body": "```python\nclass CircularQueue:\n    def __init__(self, capacity):\n        self._data = [None] * capacity\n        self._head = 0                     # index of the front item.\n        self._size = 0\n\n    def enqueue(self, x):                  # O(1).\n        if self._size == len(self._data):\n            raise OverflowError(\"queue is full\")\n        back = (self._head + self._size) % len(self._data)\n        self._data[back] = x\n        self._size += 1\n\n    def dequeue(self):                     # O(1).\n        if self._size == 0:\n            raise IndexError(\"dequeue from empty queue\")\n        x = self._data[self._head]\n        self._data[self._head] = None       # drop the reference.\n        self._head = (self._head + 1) % len(self._data)\n        self._size -= 1\n        return x\n\n    def __len__(self):\n        return self._size\n```\n\n| Implementation | enqueue | dequeue |\n|---|---|---|\n| array with pop(0). | O(1). | O(n) shift. |\n| circular buffer. | O(1). | O(1). |\n| linked list with head and tail. | O(1). | O(1). |\n\n```reveal\n{\"prompt\": \"Why track size instead of a separate tail index?\", \"answer\": \"With only head and tail, a full queue and an empty queue can look identical (head == tail). Keeping size makes both states unambiguous.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Array queues need circular indexing or compaction, and empty/full representation must not be ambiguous. The draft therefore rejects: An array queue must shift every remaining element after each dequeue."
+        "heading": "Wrap-around",
+        "body": "```predict\n{\"question\": \"Capacity 3: enqueue a, b, c; dequeue twice; enqueue d. Which slot gets d?\", \"options\": [\"Slot 3 (out of range)\", \"Slot 0, freed and reused\"], \"answer\": 1, \"why\": \"head is 2 and size is 1, so the back slot is (2 + 1) % 3 = 0.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Specify FIFO behavior and implement a bounded or dynamically backed queue without shifting every item.",
-      "Implement and test enqueue, dequeue and wraparound behavior.",
-      "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends."
+      "Implement a FIFO queue with a circular buffer or linked list, both O(1).",
+      "Test wrap-around, full and empty conditions."
     ],
     "excludes": [
-      "Array queues need circular indexing or compaction, and empty/full representation must not be ambiguous."
+      "Priority queues (heaps module).",
+      "Blocking and concurrent queues."
     ]
   },
   "outcomes": [
@@ -73,142 +69,138 @@
   "examples": [
     {
       "id": "dsa.queue.adt.example-a",
-      "title": "Queue and circular buffer: language-neutral trace",
+      "title": "A help-desk queue that never shifts",
       "situation": "A circular buffer advances head and tail modulo capacity without shifting every queued item.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: A circular buffer advances head and tail modulo capacity without shifting every queued item.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Use circular indexing to support constant-time enqueue and dequeue without repeated shifting."
+        "**Problem:** pop(0) on a 50,000-item array shifted every remaining question.",
+        "**Advance head and tail modulo capacity:** dequeue reads data[head] and moves head = (head + 1) % capacity; enqueue writes at (head + size) % capacity.",
+        "**Test:** fill a capacity-3 queue, dequeue two, enqueue two more, and the test will expect the original order to continue with wrap-around."
       ],
-      "result": "The conceptual result follows because Use circular indexing to support constant-time enqueue and dequeue without repeated shifting."
+      "result": "Questions are answered in arrival order and each operation stays O(1), even during exam week."
     },
     {
       "id": "dsa.queue.adt.example-b",
-      "title": "Queue and circular buffer: implementation transfer",
-      "situation": "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends.",
+      "title": "The full queue that looked empty",
+      "situation": "A circular queue tracks only head and tail indexes. After exactly filling it, is_empty() returns True because head == tail.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends.",
-        "Step 3 — Retest this boundary in the selected implementation: Array queues need circular indexing or compaction, and empty/full representation must not be ambiguous."
+        "With only two indexes, full and empty both have head == tail.",
+        "Track size (or leave one slot unused) to tell them apart.",
+        "Add tests for is_empty and is_full at both states."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "The queue reports full and empty correctly at every fill level."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.queue.adt.misconception",
       "mistakenBelief": "An array queue must shift every remaining element after each dequeue.",
-      "correction": "Use circular indexing to support constant-time enqueue and dequeue without repeated shifting.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: An array queue must shift every remaining element after each dequeue."
+      "correction": "A circular buffer never shifts: it moves the head index forward and wraps around with modulo, reusing freed slots, so dequeue is O(1).",
+      "diagnosticPrompt": "In \"A help-desk queue that never shifts\", what moves instead of the items?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Queue and circular buffer, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "A circular buffer is like **a carousel of seats at a sushi bar**: plates go on at one point and come off at another, and the belt goes round. Nobody slides every plate along when one is taken; the pickup point just moves on.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering the moving head",
+      "modulo = the belt going round"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Array queues need circular indexing or compaction, and empty/full representation must not be ambiguous."
+      "Belts have a fixed number of spots: full is full.",
+      "A linked queue is like adding more belt as needed."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A circular buffer advances head and tail modulo capacity without shifting every queued item.",
-      "A queue is a first-in-first-out abstract data type with enqueue at the back and dequeue at the front.",
-      "Use circular indexing to support constant-time enqueue and dequeue without repeated shifting.",
-      "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends."
+      "capacity 3: enqueue a, b, c",
+      "dequeue, dequeue",
+      "enqueue d, e"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Fill",
         "state": {
-          "scenario": "A circular buffer advances head and tail modulo capacity without shifting every queued item."
+          "data": "[a, b, c]",
+          "head": "0",
+          "size": "3"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "Three enqueues fill every slot of the buffer."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Dequeue x2",
         "state": {
-          "invariant": "A queue is a first-in-first-out abstract data type with enqueue at the back and dequeue at the front."
+          "returned": "a, b",
+          "head": "2",
+          "size": "1"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "The circular buffer advances head without shifting every queued item."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Wrap",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "data": "[d, e, c]",
+          "order": "c, d, e"
         },
-        "explanation": "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Use circular indexing to support constant-time enqueue and dequeue without repeated shifting."
-        },
-        "explanation": "Verify the result and reject this misconception: An array queue must shift every remaining element after each dequeue."
+        "explanation": "New items wrap around modulo capacity into freed slots."
       }
     ],
-    "textAlternative": "Starting artifact: A circular buffer advances head and tail modulo capacity without shifting every queued item. Step 1, Specification. State: scenario: A circular buffer advances head and tail modulo capacity without shifting every queued item.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: A queue is a first-in-first-out abstract data type with enqueue at the back and dequeue at the front.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends. Step 4, Conclusion. State: correction: Use circular indexing to support constant-time enqueue and dequeue without repeated shifting.. Verify the result and reject this misconception: An array queue must shift every remaining element after each dequeue."
+    "textAlternative": "Tracing wrap-around. Step 1, Fill: data is [a, b, c]; head is 0; size is 3. Three enqueues fill every slot of the buffer. Step 2, Dequeue x2: returned is a, b; head is 2; size is 1. The circular buffer advances head without shifting every queued item. Step 3, Wrap: data is [d, e, c]; order is c, d, e. New items wrap around modulo capacity into freed slots."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Queue and circular buffer: language-neutral trace”: state its starting evidence, apply the Queue and circular buffer rule, and give the observable result in three short lines.",
+      "prompt": "For \"A help-desk queue that never shifts\", explain how a circular buffer advances head and tail modulo capacity without shifting every queued item.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Problem.",
+        "Modulo.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Queue and circular buffer: language-neutral trace.",
-        "Starting evidence: A circular buffer advances head and tail modulo capacity without shifting every queued item.",
-        "Core rule: A queue is a first-in-first-out abstract data type with enqueue at the back and dequeue at the front.",
-        "Observable result: The conceptual result follows because Use circular indexing to support constant-time enqueue and dequeue without repeated shifting.",
-        "Boundary check: Use circular indexing to support constant-time enqueue and dequeue without repeated shifting."
+        "Names the example \"A help-desk queue that never shifts\": pop(0) shifted every question.",
+        "A circular buffer advances head and tail modulo capacity.",
+        "It never shifts every queued item.",
+        "Questions are answered in arrival order and stay O(1)."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: A queue is a first-in-first-out abstract data type with enqueue at the back and dequeue at the front.",
+      "prompt": "Add `peek()` and `is_full()` to CircularQueue, and write tests for peek on an empty queue and for filling, draining and refilling twice.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "peek reads data[head].",
+        "is_full compares size with capacity."
       ],
       "expectedEvidence": [
-        "In C, define an explicit array or linked representation and error contract; in C++, use vector/deque-backed adaptors with top/front semantics; in Java, program to Deque or Queue interfaces rather than legacy Stack; in Python, use list for stack and collections.deque for efficient queue/deque ends.",
-        "Array queues need circular indexing or compaction, and empty/full representation must not be ambiguous."
+        "Empty peek raises.",
+        "Order preserved across two wrap-arounds."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Queue and circular buffer case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Implement a linked-list queue with head and tail pointers, then run the same test suite against both implementations. Compare their memory use and when you'd pick each.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Update tail on enqueue, head on dequeue.",
+        "Empty queue: both None."
       ],
       "expectedEvidence": [
-        "Implement and test enqueue, dequeue and wraparound behavior.",
-        "Use circular indexing to support constant-time enqueue and dequeue without repeated shifting."
+        "Both pass identical tests.",
+        "Written comparison of fixed capacity vs growth."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.queue.adt.misconception",
-      "explanation": "Use circular indexing to support constant-time enqueue and dequeue without repeated shifting.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'circular indexing', then state one implementation-specific risk in the selected language."
+      "explanation": "For every queue ask: **Where is the front? Where does the next item go?** Write both as formulas with % capacity, and test the moment the back wraps to slot 0.",
+      "retryPrompt": "Apply this to \"The full queue that looked empty\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test enqueue, dequeue and wraparound behavior. Keep this boundary in view: Array queues need circular indexing or compaction, and empty/full representation must not be ambiguous.",
+    "summary": "To implement and test enqueue, dequeue and wraparound, keep FIFO order with a circular buffer that stores head and size, writes at (head + size) % capacity, reads at head and advances it modulo capacity, all in O(1) with no shifting, and test full, empty and wrapped states.",
     "retrievalPrompts": [
-      "State the Queue and circular buffer invariant and complexity without code.",
-      "Why is this claim false: An array queue must shift every remaining element after each dequeue.",
-      "Map checkpoint 'circular indexing' to C, C++, Java, and Python."
+      "What does FIFO mean?",
+      "Where does a circular buffer write the next item?",
+      "Why track size as well as head?"
     ],
     "nextReviewPrompt": "Next: continue to “Deque ADT”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

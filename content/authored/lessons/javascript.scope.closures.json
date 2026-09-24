@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A closure retains access to lexical bindings after the creating scope returns, observing the binding's current value.",
+    "summary": "A **closure** is a function plus the variables around where it was created. When an outer function returns an inner function, the inner one keeps access to the outer **bindings**, even though the outer call has finished. It sees each binding's **current value**, not a snapshot. Every call to the outer function makes **fresh bindings**, so two counters from the same factory don't share a count.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A counter factory returns a function that updates its private count binding across calls. Your goal is to implement and trace a closure-based abstraction with independent instances. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You need a click counter for each of three buttons, with no global variables that other code could overwrite. A counter factory returns a function that updates its private count binding across calls. In this lesson you'll implement and trace a closure-based abstraction with independent instances.\n\n```predict\n{\"question\": \"`function makeCounter() { let count = 0; return () => ++count; } const a = makeCounter(); const b = makeCounter(); a(); a(); b();` What does b() return here?\", \"options\": [\"3\", \"1: b has its own count binding\"], \"answer\": 1, \"why\": \"Each makeCounter call creates a new count. a's closure and b's closure point at different bindings.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Control flow and functions; Module loading baseline; Lexical scope and temporal dead zone; Parameters, rest and return contracts. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Control flow and functions** module, **Module loading baseline**, **Lexical scope and temporal dead zone**, and **Parameters, rest and return contracts**, since the factory returns a function."
       },
       {
-        "heading": "Technology rule",
-        "body": "A closure retains access to lexical bindings after the creating scope returns, observing the binding's current value. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: the inner function keeps the binding alive",
+        "body": "```js\nfunction makeCounter(start = 0) {\n  let count = start;              // private binding.\n  return {\n    increment: () => ++count,     // closes over count.\n    read: () => count,\n  };\n}\n\nconst likes = makeCounter();\nconst views = makeCounter(100);\nlikes.increment();                // 1\nlikes.increment();                // 2\nviews.increment();                // 101\nlikes.read();                     // 2: views didn't touch it.\n```\n\n| Fact | Consequence |\n|---|---|\n| inner function keeps outer bindings. | count survives after makeCounter returns. |\n| it sees the current value. | read() reports the latest count. |\n| each outer call = new bindings. | likes and views are independent. |\n| no outside name reaches count. | it is private without a class. |\n\n```reveal\n{\"prompt\": \"Is count copied into the closure when it's created?\", \"answer\": \"No. The closure references the binding itself, so later changes are visible to every function that closes over it.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Captured objects can prolong memory, loop binding choice matters, and stale state can arise in framework callbacks. This draft therefore rejects: A closure stores a frozen copy of every captured primitive at creation time."
+        "heading": "Current value, not a snapshot",
+        "body": "```predict\n{\"question\": \"`let msg = \\\"hi\\\"; const say = () => msg; msg = \\\"bye\\\"; say();` returns…\", \"options\": [\"\\\"hi\\\"\", \"\\\"bye\\\": say reads the binding when it runs\"], \"answer\": 1, \"why\": \"Closures read the live binding at call time.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use retained lexical state for factories and callbacks while avoiding accidental stale or shared state.",
-      "Implement and trace a closure-based abstraction with independent instances."
+      "Build a factory that returns closures sharing private state.",
+      "Trace independent instances and live binding values."
     ],
     "excludes": [
-      "Captured objects can prolong memory, loop binding choice matters, and stale state can arise in framework callbacks."
+      "Memory profiling of closures.",
+      "Module pattern history (IIFEs)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "javascript.scope.closures.example-a",
-      "title": "Closures and lifetime: concrete case",
+      "title": "A counter factory",
       "situation": "A counter factory returns a function that updates its private count binding across calls.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A counter factory returns a function that updates its private count binding across calls.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Closures retain bindings, not automatic frozen snapshots; later updates to the binding can be observed."
+        "**Build:** `makeCounter()` declares `let count = 0` and returns `() => ++count`.",
+        "**Updates its private count binding:** calling the returned function three times returns 1, 2, 3, so count persists across calls.",
+        "**Check independence:** a second counter will start at 1, proving each call made its own binding."
       ],
-      "result": "The result follows because Closures retain bindings, not automatic frozen snapshots; later updates to the binding can be observed."
+      "result": "Each button gets its own counter, and no outside code can overwrite the counts."
     },
     {
       "id": "javascript.scope.closures.example-b",
-      "title": "Closures and lifetime: boundary case",
-      "situation": "Captured objects can prolong memory, loop binding choice matters, and stale state can arise in framework callbacks.",
+      "title": "The loop that logged 3, 3, 3",
+      "situation": "Old code uses `for (var i = 0; i < 3; i++) { setTimeout(() => console.log(i)); }` and prints 3, 3, 3 instead of 0, 1, 2.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Captured objects can prolong memory, loop binding choice matters, and stale state can arise in framework callbacks.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: A closure stores a frozen copy of every captured primitive at creation time."
+        "var creates one i for the whole function, shared by all three closures.",
+        "By the time the timers run, that single i is 3.",
+        "Fix: use `let i`, which makes a fresh binding for each iteration, so the output reads 0, 1, 2."
       ],
-      "result": "The boundary requires this correction: Closures retain bindings, not automatic frozen snapshots; later updates to the binding can be observed."
+      "result": "The timers log 0, 1, 2 because each closure captures its own iteration binding."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.scope.closures.misconception",
       "mistakenBelief": "A closure stores a frozen copy of every captured primitive at creation time.",
-      "correction": "Closures retain bindings, not automatic frozen snapshots; later updates to the binding can be observed.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: A closure stores a frozen copy of every captured primitive at creation time."
+      "correction": "A closure keeps a reference to the binding, not a copy of its value. It reads the current value whenever it runs, which is why say() returned \"bye\" and why var in loops shares one value.",
+      "diagnosticPrompt": "In \"The loop that logged 3, 3, 3\", why did every timer see 3?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Closures and lifetime, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "A closure is like a **backpack** a function carries out of the room where it was made. The backpack holds the **actual notebook**, not a photo of it: write in the notebook later and the function reads the new page. Each trip to the factory hands out a new backpack with a new notebook.",
     "usefulFor": [
-      "Building a first mental model for Closures and lifetime before using exact platform terms"
+      "remembering live bindings",
+      "independent instances = separate backpacks"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Captured objects can prolong memory, loop binding choice matters, and stale state can arise in framework callbacks."
+      "Backpacks can be emptied; bindings live while any closure uses them.",
+      "Two closures from one call share the same notebook."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A counter factory returns a function that updates its private count binding across calls.",
-      "A closure retains access to lexical bindings after the creating scope returns, observing the binding's current value.",
-      "Closures retain bindings, not automatic frozen snapshots; later updates to the binding can be observed."
+      "const a = makeCounter()",
+      "a(); a()",
+      "const b = makeCounter(); b()"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "First factory call",
         "state": {
-          "evidence": "A counter factory returns a function that updates its private count binding across calls."
+          "a.count": "0"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "makeCounter creates a count binding that a's closure keeps."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Two calls",
         "state": {
-          "rule": "A closure retains access to lexical bindings after the creating scope returns, observing the binding's current value."
+          "a.count": "2"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The returned function updates its private count binding across calls."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Second factory call",
         "state": {
-          "correction": "Closures retain bindings, not automatic frozen snapshots; later updates to the binding can be observed."
+          "b.count": "1",
+          "a.count": "2"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: A closure stores a frozen copy of every captured primitive at creation time."
+        "explanation": "A new call makes a new binding, so b counts independently."
       }
     ],
-    "textAlternative": "Starting artifact: A counter factory returns a function that updates its private count binding across calls. Step 1, Artifact. State: evidence: A counter factory returns a function that updates its private count binding across calls.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A closure retains access to lexical bindings after the creating scope returns, observing the binding's current value.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Closures retain bindings, not automatic frozen snapshots; later updates to the binding can be observed.. Check the result against the boundary and reject this misconception: A closure stores a frozen copy of every captured primitive at creation time."
+    "textAlternative": "Tracing two independent counters. Step 1, First factory call: a.count is 0. makeCounter creates a count binding that a's closure keeps. Step 2, Two calls: a.count is 2. The returned function updates its private count binding across calls. Step 3, Second factory call: b.count is 1; a.count is 2. A new call makes a new binding, so b counts independently."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Closures and lifetime: concrete case”: state its starting evidence, apply the Closures and lifetime rule, and give the observable result in three short lines.",
+      "prompt": "For \"A counter factory\", explain how a counter factory returns a function that updates its private count binding across calls, and why two counters don't interfere.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Factory.",
+        "Updates.",
+        "Independence."
       ],
       "expectedEvidence": [
-        "Named example: Closures and lifetime: concrete case.",
-        "Starting evidence: A counter factory returns a function that updates its private count binding across calls.",
-        "Core rule: A closure retains access to lexical bindings after the creating scope returns, observing the binding's current value.",
-        "Observable result: The result follows because Closures retain bindings, not automatic frozen snapshots; later updates to the binding can be observed.",
-        "Boundary check: Closures retain bindings, not automatic frozen snapshots; later updates to the binding can be observed."
+        "Names the example \"A counter factory\": the factory returns a function.",
+        "It updates its private count binding across calls.",
+        "Each factory call creates a fresh binding.",
+        "Two counters count independently."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Captured objects can prolong memory, loop binding choice matters, and stale state can arise in framework callbacks.",
+      "prompt": "Write `makeLimiter(max)` returning a function that returns true for the first max calls and false afterwards. Test two limiters with different max values.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Private used counter.",
+        "Compare with max."
       ],
       "expectedEvidence": [
-        "A closure retains access to lexical bindings after the creating scope returns, observing the binding's current value.",
-        "Captured objects can prolong memory, loop binding choice matters, and stale state can arise in framework callbacks."
+        "makeLimiter(2): true, true, false.",
+        "A second limiter isn't affected."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Closures and lifetime and explain why the misconception fails.",
+      "prompt": "Build `makeStore(initial)` returning get, set and subscribe(listener) closures. set should call every listener with the new value. Test independence and live values.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Private value and listeners array.",
+        "subscribe could return an unsubscribe closure."
       ],
       "expectedEvidence": [
-        "Implement and trace a closure-based abstraction with independent instances.",
-        "Closures retain bindings, not automatic frozen snapshots; later updates to the binding can be observed."
+        "Two stores never share state.",
+        "Listeners receive the current value after set."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.scope.closures.misconception",
-      "explanation": "Closures retain bindings, not automatic frozen snapshots; later updates to the binding can be observed.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'retain bindings' and state the decisive evidence."
+      "explanation": "For each closure, draw an arrow from the inner function to the **binding** (not the value) it uses. Then ask: how many times was the outer function called? That's how many separate bindings exist.",
+      "retryPrompt": "Apply this to \"The loop that logged 3, 3, 3\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and trace a closure-based abstraction with independent instances. Keep this boundary in view: Captured objects can prolong memory, loop binding choice matters, and stale state can arise in framework callbacks.",
+    "summary": "To implement and trace a closure-based abstraction, return inner functions that keep the outer bindings alive, remember they read the current value at call time, and note that each outer call creates fresh bindings, giving independent, private instances.",
     "retrievalPrompts": [
-      "Explain Closures and lifetime using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: A closure stores a frozen copy of every captured primitive at creation time.",
-      "Apply checkpoint 'retain bindings' to a new artifact."
+      "Does a closure copy values or keep bindings?",
+      "Why do two counters from one factory not share count?",
+      "Why did var in the loop log 3, 3, 3?"
     ],
     "nextReviewPrompt": "Next: continue to “Imports, exports and module graph”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

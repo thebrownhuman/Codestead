@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "JSX creates React element descriptions, embeds JavaScript expressions, and uses JavaScript property names and explicit escaping.",
+    "summary": "JSX looks like HTML but is JavaScript that creates **element descriptions**. Inside `{ }` you can put any **expression**: a variable, a calculation, a function call, a ternary. Attributes use JavaScript property names: `className` not class, `htmlFor` not for, camelCase events like `onClick`, and `style={{ fontSize: 18 }}` as an object. Text you put in braces is **escaped automatically**, so `<b>` in a learner's name shows as characters, not bold. Every JSX expression returns one root; wrap siblings in a `<>...</>` fragment.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A label uses htmlFor and a dynamic value is escaped when rendered as text. Your goal is to write and debug JSX with dynamic content, attributes and safe text interpolation. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A profile form shows \"Display name\" next to an input. The console warns about `class` and `for`, and clicking the label doesn't focus the field because the input has no matching id. You also worry a learner's name like `<script>` could break the page. A label uses htmlFor and a dynamic value is escaped when rendered as text. In this lesson you'll write and debug JSX with dynamic content, attributes and safe text interpolation.\n\n```predict\n{\"question\": \"`const name = \\\"<b>Asha</b>\\\"; return <p>Hi {name}</p>;` shows…\", \"options\": [\"Hi Asha, in bold\", \"Hi <b>Asha</b>, as literal characters\"], \"answer\": 1, \"why\": \"Braces insert text, escaped. JSX never parses a string as HTML.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Declarative UI and re-rendering; html semantics; Function components; javascript collections objects. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Declarative UI and re-rendering**, **Text and page semantics** (labels and inputs), **Function components**, and **Object records and property access**, since style and props are objects."
       },
       {
-        "heading": "Technology rule",
-        "body": "JSX creates React element descriptions, embeds JavaScript expressions, and uses JavaScript property names and explicit escaping. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The rule: JavaScript names, expressions in braces, text escaped",
+        "body": "```jsx\nexport function NameField({ value, error }) {\n  const id = \"display-name\";\n  return (\n    <>\n      <label htmlFor={id}>Display name</label>\n      <input\n        id={id}\n        className={error ? \"field field--error\" : \"field\"}\n        defaultValue={value}\n        aria-invalid={Boolean(error)}\n        aria-describedby={error ? `${id}-error` : undefined}\n      />\n      {error && <p id={`${id}-error`} style={{ color: \"#b91c1c\" }}>{error}</p>}\n      <p>Preview: {value.trim() || \"(empty)\"}</p>\n    </>\n  );\n}\n```\n\n| HTML | JSX |\n|---|---|\n| `class=\"x\"`. | `className=\"x\"`. |\n| `for=\"id\"`. | `htmlFor=\"id\"`. |\n| `onclick=\"...\"`. | `onClick={handler}`. |\n| `style=\"font-size:18px\"`. | `style={{ fontSize: 18 }}`. |\n| `<br>`. | `<br />` (must close). |\n\n```reveal\n{\"prompt\": \"Can you put an if statement inside braces?\", \"answer\": \"No, only expressions. Use a ternary, `&&`, or compute a variable above the return.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "It is not HTML, adjacent nodes need one parent, lowercase names mean host elements, and objects are not directly renderable children. This draft therefore rejects: JSX strings inserted through braces are interpreted as raw HTML."
+        "heading": "One root",
+        "body": "```predict\n{\"question\": \"`return <h2>Title</h2><p>Body</p>;` What happens?\", \"options\": [\"Both render\", \"Syntax error: adjacent JSX elements need one parent, such as a fragment\"], \"answer\": 1, \"why\": \"Wrap them: `<><h2>Title</h2><p>Body</p></>`.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Embed expressions, use React DOM property names and keep data distinct from executable markup.",
-      "Write and debug JSX with dynamic content, attributes and safe text interpolation."
+      "Use expressions and JavaScript-named attributes in JSX.",
+      "Render dynamic text safely and debug common JSX errors."
     ],
     "excludes": [
-      "It is not HTML, adjacent nodes need one parent, lowercase names mean host elements, and objects are not directly renderable children."
+      "dangerouslySetInnerHTML beyond a warning.",
+      "How JSX compiles in detail."
     ]
   },
   "outcomes": [
@@ -63,133 +64,134 @@
   "examples": [
     {
       "id": "react.components.jsx.example-a",
-      "title": "JSX expressions and attributes: concrete case",
-      "situation": "A label uses htmlFor and a dynamic value is escaped when rendered as text.",
+      "title": "A labelled field with a learner's text",
+      "situation": "A label uses htmlFor and a dynamic value is escaped when rendered as text in the profile form.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A label uses htmlFor and a dynamic value is escaped when rendered as text.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: React escapes ordinary JSX text expressions; raw HTML requires an explicit dangerous API and trusted sanitization."
+        "**Fix attributes:** `<label htmlFor={id}>` and `<input id={id} className=...>` replace for and class, and the shared id connects label and input.",
+        "**Escaped value:** the preview renders `{value}`, so a name like `<script>` will show as text.",
+        "**Check:** clicking the label focuses the input, and a test will find the input by its label text."
       ],
-      "result": "The result follows because React escapes ordinary JSX text expressions; raw HTML requires an explicit dangerous API and trusted sanitization."
+      "result": "The label focuses the field, no console warnings appear, and any name displays exactly as typed."
     },
     {
       "id": "react.components.jsx.example-b",
-      "title": "JSX expressions and attributes: boundary case",
-      "situation": "It is not HTML, adjacent nodes need one parent, lowercase names mean host elements, and objects are not directly renderable children.",
+      "title": "The object that couldn't render",
+      "situation": "A card does `<p>{lesson}</p>` and React throws \"Objects are not valid as a React child\".",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: It is not HTML, adjacent nodes need one parent, lowercase names mean host elements, and objects are not directly renderable children.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: JSX strings inserted through braces are interpreted as raw HTML."
+        "Braces accept strings, numbers, elements and arrays of those.",
+        "A plain object like lesson isn't renderable.",
+        "Fix: render a field such as `{lesson.title}`, or format it first."
       ],
-      "result": "The boundary requires this correction: React escapes ordinary JSX text expressions; raw HTML requires an explicit dangerous API and trusted sanitization."
+      "result": "The card shows the lesson title instead of crashing."
     }
   ],
   "misconceptions": [
     {
       "id": "react.components.jsx.misconception",
       "mistakenBelief": "JSX strings inserted through braces are interpreted as raw HTML.",
-      "correction": "React escapes ordinary JSX text expressions; raw HTML requires an explicit dangerous API and trusted sanitization.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: JSX strings inserted through braces are interpreted as raw HTML."
+      "correction": "React escapes text inserted with braces, so markup characters display literally. Only dangerouslySetInnerHTML parses HTML, and it's unsafe with untrusted data.",
+      "diagnosticPrompt": "In the opening predict, why wasn't Asha bold?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model JSX expressions and attributes, where inputs and state produce a UI description.",
+    "example": "JSX is like **a form with typed boxes**: labelled boxes for attributes (with their official JavaScript names) and a text box that prints exactly what you write. Writing `<b>` in the text box prints the characters; it doesn't change the font.",
     "usefulFor": [
-      "Building a first mental model for JSX expressions and attributes before using exact platform terms"
+      "remembering escaped text",
+      "official names = className, htmlFor"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "It is not HTML, adjacent nodes need one parent, lowercase names mean host elements, and objects are not directly renderable children."
+      "Forms don't run code; braces can run any JavaScript expression.",
+      "A fragment is the envelope holding several pages as one."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A label uses htmlFor and a dynamic value is escaped when rendered as text.",
-      "JSX creates React element descriptions, embeds JavaScript expressions, and uses JavaScript property names and explicit escaping.",
-      "React escapes ordinary JSX text expressions; raw HTML requires an explicit dangerous API and trusted sanitization."
+      "value = '<script>x</script>'",
+      "{value} inside <p>",
+      "DOM text node"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Value",
         "state": {
-          "evidence": "A label uses htmlFor and a dynamic value is escaped when rendered as text."
+          "value": "'<script>x</script>'"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The learner types markup into the display name."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Render",
         "state": {
-          "rule": "JSX creates React element descriptions, embeds JavaScript expressions, and uses JavaScript property names and explicit escaping."
+          "JSX child": "string"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The dynamic value is escaped when rendered as text."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "DOM",
         "state": {
-          "correction": "React escapes ordinary JSX text expressions; raw HTML requires an explicit dangerous API and trusted sanitization."
+          "text shown": "<script>x</script>",
+          "script run": "no"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: JSX strings inserted through braces are interpreted as raw HTML."
+        "explanation": "The label uses htmlFor, and the text displays literally."
       }
     ],
-    "textAlternative": "Starting artifact: A label uses htmlFor and a dynamic value is escaped when rendered as text. Step 1, Artifact. State: evidence: A label uses htmlFor and a dynamic value is escaped when rendered as text.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: JSX creates React element descriptions, embeds JavaScript expressions, and uses JavaScript property names and explicit escaping.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: React escapes ordinary JSX text expressions; raw HTML requires an explicit dangerous API and trusted sanitization.. Check the result against the boundary and reject this misconception: JSX strings inserted through braces are interpreted as raw HTML."
+    "textAlternative": "Rendering a hostile name safely. Step 1, Value: value is '<script>x</script>'. The learner types markup into the display name. Step 2, Render: JSX child is string. The dynamic value is escaped when rendered as text. Step 3, DOM: text shown is <script>x</script>; script run is no. The label uses htmlFor, and the text displays literally."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “JSX expressions and attributes: concrete case”: state its starting evidence, apply the JSX expressions and attributes rule, and give the observable result in three short lines.",
+      "prompt": "For \"A labelled field with a learner's text\", explain how a label uses htmlFor and a dynamic value is escaped when rendered as text.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Attributes.",
+        "Escaping.",
+        "Check."
       ],
       "expectedEvidence": [
-        "Named example: JSX expressions and attributes: concrete case.",
-        "Starting evidence: A label uses htmlFor and a dynamic value is escaped when rendered as text.",
-        "Core rule: JSX creates React element descriptions, embeds JavaScript expressions, and uses JavaScript property names and explicit escaping.",
-        "Observable result: The result follows because React escapes ordinary JSX text expressions; raw HTML requires an explicit dangerous API and trusted sanitization.",
-        "Boundary check: React escapes ordinary JSX text expressions; raw HTML requires an explicit dangerous API and trusted sanitization."
+        "Names the example \"A labelled field with a learner's text\": the label uses htmlFor.",
+        "className replaces class.",
+        "The dynamic value is escaped when rendered as text.",
+        "The label focuses the field, and any name displays exactly as typed."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: It is not HTML, adjacent nodes need one parent, lowercase names mean host elements, and objects are not directly renderable children.",
+      "prompt": "Fix this JSX: `<div class=\"card\"><label for=\"q\">Question</label><input id=\"q\" onclick=\"go()\"><p>{question}</p></div>`.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "className, htmlFor, onClick.",
+        "Self-close input."
       ],
       "expectedEvidence": [
-        "JSX creates React element descriptions, embeds JavaScript expressions, and uses JavaScript property names and explicit escaping.",
-        "It is not HTML, adjacent nodes need one parent, lowercase names mean host elements, and objects are not directly renderable children."
+        "`<input id=\"q\" onClick={go} />`.",
+        "All attributes renamed, one root."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for JSX expressions and attributes and explain why the misconception fails.",
+      "prompt": "Build a `ProfileCard` with a name, an optional bio, a conditional \"verified\" badge, and inline style from an `accentColor` prop. Test that a bio containing HTML renders as text.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Expressions only in braces.",
+        "style object."
       ],
       "expectedEvidence": [
-        "Write and debug JSX with dynamic content, attributes and safe text interpolation.",
-        "React escapes ordinary JSX text expressions; raw HTML requires an explicit dangerous API and trusted sanitization."
+        "Correct JSX attributes throughout.",
+        "A test proving escaping."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.components.jsx.misconception",
-      "explanation": "React escapes ordinary JSX text expressions; raw HTML requires an explicit dangerous API and trusted sanitization.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'escapes' and state the decisive evidence."
+      "explanation": "When JSX errors appear, check three things: **Is it HTML naming (class, for, onclick)? Is there a statement inside braces? Are there sibling roots?**",
+      "retryPrompt": "Apply this to \"The object that couldn't render\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to write and debug JSX with dynamic content, attributes and safe text interpolation. Keep this boundary in view: It is not HTML, adjacent nodes need one parent, lowercase names mean host elements, and objects are not directly renderable children.",
+    "summary": "To write and debug JSX with dynamic content, put expressions in braces, use JavaScript attribute names like className, htmlFor, onClick and style objects, return one root or a fragment, and rely on automatic escaping for safe text interpolation.",
     "retrievalPrompts": [
-      "Explain JSX expressions and attributes using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: JSX strings inserted through braces are interpreted as raw HTML.",
-      "Apply checkpoint 'escapes' to a new artifact."
+      "What replaces class and for in JSX?",
+      "Can braces hold an if statement?",
+      "Is text in braces parsed as HTML?"
     ],
     "nextReviewPrompt": "Next: continue to “Conditional rendering”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

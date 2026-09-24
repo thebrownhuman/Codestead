@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A symbolic knowledge base uses explicit constants, predicates, relations, facts, rules, and queries whose meaning depends on the declared domain and closed- or open-world assumptions.",
+    "summary": "**Symbolic AI** writes knowledge down explicitly so a program can reason with it. **Constants** name things (`ana`, `bo`). **Predicates** state properties or relations: `parent(ana, bo)` means \"ana is a parent of bo\". **Facts** are predicates asserted true. **Rules** derive new facts: \"if parent(x, y) then ancestor(x, y)\". A **query** asks whether something follows. Meaning depends on **assumptions** you must state. Under the **closed-world assumption**, anything not stored is false, which fits a complete database like a timetable. Under the **open-world assumption**, missing facts are simply **unknown**, which fits incomplete knowledge like medical records.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Facts parent(ana,bo) and a rule parent(x,y) -> ancestor(x,y) support one bounded ancestor query under named assumptions. Your goal is to create and evaluate a small symbolic knowledge base while stating closed- or open-world assumptions. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner's family database has parent facts for ana, bo and cy, and they query \"is dee a parent of eli?\". The answer comes back false, so they tell the user dee isn't eli's parent. But the database never included dee's family at all. Facts parent(ana,bo) and a rule parent(x,y) -> ancestor(x,y) support one bounded ancestor query under named assumptions. In this lesson you'll create and evaluate a small symbolic knowledge base while stating closed- or open-world assumptions.\n\n```predict\n{\"question\": \"A fact isn't stored in a knowledge base. Is it false?\", \"options\": [\"Always false\", \"It depends: false under a closed world, unknown under an open world\"], \"answer\": 1, \"why\": \"State which assumption your system uses.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: AI problems and agents; Problem and environment characteristics; pf data records. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **AI problems and agents**, **Problem and environment characteristics** and **Records and entities** (structured facts)."
       },
       {
-        "heading": "Bounded operational model",
-        "body": "A symbolic knowledge base uses explicit constants, predicates, relations, facts, rules, and queries whose meaning depends on the declared domain and closed- or open-world assumptions. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+        "heading": "The model: facts, rules, queries, assumptions",
+        "body": "```python\nfacts = {(\"parent\", \"ana\", \"bo\"), (\"parent\", \"bo\", \"cy\")}\nknown_people = {\"ana\", \"bo\", \"cy\"}             # the declared domain.\n\ndef ancestor(x, y, depth=0):\n    if (\"parent\", x, y) in facts:                # rule 1: parent -> ancestor.\n        return True\n    if depth > len(known_people):                # bound the search.\n        return False\n    return any(ancestor(z, y, depth + 1)         # rule 2: parent(x,z) and ancestor(z,y).\n               for (p, a, z) in facts if p == \"parent\" and a == x)\n\ndef ask(x, y, world=\"closed\"):\n    if ancestor(x, y):\n        return \"true\"\n    if world == \"open\" or {x, y} - known_people:\n        return \"unknown\"                        # outside what we know.\n    return \"false\"\n\nprint(ask(\"ana\", \"cy\"))                  # true (ana -> bo -> cy)\nprint(ask(\"cy\", \"ana\"))                  # false: closed world, all known people.\nprint(ask(\"dee\", \"eli\"))                 # unknown: not in the domain.\nprint(ask(\"cy\", \"ana\", world=\"open\"))   # unknown\n```\n\n| Term | Example |\n|---|---|\n| constant. | ana. |\n| predicate. | parent(x, y). |\n| fact. | parent(ana, bo). |\n| rule. | parent(x, y) -> ancestor(x, y). |\n\n```reveal\n{\"prompt\": \"Why bound the recursion depth?\", \"answer\": \"If the facts accidentally contain a cycle (a is parent of b, b of a), unbounded recursion would never stop. The bound keeps queries finite.\"}\n```"
       },
       {
-        "heading": "Failure boundary and non-claim",
-        "body": "Natural-language ambiguity is not removed automatically, absence can mean false or unknown, inconsistent rules can derive conflicts, names need identity assumptions, and symbolic truth does not prove the world is modeled completely. The learner must reject this overclaim: If a fact is not stored in a symbolic knowledge base, it is false in every reasoning system."
+        "heading": "Choosing the world",
+        "body": "```predict\n{\"question\": \"A train timetable lists every train. \\\"Is there a 3am train?\\\" and none is listed. Answer?\", \"options\": [\"Unknown\", \"No: the timetable is complete, so a closed world fits\"], \"answer\": 1, \"why\": \"Closed world suits complete, authoritative lists.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Translate a bounded natural-language domain into facts, relations, rules and queries.",
-      "Create and evaluate a small symbolic knowledge base while stating closed- or open-world assumptions."
+      "Write facts, rules and queries with constants and predicates.",
+      "State and apply closed- or open-world assumptions to query answers."
     ],
     "excludes": [
-      "Natural-language ambiguity is not removed automatically, absence can mean false or unknown, inconsistent rules can derive conflicts, names need identity assumptions, and symbolic truth does not prove the world is modeled completely."
+      "Full first-order logic syntax.",
+      "Ontology languages like OWL."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "ai.knowledge.symbolic.example.direct",
-      "title": "Symbols, predicates and rules: bounded direct case",
+      "title": "A small family knowledge base",
       "situation": "Facts parent(ana,bo) and a rule parent(x,y) -> ancestor(x,y) support one bounded ancestor query under named assumptions.",
       "walkthrough": [
-        "Step 1 — Observe the exact data, state, metric, or tool behavior: Facts parent(ana,bo) and a rule parent(x,y) -> ancestor(x,y) support one bounded ancestor query under named assumptions.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the claim boundary with: Declare the vocabulary, domain, identity, and open- or closed-world policy; distinguish explicit negation, contradiction, and missing knowledge."
+        "**Facts parent(ana,bo):** stored as tuples in facts.",
+        "**A rule parent(x,y) -> ancestor(x,y):** plus a chaining rule lets ana reach cy through bo.",
+        "**One bounded ancestor query under named assumptions:** we check ask(ana, cy) is true and ask(dee, eli) is unknown."
       ],
-      "result": "This example supports only the atomic outcome because Declare the vocabulary, domain, identity, and open- or closed-world policy; distinguish explicit negation, contradiction, and missing knowledge."
+      "result": "Answers are correct and honest about what the knowledge base doesn't cover."
     },
     {
       "id": "ai.knowledge.symbolic.example.stress",
-      "title": "Symbols, predicates and rules: stress and transfer case",
-      "situation": "The database lacks vaccinated(bo); an open-world policy returns unknown rather than concluding not vaccinated.",
+      "title": "The missing parent",
+      "situation": "A system told a user dee is not eli's parent, only because dee's family was never entered.",
       "walkthrough": [
-        "Step 1 — Name the changed population, input, assumption, or failure: The database lacks vaccinated(bo); an open-world policy returns unknown rather than concluding not vaccinated.",
-        "Step 2 — Keep the non-claim visible: Natural-language ambiguity is not removed automatically, absence can mean false or unknown, inconsistent rules can derive conflicts, names need identity assumptions, and symbolic truth does not prove the world is modeled completely.",
-        "Step 3 — Reject the tempting overclaim: If a fact is not stored in a symbolic knowledge base, it is false in every reasoning system."
+        "The query silently assumed a closed world.",
+        "Declare the domain of known people.",
+        "Return unknown for people outside it, or use an open world."
       ],
-      "result": "This case demonstrates the declared outcome: Create and evaluate a small symbolic knowledge base while stating closed- or open-world assumptions."
+      "result": "Users are told when the system simply doesn't know."
     }
   ],
   "misconceptions": [
     {
       "id": "ai.knowledge.symbolic.misconception",
       "mistakenBelief": "If a fact is not stored in a symbolic knowledge base, it is false in every reasoning system.",
-      "correction": "Declare the vocabulary, domain, identity, and open- or closed-world policy; distinguish explicit negation, contradiction, and missing knowledge.",
-      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: If a fact is not stored in a symbolic knowledge base, it is false in every reasoning system."
+      "correction": "Missing facts are false only under a closed-world assumption. Under an open world, or outside the declared domain, they are unknown.",
+      "diagnosticPrompt": "In \"The missing parent\", which assumption caused the wrong answer?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "an evidence board that distinguishes explicit facts, supported rule chains, missing knowledge, probabilities, and dependency assumptions can introduce Symbols, predicates and rules only after its canonical technical definition and evidence boundary are stated.",
+    "example": "A knowledge base is like **a guest list at a party**. If it's the **official, complete list** (closed world), anyone not on it isn't invited. If it's **a friend's rough memory** of who's coming (open world), someone missing might still be invited: you just don't know.",
     "usefulFor": [
-      "symbolic representation, inference, Bayesian updating, and graphical dependencies"
+      "remembering official list vs rough memory",
+      "rules = if on list and plus-one, then admitted"
     ],
     "limitations": [
-      "encoded facts can be incomplete or inconsistent and probabilistic edges do not automatically establish causation",
-      "Natural-language ambiguity is not removed automatically, absence can mean false or unknown, inconsistent rules can derive conflicts, names need identity assumptions, and symbolic truth does not prove the world is modeled completely."
+      "A predicate is a column on the list, like invited or vegetarian.",
+      "Asking about strangers outside the party is outside the domain."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Facts parent(ana,bo) and a rule parent(x,y) -> ancestor(x,y) support one bounded ancestor query under named assumptions.",
-      "A symbolic knowledge base uses explicit constants, predicates, relations, facts, rules, and queries whose meaning depends on the declared domain and closed- or open-world assumptions.",
-      "Declare the vocabulary, domain, identity, and open- or closed-world policy; distinguish explicit negation, contradiction, and missing knowledge."
+      "ask(ana, cy)",
+      "ask(cy, ana)",
+      "ask(dee, eli)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Chain",
         "state": {
-          "boundedEvidence": "Facts parent(ana,bo) and a rule parent(x,y) -> ancestor(x,y) support one bounded ancestor query under named assumptions."
+          "path": "ana -> bo -> cy",
+          "answer": "true"
         },
-        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+        "explanation": "Facts parent(ana,bo) and the ancestor rule support the bounded query."
       },
       {
         "step": 2,
-        "focus": "Model",
+        "focus": "Closed",
         "state": {
-          "operationalRule": "A symbolic knowledge base uses explicit constants, predicates, relations, facts, rules, and queries whose meaning depends on the declared domain and closed- or open-world assumptions."
+          "answer": "false"
         },
-        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+        "explanation": "Under a closed world with known people, an unproven fact is false."
       },
       {
         "step": 3,
-        "focus": "Limit",
+        "focus": "Outside",
         "state": {
-          "correction": "Declare the vocabulary, domain, identity, and open- or closed-world policy; distinguish explicit negation, contradiction, and missing knowledge."
+          "answer": "unknown"
         },
-        "explanation": "State what the evidence does not establish and reject the misconception: If a fact is not stored in a symbolic knowledge base, it is false in every reasoning system."
+        "explanation": "Named assumptions mark people outside the domain as unknown."
       }
     ],
-    "textAlternative": "Starting artifact: Facts parent(ana,bo) and a rule parent(x,y) -> ancestor(x,y) support one bounded ancestor query under named assumptions. Step 1, Observe. State: boundedEvidence: Facts parent(ana,bo) and a rule parent(x,y) -> ancestor(x,y) support one bounded ancestor query under named assumptions.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: A symbolic knowledge base uses explicit constants, predicates, relations, facts, rules, and queries whose meaning depends on the declared domain and closed- or open-world assumptions.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Declare the vocabulary, domain, identity, and open- or closed-world policy; distinguish explicit negation, contradiction, and missing knowledge.. State what the evidence does not establish and reject the misconception: If a fact is not stored in a symbolic knowledge base, it is false in every reasoning system."
+    "textAlternative": "Tracing symbolic queries. Step 1, Chain: path is ana -> bo -> cy; answer is true. Facts parent(ana,bo) and the ancestor rule support the bounded query. Step 2, Closed: answer is false. Under a closed world with known people, an unproven fact is false. Step 3, Outside: answer is unknown. Named assumptions mark people outside the domain as unknown."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Symbols, predicates and rules: bounded direct case”: state its starting evidence, apply the Symbols, predicates and rules rule, and give the observable result in three short lines.",
+      "prompt": "For \"A small family knowledge base\", explain how facts parent(ana,bo) and a rule parent(x,y) -> ancestor(x,y) support one bounded ancestor query under named assumptions.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Facts.",
+        "Rule.",
+        "Assumption."
       ],
       "expectedEvidence": [
-        "Named example: Symbols, predicates and rules: bounded direct case.",
-        "Starting evidence: Facts parent(ana,bo) and a rule parent(x,y) -> ancestor(x,y) support one bounded ancestor query under named assumptions.",
-        "Core rule: A symbolic knowledge base uses explicit constants, predicates, relations, facts, rules, and queries whose meaning depends on the declared domain and closed- or open-world assumptions.",
-        "Observable result: This example supports only the atomic outcome because Declare the vocabulary, domain, identity, and open- or closed-world policy; distinguish explicit negation, contradiction, and missing knowledge.",
-        "Boundary check: Declare the vocabulary, domain, identity, and open- or closed-world policy; distinguish explicit negation, contradiction, and missing knowledge."
+        "Names the example \"A small family knowledge base\": a closed world was assumed silently.",
+        "Facts parent(ana,bo) and a rule parent(x,y) -> ancestor(x,y) are stored.",
+        "They support one bounded ancestor query under named assumptions.",
+        "Answers are honest about gaps."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed case: The database lacks vaccinated(bo); an open-world policy returns unknown rather than concluding not vaccinated.",
+      "prompt": "Add sibling(x, y) as a rule (same parent, different people) and test three queries, stating which answers depend on the closed-world assumption.",
       "scaffold": [
-        "Identify which assumption, population, input, or objective changed.",
-        "Preserve provenance and the declared failure boundary."
+        "x != y.",
+        "Try someone with no parents listed."
       ],
       "expectedEvidence": [
-        "A symbolic knowledge base uses explicit constants, predicates, relations, facts, rules, and queries whose meaning depends on the declared domain and closed- or open-world assumptions.",
-        "Natural-language ambiguity is not removed automatically, absence can mean false or unknown, inconsistent rules can derive conflicts, names need identity assumptions, and symbolic truth does not prove the world is modeled completely."
+        "Three queries correct.",
+        "Assumptions stated."
       ]
     },
     "farTransfer": {
-      "prompt": "Design a neutral-context example or evaluation for Symbols, predicates and rules and list the evidence that would support and falsify its bounded claim.",
+      "prompt": "Build a small knowledge base of course prerequisites with a rule for can_take(student, course). Decide per predicate whether a closed or open world is appropriate, and justify it.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+        "Completed courses may be incomplete.",
+        "The catalogue is complete."
       ],
       "expectedEvidence": [
-        "Create and evaluate a small symbolic knowledge base while stating closed- or open-world assumptions.",
-        "Declare the vocabulary, domain, identity, and open- or closed-world policy; distinguish explicit negation, contradiction, and missing knowledge."
+        "Mixed assumptions justified.",
+        "Queries tested."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "ai.knowledge.symbolic.misconception",
-      "explanation": "Declare the vocabulary, domain, identity, and open- or closed-world policy; distinguish explicit negation, contradiction, and missing knowledge.",
-      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: The database lacks vaccinated(bo); an open-world policy returns unknown rather than concluding not vaccinated."
+      "explanation": "For every knowledge base, write down **the domain** and **closed or open world** before answering queries. Return **unknown** when you truly don't know.",
+      "retryPrompt": "Apply this to \"The missing parent\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to create and evaluate a small symbolic knowledge base while stating closed- or open-world assumptions. Keep this boundary in view: Natural-language ambiguity is not removed automatically, absence can mean false or unknown, inconsistent rules can derive conflicts, names need identity assumptions, and symbolic truth does not prove the world is modeled completely.",
+    "summary": "To create and evaluate a small symbolic knowledge base while stating closed- or open-world assumptions, write constants, predicates, facts and rules, bound your queries, declare the domain, and treat missing facts as false only under a stated closed-world assumption.",
     "retrievalPrompts": [
-      "Explain Symbols, predicates and rules with one technical mechanism, one evidence requirement, and one non-claim.",
-      "Why is this overclaim invalid: If a fact is not stored in a symbolic knowledge base, it is false in every reasoning system.",
-      "Apply the boundary to: The database lacks vaccinated(bo); an open-world policy returns unknown rather than concluding not vaccinated."
+      "What is a predicate?",
+      "What does the closed-world assumption say?",
+      "When should an answer be unknown?"
     ],
     "nextReviewPrompt": "Next: continue to “Logical inference and consistency”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

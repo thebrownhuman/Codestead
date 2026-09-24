@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "An ML problem statement defines the prediction unit, target and observation time, decision user, action enabled, baseline, error costs, population, non-goals, and measurable success before model choice.",
+    "summary": "A machine-learning project should start with a **problem statement**, not a model. Pin down: the **prediction unit** (one ticket? one customer per month?), the **target** and **when** it's known versus when you predict, **who uses** the prediction and **what action** it enables, the **population** it applies to, a simple **baseline** to beat, the **costs of each error type** (missing an urgent case vs. wasting a specialist's time), **non-goals** (what the system will not do) and a **measurable success criterion**. Grabbing whatever label column exists and maximising accuracy often produces a model that's accurate at something nobody needs, or that uses information not available at prediction time.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A support triage project predicts whether a ticket needs specialist review at intake, compares a rules baseline, and measures missed urgent cases plus reviewer workload. Your goal is to write a measurable ML problem statement with non-goals and baseline. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner finds a column called resolved_by_specialist in old support data and trains a model with 94% accuracy. Nobody can use it: the column is filled in after the ticket closes, the model used the closing notes to predict it, and 94% equals always guessing \"no\". A support triage project predicts whether a ticket needs specialist review at intake, compares a rules baseline, and measures missed urgent cases plus reviewer workload. In this lesson you'll write a measurable ML problem statement with non-goals and baseline.\n\n```predict\n{\"question\": \"A model predicts a label with 94% accuracy. What should you check first?\", \"options\": [\"Which algorithm was used\", \"What a trivial baseline scores, and whether the inputs exist at prediction time\"], \"answer\": 1, \"why\": \"Accuracy without a baseline and timing check means little.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: python quality project; Problem and environment characteristics; pf problem io. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Debugger and final project**, **Problem and environment characteristics** and **Inputs, outputs and constraints** (defining inputs and outputs precisely)."
       },
       {
-        "heading": "Bounded operational model",
-        "body": "An ML problem statement defines the prediction unit, target and observation time, decision user, action enabled, baseline, error costs, population, non-goals, and measurable success before model choice. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+        "heading": "The model: a problem card before any model",
+        "body": "```python\nproblem = {\n    \"unit\": \"one support ticket\",           # what one prediction is about.\n    \"predict_at\": \"ticket creation (title, body, product, customer tier only)\",\n    \"target\": \"needs specialist review (decided by lead within 48h)\",\n    \"user_action\": \"route to specialist queue immediately\",\n    \"population\": \"English tickets for products A and B\",\n    # Beat this simple rule first.\n    \"baseline\": \"rule: tier == 'enterprise' or 'outage' in title\",\n    \"error_costs\": \"missed urgent ticket >> extra specialist review\",\n    \"success\": \"catch >= 90% of urgent tickets with <= 30% more specialist load\",\n    # Out of scope on purpose.\n    \"non_goals\": [\"auto-reply to customers\", \"rank staff performance\"],\n}\nmissing = [k for k in (\"unit\", \"predict_at\", \"target\", \"baseline\", \"success\", \"non_goals\") if not problem.get(k)]\nprint(\"complete\" if not missing else missing)     # complete\n```\n\n```reveal\n{\"prompt\": \"Why write non-goals?\", \"answer\": \"They stop scope creep and misuse. If the model is later proposed for ranking staff, the card shows it was never designed or evaluated for that.\"}\n```"
       },
       {
-        "heading": "Failure boundary and non-claim",
-        "body": "A measurable label can still be a harmful proxy, historical decisions can contaminate targets, prediction may not improve the decision, metrics can conflict, and deployment prevalence can differ from training. The learner must reject this overclaim: Choosing an available target column and maximizing its test accuracy is enough to define a useful ML problem."
+        "heading": "Baselines and error costs",
+        "body": "```predict\n{\"question\": \"Only 6% of tickets need a specialist. What accuracy does \\\"always say no\\\" get?\", \"options\": [\"About 50%\", \"About 94%, while catching none of the urgent tickets\"], \"answer\": 1, \"why\": \"Measure what matters: missed urgent cases and workload.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Specify prediction unit, target, decision context and cost of errors before selecting a model.",
-      "Write a measurable ML problem statement with non-goals and baseline."
+      "Write a problem card with unit, timing, target, user action, population, baseline, error costs, success and non-goals.",
+      "Spot targets or inputs unavailable at prediction time."
     ],
     "excludes": [
-      "A measurable label can still be a harmful proxy, historical decisions can contaminate targets, prediction may not improve the decision, metrics can conflict, and deployment prevalence can differ from training."
+      "Model training (later lessons).",
+      "Project management methods."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "ai.data.problem-target.example.direct",
-      "title": "Problem, target and success measure: bounded direct case",
+      "title": "Triage for specialist support tickets",
       "situation": "A support triage project predicts whether a ticket needs specialist review at intake, compares a rules baseline, and measures missed urgent cases plus reviewer workload.",
       "walkthrough": [
-        "Step 1 — Observe the exact data, state, metric, or tool behavior: A support triage project predicts whether a ticket needs specialist review at intake, compares a rules baseline, and measures missed urgent cases plus reviewer workload.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the claim boundary with: Specify target timing, decision context, population, baseline, error costs, non-goals, and stop criteria; reject labels that do not represent the intended outcome."
+        "**Predicts whether a ticket needs specialist review at intake:** only fields available at creation are allowed.",
+        "**Compares a rules baseline:** enterprise tier or outage in the title.",
+        "**Measures missed urgent cases plus reviewer workload:** we check at least 90% of urgent tickets are caught with at most 30% more load."
       ],
-      "result": "This example supports only the atomic outcome because Specify target timing, decision context, population, baseline, error costs, non-goals, and stop criteria; reject labels that do not represent the intended outcome."
+      "result": "The team knows exactly what success means before training anything."
     },
     {
       "id": "ai.data.problem-target.example.stress",
-      "title": "Problem, target and success measure: stress and transfer case",
-      "situation": "Past approval is rejected as a creditworthiness target because it encodes prior policy and cannot establish the desired outcome fairly.",
+      "title": "The 94% model nobody could use",
+      "situation": "A model predicted resolved_by_specialist with 94% accuracy using closing notes written after resolution.",
       "walkthrough": [
-        "Step 1 — Name the changed population, input, assumption, or failure: Past approval is rejected as a creditworthiness target because it encodes prior policy and cannot establish the desired outcome fairly.",
-        "Step 2 — Keep the non-claim visible: A measurable label can still be a harmful proxy, historical decisions can contaminate targets, prediction may not improve the decision, metrics can conflict, and deployment prevalence can differ from training.",
-        "Step 3 — Reject the tempting overclaim: Choosing an available target column and maximizing its test accuracy is enough to define a useful ML problem."
+        "The target and inputs were only known after the ticket closed.",
+        "Redefine prediction time as ticket creation and drop later fields.",
+        "Compare with the always-no baseline and the rules baseline."
       ],
-      "result": "This case demonstrates the declared outcome: Write a measurable ML problem statement with non-goals and baseline."
+      "result": "The project measures a usable prediction against honest baselines."
     }
   ],
   "misconceptions": [
     {
       "id": "ai.data.problem-target.misconception",
       "mistakenBelief": "Choosing an available target column and maximizing its test accuracy is enough to define a useful ML problem.",
-      "correction": "Specify target timing, decision context, population, baseline, error costs, non-goals, and stop criteria; reject labels that do not represent the intended outcome.",
-      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: Choosing an available target column and maximizing its test accuracy is enough to define a useful ML problem."
+      "correction": "A useful problem defines the unit, timing, user action, baseline, error costs, success and non-goals before choosing a target or model.",
+      "diagnosticPrompt": "In \"The 94% model nobody could use\", what was wrong with the timing?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a provenance-controlled laboratory that defines the decision, inspects samples and labels, derives transformations, and seals evaluation partitions can introduce Problem, target and success measure only after its canonical technical definition and evidence boundary are stated.",
+    "example": "A problem card is like **a brief for an architect**. \"Build something with nice rooms\" gets a lovely house in the wrong place. A good brief says **who lives there, what they do, the budget, what's off-limits, and how you'll judge success**. Only then does choosing materials (the model) make sense.",
     "usefulFor": [
-      "problem framing, data quality, preprocessing, and leakage control"
+      "remembering brief before blueprint",
+      "non-goals are the off-limits rooms"
     ],
     "limitations": [
-      "clean procedures cannot recover absent populations, authorize data, or make a harmful target appropriate",
-      "A measurable label can still be a harmful proxy, historical decisions can contaminate targets, prediction may not improve the decision, metrics can conflict, and deployment prevalence can differ from training."
+      "A baseline is the existing house you must beat.",
+      "Error costs are which mistakes are expensive to fix."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A support triage project predicts whether a ticket needs specialist review at intake, compares a rules baseline, and measures missed urgent cases plus reviewer workload.",
-      "An ML problem statement defines the prediction unit, target and observation time, decision user, action enabled, baseline, error costs, population, non-goals, and measurable success before model choice.",
-      "Specify target timing, decision context, population, baseline, error costs, non-goals, and stop criteria; reject labels that do not represent the intended outcome."
+      "define unit and prediction time",
+      "set baseline and error costs",
+      "state success and non-goals"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Scope",
         "state": {
-          "boundedEvidence": "A support triage project predicts whether a ticket needs specialist review at intake, compares a rules baseline, and measures missed urgent cases plus reviewer workload."
+          "unit": "ticket",
+          "predict_at": "creation"
         },
-        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+        "explanation": "A support triage project predicts whether a ticket needs specialist review at intake."
       },
       {
         "step": 2,
-        "focus": "Model",
+        "focus": "Compare",
         "state": {
-          "operationalRule": "An ML problem statement defines the prediction unit, target and observation time, decision user, action enabled, baseline, error costs, population, non-goals, and measurable success before model choice."
+          "baseline": "tier or outage rule"
         },
-        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+        "explanation": "The project compares a rules baseline before any model."
       },
       {
         "step": 3,
-        "focus": "Limit",
+        "focus": "Measure",
         "state": {
-          "correction": "Specify target timing, decision context, population, baseline, error costs, non-goals, and stop criteria; reject labels that do not represent the intended outcome."
+          "success": ">= 90% urgent caught, <= 30% more load"
         },
-        "explanation": "State what the evidence does not establish and reject the misconception: Choosing an available target column and maximizing its test accuracy is enough to define a useful ML problem."
+        "explanation": "It measures missed urgent cases plus reviewer workload."
       }
     ],
-    "textAlternative": "Starting artifact: A support triage project predicts whether a ticket needs specialist review at intake, compares a rules baseline, and measures missed urgent cases plus reviewer workload. Step 1, Observe. State: boundedEvidence: A support triage project predicts whether a ticket needs specialist review at intake, compares a rules baseline, and measures missed urgent cases plus reviewer workload.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: An ML problem statement defines the prediction unit, target and observation time, decision user, action enabled, baseline, error costs, population, non-goals, and measurable success before model choice.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Specify target timing, decision context, population, baseline, error costs, non-goals, and stop criteria; reject labels that do not represent the intended outcome.. State what the evidence does not establish and reject the misconception: Choosing an available target column and maximizing its test accuracy is enough to define a useful ML problem."
+    "textAlternative": "Tracing a problem card. Step 1, Scope: unit is ticket; predict_at is creation. A support triage project predicts whether a ticket needs specialist review at intake. Step 2, Compare: baseline is tier or outage rule. The project compares a rules baseline before any model. Step 3, Measure: success is >= 90% urgent caught, <= 30% more load. It measures missed urgent cases plus reviewer workload."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Problem, target and success measure: bounded direct case”: state its starting evidence, apply the Problem, target and success measure rule, and give the observable result in three short lines.",
+      "prompt": "For \"Triage for specialist support tickets\", explain how a support triage project predicts whether a ticket needs specialist review at intake, compares a rules baseline, and measures missed urgent cases plus reviewer workload.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Unit and timing.",
+        "Baseline.",
+        "Success."
       ],
       "expectedEvidence": [
-        "Named example: Problem, target and success measure: bounded direct case.",
-        "Starting evidence: A support triage project predicts whether a ticket needs specialist review at intake, compares a rules baseline, and measures missed urgent cases plus reviewer workload.",
-        "Core rule: An ML problem statement defines the prediction unit, target and observation time, decision user, action enabled, baseline, error costs, population, non-goals, and measurable success before model choice.",
-        "Observable result: This example supports only the atomic outcome because Specify target timing, decision context, population, baseline, error costs, non-goals, and stop criteria; reject labels that do not represent the intended outcome.",
-        "Boundary check: Specify target timing, decision context, population, baseline, error costs, non-goals, and stop criteria; reject labels that do not represent the intended outcome."
+        "Names the example \"Triage for specialist support tickets\": a 94% model was unusable.",
+        "A support triage project predicts whether a ticket needs specialist review at intake and compares a rules baseline.",
+        "It measures missed urgent cases plus reviewer workload.",
+        "The team knows exactly what success means before training anything."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed case: Past approval is rejected as a creditworthiness target because it encodes prior policy and cannot establish the desired outcome fairly.",
+      "prompt": "Write a problem card for predicting which library books will be requested next week. Include every field from the example.",
       "scaffold": [
-        "Identify which assumption, population, input, or objective changed.",
-        "Preserve provenance and the declared failure boundary."
+        "Prediction unit: one book.",
+        "What's known on Monday?"
       ],
       "expectedEvidence": [
-        "An ML problem statement defines the prediction unit, target and observation time, decision user, action enabled, baseline, error costs, population, non-goals, and measurable success before model choice.",
-        "A measurable label can still be a harmful proxy, historical decisions can contaminate targets, prediction may not improve the decision, metrics can conflict, and deployment prevalence can differ from training."
+        "All fields filled.",
+        "Baseline stated."
       ]
     },
     "farTransfer": {
-      "prompt": "Design a neutral-context example or evaluation for Problem, target and success measure and list the evidence that would support and falsify its bounded claim.",
+      "prompt": "Take a vague request (\"use AI to reduce customer churn\"). Interview a pretend stakeholder with five questions, then write a full problem card, two non-goals and a success criterion tied to a real action.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+        "What action follows a prediction?",
+        "What does each error cost?"
       ],
       "expectedEvidence": [
-        "Write a measurable ML problem statement with non-goals and baseline.",
-        "Specify target timing, decision context, population, baseline, error costs, non-goals, and stop criteria; reject labels that do not represent the intended outcome."
+        "Card complete.",
+        "Action and costs explicit."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "ai.data.problem-target.misconception",
-      "explanation": "Specify target timing, decision context, population, baseline, error costs, non-goals, and stop criteria; reject labels that do not represent the intended outcome.",
-      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: Past approval is rejected as a creditworthiness target because it encodes prior policy and cannot establish the desired outcome fairly."
+      "explanation": "Before any modelling, fill the card: **unit, prediction time, target, user action, population, baseline, error costs, success, non-goals**. If a field is blank, stop and ask.",
+      "retryPrompt": "Apply this to \"The 94% model nobody could use\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to write a measurable ML problem statement with non-goals and baseline. Keep this boundary in view: A measurable label can still be a harmful proxy, historical decisions can contaminate targets, prediction may not improve the decision, metrics can conflict, and deployment prevalence can differ from training.",
+    "summary": "To write a measurable ML problem statement with non-goals and baseline, define the prediction unit and time, the target, the user and action, the population, a simple baseline, error costs and a measurable success criterion, and list what the system will not do.",
     "retrievalPrompts": [
-      "Explain Problem, target and success measure with one technical mechanism, one evidence requirement, and one non-claim.",
-      "Why is this overclaim invalid: Choosing an available target column and maximizing its test accuracy is enough to define a useful ML problem.",
-      "Apply the boundary to: Past approval is rejected as a creditworthiness target because it encodes prior policy and cannot establish the desired outcome fairly."
+      "Why does prediction time matter?",
+      "Why compare with a baseline?",
+      "What are non-goals for?"
     ],
     "nextReviewPrompt": "Next: continue to “Sampling, labels and data quality”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

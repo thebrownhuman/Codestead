@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "An overridden instance method is selected at runtime from the receiver object's class, while overload resolution, static methods, private methods, and fields follow different compile-time rules.",
+    "summary": "When you call an **instance method** through a reference, Java picks the implementation from the **actual object's class at run time**: `Shape s = new Circle(2); s.area();` runs **Circle's** area. That's **dynamic dispatch**, and it's what makes polymorphism work. But not everything dispatches dynamically. **Overloads** are chosen at compile time from declared types. **Static methods** and **fields** are resolved by the declared type, and **private** methods can't be overridden. Always write **`@Override`**: if the signature doesn't actually override (a typo, wrong parameter type), the compiler reports it instead of silently creating a new method.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A Shape reference holding a Circle invokes Circle.area at runtime, and @Override lets the compiler verify the intended signature. Your goal is to trace polymorphic calls and repair an accidental non-override. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner writes `public boolean equals(Circle other)` in Circle, expecting HashSet to use it, and duplicates keep appearing. The method **overloads** equals(Object) instead of overriding it. Separately, `Shape s = new Circle(2)` correctly calls Circle's area. A Shape reference holding a Circle invokes Circle.area at runtime, and @Override lets the compiler verify the intended signature. In this lesson you'll trace polymorphic calls and repair an accidental non-override.\n\n```predict\n{\"question\": \"`Shape s = new Circle(2); s.area();` Whose area runs?\", \"options\": [\"Shape's\", \"Circle's: overridden methods dispatch on the object's runtime class\"], \"answer\": 1, \"why\": \"The reference type decides what you may call; the object decides which version runs.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Constructors and invariants; Class inheritance; Overloading and local scope. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Constructors and invariants**, **Class inheritance** and **Overloading and local scope** (compile-time overload choice)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "An overridden instance method is selected at runtime from the receiver object's class, while overload resolution, static methods, private methods, and fields follow different compile-time rules. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The rule: overrides dispatch at run time, other things don't",
+        "body": "```java\nimport java.util.HashSet;\nimport java.util.Set;\n\nclass Shape {\n    double area() { return 0; }\n    static String kind() { return \"shape\"; }\n}\n\nclass Circle extends Shape {\n    final double r;\n    Circle(double r) { this.r = r; }\n\n    @Override double area() { return Math.PI * r * r; }     // real override: checked.\n    static String kind() { return \"circle\"; }               // hides, doesn't override.\n\n    @Override public boolean equals(Object o) {            // Object parameter: overrides.\n        return o instanceof Circle c && c.r == r;\n    }\n    @Override public int hashCode() { return Double.hashCode(r); }\n    // public boolean equals(Circle c) { ... }  // with @Override: compile error. Good.\n}\n\npublic class Dispatch {\n    public static void main(String[] args) {\n        Shape s = new Circle(2);\n        System.out.printf(\"%.2f%n\", s.area());   // 12.57: Circle's version.\n        System.out.println(Shape.kind());           // shape: static, by type named.\n        Set<Shape> set = new HashSet<>();\n        set.add(new Circle(1)); set.add(new Circle(1));\n        System.out.println(set.size());             // 1\n    }\n}\n```\n\n| Member | Chosen by |\n|---|---|\n| overridden instance method. | runtime class of the object. |\n| overload. | declared argument types (compile time). |\n| static method, field. | declared type (compile time). |\n\n```reveal\n{\"prompt\": \"Why did equals(Circle) not work in a HashSet?\", \"answer\": \"HashSet calls equals(Object). A method taking Circle is a different, overloaded method, so the inherited Object.equals (identity) still ran.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "A signature mismatch creates an overload instead of an override, covariant returns are allowed, constructors are not dispatched, and calling overridable methods during construction can observe incomplete state. The learner must reject this documented misconception: Every same-named member uses dynamic dispatch, including fields, static methods, overloads, and constructor calls."
+        "heading": "@Override as a safety net",
+        "body": "```predict\n{\"question\": \"You add @Override to `public boolean equals(Circle other)`. What happens?\", \"options\": [\"It overrides equals\", \"Compile error: method does not override a supertype method\"], \"answer\": 1, \"why\": \"That error is the point: it catches the mistake immediately.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Predict runtime method selection and distinguish overriding from overloading and hiding.",
-      "Trace polymorphic calls and repair an accidental non-override."
+      "Trace dynamic dispatch of overridden methods through base references.",
+      "Distinguish overrides from overloads, statics and fields, and use @Override to catch non-overrides."
     ],
     "excludes": [
-      "A signature mismatch creates an overload instead of an override, covariant returns are allowed, constructors are not dispatched, and calling overridable methods during construction can observe incomplete state."
+      "Covariant return types in depth.",
+      "Default method conflicts."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "java.abstraction.dispatch.example.direct",
-      "title": "Overriding and dynamic dispatch: direct language case",
+      "title": "A Shape reference holding a Circle",
       "situation": "A Shape reference holding a Circle invokes Circle.area at runtime, and @Override lets the compiler verify the intended signature.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A Shape reference holding a Circle invokes Circle.area at runtime, and @Override lets the compiler verify the intended signature.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Dynamic dispatch applies to overridden instance methods on the runtime receiver; use @Override and distinguish it from overload selection and member hiding."
+        "**A Shape reference holding a Circle invokes Circle.area at runtime:** s.area() prints 12.57.",
+        "**@Override lets the compiler verify the intended signature:** equals(Circle) marked @Override fails to compile.",
+        "**Repair:** equals(Object) with @Override is a real override, so the HashSet will keep one Circle(1)."
       ],
-      "result": "The example meets the atomic outcome because Dynamic dispatch applies to overridden instance methods on the runtime receiver; use @Override and distinguish it from overload selection and member hiding."
+      "result": "Polymorphic calls behave as intended, and signature mistakes can't hide."
     },
     {
       "id": "java.abstraction.dispatch.example.boundary",
-      "title": "Overriding and dynamic dispatch: boundary and transfer case",
-      "situation": "A static method with the same signature is hidden rather than overridden, so the reference's compile-time type determines the selected declaration.",
+      "title": "The static that didn't dispatch",
+      "situation": "`Shape s = new Circle(2); s.kind()` returns \"shape\", and the learner expected \"circle\".",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A static method with the same signature is hidden rather than overridden, so the reference's compile-time type determines the selected declaration.",
-        "Step 2 — Keep the language boundary explicit: A signature mismatch creates an overload instead of an override, covariant returns are allowed, constructors are not dispatched, and calling overridable methods during construction can observe incomplete state.",
-        "Step 3 — Reject the tempting but incorrect rule: Every same-named member uses dynamic dispatch, including fields, static methods, overloads, and constructor calls."
+        "Static methods belong to the class and aren't dispatched on the object.",
+        "The call is resolved from the declared type Shape.",
+        "Make kind an instance method with @Override if it should vary by object."
       ],
-      "result": "This case demonstrates the declared outcome: Trace polymorphic calls and repair an accidental non-override."
+      "result": "Each object now reports its own kind."
     }
   ],
   "misconceptions": [
     {
       "id": "java.abstraction.dispatch.misconception",
       "mistakenBelief": "Every same-named member uses dynamic dispatch, including fields, static methods, overloads, and constructor calls.",
-      "correction": "Dynamic dispatch applies to overridden instance methods on the runtime receiver; use @Override and distinguish it from overload selection and member hiding.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Every same-named member uses dynamic dispatch, including fields, static methods, overloads, and constructor calls."
+      "correction": "Only overridden instance methods dispatch on the runtime class. Overloads, static methods and fields are resolved at compile time from declared types.",
+      "diagnosticPrompt": "In \"The static that didn't dispatch\", why did kind() return shape?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a plug-and-socket system in which contracts describe compatible behavior while components hide their implementation can introduce Overriding and dynamic dispatch, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "example": "Dynamic dispatch is like **calling a phone number that forwards to whoever currently holds the role**: dial \"the Shape\", and the Circle actually answers in its own voice. Static methods are **a printed directory entry**: you get whatever was listed under the name you looked up, regardless of who's really there.",
     "usefulFor": [
-      "interfaces, substitution, dispatch, and composition"
+      "remembering forwarded calls vs printed directory",
+      "@Override = confirming the forwarding is set up"
     ],
     "limitations": [
-      "overload resolution, method hiding, constructor order, and multiple interface defaults require Java-specific rules",
-      "A signature mismatch creates an overload instead of an override, covariant returns are allowed, constructors are not dispatched, and calling overridable methods during construction can observe incomplete state."
+      "Phone forwarding can fail silently; @Override makes failures loud.",
+      "Overloads are chosen by the directory too: compile time."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A Shape reference holding a Circle invokes Circle.area at runtime, and @Override lets the compiler verify the intended signature.",
-      "An overridden instance method is selected at runtime from the receiver object's class, while overload resolution, static methods, private methods, and fields follow different compile-time rules.",
-      "Dynamic dispatch applies to overridden instance methods on the runtime receiver; use @Override and distinguish it from overload selection and member hiding."
+      "Shape s = new Circle(2)",
+      "s.area()",
+      "set.add(new Circle(1)) twice"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Declare",
         "state": {
-          "evidence": "A Shape reference holding a Circle invokes Circle.area at runtime, and @Override lets the compiler verify the intended signature."
+          "reference type": "Shape",
+          "object class": "Circle"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "A Shape reference is holding a Circle object."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Dispatch",
         "state": {
-          "rule": "An overridden instance method is selected at runtime from the receiver object's class, while overload resolution, static methods, private methods, and fields follow different compile-time rules."
+          "runs": "Circle.area",
+          "result": "12.57"
         },
-        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "The reference invokes Circle.area at runtime."
       },
       {
         "step": 3,
         "focus": "Verify",
         "state": {
-          "correction": "Dynamic dispatch applies to overridden instance methods on the runtime receiver; use @Override and distinguish it from overload selection and member hiding."
+          "equals": "overridden (Object parameter)",
+          "set size": "1"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Every same-named member uses dynamic dispatch, including fields, static methods, overloads, and constructor calls."
+        "explanation": "@Override lets the compiler verify the intended signature, so the HashSet works."
       }
     ],
-    "textAlternative": "Starting artifact: A Shape reference holding a Circle invokes Circle.area at runtime, and @Override lets the compiler verify the intended signature. Step 1, Observe. State: evidence: A Shape reference holding a Circle invokes Circle.area at runtime, and @Override lets the compiler verify the intended signature.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: An overridden instance method is selected at runtime from the receiver object's class, while overload resolution, static methods, private methods, and fields follow different compile-time rules.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Dynamic dispatch applies to overridden instance methods on the runtime receiver; use @Override and distinguish it from overload selection and member hiding.. Compare the observation with the correction and explain why the misconception fails: Every same-named member uses dynamic dispatch, including fields, static methods, overloads, and constructor calls."
+    "textAlternative": "Tracing dynamic dispatch. Step 1, Declare: reference type is Shape; object class is Circle. A Shape reference is holding a Circle object. Step 2, Dispatch: runs is Circle.area; result is 12.57. The reference invokes Circle.area at runtime. Step 3, Verify: equals is overridden (Object parameter); set size is 1. @Override lets the compiler verify the intended signature, so the HashSet works."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Overriding and dynamic dispatch: direct language case”: state its starting evidence, apply the Overriding and dynamic dispatch rule, and give the observable result in three short lines.",
+      "prompt": "For \"A Shape reference holding a Circle\", explain how a Shape reference holding a Circle invokes Circle.area at runtime, and @Override lets the compiler verify the intended signature.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Declare.",
+        "Dispatch.",
+        "Verify."
       ],
       "expectedEvidence": [
-        "Named example: Overriding and dynamic dispatch: direct language case.",
-        "Starting evidence: A Shape reference holding a Circle invokes Circle.area at runtime, and @Override lets the compiler verify the intended signature.",
-        "Core rule: An overridden instance method is selected at runtime from the receiver object's class, while overload resolution, static methods, private methods, and fields follow different compile-time rules.",
-        "Observable result: The example meets the atomic outcome because Dynamic dispatch applies to overridden instance methods on the runtime receiver; use @Override and distinguish it from overload selection and member hiding.",
-        "Boundary check: Dynamic dispatch applies to overridden instance methods on the runtime receiver; use @Override and distinguish it from overload selection and member hiding."
+        "Names the example \"A Shape reference holding a Circle\": equals(Circle) created duplicates.",
+        "A Shape reference holding a Circle invokes Circle.area at runtime.",
+        "@Override lets the compiler verify the intended signature.",
+        "Polymorphic calls behave as intended."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A static method with the same signature is hidden rather than overridden, so the reference's compile-time type determines the selected declaration.",
+      "prompt": "Given Animal with speak() and a static create(), and Dog overriding speak() and hiding create(), predict the output of calls through an Animal reference to a Dog. Check by running.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Instance: runtime class.",
+        "Static: declared type."
       ],
       "expectedEvidence": [
-        "An overridden instance method is selected at runtime from the receiver object's class, while overload resolution, static methods, private methods, and fields follow different compile-time rules.",
-        "A signature mismatch creates an overload instead of an override, covariant returns are allowed, constructors are not dispatched, and calling overridable methods during construction can observe incomplete state."
+        "Predictions confirmed.",
+        "Each explained."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Overriding and dynamic dispatch, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Find and fix three accidental non-overrides in a small codebase (a misspelled method, a wrong parameter type, a narrower access modifier). Add @Override everywhere relevant and show the compiler errors that would have caught each.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Search for methods matching base names.",
+        "Recompile after adding @Override."
       ],
       "expectedEvidence": [
-        "Trace polymorphic calls and repair an accidental non-override.",
-        "Dynamic dispatch applies to overridden instance methods on the runtime receiver; use @Override and distinguish it from overload selection and member hiding."
+        "Three bugs fixed.",
+        "All overrides annotated."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "java.abstraction.dispatch.misconception",
-      "explanation": "Dynamic dispatch applies to overridden instance methods on the runtime receiver; use @Override and distinguish it from overload selection and member hiding.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A static method with the same signature is hidden rather than overridden, so the reference's compile-time type determines the selected declaration."
+      "explanation": "On every method meant to override, **write @Override**. When tracing a call, ask: **is it an overridden instance method (runtime class) or an overload, static or field (declared type)?**",
+      "retryPrompt": "Apply this to \"The static that didn't dispatch\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to trace polymorphic calls and repair an accidental non-override. Keep this boundary in view: A signature mismatch creates an overload instead of an override, covariant returns are allowed, constructors are not dispatched, and calling overridable methods during construction can observe incomplete state.",
+    "summary": "To trace polymorphic calls, remember overridden instance methods run the version from the object's runtime class, while overloads, static methods and fields are resolved from declared types at compile time, and mark every intended override with @Override so signature mistakes become compile errors.",
     "retrievalPrompts": [
-      "Explain Overriding and dynamic dispatch using canonical Java: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Every same-named member uses dynamic dispatch, including fields, static methods, overloads, and constructor calls.",
-      "Predict this case from memory: A static method with the same signature is hidden rather than overridden, so the reference's compile-time type determines the selected declaration."
+      "Which version runs for s.area() when s holds a Circle?",
+      "Are static methods dynamically dispatched?",
+      "Why use @Override?"
     ],
     "nextReviewPrompt": "Next: continue to “Composition over inheritance”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

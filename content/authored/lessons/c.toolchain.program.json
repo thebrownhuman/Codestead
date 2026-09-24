@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A hosted C program starts through a conforming main definition, returns an integer termination status, and receives arguments only through a declared supported main signature.",
+    "summary": "Every hosted C program starts at **`main`**, and the standard allows two shapes: `int main(void)` (no arguments) or `int main(int argc, char *argv[])` (command-line arguments). `main` **returns an int**: the program's **exit status**. `0` (or `EXIT_SUCCESS`) means success; non-zero (like `EXIT_FAILURE`) means something went wrong, and shells, scripts and CI read that number. `void main()` is **not standard C**: some compilers accept it, but the exit status becomes unreliable. The **translation unit** is one `.c` file after its `#include`s are pasted in: the chunk the compiler works on.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A minimal hosted program declares int main(void), prints one line, and returns zero after successful completion. Your goal is to write and explain a minimal conforming hosted C program. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner copies an old tutorial that uses `void main()`. It runs on their laptop, but in CI the test script sometimes reports failure even though the program printed the right answer. A minimal hosted program declares int main(void), prints one line, and returns zero after successful completion. In this lesson you'll write and explain a minimal conforming hosted C program.\n\n```predict\n{\"question\": \"What does `return 0;` at the end of main communicate?\", \"options\": [\"The value 0 is printed\", \"The program finished successfully (exit status 0)\"], \"answer\": 1, \"why\": \"The return value goes to whoever started the program: your shell, a script or CI.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: pf computing execution; pf tools terminal editor. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Source-to-execution models** (how a program runs) and **Editor and terminal workflow** (running commands and reading output)."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "A hosted C program starts through a conforming main definition, returns an integer termination status, and receives arguments only through a declared supported main signature. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The rule: int main, with an exit status",
+        "body": "```c\n#include <stdio.h>     /* declares printf. */\n#include <stdlib.h>    /* defines EXIT_SUCCESS and EXIT_FAILURE. */\n\nint main(void) {\n    printf(\"Hello, Codestead!\\n\");\n    return EXIT_SUCCESS;   /* same meaning as return 0. */\n}\n```\n\n```bash\ngcc -std=c17 -Wall -Wextra -o hello hello.c\n./hello\necho $?          # prints 0: the exit status.\n```\n\n| Allowed main | Use when |\n|---|---|\n| `int main(void)`. | no command-line arguments. |\n| `int main(int argc, char *argv[])`. | reading arguments. |\n| `void main()`. | never: not standard; status undefined. |\n\n```reveal\n{\"prompt\": \"What if main reaches its closing } without a return?\", \"answer\": \"Since C99, falling off the end of main is treated as return 0. Other functions don't get this rule, and writing the return explicitly is clearer.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Freestanding implementations can define a different entry environment, and operating systems interpret status values beyond portable success and failure conventions differently. Therefore the draft explicitly rejects this beginner failure model: C programs may use void main because ignoring a result is equivalent to returning a valid termination status."
+        "heading": "Reporting failure",
+        "body": "```predict\n{\"question\": \"Your program can't open its input file. What should main return?\", \"options\": [\"0, it still ran\", \"A non-zero status such as EXIT_FAILURE\"], \"answer\": 1, \"why\": \"Scripts use the status to decide whether to continue.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Identify declarations, definitions, statements and the hosted program entry point.",
-      "Write and explain a minimal conforming hosted C program."
+      "Write int main(void) or int main(int argc, char *argv[]) with a meaningful exit status.",
+      "Explain translation units and why void main is non-conforming."
     ],
     "excludes": [
-      "Freestanding implementations can define a different entry environment, and operating systems interpret status values beyond portable success and failure conventions differently."
+      "Freestanding environments (embedded systems without an OS).",
+      "Parsing command-line arguments in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "c.toolchain.program.example-a",
-      "title": "Translation unit and main: defined case",
+      "title": "Hello, conforming C",
       "situation": "A minimal hosted program declares int main(void), prints one line, and returns zero after successful completion.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A minimal hosted program declares int main(void), prints one line, and returns zero after successful completion.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: For a portable hosted program, define int main(void) or a supported argument form and return an integer status; void main is not a portable hosted definition."
+        "**Declares int main(void):** the standard form with no arguments.",
+        "**Prints one line:** printf from <stdio.h> writes Hello, Codestead! followed by a newline.",
+        "**Returns zero after successful completion:** return EXIT_SUCCESS; echo $? will print 0."
       ],
-      "result": "The defined result follows because For a portable hosted program, define int main(void) or a supported argument form and return an integer status; void main is not a portable hosted definition."
+      "result": "The program is portable, and CI reads its status reliably."
     },
     {
       "id": "c.toolchain.program.example-b",
-      "title": "Translation unit and main: boundary case",
-      "situation": "A command-line program validates argc before reading argv[1] and returns a nonzero status when the required argument is absent.",
+      "title": "The checker script",
+      "situation": "A script runs ./validate data.csv and continues only if it succeeds. validate prints errors but always returns 0.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A command-line program validates argc before reading argv[1] and returns a nonzero status when the required argument is absent.",
-        "Step 2 — Keep this standard boundary visible: Freestanding implementations can define a different entry environment, and operating systems interpret status values beyond portable success and failure conventions differently.",
-        "Step 3 — Reject the tempting rule: C programs may use void main because ignoring a result is equivalent to returning a valid termination status."
+        "The script can't tell success from failure.",
+        "Return EXIT_FAILURE when validation fails.",
+        "The script stops at the right moment."
       ],
-      "result": "This case demonstrates the declared outcome: Write and explain a minimal conforming hosted C program."
+      "result": "Bad data no longer slips through the pipeline."
     }
   ],
   "misconceptions": [
     {
       "id": "c.toolchain.program.misconception",
       "mistakenBelief": "C programs may use void main because ignoring a result is equivalent to returning a valid termination status.",
-      "correction": "For a portable hosted program, define int main(void) or a supported argument form and return an integer status; void main is not a portable hosted definition.",
-      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: C programs may use void main because ignoring a result is equivalent to returning a valid termination status."
+      "correction": "Hosted C requires main to return int. With void main the exit status is unspecified, so shells and CI may see garbage instead of success.",
+      "diagnosticPrompt": "In the opening story, why did CI sometimes report failure?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A manually managed workshop can model Translation unit and main: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "example": "The exit status is like **a thumbs up or down when you hand back a borrowed tool**. The lender (your shell or CI) doesn't read your notes; they just look at your thumb. void main is **handing it back with your hands in your pockets**.",
     "usefulFor": [
-      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+      "remembering the thumb signal",
+      "0 = thumbs up"
     ],
     "limitations": [
-      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
-      "Freestanding implementations can define a different entry environment, and operating systems interpret status values beyond portable success and failure conventions differently."
+      "Thumbs have two states; statuses have many (0 to 255 on most systems).",
+      "Printing a message isn't the signal; the number is."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A minimal hosted program declares int main(void), prints one line, and returns zero after successful completion.",
-      "A hosted C program starts through a conforming main definition, returns an integer termination status, and receives arguments only through a declared supported main signature.",
-      "For a portable hosted program, define int main(void) or a supported argument form and return an integer status; void main is not a portable hosted definition."
+      "gcc -std=c17 -Wall -o hello hello.c",
+      "./hello",
+      "echo $?"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Compile",
         "state": {
-          "evidence": "A minimal hosted program declares int main(void), prints one line, and returns zero after successful completion."
+          "file": "hello.c",
+          "result": "hello executable"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "The translation unit with int main(void) compiles cleanly."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Run",
         "state": {
-          "rule": "A hosted C program starts through a conforming main definition, returns an integer termination status, and receives arguments only through a declared supported main signature."
+          "output": "Hello, Codestead!"
         },
-        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+        "explanation": "The minimal hosted program prints one line."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Status",
         "state": {
-          "conclusion": "For a portable hosted program, define int main(void) or a supported argument form and return an integer status; void main is not a portable hosted definition."
+          "$?": "0"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: C programs may use void main because ignoring a result is equivalent to returning a valid termination status."
+        "explanation": "It returns zero after successful completion, and the shell sees it."
       }
     ],
-    "textAlternative": "Starting artifact: A minimal hosted program declares int main(void), prints one line, and returns zero after successful completion. Step 1, Source and state. State: evidence: A minimal hosted program declares int main(void), prints one line, and returns zero after successful completion.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A hosted C program starts through a conforming main definition, returns an integer termination status, and receives arguments only through a declared supported main signature.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: For a portable hosted program, define int main(void) or a supported argument form and return an integer status; void main is not a portable hosted definition.. Check the conclusion against the boundary and reject this misconception: C programs may use void main because ignoring a result is equivalent to returning a valid termination status."
+    "textAlternative": "Tracing a minimal program. Step 1, Compile: file is hello.c; result is hello executable. The translation unit with int main(void) compiles cleanly. Step 2, Run: output is Hello, Codestead!. The minimal hosted program prints one line. Step 3, Status: $? is 0. It returns zero after successful completion, and the shell sees it."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Translation unit and main: defined case”: state its starting evidence, apply the Translation unit and main rule, and give the observable result in three short lines.",
+      "prompt": "For \"Hello, conforming C\", explain how a minimal hosted program declares int main(void), prints one line, and returns zero after successful completion.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Declare.",
+        "Print.",
+        "Return."
       ],
       "expectedEvidence": [
-        "Named example: Translation unit and main: defined case.",
-        "Starting evidence: A minimal hosted program declares int main(void), prints one line, and returns zero after successful completion.",
-        "Core rule: A hosted C program starts through a conforming main definition, returns an integer termination status, and receives arguments only through a declared supported main signature.",
-        "Observable result: The defined result follows because For a portable hosted program, define int main(void) or a supported argument form and return an integer status; void main is not a portable hosted definition.",
-        "Boundary check: For a portable hosted program, define int main(void) or a supported argument form and return an integer status; void main is not a portable hosted definition."
+        "Names the example \"Hello, conforming C\": void main confused CI.",
+        "A minimal hosted program declares int main(void) and prints one line.",
+        "It returns zero after successful completion.",
+        "CI reads its status reliably."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same C rule to this related boundary case: A command-line program validates argc before reading argv[1] and returns a nonzero status when the required argument is absent.",
+      "prompt": "Write a program that prints your name and returns EXIT_SUCCESS. Compile with -Wall -Wextra, run it, and print the exit status.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Include stdio.h and stdlib.h.",
+        "echo $? (or echo %ERRORLEVEL% in cmd)."
       ],
       "expectedEvidence": [
-        "A hosted C program starts through a conforming main definition, returns an integer termination status, and receives arguments only through a declared supported main signature.",
-        "Freestanding implementations can define a different entry environment, and operating systems interpret status values beyond portable success and failure conventions differently."
+        "Clean compile, status 0.",
+        "Explain each line."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new C example for Translation unit and main, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Write a program using int main(int argc, char *argv[]) that returns EXIT_FAILURE with a message on stderr when no argument is given, and prints the argument otherwise. Test both paths and their statuses.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "argc counts the program name too.",
+        "fprintf(stderr, ...)."
       ],
       "expectedEvidence": [
-        "Write and explain a minimal conforming hosted C program.",
-        "For a portable hosted program, define int main(void) or a supported argument form and return an integer status; void main is not a portable hosted definition."
+        "Status 1 without an argument.",
+        "Status 0 with one."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "c.toolchain.program.misconception",
-      "explanation": "For a portable hosted program, define int main(void) or a supported argument form and return an integer status; void main is not a portable hosted definition.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'int main(void)' and state the decisive evidence: A command-line program validates argc before reading argv[1] and returns a nonzero status when the required argument is absent."
+      "explanation": "Check two things in every program: **main returns int**, and **every path returns a status that means what happened.**",
+      "retryPrompt": "Apply this to \"The checker script\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to write and explain a minimal conforming hosted C program. Keep this boundary in view: Freestanding implementations can define a different entry environment, and operating systems interpret status values beyond portable success and failure conventions differently.",
+    "summary": "To write a minimal conforming hosted C program, define int main(void) or int main(int argc, char *argv[]), include the headers you use, and return EXIT_SUCCESS or a non-zero status like EXIT_FAILURE so the shell, scripts and CI can tell what happened.",
     "retrievalPrompts": [
-      "Explain Translation unit and main using a concrete C rule rather than the optional analogy.",
-      "Why is this claim incorrect: C programs may use void main because ignoring a result is equivalent to returning a valid termination status.",
-      "Apply the checkpoint 'int main(void)' to the boundary case from memory."
+      "Which main signatures are standard?",
+      "What does the return value of main mean?",
+      "Why avoid void main?"
     ],
     "nextReviewPrompt": "Next: continue to “Preprocess, compile, assemble and link”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

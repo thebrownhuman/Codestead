@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Route parameters and search values are untrusted URL strings that need decoding, validation, defaults, and canonicalization.",
+    "summary": "Route parameters (`/courses/:courseId`) and search values (`?page=2&level=beginner`) come from the **address bar**, so anyone can type anything. They're always **strings** (or null when missing), and they're **untrusted**. Read them with `useParams()` and `useSearchParams()`, then **parse, validate and default**: turn \"2\" into the number 2, reject \"-5\" or \"abc\", fall back to page 1. When a value is invalid, show a sensible default or a not-found view, and consider **replacing** the URL with the canonical one so it can be shared correctly.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A numeric page parameter is parsed, range-checked, and replaced with a safe default when invalid. Your goal is to implement and test parameterized and filterable views with invalid and unknown URLs. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A course list uses `?page=` for pagination. Someone shares `?page=-3`, another link has `?page=abc`, and the list shows \"Page NaN of 12\" with no results. A numeric page parameter is parsed, range-checked, and replaced with a safe default when invalid. In this lesson you'll implement and test parameterized and filterable views with invalid and unknown URLs.\n\n```predict\n{\"question\": \"The route is `courses/:courseId` and the URL is `/courses/42`. What type is `useParams().courseId`?\", \"options\": [\"The number 42\", \"The string \\\"42\\\"\"], \"answer\": 1, \"why\": \"Everything from a URL is a string. Types in your code don't change what the address bar contains.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Remote data and asynchronous UI; javascript browser url; Declarative routes and links. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Remote data and asynchronous UI** module, **URL and history state** (URLSearchParams and encoding), and **Declarative routes and links**."
       },
       {
-        "heading": "Technology rule",
-        "body": "Route parameters and search values are untrusted URL strings that need decoding, validation, defaults, and canonicalization. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The rule: parse, validate, default, canonicalize",
+        "body": "```jsx\nimport { useSearchParams } from \"react-router\";\n\nconst LEVELS = new Set([\"all\", \"beginner\", \"intermediate\"]);\n\nexport function parsePage(raw, totalPages) {\n  const n = Number(raw);\n  return Number.isInteger(n) && n >= 1 && n <= totalPages ? n : 1;\n}\n\nexport function CourseList({ courses, pageSize = 10 }) {\n  const [params, setParams] = useSearchParams();\n  const level = LEVELS.has(params.get(\"level\")) ? params.get(\"level\") : \"all\";\n  const filtered = level === \"all\" ? courses : courses.filter((c) => c.level === level);\n  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));\n  const page = parsePage(params.get(\"page\"), totalPages);\n\n  function goTo(next) {\n    setParams({ level, page: String(next) });   // canonical values only.\n  }\n  const shown = filtered.slice((page - 1) * pageSize, page * pageSize);\n  return <p>Page {page} of {totalPages}, {shown.length} courses</p>;\n}\n```\n\n| Raw value | Parsed page |\n|---|---|\n| \"2\". | 2. |\n| null (missing). | 1. |\n| \"abc\", \"-3\", \"2.5\". | 1. |\n| \"99\" with 12 pages. | 1 (or clamp to 12, by design). |\n\n```reveal\n{\"prompt\": \"What about an unknown courseId like /courses/xyz?\", \"answer\": \"Look it up; if the course doesn't exist, render a not-found view with a link back, rather than crashing on undefined.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Missing, repeated, malformed, or stale values can select unavailable resources and effects can race. This draft therefore rejects: A typed route declaration guarantees every parameter value is valid domain data."
+        "heading": "Types aren't validation",
+        "body": "```predict\n{\"question\": \"`const { courseId } = useParams<{ courseId: string }>()` in TypeScript. Is courseId guaranteed to be a real course?\", \"options\": [\"Yes, it's typed\", \"No: the type only says \\\"string or undefined\\\"; you must still look it up and validate\"], \"answer\": 1, \"why\": \"Type annotations describe shape, not truth.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Parse route and query values as untrusted input and render explicit missing-resource states.",
-      "Implement and test parameterized and filterable views with invalid and unknown URLs."
+      "Read route params and search values and treat them as untrusted strings.",
+      "Parse, validate, default and canonicalize them, and show not-found for unknown items."
     ],
     "excludes": [
-      "Missing, repeated, malformed, or stale values can select unavailable resources and effects can race."
+      "Type-safe router code generation.",
+      "Server-side redirects."
     ]
   },
   "outcomes": [
@@ -63,133 +64,134 @@
   "examples": [
     {
       "id": "react.routing.params.example-a",
-      "title": "Parameters, search state and not-found views: concrete case",
+      "title": "The page number nobody checked",
       "situation": "A numeric page parameter is parsed, range-checked, and replaced with a safe default when invalid.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A numeric page parameter is parsed, range-checked, and replaced with a safe default when invalid.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Validate route strings at the boundary before using them as identifiers, numbers, or trusted navigation targets."
+        "**Parse:** `Number(params.get(\"page\"))` turns \"2\" into 2 and \"abc\" into NaN.",
+        "**Range-check:** parsePage accepts only whole numbers from 1 to totalPages, otherwise returns 1.",
+        "**Test:** unit tests will call parsePage with \"2\", null, \"abc\", \"-3\" and \"99\" and expect 2, 1, 1, 1 and 1."
       ],
-      "result": "The result follows because Validate route strings at the boundary before using them as identifiers, numbers, or trusted navigation targets."
+      "result": "Any page value in a shared link shows a real page instead of \"Page NaN\"."
     },
     {
       "id": "react.routing.params.example-b",
-      "title": "Parameters, search state and not-found views: boundary case",
-      "situation": "Missing, repeated, malformed, or stale values can select unavailable resources and effects can race.",
+      "title": "The course that crashed on a typo",
+      "situation": "Visiting `/courses/csss` throws \"Cannot read properties of undefined (reading 'title')\" and shows a blank screen.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Missing, repeated, malformed, or stale values can select unavailable resources and effects can race.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: A typed route declaration guarantees every parameter value is valid domain data."
+        "courseId \"csss\" matched the route but no course.",
+        "The component used the lookup result without checking it.",
+        "Fix: if the course isn't found, render a not-found view with a link to all courses."
       ],
-      "result": "The boundary requires this correction: Validate route strings at the boundary before using them as identifiers, numbers, or trusted navigation targets."
+      "result": "Mistyped course links show a friendly not-found page."
     }
   ],
   "misconceptions": [
     {
       "id": "react.routing.params.misconception",
       "mistakenBelief": "A typed route declaration guarantees every parameter value is valid domain data.",
-      "correction": "Validate route strings at the boundary before using them as identifiers, numbers, or trusted navigation targets.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: A typed route declaration guarantees every parameter value is valid domain data."
+      "correction": "URL parameters are strings typed by people and shared by links. A type only describes shape; the component must parse, validate and handle missing or unknown values.",
+      "diagnosticPrompt": "In \"The page number nobody checked\", what did \"abc\" become?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Parameters, search state and not-found views, where inputs and state produce a UI description.",
+    "example": "URL parameters are like **handwritten order slips**. The form has a box for \"quantity\", but people write \"two\", \"-3\" or leave it blank. A good shop reads the slip, checks it makes sense, and uses a sensible default, rather than trusting the box's label.",
     "usefulFor": [
-      "Building a first mental model for Parameters, search state and not-found views before using exact platform terms"
+      "remembering untrusted strings",
+      "canonicalize = rewriting the slip neatly"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Missing, repeated, malformed, or stale values can select unavailable resources and effects can race."
+      "Slips can't be edited after sending; URLs can be replaced.",
+      "An unknown product code is a not-found case, not a crash."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A numeric page parameter is parsed, range-checked, and replaced with a safe default when invalid.",
-      "Route parameters and search values are untrusted URL strings that need decoding, validation, defaults, and canonicalization.",
-      "Validate route strings at the boundary before using them as identifiers, numbers, or trusted navigation targets."
+      "URL ?page=abc",
+      "parsePage('abc', 12)",
+      "render"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Read",
         "state": {
-          "evidence": "A numeric page parameter is parsed, range-checked, and replaced with a safe default when invalid."
+          "params.get('page')": "'abc'"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The search value arrives as an untrusted string."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Validate",
         "state": {
-          "rule": "Route parameters and search values are untrusted URL strings that need decoding, validation, defaults, and canonicalization."
+          "Number('abc')": "NaN",
+          "page": "1"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The numeric page parameter is parsed, range-checked, and replaced with a safe default."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Render",
         "state": {
-          "correction": "Validate route strings at the boundary before using them as identifiers, numbers, or trusted navigation targets."
+          "screen": "Page 1 of 12"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: A typed route declaration guarantees every parameter value is valid domain data."
+        "explanation": "The list shows a real page instead of NaN."
       }
     ],
-    "textAlternative": "Starting artifact: A numeric page parameter is parsed, range-checked, and replaced with a safe default when invalid. Step 1, Artifact. State: evidence: A numeric page parameter is parsed, range-checked, and replaced with a safe default when invalid.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Route parameters and search values are untrusted URL strings that need decoding, validation, defaults, and canonicalization.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Validate route strings at the boundary before using them as identifiers, numbers, or trusted navigation targets.. Check the result against the boundary and reject this misconception: A typed route declaration guarantees every parameter value is valid domain data."
+    "textAlternative": "Tracing an invalid page value. Step 1, Read: params.get('page') is 'abc'. The search value arrives as an untrusted string. Step 2, Validate: Number('abc') is NaN; page is 1. The numeric page parameter is parsed, range-checked, and replaced with a safe default. Step 3, Render: screen is Page 1 of 12. The list shows a real page instead of NaN."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Parameters, search state and not-found views: concrete case”: state its starting evidence, apply the Parameters, search state and not-found views rule, and give the observable result in three short lines.",
+      "prompt": "For \"The page number nobody checked\", explain how a numeric page parameter is parsed, range-checked, and replaced with a safe default when invalid.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Parse.",
+        "Range-check.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Parameters, search state and not-found views: concrete case.",
-        "Starting evidence: A numeric page parameter is parsed, range-checked, and replaced with a safe default when invalid.",
-        "Core rule: Route parameters and search values are untrusted URL strings that need decoding, validation, defaults, and canonicalization.",
-        "Observable result: The result follows because Validate route strings at the boundary before using them as identifiers, numbers, or trusted navigation targets.",
-        "Boundary check: Validate route strings at the boundary before using them as identifiers, numbers, or trusted navigation targets."
+        "Names the example \"The page number nobody checked\": the page value came from the URL.",
+        "The numeric page parameter is parsed.",
+        "It is range-checked and replaced with a safe default when invalid.",
+        "Any page value in a shared link shows a real page."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Missing, repeated, malformed, or stale values can select unavailable resources and effects can race.",
+      "prompt": "Add a `sort` search value that accepts only \"title\" or \"newest\" (default \"newest\"), and update the URL when the learner changes the sort select.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Allow-list check.",
+        "setParams with canonical values."
       ],
       "expectedEvidence": [
-        "Route parameters and search values are untrusted URL strings that need decoding, validation, defaults, and canonicalization.",
-        "Missing, repeated, malformed, or stale values can select unavailable resources and effects can race."
+        "Invalid sort falls back to newest.",
+        "URL reflects the chosen sort."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Parameters, search state and not-found views and explain why the misconception fails.",
+      "prompt": "Build a lesson page at `/courses/:courseId/lessons/:n` where n is a lesson number. Handle invalid numbers, out-of-range numbers and unknown courses, and write tests for each URL.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "MemoryRouter with initialEntries in tests.",
+        "Not-found view with a link back."
       ],
       "expectedEvidence": [
-        "Implement and test parameterized and filterable views with invalid and unknown URLs.",
-        "Validate route strings at the boundary before using them as identifiers, numbers, or trusted navigation targets."
+        "Tests for valid, invalid, out-of-range and unknown.",
+        "No crashes on any URL."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.routing.params.misconception",
-      "explanation": "Validate route strings at the boundary before using them as identifiers, numbers, or trusted navigation targets.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'Validate route strings' and state the decisive evidence."
+      "explanation": "For each value from the URL write: **raw string → parsed value → valid range or allow-list → default or not-found.** Test at least one missing, one malformed and one out-of-range value.",
+      "retryPrompt": "Apply this to \"The course that crashed on a typo\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test parameterized and filterable views with invalid and unknown URLs. Keep this boundary in view: Missing, repeated, malformed, or stale values can select unavailable resources and effects can race.",
+    "summary": "To implement and test parameterized and filterable views, read params and search values as untrusted strings, parse and range-check or allow-list them, fall back to safe defaults, write canonical values back to the URL, and show a not-found view for unknown items instead of crashing.",
     "retrievalPrompts": [
-      "Explain Parameters, search state and not-found views using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: A typed route declaration guarantees every parameter value is valid domain data.",
-      "Apply checkpoint 'Validate route strings' to a new artifact."
+      "What type are route params?",
+      "Does a TypeScript type validate a URL value?",
+      "What should happen for an unknown course id?"
     ],
     "nextReviewPrompt": "Next: continue to “Route titles and focus management”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "JavaScript offers index, iterable, property, and array-method iteration with different keys, values, mutation, and async behavior.",
+    "summary": "JavaScript has several loops. `for...of` walks the **values** of any iterable (arrays, strings, Maps, Sets). A classic `for (let i = 0; i < arr.length; i++)` gives you **positions** when you need them. `while` repeats until a condition changes (sentinel loops). `for...in` walks an object's **property keys** as strings — not array values — so avoid it for arrays. `break` exits; `continue` skips to the next pass.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: for...of visits array values while an index loop is used when positions are required. Your goal is to implement and debug counted, sentinel and iterable loops. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You loop over scores with `for (const s in scores)` and total them — and get \"0012\" instead of 20. `for...in` gave you the **keys** \"0\", \"1\", \"2\" as strings, not the values! for...of visits array values, while an index loop is used when positions are required. In this lesson you'll implement and debug counted, sentinel and iterable loops.\n\n```predict\n{\"question\": \"`for (const x in [\\\"a\\\", \\\"b\\\"]) console.log(x);` Output?\", \"options\": [\"a b\", \"0 1 (as strings)\"], \"answer\": 1, \"why\": \"for...in iterates property keys. Use for...of for values.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Values, types and expressions; pf abstraction calls; Conditions and switch. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Values, types and expressions** module, **Calls, parameters and returns**, and **Conditions and switch**."
       },
       {
-        "heading": "Technology rule",
-        "body": "JavaScript offers index, iterable, property, and array-method iteration with different keys, values, mutation, and async behavior. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: pick the loop for what you need",
+        "body": "```js\nconst scores = [7, 9, 4];\n\nlet total = 0;\nfor (const s of scores) total += s;           // values: 20\n\nfor (let i = 0; i < scores.length; i++) {\n  console.log(`#${i + 1}: ${scores[i]}`);     // positions + values\n}\n\nlet input = prompt(\"Word (or 'stop')\");\nwhile (input !== \"stop\" && input !== null) { // sentinel loop\n  words.push(input);\n  input = prompt(\"Word (or 'stop')\");\n}\n```\n\n| Loop | Gives you | Use for |\n|---|---|---|\n| `for...of`. | values. | arrays, strings, Maps, Sets. |\n| index `for`. | positions. | when i matters (ranks, neighbours). |\n| `while`. | a condition. | repeat until a stop signal. |\n| `for...in`. | string keys. | plain object properties (with care). |\n\n```reveal\n{\"prompt\": \"How do you get index and value together with for...of?\", \"answer\": \"`for (const [i, s] of scores.entries())` — entries() yields [index, value] pairs.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "for...in includes enumerable property names, for...of needs an iterable, and async callbacks in forEach are not awaited collectively. This draft therefore rejects: for...in is the preferred way to iterate array values."
+        "heading": "Infinite loop check",
+        "body": "```predict\n{\"question\": \"`let i = 0; while (i < 3) { console.log(i); }` — what happens?\", \"options\": [\"Logs 0 1 2\", \"Logs 0 forever — i never changes\"], \"answer\": 1, \"why\": \"Every loop needs progress toward its stop condition: add `i++`.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Choose for, while, for-of and collection methods while avoiding inappropriate for-in array traversal.",
-      "Implement and debug counted, sentinel and iterable loops."
+      "Choose for...of, index for, while and for...in for their purposes.",
+      "Debug off-by-one, infinite and wrong-loop bugs."
     ],
     "excludes": [
-      "for...in includes enumerable property names, for...of needs an iterable, and async callbacks in forEach are not awaited collectively."
+      "Array methods like map and filter (collections module).",
+      "Async iteration."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "javascript.control.iteration.example-a",
-      "title": "Loops and iterable traversal: concrete case",
+      "title": "Values with for...of, positions with an index",
       "situation": "for...of visits array values while an index loop is used when positions are required.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: for...of visits array values while an index loop is used when positions are required.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Use for...of for iterable values; for...in enumerates property keys and is unsuitable as ordinary array-value traversal."
+        "**Bug:** `for (const s in scores) total += s` concatenates keys: \"0\" + \"0\" + \"1\" + \"2\" → \"0012\".",
+        "**for...of visits array values:** `for (const s of scores) total += s` will compute and update the total to 20.",
+        "**Index loop when positions are required:** printing \"#1: 7\" rankings uses `for (let i = 0; i < scores.length; i++)`; the loop will stop at i = 3."
       ],
-      "result": "The result follows because Use for...of for iterable values; for...in enumerates property keys and is unsuitable as ordinary array-value traversal."
+      "result": "The total is 20, and the ranking prints each position with its score."
     },
     {
       "id": "javascript.control.iteration.example-b",
-      "title": "Loops and iterable traversal: boundary case",
-      "situation": "for...in includes enumerable property names, for...of needs an iterable, and async callbacks in forEach are not awaited collectively.",
+      "title": "The skipped first score",
+      "situation": "`for (let i = 1; i < scores.length; i++)` was meant to print all three scores but prints only two.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: for...in includes enumerable property names, for...of needs an iterable, and async callbacks in forEach are not awaited collectively.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: for...in is the preferred way to iterate array values."
+        "Starting at 1 skips index 0.",
+        "Valid indexes are 0 to length − 1.",
+        "Fix: start at 0, or use for...of when positions aren't needed."
       ],
-      "result": "The boundary requires this correction: Use for...of for iterable values; for...in enumerates property keys and is unsuitable as ordinary array-value traversal."
+      "result": "All three scores now print, including the first."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.control.iteration.misconception",
       "mistakenBelief": "for...in is the preferred way to iterate array values.",
-      "correction": "Use for...of for iterable values; for...in enumerates property keys and is unsuitable as ordinary array-value traversal.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: for...in is the preferred way to iterate array values."
+      "correction": "for...in iterates enumerable property keys as strings (including inherited ones), not array values. Use for...of for values and an index loop or entries() when positions are needed.",
+      "diagnosticPrompt": "In the opening predict, why did the loop print 0 and 1?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Loops and iterable traversal, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "for...of is like **reading each card in a stack**; an index loop is **reading each card with its position number**; for...in is **reading the labels on the card slots** — not the cards.",
     "usefulFor": [
-      "Building a first mental model for Loops and iterable traversal before using exact platform terms"
+      "remembering values vs keys",
+      "choose by what you need"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "for...in includes enumerable property names, for...of needs an iterable, and async callbacks in forEach are not awaited collectively."
+      "Card slots don't come as strings; for...in keys do.",
+      "while is like drawing cards until you hit a joker."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "for...of visits array values while an index loop is used when positions are required.",
-      "JavaScript offers index, iterable, property, and array-method iteration with different keys, values, mutation, and async behavior.",
-      "Use for...of for iterable values; for...in enumerates property keys and is unsuitable as ordinary array-value traversal."
+      "const scores = [7, 9, 4]; let total = 0;",
+      "for (const s of scores) total += s;",
+      "console.log(total)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "First value",
         "state": {
-          "evidence": "for...of visits array values while an index loop is used when positions are required."
+          "s": "7",
+          "total": "7"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "for...of visits array values starting with the first element."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Next values",
         "state": {
-          "rule": "JavaScript offers index, iterable, property, and array-method iteration with different keys, values, mutation, and async behavior."
+          "s": "9 then 4",
+          "total": "16 then 20"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Each pass adds the next value with no index needed."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Done",
         "state": {
-          "correction": "Use for...of for iterable values; for...in enumerates property keys and is unsuitable as ordinary array-value traversal."
+          "total": "20"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: for...in is the preferred way to iterate array values."
+        "explanation": "The loop ends after the last value; an index loop is used only when positions are required."
       }
     ],
-    "textAlternative": "Starting artifact: for...of visits array values while an index loop is used when positions are required. Step 1, Artifact. State: evidence: for...of visits array values while an index loop is used when positions are required.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: JavaScript offers index, iterable, property, and array-method iteration with different keys, values, mutation, and async behavior.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use for...of for iterable values; for...in enumerates property keys and is unsuitable as ordinary array-value traversal.. Check the result against the boundary and reject this misconception: for...in is the preferred way to iterate array values."
+    "textAlternative": "Summing with for...of. Step 1, First value: s is 7; total is 7. for...of visits array values starting with the first element. Step 2, Next values: s is 9 then 4; total is 16 then 20. Each pass adds the next value with no index needed. Step 3, Done: total is 20. The loop ends after the last value; an index loop is used only when positions are required."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Loops and iterable traversal: concrete case”: state its starting evidence, apply the Loops and iterable traversal rule, and give the observable result in three short lines.",
+      "prompt": "For \"Values with for...of, positions with an index\", explain why for...of visits array values while an index loop is used when positions are required, and what the buggy for...in produced.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Bug.",
+        "for...of.",
+        "Index loop."
       ],
       "expectedEvidence": [
-        "Named example: Loops and iterable traversal: concrete case.",
-        "Starting evidence: for...of visits array values while an index loop is used when positions are required.",
-        "Core rule: JavaScript offers index, iterable, property, and array-method iteration with different keys, values, mutation, and async behavior.",
-        "Observable result: The result follows because Use for...of for iterable values; for...in enumerates property keys and is unsuitable as ordinary array-value traversal.",
-        "Boundary check: Use for...of for iterable values; for...in enumerates property keys and is unsuitable as ordinary array-value traversal."
+        "Names the example \"Values with for...of, positions with an index\": for...of visits array values.",
+        "for...in produced \"0012\" by joining keys.",
+        "for...of gives the total 20.",
+        "An index loop is used when positions are required, so the ranking prints each position with its score."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: for...in includes enumerable property names, for...of needs an iterable, and async callbacks in forEach are not awaited collectively.",
+      "prompt": "Loop over the string \"hello\" and count vowels using for...of. Then print each letter with its position using `Array.from(word).entries()`.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Strings are iterable.",
+        "Strings have no entries(); convert with Array.from first."
       ],
       "expectedEvidence": [
-        "JavaScript offers index, iterable, property, and array-method iteration with different keys, values, mutation, and async behavior.",
-        "for...in includes enumerable property names, for...of needs an iterable, and async callbacks in forEach are not awaited collectively."
+        "Vowel count 2.",
+        "Output like 0 h, 1 e, …"
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Loops and iterable traversal and explain why the misconception fails.",
+      "prompt": "Write a sentinel loop that reads numbers from a list until it reaches a -1 marker, skips negatives with continue, and stops with break. Test with a list without the marker too.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Guard against running past the end.",
+        "continue vs break."
       ],
       "expectedEvidence": [
-        "Implement and debug counted, sentinel and iterable loops.",
-        "Use for...of for iterable values; for...in enumerates property keys and is unsuitable as ordinary array-value traversal."
+        "Correct handling of marker, negatives and missing marker.",
+        "No infinite loop."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.control.iteration.misconception",
-      "explanation": "Use for...of for iterable values; for...in enumerates property keys and is unsuitable as ordinary array-value traversal.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'for...of' and state the decisive evidence."
+      "explanation": "Ask: **Do I need values, positions, or a stop condition?** → for...of / index for / while. Then check: start value, stop condition (< length), and progress each pass.",
+      "retryPrompt": "Apply this to \"The skipped first score\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and debug counted, sentinel and iterable loops. Keep this boundary in view: for...in includes enumerable property names, for...of needs an iterable, and async callbacks in forEach are not awaited collectively.",
+    "summary": "To implement and debug counted, sentinel and iterable loops, use for...of for values, an index loop (or entries()) when positions matter, while for stop conditions with visible progress, and avoid for...in for arrays because it yields string keys.",
     "retrievalPrompts": [
-      "Explain Loops and iterable traversal using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: for...in is the preferred way to iterate array values.",
-      "Apply checkpoint 'for...of' to a new artifact."
+      "What does for...in give you for an array?",
+      "When do you need an index loop?",
+      "What makes a while loop infinite?"
     ],
     "nextReviewPrompt": "Next: continue to “Function declarations, expressions and arrows”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

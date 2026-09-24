@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Compile diagnostics describe source or type failures before execution, uncaught exceptions report runtime failure with a causal stack, and logic defects require contract-based observation despite successful execution.",
+    "summary": "Java failures come in three kinds. **Compile errors** from javac stop the build: read the **first** one, with its file, line and a caret under the problem (\"incompatible types: String cannot be converted to int\"). **Runtime exceptions** crash a running program with a **stack trace**: the first line names the exception type and message, then frames list where it happened, newest first. Find the **first frame in your own code**. Since Java 14, NullPointerException messages even say **which** variable was null. The third kind is sneakiest: **logic errors** produce no error at all, just wrong answers, and only tests or checks against the contract reveal them.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A type mismatch is repaired from the first relevant javac diagnostic, while a later NullPointerException is traced from the exception type through the first application frame. Your goal is to classify and repair representative compile-time and runtime failures. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner's order program won't compile: `int qty = input;` where input is a String. After fixing it with parsing, it crashes with a 20-line stack trace ending in `java.lang.NullPointerException`. Once that's fixed it runs quietly and prints a total that's 10 too high. A type mismatch is repaired from the first relevant javac diagnostic, while a later NullPointerException is traced from the exception type through the first application frame. In this lesson you'll classify and repair representative compile-time and runtime failures.\n\n```predict\n{\"question\": \"A program compiles and runs with no exception. Is it correct?\", \"options\": [\"Yes\", \"Not necessarily: logic errors produce wrong results silently\"], \"answer\": 1, \"why\": \"Tests check results against the contract.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: pf computing execution; pf tools terminal editor; First source and main. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Source-to-execution models**, **Editor and terminal workflow** and **First source and main** (javac and java)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Compile diagnostics describe source or type failures before execution, uncaught exceptions report runtime failure with a causal stack, and logic defects require contract-based observation despite successful execution. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: compile error, stack trace, silent logic bug",
+        "body": "```text\n$ javac Order.java\nOrder.java:5: error: incompatible types: String cannot be converted to int\n        int qty = input;\n                  ^\n1 error\n```\n\n```text\n$ java Order\nException in thread \"main\" java.lang.NullPointerException:\n    Cannot invoke \"String.trim()\" because \"note\" is null\n    at Order.describe(Order.java:12)       <- first frame in YOUR code: start here.\n    at Order.main(Order.java:20)\n```\n\n| Kind | When | Where to look |\n|---|---|---|\n| compile error. | javac. | first error's file:line and caret. |\n| runtime exception. | while running. | exception type + message, first own frame. |\n| logic error. | never reported. | tests, expected vs actual. |\n\n```reveal\n{\"prompt\": \"How do you read a stack trace with library frames on top?\", \"answer\": \"Skip frames from java.* or library packages until you reach your own classes. That's usually where a bad value was passed in.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "One syntax or type mistake can cascade into later diagnostics, stack traces show call locations rather than an automatic root-cause verdict, and clean output is not proof of correctness. The learner must reject this documented misconception: Every Java defect becomes either a compiler error or a stack trace, so a run without either must be correct."
+        "heading": "Silent bugs",
+        "body": "```predict\n{\"question\": \"The total is 10 too high but nothing crashes. What finds it?\", \"options\": [\"A stack trace\", \"A test comparing the actual total with the expected one\"], \"answer\": 1, \"why\": \"Write expected values down before running.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Separate compile errors, exceptions and logic failures and use stack-trace locations.",
-      "Classify and repair representative compile-time and runtime failures."
+      "Read javac errors by file, line and caret, fixing the first one first.",
+      "Read stack traces from exception type to the first application frame, and use tests for logic errors."
     ],
     "excludes": [
-      "One syntax or type mistake can cascade into later diagnostics, stack traces show call locations rather than an automatic root-cause verdict, and clean output is not proof of correctness."
+      "Debugger use (debug lesson).",
+      "Logging frameworks."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "java.toolchain.diagnostics.example.direct",
-      "title": "Compiler and runtime diagnostics: direct language case",
+      "title": "A type error, then a NullPointerException",
       "situation": "A type mismatch is repaired from the first relevant javac diagnostic, while a later NullPointerException is traced from the exception type through the first application frame.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A type mismatch is repaired from the first relevant javac diagnostic, while a later NullPointerException is traced from the exception type through the first application frame.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Classify compile-time, exceptional runtime, and logic failures separately; start with the first causal diagnostic or relevant application stack frame and verify the repaired contract."
+        "**A type mismatch is repaired from the first relevant javac diagnostic:** Order.java:5 becomes int qty = Integer.parseInt(input.trim());.",
+        "**A later NullPointerException is traced from the exception type:** the message says note is null.",
+        "**Through the first application frame:** Order.describe line 12 gets a null check, and a test will assert the total."
       ],
-      "result": "The example meets the atomic outcome because Classify compile-time, exceptional runtime, and logic failures separately; start with the first causal diagnostic or relevant application stack frame and verify the repaired contract."
+      "result": "Both failures are fixed at their source, and the silent total bug is caught by a test."
     },
     {
       "id": "java.toolchain.diagnostics.example.boundary",
-      "title": "Compiler and runtime diagnostics: boundary and transfer case",
-      "situation": "A program compiles and exits normally but returns an off-by-one result, so a boundary assertion—not the compiler—reveals the logic defect.",
+      "title": "The off-by-ten total",
+      "situation": "The order total adds a delivery fee twice. No exception, no warning.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A program compiles and exits normally but returns an off-by-one result, so a boundary assertion—not the compiler—reveals the logic defect.",
-        "Step 2 — Keep the language boundary explicit: One syntax or type mistake can cascade into later diagnostics, stack traces show call locations rather than an automatic root-cause verdict, and clean output is not proof of correctness.",
-        "Step 3 — Reject the tempting but incorrect rule: Every Java defect becomes either a compiler error or a stack trace, so a run without either must be correct."
+        "Write the expected total for a known order by hand.",
+        "A test prints expected 45, actual 55.",
+        "Search for where the fee is added; remove the duplicate."
       ],
-      "result": "This case demonstrates the declared outcome: Classify and repair representative compile-time and runtime failures."
+      "result": "The test now guards against the fee being added twice again."
     }
   ],
   "misconceptions": [
     {
       "id": "java.toolchain.diagnostics.misconception",
       "mistakenBelief": "Every Java defect becomes either a compiler error or a stack trace, so a run without either must be correct.",
-      "correction": "Classify compile-time, exceptional runtime, and logic failures separately; start with the first causal diagnostic or relevant application stack frame and verify the repaired contract.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Every Java defect becomes either a compiler error or a stack trace, so a run without either must be correct."
+      "correction": "Logic errors compile and run silently while producing wrong results. Only checks against expected behaviour, such as tests, reveal them.",
+      "diagnosticPrompt": "In \"The off-by-ten total\", what revealed the bug?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a workshop that turns a checked design into a labeled machine part and then runs it on a compatible line can introduce Compiler and runtime diagnostics, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "example": "Compile errors are **a spell-checker's red underline** before you print. A stack trace is **a fire alarm with a floor plan** showing where it started. A logic error is **a typo in a recipe's quantity**: the dish cooks fine and tastes wrong, and only tasting (testing) catches it.",
     "usefulFor": [
-      "separating source rules, build tools, class files, and runtime execution"
+      "remembering underline, alarm, tasting",
+      "first own frame = the room on fire"
     ],
     "limitations": [
-      "Java compatibility, verification, class loading, and diagnostics follow formal specifications rather than physical manufacturing",
-      "One syntax or type mistake can cascade into later diagnostics, stack traces show call locations rather than an automatic root-cause verdict, and clean output is not proof of correctness."
+      "Spell-checkers can't taste food; compilers can't check intent.",
+      "Library frames are corridors, not the fire."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A type mismatch is repaired from the first relevant javac diagnostic, while a later NullPointerException is traced from the exception type through the first application frame.",
-      "Compile diagnostics describe source or type failures before execution, uncaught exceptions report runtime failure with a causal stack, and logic defects require contract-based observation despite successful execution.",
-      "Classify compile-time, exceptional runtime, and logic failures separately; start with the first causal diagnostic or relevant application stack frame and verify the repaired contract."
+      "javac Order.java",
+      "java Order",
+      "run tests"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Compile",
         "state": {
-          "evidence": "A type mismatch is repaired from the first relevant javac diagnostic, while a later NullPointerException is traced from the exception type through the first application frame."
+          "error": "Order.java:5 incompatible types"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "A type mismatch is repaired from the first relevant javac diagnostic."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Run",
         "state": {
-          "rule": "Compile diagnostics describe source or type failures before execution, uncaught exceptions report runtime failure with a causal stack, and logic defects require contract-based observation despite successful execution."
+          "exception": "NullPointerException",
+          "frame": "Order.describe:12"
         },
-        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "The exception is traced from its type through the first application frame."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Test",
         "state": {
-          "correction": "Classify compile-time, exceptional runtime, and logic failures separately; start with the first causal diagnostic or relevant application stack frame and verify the repaired contract."
+          "expected": "45",
+          "actual": "55"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Every Java defect becomes either a compiler error or a stack trace, so a run without either must be correct."
+        "explanation": "A logic error with no exception is found only by checking the contract."
       }
     ],
-    "textAlternative": "Starting artifact: A type mismatch is repaired from the first relevant javac diagnostic, while a later NullPointerException is traced from the exception type through the first application frame. Step 1, Observe. State: evidence: A type mismatch is repaired from the first relevant javac diagnostic, while a later NullPointerException is traced from the exception type through the first application frame.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Compile diagnostics describe source or type failures before execution, uncaught exceptions report runtime failure with a causal stack, and logic defects require contract-based observation despite successful execution.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Classify compile-time, exceptional runtime, and logic failures separately; start with the first causal diagnostic or relevant application stack frame and verify the repaired contract.. Compare the observation with the correction and explain why the misconception fails: Every Java defect becomes either a compiler error or a stack trace, so a run without either must be correct."
+    "textAlternative": "Tracing the three failure kinds. Step 1, Compile: error is Order.java:5 incompatible types. A type mismatch is repaired from the first relevant javac diagnostic. Step 2, Run: exception is NullPointerException; frame is Order.describe:12. The exception is traced from its type through the first application frame. Step 3, Test: expected is 45; actual is 55. A logic error with no exception is found only by checking the contract."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Compiler and runtime diagnostics: direct language case”: state its starting evidence, apply the Compiler and runtime diagnostics rule, and give the observable result in three short lines.",
+      "prompt": "For \"A type error, then a NullPointerException\", explain how a type mismatch is repaired from the first relevant javac diagnostic, while a later NullPointerException is traced from the exception type through the first application frame.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Compile.",
+        "Trace.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Compiler and runtime diagnostics: direct language case.",
-        "Starting evidence: A type mismatch is repaired from the first relevant javac diagnostic, while a later NullPointerException is traced from the exception type through the first application frame.",
-        "Core rule: Compile diagnostics describe source or type failures before execution, uncaught exceptions report runtime failure with a causal stack, and logic defects require contract-based observation despite successful execution.",
-        "Observable result: The example meets the atomic outcome because Classify compile-time, exceptional runtime, and logic failures separately; start with the first causal diagnostic or relevant application stack frame and verify the repaired contract.",
-        "Boundary check: Classify compile-time, exceptional runtime, and logic failures separately; start with the first causal diagnostic or relevant application stack frame and verify the repaired contract."
+        "Names the example \"A type error, then a NullPointerException\": three kinds of failure in one program.",
+        "A type mismatch is repaired from the first relevant javac diagnostic.",
+        "A later NullPointerException is traced from the exception type through the first application frame.",
+        "The silent total bug is caught by a test."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A program compiles and exits normally but returns an off-by-one result, so a boundary assertion—not the compiler—reveals the logic defect.",
+      "prompt": "Classify each and name where to look: \"cannot find symbol: variable totl\", \"ArrayIndexOutOfBoundsException: Index 3 out of bounds for length 3 at Grades.average(Grades.java:9)\", and an average that's always slightly too low.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Typo = compile.",
+        "Too low = logic (int division?)."
       ],
       "expectedEvidence": [
-        "Compile diagnostics describe source or type failures before execution, uncaught exceptions report runtime failure with a causal stack, and logic defects require contract-based observation despite successful execution.",
-        "One syntax or type mistake can cascade into later diagnostics, stack traces show call locations rather than an automatic root-cause verdict, and clean output is not proof of correctness."
+        "Three classifications.",
+        "Where to look for each."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Compiler and runtime diagnostics, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Write a small program containing one compile error, one runtime exception and one logic error. Swap with a partner, fix theirs using only the diagnostics and one test, and document how each was found.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Include a stack trace through two of your methods.",
+        "Write expected values first."
       ],
       "expectedEvidence": [
-        "Classify and repair representative compile-time and runtime failures.",
-        "Classify compile-time, exceptional runtime, and logic failures separately; start with the first causal diagnostic or relevant application stack frame and verify the repaired contract."
+        "All three found and fixed.",
+        "Evidence documented."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "java.toolchain.diagnostics.misconception",
-      "explanation": "Classify compile-time, exceptional runtime, and logic failures separately; start with the first causal diagnostic or relevant application stack frame and verify the repaired contract.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A program compiles and exits normally but returns an off-by-one result, so a boundary assertion—not the compiler—reveals the logic defect."
+      "explanation": "Classify first: **javac error, exception, or wrong result?** Then look in the right place: the first error, the first own frame, or a test with an expected value.",
+      "retryPrompt": "Apply this to \"The off-by-ten total\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to classify and repair representative compile-time and runtime failures. Keep this boundary in view: One syntax or type mistake can cascade into later diagnostics, stack traces show call locations rather than an automatic root-cause verdict, and clean output is not proof of correctness.",
+    "summary": "To classify and repair failures, fix compile errors from javac's first diagnostic and its caret, read runtime stack traces from the exception type and message to the first frame in your own code, and catch silent logic errors with tests that compare actual results with expected ones.",
     "retrievalPrompts": [
-      "Explain Compiler and runtime diagnostics using canonical Java: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Every Java defect becomes either a compiler error or a stack trace, so a run without either must be correct.",
-      "Predict this case from memory: A program compiles and exits normally but returns an off-by-one result, so a boundary assertion—not the compiler—reveals the logic defect."
+      "Where do you start with several javac errors?",
+      "Which stack frame matters most?",
+      "What reveals a logic error?"
     ],
     "nextReviewPrompt": "Next: continue to “Primitive types and variables”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

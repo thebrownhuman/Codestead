@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Logical properties express block and inline dimensions or edges so layout adapts to writing mode and text direction.",
+    "summary": "Physical properties (`margin-left`, `padding-right`, `left`) stay on the same side of the screen whatever the language. **Logical properties** follow the text direction instead: `margin-inline-start` is the left in English but the right in Arabic or Hebrew; `block` means the direction lines stack (top to bottom in most languages). Set `dir=\"rtl\"` on the HTML and logical layouts mirror automatically.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A card uses margin-inline-start instead of margin-left so spacing mirrors in right-to-left text. Your goal is to refactor directional properties and verify a component in left-to-right and right-to-left contexts. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Your course site launches in Arabic. You set `dir=\"rtl\"` and `text-align: right` — the text flips, but icons still sit on the left of labels, indents point the wrong way, and the card's accent border is on the wrong side. RTL isn't just text alignment. A card uses margin-inline-start instead of margin-left, so spacing mirrors in right-to-left text. In this lesson you'll refactor directional properties and verify a component in left-to-right and right-to-left contexts.\n\n```predict\n{\"question\": \"In an RTL page, where is `margin-inline-start` applied?\", \"options\": [\"On the left\", \"On the right — the start side of right-to-left text\"], \"answer\": 1, \"why\": \"Inline-start is where lines of text begin: left in LTR, right in RTL.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Box model, sizing and overflow; html semantics landmarks; Normal flow and display; Lengths, percentages and viewport units. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Box model, sizing and overflow** module, **Sections and landmarks**, **Normal flow and display**, and **Lengths, percentages and viewport units**."
       },
       {
-        "heading": "Technology rule",
-        "body": "Logical properties express block and inline dimensions or edges so layout adapts to writing mode and text direction. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: inline and block axes follow the writing mode",
+        "body": "| Physical | Logical | LTR | RTL |\n|---|---|---|---|\n| `margin-left`. | `margin-inline-start`. | left. | right. |\n| `padding-right`. | `padding-inline-end`. | right. | left. |\n| `border-left`. | `border-inline-start`. | left. | right. |\n| `margin-top`. | `margin-block-start`. | top. | top. |\n| `width`. | `inline-size`. | width. | width. |\n| `text-align: left`. | `text-align: start`. | left. | right. |\n\n```css\n.card {\n  border-inline-start: 4px solid var(--accent);\n  padding-inline: 1rem 1.5rem;          /* start end */\n  margin-block-end: 1rem;\n  text-align: start;\n}\n.card__icon { margin-inline-end: 0.5rem; }\n```\n\n```reveal\n{\"prompt\": \"Where do you set the direction?\", \"answer\": \"In HTML: `<html lang=\\\"ar\\\" dir=\\\"rtl\\\">` (or on a section). Avoid setting direction only in CSS — it's part of the content's meaning.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Some visuals remain physically oriented, mixed-direction content needs testing, and source order still determines navigation. This draft therefore rejects: RTL support is complete when text-align is switched to right."
+        "heading": "Icons that point",
+        "body": "```predict\n{\"question\": \"A \\\"Next →\\\" arrow icon in RTL should point…\", \"options\": [\"Right, as always\", \"Left — \\\"next\\\" goes in the reading direction\"], \"answer\": 1, \"why\": \"Directional icons must mirror too, e.g. with `:dir(rtl) .icon-next { transform: scaleX(-1); }`. Non-directional icons (like a search glass) stay as they are.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use block/inline-relative sizing and spacing for direction- and language-resilient layouts.",
-      "Refactor directional properties and verify a component in left-to-right and right-to-left contexts."
+      "Replace physical properties with inline/block logical properties.",
+      "Verify components in LTR and RTL, including directional icons."
     ],
     "excludes": [
-      "Some visuals remain physically oriented, mixed-direction content needs testing, and source order still determines navigation."
+      "Vertical writing modes in depth.",
+      "Full internationalisation (dates, numbers)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "css.layout.logical.example-a",
-      "title": "Logical properties and writing modes: concrete case",
+      "title": "A card that mirrors in Arabic",
       "situation": "A card uses margin-inline-start instead of margin-left so spacing mirrors in right-to-left text.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A card uses margin-inline-start instead of margin-left so spacing mirrors in right-to-left text.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Use logical properties and test direction, writing mode, content order, icons, and interactions rather than flipping alignment alone."
+        "**Before:** `border-left`, `margin-left`, `text-align: left` — correct in English, wrong in Arabic.",
+        "**Refactor:** `border-inline-start`, `margin-inline-start`, `text-align: start`.",
+        "**Verify:** set `dir=\"rtl\"` on the page; the browser will render the accent border, indent and icon gap on the right, mirroring the LTR card."
       ],
-      "result": "The result follows because Use logical properties and test direction, writing mode, content order, icons, and interactions rather than flipping alignment alone."
+      "result": "One stylesheet produces correct cards in both English and Arabic."
     },
     {
       "id": "css.layout.logical.example-b",
-      "title": "Logical properties and writing modes: boundary case",
-      "situation": "Some visuals remain physically oriented, mixed-direction content needs testing, and source order still determines navigation.",
+      "title": "The half-mirrored form",
+      "situation": "A form under `dir=\"rtl\"` has right-aligned labels, but error icons still sit on the left and the input's padding leaves the text cramped on the right.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Some visuals remain physically oriented, mixed-direction content needs testing, and source order still determines navigation.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: RTL support is complete when text-align is switched to right."
+        "Only text-align was changed; spacing still uses physical properties.",
+        "The input's `padding-left` should be on the start side.",
+        "Fix: `padding-inline-start` and `margin-inline-end` for icons; test with real Arabic text."
       ],
-      "result": "The boundary requires this correction: Use logical properties and test direction, writing mode, content order, icons, and interactions rather than flipping alignment alone."
+      "result": "The form mirrors completely, with comfortable spacing on the correct sides."
     }
   ],
   "misconceptions": [
     {
       "id": "css.layout.logical.misconception",
       "mistakenBelief": "RTL support is complete when text-align is switched to right.",
-      "correction": "Use logical properties and test direction, writing mode, content order, icons, and interactions rather than flipping alignment alone.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: RTL support is complete when text-align is switched to right."
+      "correction": "Right-to-left layouts need spacing, borders, positions and directional icons to mirror too. Logical properties do this automatically once the document direction is set.",
+      "diagnosticPrompt": "In \"The half-mirrored form\", what was still wrong after aligning text right?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Logical properties and writing modes, where rules size, place, and paint existing content.",
+    "example": "Logical properties are like saying **\"at the start of the queue\"** instead of **\"on the left\"**. If the queue turns around (RTL), \"start\" still means the right place, while \"left\" now points to the back.",
     "usefulFor": [
-      "Building a first mental model for Logical properties and writing modes before using exact platform terms"
+      "remembering start/end follow reading direction",
+      "block = how lines stack"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "Some visuals remain physically oriented, mixed-direction content needs testing, and source order still determines navigation."
+      "Queues rarely turn; languages on one site often do.",
+      "Some icons, like a clock, don't turn with the queue."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A card uses margin-inline-start instead of margin-left so spacing mirrors in right-to-left text.",
-      "Logical properties express block and inline dimensions or edges so layout adapts to writing mode and text direction.",
-      "Use logical properties and test direction, writing mode, content order, icons, and interactions rather than flipping alignment alone."
+      ".card { border-inline-start: 4px solid; margin-inline-start: 1rem }",
+      "<html dir='ltr'>",
+      "<html dir='rtl'>"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Refactor",
         "state": {
-          "evidence": "A card uses margin-inline-start instead of margin-left so spacing mirrors in right-to-left text."
+          "margin-left": "→ margin-inline-start"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "A card uses margin-inline-start instead of margin-left."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "LTR",
         "state": {
-          "rule": "Logical properties express block and inline dimensions or edges so layout adapts to writing mode and text direction."
+          "border": "left",
+          "margin": "left"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "In left-to-right text, the start side is the left."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "RTL",
         "state": {
-          "correction": "Use logical properties and test direction, writing mode, content order, icons, and interactions rather than flipping alignment alone."
+          "border": "right",
+          "margin": "right"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: RTL support is complete when text-align is switched to right."
+        "explanation": "In right-to-left text the spacing mirrors automatically."
       }
     ],
-    "textAlternative": "Starting artifact: A card uses margin-inline-start instead of margin-left so spacing mirrors in right-to-left text. Step 1, Artifact. State: evidence: A card uses margin-inline-start instead of margin-left so spacing mirrors in right-to-left text.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Logical properties express block and inline dimensions or edges so layout adapts to writing mode and text direction.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use logical properties and test direction, writing mode, content order, icons, and interactions rather than flipping alignment alone.. Check the result against the boundary and reject this misconception: RTL support is complete when text-align is switched to right."
+    "textAlternative": "One card in two directions. Step 1, Refactor: margin-left is → margin-inline-start. A card uses margin-inline-start instead of margin-left. Step 2, LTR: border is left; margin is left. In left-to-right text, the start side is the left. Step 3, RTL: border is right; margin is right. In right-to-left text the spacing mirrors automatically."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Logical properties and writing modes: concrete case”: state its starting evidence, apply the Logical properties and writing modes rule, and give the observable result in three short lines.",
+      "prompt": "For \"A card that mirrors in Arabic\", explain how the card uses margin-inline-start instead of margin-left so spacing mirrors in right-to-left text, and how you verify it.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Refactor.",
+        "LTR.",
+        "RTL."
       ],
       "expectedEvidence": [
-        "Named example: Logical properties and writing modes: concrete case.",
-        "Starting evidence: A card uses margin-inline-start instead of margin-left so spacing mirrors in right-to-left text.",
-        "Core rule: Logical properties express block and inline dimensions or edges so layout adapts to writing mode and text direction.",
-        "Observable result: The result follows because Use logical properties and test direction, writing mode, content order, icons, and interactions rather than flipping alignment alone.",
-        "Boundary check: Use logical properties and test direction, writing mode, content order, icons, and interactions rather than flipping alignment alone."
+        "Names the example \"A card that mirrors in Arabic\": the card uses margin-inline-start instead of margin-left.",
+        "In LTR the spacing is on the left.",
+        "Spacing mirrors in right-to-left text.",
+        "Verify by setting dir=\"rtl\": one stylesheet produces correct cards in both English and Arabic."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Some visuals remain physically oriented, mixed-direction content needs testing, and source order still determines navigation.",
+      "prompt": "Convert: `.note { padding-left: 1rem; border-right: 2px solid; text-align: left; margin-top: 1rem; }`.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Left/right → inline start/end.",
+        "Top → block-start."
       ],
       "expectedEvidence": [
-        "Logical properties express block and inline dimensions or edges so layout adapts to writing mode and text direction.",
-        "Some visuals remain physically oriented, mixed-direction content needs testing, and source order still determines navigation."
+        "`padding-inline-start: 1rem; border-inline-end: 2px solid;`",
+        "`text-align: start; margin-block-start: 1rem;`"
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Logical properties and writing modes and explain why the misconception fails.",
+      "prompt": "Refactor one component's stylesheet to logical properties, add `dir=\"rtl\"` test page with real Arabic or Hebrew text, and compare screenshots side by side.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Search for left/right.",
+        "Mirror directional icons."
       ],
       "expectedEvidence": [
-        "Refactor directional properties and verify a component in left-to-right and right-to-left contexts.",
-        "Use logical properties and test direction, writing mode, content order, icons, and interactions rather than flipping alignment alone."
+        "No physical left/right properties remain (except deliberate ones).",
+        "Side-by-side screenshots show correct mirroring."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.layout.logical.misconception",
-      "explanation": "Use logical properties and test direction, writing mode, content order, icons, and interactions rather than flipping alignment alone.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'logical properties' and state the decisive evidence."
+      "explanation": "Search your CSS for `left` and `right`. For each, ask: **Should this follow the reading direction?** If yes, switch to inline-start/end. Then test with dir=\"rtl\".",
+      "retryPrompt": "Apply this to \"The half-mirrored form\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to refactor directional properties and verify a component in left-to-right and right-to-left contexts. Keep this boundary in view: Some visuals remain physically oriented, mixed-direction content needs testing, and source order still determines navigation.",
+    "summary": "To refactor directional properties, replace left/right with inline-start/end and top/bottom with block-start/end, set dir in HTML, mirror directional icons, and verify the component in both left-to-right and right-to-left contexts.",
     "retrievalPrompts": [
-      "Explain Logical properties and writing modes using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: RTL support is complete when text-align is switched to right.",
-      "Apply checkpoint 'logical properties' to a new artifact."
+      "Where is margin-inline-start in RTL?",
+      "Is switching text-align enough for RTL?",
+      "Which icons should mirror?"
     ],
     "nextReviewPrompt": "Next: continue to “Flex axes and sizing”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

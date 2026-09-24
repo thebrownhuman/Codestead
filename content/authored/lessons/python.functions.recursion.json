@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A recursive Python function solves a smaller instance, reaches an explicit base case, and combines returned results while consuming call-stack depth.",
+    "summary": "A recursive Python function needs three things: **reject invalid input** up front, a **base case** that returns directly, and a **progress step** that calls itself on a smaller problem. Python keeps every pending call on a stack (about 1,000 deep by default) and does **not** optimise tail calls — so deep recursion raises `RecursionError`.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A factorial function rejects negative input, returns 1 at zero, and recurs with n - 1 so every valid call moves toward the base case. Your goal is to write, trace and test a recursive routine with explicit base and progress cases. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A maths app computes factorials: 5! = 5 × 4 × 3 × 2 × 1 = 120. Recursion expresses it beautifully — but `factorial(-1)` could recurse forever, and `factorial(5000)` could blow Python's stack. A factorial function rejects negative input, returns 1 at zero, and recurs with n - 1, so every valid call moves toward the base case. In this lesson you'll write, trace and test a recursive routine with explicit base and progress cases.\n\n```predict\n{\"question\": \"Without a negative check, what happens with `factorial(-1)` when the base case is `n == 0`?\", \"options\": [\"Returns 1\", \"RecursionError: -1, -2, -3… never reaches 0\"], \"answer\": 1, \"why\": \"Each call subtracts 1, moving **away** from 0. Python stops it at the recursion limit. Validate input first.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Core collections and text; pf abstraction calls; Function contracts and returns; pf abstraction recursion. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Core collections and text**, **Calls, parameters and returns**, **Function contracts and returns**, and **Recursion concept** (base cases and progress)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "A recursive Python function solves a smaller instance, reaches an explicit base case, and combines returned results while consuming call-stack depth. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: validate, base case, progress",
+        "body": "```python\ndef factorial(n: int) -> int:\n    \"\"\"Return n! for n >= 0. Raises ValueError for negative n.\"\"\"\n    if n < 0:\n        raise ValueError(\"n must be >= 0\")   # validate\n    if n == 0:\n        return 1                             # base case\n    return n * factorial(n - 1)              # progress: n shrinks\n```\n\n| Call | Waits for | Returns |\n|---|---|---|\n| factorial(3). | factorial(2). | 3 × 2 = 6. |\n| factorial(2). | factorial(1). | 2 × 1 = 2. |\n| factorial(1). | factorial(0). | 1 × 1 = 1. |\n| factorial(0). | nothing. | 1. |\n\n```reveal\n{\"prompt\": \"Does writing `return factorial(n - 1, acc * n)` (tail recursion) save stack space in Python?\", \"answer\": \"No. CPython doesn't do tail-call optimisation, so each call still adds a frame. For big n, use a loop or `math.factorial`.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "Python does not guarantee tail-call elimination, recursion depth is limited, cycles need visited state, exponential recurrence can repeat work, and iterative forms may be clearer. The learner must reject this documented misconception: Any function that calls itself will eventually stop, and tail recursion uses constant stack space in Python."
+        "heading": "Know the limits",
+        "body": "```predict\n{\"question\": \"`factorial(5000)` with default settings:\", \"options\": [\"Returns a huge number\", \"Raises RecursionError\"], \"answer\": 1, \"why\": \"The default recursion limit is about 1,000 frames. A loop version handles 5,000 easily.\"}\n```\n\nRecursion shines for naturally recursive data — folders inside folders, nested lists, trees — where depth stays modest."
       }
     ]
   },
   "scope": {
     "includes": [
-      "Implement terminating recursion and compare it with iterative alternatives under Python's call limits.",
-      "Write, trace and test a recursive routine with explicit base and progress cases."
+      "Write recursive functions with validation, a base case and a progress step.",
+      "Trace the call stack and test base, normal and invalid cases."
     ],
     "excludes": [
-      "Python does not guarantee tail-call elimination, recursion depth is limited, cycles need visited state, exponential recurrence can repeat work, and iterative forms may be clearer."
+      "Memoisation with functools.cache.",
+      "Mutual recursion."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "python.functions.recursion.example.direct",
-      "title": "Recursive functions: direct language case",
+      "title": "A careful factorial",
       "situation": "A factorial function rejects negative input, returns 1 at zero, and recurs with n - 1 so every valid call moves toward the base case.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A factorial function rejects negative input, returns 1 at zero, and recurs with n - 1 so every valid call moves toward the base case.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: State the base case and a strictly smaller progress measure, and choose iteration when depth can exceed Python's recursion limit."
+        "**Reject negative input:** `factorial(-2)` raises ValueError before any recursion.",
+        "**Base case:** `factorial(0)` returns 1 directly.",
+        "**Progress:** `factorial(3)` recurs with n - 1 → 2 → 1 → 0, then multiplies back up: 1, 2, 6."
       ],
-      "result": "The example meets the atomic outcome because State the base case and a strictly smaller progress measure, and choose iteration when depth can exceed Python's recursion limit."
+      "result": "factorial(3) returns 6, factorial(0) returns 1, and negative input fails fast — every valid call reaches the base case."
     },
     {
       "id": "python.functions.recursion.example.boundary",
-      "title": "Recursive functions: boundary and transfer case",
-      "situation": "A deep linked structure is traversed iteratively to avoid recursion limits, while a small tree exercise keeps recursion because its shape matches the definition.",
+      "title": "Summing nested lists",
+      "situation": "`total([1, [2, [3, 4]], 5])` should return 15 using recursion.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A deep linked structure is traversed iteratively to avoid recursion limits, while a small tree exercise keeps recursion because its shape matches the definition.",
-        "Step 2 — Keep the language boundary explicit: Python does not guarantee tail-call elimination, recursion depth is limited, cycles need visited state, exponential recurrence can repeat work, and iterative forms may be clearer.",
-        "Step 3 — Reject the tempting but incorrect rule: Any function that calls itself will eventually stop, and tail recursion uses constant stack space in Python."
+        "Base: a plain number returns itself.",
+        "Progress: a list returns the sum of `total(item)` for each item — each call handles a smaller piece.",
+        "Test: `total([])` → 0, `total(7)` → 7, `total([1, [2, [3, 4]], 5])` → 15."
       ],
-      "result": "This case demonstrates the declared outcome: Write, trace and test a recursive routine with explicit base and progress cases."
+      "result": "Recursion follows the nesting naturally, and the depth stays small."
     }
   ],
   "misconceptions": [
     {
       "id": "python.functions.recursion.misconception",
       "mistakenBelief": "Any function that calls itself will eventually stop, and tail recursion uses constant stack space in Python.",
-      "correction": "State the base case and a strictly smaller progress measure, and choose iteration when depth can exceed Python's recursion limit.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Any function that calls itself will eventually stop, and tail recursion uses constant stack space in Python."
+      "correction": "Recursion stops only if every call makes progress toward a reachable base case, and invalid inputs are rejected. Python does not optimise tail calls, so each call uses a stack frame until the recursion limit.",
+      "diagnosticPrompt": "In the opening predict, why did factorial(-1) never stop?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a callable service counter with a published request form, binding rules, retained enclosing notes, and a recursive delegation limit can introduce Recursive functions, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "example": "Like **unpacking nested gift boxes**: open a box (progress) until you reach the gift (base case), then close them back up in reverse. If someone hands you a box labelled \"-1\", you should refuse it at the door (validation).",
     "usefulFor": [
-      "contracts, parameters, closures, and recursion"
+      "remembering validate → base → progress",
+      "picturing unwinding in reverse"
     ],
     "limitations": [
-      "definition-time defaults, LEGB lookup, late binding, exceptions, and stack limits have no exact service-counter counterpart",
-      "Python does not guarantee tail-call elimination, recursion depth is limited, cycles need visited state, exponential recurrence can repeat work, and iterative forms may be clearer."
+      "Python has a limit on how many boxes you can hold open (~1,000).",
+      "Real boxes don't multiply results on the way back."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A factorial function rejects negative input, returns 1 at zero, and recurs with n - 1 so every valid call moves toward the base case.",
-      "A recursive Python function solves a smaller instance, reaches an explicit base case, and combines returned results while consuming call-stack depth.",
-      "State the base case and a strictly smaller progress measure, and choose iteration when depth can exceed Python's recursion limit."
+      "factorial(3)",
+      "3 * factorial(2) → 2 * factorial(1) → 1 * factorial(0)",
+      "factorial(0) returns 1"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Validate",
         "state": {
-          "evidence": "A factorial function rejects negative input, returns 1 at zero, and recurs with n - 1 so every valid call moves toward the base case."
+          "n": "3",
+          "n < 0": "False"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "The factorial function checks and rejects negative input before recursing."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Recur with n - 1",
         "state": {
-          "rule": "A recursive Python function solves a smaller instance, reaches an explicit base case, and combines returned results while consuming call-stack depth."
+          "stack": "factorial(3), (2), (1), (0)"
         },
-        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "Each call recurs with n - 1, moving toward the base case."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Unwind",
         "state": {
-          "correction": "State the base case and a strictly smaller progress measure, and choose iteration when depth can exceed Python's recursion limit."
+          "factorial(0)": "1",
+          "factorial(3)": "6"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Any function that calls itself will eventually stop, and tail recursion uses constant stack space in Python."
+        "explanation": "Returns 1 at zero, then the frames multiply back up to 6."
       }
     ],
-    "textAlternative": "Starting artifact: A factorial function rejects negative input, returns 1 at zero, and recurs with n - 1 so every valid call moves toward the base case. Step 1, Observe. State: evidence: A factorial function rejects negative input, returns 1 at zero, and recurs with n - 1 so every valid call moves toward the base case.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A recursive Python function solves a smaller instance, reaches an explicit base case, and combines returned results while consuming call-stack depth.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: State the base case and a strictly smaller progress measure, and choose iteration when depth can exceed Python's recursion limit.. Compare the observation with the correction and explain why the misconception fails: Any function that calls itself will eventually stop, and tail recursion uses constant stack space in Python."
+    "textAlternative": "Tracing a validated recursive factorial. Step 1, Validate: n is 3; n < 0 is False. The factorial function checks and rejects negative input before recursing. Step 2, Recur with n - 1: stack is factorial(3), (2), (1), (0). Each call recurs with n - 1, moving toward the base case. Step 3, Unwind: factorial(0) is 1; factorial(3) is 6. Returns 1 at zero, then the frames multiply back up to 6."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Recursive functions: direct language case”: state its starting evidence, apply the Recursive functions rule, and give the observable result in three short lines.",
+      "prompt": "For \"A careful factorial\", explain how the factorial function rejects negative input, what it returns at zero, and how recurring with n - 1 makes every valid call move toward the base case.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Validation.",
+        "Base case.",
+        "Progress."
       ],
       "expectedEvidence": [
-        "Named example: Recursive functions: direct language case.",
-        "Starting evidence: A factorial function rejects negative input, returns 1 at zero, and recurs with n - 1 so every valid call moves toward the base case.",
-        "Core rule: A recursive Python function solves a smaller instance, reaches an explicit base case, and combines returned results while consuming call-stack depth.",
-        "Observable result: The example meets the atomic outcome because State the base case and a strictly smaller progress measure, and choose iteration when depth can exceed Python's recursion limit.",
-        "Boundary check: State the base case and a strictly smaller progress measure, and choose iteration when depth can exceed Python's recursion limit."
+        "Names the example \"A careful factorial\": the factorial function rejects negative input with ValueError.",
+        "It returns 1 at zero.",
+        "It recurs with n - 1, moving toward the base case.",
+        "factorial(3) returns 6."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A deep linked structure is traversed iteratively to avoid recursion limits, while a small tree exercise keeps recursion because its shape matches the definition.",
+      "prompt": "Write a recursive `count_down(n)` that returns the list `[n, n-1, …, 1]`, returns `[]` for 0, and raises ValueError for negatives. Test all three cases.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Base: n == 0.",
+        "Progress: [n] + count_down(n - 1)."
       ],
       "expectedEvidence": [
-        "A recursive Python function solves a smaller instance, reaches an explicit base case, and combines returned results while consuming call-stack depth.",
-        "Python does not guarantee tail-call elimination, recursion depth is limited, cycles need visited state, exponential recurrence can repeat work, and iterative forms may be clearer."
+        "Correct results for 3 → [3, 2, 1] and 0 → [].",
+        "Negative input raises ValueError."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Recursive functions, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Write a recursive function that counts all files in a nested dict representing folders (e.g. `{\"a.txt\": None, \"docs\": {\"b.txt\": None}}`). Identify the base and progress cases and test an empty folder.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "A file value is None; a folder value is a dict.",
+        "Sum over entries."
       ],
       "expectedEvidence": [
-        "Write, trace and test a recursive routine with explicit base and progress cases.",
-        "State the base case and a strictly smaller progress measure, and choose iteration when depth can exceed Python's recursion limit."
+        "Correct recursive count with clear base and progress cases.",
+        "Tests including an empty folder."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "python.functions.recursion.misconception",
-      "explanation": "State the base case and a strictly smaller progress measure, and choose iteration when depth can exceed Python's recursion limit.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A deep linked structure is traversed iteratively to avoid recursion limits, while a small tree exercise keeps recursion because its shape matches the definition."
+      "explanation": "Write three labelled lines before coding: **Invalid when… / Base case returns… / Each call shrinks by…**. Then trace the smallest valid input by hand.",
+      "retryPrompt": "Write the three lines for \"Summing nested lists\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to write, trace and test a recursive routine with explicit base and progress cases. Keep this boundary in view: Python does not guarantee tail-call elimination, recursion depth is limited, cycles need visited state, exponential recurrence can repeat work, and iterative forms may be clearer.",
+    "summary": "To write, trace and test a recursive routine, reject invalid input, give an explicit base case, and make every call progress toward it. Python keeps each call on the stack with no tail-call optimisation, so use loops for very deep problems.",
     "retrievalPrompts": [
-      "Explain Recursive functions using canonical Python: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Any function that calls itself will eventually stop, and tail recursion uses constant stack space in Python.",
-      "Predict this case from memory: A deep linked structure is traversed iteratively to avoid recursion limits, while a small tree exercise keeps recursion because its shape matches the definition."
+      "What three parts does a safe recursive function need?",
+      "Why doesn't tail recursion save stack in Python?",
+      "What happens at the recursion limit?"
     ],
     "nextReviewPrompt": "Next: continue to “Modules and imports”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

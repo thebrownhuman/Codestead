@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Divide-and-conquer separates a problem into independent subproblems, solves them recursively, and combines their results.",
+    "summary": "**Divide and conquer** is a specific recipe with three steps: **divide** the problem into **independent** smaller subproblems of the same kind (often halves), **conquer** each recursively, then **combine** their answers. Merge sort is the classic: split, sort halves, merge in O(n). The same template solves other problems, such as the best-scoring stretch of days, where the answer is in the left half, the right half, or **crossing the middle**. Not every recursion qualifies: counting a list recursively has one subproblem and no real combine, so it's just recursion.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Merge sort divides into halves and linearly combines sorted results. Your goal is to design and analyze a divide-and-conquer solution beyond a memorized sorting example. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner memorised merge sort but freezes when asked for the best run of consecutive days in a points log: the stretch with the largest total gain. Merge sort divides into halves and linearly combines sorted results. The same shape works here if you ask where the best stretch can be. In this lesson you'll design and analyze a divide-and-conquer solution beyond a memorized sorting example.\n\n```predict\n{\"question\": \"Is `def count(node): return 0 if node is None else 1 + count(node.next)` divide and conquer?\", \"options\": [\"Yes, it's recursive\", \"No: one subproblem and a trivial combine; it's plain recursion\"], \"answer\": 1, \"why\": \"Divide and conquer splits into several independent subproblems and combines their results.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Readiness, algorithms and analysis; Array representation and operations; Recurrence reasoning. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Readiness, algorithms and analysis** module, **Array representation and operations**, and **Recurrence reasoning**, to analyse the cost."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Divide-and-conquer separates a problem into independent subproblems, solves them recursively, and combines their results. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The model: divide, conquer, combine",
+        "body": "```python\ndef best_stretch(gains, lo, hi):          # best sum of a non-empty run in gains[lo:hi].\n    if hi - lo == 1:                          # base: one day.\n        return gains[lo]\n    mid = (lo + hi) // 2\n    left = best_stretch(gains, lo, mid)       # conquer left half.\n    right = best_stretch(gains, mid, hi)      # conquer right half.\n    # Combine: best run crossing mid = best ending at mid-1 + best starting at mid.\n    s, best_left_end = 0, float(\"-inf\")\n    for i in range(mid - 1, lo - 1, -1):\n        s += gains[i]\n        best_left_end = max(best_left_end, s)\n    s, best_right_start = 0, float(\"-inf\")\n    for j in range(mid, hi):\n        s += gains[j]\n        best_right_start = max(best_right_start, s)\n    return max(left, right, best_left_end + best_right_start)\n\ngains = [3, -5, 4, -1, 2, -6, 5]\nprint(best_stretch(gains, 0, len(gains)))   # 5: e.g. 4, -1, 2 or just 5.\n```\n\n| Step | Merge sort | Best stretch |\n|---|---|---|\n| conquer. | sort each half. | best stretch in each half. |\n| combine. | merge, O(n). | best crossing mid, O(n). |\n| cost. | O(n log n). | O(n log n). |\n\n```reveal\n{\"prompt\": \"Is there a faster way for best stretch?\", \"answer\": \"Yes, Kadane's algorithm solves it in O(n) with one pass. Divide and conquer is still worth learning as a design tool you can reuse.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Overlapping subproblems favor dynamic programming, unbalanced division harms depth, and combine cost can dominate. The draft therefore rejects: Any algorithm containing recursion is divide-and-conquer."
+        "heading": "Independence matters",
+        "body": "```predict\n{\"question\": \"Fibonacci with fib(n - 1) + fib(n - 2). Are the subproblems independent?\", \"options\": [\"Yes\", \"No: they overlap heavily, which is why dynamic programming fits better\"], \"answer\": 1, \"why\": \"Divide and conquer shines when halves don't share work.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Divide independent subproblems, solve recursively and combine with controlled duplication.",
-      "Design and analyze a divide-and-conquer solution beyond a memorized sorting example.",
-      "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
+      "Identify divide, conquer and combine steps and check independence.",
+      "Design and analyse a divide-and-conquer solution with its recurrence."
     ],
     "excludes": [
-      "Overlapping subproblems favor dynamic programming, unbalanced division harms depth, and combine cost can dominate."
+      "Strassen and FFT.",
+      "Parallel execution of subproblems."
     ]
   },
   "outcomes": [
@@ -68,142 +64,136 @@
   "examples": [
     {
       "id": "dsa.recursion.divide-conquer.example-a",
-      "title": "Divide-and-conquer strategy: language-neutral trace",
+      "title": "Merge sort as a template",
       "situation": "Merge sort divides into halves and linearly combines sorted results.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: Merge sort divides into halves and linearly combines sorted results.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Divide-and-conquer requires a meaningful division into subproblems plus a combination step, not recursion alone."
+        "**Divide into halves:** split the list at mid; each half is an independent sorting problem.",
+        "**Linearly combine sorted results:** merge the two sorted halves in O(n).",
+        "**Reuse the template:** best_stretch divides the points log the same way and combines with the best run crossing mid; a test will compare it with brute force on random logs."
       ],
-      "result": "The conceptual result follows because Divide-and-conquer requires a meaningful division into subproblems plus a combination step, not recursion alone."
+      "result": "The learner solves a new problem with the same three-step shape and derives O(n log n) for both."
     },
     {
       "id": "dsa.recursion.divide-conquer.example-b",
-      "title": "Divide-and-conquer strategy: implementation transfer",
-      "situation": "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input.",
+      "title": "The combine step that was too slow",
+      "situation": "A divide-and-conquer \"count pairs out of order\" solution combines halves by comparing every left item with every right item.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input.",
-        "Step 3 — Retest this boundary in the selected implementation: Overlapping subproblems favor dynamic programming, unbalanced division harms depth, and combine cost can dominate."
+        "That combine is O(n²), so T(n) = 2T(n/2) + O(n²) = O(n²): no gain.",
+        "Sort halves as you go and count crossings during the merge in O(n).",
+        "Now T(n) = 2T(n/2) + O(n) = O(n log n)."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Out-of-order pairs in 100,000 scores are counted in well under a second."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.recursion.divide-conquer.misconception",
       "mistakenBelief": "Any algorithm containing recursion is divide-and-conquer.",
-      "correction": "Divide-and-conquer requires a meaningful division into subproblems plus a combination step, not recursion alone.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Any algorithm containing recursion is divide-and-conquer."
+      "correction": "Divide and conquer splits into several independent subproblems of the same kind and combines their results. Recursion with one subproblem, or with heavily overlapping subproblems, is a different pattern.",
+      "diagnosticPrompt": "In the opening predict, why wasn't count divide and conquer?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Divide-and-conquer strategy, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Divide and conquer is like **marking a big pile of exams with a team**: split the pile in two, give each half to a helper who does the same, then combine the results. It only pays off if combining is cheap and the helpers aren't re-marking the same papers.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering divide, conquer, combine",
+      "combine cost decides the total"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Overlapping subproblems favor dynamic programming, unbalanced division harms depth, and combine cost can dominate."
+      "Real helpers work in parallel; recursion here runs one after another.",
+      "Overlapping piles are a sign of dynamic programming instead."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Merge sort divides into halves and linearly combines sorted results.",
-      "Divide-and-conquer separates a problem into independent subproblems, solves them recursively, and combines their results.",
-      "Divide-and-conquer requires a meaningful division into subproblems plus a combination step, not recursion alone.",
-      "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
+      "gains = [3, -5, 4, -1, 2, -6, 5]",
+      "split at mid = 3",
+      "combine"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Divide",
         "state": {
-          "scenario": "Merge sort divides into halves and linearly combines sorted results."
+          "left": "[3, -5, 4]",
+          "right": "[-1, 2, -6, 5]"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The log is split into halves like merge sort divides into halves."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Conquer",
         "state": {
-          "invariant": "Divide-and-conquer separates a problem into independent subproblems, solves them recursively, and combines their results."
+          "best left": "4",
+          "best right": "5"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "Each half's best stretch is solved recursively."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Combine",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "best crossing": "4 + 1 = 5",
+          "answer": "max(4, 5, 5) = 5"
         },
-        "explanation": "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Divide-and-conquer requires a meaningful division into subproblems plus a combination step, not recursion alone."
-        },
-        "explanation": "Verify the result and reject this misconception: Any algorithm containing recursion is divide-and-conquer."
+        "explanation": "The combine step checks runs crossing mid in linear time."
       }
     ],
-    "textAlternative": "Starting artifact: Merge sort divides into halves and linearly combines sorted results. Step 1, Specification. State: scenario: Merge sort divides into halves and linearly combines sorted results.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Divide-and-conquer separates a problem into independent subproblems, solves them recursively, and combines their results.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input. Step 4, Conclusion. State: correction: Divide-and-conquer requires a meaningful division into subproblems plus a combination step, not recursion alone.. Verify the result and reject this misconception: Any algorithm containing recursion is divide-and-conquer."
+    "textAlternative": "Tracing best_stretch. Step 1, Divide: left is [3, -5, 4]; right is [-1, 2, -6, 5]. The log is split into halves like merge sort divides into halves. Step 2, Conquer: best left is 4; best right is 5. Each half's best stretch is solved recursively. Step 3, Combine: best crossing is 4 + 1 = 5; answer is max(4, 5, 5) = 5. The combine step checks runs crossing mid in linear time."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Divide-and-conquer strategy: language-neutral trace”: state its starting evidence, apply the Divide-and-conquer strategy rule, and give the observable result in three short lines.",
+      "prompt": "For \"Merge sort as a template\", explain how merge sort divides into halves and linearly combines sorted results, and how the template transfers.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Divide.",
+        "Combine.",
+        "Transfer."
       ],
       "expectedEvidence": [
-        "Named example: Divide-and-conquer strategy: language-neutral trace.",
-        "Starting evidence: Merge sort divides into halves and linearly combines sorted results.",
-        "Core rule: Divide-and-conquer separates a problem into independent subproblems, solves them recursively, and combines their results.",
-        "Observable result: The conceptual result follows because Divide-and-conquer requires a meaningful division into subproblems plus a combination step, not recursion alone.",
-        "Boundary check: Divide-and-conquer requires a meaningful division into subproblems plus a combination step, not recursion alone."
+        "Names the example \"Merge sort as a template\": merge sort is the template.",
+        "Merge sort divides into halves.",
+        "It linearly combines sorted results.",
+        "The learner solves a new problem with the same three-step shape."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Divide-and-conquer separates a problem into independent subproblems, solves them recursively, and combines their results.",
+      "prompt": "Design `max_value(a, lo, hi)` by divide and conquer. Write its recurrence and cost, and explain why it's no faster than a loop.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Combine: max of two answers.",
+        "T(n) = 2T(n/2) + O(1)."
       ],
       "expectedEvidence": [
-        "C and C++ expose finite native call stacks without guaranteed tail-call elimination; Java likewise has bounded stack frames; Python has a comparatively low recursion limit, so all four implementations need an iterative alternative when depth scales with input.",
-        "Overlapping subproblems favor dynamic programming, unbalanced division harms depth, and combine cost can dominate."
+        "O(n), the same as a loop.",
+        "Recursion adds O(log n) stack."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Divide-and-conquer strategy case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Implement divide-and-conquer inversion counting (pairs i < j with a[i] > a[j]) by modifying merge sort. Test against brute force on random arrays and derive O(n log n).",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Count when taking from the right half.",
+        "Add len(left) - i each time."
       ],
       "expectedEvidence": [
-        "Design and analyze a divide-and-conquer solution beyond a memorized sorting example.",
-        "Divide-and-conquer requires a meaningful division into subproblems plus a combination step, not recursion alone."
+        "Matches brute force on all tests.",
+        "Recurrence and cost stated."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.recursion.divide-conquer.misconception",
-      "explanation": "Divide-and-conquer requires a meaningful division into subproblems plus a combination step, not recursion alone.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'combination step', then state one implementation-specific risk in the selected language."
+      "explanation": "Write the three steps before coding: **divide into what? conquer how? combine in what time?** Then write T(n) and check that combine is cheap enough to beat the simple approach.",
+      "retryPrompt": "Apply this to \"The combine step that was too slow\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to design and analyze a divide-and-conquer solution beyond a memorized sorting example. Keep this boundary in view: Overlapping subproblems favor dynamic programming, unbalanced division harms depth, and combine cost can dominate.",
+    "summary": "To design and analyze a divide-and-conquer solution, split into independent subproblems of the same kind, solve each recursively, and combine efficiently. Like merge sort, the best stretch of days divides into halves and combines in O(n), giving T(n) = 2T(n/2) + O(n) = O(n log n).",
     "retrievalPrompts": [
-      "State the Divide-and-conquer strategy invariant and complexity without code.",
-      "Why is this claim false: Any algorithm containing recursion is divide-and-conquer.",
-      "Map checkpoint 'combination step' to C, C++, Java, and Python."
+      "What are the three steps of divide and conquer?",
+      "Is every recursive algorithm divide and conquer?",
+      "Why does the combine step's cost matter?"
     ],
     "nextReviewPrompt": "Next: continue to “Tree terminology and representation”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

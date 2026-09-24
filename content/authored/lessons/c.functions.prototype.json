@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A function prototype declares return and parameter types so calls can be checked and arguments converted according to the declared interface before the definition is seen.",
+    "summary": "A **prototype** tells the compiler a function's **name, return type and parameter types** before it's used: `double average(const int *values, size_t count);`. With it in view, every call is **checked** (wrong argument count or types are errors or warnings) and arguments are **converted** to the declared types. The **definition** is the version with a body, written once. Put prototypes in a header that every caller includes. For no parameters write **`(void)`**: before C23, an empty `()` meant \"parameters not specified\", so the compiler couldn't check calls at all.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: The header declaration double average(const int *values, size_t count) is visible at every call and matches one external definition. Your goal is to design, declare, define and call a type-correct function. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner declares `double average();` at the top of main.c and calls `average(marks)`, forgetting the count. It compiles without complaint and returns nonsense. The header declaration double average(const int *values, size_t count) is visible at every call and matches one external definition. In this lesson you'll design, declare, define and call a type-correct function.\n\n```predict\n{\"question\": \"In C17, does `double average();` let the compiler check how many arguments you pass?\", \"options\": [\"Yes\", \"No: empty parentheses mean unspecified parameters; write the full prototype\"], \"answer\": 1, \"why\": \"C23 finally made () mean (void), but full prototypes are clearer in every version.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: while, do and for; pf abstraction calls; Scalar types and declarations; pf abstraction functions. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **while, do and for**, **Calls, parameters and returns**, **Scalar types and declarations** and **Functions as contracts** (inputs, outputs and reuse)."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "A function prototype declares return and parameter types so calls can be checked and arguments converted according to the declared interface before the definition is seen. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The rule: declare the full interface before calling",
+        "body": "```c\n/* stats.h */\n#include <stddef.h>\ndouble average(const int *values, size_t count);   /* prototype. */\nvoid reset(void);                                   /* explicitly no parameters. */\n\n/* stats.c: the one definition. */\n#include \"stats.h\"\ndouble average(const int *values, size_t count) {\n    if (count == 0) return 0.0;\n    long sum = 0;\n    for (size_t i = 0; i < count; i++) sum += values[i];\n    return (double)sum / count;\n}\n\n/* main.c */\n#include <stdio.h>\n#include \"stats.h\"\nint main(void) {\n    int marks[] = {7, 9, 8};\n    printf(\"%.2f\\n\", average(marks, 3));   /* 8.00. */\n    /* average(marks);  error: too few arguments. */\n    return 0;\n}\n```\n\n| Part | Example |\n|---|---|\n| return type. | `double`. |\n| name. | `average`. |\n| parameter list. | `(const int *values, size_t count)`. |\n| no parameters. | `(void)`. |\n\n```reveal\n{\"prompt\": \"Why const int *values?\", \"answer\": \"It promises average won't modify the caller's array. The compiler enforces it, and callers can pass read-only data.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Old-style unspecified parameter lists differ from a void parameter list, variadic arguments receive less checking, and incompatible declarations across units make behavior undefined. Therefore the draft explicitly rejects this beginner failure model: Writing reset() in a C declaration always means the function takes no arguments, exactly like reset(void)."
+        "heading": "Mismatched definitions",
+        "body": "```predict\n{\"question\": \"The header says `double average(const int *, size_t)` but stats.c defines `float average(int *v, int n)`. What catches this?\", \"options\": [\"Nothing\", \"Including stats.h in stats.c: the compiler reports conflicting types\"], \"answer\": 1, \"why\": \"Always include a module's own header in its .c file.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Declare functions before use and keep interfaces compatible with definitions.",
-      "Design, declare, define and call a type-correct function."
+      "Write full prototypes with return and parameter types, using (void) for no parameters.",
+      "Keep one matching definition and include the header in both callers and the defining file."
     ],
     "excludes": [
-      "Old-style unspecified parameter lists differ from a void parameter list, variadic arguments receive less checking, and incompatible declarations across units make behavior undefined."
+      "Variadic functions like printf.",
+      "Inline functions."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "c.functions.prototype.example-a",
-      "title": "Declarations, prototypes and definitions: defined case",
+      "title": "The average function",
       "situation": "The header declaration double average(const int *values, size_t count) is visible at every call and matches one external definition.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: The header declaration double average(const int *values, size_t count) is visible at every call and matches one external definition.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: In a C prototype, use (void) to declare no parameters; an empty parameter list does not provide the same prototype information."
+        "**The header declaration double average(const int *values, size_t count):** stats.h holds it.",
+        "**Is visible at every call:** main.c includes stats.h, so average(marks) without a count fails to compile.",
+        "**Matches one external definition:** stats.c includes the same header and will define it exactly once."
       ],
-      "result": "The defined result follows because In a C prototype, use (void) to declare no parameters; an empty parameter list does not provide the same prototype information."
+      "result": "Every call is checked, and the function returns 8.00 for {7, 9, 8}."
     },
     {
       "id": "c.functions.prototype.example-b",
-      "title": "Declarations, prototypes and definitions: boundary case",
-      "situation": "A no-argument function is declared reset(void), explicitly stating that it accepts no parameters in C.",
+      "title": "The silent int conversion",
+      "situation": "A caller passes 2.9 to `void set_level(int level);`. The prototype converts it to 2.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A no-argument function is declared reset(void), explicitly stating that it accepts no parameters in C.",
-        "Step 2 — Keep this standard boundary visible: Old-style unspecified parameter lists differ from a void parameter list, variadic arguments receive less checking, and incompatible declarations across units make behavior undefined.",
-        "Step 3 — Reject the tempting rule: Writing reset() in a C declaration always means the function takes no arguments, exactly like reset(void)."
+        "The conversion is legal, but the fractional part is lost.",
+        "-Wconversion warns about it.",
+        "Either round explicitly or change the parameter to double if fractions matter."
       ],
-      "result": "This case demonstrates the declared outcome: Design, declare, define and call a type-correct function."
+      "result": "The level is exactly what the caller intended."
     }
   ],
   "misconceptions": [
     {
       "id": "c.functions.prototype.misconception",
       "mistakenBelief": "Writing reset() in a C declaration always means the function takes no arguments, exactly like reset(void).",
-      "correction": "In a C prototype, use (void) to declare no parameters; an empty parameter list does not provide the same prototype information.",
-      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: Writing reset() in a C declaration always means the function takes no arguments, exactly like reset(void)."
+      "correction": "Before C23, reset() declares a function with unspecified parameters, so calls with arguments aren't checked. reset(void) states there are none in every C version.",
+      "diagnosticPrompt": "In the opening story, why did average(marks) compile?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A manually managed workshop can model Declarations, prototypes and definitions: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "example": "A prototype is like **a job advert listing exact requirements**: \"one array of ints, plus a count; you'll receive a double\". Applicants (calls) are checked at the door. An empty `()` advert is **\"anyone welcome\"**: nobody gets checked, and surprises happen on the job.",
     "usefulFor": [
-      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+      "remembering exact requirements",
+      "() = anyone welcome (before C23)"
     ],
     "limitations": [
-      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
-      "Old-style unspecified parameter lists differ from a void parameter list, variadic arguments receive less checking, and incompatible declarations across units make behavior undefined."
+      "Adverts can be vague; prototypes must match the definition exactly.",
+      "(void) says \"no applicants needed\"."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "The header declaration double average(const int *values, size_t count) is visible at every call and matches one external definition.",
-      "A function prototype declares return and parameter types so calls can be checked and arguments converted according to the declared interface before the definition is seen.",
-      "In a C prototype, use (void) to declare no parameters; an empty parameter list does not provide the same prototype information."
+      "stats.h: prototype",
+      "main.c: average(marks, 3)",
+      "link with stats.c"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Declare",
         "state": {
-          "evidence": "The header declaration double average(const int *values, size_t count) is visible at every call and matches one external definition."
+          "prototype": "double average(const int *, size_t)"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "The header declaration is visible before any call."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Call",
         "state": {
-          "rule": "A function prototype declares return and parameter types so calls can be checked and arguments converted according to the declared interface before the definition is seen."
+          "arguments": "marks, 3",
+          "checked": "yes"
         },
-        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+        "explanation": "The compiler checks the call against the declared interface."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Define",
         "state": {
-          "conclusion": "In a C prototype, use (void) to declare no parameters; an empty parameter list does not provide the same prototype information."
+          "definition": "stats.c only",
+          "result": "8.00"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: Writing reset() in a C declaration always means the function takes no arguments, exactly like reset(void)."
+        "explanation": "It matches one external definition found at link time."
       }
     ],
-    "textAlternative": "Starting artifact: The header declaration double average(const int *values, size_t count) is visible at every call and matches one external definition. Step 1, Source and state. State: evidence: The header declaration double average(const int *values, size_t count) is visible at every call and matches one external definition.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A function prototype declares return and parameter types so calls can be checked and arguments converted according to the declared interface before the definition is seen.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: In a C prototype, use (void) to declare no parameters; an empty parameter list does not provide the same prototype information.. Check the conclusion against the boundary and reject this misconception: Writing reset() in a C declaration always means the function takes no arguments, exactly like reset(void)."
+    "textAlternative": "Tracing a checked call. Step 1, Declare: prototype is double average(const int *, size_t). The header declaration is visible before any call. Step 2, Call: arguments is marks, 3; checked is yes. The compiler checks the call against the declared interface. Step 3, Define: definition is stats.c only; result is 8.00. It matches one external definition found at link time."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Declarations, prototypes and definitions: defined case”: state its starting evidence, apply the Declarations, prototypes and definitions rule, and give the observable result in three short lines.",
+      "prompt": "For \"The average function\", explain how the header declaration double average(const int *values, size_t count) is visible at every call and matches one external definition.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Declare.",
+        "Call.",
+        "Define."
       ],
       "expectedEvidence": [
-        "Named example: Declarations, prototypes and definitions: defined case.",
-        "Starting evidence: The header declaration double average(const int *values, size_t count) is visible at every call and matches one external definition.",
-        "Core rule: A function prototype declares return and parameter types so calls can be checked and arguments converted according to the declared interface before the definition is seen.",
-        "Observable result: The defined result follows because In a C prototype, use (void) to declare no parameters; an empty parameter list does not provide the same prototype information.",
-        "Boundary check: In a C prototype, use (void) to declare no parameters; an empty parameter list does not provide the same prototype information."
+        "Names the example \"The average function\": average() let a missing count through.",
+        "The header declaration double average(const int *values, size_t count) is visible at every call.",
+        "It matches one external definition.",
+        "Every call is checked."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same C rule to this related boundary case: A no-argument function is declared reset(void), explicitly stating that it accepts no parameters in C.",
+      "prompt": "Write the prototype, definition and a call for max_of(const int *v, size_t n) returning the largest value (and a clear rule for n = 0). Try calling it with one argument and read the error.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Decide the empty-array behaviour.",
+        "Put the prototype first."
       ],
       "expectedEvidence": [
-        "A function prototype declares return and parameter types so calls can be checked and arguments converted according to the declared interface before the definition is seen.",
-        "Old-style unspecified parameter lists differ from a void parameter list, variadic arguments receive less checking, and incompatible declarations across units make behavior undefined."
+        "Clean build with correct calls.",
+        "Error on the wrong call."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new C example for Declarations, prototypes and definitions, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Create a small module (header + .c) with three functions, including one taking (void). Include the header in its own .c file, then change one definition's parameter type and show the conflicting-types error.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Include guards in the header.",
+        "Compile with -Wall -Wextra."
       ],
       "expectedEvidence": [
-        "Design, declare, define and call a type-correct function.",
-        "In a C prototype, use (void) to declare no parameters; an empty parameter list does not provide the same prototype information."
+        "Module builds and is used from main.c.",
+        "Mismatch caught at compile time."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "c.functions.prototype.misconception",
-      "explanation": "In a C prototype, use (void) to declare no parameters; an empty parameter list does not provide the same prototype information.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint '(void)' and state the decisive evidence: A no-argument function is declared reset(void), explicitly stating that it accepts no parameters in C."
+      "explanation": "For every function: **prototype in a header, (void) if no parameters, header included by callers and by the defining file.**",
+      "retryPrompt": "Apply this to \"The silent int conversion\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to design, declare, define and call a type-correct function. Keep this boundary in view: Old-style unspecified parameter lists differ from a void parameter list, variadic arguments receive less checking, and incompatible declarations across units make behavior undefined.",
+    "summary": "To design, declare, define and call a type-correct function, write a full prototype with return and parameter types (using (void) for none), place it in a header included by every caller and by the defining file, define the function once, and let the compiler check and convert every call.",
     "retrievalPrompts": [
-      "Explain Declarations, prototypes and definitions using a concrete C rule rather than the optional analogy.",
-      "Why is this claim incorrect: Writing reset() in a C declaration always means the function takes no arguments, exactly like reset(void).",
-      "Apply the checkpoint '(void)' to the boundary case from memory."
+      "What does a prototype let the compiler check?",
+      "Why write (void)?",
+      "Why include a header in its own .c file?"
     ],
     "nextReviewPrompt": "Next: continue to “Parameters and return values”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

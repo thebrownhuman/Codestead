@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A branch is a movable reference to a commit, while HEAD identifies the currently checked-out reference or a specific commit in detached state.",
+    "summary": "A **branch** is not a folder or a copy of your files. It's a **name that points at one commit**, stored as a tiny file containing a hash. All branches share one commit graph. When you commit, **the branch you're on moves forward** to the new commit; other branches stay put. **HEAD** says where you are: normally it points at a branch (`HEAD -> feature`), so commits move that branch. If you check out a commit directly, HEAD is **detached**: new commits belong to no branch and are easy to lose, so create a branch first with `git switch -c`.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Committing on feature moves the feature reference to the new commit while main continues to point at its previous commit. Your goal is to draw and manipulate a small branch graph while predicting HEAD movement. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner creates a branch called feature, expecting Git to copy the project somewhere. The folder looks identical, so they're confused about what changed. They commit, switch back to main, and their new file vanishes, then reappears when they switch back. Committing on feature moves the feature reference to the new commit while main continues to point at its previous commit. In this lesson you'll draw and manipulate a small branch graph while predicting HEAD movement.\n\n```predict\n{\"question\": \"You run `git branch feature` on main. How many new commits exist?\", \"options\": [\"One, a copy of main\", \"Zero: feature is just a new name pointing at the same commit\"], \"answer\": 1, \"why\": \"Creating a branch writes a pointer, nothing more. That's why it's instant.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Commits and history; Log, show and graph. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Commits and history** (snapshots with parents) and **Log, show and graph** (reading git log --graph output)."
       },
       {
-        "heading": "Operational model",
-        "body": "A branch is a movable reference to a commit, while HEAD identifies the currently checked-out reference or a specific commit in detached state. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The model: names pointing into one graph",
+        "body": "```bash\ngit switch -c feature          # create feature at the current commit and move HEAD to it.\necho \"hi\" > hello.txt\ngit add hello.txt && git commit -m \"Add greeting\"\ngit log --oneline --graph --all --decorate\n# * 9e1f0a2 (HEAD -> feature) Add greeting\n# * 5b2c7d4 (main) Initial commit\n\ngit switch main                # HEAD -> main; hello.txt leaves the working tree.\ncat .git/refs/heads/feature    # just a hash (may be packed in .git/packed-refs).\n```\n\n```text\nbefore:   A (main, feature, HEAD->feature)\nafter:    A (main) --- B (feature, HEAD->feature)\n```\n\n```reveal\n{\"prompt\": \"What is detached HEAD?\", \"answer\": \"HEAD points straight at a commit instead of a branch, for example after `git switch --detach 5b2c7d4`. Commits made there move no branch; run `git switch -c rescue` to give them a name before leaving.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Remote-tracking references are local observations, branch names are not commits, and deleting a name does not immediately delete reachable commit objects. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: A branch contains its own copied files and commits rather than naming one position in a shared commit graph."
+        "heading": "Predict the pointer",
+        "body": "```predict\n{\"question\": \"HEAD -> feature. You commit twice. Which names move?\", \"options\": [\"main and feature\", \"Only feature (and HEAD with it)\"], \"answer\": 1, \"why\": \"Only the checked-out branch advances.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Relate branch names, HEAD and commits without treating branches as copied folders.",
-      "Draw and manipulate a small branch graph while predicting HEAD movement."
+      "Explain branches as movable names for commits in one shared graph.",
+      "Predict how commits move the current branch and what detached HEAD means."
     ],
     "excludes": [
-      "Remote-tracking references are local observations, branch names are not commits, and deleting a name does not immediately delete reachable commit objects."
+      "Merging branches (later lesson).",
+      "Remote-tracking branches (remotes module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,137 @@
   "examples": [
     {
       "id": "git.branches.refs.example-a",
-      "title": "Branches as movable refs: direct case",
+      "title": "Committing on feature",
       "situation": "Committing on feature moves the feature reference to the new commit while main continues to point at its previous commit.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: Committing on feature moves the feature reference to the new commit while main continues to point at its previous commit.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Reason from references and commit ancestry: branch names move as commits are created, while snapshots belong to commit objects shared across the graph."
+        "**Create:** git switch -c feature points a new name at the same commit as main.",
+        "**Committing on feature moves the feature reference:** after \"Add greeting\", feature points to the new commit 9e1f0a2.",
+        "**Main continues to point at its previous commit:** switching to main will remove hello.txt from the working tree, because main's commit lacks it."
       ],
-      "result": "The case supports the declared outcome because Reason from references and commit ancestry: branch names move as commits are created, while snapshots belong to commit objects shared across the graph."
+      "result": "The learner sees branches as pointers, and the vanishing file makes sense."
     },
     {
       "id": "git.branches.refs.example-b",
-      "title": "Branches as movable refs: boundary case",
-      "situation": "Checking out a release tag detaches HEAD, so a new commit exists without advancing a normal local branch unless one is created.",
+      "title": "The lost detached commits",
+      "situation": "A learner checks out an old commit to test something, commits a fix, then switches to main. The fix seems gone.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: Checking out a release tag detaches HEAD, so a new commit exists without advancing a normal local branch unless one is created.",
-        "Step 2 — Keep this boundary explicit: Remote-tracking references are local observations, branch names are not commits, and deleting a name does not immediately delete reachable commit objects.",
-        "Step 3 — Reject the documented misconception: A branch contains its own copied files and commits rather than naming one position in a shared commit graph."
+        "HEAD was detached, so no branch moved to the fix commit.",
+        "Git printed the commit's hash when leaving; git reflog also lists it.",
+        "git branch rescue <hash> gives it a name and brings it back."
       ],
-      "result": "This case demonstrates the declared outcome: Draw and manipulate a small branch graph while predicting HEAD movement."
+      "result": "The fix is recovered, and next time the learner runs git switch -c before committing."
     }
   ],
   "misconceptions": [
     {
       "id": "git.branches.refs.misconception",
       "mistakenBelief": "A branch contains its own copied files and commits rather than naming one position in a shared commit graph.",
-      "correction": "Reason from references and commit ancestry: branch names move as commits are created, while snapshots belong to commit objects shared across the graph.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: A branch contains its own copied files and commits rather than naming one position in a shared commit graph."
+      "correction": "A branch is a pointer to one commit. Files come from whichever commit is checked out, and commits are shared by every branch that can reach them.",
+      "diagnosticPrompt": "In the opening predict, how many commits did git branch feature create?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A route map can model Branches as movable refs: movable signposts identify current destinations, routes diverge, and integration reconnects selected paths.",
+    "example": "Branches are like **sticky notes on pages of one notebook**. Writing a new page while holding the \"feature\" note moves that note to the new page. The \"main\" note stays where it was. HEAD is **your finger**, showing which note you're holding.",
     "usefulFor": [
-      "Visualizing references, divergence, ancestry, merge bases, and reconciled paths"
+      "remembering notes, not notebooks",
+      "HEAD = your finger"
     ],
     "limitations": [
-      "Branches are lightweight references to commits, not copied roads or independent containers of files.",
-      "Remote-tracking references are local observations, branch names are not commits, and deleting a name does not immediately delete reachable commit objects."
+      "Real notebooks are linear; Git's graph can split and join.",
+      "Pages with no note (detached commits) are easy to lose."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Committing on feature moves the feature reference to the new commit while main continues to point at its previous commit.",
-      "A branch is a movable reference to a commit, while HEAD identifies the currently checked-out reference or a specific commit in detached state.",
-      "Reason from references and commit ancestry: branch names move as commits are created, while snapshots belong to commit objects shared across the graph."
+      "git switch -c feature",
+      "commit \"Add greeting\"",
+      "git switch main"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Create",
         "state": {
-          "evidence": "Committing on feature moves the feature reference to the new commit while main continues to point at its previous commit."
+          "main": "A",
+          "feature": "A",
+          "HEAD": "feature"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "A new name points at the same commit as main."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Commit",
         "state": {
-          "model": "A branch is a movable reference to a commit, while HEAD identifies the currently checked-out reference or a specific commit in detached state."
+          "feature": "B",
+          "main": "A"
         },
-        "explanation": "Apply the declared Branches as movable refs model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "Committing on feature moves the feature reference to the new commit."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Switch",
         "state": {
-          "correction": "Reason from references and commit ancestry: branch names move as commits are created, while snapshots belong to commit objects shared across the graph."
+          "HEAD": "main",
+          "working tree": "commit A files"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: A branch contains its own copied files and commits rather than naming one position in a shared commit graph."
+        "explanation": "Main continues to point at its previous commit."
       }
     ],
-    "textAlternative": "Starting artifact: Committing on feature moves the feature reference to the new commit while main continues to point at its previous commit. Step 1, Observe. State: evidence: Committing on feature moves the feature reference to the new commit while main continues to point at its previous commit.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A branch is a movable reference to a commit, while HEAD identifies the currently checked-out reference or a specific commit in detached state.. Apply the declared Branches as movable refs model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Reason from references and commit ancestry: branch names move as commits are created, while snapshots belong to commit objects shared across the graph.. Compare the observation with the correction and reject the misconception: A branch contains its own copied files and commits rather than naming one position in a shared commit graph."
+    "textAlternative": "Tracing branch pointers. Step 1, Create: main is A; feature is A; HEAD is feature. A new name points at the same commit as main. Step 2, Commit: feature is B; main is A. Committing on feature moves the feature reference to the new commit. Step 3, Switch: HEAD is main; working tree is commit A files. Main continues to point at its previous commit."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Branches as movable refs: direct case”: state its starting evidence, apply the Branches as movable refs rule, and give the observable result in three short lines.",
+      "prompt": "For \"Committing on feature\", explain how committing on feature moves the feature reference to the new commit while main continues to point at its previous commit.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Create.",
+        "Commit.",
+        "Switch."
       ],
       "expectedEvidence": [
-        "Named example: Branches as movable refs: direct case.",
-        "Starting evidence: Committing on feature moves the feature reference to the new commit while main continues to point at its previous commit.",
-        "Core rule: A branch is a movable reference to a commit, while HEAD identifies the currently checked-out reference or a specific commit in detached state.",
-        "Observable result: The case supports the declared outcome because Reason from references and commit ancestry: branch names move as commits are created, while snapshots belong to commit objects shared across the graph.",
-        "Boundary check: Reason from references and commit ancestry: branch names move as commits are created, while snapshots belong to commit objects shared across the graph."
+        "Names the example \"Committing on feature\": hello.txt seemed to vanish.",
+        "Committing on feature moves the feature reference to the new commit.",
+        "Main continues to point at its previous commit.",
+        "The learner sees branches as pointers."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: Checking out a release tag detaches HEAD, so a new commit exists without advancing a normal local branch unless one is created.",
+      "prompt": "In a disposable repo, draw the graph on paper, then create two branches, commit once on each, and check your drawing with git log --oneline --graph --all.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Mark HEAD on each step.",
+        "Only the checked-out branch moves."
       ],
       "expectedEvidence": [
-        "A branch is a movable reference to a commit, while HEAD identifies the currently checked-out reference or a specific commit in detached state.",
-        "Remote-tracking references are local observations, branch names are not commits, and deleting a name does not immediately delete reachable commit objects."
+        "Drawing matches the log graph.",
+        "HEAD position correct."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Branches as movable refs, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Deliberately create a detached HEAD, make a commit, switch away, then recover the commit using the hash Git printed or git reflog. Explain each pointer's position at every step.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "git switch --detach <hash>.",
+        "git branch rescue <hash>."
       ],
       "expectedEvidence": [
-        "Draw and manipulate a small branch graph while predicting HEAD movement.",
-        "Reason from references and commit ancestry: branch names move as commits are created, while snapshots belong to commit objects shared across the graph."
+        "Commit recovered onto a named branch.",
+        "Every step's HEAD explained."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.branches.refs.misconception",
-      "explanation": "Reason from references and commit ancestry: branch names move as commits are created, while snapshots belong to commit objects shared across the graph.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: Checking out a release tag detaches HEAD, so a new commit exists without advancing a normal local branch unless one is created."
+      "explanation": "Before each commit or switch, answer: **where does HEAD point, and which branch will move?** Check with git status's first line.",
+      "retryPrompt": "Apply this to \"The lost detached commits\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to draw and manipulate a small branch graph while predicting HEAD movement. Keep this boundary in view: Remote-tracking references are local observations, branch names are not commits, and deleting a name does not immediately delete reachable commit objects.",
+    "summary": "To draw and manipulate a branch graph, treat each branch as a movable name for one commit in a shared graph, remember only the branch HEAD points to moves when you commit, and create a branch before committing on a detached HEAD.",
     "retrievalPrompts": [
-      "Explain Branches as movable refs without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: A branch contains its own copied files and commits rather than naming one position in a shared commit graph.",
-      "Apply the model to this case from memory: Checking out a release tag detaches HEAD, so a new commit exists without advancing a normal local branch unless one is created."
+      "What is stored in a branch?",
+      "Which branch moves when you commit?",
+      "What is detached HEAD?"
     ],
     "nextReviewPrompt": "Next: continue to “Short-lived feature branches”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "URL and URLSearchParams parse and serialize addresses safely relative to an explicit base instead of manual string concatenation.",
+    "summary": "Don't build addresses by gluing strings. `new URL(path, base)` parses an address relative to an explicit base, and `url.searchParams.set(\"q\", text)` **encodes** values for you: spaces, `&` and `#` included. Before navigating to an address that came from a user or a query string, check `url.origin` and `url.protocol` so a `?next=` value can't send people to another site or run `javascript:`. To make a page's filters **shareable**, write them into the URL with `history.pushState`, and listen for `popstate` so Back and Forward restore them.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: new URL(userPath, location.origin) is checked for allowed origin and protocol before navigation. Your goal is to implement shareable filter state and handle back-forward navigation. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "After sign-in, a page reads `?next=` from the address and runs `location.href = next`. Someone shares a link with `next=https://evil.example`, and learners who sign in land on a fake copy of the site. new URL(userPath, location.origin) is checked for allowed origin and protocol before navigation. In this lesson you'll implement shareable filter state and handle back-forward navigation.\n\n```predict\n{\"question\": \"`\\\"/search?q=\\\" + \\\"rock & roll\\\"` gives a query where q is…\", \"options\": [\"\\\"rock & roll\\\"\", \"\\\"rock \\\" and a stray parameter named \\\" roll\\\"\"], \"answer\": 1, \"why\": \"The raw & starts a new parameter. `url.searchParams.set(\\\"q\\\", \\\"rock & roll\\\")` encodes it correctly.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: DOM, events and forms; Promises, async work and HTTP; Event propagation and delegation; html navigation urls. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **DOM, events and forms** module, the **Promises, async work and HTTP** module, **Event propagation and delegation** (popstate is an event), and **Relative and absolute URLs** (absolute vs relative addresses)."
       },
       {
-        "heading": "Technology rule",
-        "body": "URL and URLSearchParams parse and serialize addresses safely relative to an explicit base instead of manual string concatenation. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The rule: parse against a base, then check before you trust",
+        "body": "```js\nfunction safeNext(raw) {\n  try {\n    const url = new URL(raw ?? \"/\", location.origin);   // relative paths resolve here.\n    if (url.origin !== location.origin) return \"/\";    // no off-site redirects.\n    if (url.protocol !== \"https:\" && url.protocol !== \"http:\") return \"/\";\n    return url.pathname + url.search + url.hash;\n  } catch {\n    return \"/\";                                         // unparsable input.\n  }\n}\n\nconst params = new URLSearchParams(location.search);\nlocation.assign(safeNext(params.get(\"next\")));\n```\n\n| Task | Use |\n|---|---|\n| resolve a path. | `new URL(path, location.origin)`. |\n| read a query value. | `url.searchParams.get(\"q\")`. |\n| write a query value. | `url.searchParams.set(\"q\", text)` (encodes). |\n| restrict navigation. | compare `url.origin` and `url.protocol`. |\n\n```reveal\n{\"prompt\": \"Why does `javascript:alert(1)` fail the check?\", \"answer\": \"Its origin is \\\"null\\\" and its protocol is \\\"javascript:\\\", so both comparisons reject it.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Encoding, duplicate query keys, fragments, origin checks, and dangerous schemes require deliberate validation. This draft therefore rejects: Concatenating '?' and raw user text always produces a valid encoded query."
+        "heading": "Shareable filters and the Back button",
+        "body": "```js\nfunction applyFilters({ topic, level }) {\n  renderLessons(topic, level);\n}\n\nfunction setFilters(filters) {\n  const url = new URL(location.href);\n  url.searchParams.set(\"topic\", filters.topic);\n  url.searchParams.set(\"level\", filters.level);\n  history.pushState(filters, \"\", url);   // new history entry, no reload.\n  applyFilters(filters);\n}\n\nwindow.addEventListener(\"popstate\", () => {\n  const p = new URL(location.href).searchParams;\n  applyFilters({ topic: p.get(\"topic\") ?? \"all\", level: p.get(\"level\") ?? \"any\" });\n});\n```\n\n```predict\n{\"question\": \"Does `history.pushState` fire popstate?\", \"options\": [\"Yes\", \"No: popstate fires on Back/Forward, so you apply the filters yourself after pushState\"], \"answer\": 1, \"why\": \"That's why setFilters calls applyFilters directly.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Parse and update URL search and history state without manual unsafe string construction.",
-      "Implement shareable filter state and handle back-forward navigation."
+      "Parse and build URLs with URL and URLSearchParams.",
+      "Validate redirects and keep filter state in history with pushState and popstate."
     ],
     "excludes": [
-      "Encoding, duplicate query keys, fragments, origin checks, and dangerous schemes require deliberate validation."
+      "Client-side routers.",
+      "The Navigation API."
     ]
   },
   "outcomes": [
@@ -63,133 +64,134 @@
   "examples": [
     {
       "id": "javascript.browser.url.example-a",
-      "title": "URL and history state: concrete case",
-      "situation": "new URL(userPath, location.origin) is checked for allowed origin and protocol before navigation.",
+      "title": "The redirect that went off-site",
+      "situation": "new URL(userPath, location.origin) is checked for allowed origin and protocol before the sign-in navigation.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: new URL(userPath, location.origin) is checked for allowed origin and protocol before navigation.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Use URLSearchParams for query encoding and validate protocol and origin before trusting constructed URLs."
+        "**Parse:** `new URL(next, location.origin)` turns both \"/lessons/7\" and \"https://evil.example\" into URL objects.",
+        "**Check origin and protocol:** the evil URL's origin differs from location.origin, so safeNext returns \"/\".",
+        "**Test:** safeNext(\"/lessons/7\") will return \"/lessons/7\", and safeNext(\"javascript:alert(1)\") will return \"/\"."
       ],
-      "result": "The result follows because Use URLSearchParams for query encoding and validate protocol and origin before trusting constructed URLs."
+      "result": "Signed-in learners only ever land on pages of this site, and malicious next links go home instead."
     },
     {
       "id": "javascript.browser.url.example-b",
-      "title": "URL and history state: boundary case",
-      "situation": "Encoding, duplicate query keys, fragments, origin checks, and dangerous schemes require deliberate validation.",
+      "title": "The filter that Back forgot",
+      "situation": "A lesson list filters by topic without changing the URL. Learners can't share a filtered link, and Back leaves the site instead of undoing the filter.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Encoding, duplicate query keys, fragments, origin checks, and dangerous schemes require deliberate validation.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Concatenating '?' and raw user text always produces a valid encoded query."
+        "The filter state lived only in a variable.",
+        "Write it into the URL with searchParams and history.pushState.",
+        "Listen for popstate and re-apply the filters read from the URL."
       ],
-      "result": "The boundary requires this correction: Use URLSearchParams for query encoding and validate protocol and origin before trusting constructed URLs."
+      "result": "Filtered links can be shared, and Back steps through previous filters."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.browser.url.misconception",
       "mistakenBelief": "Concatenating '?' and raw user text always produces a valid encoded query.",
-      "correction": "Use URLSearchParams for query encoding and validate protocol and origin before trusting constructed URLs.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: Concatenating '?' and raw user text always produces a valid encoded query."
+      "correction": "Raw text can contain &, #, spaces or = that change the URL's meaning. URLSearchParams and url.searchParams.set encode values so they stay a single parameter.",
+      "diagnosticPrompt": "In the opening predict, what did the & in \"rock & roll\" do?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model URL and history state, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "Building a URL by hand is like **writing an address on an envelope in a hurry**: a stray comma can send it to the wrong street. `new URL` is the post office's form with separate boxes for street, town and notes. Checking the origin is **reading the town before you post it**.",
     "usefulFor": [
-      "Building a first mental model for URL and history state before using exact platform terms"
+      "remembering encode by boxes",
+      "origin check = confirm the town"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Encoding, duplicate query keys, fragments, origin checks, and dangerous schemes require deliberate validation."
+      "Envelopes don't run code; javascript: URLs can.",
+      "History entries are like keeping copies of every envelope you sent."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "new URL(userPath, location.origin) is checked for allowed origin and protocol before navigation.",
-      "URL and URLSearchParams parse and serialize addresses safely relative to an explicit base instead of manual string concatenation.",
-      "Use URLSearchParams for query encoding and validate protocol and origin before trusting constructed URLs."
+      "raw = 'https://evil.example'",
+      "url = new URL(raw, location.origin)",
+      "compare url.origin with location.origin"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Input",
         "state": {
-          "evidence": "new URL(userPath, location.origin) is checked for allowed origin and protocol before navigation."
+          "raw next": "https://evil.example"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The next parameter comes straight from a shared link."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Parse",
         "state": {
-          "rule": "URL and URLSearchParams parse and serialize addresses safely relative to an explicit base instead of manual string concatenation."
+          "url.origin": "https://evil.example"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "new URL(userPath, location.origin) parses it against an explicit base."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Check",
         "state": {
-          "correction": "Use URLSearchParams for query encoding and validate protocol and origin before trusting constructed URLs."
+          "allowed": "no",
+          "navigate to": "/"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Concatenating '?' and raw user text always produces a valid encoded query."
+        "explanation": "The origin and protocol are checked before navigation, so it goes home."
       }
     ],
-    "textAlternative": "Starting artifact: new URL(userPath, location.origin) is checked for allowed origin and protocol before navigation. Step 1, Artifact. State: evidence: new URL(userPath, location.origin) is checked for allowed origin and protocol before navigation.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: URL and URLSearchParams parse and serialize addresses safely relative to an explicit base instead of manual string concatenation.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use URLSearchParams for query encoding and validate protocol and origin before trusting constructed URLs.. Check the result against the boundary and reject this misconception: Concatenating '?' and raw user text always produces a valid encoded query."
+    "textAlternative": "Validating a redirect target. Step 1, Input: raw next is https://evil.example. The next parameter comes straight from a shared link. Step 2, Parse: url.origin is https://evil.example. new URL(userPath, location.origin) parses it against an explicit base. Step 3, Check: allowed is no; navigate to is /. The origin and protocol are checked before navigation, so it goes home."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “URL and history state: concrete case”: state its starting evidence, apply the URL and history state rule, and give the observable result in three short lines.",
+      "prompt": "For \"The redirect that went off-site\", explain how new URL(userPath, location.origin) is checked for allowed origin and protocol before navigation.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Parse.",
+        "Check.",
+        "Fallback."
       ],
       "expectedEvidence": [
-        "Named example: URL and history state: concrete case.",
-        "Starting evidence: new URL(userPath, location.origin) is checked for allowed origin and protocol before navigation.",
-        "Core rule: URL and URLSearchParams parse and serialize addresses safely relative to an explicit base instead of manual string concatenation.",
-        "Observable result: The result follows because Use URLSearchParams for query encoding and validate protocol and origin before trusting constructed URLs.",
-        "Boundary check: Use URLSearchParams for query encoding and validate protocol and origin before trusting constructed URLs."
+        "Names the example \"The redirect that went off-site\": new URL(userPath, location.origin) parses the next value.",
+        "The origin is compared with location.origin.",
+        "The protocol must be http or https.",
+        "Signed-in learners only land on pages of this site."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Encoding, duplicate query keys, fragments, origin checks, and dangerous schemes require deliberate validation.",
+      "prompt": "Write `buildSearchUrl(text, page)` that returns an absolute URL for /search with q and page encoded. Test with \"rock & roll\" and \"C#\".",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "new URL(\"/search\", location.origin).",
+        "searchParams.set."
       ],
       "expectedEvidence": [
-        "URL and URLSearchParams parse and serialize addresses safely relative to an explicit base instead of manual string concatenation.",
-        "Encoding, duplicate query keys, fragments, origin checks, and dangerous schemes require deliberate validation."
+        "q stays a single parameter.",
+        "# is encoded, not treated as a fragment."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for URL and history state and explain why the misconception fails.",
+      "prompt": "Add topic and level filters to a lesson list that are stored in the URL, shareable, restored on load, and restored on Back/Forward. Write tests for load, pushState and popstate.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Read filters on load too.",
+        "Dispatch a PopStateEvent in tests."
       ],
       "expectedEvidence": [
-        "Implement shareable filter state and handle back-forward navigation.",
-        "Use URLSearchParams for query encoding and validate protocol and origin before trusting constructed URLs."
+        "Shared links reproduce the view.",
+        "Back and Forward restore previous filters."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.browser.url.misconception",
-      "explanation": "Use URLSearchParams for query encoding and validate protocol and origin before trusting constructed URLs.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'URLSearchParams' and state the decisive evidence."
+      "explanation": "Whenever you see `+` building a URL, switch to `new URL` and `searchParams`. Whenever a URL comes from outside, **check origin and protocol before navigating**.",
+      "retryPrompt": "Apply this to \"The filter that Back forgot\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement shareable filter state and handle back-forward navigation. Keep this boundary in view: Encoding, duplicate query keys, fragments, origin checks, and dangerous schemes require deliberate validation.",
+    "summary": "To implement shareable filter state, parse and build addresses with new URL against an explicit base and searchParams for encoding, check origin and protocol before navigating to untrusted URLs, store filters with history.pushState, and handle back-forward navigation with popstate.",
     "retrievalPrompts": [
-      "Explain URL and history state using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: Concatenating '?' and raw user text always produces a valid encoded query.",
-      "Apply checkpoint 'URLSearchParams' to a new artifact."
+      "Why not concatenate raw text into a query?",
+      "What two properties do you check before a redirect?",
+      "Which event lets Back restore filters?"
     ],
     "nextReviewPrompt": "Next: continue to “Web storage and serialization”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -49,7 +49,8 @@ test.describe("public and learner smoke journeys", () => {
     test.skip(!testInfo.project.name.includes("mobile"), "mobile-only check");
     await page.goto("/learn");
 
-    await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Courses" }).last()).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Open navigation" }).click();
+    await expect(page.getByRole("link", { name: "Courses" }).first()).toBeVisible();
   });
 });

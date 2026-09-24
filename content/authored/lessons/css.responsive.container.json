@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Container queries style a component from an ancestor query container's available size or style, enabling context-independent composition.",
+    "summary": "**Container queries** let a component respond to the size of its **container**, not the whole screen. First mark an ancestor as a query container with `container-type: inline-size` (optionally `container-name`). Then `@container (min-width: 32rem) { … }` applies inside it. The same card can then be stacked in a narrow sidebar and side-by-side in a wide main area — on the same page. Always write a safe **baseline** that works without the query.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: The same card switches to a side-by-side layout only when its panel container is wide enough. Your goal is to build and explain a component with a size-based container query and safe baseline. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A course card should show its image beside the text when there's room. Media queries can't help: on a wide screen, the card might sit in a narrow sidebar *and* a wide main column at the same time. The card needs to know its own space. The same card switches to a side-by-side layout only when its panel container is wide enough. In this lesson you'll build and explain a component with a size-based container query and safe baseline.\n\n```predict\n{\"question\": \"You write `@container (min-width: 32rem)` but never set `container-type` on any ancestor. What happens?\", \"options\": [\"It measures the card itself\", \"The query never matches — there's no query container\"], \"answer\": 1, \"why\": \"A container query needs an ancestor declared as a container. Without one, the styles inside simply don't apply.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Flexbox and Grid; Typography, color and visual treatment; Media and feature queries; Stylesheet organization. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Flexbox and Grid** and **Typography, color and visual treatment** modules, plus **Media and feature queries** and **Stylesheet organization**."
       },
       {
-        "heading": "Technology rule",
-        "body": "Container queries style a component from an ancestor query container's available size or style, enabling context-independent composition. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: declare a container, query it from inside",
+        "body": "```css\n.panel { container-type: inline-size; container-name: panel; }\n\n/* baseline: stacked, works everywhere */\n.card { display: grid; gap: 1rem; }\n\n@container panel (min-width: 32rem) {\n  .card { grid-template-columns: 12rem minmax(0, 1fr); }  /* side by side */\n}\n```\n\n| Piece | Job |\n|---|---|\n| `container-type: inline-size`. | makes the ancestor measurable by width. |\n| `container-name`. | lets queries target a specific container. |\n| `@container (…)`. | styles that apply when that container matches. |\n| baseline styles. | the layout if the query doesn't apply. |\n| `cqi` units. | 1% of the container's inline size. |\n\n```reveal\n{\"prompt\": \"Can a container query style the container element itself?\", \"answer\": \"No — it styles descendants of the container. Size containment prevents an element from depending on its own size, which would create loops.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "A query container must be established, containment affects sizing, and viewport concerns still need media queries. This draft therefore rejects: Container queries measure the component's own final size without any configured ancestor."
+        "heading": "Media vs container",
+        "body": "```predict\n{\"question\": \"Which should decide whether a card goes side by side?\", \"options\": [\"The viewport width (media query)\", \"The width of the panel the card sits in (container query)\"], \"answer\": 1, \"why\": \"Components live in many places. Their own container's width is the relevant measurement.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Adapt reusable components to their available container rather than only the viewport.",
-      "Build and explain a component with a size-based container query and safe baseline."
+      "Declare query containers and write @container rules with a safe baseline.",
+      "Choose container queries over media queries for reusable components."
     ],
     "excludes": [
-      "A query container must be established, containment affects sizing, and viewport concerns still need media queries."
+      "Style queries on custom properties.",
+      "Container query units in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "css.responsive.container.example-a",
-      "title": "Container queries: concrete case",
+      "title": "One card, two layouts",
       "situation": "The same card switches to a side-by-side layout only when its panel container is wide enough.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: The same card switches to a side-by-side layout only when its panel container is wide enough.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Define the intended query container and style from that container's conditions, not an assumed page viewport."
+        "**Declare:** `.panel { container-type: inline-size; container-name: panel; }` on both the sidebar and the main column wrappers.",
+        "**Baseline:** the card stacks image above text — works anywhere, even without container-query support.",
+        "**Query:** `@container panel (min-width: 32rem)` makes it side by side; the browser will render the main-column card side by side and the sidebar card stacked, on the same screen."
       ],
-      "result": "The result follows because Define the intended query container and style from that container's conditions, not an assumed page viewport."
+      "result": "One card component adapts to each panel's width, independent of the viewport."
     },
     {
       "id": "css.responsive.container.example-b",
-      "title": "Container queries: boundary case",
-      "situation": "A query container must be established, containment affects sizing, and viewport concerns still need media queries.",
+      "title": "The query that never fired",
+      "situation": "A developer writes `@container (min-width: 30rem) { .card { … } }` and sets `container-type` on `.card` itself.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: A query container must be established, containment affects sizing, and viewport concerns still need media queries.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Container queries measure the component's own final size without any configured ancestor."
+        "The card is the container, so the query can only style the card's descendants.",
+        "The card's own grid never changes.",
+        "Fix: put `container-type: inline-size` on the card's wrapper (the panel), not the card."
       ],
-      "result": "The boundary requires this correction: Define the intended query container and style from that container's conditions, not an assumed page viewport."
+      "result": "The card responds once its parent panel is the query container."
     }
   ],
   "misconceptions": [
     {
       "id": "css.responsive.container.misconception",
       "mistakenBelief": "Container queries measure the component's own final size without any configured ancestor.",
-      "correction": "Define the intended query container and style from that container's conditions, not an assumed page viewport.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: Container queries measure the component's own final size without any configured ancestor."
+      "correction": "A container query measures an ancestor that has been declared a query container with container-type, and applies styles to that container's descendants. Without a declared container, the query doesn't apply.",
+      "diagnosticPrompt": "In \"The query that never fired\", why didn't the card's layout change?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Container queries, where rules size, place, and paint existing content.",
+    "example": "A container query is like **furniture that adjusts to the room it's in**, not to the size of the whole building. The room (container) must have its measurements posted for the furniture to read them.",
     "usefulFor": [
-      "Building a first mental model for Container queries before using exact platform terms"
+      "remembering the ancestor must be declared",
+      "components adapt to their own space"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "A query container must be established, containment affects sizing, and viewport concerns still need media queries."
+      "Furniture can't measure itself either — it reads the room.",
+      "The baseline is furniture that works in any room."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "The same card switches to a side-by-side layout only when its panel container is wide enough.",
-      "Container queries style a component from an ancestor query container's available size or style, enabling context-independent composition.",
-      "Define the intended query container and style from that container's conditions, not an assumed page viewport."
+      ".panel { container-type: inline-size; container-name: panel }",
+      "@container panel (min-width: 32rem) { .card { grid-template-columns: 12rem minmax(0,1fr) } }",
+      "sidebar 20rem, main 50rem"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Declare container",
         "state": {
-          "evidence": "The same card switches to a side-by-side layout only when its panel container is wide enough."
+          "sidebar": "container 20rem",
+          "main": "container 50rem"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "Each panel is declared as a query container."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Sidebar card",
         "state": {
-          "rule": "Container queries style a component from an ancestor query container's available size or style, enabling context-independent composition."
+          "query": "no match",
+          "layout": "stacked baseline"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "In the narrow panel, the card keeps its safe baseline."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Main card",
         "state": {
-          "correction": "Define the intended query container and style from that container's conditions, not an assumed page viewport."
+          "query": "match",
+          "layout": "side by side"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Container queries measure the component's own final size without any configured ancestor."
+        "explanation": "The same card switches to side-by-side only when its panel container is wide enough."
       }
     ],
-    "textAlternative": "Starting artifact: The same card switches to a side-by-side layout only when its panel container is wide enough. Step 1, Artifact. State: evidence: The same card switches to a side-by-side layout only when its panel container is wide enough.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Container queries style a component from an ancestor query container's available size or style, enabling context-independent composition.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Define the intended query container and style from that container's conditions, not an assumed page viewport.. Check the result against the boundary and reject this misconception: Container queries measure the component's own final size without any configured ancestor."
+    "textAlternative": "One card in two containers. Step 1, Declare container: sidebar is container 20rem; main is container 50rem. Each panel is declared as a query container. Step 2, Sidebar card: query is no match; layout is stacked baseline. In the narrow panel, the card keeps its safe baseline. Step 3, Main card: query is match; layout is side by side. The same card switches to side-by-side only when its panel container is wide enough."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Container queries: concrete case”: state its starting evidence, apply the Container queries rule, and give the observable result in three short lines.",
+      "prompt": "For \"One card, two layouts\", explain how the same card switches to a side-by-side layout only when its panel container is wide enough, and what the baseline is.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Container.",
+        "Baseline.",
+        "Query."
       ],
       "expectedEvidence": [
-        "Named example: Container queries: concrete case.",
-        "Starting evidence: The same card switches to a side-by-side layout only when its panel container is wide enough.",
-        "Core rule: Container queries style a component from an ancestor query container's available size or style, enabling context-independent composition.",
-        "Observable result: The result follows because Define the intended query container and style from that container's conditions, not an assumed page viewport.",
-        "Boundary check: Define the intended query container and style from that container's conditions, not an assumed page viewport."
+        "Names the example \"One card, two layouts\": the same card switches to a side-by-side layout.",
+        "Only when its panel container is wide enough (32rem).",
+        "The baseline stacks image above text.",
+        "Sidebar and main cards differ on the same screen."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: A query container must be established, containment affects sizing, and viewport concerns still need media queries.",
+      "prompt": "A product tile should show its description only when its container is at least 24rem wide. Write the container declaration and the query.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "container-type on the wrapper.",
+        "Hide by default, show in the query."
       ],
       "expectedEvidence": [
-        "Container queries style a component from an ancestor query container's available size or style, enabling context-independent composition.",
-        "A query container must be established, containment affects sizing, and viewport concerns still need media queries."
+        "`.tiles-slot { container-type: inline-size; }`.",
+        "`@container (min-width: 24rem) { .tile__desc { display: block; } }` with a hidden baseline."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Container queries and explain why the misconception fails.",
+      "prompt": "Build one card component and place it in three containers of different widths on the same page. Use container queries for two layout changes and verify each in DevTools.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Name your containers.",
+        "Check the container badge in DevTools."
       ],
       "expectedEvidence": [
-        "Build and explain a component with a size-based container query and safe baseline.",
-        "Define the intended query container and style from that container's conditions, not an assumed page viewport."
+        "Three placements showing different layouts.",
+        "DevTools confirms which queries match."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.responsive.container.misconception",
-      "explanation": "Define the intended query container and style from that container's conditions, not an assumed page viewport.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'query container' and state the decisive evidence."
+      "explanation": "If a container query doesn't apply: **1) Is an ancestor declared with container-type? 2) Are you styling a descendant, not the container? 3) Does the name match?**",
+      "retryPrompt": "Run the checks on \"The query that never fired\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to build and explain a component with a size-based container query and safe baseline. Keep this boundary in view: A query container must be established, containment affects sizing, and viewport concerns still need media queries.",
+    "summary": "To build and explain a component with a size-based container query, declare an ancestor with container-type: inline-size (and a name), write a safe baseline layout, then add @container rules that style descendants when that container is wide enough. Use them for reusable components instead of viewport media queries.",
     "retrievalPrompts": [
-      "Explain Container queries using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: Container queries measure the component's own final size without any configured ancestor.",
-      "Apply checkpoint 'query container' to a new artifact."
+      "What must you set before @container works?",
+      "Can a container query style the container itself?",
+      "Why prefer container queries for components?"
     ],
     "nextReviewPrompt": "Next: continue to “Transforms, transitions and animations”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

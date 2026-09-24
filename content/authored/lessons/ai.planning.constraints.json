@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A constraint-satisfaction problem declares variables, finite domains, and constraints; propagation removes unsupported values and backtracking explores remaining assignments with reversible state.",
+    "summary": "A **constraint-satisfaction problem** (CSP) has three parts. **Variables**: the things to decide, like each region on a map. **Domains**: the allowed values for each, like {red, green, blue}. **Constraints**: rules linking variables, like neighbours must differ. A solver uses **backtracking**: assign one variable, check constraints, move on, and **undo** the assignment when a variable runs out of options. **Propagation** (forward checking) removes values from neighbours' domains as soon as you assign, so dead ends appear earlier. **Heuristics** help: pick the variable with the **fewest remaining values** first (MRV). Propagation leaving every domain non-empty does **not** guarantee a solution exists; only finishing the search does.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A map-coloring solver chooses an unassigned region, removes neighbor colors, backtracks on an empty domain, and validates every edge in the final assignment. Your goal is to implement and instrument a small CSP solver with a variable or value heuristic. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner's map-colouring solver tries regions in alphabetical order and takes minutes on a small map. They add forward checking, see every domain still non-empty, and announce \"a solution exists\", but the search later fails. A map-coloring solver chooses an unassigned region, removes neighbor colors, backtracks on an empty domain, and validates every edge in the final assignment. In this lesson you'll implement and instrument a small CSP solver with a variable or value heuristic.\n\n```predict\n{\"question\": \"After forward checking, every domain has at least one value. Is a solution guaranteed?\", \"options\": [\"Yes, nothing is empty\", \"No: combinations can still conflict later; only completing the search proves it\"], \"answer\": 1, \"why\": \"Propagation prunes; search decides.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: State-space and adversarial search; Knowledge representation and uncertainty; dsa backtracking search; Logical inference and consistency. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **State-space and adversarial search**, **Knowledge representation and uncertainty**, **Backtracking search** and **Logical inference and consistency**."
       },
       {
-        "heading": "Bounded operational model",
-        "body": "A constraint-satisfaction problem declares variables, finite domains, and constraints; propagation removes unsupported values and backtracking explores remaining assignments with reversible state. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+        "heading": "The model: variables, domains, constraints, backtracking",
+        "body": "```python\nNEIGHBOURS = {\"WA\": [\"NT\", \"SA\"], \"NT\": [\"WA\", \"SA\", \"Q\"], \"SA\": [\"WA\", \"NT\", \"Q\", \"NSW\"],\n              \"Q\": [\"NT\", \"SA\", \"NSW\"], \"NSW\": [\"Q\", \"SA\"]}\nCOLOURS = [\"red\", \"green\", \"blue\"]\nstats = {\"assignments\": 0, \"backtracks\": 0}\n\ndef solve(assign, domains):\n    if len(assign) == len(NEIGHBOURS):\n        return assign\n    var = min((v for v in NEIGHBOURS if v not in assign), key=lambda v: len(domains[v]))  # MRV.\n    for colour in domains[var]:\n        stats[\"assignments\"] += 1\n        new = {v: [c for c in d if not (v in NEIGHBOURS[var] and c == colour)] for v, d in domains.items()}\n        new[var] = [colour]                                   # forward checking.\n        if all(new[v] for v in NEIGHBOURS if v not in assign):\n            result = solve({**assign, var: colour}, new)\n            if result: return result\n        stats[\"backtracks\"] += 1                              # undo: try next colour.\n    return None\n\nsol = solve({}, {v: COLOURS[:] for v in NEIGHBOURS})\nok = all(sol[a] != sol[b] for a in NEIGHBOURS for b in NEIGHBOURS[a])   # validate every edge.\nprint(sol, ok, stats)\n```\n\n```reveal\n{\"prompt\": \"Why is MRV a good choice?\", \"answer\": \"The variable with fewest options is the most likely to fail. Trying it first finds dead ends early, before effort is wasted on other variables.\"}\n```"
       },
       {
-        "heading": "Failure boundary and non-claim",
-        "body": "Local consistency does not guarantee a solution, heuristics change work not solution validity, copying/restoration errors corrupt search, global constraints can propagate more strongly, and unsatisfiable needs evidence. The learner must reject this overclaim: If arc or forward consistency leaves every domain nonempty, a complete satisfying assignment is guaranteed."
+        "heading": "Reversible state",
+        "body": "```predict\n{\"question\": \"Why does the solver build a new domains dict instead of editing the old one?\", \"options\": [\"It's just style\", \"So backtracking can return to the previous domains without undoing edits by hand\"], \"answer\": 1, \"why\": \"Every choice must be reversible.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Model variables, domains and constraints and use propagation plus backtracking.",
-      "Implement and instrument a small CSP solver with a variable or value heuristic."
+      "Model problems as variables, domains and constraints.",
+      "Implement backtracking with forward checking and MRV, and validate and instrument the result."
     ],
     "excludes": [
-      "Local consistency does not guarantee a solution, heuristics change work not solution validity, copying/restoration errors corrupt search, global constraints can propagate more strongly, and unsatisfiable needs evidence."
+      "Arc consistency (AC-3) in depth.",
+      "Local search for CSPs."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "ai.planning.constraints.example.direct",
-      "title": "Constraint-satisfaction problems: bounded direct case",
+      "title": "Colouring a map with three colours",
       "situation": "A map-coloring solver chooses an unassigned region, removes neighbor colors, backtracks on an empty domain, and validates every edge in the final assignment.",
       "walkthrough": [
-        "Step 1 — Observe the exact data, state, metric, or tool behavior: A map-coloring solver chooses an unassigned region, removes neighbor colors, backtracks on an empty domain, and validates every edge in the final assignment.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the claim boundary with: Use propagation to prune unsupported values, then retain complete backtracking and validate every constraint on a returned assignment."
+        "**Chooses an unassigned region:** MRV picks the one with the fewest colours left.",
+        "**Removes neighbor colors, backtracks on an empty domain:** forward checking prunes, and an empty domain triggers trying the next colour.",
+        "**Validates every edge in the final assignment:** we check every neighbour pair differs, and ok prints True."
       ],
-      "result": "This example supports only the atomic outcome because Use propagation to prune unsupported values, then retain complete backtracking and validate every constraint on a returned assignment."
+      "result": "The map is coloured correctly, with the effort counted."
     },
     {
       "id": "ai.planning.constraints.example.stress",
-      "title": "Constraint-satisfaction problems: stress and transfer case",
-      "situation": "Minimum-remaining-values reduces explored nodes on one puzzle but is reported as a heuristic rather than a completeness requirement.",
+      "title": "The premature announcement",
+      "situation": "A solver declared success because every domain was non-empty after propagation, then found no full assignment.",
       "walkthrough": [
-        "Step 1 — Name the changed population, input, assumption, or failure: Minimum-remaining-values reduces explored nodes on one puzzle but is reported as a heuristic rather than a completeness requirement.",
-        "Step 2 — Keep the non-claim visible: Local consistency does not guarantee a solution, heuristics change work not solution validity, copying/restoration errors corrupt search, global constraints can propagate more strongly, and unsatisfiable needs evidence.",
-        "Step 3 — Reject the tempting overclaim: If arc or forward consistency leaves every domain nonempty, a complete satisfying assignment is guaranteed."
+        "Non-empty domains only mean no immediate dead end.",
+        "Continue backtracking search until every variable is assigned.",
+        "Validate the full assignment before reporting success."
       ],
-      "result": "This case demonstrates the declared outcome: Implement and instrument a small CSP solver with a variable or value heuristic."
+      "result": "Success is reported only for real, validated solutions."
     }
   ],
   "misconceptions": [
     {
       "id": "ai.planning.constraints.misconception",
       "mistakenBelief": "If arc or forward consistency leaves every domain nonempty, a complete satisfying assignment is guaranteed.",
-      "correction": "Use propagation to prune unsupported values, then retain complete backtracking and validate every constraint on a returned assignment.",
-      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: If arc or forward consistency leaves every domain nonempty, a complete satisfying assignment is guaranteed."
+      "correction": "Consistency checks remove some impossible values but can't rule out every conflict. Only a completed, validated search proves a solution exists.",
+      "diagnosticPrompt": "In \"The premature announcement\", what did non-empty domains actually prove?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a bounded operations desk that checks action preconditions, resource constraints, uncertain outcomes, and proxy rewards before acting can introduce Constraint-satisfaction problems only after its canonical technical definition and evidence boundary are stated.",
+    "example": "A CSP is like **seating guests at a wedding**. Each guest (variable) needs a table (domain), and some pairs must not sit together (constraints). Seat the **fussiest guest first** (MRV). Every time you seat someone, **cross that table off** for the people who can't sit with them (forward checking). If someone has nowhere left, **un-seat** the last person and try another table (backtracking).",
     "usefulFor": [
-      "planning, constraints, expected utility, and sequential decisions"
+      "remembering fussiest guest first",
+      "cross off, un-seat, retry"
     ],
     "limitations": [
-      "real preferences, uncertainty, stakeholders, safety constraints, and dynamics exceed one plan or reward score",
-      "Local consistency does not guarantee a solution, heuristics change work not solution validity, copying/restoration errors corrupt search, global constraints can propagate more strongly, and unsatisfiable needs evidence."
+      "Having options left for everyone right now isn't a finished seating plan.",
+      "Check the whole plan before printing place cards."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A map-coloring solver chooses an unassigned region, removes neighbor colors, backtracks on an empty domain, and validates every edge in the final assignment.",
-      "A constraint-satisfaction problem declares variables, finite domains, and constraints; propagation removes unsupported values and backtracking explores remaining assignments with reversible state.",
-      "Use propagation to prune unsupported values, then retain complete backtracking and validate every constraint on a returned assignment."
+      "pick SA by MRV (tie, most constrained)",
+      "assign colours with forward checking",
+      "validate edges"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Choose",
         "state": {
-          "boundedEvidence": "A map-coloring solver chooses an unassigned region, removes neighbor colors, backtracks on an empty domain, and validates every edge in the final assignment."
+          "variable": "first with fewest colours"
         },
-        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+        "explanation": "The solver chooses an unassigned region by MRV."
       },
       {
         "step": 2,
-        "focus": "Model",
+        "focus": "Prune",
         "state": {
-          "operationalRule": "A constraint-satisfaction problem declares variables, finite domains, and constraints; propagation removes unsupported values and backtracking explores remaining assignments with reversible state."
+          "neighbour domains": "reduced",
+          "empty": "backtrack"
         },
-        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+        "explanation": "It removes neighbor colors and backtracks on an empty domain."
       },
       {
         "step": 3,
-        "focus": "Limit",
+        "focus": "Validate",
         "state": {
-          "correction": "Use propagation to prune unsupported values, then retain complete backtracking and validate every constraint on a returned assignment."
+          "ok": "True",
+          "stats": "assignments and backtracks counted"
         },
-        "explanation": "State what the evidence does not establish and reject the misconception: If arc or forward consistency leaves every domain nonempty, a complete satisfying assignment is guaranteed."
+        "explanation": "It validates every edge in the final assignment."
       }
     ],
-    "textAlternative": "Starting artifact: A map-coloring solver chooses an unassigned region, removes neighbor colors, backtracks on an empty domain, and validates every edge in the final assignment. Step 1, Observe. State: boundedEvidence: A map-coloring solver chooses an unassigned region, removes neighbor colors, backtracks on an empty domain, and validates every edge in the final assignment.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: A constraint-satisfaction problem declares variables, finite domains, and constraints; propagation removes unsupported values and backtracking explores remaining assignments with reversible state.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Use propagation to prune unsupported values, then retain complete backtracking and validate every constraint on a returned assignment.. State what the evidence does not establish and reject the misconception: If arc or forward consistency leaves every domain nonempty, a complete satisfying assignment is guaranteed."
+    "textAlternative": "Tracing a CSP solver. Step 1, Choose: variable is first with fewest colours. The solver chooses an unassigned region by MRV. Step 2, Prune: neighbour domains is reduced; empty is backtrack. It removes neighbor colors and backtracks on an empty domain. Step 3, Validate: ok is True; stats is assignments and backtracks counted. It validates every edge in the final assignment."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Constraint-satisfaction problems: bounded direct case”: state its starting evidence, apply the Constraint-satisfaction problems rule, and give the observable result in three short lines.",
+      "prompt": "For \"Colouring a map with three colours\", explain how a map-coloring solver chooses an unassigned region, removes neighbor colors, backtracks on an empty domain, and validates every edge in the final assignment.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Choose.",
+        "Prune.",
+        "Validate."
       ],
       "expectedEvidence": [
-        "Named example: Constraint-satisfaction problems: bounded direct case.",
-        "Starting evidence: A map-coloring solver chooses an unassigned region, removes neighbor colors, backtracks on an empty domain, and validates every edge in the final assignment.",
-        "Core rule: A constraint-satisfaction problem declares variables, finite domains, and constraints; propagation removes unsupported values and backtracking explores remaining assignments with reversible state.",
-        "Observable result: This example supports only the atomic outcome because Use propagation to prune unsupported values, then retain complete backtracking and validate every constraint on a returned assignment.",
-        "Boundary check: Use propagation to prune unsupported values, then retain complete backtracking and validate every constraint on a returned assignment."
+        "Names the example \"Colouring a map with three colours\": success was announced too early.",
+        "A map-coloring solver chooses an unassigned region and removes neighbor colors.",
+        "It backtracks on an empty domain and validates every edge in the final assignment.",
+        "Effort is counted."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed case: Minimum-remaining-values reduces explored nodes on one puzzle but is reported as a heuristic rather than a completeness requirement.",
+      "prompt": "Run the solver with two colours and report what happens. Then compare assignments and backtracks with MRV versus alphabetical variable order.",
       "scaffold": [
-        "Identify which assumption, population, input, or objective changed.",
-        "Preserve provenance and the declared failure boundary."
+        "Two colours should fail.",
+        "Swap the min() for sorted order."
       ],
       "expectedEvidence": [
-        "A constraint-satisfaction problem declares variables, finite domains, and constraints; propagation removes unsupported values and backtracking explores remaining assignments with reversible state.",
-        "Local consistency does not guarantee a solution, heuristics change work not solution validity, copying/restoration errors corrupt search, global constraints can propagate more strongly, and unsatisfiable needs evidence."
+        "Failure reported correctly.",
+        "Stats compared."
       ]
     },
     "farTransfer": {
-      "prompt": "Design a neutral-context example or evaluation for Constraint-satisfaction problems and list the evidence that would support and falsify its bounded claim.",
+      "prompt": "Model a 4x4 Sudoku as a CSP (variables, domains, row/column/box constraints), solve it with backtracking, forward checking and MRV, and report stats for two puzzles.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+        "16 variables, domain 1-4.",
+        "Validate the final grid."
       ],
       "expectedEvidence": [
-        "Implement and instrument a small CSP solver with a variable or value heuristic.",
-        "Use propagation to prune unsupported values, then retain complete backtracking and validate every constraint on a returned assignment."
+        "Both puzzles solved and validated.",
+        "Stats reported."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "ai.planning.constraints.misconception",
-      "explanation": "Use propagation to prune unsupported values, then retain complete backtracking and validate every constraint on a returned assignment.",
-      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: Minimum-remaining-values reduces explored nodes on one puzzle but is reported as a heuristic rather than a completeness requirement."
+      "explanation": "Write the CSP as **variables, domains, constraints**, keep every choice **reversible**, and report success only after **validating the full assignment**.",
+      "retryPrompt": "Apply this to \"The premature announcement\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and instrument a small CSP solver with a variable or value heuristic. Keep this boundary in view: Local consistency does not guarantee a solution, heuristics change work not solution validity, copying/restoration errors corrupt search, global constraints can propagate more strongly, and unsatisfiable needs evidence.",
+    "summary": "To implement and instrument a small CSP solver with a variable or value heuristic, declare variables, domains and constraints, backtrack with reversible state, prune with forward checking, choose variables by MRV, count assignments and backtracks, and validate the final assignment.",
     "retrievalPrompts": [
-      "Explain Constraint-satisfaction problems with one technical mechanism, one evidence requirement, and one non-claim.",
-      "Why is this overclaim invalid: If arc or forward consistency leaves every domain nonempty, a complete satisfying assignment is guaranteed.",
-      "Apply the boundary to: Minimum-remaining-values reduces explored nodes on one puzzle but is reported as a heuristic rather than a completeness requirement."
+      "What are the three parts of a CSP?",
+      "What does MRV choose?",
+      "Does non-empty domains guarantee a solution?"
     ],
     "nextReviewPrompt": "Next: continue to “Utility and expected decisions”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A build transforms declared source and assets into validated artifacts through repeatable commands whose inputs, outputs, environment, and failure status are explicit.",
+    "summary": "A **build** turns source files into something runnable: bundling JavaScript, compiling C or Java, generating CSS. A good build is **repeatable**: the same commands, from a **clean checkout**, produce the same output. So write the steps down as **named scripts** (`npm run build`, `make`, `./gradlew build`), make each command **fail loudly** with a non-zero exit code, and document setup in the README. \"It runs in my editor\" proves little: your machine may have old build output, global tools or environment variables nobody else has. Test the documented path in a fresh folder.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A clean build in a fresh workspace produces the same tested bundle from the lockfile rather than relying on a developer's old output directory. Your goal is to run a clean checkout through setup, build, test and start without undocumented manual steps. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner's app runs perfectly from their editor. A teammate clones it, follows the README, and the build fails: it needs a generated file that only exists in the learner's old dist/ folder. A clean build in a fresh workspace produces the same tested bundle from the lockfile rather than relying on a developer's old output directory. In this lesson you'll run a clean checkout through setup, build, test and start without undocumented manual steps.\n\n```predict\n{\"question\": \"The app runs from your editor. Does that prove the documented build works on a new machine?\", \"options\": [\"Yes\", \"No: your machine may rely on leftover files, global tools or settings\"], \"answer\": 1, \"why\": \"Only a clean checkout following the documented steps proves it.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Ignore policy; Commits and history; Dependency manifests and lockfiles; pf tools terminal editor. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Ignore policy**, **Commits and history**, **Dependency manifests and lockfiles** and **Editor and terminal workflow** (running commands)."
       },
       {
-        "heading": "Operational model",
-        "body": "A build transforms declared source and assets into validated artifacts through repeatable commands whose inputs, outputs, environment, and failure status are explicit. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The rule: explicit inputs, outputs and exit codes",
+        "body": "```json\n{\n  \"scripts\": {\n    \"clean\": \"rm -rf dist\",\n    \"build\": \"vite build\",\n    \"test\": \"vitest run\",\n    \"start\": \"vite preview\"\n  }\n}\n```\n\n```bash\n# Prove it from scratch in a fresh folder.\ngit clone https://example.com/app.git /tmp/app-check && cd /tmp/app-check\nnpm ci                  # inputs: source + lockfile only.\nnpm run build           # output: dist/ (ignored by Git).\necho $?                 # 0 = success; anything else = failure.\nnpm test && npm start\n```\n\n| Input | Output | Failure signal |\n|---|---|---|\n| source files, lockfile, config. | dist/ bundle. | non-zero exit code, clear error. |\n\n```reveal\n{\"prompt\": \"Why does the exit code matter?\", \"answer\": \"Scripts and CI decide pass or fail from it. A build that prints an error but exits 0 would let broken code ship.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Caches, generated code, timestamps, native tools, network access, environment variables, and undeclared local files can make builds non-reproducible. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: If the application runs from the editor, the documented clean build and its artifact are guaranteed to work elsewhere."
+        "heading": "Undocumented steps",
+        "body": "```predict\n{\"question\": \"The build only works after you manually copy config.sample.json to config.json. What should you do?\", \"options\": [\"Remember to tell people\", \"Add it to the README or to a setup script, then test from a clean clone\"], \"answer\": 1, \"why\": \"Every manual step that isn't written down becomes someone else's broken build.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Expose documented, non-interactive build, test, lint and run commands through the language's normal tooling.",
-      "Run a clean checkout through setup, build, test and start without undocumented manual steps."
+      "Define build, test and start as named scripts with explicit inputs, outputs and exit codes.",
+      "Verify the documented path from a clean checkout with no undocumented steps."
     ],
     "excludes": [
-      "Caches, generated code, timestamps, native tools, network access, environment variables, and undeclared local files can make builds non-reproducible."
+      "Bundler and compiler configuration in depth.",
+      "CI pipelines (CI module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "git.tools.build.example-a",
-      "title": "Build and task commands: direct case",
+      "title": "The clean-workspace build",
       "situation": "A clean build in a fresh workspace produces the same tested bundle from the lockfile rather than relying on a developer's old output directory.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A clean build in a fresh workspace produces the same tested bundle from the lockfile rather than relying on a developer's old output directory.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state."
+        "**Fresh workspace:** clone into /tmp/app-check with no old dist/ folder.",
+        "**From the lockfile:** npm ci installs the exact dependency tree.",
+        "**Produces the same tested bundle:** npm run build exits 0 and npm test will pass, without relying on a developer's old output directory."
       ],
-      "result": "The case supports the declared outcome because Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state."
+      "result": "The README is proven correct, and teammates can build on day one."
     },
     {
       "id": "git.tools.build.example-b",
-      "title": "Build and task commands: boundary case",
-      "situation": "A failing compile exits nonzero and stops packaging instead of emitting a seemingly successful partial artifact.",
+      "title": "The global tool",
+      "situation": "A build script calls `sass` directly. It works for the author, who installed sass globally years ago, and fails for everyone else.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A failing compile exits nonzero and stops packaging instead of emitting a seemingly successful partial artifact.",
-        "Step 2 — Keep this boundary explicit: Caches, generated code, timestamps, native tools, network access, environment variables, and undeclared local files can make builds non-reproducible.",
-        "Step 3 — Reject the documented misconception: If the application runs from the editor, the documented clean build and its artifact are guaranteed to work elsewhere."
+        "The dependency was never declared.",
+        "Add sass as a devDependency so npm ci installs it.",
+        "Re-run the clean-clone check."
       ],
-      "result": "This case demonstrates the declared outcome: Run a clean checkout through setup, build, test and start without undocumented manual steps."
+      "result": "The build only needs what the project declares."
     }
   ],
   "misconceptions": [
     {
       "id": "git.tools.build.misconception",
       "mistakenBelief": "If the application runs from the editor, the documented clean build and its artifact are guaranteed to work elsewhere.",
-      "correction": "Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: If the application runs from the editor, the documented clean build and its artifact are guaranteed to work elsewhere."
+      "correction": "Editors and old folders hide leftover outputs, global tools and local settings. Only running the documented steps in a clean checkout proves the build is repeatable.",
+      "diagnosticPrompt": "In the opening story, which leftover file hid the problem?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A recipe and packing line can model Build and task commands: declared ingredients resolve to exact supplies, controlled steps produce an artifact, and labels preserve provenance.",
+    "example": "A build script is like **a recipe card**. \"I just know how to make it\" isn't a recipe. A good card lists every ingredient (inputs), every step, and what the dish looks like (output), and you prove it by having someone cook it in **a different kitchen** (clean checkout).",
     "usefulFor": [
-      "Understanding dependency resolution, configuration, repeatable builds, and generated artifacts"
+      "remembering a different kitchen",
+      "undocumented step = secret ingredient"
     ],
     "limitations": [
-      "Software supply chains include executable dependencies, caches, signatures, platform variance, and secret handling beyond a kitchen process.",
-      "Caches, generated code, timestamps, native tools, network access, environment variables, and undeclared local files can make builds non-reproducible."
+      "Cooks can improvise; build scripts shouldn't.",
+      "A failed dish should be obvious (non-zero exit), not quietly served."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A clean build in a fresh workspace produces the same tested bundle from the lockfile rather than relying on a developer's old output directory.",
-      "A build transforms declared source and assets into validated artifacts through repeatable commands whose inputs, outputs, environment, and failure status are explicit.",
-      "Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state."
+      "git clone to fresh folder",
+      "npm ci; npm run build",
+      "npm test; npm start"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Clone",
         "state": {
-          "evidence": "A clean build in a fresh workspace produces the same tested bundle from the lockfile rather than relying on a developer's old output directory."
+          "dist/": "absent",
+          "node_modules/": "absent"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "A fresh workspace has no old output directory."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Build",
         "state": {
-          "model": "A build transforms declared source and assets into validated artifacts through repeatable commands whose inputs, outputs, environment, and failure status are explicit."
+          "install": "from lockfile",
+          "exit code": "0"
         },
-        "explanation": "Apply the declared Build and task commands model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "A clean build produces the bundle from the lockfile."
       },
       {
         "step": 3,
         "focus": "Verify",
         "state": {
-          "correction": "Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state."
+          "tests": "pass",
+          "app": "starts"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: If the application runs from the editor, the documented clean build and its artifact are guaranteed to work elsewhere."
+        "explanation": "The same tested bundle runs without undocumented manual steps."
       }
     ],
-    "textAlternative": "Starting artifact: A clean build in a fresh workspace produces the same tested bundle from the lockfile rather than relying on a developer's old output directory. Step 1, Observe. State: evidence: A clean build in a fresh workspace produces the same tested bundle from the lockfile rather than relying on a developer's old output directory.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A build transforms declared source and assets into validated artifacts through repeatable commands whose inputs, outputs, environment, and failure status are explicit.. Apply the declared Build and task commands model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state.. Compare the observation with the correction and reject the misconception: If the application runs from the editor, the documented clean build and its artifact are guaranteed to work elsewhere."
+    "textAlternative": "Tracing a clean build. Step 1, Clone: dist/ is absent; node_modules/ is absent. A fresh workspace has no old output directory. Step 2, Build: install is from lockfile; exit code is 0. A clean build produces the bundle from the lockfile. Step 3, Verify: tests is pass; app is starts. The same tested bundle runs without undocumented manual steps."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Build and task commands: direct case”: state its starting evidence, apply the Build and task commands rule, and give the observable result in three short lines.",
+      "prompt": "For \"The clean-workspace build\", explain how a clean build in a fresh workspace produces the same tested bundle from the lockfile rather than relying on a developer's old output directory.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Clone.",
+        "Build.",
+        "Verify."
       ],
       "expectedEvidence": [
-        "Named example: Build and task commands: direct case.",
-        "Starting evidence: A clean build in a fresh workspace produces the same tested bundle from the lockfile rather than relying on a developer's old output directory.",
-        "Core rule: A build transforms declared source and assets into validated artifacts through repeatable commands whose inputs, outputs, environment, and failure status are explicit.",
-        "Observable result: The case supports the declared outcome because Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state.",
-        "Boundary check: Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state."
+        "Names the example \"The clean-workspace build\": an old dist/ hid a missing step.",
+        "A clean build in a fresh workspace produces the same tested bundle from the lockfile.",
+        "It doesn't rely on a developer's old output directory.",
+        "The README is proven correct."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A failing compile exits nonzero and stops packaging instead of emitting a seemingly successful partial artifact.",
+      "prompt": "Take one of your projects, clone it into a new folder, and follow only its README. Record every step that fails or is missing, then fix the README or scripts.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Don't use anything from the old folder.",
+        "Check exit codes."
       ],
       "expectedEvidence": [
-        "A build transforms declared source and assets into validated artifacts through repeatable commands whose inputs, outputs, environment, and failure status are explicit.",
-        "Caches, generated code, timestamps, native tools, network access, environment variables, and undeclared local files can make builds non-reproducible."
+        "Every missing step documented.",
+        "Clean clone builds, tests and starts."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Build and task commands, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Write a verify.sh script that clones the repo into a temporary folder, installs from the lockfile, builds, tests and exits non-zero on any failure. Break the build on purpose and show the script fails.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "set -e stops on the first error.",
+        "Clean up the temporary folder."
       ],
       "expectedEvidence": [
-        "Run a clean checkout through setup, build, test and start without undocumented manual steps.",
-        "Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state."
+        "Script passes on a good commit.",
+        "Script fails on a broken one."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.tools.build.misconception",
-      "explanation": "Run the declared clean build with pinned dependencies, inspect exit status and artifact, and remove reliance on undeclared machine state.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A failing compile exits nonzero and stops packaging instead of emitting a seemingly successful partial artifact."
+      "explanation": "After any build change, run the **fresh clone test**: clone elsewhere, follow only the README, and check each exit code.",
+      "retryPrompt": "Apply this to \"The global tool\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to run a clean checkout through setup, build, test and start without undocumented manual steps. Keep this boundary in view: Caches, generated code, timestamps, native tools, network access, environment variables, and undeclared local files can make builds non-reproducible.",
+    "summary": "To run a clean checkout through setup, build, test and start, define each step as a named script with explicit inputs, outputs and a failing exit code, declare every tool as a dependency, document setup in the README, and prove it in a fresh workspace rather than trusting your editor.",
     "retrievalPrompts": [
-      "Explain Build and task commands without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: If the application runs from the editor, the documented clean build and its artifact are guaranteed to work elsewhere.",
-      "Apply the model to this case from memory: A failing compile exits nonzero and stops packaging instead of emitting a seemingly successful partial artifact."
+      "Why doesn't running in the editor prove the build?",
+      "What does a non-zero exit code signal?",
+      "How do you test the documented path?"
     ],
     "nextReviewPrompt": "Next: continue to “Configuration and environment”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

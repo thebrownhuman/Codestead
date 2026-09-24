@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A topological order linearizes a directed acyclic graph so every edge goes from an earlier to a later vertex.",
+    "summary": "A **topological order** lists the vertices of a directed graph so that **every edge points forward**: if Variables → Loops, Variables comes first. It exists **only if the graph has no cycle** (a DAG). **Kahn's algorithm** counts each vertex's **in-degree** (incoming edges), repeatedly takes a vertex with in-degree 0, outputs it, and lowers its neighbours' in-degrees. If it outputs **fewer than V vertices**, the leftovers are stuck in a cycle. A DFS version outputs vertices in reverse finishing order. Both run in O(V + E). Many valid orders may exist; use a priority queue instead of a plain queue if you want, say, the alphabetically first one.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Kahn's algorithm repeatedly removes zero-indegree vertices and detects a cycle if fewer than V are removed. Your goal is to implement and test Kahn or DFS topological sorting on valid and cyclic inputs. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Codestead builds a suggested study order from lesson prerequisites. It must never suggest a lesson before its prerequisites, and it must spot impossible plans where lessons require each other in a loop. Kahn's algorithm repeatedly removes zero-indegree vertices and detects a cycle if fewer than V are removed. In this lesson you'll implement and test Kahn or DFS topological sorting on valid and cyclic inputs.\n\n```predict\n{\"question\": \"Does every directed graph have a topological order?\", \"options\": [\"Yes\", \"No: a cycle means some vertex must come before itself\"], \"answer\": 1, \"why\": \"Only directed acyclic graphs (DAGs) can be ordered this way.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Graph representation and traversal; Priority queue applications; Breadth-first and depth-first search; Components and cycle detection. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Graph representation and traversal** module, **Priority queue applications**, **Breadth-first and depth-first search**, and **Components and cycle detection**."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "A topological order linearizes a directed acyclic graph so every edge goes from an earlier to a later vertex. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The invariant: output only what has no remaining prerequisites",
+        "body": "```python\nfrom collections import deque\n\ndef kahn_order(adj):                     # adj: vertex -> list of vertices that depend on it.\n    indegree = {v: 0 for v in adj}\n    for u in adj:\n        for v in adj[u]:\n            indegree[v] += 1\n    ready = deque(v for v in adj if indegree[v] == 0)\n    order = []\n    while ready:\n        u = ready.popleft()                 # all of u's prerequisites are already output.\n        order.append(u)\n        for v in adj[u]:\n            indegree[v] -= 1\n            if indegree[v] == 0:\n                ready.append(v)\n    if len(order) < len(adj):\n        return None                         # leftovers are in (or behind) a cycle.\n    return order\n\nplan = {\"Variables\": [\"Loops\", \"Functions\"], \"Loops\": [\"Arrays\"],\n        \"Functions\": [\"Recursion\"], \"Arrays\": [], \"Recursion\": []}\nprint(kahn_order(plan))   # ['Variables', 'Loops', 'Functions', 'Arrays', 'Recursion']\n```\n\n| Step | Meaning |\n|---|---|\n| in-degree 0. | no unfinished prerequisites. |\n| output u. | u can be studied now. |\n| lower neighbours. | u is no longer blocking them. |\n| fewer than V output. | a cycle blocks the rest. |\n\n```reveal\n{\"prompt\": \"How do you get the same order every time, e.g. alphabetical among ready lessons?\", \"answer\": \"Use a min-heap (priority queue) for ready instead of a FIFO queue, so the smallest ready vertex is always taken first.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Orders may be nonunique, disconnected DAGs are allowed, and a cycle makes completion impossible. The draft therefore rejects: Every directed graph has at least one topological ordering."
+        "heading": "Detecting impossible plans",
+        "body": "```predict\n{\"question\": \"Kahn's algorithm outputs 3 of 5 lessons and the ready queue is empty. What does that mean?\", \"options\": [\"A bug in the code\", \"The remaining 2 are in or behind a cycle: the plan is impossible\"], \"answer\": 1, \"why\": \"Every vertex in a cycle keeps in-degree at least 1, so it never becomes ready.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Order a directed acyclic graph and detect when dependencies contain a cycle.",
-      "Implement and test Kahn or DFS topological sorting on valid and cyclic inputs.",
-      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      "Implement Kahn's algorithm with in-degree counts and cycle detection.",
+      "Explain why a topological order exists only for DAGs and test valid and cyclic inputs."
     ],
     "excludes": [
-      "Orders may be nonunique, disconnected DAGs are allowed, and a cycle makes completion impossible."
+      "Counting all topological orders.",
+      "Scheduling with durations (critical path) in depth."
     ]
   },
   "outcomes": [
@@ -68,142 +64,136 @@
   "examples": [
     {
       "id": "dsa.graphs.topological.example-a",
-      "title": "Topological ordering: language-neutral trace",
+      "title": "A study order that respects every prerequisite",
       "situation": "Kahn's algorithm repeatedly removes zero-indegree vertices and detects a cycle if fewer than V are removed.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: Kahn's algorithm repeatedly removes zero-indegree vertices and detects a cycle if fewer than V are removed.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Only DAGs have a topological order; incomplete processing or a back edge exposes a cycle."
+        "**Zero-indegree vertices:** only Variables has no prerequisites, so it's output first; Loops and Functions then drop to 0.",
+        "**Remove repeatedly:** Loops, Functions, Arrays and Recursion follow as they become ready.",
+        "**Detect a cycle:** adding Recursion → Variables will make kahn_order return None, since fewer than 5 vertices are removed; tests cover both plans."
       ],
-      "result": "The conceptual result follows because Only DAGs have a topological order; incomplete processing or a back edge exposes a cycle."
+      "result": "Learners get an order where every lesson comes after its prerequisites, and looping plans are rejected."
     },
     {
       "id": "dsa.graphs.topological.example-b",
-      "title": "Topological ordering: implementation transfer",
-      "situation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
+      "title": "The build that compiled modules in the wrong order",
+      "situation": "A project's build compiles modules alphabetically, but \"api\" imports \"utils\", and the build fails because api compiles first.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
-        "Step 3 — Retest this boundary in the selected implementation: Orders may be nonunique, disconnected DAGs are allowed, and a cycle makes completion impossible."
+        "The imports form a directed graph: utils → api.",
+        "A topological order puts utils before api.",
+        "If modules import each other in a loop, Kahn reports it instead of building forever."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Modules compile in dependency order, and circular imports are reported clearly."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.graphs.topological.misconception",
       "mistakenBelief": "Every directed graph has at least one topological ordering.",
-      "correction": "Only DAGs have a topological order; incomplete processing or a back edge exposes a cycle.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Every directed graph has at least one topological ordering."
+      "correction": "A cycle means each vertex in it must come before another in the cycle, and eventually before itself, which is impossible. Only acyclic directed graphs have topological orders.",
+      "diagnosticPrompt": "In the opening predict, why can't a cyclic graph be ordered?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Topological ordering, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Kahn's algorithm is like **getting dressed**: you can put on anything that nothing else must go on before (socks before shoes, shirt before jacket). Each time you put something on, other items become possible. If shoes had to go on before socks and socks before shoes, you'd be stuck: a cycle.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering take what's ready",
+      "in-degree = things still required first"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Orders may be nonunique, disconnected DAGs are allowed, and a cycle makes completion impossible."
+      "Clothes have only a few dependencies; course plans can have many.",
+      "Several items may be ready at once, so many valid orders exist."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Kahn's algorithm repeatedly removes zero-indegree vertices and detects a cycle if fewer than V are removed.",
-      "A topological order linearizes a directed acyclic graph so every edge goes from an earlier to a later vertex.",
-      "Only DAGs have a topological order; incomplete processing or a back edge exposes a cycle.",
-      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      "indegree: Variables 0, Loops 1, Functions 1, Arrays 1, Recursion 1",
+      "take Variables",
+      "continue"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Start",
         "state": {
-          "scenario": "Kahn's algorithm repeatedly removes zero-indegree vertices and detects a cycle if fewer than V are removed."
+          "ready": "[Variables]"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "Only zero-indegree vertices can be output first."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Remove Variables",
         "state": {
-          "invariant": "A topological order linearizes a directed acyclic graph so every edge goes from an earlier to a later vertex."
+          "Loops": "0",
+          "Functions": "0",
+          "ready": "[Loops, Functions]"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "Kahn's algorithm repeatedly removes zero-indegree vertices."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Finish",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "order": "Variables, Loops, Functions, Arrays, Recursion",
+          "count": "5 = V"
         },
-        "explanation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Only DAGs have a topological order; incomplete processing or a back edge exposes a cycle."
-        },
-        "explanation": "Verify the result and reject this misconception: Every directed graph has at least one topological ordering."
+        "explanation": "All V vertices are removed, so there is no cycle."
       }
     ],
-    "textAlternative": "Starting artifact: Kahn's algorithm repeatedly removes zero-indegree vertices and detects a cycle if fewer than V are removed. Step 1, Specification. State: scenario: Kahn's algorithm repeatedly removes zero-indegree vertices and detects a cycle if fewer than V are removed.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: A topological order linearizes a directed acyclic graph so every edge goes from an earlier to a later vertex.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target. Step 4, Conclusion. State: correction: Only DAGs have a topological order; incomplete processing or a back edge exposes a cycle.. Verify the result and reject this misconception: Every directed graph has at least one topological ordering."
+    "textAlternative": "Tracing Kahn's algorithm. Step 1, Start: ready is [Variables]. Only zero-indegree vertices can be output first. Step 2, Remove Variables: Loops is 0; Functions is 0; ready is [Loops, Functions]. Kahn's algorithm repeatedly removes zero-indegree vertices. Step 3, Finish: order is Variables, Loops, Functions, Arrays, Recursion; count is 5 = V. All V vertices are removed, so there is no cycle."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Topological ordering: language-neutral trace”: state its starting evidence, apply the Topological ordering rule, and give the observable result in three short lines.",
+      "prompt": "For \"A study order that respects every prerequisite\", explain how Kahn's algorithm repeatedly removes zero-indegree vertices and detects a cycle if fewer than V are removed.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Ready.",
+        "Remove.",
+        "Cycle."
       ],
       "expectedEvidence": [
-        "Named example: Topological ordering: language-neutral trace.",
-        "Starting evidence: Kahn's algorithm repeatedly removes zero-indegree vertices and detects a cycle if fewer than V are removed.",
-        "Core rule: A topological order linearizes a directed acyclic graph so every edge goes from an earlier to a later vertex.",
-        "Observable result: The conceptual result follows because Only DAGs have a topological order; incomplete processing or a back edge exposes a cycle.",
-        "Boundary check: Only DAGs have a topological order; incomplete processing or a back edge exposes a cycle."
+        "Names the example \"A study order that respects every prerequisite\": the plan needs a prerequisite-respecting order.",
+        "Kahn's algorithm repeatedly removes zero-indegree vertices.",
+        "It detects a cycle if fewer than V are removed.",
+        "Learners get an order where every lesson comes after its prerequisites."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: A topological order linearizes a directed acyclic graph so every edge goes from an earlier to a later vertex.",
+      "prompt": "Run Kahn's algorithm by hand on edges a→b, a→c, b→d, c→d and list every valid topological order.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "a first, d last.",
+        "b and c can swap."
       ],
       "expectedEvidence": [
-        "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
-        "Orders may be nonunique, disconnected DAGs are allowed, and a cycle makes completion impossible."
+        "a, b, c, d.",
+        "a, c, b, d."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Topological ordering case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Implement DFS-based topological sort (reverse postorder) with ACTIVE/DONE states for cycle detection. Test it against Kahn on 100 random DAGs by checking every edge goes forward, and on graphs with a cycle.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Append to order when a vertex is DONE, then reverse.",
+        "Validate: position[u] < position[v] for each edge."
       ],
       "expectedEvidence": [
-        "Implement and test Kahn or DFS topological sorting on valid and cyclic inputs.",
-        "Only DAGs have a topological order; incomplete processing or a back edge exposes a cycle."
+        "Both algorithms produce valid orders.",
+        "Both report cycles."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.graphs.topological.misconception",
-      "explanation": "Only DAGs have a topological order; incomplete processing or a back edge exposes a cycle.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'Only DAGs', then state one implementation-specific risk in the selected language."
+      "explanation": "Keep a table of **in-degrees**. At each step ask: **which vertices have 0 left?** Output one, lower its neighbours. At the end: **did every vertex come out?** If not, there's a cycle.",
+      "retryPrompt": "Apply this to \"The build that compiled modules in the wrong order\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test Kahn or DFS topological sorting on valid and cyclic inputs. Keep this boundary in view: Orders may be nonunique, disconnected DAGs are allowed, and a cycle makes completion impossible.",
+    "summary": "To implement and test topological sorting, use Kahn's algorithm: count in-degrees, repeatedly output a zero-indegree vertex and lower its neighbours, and report a cycle if fewer than V vertices come out; an order exists only for DAGs, runs in O(V + E), and may not be unique.",
     "retrievalPrompts": [
-      "State the Topological ordering invariant and complexity without code.",
-      "Why is this claim false: Every directed graph has at least one topological ordering.",
-      "Map checkpoint 'Only DAGs' to C, C++, Java, and Python."
+      "When does a topological order exist?",
+      "What does in-degree 0 mean in Kahn's algorithm?",
+      "How does Kahn detect a cycle?"
     ],
     "nextReviewPrompt": "Next: continue to “Unweighted and Dijkstra shortest paths”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

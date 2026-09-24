@@ -38,33 +38,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Native header, nav, main, aside, and footer elements expose page regions and support landmark navigation when used for their intended roles.",
+    "summary": "**Landmark** elements mark the big regions of a page so assistive technology can jump straight to them: `<header>`, `<nav>`, `<main>` (exactly **one** visible), `<aside>`, `<footer>`, and labelled `<section>`s. When a page has two of the same landmark (two navs), give each an `aria-label` so users can tell them apart. Plain `<div>` is still right for pure layout wrappers.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A page has one main content region and labels two nav regions as Primary and Course topics. Your goal is to structure a page with one clear main region and meaningful labeled navigation and sections. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A screen-reader user lands on your course page and asks for the list of landmarks. They hear \"navigation, navigation, main\" — which nav is the site menu and which is the topic list? A page has one main content region and labels two nav regions as Primary and Course topics. In this lesson you'll structure a page with one clear main region and meaningful labeled navigation and sections.\n\n```predict\n{\"question\": \"How many visible `<main>` elements should a page have?\", \"options\": [\"As many as needed\", \"Exactly one\"], \"answer\": 1, \"why\": \"main marks the page's primary content. One lets users jump straight to it.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Standards-mode document skeleton; Heading hierarchy; Lists and grouped content. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Standards-mode document skeleton**, **Heading hierarchy**, and **Lists and grouped content** — navigation menus are usually lists inside nav."
       },
       {
-        "heading": "Technology rule",
-        "body": "Native header, nav, main, aside, and footer elements expose page regions and support landmark navigation when used for their intended roles. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: regions users can jump between",
+        "body": "```html\n<body>\n  <header>\n    <a href=\"/\">Codestead</a>\n    <nav aria-label=\"Primary\">\n      <ul><li><a href=\"/courses\">Courses</a></li><li><a href=\"/help\">Help</a></li></ul>\n    </nav>\n  </header>\n  <main>\n    <h1>HTML Basics</h1>\n    <nav aria-label=\"Course topics\">\n      <ol><li><a href=\"#syntax\">Syntax</a></li><li><a href=\"#forms\">Forms</a></li></ol>\n    </nav>\n    <section aria-labelledby=\"syntax\"><h2 id=\"syntax\">Syntax</h2>…</section>\n  </main>\n  <footer>© 2026 Codestead</footer>\n</body>\n```\n\n| Element | Landmark |\n|---|---|\n| `header` (top level). | banner. |\n| `nav`. | navigation. |\n| `main`. | main — one per page. |\n| `footer` (top level). | contentinfo. |\n| `section` with a name. | region. |\n\n```reveal\n{\"prompt\": \"Should every div become a section?\", \"answer\": \"No. section means a themed part of content, usually with a heading. Wrappers used only for layout stay as div.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Multiple landmarks of one type may need accessible labels, and header or footer landmark behavior depends on nesting context. This draft therefore rejects: Every div should be replaced with a landmark element to maximize accessibility."
+        "heading": "Label duplicates",
+        "body": "```predict\n{\"question\": \"Two nav elements, no labels. What does a landmark list show?\", \"options\": [\"\\\"Primary\\\" and \\\"Course topics\\\"\", \"\\\"navigation\\\" and \\\"navigation\\\"\"], \"answer\": 1, \"why\": \"Without names they're indistinguishable. `aria-label=\\\"Primary\\\"` gives each a clear name.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use header, nav, main, article, section, aside and footer when their semantic roles apply.",
-      "Structure a page with one clear main region and meaningful labeled navigation and sections."
+      "Use header, nav, main, aside, footer and labelled section appropriately.",
+      "Label repeated landmarks and keep div for pure layout."
     ],
     "excludes": [
-      "Multiple landmarks of one type may need accessible labels, and header or footer landmark behavior depends on nesting context."
+      "ARIA landmark roles written by hand.",
+      "Skip links (navigation module)."
     ]
   },
   "outcomes": [
@@ -73,133 +74,136 @@
   "examples": [
     {
       "id": "html.semantics.landmarks.example-a",
-      "title": "Sections and landmarks: concrete case",
+      "title": "One main and two labelled navs",
       "situation": "A page has one main content region and labels two nav regions as Primary and Course topics.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A page has one main content region and labels two nav regions as Primary and Course topics.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Use landmarks only for genuine page regions, keep one primary main region, and label repeated landmark types distinctly."
+        "**One main content region:** everything unique to this page sits inside a single `<main>`.",
+        "**Labels two nav regions:** `aria-label=\"Primary\"` on the site menu and `aria-label=\"Course topics\"` on the in-page list.",
+        "**Check:** the browser's accessibility tree will show banner, navigation \"Primary\", main, navigation \"Course topics\", contentinfo."
       ],
-      "result": "The result follows because Use landmarks only for genuine page regions, keep one primary main region, and label repeated landmark types distinctly."
+      "result": "Screen-reader users can jump to the main content or the right navigation by name."
     },
     {
       "id": "html.semantics.landmarks.example-b",
-      "title": "Sections and landmarks: boundary case",
-      "situation": "Multiple landmarks of one type may need accessible labels, and header or footer landmark behavior depends on nesting context.",
+      "title": "The landmark overload",
+      "situation": "A developer turns every div into a section, including card grids and spacing wrappers, and adds a main inside each article.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Multiple landmarks of one type may need accessible labels, and header or footer landmark behavior depends on nesting context.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Every div should be replaced with a landmark element to maximize accessibility."
+        "Dozens of unnamed regions and several mains make the landmark list noisy and confusing.",
+        "Layout wrappers carry no meaning, so they shouldn't be landmarks.",
+        "Fix: one main; sections only for headed, themed content; div for layout."
       ],
-      "result": "The boundary requires this correction: Use landmarks only for genuine page regions, keep one primary main region, and label repeated landmark types distinctly."
+      "result": "The landmark list shrinks to a handful of meaningful regions."
     }
   ],
   "misconceptions": [
     {
       "id": "html.semantics.landmarks.misconception",
       "mistakenBelief": "Every div should be replaced with a landmark element to maximize accessibility.",
-      "correction": "Use landmarks only for genuine page regions, keep one primary main region, and label repeated landmark types distinctly.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: Every div should be replaced with a landmark element to maximize accessibility."
+      "correction": "Landmarks help only when they mark genuinely distinct regions; too many make navigation harder. Use one main, labelled duplicates, sections for headed themed content, and div for layout.",
+      "diagnosticPrompt": "In \"The landmark overload\", why did more landmarks make the page harder to use?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model Sections and landmarks, with structure carrying meaning before decoration.",
+    "example": "Landmarks are like **signs in a shopping mall**: Entrance, Food Court, Main Hall, Exit. Two signs both saying \"Shops\" need extra words (\"Shops — Level 1\") to be useful. A sign on every pillar helps no one.",
     "usefulFor": [
-      "Building a first mental model for Sections and landmarks before using exact platform terms"
+      "remembering landmarks = major regions",
+      "labelling duplicates"
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "Multiple landmarks of one type may need accessible labels, and header or footer landmark behavior depends on nesting context."
+      "Mall signs are visual; landmarks are mostly used by assistive tech.",
+      "Pillars (divs) hold the building up without needing signs."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A page has one main content region and labels two nav regions as Primary and Course topics.",
-      "Native header, nav, main, aside, and footer elements expose page regions and support landmark navigation when used for their intended roles.",
-      "Use landmarks only for genuine page regions, keep one primary main region, and label repeated landmark types distinctly."
+      "<nav aria-label='Primary'>",
+      "<main> … <nav aria-label='Course topics'> … </main>",
+      "accessibility tree"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Site navigation",
         "state": {
-          "evidence": "A page has one main content region and labels two nav regions as Primary and Course topics."
+          "landmark": "navigation",
+          "name": "Primary"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The first nav region is labelled Primary."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Main region",
         "state": {
-          "rule": "Native header, nav, main, aside, and footer elements expose page regions and support landmark navigation when used for their intended roles."
+          "landmark": "main",
+          "count": "1"
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The page has one main content region."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Topic navigation",
         "state": {
-          "correction": "Use landmarks only for genuine page regions, keep one primary main region, and label repeated landmark types distinctly."
+          "landmark": "navigation",
+          "name": "Course topics"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Every div should be replaced with a landmark element to maximize accessibility."
+        "explanation": "The second nav is labelled Course topics, so the two are distinguishable."
       }
     ],
-    "textAlternative": "Starting artifact: A page has one main content region and labels two nav regions as Primary and Course topics. Step 1, Artifact. State: evidence: A page has one main content region and labels two nav regions as Primary and Course topics.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Native header, nav, main, aside, and footer elements expose page regions and support landmark navigation when used for their intended roles.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use landmarks only for genuine page regions, keep one primary main region, and label repeated landmark types distinctly.. Check the result against the boundary and reject this misconception: Every div should be replaced with a landmark element to maximize accessibility."
+    "textAlternative": "Landmarks on a course page. Step 1, Site navigation: landmark is navigation; name is Primary. The first nav region is labelled Primary. Step 2, Main region: landmark is main; count is 1. The page has one main content region. Step 3, Topic navigation: landmark is navigation; name is Course topics. The second nav is labelled Course topics, so the two are distinguishable."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Sections and landmarks: concrete case”: state its starting evidence, apply the Sections and landmarks rule, and give the observable result in three short lines.",
+      "prompt": "For \"One main and two labelled navs\", explain why the page has one main content region and how it labels two nav regions as Primary and Course topics.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "main.",
+        "Two navs.",
+        "Result."
       ],
       "expectedEvidence": [
-        "Named example: Sections and landmarks: concrete case.",
-        "Starting evidence: A page has one main content region and labels two nav regions as Primary and Course topics.",
-        "Core rule: Native header, nav, main, aside, and footer elements expose page regions and support landmark navigation when used for their intended roles.",
-        "Observable result: The result follows because Use landmarks only for genuine page regions, keep one primary main region, and label repeated landmark types distinctly.",
-        "Boundary check: Use landmarks only for genuine page regions, keep one primary main region, and label repeated landmark types distinctly."
+        "Names the example \"One main and two labelled navs\": the page has one main content region.",
+        "It labels two nav regions as Primary and Course topics.",
+        "Landmark lists show distinct names.",
+        "Users can jump to the right region."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Multiple landmarks of one type may need accessible labels, and header or footer landmark behavior depends on nesting context.",
+      "prompt": "Sketch the landmarks for a blog post page with a site header, the article, a \"Related posts\" sidebar, and a footer with links.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Which is main?",
+        "Is the sidebar an aside?"
       ],
       "expectedEvidence": [
-        "Native header, nav, main, aside, and footer elements expose page regions and support landmark navigation when used for their intended roles.",
-        "Multiple landmarks of one type may need accessible labels, and header or footer landmark behavior depends on nesting context."
+        "header, main containing the article, aside labelled Related posts, footer.",
+        "Footer links in a labelled nav if they're a menu."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Sections and landmarks and explain why the misconception fails.",
+      "prompt": "Open a site you use daily with a screen reader's landmark list (or DevTools accessibility tree). List its landmarks and suggest two improvements.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Look for duplicates without names.",
+        "Is there exactly one main?"
       ],
       "expectedEvidence": [
-        "Structure a page with one clear main region and meaningful labeled navigation and sections.",
-        "Use landmarks only for genuine page regions, keep one primary main region, and label repeated landmark types distinctly."
+        "Accurate landmark list.",
+        "Two justified improvements."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.semantics.landmarks.misconception",
-      "explanation": "Use landmarks only for genuine page regions, keep one primary main region, and label repeated landmark types distinctly.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'genuine page regions' and state the decisive evidence."
+      "explanation": "Ask of each wrapper: **Is this a major region someone would want to jump to?** Yes → landmark (label it if its type repeats). No → div.",
+      "retryPrompt": "Apply this to \"The landmark overload\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to structure a page with one clear main region and meaningful labeled navigation and sections. Keep this boundary in view: Multiple landmarks of one type may need accessible labels, and header or footer landmark behavior depends on nesting context.",
+    "summary": "To structure a page with landmarks, use header, nav, one main, aside, footer and headed sections for real regions, label repeated landmarks like two navs, and keep div for layout-only wrappers.",
     "retrievalPrompts": [
-      "Explain Sections and landmarks using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: Every div should be replaced with a landmark element to maximize accessibility.",
-      "Apply checkpoint 'genuine page regions' to a new artifact."
+      "How many main elements should a page have?",
+      "Why label two nav elements?",
+      "When is a div still the right choice?"
     ],
     "nextReviewPrompt": "Next: continue to “Relative and absolute URLs”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

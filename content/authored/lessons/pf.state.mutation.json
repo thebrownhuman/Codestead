@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Rebinding changes which value a name denotes, while mutation changes the state of an existing mutable object that may be reachable through more than one name.",
+    "summary": "There are two different ways to \"change\" things. **Rebinding** (`x = something_new`) points one name at a different value. **Mutation** (`items.append(...)`) changes an existing object in place — and if two names refer to that same object (they are **aliases**), both see the change.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Two names refer to the same shopping-list object; appending through one name makes the added item visible when reading through the other. Your goal is to predict visible changes when two names refer to the same mutable collection. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You and a flatmate share a shopping list on the fridge. You write \"milk\" on it; later your flatmate reads the same list and sees milk — because it's one list with two readers. Code works the same way: two names refer to the same shopping-list object, so appending through one name makes the added item visible when reading through the other. In this lesson you'll predict visible changes when two names refer to the same mutable collection.\n\n```predict\n{\"code\": \"ours = [\\\"eggs\\\"]\\nmine = ours\\nmine.append(\\\"milk\\\")\\nprint(ours)\", \"question\": \"What does this print?\", \"options\": [\"[\\\"eggs\\\"]\", \"[\\\"eggs\\\", \\\"milk\\\"]\"], \"answer\": 1, \"why\": \"`mine = ours` doesn't copy the list — both names refer to **one** list. Appending through `mine` changes it for `ours` too.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Pseudocode; Variables and assignment. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Pseudocode** and **Variables and assignment** — especially that assignment binds a name to a value."
       },
       {
-        "heading": "Operational model",
-        "body": "Rebinding changes which value a name denotes, while mutation changes the state of an existing mutable object that may be reachable through more than one name. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The distinction: rebinding vs mutation",
+        "body": "| Code | Kind | Effect on the other name |\n|---|---|---|\n| `mine.append(\"milk\")` | mutation. | visible through `ours` too. |\n| `mine[0] = \"bread\"` | mutation. | visible through `ours` too. |\n| `mine = [\"tea\"]` | rebinding. | `ours` unchanged — `mine` now points elsewhere. |\n\nNumbers and strings can't be mutated, so this surprise only happens with **mutable** objects like lists, dicts and sets.\n\n```reveal\n{\"prompt\": \"After `mine = [\\\"tea\\\"]`, what does `ours` hold?\", \"answer\": \"Still the shared list — `[\\\"eggs\\\", \\\"milk\\\"]`. Rebinding moved only the `mine` name to a brand-new list.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Languages differ in reference, value, copy, and immutability semantics, so alias behavior must be confirmed for the concrete type and operation. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Assigning or updating through one name can never affect a value observed through another name."
+        "heading": "Making a real copy",
+        "body": "```predict\n{\"question\": \"How do you give `mine` its own independent list?\", \"options\": [\"`mine = ours`\", \"`mine = ours.copy()`\"], \"answer\": 1, \"why\": \"`.copy()` (or `list(ours)`) creates a new list with the same items. Now mutating one doesn't affect the other.\"}\n```\n\nTip: `a is b` tells you whether two names are aliases of the same object."
       }
     ]
   },
   "scope": {
     "includes": [
-      "Recognize the conceptual difference between rebinding a name and changing a shared value.",
-      "Predict visible changes when two names refer to the same mutable collection."
+      "Tell mutation apart from rebinding.",
+      "Predict changes visible through aliases of a mutable collection."
     ],
     "excludes": [
-      "Languages differ in reference, value, copy, and immutability semantics, so alias behavior must be confirmed for the concrete type and operation."
+      "Deep vs shallow copies of nested lists.",
+      "Memory addresses and garbage collection."
     ]
   },
   "outcomes": [
@@ -63,133 +64,133 @@
   "examples": [
     {
       "id": "pf.state.mutation.example-a",
-      "title": "Mutation and aliases: direct case",
+      "title": "The shared shopping list",
       "situation": "Two names refer to the same shopping-list object; appending through one name makes the added item visible when reading through the other.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: Two names refer to the same shopping-list object; appending through one name makes the added item visible when reading through the other.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value."
+        "**Alias:** `mine = ours` makes both names refer to the same shopping-list object.",
+        "**Mutate:** `mine.append(\"milk\")` changes that one object in place.",
+        "**Read through the other name:** `print(ours)` shows the added item, milk."
       ],
-      "result": "The case supports the declared outcome because First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value."
+      "result": "`ours` prints [\"eggs\", \"milk\"] — the added item is visible through both names."
     },
     {
       "id": "pf.state.mutation.example-b",
-      "title": "Mutation and aliases: boundary case",
-      "situation": "Reassigning one name to a new list leaves the original shared list unchanged for another name that still refers to it.",
+      "title": "The default that remembered",
+      "situation": "```python\ntemplate = [\"name\", \"email\"]\nform_a = template\nform_a.append(\"phone\")\nform_b = template\n```\nForm B was supposed to have only name and email.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: Reassigning one name to a new list leaves the original shared list unchanged for another name that still refers to it.",
-        "Step 2 — Keep this boundary explicit: Languages differ in reference, value, copy, and immutability semantics, so alias behavior must be confirmed for the concrete type and operation.",
-        "Step 3 — Reject the documented misconception: Assigning or updating through one name can never affect a value observed through another name."
+        "`form_a` and `template` are aliases, so appending phone mutated the template.",
+        "`form_b = template` then aliases the already-changed list.",
+        "Fix: `form_a = template.copy()` so each form gets its own list."
       ],
-      "result": "This case demonstrates the declared outcome: Predict visible changes when two names refer to the same mutable collection."
+      "result": "Form B wrongly includes phone until each form uses a copy of the template."
     }
   ],
   "misconceptions": [
     {
       "id": "pf.state.mutation.misconception",
       "mistakenBelief": "Assigning or updating through one name can never affect a value observed through another name.",
-      "correction": "First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Assigning or updating through one name can never affect a value observed through another name."
+      "correction": "If two names refer to the same mutable object, mutating it through one name is visible through the other. Only rebinding a name, or working on a copy, keeps them independent.",
+      "diagnosticPrompt": "In \"The default that remembered\", why did form B include phone?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled scoreboard can model Mutation and aliases: each label exposes a current value and each recorded event produces the next visible state.",
+    "example": "Aliases are like **two people with the same shared Google Doc link**: edits by one appear for the other. Making a copy is \"File → Make a copy\" — now edits stay separate.",
     "usefulFor": [
-      "Reasoning about values, expressions, named state, and changes across time"
+      "remembering that aliases share one object",
+      "seeing copy as the way to separate them"
     ],
     "limitations": [
-      "The scoreboard does not accurately model binary representation, scope, aliases, object identity, or language coercion.",
-      "Languages differ in reference, value, copy, and immutability semantics, so alias behavior must be confirmed for the concrete type and operation."
+      "Numbers and strings can't be edited in place, so they never surprise you this way.",
+      "A shallow copy of a list of lists still shares the inner lists."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Two names refer to the same shopping-list object; appending through one name makes the added item visible when reading through the other.",
-      "Rebinding changes which value a name denotes, while mutation changes the state of an existing mutable object that may be reachable through more than one name.",
-      "First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value."
+      "ours = ['eggs']",
+      "mine = ours",
+      "mine.append('milk'); print(ours)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "One object",
         "state": {
-          "evidence": "Two names refer to the same shopping-list object; appending through one name makes the added item visible when reading through the other."
+          "ours": "['eggs']"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "A single shopping-list object is created and named ours."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Alias",
         "state": {
-          "model": "Rebinding changes which value a name denotes, while mutation changes the state of an existing mutable object that may be reachable through more than one name."
+          "mine": "same object as ours"
         },
-        "explanation": "Apply the declared Mutation and aliases model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "Assigning mine = ours makes two names refer to the same object."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Mutate",
         "state": {
-          "correction": "First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value."
+          "ours": "['eggs', 'milk']"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Assigning or updating through one name can never affect a value observed through another name."
+        "explanation": "Appending through mine makes the added item visible when reading ours."
       }
     ],
-    "textAlternative": "Starting artifact: Two names refer to the same shopping-list object; appending through one name makes the added item visible when reading through the other. Step 1, Observe. State: evidence: Two names refer to the same shopping-list object; appending through one name makes the added item visible when reading through the other.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Rebinding changes which value a name denotes, while mutation changes the state of an existing mutable object that may be reachable through more than one name.. Apply the declared Mutation and aliases model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value.. Compare the observation with the correction and reject the misconception: Assigning or updating through one name can never affect a value observed through another name."
+    "textAlternative": "Two names sharing one shopping list. Step 1, One object: ours is ['eggs']. A single shopping-list object is created and named ours. Step 2, Alias: mine is same object as ours. Assigning mine = ours makes two names refer to the same object. Step 3, Mutate: ours is ['eggs', 'milk']. Appending through mine makes the added item visible when reading ours."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Mutation and aliases: direct case”: state its starting evidence, apply the Mutation and aliases rule, and give the observable result in three short lines.",
+      "prompt": "For \"The shared shopping list\", explain how two names come to refer to the same shopping-list object, what appending through one name does, and what reading through the other name shows.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Alias.",
+        "Mutation.",
+        "What's visible."
       ],
       "expectedEvidence": [
-        "Named example: Mutation and aliases: direct case.",
-        "Starting evidence: Two names refer to the same shopping-list object; appending through one name makes the added item visible when reading through the other.",
-        "Core rule: Rebinding changes which value a name denotes, while mutation changes the state of an existing mutable object that may be reachable through more than one name.",
-        "Observable result: The case supports the declared outcome because First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value.",
-        "Boundary check: First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value."
+        "Names the example \"The shared shopping list\": two names refer to the same shopping-list object.",
+        "Appending milk through one name mutates the shared object.",
+        "The added item is visible when reading through the other name.",
+        "Using .copy() would keep them independent."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: Reassigning one name to a new list leaves the original shared list unchanged for another name that still refers to it.",
+      "prompt": "Predict the output: `a = [1, 2]; b = a; b = b + [3]; print(a)`. Is `b = b + [3]` mutation or rebinding?",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "`+` builds a new list.",
+        "Then b is rebound."
       ],
       "expectedEvidence": [
-        "Rebinding changes which value a name denotes, while mutation changes the state of an existing mutable object that may be reachable through more than one name.",
-        "Languages differ in reference, value, copy, and immutability semantics, so alias behavior must be confirmed for the concrete type and operation."
+        "Prints [1, 2].",
+        "`b + [3]` creates a new list and rebinding b leaves a unchanged."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Mutation and aliases, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Write a function `add_item(cart, item)` that appends to a list. Call it from two places sharing one cart, and show when that's helpful and when it's a bug.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "The function mutates its argument.",
+        "When would you want a copy?"
       ],
       "expectedEvidence": [
-        "Predict visible changes when two names refer to the same mutable collection.",
-        "First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value."
+        "Demonstrates the shared cart being updated.",
+        "Explains when to pass a copy to avoid unwanted changes."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "pf.state.mutation.misconception",
-      "explanation": "First trace which names reach the same mutable object, then distinguish changing that object from rebinding one name to a different value.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: Reassigning one name to a new list leaves the original shared list unchanged for another name that still refers to it."
+      "explanation": "Draw each object as a box and each name as an arrow. `=` moves an arrow; `.append` or `[i] =` changes what's inside a box. Any arrow to that box sees the change.",
+      "retryPrompt": "Draw boxes and arrows for \"The default that remembered\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to predict visible changes when two names refer to the same mutable collection. Keep this boundary in view: Languages differ in reference, value, copy, and immutability semantics, so alias behavior must be confirmed for the concrete type and operation.",
+    "summary": "To predict visible changes, check whether two names refer to the same mutable collection. Mutation (append, item assignment) changes the shared object, so both names see it; rebinding moves only one name. Use `.copy()` for independence.",
     "retrievalPrompts": [
-      "Explain Mutation and aliases without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Assigning or updating through one name can never affect a value observed through another name.",
-      "Apply the model to this case from memory: Reassigning one name to a new list leaves the original shared list unchanged for another name that still refers to it."
+      "Why does `ours` show milk?",
+      "What's the difference between mutation and rebinding?",
+      "How do you give a name its own list?"
     ],
     "nextReviewPrompt": "Next: continue to “Sequence”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

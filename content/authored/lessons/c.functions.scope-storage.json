@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Scope controls name visibility, linkage connects declarations across translation units, and storage duration controls object lifetime independently of those name rules.",
+    "summary": "Three separate questions describe every C name. **Scope**: where in the code can this **name** be used? (a block `{ }`, a function, or the whole file.) **Storage duration**: how long does the **object** live? **Automatic** variables are created each time their block runs and destroyed when it ends; **static** ones live for the entire program. **Linkage**: can **other files** refer to it? **External** linkage means yes, **internal** (a file-level `static`) means only this file. The keyword `static` means different things in different places: inside a function it gives **static storage** (value kept between calls) but the name stays **local**.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A block automatic counter is created on each call, while a block static counter retains its value across calls but remains named only inside the function. Your goal is to resolve name visibility and lifetime in a multi-function example. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner wants to count how many times `log_event` is called. They add `int calls = 0; calls++;` inside it and always see 1. Someone suggests `static int calls`, and the learner worries this makes calls a global that any file can change. A block automatic counter is created on each call, while a block static counter retains its value across calls but remains named only inside the function. In this lesson you'll resolve name visibility and lifetime in a multi-function example.\n\n```predict\n{\"question\": \"Inside a function, `static int calls = 0;` Can another function in the same file use the name calls?\", \"options\": [\"Yes, static makes it global\", \"No: the name is still local to that function; only its lifetime is the whole program\"], \"answer\": 1, \"why\": \"Scope (name visibility) and storage duration (lifetime) are separate.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: while, do and for; pf abstraction calls; Declarations, prototypes and definitions. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **while, do and for**, **Calls, parameters and returns** and **Declarations, prototypes and definitions** (declarations across files)."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "Scope controls name visibility, linkage connects declarations across translation units, and storage duration controls object lifetime independently of those name rules. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The model: scope, lifetime and linkage are separate",
+        "body": "```c\n/* logger.c */\n#include <stdio.h>\n\nint total_events = 0;          /* file scope, static storage, EXTERNAL linkage. */\nstatic int errors = 0;         /* file scope, static storage, INTERNAL linkage. */\n\nvoid log_event(const char *msg) {\n    int local = 0;             /* block scope, automatic: new each call. */\n    static int calls = 0;      /* block scope, static: kept between calls. */\n    local++;\n    calls++;\n    total_events++;\n    printf(\"%s (local=%d, calls=%d)\\n\", msg, local, calls);\n}\n/* After three calls: local is always 1, calls is 3. */\n```\n\n| Declaration | Scope | Lifetime | Other files? |\n|---|---|---|---|\n| `int x;` in a function. | block. | automatic. | no. |\n| `static int x;` in a function. | block. | whole program. | no. |\n| `int x;` at file level. | file. | whole program. | yes (extern). |\n| `static int x;` at file level. | file. | whole program. | no. |\n\n```reveal\n{\"prompt\": \"How does another file use total_events?\", \"answer\": \"It declares `extern int total_events;` (ideally in logger.h). The definition stays in logger.c. errors, being static at file level, can't be reached this way.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Block-scope static objects retain state, extern declarations do not allocate a new definition, and thread storage or tentative definitions add further cases. Therefore the draft explicitly rejects this beginner failure model: A static local variable is globally visible because it lives for the entire program."
+        "heading": "Shadowing",
+        "body": "```predict\n{\"question\": \"A file-level `int count = 10;` and inside main `int count = 0; count++;`. What does main's count become?\", \"options\": [\"11\", \"1: the inner declaration hides (shadows) the outer one\"], \"answer\": 1, \"why\": \"-Wshadow warns about names hiding other names.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Distinguish block/file scope, internal/external linkage and automatic/static duration.",
-      "Resolve name visibility and lifetime in a multi-function example."
+      "Distinguish scope, storage duration and linkage for each declaration.",
+      "Use static locals for persistent private state and file-level static for internal linkage."
     ],
     "excludes": [
-      "Block-scope static objects retain state, extern declarations do not allocate a new definition, and thread storage or tentative definitions add further cases."
+      "Thread-local storage.",
+      "Dynamic allocation lifetime (memory module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,137 @@
   "examples": [
     {
       "id": "c.functions.scope-storage.example-a",
-      "title": "Scope, linkage and storage duration: defined case",
+      "title": "Counting calls",
       "situation": "A block automatic counter is created on each call, while a block static counter retains its value across calls but remains named only inside the function.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A block automatic counter is created on each call, while a block static counter retains its value across calls but remains named only inside the function.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: A block-scope static object has static storage duration but block scope; lifetime does not widen where its name is visible."
+        "**A block automatic counter is created on each call:** local starts at 0 every time, so it prints 1.",
+        "**A block static counter retains its value across calls:** calls prints 1, then 2, then 3.",
+        "**But remains named only inside the function:** any other function that writes calls++ will fail to compile."
       ],
-      "result": "The defined result follows because A block-scope static object has static storage duration but block scope; lifetime does not widen where its name is visible."
+      "result": "The count is correct, and no other code can tamper with it."
     },
     {
       "id": "c.functions.scope-storage.example-b",
-      "title": "Scope, linkage and storage duration: boundary case",
-      "situation": "A file-scope static helper has internal linkage and cannot be named as the same entity from another translation unit.",
+      "title": "The accidental global",
+      "situation": "Two files both define `int buffer_size = 64;` at file level. Linking fails with multiple definitions.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A file-scope static helper has internal linkage and cannot be named as the same entity from another translation unit.",
-        "Step 2 — Keep this standard boundary visible: Block-scope static objects retain state, extern declarations do not allocate a new definition, and thread storage or tentative definitions add further cases.",
-        "Step 3 — Reject the tempting rule: A static local variable is globally visible because it lives for the entire program."
+        "Both have external linkage and definitions, so there are two.",
+        "If each file needs its own private variable, make both static.",
+        "If it's meant to be shared, define it once and declare extern in a header."
       ],
-      "result": "This case demonstrates the declared outcome: Resolve name visibility and lifetime in a multi-function example."
+      "result": "Each variable has exactly the visibility it needs."
     }
   ],
   "misconceptions": [
     {
       "id": "c.functions.scope-storage.misconception",
       "mistakenBelief": "A static local variable is globally visible because it lives for the entire program.",
-      "correction": "A block-scope static object has static storage duration but block scope; lifetime does not widen where its name is visible.",
-      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: A static local variable is globally visible because it lives for the entire program."
+      "correction": "static inside a function changes only lifetime. The name keeps block scope and no linkage, so nothing outside that function can refer to it.",
+      "diagnosticPrompt": "In the opening predict, which code could use the name calls?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A manually managed workshop can model Scope, linkage and storage duration: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "example": "Think of **a hotel**. Scope is **which rooms know a guest's name**. Storage duration is **how long the guest stays**: automatic guests check out after one night (one call); static guests live there permanently. Linkage is **whether other hotels (files) can send them mail**.",
     "usefulFor": [
-      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+      "remembering name vs stay vs mail",
+      "static local = permanent guest in one room"
     ],
     "limitations": [
-      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
-      "Block-scope static objects retain state, extern declarations do not allocate a new definition, and thread storage or tentative definitions add further cases."
+      "Hotels don't reuse names in nested rooms; C allows shadowing.",
+      "A file-level static guest gets no mail from outside."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A block automatic counter is created on each call, while a block static counter retains its value across calls but remains named only inside the function.",
-      "Scope controls name visibility, linkage connects declarations across translation units, and storage duration controls object lifetime independently of those name rules.",
-      "A block-scope static object has static storage duration but block scope; lifetime does not widen where its name is visible."
+      "log_event(\"a\")",
+      "log_event(\"b\")",
+      "log_event(\"c\")"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Call 1",
         "state": {
-          "evidence": "A block automatic counter is created on each call, while a block static counter retains its value across calls but remains named only inside the function."
+          "local": "1",
+          "calls": "1"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "A block automatic counter is created on each call and starts again."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Call 2",
         "state": {
-          "rule": "Scope controls name visibility, linkage connects declarations across translation units, and storage duration controls object lifetime independently of those name rules."
+          "local": "1",
+          "calls": "2"
         },
-        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+        "explanation": "A block static counter retains its value across calls."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Call 3",
         "state": {
-          "conclusion": "A block-scope static object has static storage duration but block scope; lifetime does not widen where its name is visible."
+          "local": "1",
+          "calls": "3",
+          "visible outside": "no"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: A static local variable is globally visible because it lives for the entire program."
+        "explanation": "The static counter remains named only inside the function."
       }
     ],
-    "textAlternative": "Starting artifact: A block automatic counter is created on each call, while a block static counter retains its value across calls but remains named only inside the function. Step 1, Source and state. State: evidence: A block automatic counter is created on each call, while a block static counter retains its value across calls but remains named only inside the function.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: Scope controls name visibility, linkage connects declarations across translation units, and storage duration controls object lifetime independently of those name rules.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: A block-scope static object has static storage duration but block scope; lifetime does not widen where its name is visible.. Check the conclusion against the boundary and reject this misconception: A static local variable is globally visible because it lives for the entire program."
+    "textAlternative": "Tracing automatic and static locals. Step 1, Call 1: local is 1; calls is 1. A block automatic counter is created on each call and starts again. Step 2, Call 2: local is 1; calls is 2. A block static counter retains its value across calls. Step 3, Call 3: local is 1; calls is 3; visible outside is no. The static counter remains named only inside the function."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Scope, linkage and storage duration: defined case”: state its starting evidence, apply the Scope, linkage and storage duration rule, and give the observable result in three short lines.",
+      "prompt": "For \"Counting calls\", explain how a block automatic counter is created on each call, while a block static counter retains its value across calls but remains named only inside the function.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Automatic.",
+        "Static.",
+        "Visibility."
       ],
       "expectedEvidence": [
-        "Named example: Scope, linkage and storage duration: defined case.",
-        "Starting evidence: A block automatic counter is created on each call, while a block static counter retains its value across calls but remains named only inside the function.",
-        "Core rule: Scope controls name visibility, linkage connects declarations across translation units, and storage duration controls object lifetime independently of those name rules.",
-        "Observable result: The defined result follows because A block-scope static object has static storage duration but block scope; lifetime does not widen where its name is visible.",
-        "Boundary check: A block-scope static object has static storage duration but block scope; lifetime does not widen where its name is visible."
+        "Names the example \"Counting calls\": the automatic counter always showed 1.",
+        "A block automatic counter is created on each call.",
+        "A block static counter retains its value across calls but remains named only inside the function.",
+        "The count is correct, and no other code can tamper with it."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same C rule to this related boundary case: A file-scope static helper has internal linkage and cannot be named as the same entity from another translation unit.",
+      "prompt": "For each declaration in a given two-file program, fill in scope, lifetime and linkage. Then predict the output of three calls and check by running it.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Use the table as a template.",
+        "Look for static at file level vs in functions."
       ],
       "expectedEvidence": [
-        "Scope controls name visibility, linkage connects declarations across translation units, and storage duration controls object lifetime independently of those name rules.",
-        "Block-scope static objects retain state, extern declarations do not allocate a new definition, and thread storage or tentative definitions add further cases."
+        "Table complete.",
+        "Output predicted correctly."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new C example for Scope, linkage and storage duration, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Write a module with a private file-level static counter, a public function that increments and returns it, and a header. Show from main.c that the counter can only be changed through the function, and that a direct extern declaration fails to link.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "extern int counter; in main.c should fail.",
+        "Explain internal linkage."
       ],
       "expectedEvidence": [
-        "Resolve name visibility and lifetime in a multi-function example.",
-        "A block-scope static object has static storage duration but block scope; lifetime does not widen where its name is visible."
+        "Encapsulated counter works.",
+        "Link failure explained."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "c.functions.scope-storage.misconception",
-      "explanation": "A block-scope static object has static storage duration but block scope; lifetime does not widen where its name is visible.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'block scope' and state the decisive evidence: A file-scope static helper has internal linkage and cannot be named as the same entity from another translation unit."
+      "explanation": "For any variable, answer three separate questions: **where can the name be used, how long does the object live, and can other files reach it?**",
+      "retryPrompt": "Apply this to \"The accidental global\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to resolve name visibility and lifetime in a multi-function example. Keep this boundary in view: Block-scope static objects retain state, extern declarations do not allocate a new definition, and thread storage or tentative definitions add further cases.",
+    "summary": "To resolve visibility and lifetime, ask separately about scope (where the name is usable), storage duration (automatic per block execution or static for the whole program) and linkage (external, internal or none), remembering static inside a function extends lifetime without widening scope.",
     "retrievalPrompts": [
-      "Explain Scope, linkage and storage duration using a concrete C rule rather than the optional analogy.",
-      "Why is this claim incorrect: A static local variable is globally visible because it lives for the entire program.",
-      "Apply the checkpoint 'block scope' to the boundary case from memory."
+      "What does static do inside a function?",
+      "What does static do at file level?",
+      "What is shadowing?"
     ],
     "nextReviewPrompt": "Next: continue to “Recursive functions”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

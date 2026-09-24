@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Train data fits parameters, validation or cross-validation guides choices, and a held-out test estimates the frozen procedure; splits must reflect future deployment units, groups, time, and duplication structure.",
+    "summary": "Data is split by job. The **training set** fits the model's parameters. The **validation set** (or **cross-validation**) guides your choices: which model, which settings. The **test set** is locked away and used **once**, at the end, to estimate how the finished procedure will do on new data. **Leakage** is any way information from the evaluation data sneaks into training, making scores look better than reality. Common kinds: **target leakage** (a feature only known after the outcome), **group leakage** (the same patient in train and test), **temporal leakage** (training on the future to predict the past) and **preprocessing leakage** (fitting scalers on all data). The split must **mimic deployment**: if you'll predict next month for new patients, test on later months and unseen patients.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: All records for one patient stay in one split and the newest time period is held out when deployment predicts future visits. Your goal is to choose a split strategy and detect target, temporal, group or preprocessing leakage. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner randomly splits hospital visits 80/20 and gets 97% accuracy. In deployment it drops to 71%. The same patients had visits in both train and test, so the model recognised people instead of learning patterns, and some test visits were earlier than training ones. All records for one patient stay in one split and the newest time period is held out when deployment predicts future visits. In this lesson you'll choose a split strategy and detect target, temporal, group or preprocessing leakage.\n\n```predict\n{\"question\": \"The same patient's visits appear in both train and test. What happens to the test score?\", \"options\": [\"Nothing, rows are different\", \"It's inflated: the model can recognise the patient rather than generalise\"], \"answer\": 1, \"why\": \"Split by patient, not by row.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: python quality project; Problem and environment characteristics; Features and preprocessing; Problem, target and success measure. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Debugger and final project**, **Problem and environment characteristics**, **Features and preprocessing** and **Problem, target and success measure** (prediction time)."
       },
       {
-        "heading": "Bounded operational model",
-        "body": "Train data fits parameters, validation or cross-validation guides choices, and a held-out test estimates the frozen procedure; splits must reflect future deployment units, groups, time, and duplication structure. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+        "heading": "The rule: split the way you'll deploy",
+        "body": "```python\nvisits = [  # (patient, month, outcome)\n    (\"p1\", 1, 0), (\"p1\", 2, 1), (\"p2\", 1, 0), (\"p3\", 2, 1),\n    (\"p3\", 3, 1), (\"p4\", 3, 0), (\"p5\", 4, 1), (\"p5\", 4, 0),\n]\n\ncutoff = 3                                        # predict the future: hold out newest months.\ntrain = [v for v in visits if v[1] < cutoff]\ntest = [v for v in visits if v[1] >= cutoff]\n\ntrain_patients = {p for p, *_ in train}\ntest = [v for v in test if v[0] not in train_patients]   # and unseen patients only.\n\nprint(\"train:\", train)\nprint(\"test:\", test)          # [('p4', 3, 0), ('p5', 4, 1), ('p5', 4, 0)]\nprint(\"overlap:\", train_patients & {p for p, *_ in test})   # set()\n```\n\n| Leakage | Example | Fix |\n|---|---|---|\n| target. | discharge notes predicting admission. | only prediction-time features. |\n| group. | same patient in both sets. | group split. |\n| temporal. | future rows in training. | time-based split. |\n| preprocessing. | scaler fit on all data. | fit inside training folds. |\n\n```reveal\n{\"prompt\": \"Why was p3's month-3 visit dropped from test?\", \"answer\": \"p3 appears in training (month 2). Keeping their later visit in test would let the model recognise them. Dropping it keeps the test about new patients.\"}\n```"
       },
       {
-        "heading": "Failure boundary and non-claim",
-        "body": "Random rows can leak people or future time, repeated test inspection turns test into validation, preprocessing can leak, a small test has uncertainty, and distribution shift can make any historical estimate optimistic. The learner must reject this overclaim: Any random 80/20 split prevents leakage as long as the target column is removed from model inputs."
+        "heading": "Using the test set once",
+        "body": "```predict\n{\"question\": \"You check the test score after every tweak and keep the best. Is the final test score honest?\", \"options\": [\"Yes, it's still the test set\", \"No: you've tuned on it, so it's become a validation set\"], \"answer\": 1, \"why\": \"Use validation or cross-validation for choices; test once.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Split according to deployment structure and keep test information outside training and tuning.",
-      "Choose a split strategy and detect target, temporal, group or preprocessing leakage."
+      "Assign train, validation and test roles and split by group and time to match deployment.",
+      "Detect target, group, temporal and preprocessing leakage."
     ],
     "excludes": [
-      "Random rows can leak people or future time, repeated test inspection turns test into validation, preprocessing can leak, a small test has uncertainty, and distribution shift can make any historical estimate optimistic."
+      "Nested cross-validation details.",
+      "Statistical tests between models."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "ai.data.splits-leakage.example.direct",
-      "title": "Train, validation, test and leakage: bounded direct case",
+      "title": "Keeping each patient in one split",
       "situation": "All records for one patient stay in one split and the newest time period is held out when deployment predicts future visits.",
       "walkthrough": [
-        "Step 1 — Observe the exact data, state, metric, or tool behavior: All records for one patient stay in one split and the newest time period is held out when deployment predicts future visits.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the claim boundary with: Split by the deployment unit and time structure before fitting preprocessing or tuning, and reserve the test set for the frozen final procedure."
+        "**All records for one patient stay in one split:** p3 is only in training after filtering.",
+        "**The newest time period is held out:** months 3 and later are test data.",
+        "**When deployment predicts future visits:** we check train and test patients don't overlap, and the overlap set prints empty."
       ],
-      "result": "This example supports only the atomic outcome because Split by the deployment unit and time structure before fitting preprocessing or tuning, and reserve the test set for the frozen final procedure."
+      "result": "The test score estimates performance on new patients in future months."
     },
     {
       "id": "ai.data.splits-leakage.example.stress",
-      "title": "Train, validation, test and leakage: stress and transfer case",
-      "situation": "Near-duplicate documents are grouped before splitting so retrieval or classification cannot score by memorizing another copy.",
+      "title": "The 97% that became 71%",
+      "situation": "A random row split gave 97% accuracy, but deployment on new patients scored 71%.",
       "walkthrough": [
-        "Step 1 — Name the changed population, input, assumption, or failure: Near-duplicate documents are grouped before splitting so retrieval or classification cannot score by memorizing another copy.",
-        "Step 2 — Keep the non-claim visible: Random rows can leak people or future time, repeated test inspection turns test into validation, preprocessing can leak, a small test has uncertainty, and distribution shift can make any historical estimate optimistic.",
-        "Step 3 — Reject the tempting overclaim: Any random 80/20 split prevents leakage as long as the target column is removed from model inputs."
+        "The same patients were in train and test, and some test rows were older than training ones.",
+        "Split by patient and by time instead.",
+        "Re-run: the test score drops to a realistic level before launch."
       ],
-      "result": "This case demonstrates the declared outcome: Choose a split strategy and detect target, temporal, group or preprocessing leakage."
+      "result": "The team sees the real score before deployment, not after."
     }
   ],
   "misconceptions": [
     {
       "id": "ai.data.splits-leakage.misconception",
       "mistakenBelief": "Any random 80/20 split prevents leakage as long as the target column is removed from model inputs.",
-      "correction": "Split by the deployment unit and time structure before fitting preprocessing or tuning, and reserve the test set for the frozen final procedure.",
-      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: Any random 80/20 split prevents leakage as long as the target column is removed from model inputs."
+      "correction": "Leakage also comes from repeated groups, time order, post-outcome features and preprocessing fitted on test data. The split must mirror deployment.",
+      "diagnosticPrompt": "In \"The 97% that became 71%\", which two leaks inflated the score?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a provenance-controlled laboratory that defines the decision, inspects samples and labels, derives transformations, and seals evaluation partitions can introduce Train, validation, test and leakage only after its canonical technical definition and evidence boundary are stated.",
+    "example": "A test set is like **a final exam**. If students saw the **exact questions** in practice (group leakage), or the answer key was printed on the back of a practice sheet (target leakage), a high score means nothing. And if you rewrite your study plan every time you peek at the exam, it's **no longer a final exam**.",
     "usefulFor": [
-      "problem framing, data quality, preprocessing, and leakage control"
+      "remembering don't see the exam questions early",
+      "peeking turns it into practice"
     ],
     "limitations": [
-      "clean procedures cannot recover absent populations, authorize data, or make a harmful target appropriate",
-      "Random rows can leak people or future time, repeated test inspection turns test into validation, preprocessing can leak, a small test has uncertainty, and distribution shift can make any historical estimate optimistic."
+      "A time split is testing on next year's exam, not last year's.",
+      "Validation is the mock exam."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "All records for one patient stay in one split and the newest time period is held out when deployment predicts future visits.",
-      "Train data fits parameters, validation or cross-validation guides choices, and a held-out test estimates the frozen procedure; splits must reflect future deployment units, groups, time, and duplication structure.",
-      "Split by the deployment unit and time structure before fitting preprocessing or tuning, and reserve the test set for the frozen final procedure."
+      "split by time at month 3",
+      "remove test patients seen in training",
+      "check overlap"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Time",
         "state": {
-          "boundedEvidence": "All records for one patient stay in one split and the newest time period is held out when deployment predicts future visits."
+          "train months": "1-2",
+          "test months": "3-4"
         },
-        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+        "explanation": "The newest time period is held out when deployment predicts future visits."
       },
       {
         "step": 2,
-        "focus": "Model",
+        "focus": "Group",
         "state": {
-          "operationalRule": "Train data fits parameters, validation or cross-validation guides choices, and a held-out test estimates the frozen procedure; splits must reflect future deployment units, groups, time, and duplication structure."
+          "dropped": "p3 month 3"
         },
-        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+        "explanation": "All records for one patient stay in one split."
       },
       {
         "step": 3,
-        "focus": "Limit",
+        "focus": "Verify",
         "state": {
-          "correction": "Split by the deployment unit and time structure before fitting preprocessing or tuning, and reserve the test set for the frozen final procedure."
+          "overlap": "set()"
         },
-        "explanation": "State what the evidence does not establish and reject the misconception: Any random 80/20 split prevents leakage as long as the target column is removed from model inputs."
+        "explanation": "No patient appears in both sets."
       }
     ],
-    "textAlternative": "Starting artifact: All records for one patient stay in one split and the newest time period is held out when deployment predicts future visits. Step 1, Observe. State: boundedEvidence: All records for one patient stay in one split and the newest time period is held out when deployment predicts future visits.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Train data fits parameters, validation or cross-validation guides choices, and a held-out test estimates the frozen procedure; splits must reflect future deployment units, groups, time, and duplication structure.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Split by the deployment unit and time structure before fitting preprocessing or tuning, and reserve the test set for the frozen final procedure.. State what the evidence does not establish and reject the misconception: Any random 80/20 split prevents leakage as long as the target column is removed from model inputs."
+    "textAlternative": "Tracing a deployment-shaped split. Step 1, Time: train months is 1-2; test months is 3-4. The newest time period is held out when deployment predicts future visits. Step 2, Group: dropped is p3 month 3. All records for one patient stay in one split. Step 3, Verify: overlap is set(). No patient appears in both sets."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Train, validation, test and leakage: bounded direct case”: state its starting evidence, apply the Train, validation, test and leakage rule, and give the observable result in three short lines.",
+      "prompt": "For \"Keeping each patient in one split\", explain how all records for one patient stay in one split and the newest time period is held out when deployment predicts future visits.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Group.",
+        "Time.",
+        "Verify."
       ],
       "expectedEvidence": [
-        "Named example: Train, validation, test and leakage: bounded direct case.",
-        "Starting evidence: All records for one patient stay in one split and the newest time period is held out when deployment predicts future visits.",
-        "Core rule: Train data fits parameters, validation or cross-validation guides choices, and a held-out test estimates the frozen procedure; splits must reflect future deployment units, groups, time, and duplication structure.",
-        "Observable result: This example supports only the atomic outcome because Split by the deployment unit and time structure before fitting preprocessing or tuning, and reserve the test set for the frozen final procedure.",
-        "Boundary check: Split by the deployment unit and time structure before fitting preprocessing or tuning, and reserve the test set for the frozen final procedure."
+        "Names the example \"Keeping each patient in one split\": a random split inflated scores.",
+        "All records for one patient stay in one split.",
+        "The newest time period is held out when deployment predicts future visits.",
+        "The test score is realistic."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed case: Near-duplicate documents are grouped before splitting so retrieval or classification cannot score by memorizing another copy.",
+      "prompt": "Given a dataset of student essays (several per student, over three terms), design a split for predicting next term's grades for new students. Justify it.",
       "scaffold": [
-        "Identify which assumption, population, input, or objective changed.",
-        "Preserve provenance and the declared failure boundary."
+        "Group by student.",
+        "Hold out the last term."
       ],
       "expectedEvidence": [
-        "Train data fits parameters, validation or cross-validation guides choices, and a held-out test estimates the frozen procedure; splits must reflect future deployment units, groups, time, and duplication structure.",
-        "Random rows can leak people or future time, repeated test inspection turns test into validation, preprocessing can leak, a small test has uncertainty, and distribution shift can make any historical estimate optimistic."
+        "Split described.",
+        "Leakage risks listed."
       ]
     },
     "farTransfer": {
-      "prompt": "Design a neutral-context example or evaluation for Train, validation, test and leakage and list the evidence that would support and falsify its bounded claim.",
+      "prompt": "Audit a provided notebook for four leakage types. For each one found, show the inflated score, fix it, and report the corrected score.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+        "Look at feature timing.",
+        "Check where scalers are fitted."
       ],
       "expectedEvidence": [
-        "Choose a split strategy and detect target, temporal, group or preprocessing leakage.",
-        "Split by the deployment unit and time structure before fitting preprocessing or tuning, and reserve the test set for the frozen final procedure."
+        "Each leak documented.",
+        "Corrected scores reported."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "ai.data.splits-leakage.misconception",
-      "explanation": "Split by the deployment unit and time structure before fitting preprocessing or tuning, and reserve the test set for the frozen final procedure.",
-      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: Near-duplicate documents are grouped before splitting so retrieval or classification cannot score by memorizing another copy."
+      "explanation": "Describe deployment in one sentence (**who, when, what's known**), then make the test set look exactly like that. Check **groups, time, feature timing and preprocessing**.",
+      "retryPrompt": "Apply this to \"The 97% that became 71%\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to choose a split strategy and detect target, temporal, group or preprocessing leakage. Keep this boundary in view: Random rows can leak people or future time, repeated test inspection turns test into validation, preprocessing can leak, a small test has uncertainty, and distribution shift can make any historical estimate optimistic.",
+    "summary": "To choose a split strategy and detect target, temporal, group or preprocessing leakage, fit on training data, make choices on validation or cross-validation, use a locked test set once, and split by group and time so evaluation mirrors deployment.",
     "retrievalPrompts": [
-      "Explain Train, validation, test and leakage with one technical mechanism, one evidence requirement, and one non-claim.",
-      "Why is this overclaim invalid: Any random 80/20 split prevents leakage as long as the target column is removed from model inputs.",
-      "Apply the boundary to: Near-duplicate documents are grouped before splitting so retrieval or classification cannot score by memorizing another copy."
+      "What is each split for?",
+      "Name four kinds of leakage.",
+      "Why must splits mirror deployment?"
     ],
     "nextReviewPrompt": "Next: continue to “Regression”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

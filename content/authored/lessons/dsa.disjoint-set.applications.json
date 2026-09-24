@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Disjoint-set supports incremental undirected connectivity, Kruskal cycle checks, grouping, and equivalence merging.",
+    "summary": "Union-find shines when **connections only get added** and you keep asking \"are these connected?\". Typical uses: **incremental connectivity** (after each new link, how many separate groups are there?), **cycle checks** when adding undirected edges (Kruskal's MST), **grouping** equivalent items (accounts sharing an email belong to one person), and merging **equivalence classes**. It answers **whether** two items are connected in nearly O(1), but it can't tell you **the path** between them, and it can't easily undo a union. For paths, run BFS or DFS on the graph.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Adding an undirected edge forms a cycle exactly when its endpoints already share a representative. Your goal is to solve and test a connectivity problem using the disjoint-set API. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A school's network team adds cables between rooms one at a time and wants a warning if a new cable would create a loop, since loops cause broadcast storms. Rerunning a full graph search after every cable is slow. Adding an undirected edge forms a cycle exactly when its endpoints already share a representative. In this lesson you'll solve and test a connectivity problem using the disjoint-set API.\n\n```predict\n{\"question\": \"Union-find says rooms 2 and 9 are connected. Can it tell you which cables join them?\", \"options\": [\"Yes, follow the parent pointers\", \"No: parent pointers don't follow real cables; use BFS for the path\"], \"answer\": 1, \"why\": \"The tree inside union-find is bookkeeping, not the actual graph.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Tree terminology and representation; Array representation and operations; Path compression; Graph terminology and models. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Tree terminology and representation**, **Array representation and operations**, **Path compression**, and **Graph terminology and models** (undirected edges)."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Disjoint-set supports incremental undirected connectivity, Kruskal cycle checks, grouping, and equivalence merging. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The model: union on each edge, compare roots for questions",
+        "body": "```python\nclass DSU:\n    def __init__(self, n):\n        self.parent, self.size, self.groups = list(range(n)), [1] * n, n\n    def find(self, x):\n        while self.parent[x] != x:\n            self.parent[x] = self.parent[self.parent[x]]\n            x = self.parent[x]\n        return x\n    def union(self, a, b):\n        ra, rb = self.find(a), self.find(b)\n        if ra == rb:\n            return False                        # already connected.\n        if self.size[ra] < self.size[rb]:\n            ra, rb = rb, ra\n        self.parent[rb] = ra\n        self.size[ra] += self.size[rb]\n        self.groups -= 1\n        return True\n\ndef add_cables(n, cables):\n    dsu, warnings = DSU(n), []\n    for a, b in cables:\n        if not dsu.union(a, b):                 # same representative: loop.\n            warnings.append((a, b))\n    return warnings, dsu.groups\n\nprint(add_cables(4, [(0, 1), (1, 2), (2, 0), (3, 3)]))  # ([(2, 0), (3, 3)], 2)\n```\n\n| Problem | How union-find helps |\n|---|---|\n| will this edge make a cycle? | endpoints already share a root. |\n| how many groups now? | count successful unions. |\n| merge equivalent records. | union items that share a key. |\n| path between two items. | not supported: use BFS/DFS. |\n\n```reveal\n{\"prompt\": \"Why is a self-loop (3, 3) flagged?\", \"answer\": \"Its endpoints trivially share a representative, and a cable from a room to itself is a loop.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "It does not support arbitrary deletions or directed reachability without additional algorithms. The draft therefore rejects: Disjoint-set can answer the actual path between two connected vertices."
+        "heading": "Grouping records",
+        "body": "```predict\n{\"question\": \"Accounts A and B share an email; B and C share a phone number. Are A and C the same person?\", \"options\": [\"No, they share nothing directly\", \"Yes: union(A, B) and union(B, C) put them in one group\"], \"answer\": 1, \"why\": \"Union-find merges chains of equivalences automatically.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use disjoint sets for incremental connectivity, cycle checks and spanning-tree construction.",
-      "Solve and test a connectivity problem using the disjoint-set API.",
-      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      "Use union-find for incremental connectivity, cycle checks and grouping.",
+      "Know its limits: no paths, no easy undo."
     ],
     "excludes": [
-      "It does not support arbitrary deletions or directed reachability without additional algorithms."
+      "Offline dynamic connectivity with deletions.",
+      "Weighted union-find."
     ]
   },
   "outcomes": [
@@ -68,142 +64,137 @@
   "examples": [
     {
       "id": "dsa.disjoint-set.applications.example-a",
-      "title": "Connectivity applications: language-neutral trace",
+      "title": "The network link that made a loop",
       "situation": "Adding an undirected edge forms a cycle exactly when its endpoints already share a representative.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: Adding an undirected edge forms a cycle exactly when its endpoints already share a representative.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Disjoint-set answers whether sets are connected, not which path connects their members."
+        "**Union each cable:** (0, 1) and (1, 2) join rooms into one group.",
+        "**Share a representative:** cable (2, 0) finds that 2 and 0 already share a root, so union returns False and a warning is raised.",
+        "**Test:** add_cables will warn on (2, 0) and the self-loop (3, 3), report 2 groups, and a test compares with a BFS cycle check on random inputs."
       ],
-      "result": "The conceptual result follows because Disjoint-set answers whether sets are connected, not which path connects their members."
+      "result": "The network team gets an instant warning for every cable that would create a loop."
     },
     {
       "id": "dsa.disjoint-set.applications.example-b",
-      "title": "Connectivity applications: implementation transfer",
-      "situation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
+      "title": "One person, three accounts",
+      "situation": "A learning site has accounts linked by shared emails or phone numbers, and support wants one profile per real person.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
-        "Step 3 — Retest this boundary in the selected implementation: It does not support arbitrary deletions or directed reachability without additional algorithms."
+        "Give each account an index; map each email and phone to the first account that used it.",
+        "When an account reuses one, union it with that first account.",
+        "Accounts with the same find() root belong to one person."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Support sees merged profiles, even when two accounts only connect through a third."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.disjoint-set.applications.misconception",
       "mistakenBelief": "Disjoint-set can answer the actual path between two connected vertices.",
-      "correction": "Disjoint-set answers whether sets are connected, not which path connects their members.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Disjoint-set can answer the actual path between two connected vertices."
+      "correction": "Union-find's parent links are internal bookkeeping reshaped by union order and compression; they don't correspond to real edges. It answers whether two items are connected, not how. Use BFS or DFS for paths.",
+      "diagnosticPrompt": "In the opening predict, why couldn't union-find list the cables?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Connectivity applications, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Union-find is like **a club membership office**: it can instantly say whether two people are members of the same club, and merge clubs when they join forces. It can't tell you **who introduced whom**; that history isn't kept.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering same club yes/no",
+      "union = clubs merging"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "It does not support arbitrary deletions or directed reachability without additional algorithms."
+      "Clubs can split; union-find can't easily undo a merge.",
+      "The office's filing (parents) isn't a friendship chain."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Adding an undirected edge forms a cycle exactly when its endpoints already share a representative.",
-      "Disjoint-set supports incremental undirected connectivity, Kruskal cycle checks, grouping, and equivalence merging.",
-      "Disjoint-set answers whether sets are connected, not which path connects their members.",
-      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      "cables (0,1), (1,2), (2,0), (3,3)",
+      "union each",
+      "result"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Join",
         "state": {
-          "scenario": "Adding an undirected edge forms a cycle exactly when its endpoints already share a representative."
+          "(0,1)": "joined",
+          "(1,2)": "joined",
+          "groups": "2"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "Each new cable merges two groups."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Loop",
         "state": {
-          "invariant": "Disjoint-set supports incremental undirected connectivity, Kruskal cycle checks, grouping, and equivalence merging."
+          "(2,0)": "same representative",
+          "warning": "yes"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "Adding an undirected edge forms a cycle exactly when its endpoints already share a representative."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Self-loop",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "(3,3)": "warning",
+          "groups": "2"
         },
-        "explanation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Disjoint-set answers whether sets are connected, not which path connects their members."
-        },
-        "explanation": "Verify the result and reject this misconception: Disjoint-set can answer the actual path between two connected vertices."
+        "explanation": "The final report lists both loops and 2 groups."
       }
     ],
-    "textAlternative": "Starting artifact: Adding an undirected edge forms a cycle exactly when its endpoints already share a representative. Step 1, Specification. State: scenario: Adding an undirected edge forms a cycle exactly when its endpoints already share a representative.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Disjoint-set supports incremental undirected connectivity, Kruskal cycle checks, grouping, and equivalence merging.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target. Step 4, Conclusion. State: correction: Disjoint-set answers whether sets are connected, not which path connects their members.. Verify the result and reject this misconception: Disjoint-set can answer the actual path between two connected vertices."
+    "textAlternative": "Tracing incremental cable checks. Step 1, Join: (0,1) is joined; (1,2) is joined; groups is 2. Each new cable merges two groups. Step 2, Loop: (2,0) is same representative; warning is yes. Adding an undirected edge forms a cycle exactly when its endpoints already share a representative. Step 3, Self-loop: (3,3) is warning; groups is 2. The final report lists both loops and 2 groups."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Connectivity applications: language-neutral trace”: state its starting evidence, apply the Connectivity applications rule, and give the observable result in three short lines.",
+      "prompt": "For \"The network link that made a loop\", explain how adding an undirected edge forms a cycle exactly when its endpoints already share a representative.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Union.",
+        "Representative.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Connectivity applications: language-neutral trace.",
-        "Starting evidence: Adding an undirected edge forms a cycle exactly when its endpoints already share a representative.",
-        "Core rule: Disjoint-set supports incremental undirected connectivity, Kruskal cycle checks, grouping, and equivalence merging.",
-        "Observable result: The conceptual result follows because Disjoint-set answers whether sets are connected, not which path connects their members.",
-        "Boundary check: Disjoint-set answers whether sets are connected, not which path connects their members."
+        "Names the example \"The network link that made a loop\": rerunning searches was slow.",
+        "Each cable is a union of two rooms.",
+        "Adding an undirected edge forms a cycle exactly when its endpoints already share a representative.",
+        "The team gets an instant warning for every looping cable."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Disjoint-set supports incremental undirected connectivity, Kruskal cycle checks, grouping, and equivalence merging.",
+      "prompt": "Given 6 learners and pair events (0,1), (2,3), (1,2), (4,5), (3,0), report the number of groups after each event and which events were redundant.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "groups starts at 6.",
+        "Redundant = union returned False."
       ],
       "expectedEvidence": [
-        "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
-        "It does not support arbitrary deletions or directed reachability without additional algorithms."
+        "Groups: 5, 4, 3, 2, 2.",
+        "(3, 0) is redundant."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Connectivity applications case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Build `merge_accounts(accounts)` where each account has a list of emails, returning groups of account ids belonging to the same person. Test chains (A-B via email1, B-C via email2), isolated accounts and duplicate emails within one account.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Map email -> first account index.",
+        "Group by find()."
       ],
       "expectedEvidence": [
-        "Solve and test a connectivity problem using the disjoint-set API.",
-        "Disjoint-set answers whether sets are connected, not which path connects their members."
+        "Chains merged into one group.",
+        "Isolated accounts stay alone."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.disjoint-set.applications.misconception",
-      "explanation": "Disjoint-set answers whether sets are connected, not which path connects their members.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'whether sets are connected', then state one implementation-specific risk in the selected language."
+      "explanation": "Ask: **Do connections only get added, and do I only need yes/no connectivity or counts?** Then union-find fits. If you need paths or deletions, use a graph search instead.",
+      "retryPrompt": "Apply this to \"One person, three accounts\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to solve and test a connectivity problem using the disjoint-set API. Keep this boundary in view: It does not support arbitrary deletions or directed reachability without additional algorithms.",
+    "summary": "To solve a connectivity problem with the disjoint-set API, union endpoints as connections are added, treat a failed union (same representative) as a cycle or redundant link, count groups from successful unions, group equivalent records by root, and switch to BFS or DFS when you need actual paths.",
     "retrievalPrompts": [
-      "State the Connectivity applications invariant and complexity without code.",
-      "Why is this claim false: Disjoint-set can answer the actual path between two connected vertices.",
-      "Map checkpoint 'whether sets are connected' to C, C++, Java, and Python."
+      "How does union-find detect a cycle when adding an edge?",
+      "Can union-find return the path between two items?",
+      "How do you count groups as edges arrive?"
     ],
     "nextReviewPrompt": "Next: continue to “Greedy choice and counterexamples”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

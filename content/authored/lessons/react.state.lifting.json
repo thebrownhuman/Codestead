@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Shared state moves to the nearest common owner, which passes values and callbacks to coordinated children.",
+    "summary": "When two components must show the **same** changing value, don't give each its own copy and try to sync them. **Lift** the state to their **nearest common parent**, which owns one value and passes it down with callbacks. Each child becomes a controlled view of that one source. The flip side: React **keeps** a component's state as long as the same component stays at the same place in the tree. To **reset** it on purpose, for example a form when you switch to another lesson, give it a different **key**.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Two temperature inputs share one converted value owned by their common calculator parent. Your goal is to repair unsynchronized sibling state and control when form state resets. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A science lesson has a Celsius box and a Fahrenheit box. Each keeps its own state and calls the other through callbacks to stay in sync; typing fast leaves them showing 100°C and 50°F. Two temperature inputs share one converted value owned by their common calculator parent. In this lesson you'll repair unsynchronized sibling state and control when form state resets.\n\n```predict\n{\"question\": \"Siblings A and B both need `temperature`. Where should the state live?\", \"options\": [\"In A, copied into B\", \"In their nearest common parent, passed to both\"], \"answer\": 1, \"why\": \"One owner means one truth. Children receive the value and a callback.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Props and composition; javascript events model; Minimal and normalized state; Lists and stable keys. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Props and composition** module, **Event propagation and delegation**, **Minimal and normalized state** (no duplicates), and **Lists and stable keys**, since keys also control state reset."
       },
       {
-        "heading": "Technology rule",
-        "body": "Shared state moves to the nearest common owner, which passes values and callbacks to coordinated children. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: one owner, controlled children",
+        "body": "```jsx\nimport { useState } from \"react\";\n\nconst toF = (c) => (c * 9) / 5 + 32;\nconst toC = (f) => ((f - 32) * 5) / 9;\n\nfunction TempInput({ label, value, onChange }) {\n  return (\n    <label>\n      {label}\n      <input inputMode=\"decimal\" value={value} onChange={(e) => onChange(e.target.value)} />\n    </label>\n  );\n}\n\nexport function Calculator() {\n  // Source of truth: last typed text and its box.\n  const [temp, setTemp] = useState({ scale: \"c\", text: \"20\" });\n  const n = Number(temp.text);\n  const round = (x) => String(Math.round(x * 10) / 10);\n  const celsius = temp.scale === \"c\" ? temp.text : round(toC(n));\n  const fahrenheit = temp.scale === \"f\" ? temp.text : round(toF(n));\n\n  return (\n    <>\n      <TempInput label=\"Celsius\" value={celsius} onChange={(text) => setTemp({ scale: \"c\", text })} />\n      <TempInput label=\"Fahrenheit\" value={fahrenheit} onChange={(text) => setTemp({ scale: \"f\", text })} />\n    </>\n  );\n}\n```\n\n| Situation | Do |\n|---|---|\n| siblings share a value. | lift it to the common parent. |\n| child needs to change it. | parent passes a callback. |\n| reset state on purpose. | change the key. |\n\n```reveal\n{\"prompt\": \"Why store the scale as well as the text?\", \"answer\": \"The box you are typing in shows exactly what you typed, and the other box is derived during render, so the two can never disagree.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Lifting too high increases coupling and rerenders, while independent state should remain local. This draft therefore rejects: Duplicating shared state in both children is safe if callbacks try to keep it synchronized."
+        "heading": "Resetting with a key",
+        "body": "```predict\n{\"question\": \"A `<NoteForm />` shows lesson notes. Switching from lesson 1 to lesson 2, the typed draft from lesson 1 stays. Fix?\", \"options\": [\"Clear it in an effect\", \"Render `<NoteForm key={lessonId} />` so a new lesson gets a fresh form\"], \"answer\": 1, \"why\": \"A different key tells React it's a different component instance, so its state starts fresh.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Place shared state at the nearest common owner and use identity or keys to preserve or reset it deliberately.",
-      "Repair unsynchronized sibling state and control when form state resets."
+      "Lift shared state to the nearest common parent with callbacks.",
+      "Keep or reset component state deliberately with position and key."
     ],
     "excludes": [
-      "Lifting too high increases coupling and rerenders, while independent state should remain local."
+      "Context for distant components (later lesson).",
+      "External state stores."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "react.state.lifting.example-a",
-      "title": "Lifting and preserving state: concrete case",
+      "title": "Two temperature boxes, one truth",
       "situation": "Two temperature inputs share one converted value owned by their common calculator parent.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: Two temperature inputs share one converted value owned by their common calculator parent.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Use one common owner for genuinely shared state and pass controlled values rather than synchronizing duplicate copies."
+        "**Problem:** each input had its own state and synced through callbacks, so fast typing left them disagreeing.",
+        "**Lift:** Calculator owns one { scale, text } value, and the other box is derived by converting it.",
+        "**Test:** type 100 in Celsius and a test will see 212 in Fahrenheit; type 32 in Fahrenheit and see 0 in Celsius."
       ],
-      "result": "The result follows because Use one common owner for genuinely shared state and pass controlled values rather than synchronizing duplicate copies."
+      "result": "The two boxes always agree, because one converted value is owned by their common parent."
     },
     {
       "id": "react.state.lifting.example-b",
-      "title": "Lifting and preserving state: boundary case",
-      "situation": "Lifting too high increases coupling and rerenders, while independent state should remain local.",
+      "title": "The draft that followed you",
+      "situation": "A lesson page renders `<NoteForm />` in the same spot for every lesson. Learners switching lessons see the previous lesson's unsaved note.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Lifting too high increases coupling and rerenders, while independent state should remain local.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Duplicating shared state in both children is safe if callbacks try to keep it synchronized."
+        "Same component in the same position, so React kept its state.",
+        "The form should belong to one lesson.",
+        "Render `<NoteForm key={lesson.id} lessonId={lesson.id} />`."
       ],
-      "result": "The boundary requires this correction: Use one common owner for genuinely shared state and pass controlled values rather than synchronizing duplicate copies."
+      "result": "Each lesson starts with an empty note form, and nothing leaks between lessons."
     }
   ],
   "misconceptions": [
     {
       "id": "react.state.lifting.misconception",
       "mistakenBelief": "Duplicating shared state in both children is safe if callbacks try to keep it synchronized.",
-      "correction": "Use one common owner for genuinely shared state and pass controlled values rather than synchronizing duplicate copies.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Duplicating shared state in both children is safe if callbacks try to keep it synchronized."
+      "correction": "Two copies can fall out of sync through timing, missed paths or bugs. Lift the state to one owner so there's only one value to be right.",
+      "diagnosticPrompt": "In \"Two temperature boxes, one truth\", why did the boxes disagree?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Lifting and preserving state, where inputs and state produce a UI description.",
+    "example": "Two children each keeping their own copy of the family calendar will soon disagree. Put **one calendar on the fridge** (the common parent); everyone reads it and asks the parent to add events. A **key** is like **a new calendar for a new year**: same fridge spot, fresh pages.",
     "usefulFor": [
-      "Building a first mental model for Lifting and preserving state before using exact platform terms"
+      "remembering one owner",
+      "key change = fresh calendar"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Lifting too high increases coupling and rerenders, while independent state should remain local."
+      "Calendars don't auto-convert units; derived values do.",
+      "Moving the calendar to another room is like changing position: state may reset."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Two temperature inputs share one converted value owned by their common calculator parent.",
-      "Shared state moves to the nearest common owner, which passes values and callbacks to coordinated children.",
-      "Use one common owner for genuinely shared state and pass controlled values rather than synchronizing duplicate copies."
+      "temp = { scale: c, text: 20 }",
+      "type 212 in Fahrenheit",
+      "render both inputs"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Owner",
         "state": {
-          "evidence": "Two temperature inputs share one converted value owned by their common calculator parent."
+          "temp": "{ scale: c, text: 20 }",
+          "fahrenheit (derived)": "68"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The common calculator parent owns one value."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Edit",
         "state": {
-          "rule": "Shared state moves to the nearest common owner, which passes values and callbacks to coordinated children."
+          "temp": "{ scale: f, text: 212 }"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Typing 212 in Fahrenheit updates the shared value with its scale."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Render",
         "state": {
-          "correction": "Use one common owner for genuinely shared state and pass controlled values rather than synchronizing duplicate copies."
+          "Celsius box": "100",
+          "Fahrenheit box": "212"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Duplicating shared state in both children is safe if callbacks try to keep it synchronized."
+        "explanation": "Both inputs share one converted value, so they agree."
       }
     ],
-    "textAlternative": "Starting artifact: Two temperature inputs share one converted value owned by their common calculator parent. Step 1, Artifact. State: evidence: Two temperature inputs share one converted value owned by their common calculator parent.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Shared state moves to the nearest common owner, which passes values and callbacks to coordinated children.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use one common owner for genuinely shared state and pass controlled values rather than synchronizing duplicate copies.. Check the result against the boundary and reject this misconception: Duplicating shared state in both children is safe if callbacks try to keep it synchronized."
+    "textAlternative": "Tracing a lifted temperature. Step 1, Owner: temp is { scale: c, text: 20 }; fahrenheit (derived) is 68. The common calculator parent owns one value. Step 2, Edit: temp is { scale: f, text: 212 }. Typing 212 in Fahrenheit updates the shared value with its scale. Step 3, Render: Celsius box is 100; Fahrenheit box is 212. Both inputs share one converted value, so they agree."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Lifting and preserving state: concrete case”: state its starting evidence, apply the Lifting and preserving state rule, and give the observable result in three short lines.",
+      "prompt": "For \"Two temperature boxes, one truth\", explain how two temperature inputs share one converted value owned by their common calculator parent.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Problem.",
+        "Lift.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Lifting and preserving state: concrete case.",
-        "Starting evidence: Two temperature inputs share one converted value owned by their common calculator parent.",
-        "Core rule: Shared state moves to the nearest common owner, which passes values and callbacks to coordinated children.",
-        "Observable result: The result follows because Use one common owner for genuinely shared state and pass controlled values rather than synchronizing duplicate copies.",
-        "Boundary check: Use one common owner for genuinely shared state and pass controlled values rather than synchronizing duplicate copies."
+        "Names the example \"Two temperature boxes, one truth\": two copies of state disagreed.",
+        "Two temperature inputs share one converted value.",
+        "It is owned by their common calculator parent.",
+        "The two boxes always agree."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Lifting too high increases coupling and rerenders, while independent state should remain local.",
+      "prompt": "A filter bar and a results list are siblings. Lift `query` into their parent Page, pass it to both, and give the bar an onQueryChange callback.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Page owns query.",
+        "Results derive from query."
       ],
       "expectedEvidence": [
-        "Shared state moves to the nearest common owner, which passes values and callbacks to coordinated children.",
-        "Lifting too high increases coupling and rerenders, while independent state should remain local."
+        "No query state in children.",
+        "Typing updates results."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Lifting and preserving state and explain why the misconception fails.",
+      "prompt": "Build a tabbed editor where each tab has its own draft that should survive switching tabs, plus a \"New document\" button that starts fresh. Decide which state to lift and where to use keys, and test both behaviours.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Drafts per tab in the parent.",
+        "key for the fresh document."
       ],
       "expectedEvidence": [
-        "Repair unsynchronized sibling state and control when form state resets.",
-        "Use one common owner for genuinely shared state and pass controlled values rather than synchronizing duplicate copies."
+        "Drafts survive tab switches.",
+        "New document resets the form."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.state.lifting.misconception",
-      "explanation": "Use one common owner for genuinely shared state and pass controlled values rather than synchronizing duplicate copies.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'one common owner' and state the decisive evidence."
+      "explanation": "When two components show the same value, ask: **Who's their closest shared parent?** Move the state there. When state sticks around unexpectedly, ask: **Should this be a new instance?** Change its key.",
+      "retryPrompt": "Apply this to \"The draft that followed you\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to repair unsynchronized sibling state and control when form state resets. Keep this boundary in view: Lifting too high increases coupling and rerenders, while independent state should remain local.",
+    "summary": "To repair unsynchronized sibling state, lift the shared value to the nearest common parent, derive related values there, and pass values and callbacks to the children. Control when form state resets by keeping the same position to preserve it or changing the key to start fresh.",
     "retrievalPrompts": [
-      "Explain Lifting and preserving state using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: Duplicating shared state in both children is safe if callbacks try to keep it synchronized.",
-      "Apply checkpoint 'one common owner' to a new artifact."
+      "Where should state shared by siblings live?",
+      "Why not sync two copies with callbacks?",
+      "How do you reset a component's state on purpose?"
     ],
     "nextReviewPrompt": "Next: continue to “Controlled inputs”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

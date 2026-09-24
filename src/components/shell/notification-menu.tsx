@@ -27,7 +27,7 @@ function relativeTime(value: string) {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-export function NotificationMenu() {
+export function NotificationMenu({ inSidebar = false }: { readonly inSidebar?: boolean } = {}) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -110,13 +110,13 @@ export function NotificationMenu() {
   }
 
   return (
-    <div className={styles.notificationMenu} ref={rootRef}>
+    <div className={`${styles.notificationMenu} ${inSidebar ? styles.sidebarNotifications : ""}`} ref={rootRef}>
       <button
         aria-controls="notification-panel"
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-label={unreadCount ? `Notifications, ${unreadCount} unread` : "Notifications"}
-        className={styles.iconButton}
+        className={inSidebar ? styles.sidebarNotificationButton : styles.iconButton}
         onClick={() => {
           const next = !open;
           setOpen(next);
@@ -125,7 +125,8 @@ export function NotificationMenu() {
         ref={buttonRef}
         type="button"
       >
-        <Bell aria-hidden="true" size={19} />
+        <Bell aria-hidden="true" size={inSidebar ? 18 : 19} />
+        {inSidebar && <span>Notifications</span>}
         {unreadCount > 0 && <span className={styles.notificationDot} />}
       </button>
       {open && (

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Fairness analysis selects relevant groups, outcomes, error rates, allocation effects, and stakeholder values; explanations describe bounded model behavior for a named audience and are validated for fidelity and usefulness.",
+    "summary": "**Fairness** starts by asking **who is affected and how**. Pick the relevant **groups** and compare outcomes across them: **selection rates** (who gets approved), **error rates** (who is wrongly rejected, the false-negative rate) and **calibration** (does a score of 0.7 mean the same for each group?). These measures often **can't all be equal at once**, so trade-offs are **value choices** that stakeholders must make and document. Deleting a protected attribute like gender doesn't make a model fair: other features (postcode, job title) can act as **proxies**. **Explanations** (feature importance charts) describe how the **model** behaved for a named audience, not why the real-world outcome happened, and should be checked for **fidelity** (do they match the model?) and usefulness. Always offer an **appeal path**.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: An approval model reports selection, false-negative, and calibration slices with confidence ranges, then documents an unresolved trade-off and appeal path. Your goal is to audit a model slice, identify an unresolved fairness trade-off and communicate explanation limits. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner removes the gender column from a loan-approval model and declares it fair. A slice report later shows one group is wrongly rejected twice as often, because postcode carried similar information. A feature-importance chart is then shown to a rejected applicant as \"the reason you were declined\". An approval model reports selection, false-negative, and calibration slices with confidence ranges, then documents an unresolved trade-off and appeal path. In this lesson you'll audit a model slice, identify an unresolved fairness trade-off and communicate explanation limits.\n\n```predict\n{\"question\": \"A model never sees the protected attribute. Can it still treat groups unequally?\", \"options\": [\"No, it can't know the group\", \"Yes: other features can act as proxies\"], \"answer\": 1, \"why\": \"Measure outcomes by group; don't assume.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Supervised learning; Generative AI, LLMs and retrieval; Metrics, thresholds and baselines; Sampling, labels and data quality. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Supervised learning**, **Generative AI, LLMs and retrieval**, **Metrics, thresholds and baselines** and **Sampling, labels and data quality**."
       },
       {
-        "heading": "Bounded operational model",
-        "body": "Fairness analysis selects relevant groups, outcomes, error rates, allocation effects, and stakeholder values; explanations describe bounded model behavior for a named audience and are validated for fidelity and usefulness. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+        "heading": "The model: compare outcomes and errors by group",
+        "body": "```python\n# (group, approved_by_model, actually_repaid)\nrows = [(\"A\", 1, 1)] * 40 + [(\"A\", 0, 1)] * 5 + [(\"A\", 0, 0)] * 15 + \\\n       [(\"B\", 1, 1)] * 20 + [(\"B\", 0, 1)] * 10 + [(\"B\", 0, 0)] * 10\n\nfor g in (\"A\", \"B\"):\n    grp = [r for r in rows if r[0] == g]\n    selection = sum(r[1] for r in grp) / len(grp)\n    good = [r for r in grp if r[2] == 1]                 # would have repaid.\n    fnr = sum(r[1] == 0 for r in good) / len(good)       # wrongly rejected.\n    print(g, \"n\", len(grp), \"selection\", round(selection, 2), \"false-negative rate\", round(fnr, 2))\n# A: selection 0.67, FNR 0.11. B: selection 0.5, FNR 0.33.\n```\n\n| Measure | Question |\n|---|---|\n| selection rate. | who gets approved? |\n| false-negative rate. | who is wrongly rejected? |\n| calibration. | do scores mean the same per group? |\n\n```reveal\n{\"prompt\": \"Why report group sizes and confidence ranges?\", \"answer\": \"Small groups give noisy rates. A gap between 0.11 and 0.33 from 30 people might be chance or real; intervals show which.\"}\n```"
       },
       {
-        "heading": "Failure boundary and non-claim",
-        "body": "Fairness criteria can conflict, protected attributes can have proxies, small slices have uncertainty, equal metrics do not erase structural harm, feature importance is not causation, and plausible explanations can be unfaithful. The learner must reject this overclaim: Removing protected attributes makes a model fair, and an explanation chart proves why the real-world outcome happened."
+        "heading": "What explanations can and can't say",
+        "body": "```predict\n{\"question\": \"A chart says \\\"income mattered most\\\". Is that why the applicant's life circumstances led to rejection?\", \"options\": [\"Yes, it explains the outcome\", \"No: it describes the model's behaviour, not real-world causes\"], \"answer\": 1, \"why\": \"Name the audience and limits of every explanation.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Measure relevant group outcomes, examine proxy features and match explanation method to stakeholder and decision.",
-      "Audit a model slice, identify an unresolved fairness trade-off and communicate explanation limits."
+      "Report selection, error-rate and calibration slices with group sizes and uncertainty.",
+      "Document unresolved fairness trade-offs, explanation limits and an appeal path."
     ],
     "excludes": [
-      "Fairness criteria can conflict, protected attributes can have proxies, small slices have uncertainty, equal metrics do not erase structural harm, feature importance is not causation, and plausible explanations can be unfaithful."
+      "Legal compliance analysis.",
+      "SHAP and LIME mathematics."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "ai.evaluation.fairness-explain.example.direct",
-      "title": "Fairness and explainability: bounded direct case",
+      "title": "Slicing an approval model by group",
       "situation": "An approval model reports selection, false-negative, and calibration slices with confidence ranges, then documents an unresolved trade-off and appeal path.",
       "walkthrough": [
-        "Step 1 — Observe the exact data, state, metric, or tool behavior: An approval model reports selection, false-negative, and calibration slices with confidence ranges, then documents an unresolved trade-off and appeal path.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the claim boundary with: Audit outcomes and errors with relevant groups and proxy risks, state fairness trade-offs, and label explanations by scope, audience, fidelity, and causal limits."
+        "**Reports selection, false-negative slices:** group B's false-negative rate is 0.33 versus 0.11 for A.",
+        "**Calibration slices with confidence ranges:** we compute intervals given n = 60 and 40.",
+        "**Documents an unresolved trade-off and appeal path:** equalising errors would change selection rates, so the choice and appeals are recorded."
       ],
-      "result": "This example supports only the atomic outcome because Audit outcomes and errors with relevant groups and proxy risks, state fairness trade-offs, and label explanations by scope, audience, fidelity, and causal limits."
+      "result": "Decision-makers see the gap, the trade-off and how affected people can challenge a decision."
     },
     {
       "id": "ai.evaluation.fairness-explain.example.stress",
-      "title": "Fairness and explainability: stress and transfer case",
-      "situation": "A local feature attribution is described as sensitivity around one prediction, not proof that changing the feature will cause a changed real-world outcome.",
+      "title": "The deleted gender column",
+      "situation": "A model without a gender column still wrongly rejected one group twice as often, through postcode.",
       "walkthrough": [
-        "Step 1 — Name the changed population, input, assumption, or failure: A local feature attribution is described as sensitivity around one prediction, not proof that changing the feature will cause a changed real-world outcome.",
-        "Step 2 — Keep the non-claim visible: Fairness criteria can conflict, protected attributes can have proxies, small slices have uncertainty, equal metrics do not erase structural harm, feature importance is not causation, and plausible explanations can be unfaithful.",
-        "Step 3 — Reject the tempting overclaim: Removing protected attributes makes a model fair, and an explanation chart proves why the real-world outcome happened."
+        "Removing the attribute didn't remove the pattern.",
+        "Measure outcomes by group using the attribute for auditing only.",
+        "Investigate proxies and document mitigations and remaining gaps."
       ],
-      "result": "This case demonstrates the declared outcome: Audit a model slice, identify an unresolved fairness trade-off and communicate explanation limits."
+      "result": "The unfairness is visible and actively managed instead of hidden."
     }
   ],
   "misconceptions": [
     {
       "id": "ai.evaluation.fairness-explain.misconception",
       "mistakenBelief": "Removing protected attributes makes a model fair, and an explanation chart proves why the real-world outcome happened.",
-      "correction": "Audit outcomes and errors with relevant groups and proxy risks, state fairness trade-offs, and label explanations by scope, audience, fidelity, and causal limits.",
-      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: Removing protected attributes makes a model fair, and an explanation chart proves why the real-world outcome happened."
+      "correction": "Proxies can recreate group differences, so outcomes must be measured by group. Explanations describe model behaviour, not real-world causes.",
+      "diagnosticPrompt": "In \"The deleted gender column\", what carried the group information?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "an evidence and risk register linking metrics, stress cases, affected slices, accountable owners, controls, monitors, and stop decisions can introduce Fairness and explainability only after its canonical technical definition and evidence boundary are stated.",
+    "example": "Auditing fairness is like **checking a school's admissions**. Removing names from applications doesn't help if the **school attended** reveals the same background. You compare **who got in and who was wrongly turned away** in each group, admit that some fairness goals conflict, and give applicants **a way to appeal**. The admissions scoring sheet explains the process, not the applicant's whole life.",
     "usefulFor": [
-      "evaluation, robustness, fairness, explanations, and lifecycle governance"
+      "remembering hidden names, revealing schools",
+      "compare who's wrongly turned away"
     ],
     "limitations": [
-      "no metric suite or framework checklist certifies safety, fairness, causality, or future robustness",
-      "Fairness criteria can conflict, protected attributes can have proxies, small slices have uncertainty, equal metrics do not erase structural harm, feature importance is not causation, and plausible explanations can be unfaithful."
+      "An appeal path is the second look.",
+      "Small groups need careful counting."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "An approval model reports selection, false-negative, and calibration slices with confidence ranges, then documents an unresolved trade-off and appeal path.",
-      "Fairness analysis selects relevant groups, outcomes, error rates, allocation effects, and stakeholder values; explanations describe bounded model behavior for a named audience and are validated for fidelity and usefulness.",
-      "Audit outcomes and errors with relevant groups and proxy risks, state fairness trade-offs, and label explanations by scope, audience, fidelity, and causal limits."
+      "slice group A",
+      "slice group B",
+      "document trade-off"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Group A",
         "state": {
-          "boundedEvidence": "An approval model reports selection, false-negative, and calibration slices with confidence ranges, then documents an unresolved trade-off and appeal path."
+          "selection": "0.67",
+          "FNR": "0.11"
         },
-        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+        "explanation": "The approval model reports selection and false-negative slices."
       },
       {
         "step": 2,
-        "focus": "Model",
+        "focus": "Group B",
         "state": {
-          "operationalRule": "Fairness analysis selects relevant groups, outcomes, error rates, allocation effects, and stakeholder values; explanations describe bounded model behavior for a named audience and are validated for fidelity and usefulness."
+          "selection": "0.5",
+          "FNR": "0.33"
         },
-        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+        "explanation": "Group B is wrongly rejected three times as often."
       },
       {
         "step": 3,
-        "focus": "Limit",
+        "focus": "Document",
         "state": {
-          "correction": "Audit outcomes and errors with relevant groups and proxy risks, state fairness trade-offs, and label explanations by scope, audience, fidelity, and causal limits."
+          "trade-off": "recorded",
+          "appeal": "available"
         },
-        "explanation": "State what the evidence does not establish and reject the misconception: Removing protected attributes makes a model fair, and an explanation chart proves why the real-world outcome happened."
+        "explanation": "An unresolved trade-off and appeal path are documented."
       }
     ],
-    "textAlternative": "Starting artifact: An approval model reports selection, false-negative, and calibration slices with confidence ranges, then documents an unresolved trade-off and appeal path. Step 1, Observe. State: boundedEvidence: An approval model reports selection, false-negative, and calibration slices with confidence ranges, then documents an unresolved trade-off and appeal path.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Fairness analysis selects relevant groups, outcomes, error rates, allocation effects, and stakeholder values; explanations describe bounded model behavior for a named audience and are validated for fidelity and usefulness.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Audit outcomes and errors with relevant groups and proxy risks, state fairness trade-offs, and label explanations by scope, audience, fidelity, and causal limits.. State what the evidence does not establish and reject the misconception: Removing protected attributes makes a model fair, and an explanation chart proves why the real-world outcome happened."
+    "textAlternative": "Tracing a fairness audit. Step 1, Group A: selection is 0.67; FNR is 0.11. The approval model reports selection and false-negative slices. Step 2, Group B: selection is 0.5; FNR is 0.33. Group B is wrongly rejected three times as often. Step 3, Document: trade-off is recorded; appeal is available. An unresolved trade-off and appeal path are documented."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Fairness and explainability: bounded direct case”: state its starting evidence, apply the Fairness and explainability rule, and give the observable result in three short lines.",
+      "prompt": "For \"Slicing an approval model by group\", explain how an approval model reports selection, false-negative, and calibration slices with confidence ranges, then documents an unresolved trade-off and appeal path.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Slice.",
+        "Compare.",
+        "Document."
       ],
       "expectedEvidence": [
-        "Named example: Fairness and explainability: bounded direct case.",
-        "Starting evidence: An approval model reports selection, false-negative, and calibration slices with confidence ranges, then documents an unresolved trade-off and appeal path.",
-        "Core rule: Fairness analysis selects relevant groups, outcomes, error rates, allocation effects, and stakeholder values; explanations describe bounded model behavior for a named audience and are validated for fidelity and usefulness.",
-        "Observable result: This example supports only the atomic outcome because Audit outcomes and errors with relevant groups and proxy risks, state fairness trade-offs, and label explanations by scope, audience, fidelity, and causal limits.",
-        "Boundary check: Audit outcomes and errors with relevant groups and proxy risks, state fairness trade-offs, and label explanations by scope, audience, fidelity, and causal limits."
+        "Names the example \"Slicing an approval model by group\": deleting a column didn't make it fair.",
+        "An approval model reports selection, false-negative, and calibration slices with confidence ranges.",
+        "It documents an unresolved trade-off and appeal path.",
+        "Decision-makers see the gap, the trade-off and how affected people can challenge a decision."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed case: A local feature attribution is described as sensitivity around one prediction, not proof that changing the feature will cause a changed real-world outcome.",
+      "prompt": "Add false-positive rate (approved but didn't repay) per group to the code, and describe what equalising it would require.",
       "scaffold": [
-        "Identify which assumption, population, input, or objective changed.",
-        "Preserve provenance and the declared failure boundary."
+        "Filter to actual non-repayers.",
+        "Compare with FNR."
       ],
       "expectedEvidence": [
-        "Fairness analysis selects relevant groups, outcomes, error rates, allocation effects, and stakeholder values; explanations describe bounded model behavior for a named audience and are validated for fidelity and usefulness.",
-        "Fairness criteria can conflict, protected attributes can have proxies, small slices have uncertainty, equal metrics do not erase structural harm, feature importance is not causation, and plausible explanations can be unfaithful."
+        "FPR per group reported.",
+        "Trade-off described."
       ]
     },
     "farTransfer": {
-      "prompt": "Design a neutral-context example or evaluation for Fairness and explainability and list the evidence that would support and falsify its bounded claim.",
+      "prompt": "Audit a small classifier across two groups: selection, FNR, FPR and calibration bins with intervals. Write a one-page note on the trade-off, who should decide it, an explanation for applicants with its limits, and an appeal process.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+        "Bootstrap intervals.",
+        "Name the audience for the explanation."
       ],
       "expectedEvidence": [
-        "Audit a model slice, identify an unresolved fairness trade-off and communicate explanation limits.",
-        "Audit outcomes and errors with relevant groups and proxy risks, state fairness trade-offs, and label explanations by scope, audience, fidelity, and causal limits."
+        "Audit complete.",
+        "Trade-off and limits documented."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "ai.evaluation.fairness-explain.misconception",
-      "explanation": "Audit outcomes and errors with relevant groups and proxy risks, state fairness trade-offs, and label explanations by scope, audience, fidelity, and causal limits.",
-      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A local feature attribution is described as sensitivity around one prediction, not proof that changing the feature will cause a changed real-world outcome."
+      "explanation": "For any consequential model, **slice outcomes and errors by group with intervals**, name the **trade-off and who decides**, state **what explanations can't show**, and provide **appeal**.",
+      "retryPrompt": "Apply this to \"The deleted gender column\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to audit a model slice, identify an unresolved fairness trade-off and communicate explanation limits. Keep this boundary in view: Fairness criteria can conflict, protected attributes can have proxies, small slices have uncertainty, equal metrics do not erase structural harm, feature importance is not causation, and plausible explanations can be unfaithful.",
+    "summary": "To audit a model slice, identify an unresolved fairness trade-off and communicate explanation limits, compare selection, error and calibration rates across relevant groups with sizes and intervals, recognise proxies, document value trade-offs and appeal paths, and present explanations as model behaviour for a named audience.",
     "retrievalPrompts": [
-      "Explain Fairness and explainability with one technical mechanism, one evidence requirement, and one non-claim.",
-      "Why is this overclaim invalid: Removing protected attributes makes a model fair, and an explanation chart proves why the real-world outcome happened.",
-      "Apply the boundary to: A local feature attribution is described as sensitivity around one prediction, not proof that changing the feature will cause a changed real-world outcome."
+      "Does removing a protected attribute make a model fair?",
+      "Which measures compare groups?",
+      "What does an explanation chart describe?"
     ],
     "nextReviewPrompt": "Next: continue to “Govern, map, measure and manage”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

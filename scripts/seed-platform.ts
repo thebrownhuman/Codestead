@@ -7,20 +7,20 @@ const policies = [
   {
     provider: "nvidia_nim" as const,
     operation: "credential_validation",
-    model: process.env.NVIDIA_NIM_VALIDATION_MODEL ?? "meta/llama-3.1-8b-instruct",
+    model: process.env.NVIDIA_NIM_VALIDATION_MODEL ?? "mistralai/mistral-nemotron",
     priority: 1,
     maxInputTokens: 256,
     maxOutputTokens: 4,
-    timeoutMs: 15_000,
+    timeoutMs: 60_000,
   },
   {
     provider: "nvidia_nim" as const,
     operation: "tutor",
-    model: process.env.NVIDIA_NIM_TUTOR_MODEL ?? "meta/llama-3.1-8b-instruct",
+    model: process.env.NVIDIA_NIM_TUTOR_MODEL ?? "openai/gpt-oss-20b",
     priority: 1,
     maxInputTokens: 16_000,
     maxOutputTokens: 1_500,
-    timeoutMs: 30_000,
+    timeoutMs: 90_000,
   },
 ];
 

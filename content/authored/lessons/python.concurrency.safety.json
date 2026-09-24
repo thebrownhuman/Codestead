@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Concurrency safety protects complete invariants across shared-state transitions and guarantees cleanup during failure or cancellation, preferably through confinement, immutable messages, and structured ownership.",
+    "summary": "A **race** happens when two workers do a multi-step \"check then update\" on shared state and interleave: both check, both update, and one update is lost. Single operations may be safe, but **sequences** of them aren't. Fix by putting the whole check-and-update under **one lock** (`with lock:`) or by giving the state a **single owner**. And cleanup must survive **cancellation**: in async code, cancellation arrives at any `await`, so use `try/finally` or `async with`.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A check-then-update balance operation is placed under one lock or owned by one task rather than relying on two individually safe dictionary operations. Your goal is to repair a teaching example with unsafe shared state or lost cleanup. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Two cafe tills share one wallet balance of ₹100. Both try to charge ₹80 at the same moment. Each checks \"is balance ≥ 80?\" — yes — and each subtracts. Balance: -₹60. A check-then-update balance operation is placed under one lock or owned by one task, rather than relying on two individually safe dictionary operations. In this lesson you'll repair a teaching example with unsafe shared state or lost cleanup.\n\n```predict\n{\"question\": \"`if acct[\\\"bal\\\"] >= amt: acct[\\\"bal\\\"] -= amt` runs in two threads at once with bal 100, amt 80. Possible final balance?\", \"options\": [\"Always 20\", \"Sometimes -60\"], \"answer\": 1, \"why\": \"Each dict operation is safe alone, but a thread can be paused between the check and the update. Both pass the check, both subtract.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Typing, tests, logging and debugging; Generators and lazy pipelines; asyncio coroutines and tasks; Threads and processes; Context managers. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Typing, tests, logging and debugging**, **Generators and lazy pipelines**, **asyncio coroutines and tasks**, **Threads and processes**, and **Context managers** (with guarantees cleanup)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Concurrency safety protects complete invariants across shared-state transitions and guarantees cleanup during failure or cancellation, preferably through confinement, immutable messages, and structured ownership. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The invariant: one lock around the whole check-and-update",
+        "body": "```python\nimport threading\n\nlock = threading.Lock()\naccount = {\"bal\": 100}\n\ndef charge(amount: int) -> bool:\n    with lock:                          # check AND update together\n        if account[\"bal\"] < amount:\n            return False\n        account[\"bal\"] -= amount\n        return True\n```\n\n| Approach | How it stays safe |\n|---|---|\n| one lock. | only one worker can be inside the check-and-update at a time. |\n| single owner. | one task owns the balance; others send it requests via a queue. |\n| no sharing. | each worker has its own data; combine results at the end. |\n\n**Invariant:** the balance is never negative.\n\n```reveal\n{\"prompt\": \"Why not a lock around the check and a separate lock around the update?\", \"answer\": \"The gap between the two locked blocks is exactly where the other thread slips in. The invariant spans both steps, so one lock must cover both.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "A single operation's atomic implementation does not protect multi-step logic, locks can deadlock, cancellation can arrive at await points, finally blocks can also fail, and queues need shutdown/backpressure policy. The learner must reject this documented misconception: Built-in collection operations make every multi-step shared-state algorithm atomic and cancellation can only occur between function calls."
+        "heading": "Cancellation-safe cleanup",
+        "body": "```predict\n{\"question\": \"An async task opens a connection, then `await`s a slow query, then closes the connection on the next line. The task is cancelled during the query. Is the connection closed?\", \"options\": [\"Yes\", \"No — CancelledError is raised at the await and the close line never runs\"], \"answer\": 1, \"why\": \"Cancellation surfaces at any await. Use `async with connect() as conn:` or `try/finally: await conn.close()` so cleanup always runs.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Recognize races, protect invariants and guarantee cleanup across failure or cancellation.",
-      "Repair a teaching example with unsafe shared state or lost cleanup."
+      "Spot check-then-act races and protect multi-step invariants with one lock or a single owner.",
+      "Make cleanup survive cancellation with with/async with or try/finally."
     ],
     "excludes": [
-      "A single operation's atomic implementation does not protect multi-step logic, locks can deadlock, cancellation can arrive at await points, finally blocks can also fail, and queues need shutdown/backpressure policy."
+      "Lock-free algorithms and atomics.",
+      "Distributed locks across machines."
     ]
   },
   "outcomes": [
@@ -63,133 +64,136 @@
   "examples": [
     {
       "id": "python.concurrency.safety.example.direct",
-      "title": "Shared-state and cancellation safety: direct language case",
+      "title": "A balance update under one lock",
       "situation": "A check-then-update balance operation is placed under one lock or owned by one task rather than relying on two individually safe dictionary operations.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A check-then-update balance operation is placed under one lock or owned by one task rather than relying on two individually safe dictionary operations.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Protect the entire invariant transition, minimize shared mutation, and place resource release in cancellation-safe context or finally paths."
+        "**The race:** two threads each check balance 100 ≥ 80, then both subtract — the balance becomes -60.",
+        "**Under one lock:** `with lock:` wraps the check-then-update balance operation, so the second thread sees 20 and is refused.",
+        "**Or owned by one task:** a single worker reads charge requests from a queue and applies them one at a time."
       ],
-      "result": "The example meets the atomic outcome because Protect the entire invariant transition, minimize shared mutation, and place resource release in cancellation-safe context or finally paths."
+      "result": "The balance ends at 20 with one charge refused; the never-negative invariant holds."
     },
     {
       "id": "python.concurrency.safety.example.boundary",
-      "title": "Shared-state and cancellation safety: boundary and transfer case",
-      "situation": "An async worker releases its semaphore in an async context/finally path when cancellation interrupts the awaited operation.",
+      "title": "The lost cleanup",
+      "situation": "```python\nasync def report():\n    conn = await connect()\n    rows = await conn.fetch(QUERY)    # cancelled here by a timeout\n    await conn.close()\n```\nConnections pile up after timeouts.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: An async worker releases its semaphore in an async context/finally path when cancellation interrupts the awaited operation.",
-        "Step 2 — Keep the language boundary explicit: A single operation's atomic implementation does not protect multi-step logic, locks can deadlock, cancellation can arrive at await points, finally blocks can also fail, and queues need shutdown/backpressure policy.",
-        "Step 3 — Reject the tempting but incorrect rule: Built-in collection operations make every multi-step shared-state algorithm atomic and cancellation can only occur between function calls."
+        "The timeout cancels the task at the `await conn.fetch`.",
+        "CancelledError skips `await conn.close()`, leaking the connection.",
+        "Fix: `async with connect() as conn:` (or try/finally) so close runs even on cancellation."
       ],
-      "result": "This case demonstrates the declared outcome: Repair a teaching example with unsafe shared state or lost cleanup."
+      "result": "Connections are closed every time, even when the report is cancelled."
     }
   ],
   "misconceptions": [
     {
       "id": "python.concurrency.safety.misconception",
-      "mistakenBelief": "Built-in collection operations make every multi-step shared-state algorithm atomic and cancellation can only occur between function calls.",
-      "correction": "Protect the entire invariant transition, minimize shared mutation, and place resource release in cancellation-safe context or finally paths.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Built-in collection operations make every multi-step shared-state algorithm atomic and cancellation can only occur between function calls."
+      "mistakenBelief": "Built-in collection operations make every multi-step shared-state algorithm atomic, and cancellation can only occur between function calls.",
+      "correction": "Individual operations may be safe, but a sequence like check-then-update can be interleaved; protect the whole invariant with one lock or a single owner. In asyncio, cancellation is raised at any await, so cleanup must be in finally or a context manager.",
+      "diagnosticPrompt": "In \"The lost cleanup\", at which line did cancellation strike?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a coordination desk that overlaps waiting jobs, assigns CPU work to separate rooms, and protects complete shared transitions can introduce Shared-state and cancellation safety, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "example": "A lock is like a **single-occupancy fitting room**: whoever is inside can check the size *and* change, and nobody barges in between. Cancellation-safe cleanup is the rule that you return the clothes even if the fire alarm rings mid-fitting.",
     "usefulFor": [
-      "concurrency models, asyncio, threads, processes, cancellation, and safety"
+      "remembering the lock covers the whole sequence",
+      "seeing finally as \"always return the clothes\""
     ],
     "limitations": [
-      "the event loop, GIL, serialization, atomicity, scheduling, and cancellation points must be reasoned about technically",
-      "A single operation's atomic implementation does not protect multi-step logic, locks can deadlock, cancellation can arrive at await points, finally blocks can also fail, and queues need shutdown/backpressure policy."
+      "Fitting rooms have queues you can see; lock waiting is invisible.",
+      "A single owner is like one cashier handling every sale in order."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A check-then-update balance operation is placed under one lock or owned by one task rather than relying on two individually safe dictionary operations.",
-      "Concurrency safety protects complete invariants across shared-state transitions and guarantees cleanup during failure or cancellation, preferably through confinement, immutable messages, and structured ownership.",
-      "Protect the entire invariant transition, minimize shared mutation, and place resource release in cancellation-safe context or finally paths."
+      "thread A: with lock: check 100 >= 80; bal = 20",
+      "thread B: waits for lock",
+      "thread B: with lock: check 20 >= 80 → refuse"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "A holds lock",
         "state": {
-          "evidence": "A check-then-update balance operation is placed under one lock or owned by one task rather than relying on two individually safe dictionary operations."
+          "bal": "100 → 20",
+          "B": "waiting"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "Thread A performs the check-then-update balance operation under one lock."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "B enters",
         "state": {
-          "rule": "Concurrency safety protects complete invariants across shared-state transitions and guarantees cleanup during failure or cancellation, preferably through confinement, immutable messages, and structured ownership."
+          "bal": "20",
+          "check 20 >= 80": "False"
         },
-        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "Thread B sees the updated balance only after A releases the lock."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Invariant holds",
         "state": {
-          "correction": "Protect the entire invariant transition, minimize shared mutation, and place resource release in cancellation-safe context or finally paths."
+          "final bal": "20",
+          "B result": "refused"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Built-in collection operations make every multi-step shared-state algorithm atomic and cancellation can only occur between function calls."
+        "explanation": "No two individually safe dictionary operations are relied on; the balance never goes negative."
       }
     ],
-    "textAlternative": "Starting artifact: A check-then-update balance operation is placed under one lock or owned by one task rather than relying on two individually safe dictionary operations. Step 1, Observe. State: evidence: A check-then-update balance operation is placed under one lock or owned by one task rather than relying on two individually safe dictionary operations.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Concurrency safety protects complete invariants across shared-state transitions and guarantees cleanup during failure or cancellation, preferably through confinement, immutable messages, and structured ownership.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Protect the entire invariant transition, minimize shared mutation, and place resource release in cancellation-safe context or finally paths.. Compare the observation with the correction and explain why the misconception fails: Built-in collection operations make every multi-step shared-state algorithm atomic and cancellation can only occur between function calls."
+    "textAlternative": "Serialising a balance update with a lock. Step 1, A holds lock: bal is 100 → 20; B is waiting. Thread A performs the check-then-update balance operation under one lock. Step 2, B enters: bal is 20; check 20 >= 80 is False. Thread B sees the updated balance only after A releases the lock. Step 3, Invariant holds: final bal is 20; B result is refused. No two individually safe dictionary operations are relied on; the balance never goes negative."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Shared-state and cancellation safety: direct language case”: state its starting evidence, apply the Shared-state and cancellation safety rule, and give the observable result in three short lines.",
+      "prompt": "For \"A balance update under one lock\", explain the race without protection, how placing the check-then-update balance operation under one lock fixes it, and the alternative of making it owned by one task.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Race.",
+        "Lock.",
+        "Single owner."
       ],
       "expectedEvidence": [
-        "Named example: Shared-state and cancellation safety: direct language case.",
-        "Starting evidence: A check-then-update balance operation is placed under one lock or owned by one task rather than relying on two individually safe dictionary operations.",
-        "Core rule: Concurrency safety protects complete invariants across shared-state transitions and guarantees cleanup during failure or cancellation, preferably through confinement, immutable messages, and structured ownership.",
-        "Observable result: The example meets the atomic outcome because Protect the entire invariant transition, minimize shared mutation, and place resource release in cancellation-safe context or finally paths.",
-        "Boundary check: Protect the entire invariant transition, minimize shared mutation, and place resource release in cancellation-safe context or finally paths."
+        "Names the example \"A balance update under one lock\": a check-then-update balance operation.",
+        "Without protection both threads pass the check and the balance goes to -60.",
+        "Placed under one lock, the second charge sees 20 and is refused.",
+        "Or it is owned by one task processing requests in order."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: An async worker releases its semaphore in an async context/finally path when cancellation interrupts the awaited operation.",
+      "prompt": "A counter `hits += 1` runs in 4 threads, 10,000 times each. Explain why the total can be below 40,000 and fix it two ways.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "+= is read, add, write.",
+        "Lock, or per-thread counts summed at the end."
       ],
       "expectedEvidence": [
-        "Concurrency safety protects complete invariants across shared-state transitions and guarantees cleanup during failure or cancellation, preferably through confinement, immutable messages, and structured ownership.",
-        "A single operation's atomic implementation does not protect multi-step logic, locks can deadlock, cancellation can arrive at await points, finally blocks can also fail, and queues need shutdown/backpressure policy."
+        "Explains the read-modify-write interleaving.",
+        "Fixes with a lock around += and with per-thread counters combined at the end."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Shared-state and cancellation safety, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Write an asyncio worker that takes jobs from a queue, holds a resource per job, and is cancelled mid-job in a test. Prove with the test that the resource is always released.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "async with or try/finally.",
+        "Cancel with task.cancel() and await it."
       ],
       "expectedEvidence": [
-        "Repair a teaching example with unsafe shared state or lost cleanup.",
-        "Protect the entire invariant transition, minimize shared mutation, and place resource release in cancellation-safe context or finally paths."
+        "Cleanup in finally or async with.",
+        "A test that cancels and asserts the resource was released."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "python.concurrency.safety.misconception",
-      "explanation": "Protect the entire invariant transition, minimize shared mutation, and place resource release in cancellation-safe context or finally paths.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: An async worker releases its semaphore in an async context/finally path when cancellation interrupts the awaited operation."
+      "explanation": "Underline every shared variable. For each function that reads then writes it, ask: **could another worker change it in between?** If yes, one lock around both, or one owner. For every resource, ask: **what if cancellation hits at this await?**",
+      "retryPrompt": "Apply this to \"The lost cleanup\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to repair a teaching example with unsafe shared state or lost cleanup. Keep this boundary in view: A single operation's atomic implementation does not protect multi-step logic, locks can deadlock, cancellation can arrive at await points, finally blocks can also fail, and queues need shutdown/backpressure policy.",
+    "summary": "To repair unsafe shared state, protect the whole check-and-update invariant with one lock or a single owning task; individually safe operations don't make a sequence atomic. To avoid lost cleanup, use with/async with or try/finally, since cancellation can strike at any await.",
     "retrievalPrompts": [
-      "Explain Shared-state and cancellation safety using canonical Python: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Built-in collection operations make every multi-step shared-state algorithm atomic and cancellation can only occur between function calls.",
-      "Predict this case from memory: An async worker releases its semaphore in an async context/finally path when cancellation interrupts the awaited operation."
+      "Why can two safe dict operations still race?",
+      "Why must one lock cover both check and update?",
+      "Where can asyncio cancellation happen?"
     ],
     "nextReviewPrompt": "Next: use this skill in the module checkpoint and one independent practice attempt. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Minimax backs terminal or cutoff utility through alternating maximizing and minimizing choices, while alpha-beta skips branches that cannot change the backed-up decision under the same ordering and evaluation assumptions.",
+    "summary": "In a two-player **zero-sum** game, one player's gain is the other's loss. **Minimax** assumes both play their best. Starting from the end positions (**leaves**) and their scores, it works back up: on **MAX's** turn take the highest child value, on **MIN's** turn the lowest. The root's best move is the one with the best **worst-case** result. Real games are too big to search fully, so we stop at a **depth limit** and score positions with an **evaluation function**. **Alpha-beta pruning** skips branches that **cannot change** the final decision: it returns exactly the same answer as minimax, just faster, especially when good moves are tried first.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A depth-two zero-sum tree alternates max and min layers, backs leaf values, and selects the root action with the highest worst-case result. Your goal is to trace and implement bounded minimax with alpha-beta pruning for a small game. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner's tic-tac-toe bot picks the move with the highest possible score, assuming the opponent will cooperate, and loses to a simple trap. Later they add pruning that skips any branch whose first leaf looks bad, and the bot starts making different, worse moves. A depth-two zero-sum tree alternates max and min layers, backs leaf values, and selects the root action with the highest worst-case result. In this lesson you'll trace and implement bounded minimax with alpha-beta pruning for a small game.\n\n```predict\n{\"question\": \"Does alpha-beta pruning ever change which move minimax chooses?\", \"options\": [\"Yes, it's an approximation\", \"No: it skips only branches that can't affect the result\"], \"answer\": 1, \"why\": \"Same answer, fewer nodes.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Agent, goal and utility models; dsa graphs bfs dfs; States, actions, goals and costs; dsa recursion design. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Agent, goal and utility models**, **Breadth-first and depth-first search**, **States, actions, goals and costs** and **Recursive problem design**."
       },
       {
-        "heading": "Bounded operational model",
-        "body": "Minimax backs terminal or cutoff utility through alternating maximizing and minimizing choices, while alpha-beta skips branches that cannot change the backed-up decision under the same ordering and evaluation assumptions. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+        "heading": "The rule: back up max and min, prune what can't matter",
+        "body": "```python\n# Root is MAX; each move leads to a MIN node with three leaf scores.\nTREE = {\"L\": [3, 12, 8], \"M\": [2, 4, 6], \"R\": [14, 5, 2]}\nvisited = []\n\ndef min_value(leaves, alpha, beta):\n    v = float(\"inf\")\n    for x in leaves:\n        visited.append(x)\n        v = min(v, x)\n        if v <= alpha:          # MAX already has something better: prune.\n            return v\n        beta = min(beta, v)\n    return v\n\ndef alphabeta_root():\n    alpha, best = float(\"-inf\"), None\n    for move, leaves in TREE.items():\n        v = min_value(leaves, alpha, float(\"inf\"))\n        if v > alpha:\n            alpha, best = v, move\n    return best, alpha\n\nprint({m: min(ls) for m, ls in TREE.items()})   # plain minimax: {'L': 3, 'M': 2, 'R': 2}\nprint(alphabeta_root())                         # ('L', 3)\nprint(len(visited), \"of 9 leaves checked\")      # 7 of 9 leaves checked\n```\n\n```reveal\n{\"prompt\": \"Why could the M branch stop after its first leaf?\", \"answer\": \"MAX already has 3 from L. M's first leaf is 2, so MIN will make M worth at most 2. Nothing else in M can make it better than 3 for MAX.\"}\n```"
       },
       {
-        "heading": "Failure boundary and non-claim",
-        "body": "Depth cutoffs require a heuristic evaluation, real opponents need not minimize the modeled utility, chance nodes require another model, move order affects pruning not minimax value, and utility design embeds preferences. The learner must reject this overclaim: Alpha-beta changes the minimax answer to a faster approximation and can prune any branch whose first leaf looks poor."
+        "heading": "Depth limits and ordering",
+        "body": "```predict\n{\"question\": \"You search moves in best-first order. What happens to pruning?\", \"options\": [\"Nothing changes\", \"More branches are pruned, so search is faster with the same answer\"], \"answer\": 1, \"why\": \"Good move ordering is alpha-beta's best friend.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Back up utility through alternating choices and prune branches that cannot affect the decision.",
-      "Trace and implement bounded minimax with alpha-beta pruning for a small game."
+      "Trace minimax back-ups on alternating MAX and MIN layers.",
+      "Implement alpha-beta pruning with a depth limit and explain why it returns the same answer."
     ],
     "excludes": [
-      "Depth cutoffs require a heuristic evaluation, real opponents need not minimize the modeled utility, chance nodes require another model, move order affects pruning not minimax value, and utility design embeds preferences."
+      "Games of chance (expectiminimax).",
+      "Monte Carlo tree search."
     ]
   },
   "outcomes": [
@@ -63,133 +64,137 @@
   "examples": [
     {
       "id": "ai.search.adversarial.example.direct",
-      "title": "Minimax and alpha-beta: bounded direct case",
+      "title": "A depth-two game tree",
       "situation": "A depth-two zero-sum tree alternates max and min layers, backs leaf values, and selects the root action with the highest worst-case result.",
       "walkthrough": [
-        "Step 1 — Observe the exact data, state, metric, or tool behavior: A depth-two zero-sum tree alternates max and min layers, backs leaf values, and selects the root action with the highest worst-case result.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the claim boundary with: Alpha-beta preserves the minimax value when bounds and alternating roles are correct; prune only after the branch cannot affect an ancestor choice."
+        "**A depth-two zero-sum tree alternates max and min layers:** MAX picks a move, MIN picks a leaf.",
+        "**Backs leaf values:** L is worth 3, M is 2, R is 2 (each MIN's lowest leaf).",
+        "**Selects the root action with the highest worst-case result:** we choose L, worth 3, and alpha-beta checks only 7 of 9 leaves."
       ],
-      "result": "This example supports only the atomic outcome because Alpha-beta preserves the minimax value when bounds and alternating roles are correct; prune only after the branch cannot affect an ancestor choice."
+      "result": "The bot picks the move that's safest against a strong opponent."
     },
     {
       "id": "ai.search.adversarial.example.stress",
-      "title": "Minimax and alpha-beta: stress and transfer case",
-      "situation": "Alpha-beta visits a strong move first and prunes a sibling branch only after its bound cannot improve the ancestor decision.",
+      "title": "The hopeful bot",
+      "situation": "A bot picks the move with the highest single leaf (R's 14) and loses because the opponent chooses 2.",
       "walkthrough": [
-        "Step 1 — Name the changed population, input, assumption, or failure: Alpha-beta visits a strong move first and prunes a sibling branch only after its bound cannot improve the ancestor decision.",
-        "Step 2 — Keep the non-claim visible: Depth cutoffs require a heuristic evaluation, real opponents need not minimize the modeled utility, chance nodes require another model, move order affects pruning not minimax value, and utility design embeds preferences.",
-        "Step 3 — Reject the tempting overclaim: Alpha-beta changes the minimax answer to a faster approximation and can prune any branch whose first leaf looks poor."
+        "It assumed the opponent would help it.",
+        "Minimax assumes the opponent picks the lowest value for MAX.",
+        "Back up MIN values before choosing at the root."
       ],
-      "result": "This case demonstrates the declared outcome: Trace and implement bounded minimax with alpha-beta pruning for a small game."
+      "result": "The bot stops walking into traps."
     }
   ],
   "misconceptions": [
     {
       "id": "ai.search.adversarial.misconception",
       "mistakenBelief": "Alpha-beta changes the minimax answer to a faster approximation and can prune any branch whose first leaf looks poor.",
-      "correction": "Alpha-beta preserves the minimax value when bounds and alternating roles are correct; prune only after the branch cannot affect an ancestor choice.",
-      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: Alpha-beta changes the minimax answer to a faster approximation and can prune any branch whose first leaf looks poor."
+      "correction": "Alpha-beta returns exactly the minimax answer. It prunes only when a branch provably can't beat an option already available.",
+      "diagnosticPrompt": "In the opening predict, why doesn't pruning change the chosen move?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a route planner that tracks states, legal moves, accumulated cost, estimates, and an ordered frontier can introduce Minimax and alpha-beta only after its canonical technical definition and evidence boundary are stated.",
+    "example": "Minimax is like **choosing a restaurant with a picky friend** who will always pick the worst dish on each menu for you. You choose the restaurant whose **worst dish** is best. Alpha-beta is noticing that one restaurant has a dish worse than your current best restaurant's worst, so you **stop reading that menu**.",
     "usefulFor": [
-      "state-space representation, frontier policies, heuristics, and adversarial backup"
+      "remembering best worst-case",
+      "stop reading a hopeless menu"
     ],
     "limitations": [
-      "real environments can be continuous, stochastic, changing, partially observed, or too large for the simplified route model",
-      "Depth cutoffs require a heuristic evaluation, real opponents need not minimize the modeled utility, chance nodes require another model, move order affects pruning not minimax value, and utility design embeds preferences."
+      "Reading menus with the best restaurants first means stopping sooner.",
+      "A depth limit is reading only the first page of each menu."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A depth-two zero-sum tree alternates max and min layers, backs leaf values, and selects the root action with the highest worst-case result.",
-      "Minimax backs terminal or cutoff utility through alternating maximizing and minimizing choices, while alpha-beta skips branches that cannot change the backed-up decision under the same ordering and evaluation assumptions.",
-      "Alpha-beta preserves the minimax value when bounds and alternating roles are correct; prune only after the branch cannot affect an ancestor choice."
+      "evaluate L: 3, 12, 8",
+      "evaluate M: 2 then prune",
+      "evaluate R: 14, 5, 2"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "MIN at L",
         "state": {
-          "boundedEvidence": "A depth-two zero-sum tree alternates max and min layers, backs leaf values, and selects the root action with the highest worst-case result."
+          "value": "3",
+          "alpha": "3"
         },
-        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+        "explanation": "The tree backs leaf values up through the min layer."
       },
       {
         "step": 2,
-        "focus": "Model",
+        "focus": "MIN at M",
         "state": {
-          "operationalRule": "Minimax backs terminal or cutoff utility through alternating maximizing and minimizing choices, while alpha-beta skips branches that cannot change the backed-up decision under the same ordering and evaluation assumptions."
+          "first leaf": "2",
+          "pruned": "4, 6"
         },
-        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+        "explanation": "Alpha-beta skips leaves that can't beat 3."
       },
       {
         "step": 3,
-        "focus": "Limit",
+        "focus": "Root",
         "state": {
-          "correction": "Alpha-beta preserves the minimax value when bounds and alternating roles are correct; prune only after the branch cannot affect an ancestor choice."
+          "choice": "L",
+          "value": "3",
+          "leaves checked": "7 of 9"
         },
-        "explanation": "State what the evidence does not establish and reject the misconception: Alpha-beta changes the minimax answer to a faster approximation and can prune any branch whose first leaf looks poor."
+        "explanation": "It selects the root action with the highest worst-case result."
       }
     ],
-    "textAlternative": "Starting artifact: A depth-two zero-sum tree alternates max and min layers, backs leaf values, and selects the root action with the highest worst-case result. Step 1, Observe. State: boundedEvidence: A depth-two zero-sum tree alternates max and min layers, backs leaf values, and selects the root action with the highest worst-case result.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Minimax backs terminal or cutoff utility through alternating maximizing and minimizing choices, while alpha-beta skips branches that cannot change the backed-up decision under the same ordering and evaluation assumptions.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Alpha-beta preserves the minimax value when bounds and alternating roles are correct; prune only after the branch cannot affect an ancestor choice.. State what the evidence does not establish and reject the misconception: Alpha-beta changes the minimax answer to a faster approximation and can prune any branch whose first leaf looks poor."
+    "textAlternative": "Tracing minimax with alpha-beta. Step 1, MIN at L: value is 3; alpha is 3. The tree backs leaf values up through the min layer. Step 2, MIN at M: first leaf is 2; pruned is 4, 6. Alpha-beta skips leaves that can't beat 3. Step 3, Root: choice is L; value is 3; leaves checked is 7 of 9. It selects the root action with the highest worst-case result."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Minimax and alpha-beta: bounded direct case”: state its starting evidence, apply the Minimax and alpha-beta rule, and give the observable result in three short lines.",
+      "prompt": "For \"A depth-two game tree\", explain how a depth-two zero-sum tree alternates max and min layers, backs leaf values, and selects the root action with the highest worst-case result.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Alternate.",
+        "Back up.",
+        "Choose."
       ],
       "expectedEvidence": [
-        "Named example: Minimax and alpha-beta: bounded direct case.",
-        "Starting evidence: A depth-two zero-sum tree alternates max and min layers, backs leaf values, and selects the root action with the highest worst-case result.",
-        "Core rule: Minimax backs terminal or cutoff utility through alternating maximizing and minimizing choices, while alpha-beta skips branches that cannot change the backed-up decision under the same ordering and evaluation assumptions.",
-        "Observable result: This example supports only the atomic outcome because Alpha-beta preserves the minimax value when bounds and alternating roles are correct; prune only after the branch cannot affect an ancestor choice.",
-        "Boundary check: Alpha-beta preserves the minimax value when bounds and alternating roles are correct; prune only after the branch cannot affect an ancestor choice."
+        "Names the example \"A depth-two game tree\": a hopeful bot fell into traps.",
+        "A depth-two zero-sum tree alternates max and min layers and backs leaf values.",
+        "It selects the root action with the highest worst-case result.",
+        "Safest move against a strong opponent."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed case: Alpha-beta visits a strong move first and prunes a sibling branch only after its bound cannot improve the ancestor decision.",
+      "prompt": "Draw a depth-two tree with three moves and three replies each. Compute minimax values by hand, then mark which leaves alpha-beta prunes in left-to-right order.",
       "scaffold": [
-        "Identify which assumption, population, input, or objective changed.",
-        "Preserve provenance and the declared failure boundary."
+        "Track alpha at the root.",
+        "Prune when MIN's value drops to alpha."
       ],
       "expectedEvidence": [
-        "Minimax backs terminal or cutoff utility through alternating maximizing and minimizing choices, while alpha-beta skips branches that cannot change the backed-up decision under the same ordering and evaluation assumptions.",
-        "Depth cutoffs require a heuristic evaluation, real opponents need not minimize the modeled utility, chance nodes require another model, move order affects pruning not minimax value, and utility design embeds preferences."
+        "Values correct.",
+        "Pruned leaves identified."
       ]
     },
     "farTransfer": {
-      "prompt": "Design a neutral-context example or evaluation for Minimax and alpha-beta and list the evidence that would support and falsify its bounded claim.",
+      "prompt": "Implement depth-limited minimax with alpha-beta for tic-tac-toe with an evaluation function for unfinished boards. Compare nodes visited with and without pruning, and with good move ordering.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+        "Try centre and corners first.",
+        "Count nodes."
       ],
       "expectedEvidence": [
-        "Trace and implement bounded minimax with alpha-beta pruning for a small game.",
-        "Alpha-beta preserves the minimax value when bounds and alternating roles are correct; prune only after the branch cannot affect an ancestor choice."
+        "Same moves chosen.",
+        "Pruning reduces nodes."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "ai.search.adversarial.misconception",
-      "explanation": "Alpha-beta preserves the minimax value when bounds and alternating roles are correct; prune only after the branch cannot affect an ancestor choice.",
-      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: Alpha-beta visits a strong move first and prunes a sibling branch only after its bound cannot improve the ancestor decision."
+      "explanation": "When tracing, write each node's value **only after all needed children**, and prune only when **MIN's value is already no better than alpha** (or MAX's no worse than beta).",
+      "retryPrompt": "Apply this to \"The hopeful bot\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to trace and implement bounded minimax with alpha-beta pruning for a small game. Keep this boundary in view: Depth cutoffs require a heuristic evaluation, real opponents need not minimize the modeled utility, chance nodes require another model, move order affects pruning not minimax value, and utility design embeds preferences.",
+    "summary": "To trace and implement bounded minimax with alpha-beta pruning for a small game, back up leaf or evaluation values through alternating max and min layers, choose the root move with the best worst case, and prune only branches that provably can't change that choice.",
     "retrievalPrompts": [
-      "Explain Minimax and alpha-beta with one technical mechanism, one evidence requirement, and one non-claim.",
-      "Why is this overclaim invalid: Alpha-beta changes the minimax answer to a faster approximation and can prune any branch whose first leaf looks poor.",
-      "Apply the boundary to: Alpha-beta visits a strong move first and prunes a sibling branch only after its bound cannot improve the ancestor decision."
+      "What does minimax assume about the opponent?",
+      "Does alpha-beta change the answer?",
+      "Why does move ordering matter?"
     ],
     "nextReviewPrompt": "Next: continue to “Symbols, predicates and rules”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

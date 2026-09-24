@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Try-with-resources closes each declared AutoCloseable in reverse order even when the body fails, and explicit interoperable data formats are safer boundaries than native object deserialization.",
+    "summary": "Files, sockets and database connections hold **operating-system resources** that must be **closed**. The garbage collector does **not** close them promptly, so a program that forgets can run out of file handles. **Try-with-resources** fixes this: every `AutoCloseable` declared in `try (...)` is closed automatically when the block ends, whether normally or by an **exception**, in **reverse order** of declaration. If closing also fails, that error is attached as a **suppressed** exception instead of hiding the original. At data boundaries, prefer **explicit formats** (JSON, CSV, text) over Java's built-in **object serialization**, which is fragile across versions and dangerous to load from untrusted sources.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A BufferedReader and underlying stream are declared in try-with-resources so cleanup occurs on normal return and on parsing failure. Your goal is to implement a failure-safe resource workflow and explain its cleanup behavior. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner opens a BufferedReader, parses lines, and calls close() at the end. When one line is malformed, parsing throws, close() never runs, and after a few thousand requests the server fails with \"Too many open files\". A BufferedReader and underlying stream are declared in try-with-resources so cleanup occurs on normal return and on parsing failure. In this lesson you'll implement a failure-safe resource workflow and explain its cleanup behavior.\n\n```predict\n{\"question\": \"try (A a = new A(); B b = new B()) { ... } Which closes first?\", \"options\": [\"a, declared first\", \"b: resources close in reverse order\"], \"answer\": 1, \"why\": \"Reverse order matters when b depends on a.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Constructors and invariants; String and text processing; Paths, files and text I/O; Exception flow and stack traces. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Constructors and invariants**, **String and text processing**, **Paths, files and text I/O** and **Exception flow and stack traces**."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Try-with-resources closes each declared AutoCloseable in reverse order even when the body fails, and explicit interoperable data formats are safer boundaries than native object deserialization. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The rule: declare it in try, and it gets closed",
+        "body": "```java\npublic class Cleanup {\n    static class Res implements AutoCloseable {\n        final String name;\n        Res(String name) { this.name = name; System.out.println(\"open \" + name); }\n        @Override public void close() { System.out.println(\"close \" + name); }\n    }\n\n    static int parse(String line) {\n        try (Res file = new Res(\"file\"); Res reader = new Res(\"reader\")) {\n            return Integer.parseInt(line);             // may throw.\n        }\n    }\n\n    public static void main(String[] args) {\n        System.out.println(parse(\"42\"));\n        try { parse(\"oops\"); }\n        catch (NumberFormatException e) { System.out.println(\"bad input\"); }\n    }\n}\n```\n\nOutput: open file, open reader, close reader, close file, 42, then the same four lines again before bad input. Cleanup runs on both paths.\n\n```reveal\n{\"prompt\": \"What is a suppressed exception?\", \"answer\": \"If the body throws and close() also throws, the body's exception is kept as the main one, and the close failure is attached to it. Read it with e.getSuppressed().\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "Close itself can fail and become suppressed, ownership decides who closes a resource, some wrappers cascade closure, and untrusted serialized objects can execute dangerous construction paths. The learner must reject this documented misconception: Garbage collection promptly closes files and sockets, so explicit resource management only improves style."
+        "heading": "Serialization boundaries",
+        "body": "```predict\n{\"question\": \"Is Java's ObjectInputStream a safe way to load data uploaded by users?\", \"options\": [\"Yes, it's built in\", \"No: deserializing untrusted bytes can run unexpected code; use an explicit format\"], \"answer\": 1, \"why\": \"Parse JSON, CSV or text into validated objects instead.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use try-with-resources and prefer explicit data formats over unsafe native object deserialization.",
-      "Implement a failure-safe resource workflow and explain its cleanup behavior."
+      "Use try-with-resources and explain reverse-order cleanup and suppressed exceptions.",
+      "Prefer explicit data formats over native object deserialization at boundaries."
     ],
     "excludes": [
-      "Close itself can fail and become suppressed, ownership decides who closes a resource, some wrappers cascade closure, and untrusted serialized objects can execute dangerous construction paths."
+      "Finalizers and Cleaner.",
+      "Serialization proxies in depth."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "java.io.resources.example.direct",
-      "title": "Resource management and serialization boundaries: direct language case",
+      "title": "A reader closed even when parsing fails",
       "situation": "A BufferedReader and underlying stream are declared in try-with-resources so cleanup occurs on normal return and on parsing failure.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A BufferedReader and underlying stream are declared in try-with-resources so cleanup occurs on normal return and on parsing failure.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Use try-with-resources for owned closeable resources and inspect primary plus suppressed failures; garbage collection is not a cleanup schedule."
+        "**A BufferedReader and underlying stream are declared in try-with-resources:** both appear in try (...).",
+        "**So cleanup occurs on normal return:** parse(\"42\") prints close reader then close file.",
+        "**And on parsing failure:** parse(\"oops\") will still close both before the catch runs."
       ],
-      "result": "The example meets the atomic outcome because Use try-with-resources for owned closeable resources and inspect primary plus suppressed failures; garbage collection is not a cleanup schedule."
+      "result": "No handles leak, however often parsing fails."
     },
     {
       "id": "java.io.resources.example.boundary",
-      "title": "Resource management and serialization boundaries: boundary and transfer case",
-      "situation": "The application stores validated JSON fields rather than deserializing an arbitrary ObjectInputStream from an uploaded file.",
+      "title": "Too many open files",
+      "situation": "A server calls reader.close() at the end of a method, and after many malformed requests it runs out of file handles.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: The application stores validated JSON fields rather than deserializing an arbitrary ObjectInputStream from an uploaded file.",
-        "Step 2 — Keep the language boundary explicit: Close itself can fail and become suppressed, ownership decides who closes a resource, some wrappers cascade closure, and untrusted serialized objects can execute dangerous construction paths.",
-        "Step 3 — Reject the tempting but incorrect rule: Garbage collection promptly closes files and sockets, so explicit resource management only improves style."
+        "Exceptions skipped the manual close().",
+        "Move the reader into try-with-resources.",
+        "Test by forcing a parse failure and checking close ran."
       ],
-      "result": "This case demonstrates the declared outcome: Implement a failure-safe resource workflow and explain its cleanup behavior."
+      "result": "Handles are released on every path."
     }
   ],
   "misconceptions": [
     {
       "id": "java.io.resources.misconception",
       "mistakenBelief": "Garbage collection promptly closes files and sockets, so explicit resource management only improves style.",
-      "correction": "Use try-with-resources for owned closeable resources and inspect primary plus suppressed failures; garbage collection is not a cleanup schedule.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Garbage collection promptly closes files and sockets, so explicit resource management only improves style."
+      "correction": "The garbage collector frees memory, not handles, and may run much later or never. Close resources deterministically with try-with-resources.",
+      "diagnosticPrompt": "In \"Too many open files\", why did handles run out?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a document desk that records a failure chain, handles only recoverable cases, and always closes borrowed equipment can introduce Resource management and serialization boundaries, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "example": "Try-with-resources is like **a library that checks books back in automatically when you leave**, whichever exit you use, even the fire exit. Books borrowed last go back first. Waiting for the garbage collector is like **hoping someone eventually notices the overdue books**.",
     "usefulFor": [
-      "exception boundaries, paths, text encodings, and resource cleanup"
+      "remembering auto check-in at every exit",
+      "last borrowed, first returned"
     ],
     "limitations": [
-      "suppressed exceptions, stack unwinding, filesystem semantics, and serialization attacks need exact technical treatment",
-      "Close itself can fail and become suppressed, ownership decides who closes a resource, some wrappers cascade closure, and untrusted serialized objects can execute dangerous construction paths."
+      "Suppressed exceptions are notes about problems during check-in.",
+      "Deserializing untrusted data is accepting a sealed box from a stranger."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A BufferedReader and underlying stream are declared in try-with-resources so cleanup occurs on normal return and on parsing failure.",
-      "Try-with-resources closes each declared AutoCloseable in reverse order even when the body fails, and explicit interoperable data formats are safer boundaries than native object deserialization.",
-      "Use try-with-resources for owned closeable resources and inspect primary plus suppressed failures; garbage collection is not a cleanup schedule."
+      "parse(\"42\")",
+      "parse(\"oops\")",
+      "catch NumberFormatException"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Normal return",
         "state": {
-          "evidence": "A BufferedReader and underlying stream are declared in try-with-resources so cleanup occurs on normal return and on parsing failure."
+          "closed": "reader, then file",
+          "result": "42"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "Cleanup occurs on normal return, in reverse order."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Failure",
         "state": {
-          "rule": "Try-with-resources closes each declared AutoCloseable in reverse order even when the body fails, and explicit interoperable data formats are safer boundaries than native object deserialization."
+          "exception": "NumberFormatException",
+          "closed": "reader, then file"
         },
-        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "Cleanup also occurs on parsing failure before the exception leaves."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Handle",
         "state": {
-          "correction": "Use try-with-resources for owned closeable resources and inspect primary plus suppressed failures; garbage collection is not a cleanup schedule."
+          "printed": "bad input"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Garbage collection promptly closes files and sockets, so explicit resource management only improves style."
+        "explanation": "The caller handles the error with no leaked resource."
       }
     ],
-    "textAlternative": "Starting artifact: A BufferedReader and underlying stream are declared in try-with-resources so cleanup occurs on normal return and on parsing failure. Step 1, Observe. State: evidence: A BufferedReader and underlying stream are declared in try-with-resources so cleanup occurs on normal return and on parsing failure.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Try-with-resources closes each declared AutoCloseable in reverse order even when the body fails, and explicit interoperable data formats are safer boundaries than native object deserialization.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Use try-with-resources for owned closeable resources and inspect primary plus suppressed failures; garbage collection is not a cleanup schedule.. Compare the observation with the correction and explain why the misconception fails: Garbage collection promptly closes files and sockets, so explicit resource management only improves style."
+    "textAlternative": "Tracing try-with-resources. Step 1, Normal return: closed is reader, then file; result is 42. Cleanup occurs on normal return, in reverse order. Step 2, Failure: exception is NumberFormatException; closed is reader, then file. Cleanup also occurs on parsing failure before the exception leaves. Step 3, Handle: printed is bad input. The caller handles the error with no leaked resource."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Resource management and serialization boundaries: direct language case”: state its starting evidence, apply the Resource management and serialization boundaries rule, and give the observable result in three short lines.",
+      "prompt": "For \"A reader closed even when parsing fails\", explain how a BufferedReader and underlying stream are declared in try-with-resources so cleanup occurs on normal return and on parsing failure.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Declare.",
+        "Close in reverse.",
+        "Both paths."
       ],
       "expectedEvidence": [
-        "Named example: Resource management and serialization boundaries: direct language case.",
-        "Starting evidence: A BufferedReader and underlying stream are declared in try-with-resources so cleanup occurs on normal return and on parsing failure.",
-        "Core rule: Try-with-resources closes each declared AutoCloseable in reverse order even when the body fails, and explicit interoperable data formats are safer boundaries than native object deserialization.",
-        "Observable result: The example meets the atomic outcome because Use try-with-resources for owned closeable resources and inspect primary plus suppressed failures; garbage collection is not a cleanup schedule.",
-        "Boundary check: Use try-with-resources for owned closeable resources and inspect primary plus suppressed failures; garbage collection is not a cleanup schedule."
+        "Names the example \"A reader closed even when parsing fails\": manual close() was skipped.",
+        "A BufferedReader and underlying stream are declared in try-with-resources.",
+        "Cleanup occurs on normal return and on parsing failure.",
+        "No handles leak."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: The application stores validated JSON fields rather than deserializing an arbitrary ObjectInputStream from an uploaded file.",
+      "prompt": "Write sumFile(Path) that reads integers with a BufferedReader in try-with-resources. Use a custom AutoCloseable wrapper that logs close, and test a file with a bad line.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Files.newBufferedReader(path, UTF_8).",
+        "Check the log after failure."
       ],
       "expectedEvidence": [
-        "Try-with-resources closes each declared AutoCloseable in reverse order even when the body fails, and explicit interoperable data formats are safer boundaries than native object deserialization.",
-        "Close itself can fail and become suppressed, ownership decides who closes a resource, some wrappers cascade closure, and untrusted serialized objects can execute dangerous construction paths."
+        "Close logged on both paths.",
+        "Sum correct for good files."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Resource management and serialization boundaries, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Replace a class that saves objects with ObjectOutputStream by a CSV or JSON-like text format. Validate on load, keep try-with-resources for all streams, and test round trips and malformed input.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Escape separators.",
+        "Reject unknown fields."
       ],
       "expectedEvidence": [
-        "Implement a failure-safe resource workflow and explain its cleanup behavior.",
-        "Use try-with-resources for owned closeable resources and inspect primary plus suppressed failures; garbage collection is not a cleanup schedule."
+        "No native serialization left.",
+        "Malformed input rejected with a clear message."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "java.io.resources.misconception",
-      "explanation": "Use try-with-resources for owned closeable resources and inspect primary plus suppressed failures; garbage collection is not a cleanup schedule.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: The application stores validated JSON fields rather than deserializing an arbitrary ObjectInputStream from an uploaded file."
+      "explanation": "Whenever you create something with a close() method, **declare it in try (...)**. At boundaries, ask: **is this an explicit, validated format?**",
+      "retryPrompt": "Apply this to \"Too many open files\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement a failure-safe resource workflow and explain its cleanup behavior. Keep this boundary in view: Close itself can fail and become suppressed, ownership decides who closes a resource, some wrappers cascade closure, and untrusted serialized objects can execute dangerous construction paths.",
+    "summary": "To implement a failure-safe resource workflow and explain its cleanup behavior, declare every AutoCloseable in try-with-resources so it closes in reverse order on normal return and on failure, read suppressed exceptions when close also fails, and use explicit validated data formats instead of native deserialization.",
     "retrievalPrompts": [
-      "Explain Resource management and serialization boundaries using canonical Java: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Garbage collection promptly closes files and sockets, so explicit resource management only improves style.",
-      "Predict this case from memory: The application stores validated JSON fields rather than deserializing an arbitrary ObjectInputStream from an uploaded file."
+      "Does the garbage collector close files promptly?",
+      "In what order do resources close?",
+      "Why avoid native deserialization of untrusted data?"
     ],
     "nextReviewPrompt": "Next: continue to “Functional interfaces and lambdas”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

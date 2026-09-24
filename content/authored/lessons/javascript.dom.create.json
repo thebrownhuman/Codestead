@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "DOM creation builds elements, sets safe properties and text, then inserts fragments or nodes while preserving document semantics.",
+    "summary": "To add content from data, **build nodes** instead of gluing HTML strings: `document.createElement(\"li\")`, set `textContent` and attributes, then insert with `append`. For many items, collect them in a **DocumentFragment** and insert once, so the page updates in a single step. A node can only be in **one place**: appending an existing node **moves** it. Use `node.remove()` to take one out and `list.replaceChildren(...)` to swap the whole contents. Keep the right semantic parent: `<li>` inside `<ul>`, `<option>` inside `<select>`.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A list item is created with document.createElement, receives textContent, and is appended to a fragment. Your goal is to render a data collection with safe node creation and stable semantic structure. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "The lessons page gets an array of lesson objects from the server and must show them as a list. Building an HTML string with the titles risks injecting markup, and repeated `innerHTML +=` rebuilds the list on every item. A list item is created with document.createElement, receives textContent, and is appended to a fragment. In this lesson you'll render a data collection with safe node creation and stable semantic structure.\n\n```predict\n{\"question\": \"`const li = document.createElement(\\\"li\\\"); listA.append(li); listB.append(li);` How many lists contain li now?\", \"options\": [\"2: each append made a copy\", \"1: the second append moved it to listB\"], \"answer\": 1, \"why\": \"A node exists in one place. Use `li.cloneNode(true)` if you really need a copy.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Scope, closures and modules; html project site; Query and update DOM; Array transformation methods. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Scope, closures and modules** module, the **Semantic multi-page site**, **Query and update DOM** (textContent vs innerHTML), and **Array transformation methods** such as map."
       },
       {
-        "heading": "Technology rule",
-        "body": "DOM creation builds elements, sets safe properties and text, then inserts fragments or nodes while preserving document semantics. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: build, fill, collect, insert once",
+        "body": "```js\nfunction renderLessons(listEl, lessons) {\n  const fragment = document.createDocumentFragment();\n  for (const lesson of lessons) {\n    const li = document.createElement(\"li\");\n    const link = document.createElement(\"a\");\n    link.href = `/lessons/${encodeURIComponent(lesson.id)}`;\n    link.textContent = lesson.title;           // safe: never parsed as HTML.\n    li.append(link);\n    fragment.append(li);\n  }\n  listEl.replaceChildren(fragment);            // one update; old items removed.\n}\n\nrenderLessons(document.querySelector(\"#lessons\"), [\n  { id: \"loops\", title: \"Loops\" },\n  { id: \"maps\", title: \"Maps <new>\" },\n]);\n```\n\n| Task | Use |\n|---|---|\n| make an element. | `document.createElement(tag)`. |\n| batch many. | `DocumentFragment`. |\n| add at the end. | `parent.append(node)`. |\n| replace all contents. | `parent.replaceChildren(...nodes)`. |\n| remove one. | `node.remove()`. |\n| duplicate. | `node.cloneNode(true)`. |\n\n```reveal\n{\"prompt\": \"What happens to the fragment after replaceChildren?\", \"answer\": \"Its children move into the list, so the fragment is left empty. That's expected: a fragment is just a temporary holder.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Repeated insertion can move existing nodes, custom elements have lifecycle behavior, and large updates can cost layout work. This draft therefore rejects: Appending the same node twice creates two independent copies."
+        "heading": "Semantic structure",
+        "body": "```predict\n{\"question\": \"Rendering lessons as `<div>`s inside a `<ul>`. Any problem?\", \"options\": [\"No, it looks the same\", \"Yes: a ul must contain li; screen readers lose the list count\"], \"answer\": 1, \"why\": \"Create li elements so assistive technology announces \\\"list, 2 items\\\".\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Build document fragments and preserve semantics, ownership and focus during updates.",
-      "Render a data collection with safe node creation and stable semantic structure."
+      "Create, fill and insert elements with a fragment.",
+      "Remove and replace nodes while keeping semantic structure."
     ],
     "excludes": [
-      "Repeated insertion can move existing nodes, custom elements have lifecycle behavior, and large updates can cost layout work."
+      "Template elements and web components.",
+      "Virtual DOM libraries (React course)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "javascript.dom.create.example-a",
-      "title": "Create and remove nodes: concrete case",
-      "situation": "A list item is created with document.createElement, receives textContent, and is appended to a fragment.",
+      "title": "Rendering the lesson list",
+      "situation": "A list item is created with document.createElement, receives textContent, and is appended to a fragment before one insert.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A list item is created with document.createElement, receives textContent, and is appended to a fragment.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Inserting an existing node moves that node; clone explicitly when a separate copy is required."
+        "**Create:** `document.createElement(\"li\")` and an `a` link for each lesson.",
+        "**Fill safely:** `link.textContent = lesson.title` shows \"Maps <new>\" as text, not markup.",
+        "**Insert once:** each li is appended to a fragment, then `replaceChildren(fragment)` will update the ul in one step."
       ],
-      "result": "The result follows because Inserting an existing node moves that node; clone explicitly when a separate copy is required."
+      "result": "The ul shows one li per lesson with a working link, and titles display exactly as written."
     },
     {
       "id": "javascript.dom.create.example-b",
-      "title": "Create and remove nodes: boundary case",
-      "situation": "Repeated insertion can move existing nodes, custom elements have lifecycle behavior, and large updates can cost layout work.",
+      "title": "The item that vanished from the favourites",
+      "situation": "A \"favourite\" button appends the lesson's existing li to the favourites list, and the lesson disappears from the main list.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Repeated insertion can move existing nodes, custom elements have lifecycle behavior, and large updates can cost layout work.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Appending the same node twice creates two independent copies."
+        "append moves the node; it doesn't copy it.",
+        "The same li can't be in both lists at once.",
+        "Fix: append `li.cloneNode(true)` to favourites, or render a new li from the lesson data."
       ],
-      "result": "The boundary requires this correction: Inserting an existing node moves that node; clone explicitly when a separate copy is required."
+      "result": "The lesson appears in both the main list and the favourites list."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.dom.create.misconception",
       "mistakenBelief": "Appending the same node twice creates two independent copies.",
-      "correction": "Inserting an existing node moves that node; clone explicitly when a separate copy is required.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: Appending the same node twice creates two independent copies."
+      "correction": "A DOM node has exactly one parent. Appending it somewhere else moves it. To show it twice, clone it with cloneNode(true) or create a new node from the data.",
+      "diagnosticPrompt": "In \"The item that vanished from the favourites\", why did the main list lose the item?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Create and remove nodes, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "Creating nodes is like **building a shelf of books off to the side (the fragment) and then sliding the whole shelf into place**. A book is one physical object: put it on another shelf and it's gone from the first unless you photocopy it (cloneNode).",
     "usefulFor": [
-      "Building a first mental model for Create and remove nodes before using exact platform terms"
+      "remembering move vs copy",
+      "fragment = the side table"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Repeated insertion can move existing nodes, custom elements have lifecycle behavior, and large updates can cost layout work."
+      "Books don't need semantic parents; li needs a ul.",
+      "Sliding in a shelf is one move, like one DOM update."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A list item is created with document.createElement, receives textContent, and is appended to a fragment.",
-      "DOM creation builds elements, sets safe properties and text, then inserts fragments or nodes while preserving document semantics.",
-      "Inserting an existing node moves that node; clone explicitly when a separate copy is required."
+      "const fragment = document.createDocumentFragment()",
+      "for each lesson: create li + a, set textContent, append to fragment",
+      "listEl.replaceChildren(fragment)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Fragment",
         "state": {
-          "evidence": "A list item is created with document.createElement, receives textContent, and is appended to a fragment."
+          "fragment children": "0"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "An empty fragment holds nodes before they reach the page."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Build",
         "state": {
-          "rule": "DOM creation builds elements, sets safe properties and text, then inserts fragments or nodes while preserving document semantics."
+          "fragment children": "2 li",
+          "page updated": "not yet"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Each list item is created, receives textContent, and is appended to the fragment."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Insert",
         "state": {
-          "correction": "Inserting an existing node moves that node; clone explicitly when a separate copy is required."
+          "ul children": "2 li",
+          "fragment children": "0"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Appending the same node twice creates two independent copies."
+        "explanation": "replaceChildren moves the items into the list in one update."
       }
     ],
-    "textAlternative": "Starting artifact: A list item is created with document.createElement, receives textContent, and is appended to a fragment. Step 1, Artifact. State: evidence: A list item is created with document.createElement, receives textContent, and is appended to a fragment.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: DOM creation builds elements, sets safe properties and text, then inserts fragments or nodes while preserving document semantics.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Inserting an existing node moves that node; clone explicitly when a separate copy is required.. Check the result against the boundary and reject this misconception: Appending the same node twice creates two independent copies."
+    "textAlternative": "Rendering a lesson list with a fragment. Step 1, Fragment: fragment children is 0. An empty fragment holds nodes before they reach the page. Step 2, Build: fragment children is 2 li; page updated is not yet. Each list item is created, receives textContent, and is appended to the fragment. Step 3, Insert: ul children is 2 li; fragment children is 0. replaceChildren moves the items into the list in one update."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Create and remove nodes: concrete case”: state its starting evidence, apply the Create and remove nodes rule, and give the observable result in three short lines.",
+      "prompt": "For \"Rendering the lesson list\", explain how a list item is created with document.createElement, receives textContent, and is appended to a fragment.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Create.",
+        "Fill.",
+        "Insert."
       ],
       "expectedEvidence": [
-        "Named example: Create and remove nodes: concrete case.",
-        "Starting evidence: A list item is created with document.createElement, receives textContent, and is appended to a fragment.",
-        "Core rule: DOM creation builds elements, sets safe properties and text, then inserts fragments or nodes while preserving document semantics.",
-        "Observable result: The result follows because Inserting an existing node moves that node; clone explicitly when a separate copy is required.",
-        "Boundary check: Inserting an existing node moves that node; clone explicitly when a separate copy is required."
+        "Names the example \"Rendering the lesson list\": each list item is created with document.createElement.",
+        "It receives textContent, so titles aren't parsed.",
+        "Items are appended to a fragment.",
+        "The ul shows one li per lesson, and titles display exactly as written."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Repeated insertion can move existing nodes, custom elements have lifecycle behavior, and large updates can cost layout work.",
+      "prompt": "Write `renderOptions(selectEl, topics)` that fills a select with an option per topic (value = id, text = name), replacing any old options.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "createElement(\"option\").",
+        "replaceChildren with a fragment."
       ],
       "expectedEvidence": [
-        "DOM creation builds elements, sets safe properties and text, then inserts fragments or nodes while preserving document semantics.",
-        "Repeated insertion can move existing nodes, custom elements have lifecycle behavior, and large updates can cost layout work."
+        "Options use textContent and value.",
+        "Calling twice doesn't duplicate options."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Create and remove nodes and explain why the misconception fails.",
+      "prompt": "Build a to-do list with add and delete buttons. Render from an array, remove items with node.remove(), and test that deleting one item keeps the others and the ul/li structure.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Re-render or remove the single node.",
+        "Keep li inside ul."
       ],
       "expectedEvidence": [
-        "Render a data collection with safe node creation and stable semantic structure.",
-        "Inserting an existing node moves that node; clone explicitly when a separate copy is required."
+        "Add and delete work without innerHTML.",
+        "Tests for structure and remaining items."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.dom.create.misconception",
-      "explanation": "Inserting an existing node moves that node; clone explicitly when a separate copy is required.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'moves that node' and state the decisive evidence."
+      "explanation": "For each node ask: **Did I create it or am I moving an existing one?** Use textContent for data, the right semantic parent for its tag, and one final insert.",
+      "retryPrompt": "Apply this to \"The item that vanished from the favourites\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to render a data collection with safe node creation and stable semantic structure. Keep this boundary in view: Repeated insertion can move existing nodes, custom elements have lifecycle behavior, and large updates can cost layout work.",
+    "summary": "To render a data collection with safe node creation, create elements with createElement, fill them with textContent and attributes, collect them in a fragment, and insert once with append or replaceChildren. Remember append moves nodes, and keep semantic parents like ul with li.",
     "retrievalPrompts": [
-      "Explain Create and remove nodes using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: Appending the same node twice creates two independent copies.",
-      "Apply checkpoint 'moves that node' to a new artifact."
+      "Why use a fragment?",
+      "What happens when you append an existing node elsewhere?",
+      "Which parent should li elements have?"
     ],
     "nextReviewPrompt": "Next: continue to “Event propagation and delegation”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

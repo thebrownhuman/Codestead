@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A formatter applies mechanical layout rules, while a linter reports configured syntactic, semantic, safety, or maintainability patterns; both must run with pinned project configuration.",
+    "summary": "A **formatter** (Prettier, Black, gofmt) rewrites **layout**: indentation, quotes, line breaks. It never changes behaviour and settles style arguments. A **linter** (ESLint, Ruff, Pylint) **reports patterns**: unused variables, `==` instead of `===`, unsafe `eval`, possible bugs. They're different tools. Pin both as **dev dependencies with committed config**, so everyone and CI run the **same version**. Keep formatting changes in **their own commit**, separate from logic fixes. And remember: passing both doesn't mean the code is correct or secure. They catch patterns, not wrong logic.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Formatting changes are separated from a logic fix so reviewers can see behavior clearly while CI enforces the same formatter version. Your goal is to configure and apply formatter and linter checks to changed files. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner fixes a one-line bug, but their editor's formatter (a different version from CI's) reformats the whole file. The PR shows 300 changed lines, the reviewer can't find the fix, and CI fails the format check anyway. Formatting changes are separated from a logic fix so reviewers can see behavior clearly while CI enforces the same formatter version. In this lesson you'll configure and apply formatter and linter checks to changed files.\n\n```predict\n{\"question\": \"Code passes both the formatter check and the linter. Is it bug-free?\", \"options\": [\"Yes\", \"No: they check layout and known patterns, not whether the logic is right\"], \"answer\": 1, \"why\": \"Tests and review still matter.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Dependencies and reproducible builds; Commits and history; Build and task commands; Diffs and patch review. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Dependencies and reproducible builds**, **Commits and history**, **Build and task commands** and **Diffs and patch review**."
       },
       {
-        "heading": "Operational model",
-        "body": "A formatter applies mechanical layout rules, while a linter reports configured syntactic, semantic, safety, or maintainability patterns; both must run with pinned project configuration. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The distinction: formatter rewrites, linter reports",
+        "body": "```bash\nnpm install --save-dev prettier@3.3.3 eslint@9.9.0   # pinned in the lockfile.\n# Config committed: .prettierrc, eslint.config.js.\n\nnpx prettier --check src/          # CI: fail if anything isn't formatted.\nnpx prettier --write src/cart.js   # locally: rewrite layout.\nnpx eslint src/cart.js             # report problems.\n#   12:7  error  'total' is assigned a value but never used  no-unused-vars.\n#   20:9  error  Expected '===' and instead saw '=='         eqeqeq.\n```\n\n| | Formatter | Linter |\n|---|---|---|\n| changes files? | yes (layout only). | only with --fix, for some rules. |\n| finds possible bugs? | no. | some patterns. |\n| settles style debates? | yes. | partly. |\n\n```reveal\n{\"prompt\": \"How do you add a formatter to an old project without drowning every PR?\", \"answer\": \"Format everything in one dedicated commit (\\\"Apply Prettier to codebase\\\") with no logic changes, and list its hash in .git-blame-ignore-revs so blame skips it.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "A clean lint result is not proof of correctness, rules can conflict or produce false positives, and automatic fixes can change behavior in some tools. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Formatter and linter are synonyms, and code that passes both cannot contain bugs or security flaws."
+        "heading": "Keep diffs readable",
+        "body": "```predict\n{\"question\": \"Your fix is one line, but the formatter changed 40 others in the file. What should the PR contain?\", \"options\": [\"One commit with everything\", \"A formatting-only commit (or PR) and a separate one-line fix commit\"], \"answer\": 1, \"why\": \"Reviewers can then check the fix without reading layout noise.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Automate style and static checks through one documented command with minimal unrelated churn.",
-      "Configure and apply formatter and linter checks to changed files."
+      "Distinguish formatters from linters and pin both with committed configuration.",
+      "Run checks on changed files and keep formatting separate from logic changes."
     ],
     "excludes": [
-      "A clean lint result is not proof of correctness, rules can conflict or produce false positives, and automatic fixes can change behavior in some tools."
+      "Writing custom lint rules.",
+      "Type checkers in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "git.quality.format-lint.example-a",
-      "title": "Formatter and linter: direct case",
+      "title": "Separating formatting from the fix",
       "situation": "Formatting changes are separated from a logic fix so reviewers can see behavior clearly while CI enforces the same formatter version.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: Formatting changes are separated from a logic fix so reviewers can see behavior clearly while CI enforces the same formatter version.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior."
+        "**Same formatter version:** prettier@3.3.3 is pinned, so the editor and CI agree.",
+        "**Formatting changes are separated:** commit one runs prettier --write only; commit two changes `==` to `===` in the total check.",
+        "**Reviewers can see behavior clearly:** the fix commit's diff is one line, and CI will run prettier --check with the same version."
       ],
-      "result": "The case supports the declared outcome because Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior."
+      "result": "The review takes a minute, and CI passes."
     },
     {
       "id": "git.quality.format-lint.example-b",
-      "title": "Formatter and linter: boundary case",
-      "situation": "A linter warns about an unhandled promise; the learner understands the failure path before applying a fix instead of disabling the rule globally.",
+      "title": "The linter warning that was a bug",
+      "situation": "ESLint reports `no-unused-vars` for `discount` in checkout.js. The learner is tempted to disable the rule.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A linter warns about an unhandled promise; the learner understands the failure path before applying a fix instead of disabling the rule globally.",
-        "Step 2 — Keep this boundary explicit: A clean lint result is not proof of correctness, rules can conflict or produce false positives, and automatic fixes can change behavior in some tools.",
-        "Step 3 — Reject the documented misconception: Formatter and linter are synonyms, and code that passes both cannot contain bugs or security flaws."
+        "Reading the line shows discount was calculated but never subtracted.",
+        "The warning pointed at a real logic bug.",
+        "Fix the code; don't silence the rule."
       ],
-      "result": "This case demonstrates the declared outcome: Configure and apply formatter and linter checks to changed files."
+      "result": "Customers get their discount, thanks to one lint warning."
     }
   ],
   "misconceptions": [
     {
       "id": "git.quality.format-lint.misconception",
       "mistakenBelief": "Formatter and linter are synonyms, and code that passes both cannot contain bugs or security flaws.",
-      "correction": "Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Formatter and linter are synonyms, and code that passes both cannot contain bugs or security flaws."
+      "correction": "A formatter changes layout; a linter reports configured patterns. Neither understands your requirements, so wrong logic and many security flaws pass both.",
+      "diagnosticPrompt": "In the opening predict, what can pass both tools?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A controlled investigation can model Formatter and linter: preserve evidence, state a hypothesis, inspect one clue, automate repeatable checks, and narrow the change point.",
+    "example": "A formatter is like **a typesetter** laying out a book neatly. A linter is **a copy editor** flagging suspicious sentences. Neither checks whether the story's facts are true; that's tests and review.",
     "usefulFor": [
-      "Linking debugging, static checks, history search, and automated local gates"
+      "remembering typesetter vs copy editor",
+      "facts = tests"
     ],
     "limitations": [
-      "Debuggers and hooks can alter timing or execute code, and tool findings remain bounded evidence rather than proof.",
-      "A clean lint result is not proof of correctness, rules can conflict or produce false positives, and automatic fixes can change behavior in some tools."
+      "Typesetters never change words; formatters never change behaviour.",
+      "Copy editors can be configured; so can linters."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Formatting changes are separated from a logic fix so reviewers can see behavior clearly while CI enforces the same formatter version.",
-      "A formatter applies mechanical layout rules, while a linter reports configured syntactic, semantic, safety, or maintainability patterns; both must run with pinned project configuration.",
-      "Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior."
+      "pin prettier + eslint; commit config",
+      "commit 1: prettier --write",
+      "commit 2: logic fix; CI checks"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Pin",
         "state": {
-          "evidence": "Formatting changes are separated from a logic fix so reviewers can see behavior clearly while CI enforces the same formatter version."
+          "prettier": "3.3.3",
+          "eslint": "9.9.0"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "CI enforces the same formatter version as the editor."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Format",
         "state": {
-          "model": "A formatter applies mechanical layout rules, while a linter reports configured syntactic, semantic, safety, or maintainability patterns; both must run with pinned project configuration."
+          "commit 1": "layout only"
         },
-        "explanation": "Apply the declared Formatter and linter model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "Formatting changes are separated from the logic fix."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Fix",
         "state": {
-          "correction": "Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior."
+          "commit 2": "1 line",
+          "CI": "format + lint pass"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Formatter and linter are synonyms, and code that passes both cannot contain bugs or security flaws."
+        "explanation": "Reviewers can see behavior clearly in the small fix commit."
       }
     ],
-    "textAlternative": "Starting artifact: Formatting changes are separated from a logic fix so reviewers can see behavior clearly while CI enforces the same formatter version. Step 1, Observe. State: evidence: Formatting changes are separated from a logic fix so reviewers can see behavior clearly while CI enforces the same formatter version.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A formatter applies mechanical layout rules, while a linter reports configured syntactic, semantic, safety, or maintainability patterns; both must run with pinned project configuration.. Apply the declared Formatter and linter model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior.. Compare the observation with the correction and reject the misconception: Formatter and linter are synonyms, and code that passes both cannot contain bugs or security flaws."
+    "textAlternative": "Tracing clean formatting and linting. Step 1, Pin: prettier is 3.3.3; eslint is 9.9.0. CI enforces the same formatter version as the editor. Step 2, Format: commit 1 is layout only. Formatting changes are separated from the logic fix. Step 3, Fix: commit 2 is 1 line; CI is format + lint pass. Reviewers can see behavior clearly in the small fix commit."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Formatter and linter: direct case”: state its starting evidence, apply the Formatter and linter rule, and give the observable result in three short lines.",
+      "prompt": "For \"Separating formatting from the fix\", explain how formatting changes are separated from a logic fix so reviewers can see behavior clearly while CI enforces the same formatter version.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Pin.",
+        "Separate.",
+        "Enforce."
       ],
       "expectedEvidence": [
-        "Named example: Formatter and linter: direct case.",
-        "Starting evidence: Formatting changes are separated from a logic fix so reviewers can see behavior clearly while CI enforces the same formatter version.",
-        "Core rule: A formatter applies mechanical layout rules, while a linter reports configured syntactic, semantic, safety, or maintainability patterns; both must run with pinned project configuration.",
-        "Observable result: The case supports the declared outcome because Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior.",
-        "Boundary check: Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior."
+        "Names the example \"Separating formatting from the fix\": 300 changed lines hid a one-line fix.",
+        "Formatting changes are separated from a logic fix so reviewers can see behavior clearly.",
+        "CI enforces the same formatter version.",
+        "The review takes a minute."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A linter warns about an unhandled promise; the learner understands the failure path before applying a fix instead of disabling the rule globally.",
+      "prompt": "Add a pinned formatter and linter to a small project with committed config. Run both on one file, fix the lint errors, and explain each one.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "--save-dev with an exact version.",
+        "Read each rule name."
       ],
       "expectedEvidence": [
-        "A formatter applies mechanical layout rules, while a linter reports configured syntactic, semantic, safety, or maintainability patterns; both must run with pinned project configuration.",
-        "A clean lint result is not proof of correctness, rules can conflict or produce false positives, and automatic fixes can change behavior in some tools."
+        "Both tools pass.",
+        "Each fix explained."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Formatter and linter, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Introduce a formatter to an existing project: one formatting-only commit listed in .git-blame-ignore-revs, a CI check with the pinned version, and a follow-up logic fix whose diff is small. Show git blame skipping the formatting commit.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "git config blame.ignoreRevsFile.",
+        "Keep the logic fix separate."
       ],
       "expectedEvidence": [
-        "Configure and apply formatter and linter checks to changed files.",
-        "Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior."
+        "Blame shows original authors.",
+        "CI enforces format and lint."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.quality.format-lint.misconception",
-      "explanation": "Use formatting for consistent presentation and linting for bounded static checks, review automatic changes, and retain tests and human reasoning for behavior.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A linter warns about an unhandled promise; the learner understands the failure path before applying a fix instead of disabling the rule globally."
+      "explanation": "Ask: **is this change layout or behaviour?** Layout goes in a formatting commit; behaviour gets its own. And treat lint warnings as **possible bugs to read**, not noise to silence.",
+      "retryPrompt": "Apply this to \"The linter warning that was a bug\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to configure and apply formatter and linter checks to changed files. Keep this boundary in view: A clean lint result is not proof of correctness, rules can conflict or produce false positives, and automatic fixes can change behavior in some tools.",
+    "summary": "To configure and apply formatter and linter checks, pin both tools with committed configuration so every machine and CI use the same versions, run them on changed files, keep formatting in separate commits from logic, and remember neither proves the code is correct or secure.",
     "retrievalPrompts": [
-      "Explain Formatter and linter without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Formatter and linter are synonyms, and code that passes both cannot contain bugs or security flaws.",
-      "Apply the model to this case from memory: A linter warns about an unhandled promise; the learner understands the failure path before applying a fix instead of disabling the rule globally."
+      "What does a formatter change?",
+      "What does a linter do?",
+      "Why pin their versions?"
     ],
     "nextReviewPrompt": "Next: continue to “History-based regression isolation”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

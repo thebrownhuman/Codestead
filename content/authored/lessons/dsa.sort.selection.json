@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Sorting choice follows data size, stability, memory, key cost, existing order, worst-case requirements, and language library guarantees.",
+    "summary": "Picking a sort is a **requirements** decision, not a race for the fanciest name. Ask: How big is the data? Must equal items keep their order (**stability**)? Is memory tight? Is the data **nearly sorted**? Is comparing keys expensive? Do you need a **worst-case** guarantee? Most of the time the answer is **your language's library sort**, with a key function: Python's `sorted` and Java's object sort are stable (Timsort, fast on nearly sorted data); C++ `std::sort` is fast but not stable, so use `std::stable_sort` when ties matter. Write your own only for learning or a special constraint.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Stable sorting preserves original order among equal scores when earlier registration order is meaningful. Your goal is to select a sorting strategy for a real requirement and justify algorithm versus library use. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A course leaderboard ranks learners by score. When scores tie, the learner who registered first should appear first, and the list arrives already ordered by registration time. A developer picks a hand-written quicksort because it's \"the fastest\", and ties come out in random order. Stable sorting preserves original order among equal scores when earlier registration order is meaningful. In this lesson you'll select a sorting strategy for a real requirement and justify algorithm versus library use.\n\n```predict\n{\"question\": \"C++ `std::sort` on the leaderboard. Are tied learners guaranteed to stay in registration order?\", \"options\": [\"Yes\", \"No: std::sort isn't stable; use std::stable_sort\"], \"answer\": 1, \"why\": \"Library guarantees differ. Check stability in your language's documentation.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Arrays, strings and matrices; Time, space and asymptotic growth; Merge sort and quicksort. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Arrays, strings and matrices** module, **Time, space and asymptotic growth**, and **Merge sort and quicksort** (stability and worst cases)."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Sorting choice follows data size, stability, memory, key cost, existing order, worst-case requirements, and language library guarantees. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The model: requirements first, then the sort",
+        "body": "```python\nlearners = [                         # already in registration order.\n    {\"name\": \"Asha\", \"score\": 80, \"joined\": 1},\n    {\"name\": \"Ben\", \"score\": 95, \"joined\": 2},\n    {\"name\": \"Chen\", \"score\": 80, \"joined\": 3},\n]\n# Python's sort is stable, so ties keep registration order.\nranked = sorted(learners, key=lambda l: l[\"score\"], reverse=True)\n# Ben 95, Asha 80, Chen 80.\n\n# Or make the tie rule explicit, which is safer across languages.\nranked = sorted(learners, key=lambda l: (-l[\"score\"], l[\"joined\"]))\n```\n\n| Requirement | Good choice |\n|---|---|\n| general use. | library sort with a key. |\n| ties keep input order. | stable sort (Python sorted, Java objects, C++ stable_sort). |\n| guaranteed O(n log n) worst case. | merge sort, heapsort, or library introsort. |\n| tiny or nearly sorted input. | insertion sort (libraries do this internally). |\n| very tight memory. | in-place: heapsort or quicksort variants. |\n| small integer keys. | counting sort, O(n + k). |\n\n```reveal\n{\"prompt\": \"Why not rely only on stability?\", \"answer\": \"Stability silently depends on the input order and the library. An explicit secondary key states the rule in code, so it survives refactors and language changes.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Handwritten algorithms rarely beat mature libraries, and external or parallel data adds different constraints. The draft therefore rejects: The asymptotically fastest named sort is always the correct choice."
+        "heading": "Library or hand-written?",
+        "body": "```predict\n{\"question\": \"When is writing your own sort a good idea in real code?\", \"options\": [\"Always, it's faster\", \"Rarely: for learning, or a special constraint the library can't meet\"], \"answer\": 1, \"why\": \"Library sorts are tested, tuned and documented. Your time goes into the key and the tie rule.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Compare stability, adaptiveness, in-place behavior, bounds and library guarantees.",
-      "Select a sorting strategy for a real requirement and justify algorithm versus library use.",
-      "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics."
+      "Choose a sort from size, stability, memory, existing order, key cost and worst-case needs.",
+      "Justify library use and state tie rules explicitly."
     ],
     "excludes": [
-      "Handwritten algorithms rarely beat mature libraries, and external or parallel data adds different constraints."
+      "Radix sort in depth.",
+      "Parallel and external sorting."
     ]
   },
   "outcomes": [
@@ -68,142 +64,133 @@
   "examples": [
     {
       "id": "dsa.sort.selection.example-a",
-      "title": "Sorting properties and selection: language-neutral trace",
+      "title": "Ranking by score, fairly for ties",
       "situation": "Stable sorting preserves original order among equal scores when earlier registration order is meaningful.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: Stable sorting preserves original order among equal scores when earlier registration order is meaningful.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Choose from required guarantees and use the standard library sort unless the problem specifically teaches or requires another algorithm."
+        "**Requirement:** ties must follow registration order, and the input already is in that order.",
+        "**Stable sorting:** Python's sorted with key score (descending) keeps Asha before Chen at 80.",
+        "**Make it explicit and test:** a key of (-score, joined) states the rule; a test will check tied learners appear in registration order."
       ],
-      "result": "The conceptual result follows because Choose from required guarantees and use the standard library sort unless the problem specifically teaches or requires another algorithm."
+      "result": "The leaderboard is fair and predictable, and the rule is visible in the code."
     },
     {
       "id": "dsa.sort.selection.example-b",
-      "title": "Sorting properties and selection: implementation transfer",
-      "situation": "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics.",
+      "title": "The nightly report that ran out of memory",
+      "situation": "A device with very little memory sorts 5 million sensor readings using merge sort and crashes.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics.",
-        "Step 3 — Retest this boundary in the selected implementation: Handwritten algorithms rarely beat mature libraries, and external or parallel data adds different constraints."
+        "Merge sort needs O(n) extra space.",
+        "Stability isn't needed for plain numbers.",
+        "Use an in-place sort such as heapsort (or the library's in-place sort) to stay within memory."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "The report completes within the device's memory limit."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.sort.selection.misconception",
       "mistakenBelief": "The asymptotically fastest named sort is always the correct choice.",
-      "correction": "Choose from required guarantees and use the standard library sort unless the problem specifically teaches or requires another algorithm.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: The asymptotically fastest named sort is always the correct choice."
+      "correction": "Many sorts share O(n log n); what decides is stability, memory, worst-case guarantees, input shape and library support. The right choice meets the requirement, usually via the library sort.",
+      "diagnosticPrompt": "In \"Ranking by score, fairly for ties\", what requirement did quicksort break?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Sorting properties and selection, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Choosing a sort is like **choosing a vehicle**: the fastest car isn't right for moving house (memory), carrying a family in fixed seats (stability) or a road you've driven a hundred times (nearly sorted). Most days, the reliable family car (library sort) is the answer.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering requirements decide",
+      "library = the reliable car"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Handwritten algorithms rarely beat mature libraries, and external or parallel data adds different constraints."
+      "Cars have one owner; libraries are shared and well tested.",
+      "Specialist vehicles exist for special jobs, like counting sort for small integer keys."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Stable sorting preserves original order among equal scores when earlier registration order is meaningful.",
-      "Sorting choice follows data size, stability, memory, key cost, existing order, worst-case requirements, and language library guarantees.",
-      "Choose from required guarantees and use the standard library sort unless the problem specifically teaches or requires another algorithm.",
-      "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics."
+      "learners in registration order",
+      "sorted by score, descending, stable",
+      "check ties"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Input",
         "state": {
-          "scenario": "Stable sorting preserves original order among equal scores when earlier registration order is meaningful."
+          "order": "Asha 80, Ben 95, Chen 80"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "Learners arrive already in registration order."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Sort",
         "state": {
-          "invariant": "Sorting choice follows data size, stability, memory, key cost, existing order, worst-case requirements, and language library guarantees."
+          "result": "Ben 95, Asha 80, Chen 80"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "Stable sorting preserves original order among equal scores."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Check",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "Asha before Chen": "yes"
         },
-        "explanation": "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Choose from required guarantees and use the standard library sort unless the problem specifically teaches or requires another algorithm."
-        },
-        "explanation": "Verify the result and reject this misconception: The asymptotically fastest named sort is always the correct choice."
+        "explanation": "Earlier registration order is meaningful and is kept."
       }
     ],
-    "textAlternative": "Starting artifact: Stable sorting preserves original order among equal scores when earlier registration order is meaningful. Step 1, Specification. State: scenario: Stable sorting preserves original order among equal scores when earlier registration order is meaningful.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Sorting choice follows data size, stability, memory, key cost, existing order, worst-case requirements, and language library guarantees.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics. Step 4, Conclusion. State: correction: Choose from required guarantees and use the standard library sort unless the problem specifically teaches or requires another algorithm.. Verify the result and reject this misconception: The asymptotically fastest named sort is always the correct choice."
+    "textAlternative": "Tracing a stable ranking. Step 1, Input: order is Asha 80, Ben 95, Chen 80. Learners arrive already in registration order. Step 2, Sort: result is Ben 95, Asha 80, Chen 80. Stable sorting preserves original order among equal scores. Step 3, Check: Asha before Chen is yes. Earlier registration order is meaningful and is kept."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Sorting properties and selection: language-neutral trace”: state its starting evidence, apply the Sorting properties and selection rule, and give the observable result in three short lines.",
+      "prompt": "For \"Ranking by score, fairly for ties\", explain how stable sorting preserves original order among equal scores when earlier registration order is meaningful.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Requirement.",
+        "Stable sort.",
+        "Explicit rule."
       ],
       "expectedEvidence": [
-        "Named example: Sorting properties and selection: language-neutral trace.",
-        "Starting evidence: Stable sorting preserves original order among equal scores when earlier registration order is meaningful.",
-        "Core rule: Sorting choice follows data size, stability, memory, key cost, existing order, worst-case requirements, and language library guarantees.",
-        "Observable result: The conceptual result follows because Choose from required guarantees and use the standard library sort unless the problem specifically teaches or requires another algorithm.",
-        "Boundary check: Choose from required guarantees and use the standard library sort unless the problem specifically teaches or requires another algorithm."
+        "Names the example \"Ranking by score, fairly for ties\": ties must follow registration order.",
+        "Stable sorting preserves original order among equal scores.",
+        "Earlier registration order is meaningful here.",
+        "The leaderboard is fair and predictable."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Sorting choice follows data size, stability, memory, key cost, existing order, worst-case requirements, and language library guarantees.",
+      "prompt": "For each case pick a strategy and give one reason: (a) 20 items nearly sorted; (b) 10 million exam scores from 0 to 100; (c) a list that must be sorted by surname then first name.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Think about input shape and key range.",
+        "Tuple keys."
       ],
       "expectedEvidence": [
-        "In C, pass buffers and counts and use qsort/bsearch comparators carefully; in C++, prefer standard algorithms and strict comparators; in Java, use Arrays/Collections algorithms with comparator contracts; in Python, use sorted/list.sort and bisect with key and stability semantics.",
-        "Handwritten algorithms rarely beat mature libraries, and external or parallel data adds different constraints."
+        "(a) library or insertion sort; (b) counting sort.",
+        "(c) library sort with key (surname, first_name)."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Sorting properties and selection case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Write a one-page decision note for sorting a course marketplace's listings (by rating, then price, then newest). State size, stability, tie rules, memory and library choice for your language, and test the tie rules.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Tuple key with the right directions.",
+        "Tests with deliberate ties."
       ],
       "expectedEvidence": [
-        "Select a sorting strategy for a real requirement and justify algorithm versus library use.",
-        "Choose from required guarantees and use the standard library sort unless the problem specifically teaches or requires another algorithm."
+        "A justified choice.",
+        "Passing tie-rule tests."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.sort.selection.misconception",
-      "explanation": "Choose from required guarantees and use the standard library sort unless the problem specifically teaches or requires another algorithm.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'required guarantees', then state one implementation-specific risk in the selected language."
+      "explanation": "Before sorting, write: **size, stable or not, memory limit, input shape, worst-case need.** Then default to the library sort with an explicit key, and only deviate with a written reason.",
+      "retryPrompt": "Apply this to \"The nightly report that ran out of memory\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to select a sorting strategy for a real requirement and justify algorithm versus library use. Keep this boundary in view: Handwritten algorithms rarely beat mature libraries, and external or parallel data adds different constraints.",
+    "summary": "To select a sorting strategy for a real requirement, weigh size, stability, memory, existing order, key cost and worst-case needs, prefer your language's library sort with an explicit key and tie rule, check its stability guarantee, and write your own only for learning or a constraint the library can't meet.",
     "retrievalPrompts": [
-      "State the Sorting properties and selection invariant and complexity without code.",
-      "Why is this claim false: The asymptotically fastest named sort is always the correct choice.",
-      "Map checkpoint 'required guarantees' to C, C++, Java, and Python."
+      "Is the fastest named sort always right?",
+      "Which library sorts are stable in your language?",
+      "Why state tie rules explicitly?"
     ],
     "nextReviewPrompt": "Next: continue to “Recursive problem design”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

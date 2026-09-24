@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Arrays are ordered objects with a length and integer-indexed properties, supporting mutation and nonmutating transformations.",
+    "summary": "An **array** is an ordered, zero-indexed list: `arr[0]` is first, `arr[arr.length - 1]` (or `arr.at(-1)`) is last. Some methods **mutate** the array in place — `push`, `pop`, `shift`, `unshift`, `splice`, `sort`, `reverse`. Others **return a new array** and leave the original alone — `slice`, `concat`, `map`, `filter`, spread `[...arr]`, and the newer `toSorted`, `toSpliced`. Knowing which is which prevents surprise changes to data other code relies on.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: slice returns a shallow copied range while splice mutates the source array. Your goal is to implement and test array traversal, update and copy operations. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A to-do app shows \"top 3 tasks\" using `tasks.splice(0, 3)` — and the full task list suddenly shrinks by three! `splice` doesn't copy; it cuts. slice returns a shallow copied range, while splice mutates the source array. In this lesson you'll implement and test array traversal, update and copy operations.\n\n```predict\n{\"question\": \"`const a = [1, 2, 3, 4]; const b = a.slice(1, 3);` What are a and b?\", \"options\": [\"a = [1, 4], b = [2, 3]\", \"a = [1, 2, 3, 4], b = [2, 3]\"], \"answer\": 1, \"why\": \"slice(start, end) copies from start up to (not including) end and leaves a unchanged.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Control flow and functions; pf data selection; Loops and iterable traversal. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Control flow and functions** module, **Data-structure choice**, and **Loops and iterable traversal**."
       },
       {
-        "heading": "Technology rule",
-        "body": "Arrays are ordered objects with a length and integer-indexed properties, supporting mutation and nonmutating transformations. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The distinction: mutate in place vs return a new array",
+        "body": "```js\nconst tasks = [\"wash\", \"cook\", \"read\", \"sleep\", \"run\"];\n\nconst top3 = tasks.slice(0, 3);     // new array; tasks unchanged\ntasks.push(\"call mum\");             // mutates: now 6 items\nconst removed = tasks.splice(1, 1); // mutates: removes \"cook\", returns [\"cook\"]\nconst copy = [...tasks];            // shallow copy\nconst last = tasks.at(-1);          // \"call mum\"\n```\n\n| Mutates the array | Returns a new array |\n|---|---|\n| push, pop, shift, unshift. | slice, concat, [...arr]. |\n| splice. | toSpliced. |\n| sort, reverse. | toSorted, toReversed. |\n| `arr[i] = x`. | map, filter. |\n\n```reveal\n{\"prompt\": \"Is `[...tasks]` a deep copy?\", \"answer\": \"No — it's shallow. The new array holds the same object references, so mutating an object inside affects both arrays.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Sparse holes, length assignment, reference identity, and in-place methods can surprise callers. This draft therefore rejects: slice and splice are interchangeable ways to copy an array section."
+        "heading": "Sort surprises",
+        "body": "```predict\n{\"question\": \"`[10, 9, 1].sort()` gives…\", \"options\": [\"[1, 9, 10]\", \"[1, 10, 9] — default sort compares as strings\"], \"answer\": 1, \"why\": \"Pass a comparator for numbers: `.sort((a, b) => a - b)`. And note sort mutates — use toSorted for a copy.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Create, index, copy and mutate arrays with explicit bounds and sparse-array awareness.",
-      "Implement and test array traversal, update and copy operations."
+      "Read, update and traverse arrays with indexes and at().",
+      "Tell mutating methods from copying ones and choose deliberately."
     ],
     "excludes": [
-      "Sparse holes, length assignment, reference identity, and in-place methods can surprise callers."
+      "map/filter/reduce pipelines (next lesson).",
+      "Typed arrays."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "javascript.collections.arrays.example-a",
-      "title": "Arrays and indexed data: concrete case",
+      "title": "slice copies, splice cuts",
       "situation": "slice returns a shallow copied range while splice mutates the source array.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: slice returns a shallow copied range while splice mutates the source array.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: slice is nonmutating, while splice mutates elements and length; choose from the ownership contract."
+        "**Bug:** `const top3 = tasks.splice(0, 3)` returns the first three but removes them from tasks — the list shrinks.",
+        "**slice returns a shallow copied range:** `tasks.slice(0, 3)` gives the same three and tasks keeps all five.",
+        "**Test:** after `slice`, a test will check `tasks.length === 5` and `top3.length === 3`."
       ],
-      "result": "The result follows because slice is nonmutating, while splice mutates elements and length; choose from the ownership contract."
+      "result": "The top-3 view works and the full task list stays intact."
     },
     {
       "id": "javascript.collections.arrays.example-b",
-      "title": "Arrays and indexed data: boundary case",
-      "situation": "Sparse holes, length assignment, reference identity, and in-place methods can surprise callers.",
+      "title": "The leaderboard that reordered the source",
+      "situation": "`function ranked(scores) { return scores.sort((a, b) => b - a); }` — after showing rankings, the original score history is reordered.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Sparse holes, length assignment, reference identity, and in-place methods can surprise callers.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: slice and splice are interchangeable ways to copy an array section."
+        "sort mutates the array it's called on.",
+        "The caller's history array was changed in place.",
+        "Fix: `return scores.toSorted((a, b) => b - a)` (or `[...scores].sort(...)`)."
       ],
-      "result": "The boundary requires this correction: slice is nonmutating, while splice mutates elements and length; choose from the ownership contract."
+      "result": "Rankings show correctly and the history keeps its original order."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.collections.arrays.misconception",
       "mistakenBelief": "slice and splice are interchangeable ways to copy an array section.",
-      "correction": "slice is nonmutating, while splice mutates elements and length; choose from the ownership contract.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: slice and splice are interchangeable ways to copy an array section."
+      "correction": "slice returns a new shallow copy of a range and leaves the source unchanged; splice removes (and optionally inserts) items in the source array and returns the removed items.",
+      "diagnosticPrompt": "In \"slice copies, splice cuts\", what happened to tasks with splice?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Arrays and indexed data, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "slice is like **photocopying pages 1–3** of a notebook; splice is like **tearing pages 1–3 out**. Both give you three pages — only one leaves the notebook whole.",
     "usefulFor": [
-      "Building a first mental model for Arrays and indexed data before using exact platform terms"
+      "remembering copy vs cut",
+      "choosing deliberately"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Sparse holes, length assignment, reference identity, and in-place methods can surprise callers."
+      "Photocopies of photos still show the same people — shallow copies share objects.",
+      "sort is like reshuffling the notebook's pages themselves."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "slice returns a shallow copied range while splice mutates the source array.",
-      "Arrays are ordered objects with a length and integer-indexed properties, supporting mutation and nonmutating transformations.",
-      "slice is nonmutating, while splice mutates elements and length; choose from the ownership contract."
+      "const tasks = ['wash','cook','read','sleep','run']",
+      "const top3 = tasks.slice(0, 3)",
+      "tasks.splice(0, 3)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Start",
         "state": {
-          "evidence": "slice returns a shallow copied range while splice mutates the source array."
+          "tasks.length": "5"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The task list holds five items."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "slice",
         "state": {
-          "rule": "Arrays are ordered objects with a length and integer-indexed properties, supporting mutation and nonmutating transformations."
+          "top3": "['wash','cook','read']",
+          "tasks.length": "5"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "slice returns a shallow copied range without touching tasks."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "splice",
         "state": {
-          "correction": "slice is nonmutating, while splice mutates elements and length; choose from the ownership contract."
+          "returned": "['wash','cook','read']",
+          "tasks": "['sleep','run']"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: slice and splice are interchangeable ways to copy an array section."
+        "explanation": "splice mutates the source array by removing the items."
       }
     ],
-    "textAlternative": "Starting artifact: slice returns a shallow copied range while splice mutates the source array. Step 1, Artifact. State: evidence: slice returns a shallow copied range while splice mutates the source array.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Arrays are ordered objects with a length and integer-indexed properties, supporting mutation and nonmutating transformations.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: slice is nonmutating, while splice mutates elements and length; choose from the ownership contract.. Check the result against the boundary and reject this misconception: slice and splice are interchangeable ways to copy an array section."
+    "textAlternative": "slice vs splice. Step 1, Start: tasks.length is 5. The task list holds five items. Step 2, slice: top3 is ['wash','cook','read']; tasks.length is 5. slice returns a shallow copied range without touching tasks. Step 3, splice: returned is ['wash','cook','read']; tasks is ['sleep','run']. splice mutates the source array by removing the items."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Arrays and indexed data: concrete case”: state its starting evidence, apply the Arrays and indexed data rule, and give the observable result in three short lines.",
+      "prompt": "For \"slice copies, splice cuts\", explain why slice returns a shallow copied range while splice mutates the source array, and what a test should check.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "slice.",
+        "splice.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Arrays and indexed data: concrete case.",
-        "Starting evidence: slice returns a shallow copied range while splice mutates the source array.",
-        "Core rule: Arrays are ordered objects with a length and integer-indexed properties, supporting mutation and nonmutating transformations.",
-        "Observable result: The result follows because slice is nonmutating, while splice mutates elements and length; choose from the ownership contract.",
-        "Boundary check: slice is nonmutating, while splice mutates elements and length; choose from the ownership contract."
+        "Names the example \"slice copies, splice cuts\": slice returns a shallow copied range.",
+        "splice mutates the source array.",
+        "With slice, tasks keeps all five items.",
+        "A test checks tasks.length is 5 and top3.length is 3, so the top-3 view works and the full task list stays intact."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Sparse holes, length assignment, reference identity, and in-place methods can surprise callers.",
+      "prompt": "Given `const nums = [5, 1, 10]`, produce a numerically sorted copy without changing nums, then remove the middle element of the copy.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "toSorted with comparator.",
+        "splice on the copy only."
       ],
       "expectedEvidence": [
-        "Arrays are ordered objects with a length and integer-indexed properties, supporting mutation and nonmutating transformations.",
-        "Sparse holes, length assignment, reference identity, and in-place methods can surprise callers."
+        "`const sorted = nums.toSorted((a, b) => a - b)` → [1, 5, 10].",
+        "`sorted.splice(1, 1)` → sorted is [1, 10]; nums still [5, 1, 10]."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Arrays and indexed data and explain why the misconception fails.",
+      "prompt": "Write `moveItem(list, from, to)` that returns a new array with one item moved, leaving the input unchanged. Test first, last, same-position and out-of-range cases.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Copy first, or use toSpliced.",
+        "Decide what out-of-range does."
       ],
       "expectedEvidence": [
-        "Implement and test array traversal, update and copy operations.",
-        "slice is nonmutating, while splice mutates elements and length; choose from the ownership contract."
+        "Pure function returning a new array.",
+        "Tests for all listed cases, including input unchanged."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.collections.arrays.misconception",
-      "explanation": "slice is nonmutating, while splice mutates elements and length; choose from the ownership contract.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'splice mutates' and state the decisive evidence."
+      "explanation": "Before calling an array method, ask: **Does this change the array other code is using?** If yes and you don't want that, use the copying version (slice, toSorted, toSpliced, spread).",
+      "retryPrompt": "Apply this to \"The leaderboard that reordered the source\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test array traversal, update and copy operations. Keep this boundary in view: Sparse holes, length assignment, reference identity, and in-place methods can surprise callers.",
+    "summary": "To implement and test array traversal, update and copy operations, index from 0 (at(-1) for the last item), know which methods mutate (push, splice, sort) and which return new arrays (slice, map, toSorted), remember copies are shallow, and test that source arrays stay unchanged when they should.",
     "retrievalPrompts": [
-      "Explain Arrays and indexed data using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: slice and splice are interchangeable ways to copy an array section.",
-      "Apply checkpoint 'splice mutates' to a new artifact."
+      "What's the difference between slice and splice?",
+      "Why does [10, 9, 1].sort() give a surprising order?",
+      "Is spread a deep copy?"
     ],
     "nextReviewPrompt": "Next: continue to “Array transformation methods”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

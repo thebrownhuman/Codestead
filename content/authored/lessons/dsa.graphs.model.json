@@ -33,38 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A graph models vertices and directed or undirected edges, optionally with weights, labels, self-loops, or parallel edges.",
+    "summary": "A **graph** is a set of **vertices** (things) and **edges** (relationships between them). Deciding the graph's properties is the first design step. **Directed or undirected**: does A → B imply B → A? Friendship does; \"requires\" doesn't. **Weighted**: does each edge carry a number, like minutes or cost? **Self-loops and parallel edges**: can a vertex link to itself, or can two edges join the same pair? **Labels**: what extra data sits on vertices and edges? Getting these wrong gives wrong answers from correct algorithms: an undirected prerequisite graph would say Loops requires Recursion.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A course prerequisite graph is directed because A requiring B does not imply B requires A. Your goal is to model a real relationship problem as vertices and edges with justified graph properties. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Codestead wants to show which lessons must be finished before others. A developer stores \"Recursion requires Functions\" as a simple two-way link, and the app starts telling learners they need Recursion before Functions. A course prerequisite graph is directed because A requiring B does not imply B requires A. In this lesson you'll model a real relationship problem as vertices and edges with justified graph properties.\n\n```predict\n{\"question\": \"Learners following each other on a study forum (you can follow someone who doesn't follow you). Directed or undirected?\", \"options\": [\"Undirected\", \"Directed: A follows B doesn't mean B follows A\"], \"answer\": 1, \"why\": \"Ask whether the relationship is symmetric. Following isn't; friendship is.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Stacks, queues and deques; Hash tables, sets and maps; Algorithm specification and invariants; pf data selection. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Stacks, queues and deques** module, the **Hash tables, sets and maps** module, **Algorithm specification and invariants**, and **Data-structure choice** (choosing a data shape for a problem)."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "A graph models vertices and directed or undirected edges, optionally with weights, labels, self-loops, or parallel edges. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The model: vertices, edges, and their properties",
+        "body": "```python\n# Prerequisites: directed, unweighted. Edge B -> A means \"B must come before A\".\nprereqs = {\n    \"Variables\": [\"Loops\", \"Functions\"],\n    \"Functions\": [\"Recursion\"],\n    \"Loops\": [],\n    \"Recursion\": [],\n}\n\n# Campus walking paths: undirected, weighted (minutes). Store both directions.\nwalk = {\n    \"Library\": {\"Cafe\": 2, \"Lab\": 7},\n    \"Cafe\": {\"Library\": 2, \"Lab\": 3},\n    \"Lab\": {\"Library\": 7, \"Cafe\": 3},\n}\n```\n\n| Question | Prerequisites | Campus paths | Study-forum follows |\n|---|---|---|---|\n| directed? | yes. | no. | yes. |\n| weighted? | no. | yes (minutes). | no. |\n| self-loops? | never. | no. | no. |\n| parallel edges? | no. | maybe (two routes). | no. |\n\n| Term | Meaning |\n|---|---|\n| degree. | number of edges at a vertex (in and out, if directed). |\n| path. | a sequence of edges joining vertices. |\n| cycle. | a path that returns to its start. |\n\n```reveal\n{\"prompt\": \"When would you allow parallel edges?\", \"answer\": \"When two different connections between the same pair matter, like two bus routes between the same stops with different times.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Problem semantics decide whether direction, multiplicity, and disconnected vertices matter. The draft therefore rejects: Every relationship graph should be treated as undirected for simpler traversal."
+        "heading": "Don't simplify away the meaning",
+        "body": "```predict\n{\"question\": \"Treating the prerequisite graph as undirected \\\"to make traversal simpler\\\". Harmless?\", \"options\": [\"Yes, fewer cases\", \"No: it invents false requirements in the reverse direction\"], \"answer\": 1, \"why\": \"The model must match the relationship before any algorithm runs.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Distinguish directed, undirected, weighted, cyclic, connected and simple graph properties.",
-      "Model a real relationship problem as vertices and edges with justified graph properties.",
-      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      "Identify vertices, edges and properties (directed, weighted, loops, parallel edges) for real problems.",
+      "Justify each property from the relationship's meaning."
     ],
     "excludes": [
-      "Problem semantics decide whether direction, multiplicity, and disconnected vertices matter."
+      "Storage representations (next lesson).",
+      "Hypergraphs and multigraph algorithms."
     ]
   },
   "outcomes": [
@@ -73,142 +69,136 @@
   "examples": [
     {
       "id": "dsa.graphs.model.example-a",
-      "title": "Graph terminology and models: language-neutral trace",
+      "title": "Which lesson needs which?",
       "situation": "A course prerequisite graph is directed because A requiring B does not imply B requires A.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: A course prerequisite graph is directed because A requiring B does not imply B requires A.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Choose edge direction and graph features from the relationship semantics before selecting an algorithm."
+        "**Vertices and edges:** each lesson is a vertex; an edge Functions → Recursion means Functions comes first.",
+        "**Directed because the relationship isn't symmetric:** Recursion requiring Functions doesn't mean Functions requires Recursion.",
+        "**Check:** a test will confirm \"Recursion\" is not listed as a prerequisite of \"Functions\" in the stored graph."
       ],
-      "result": "The conceptual result follows because Choose edge direction and graph features from the relationship semantics before selecting an algorithm."
+      "result": "The app shows correct prerequisites, and later algorithms (like topological ordering) work on a faithful model."
     },
     {
       "id": "dsa.graphs.model.example-b",
-      "title": "Graph terminology and models: implementation transfer",
-      "situation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
+      "title": "The travel-time map",
+      "situation": "A campus app must find the quickest walk between buildings. Paths can be walked both ways, and some have stairs that take longer.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
-        "Step 3 — Retest this boundary in the selected implementation: Problem semantics decide whether direction, multiplicity, and disconnected vertices matter."
+        "Vertices: buildings; edges: paths.",
+        "Undirected (walkable both ways) and weighted by minutes.",
+        "If one path is one-way (a fire exit), model that edge as directed."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "The model supports correct shortest-time searches, including the one-way exit."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.graphs.model.misconception",
       "mistakenBelief": "Every relationship graph should be treated as undirected for simpler traversal.",
-      "correction": "Choose edge direction and graph features from the relationship semantics before selecting an algorithm.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Every relationship graph should be treated as undirected for simpler traversal."
+      "correction": "Direction is part of the meaning. Symmetric relationships (friendship, two-way paths) are undirected; asymmetric ones (requires, follows, one-way streets) must be directed or the results will be wrong.",
+      "diagnosticPrompt": "In \"Which lesson needs which?\", what went wrong with the two-way link?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Graph terminology and models, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Modelling a graph is like **drawing a map before a trip**: towns are vertices, roads are edges. Mark one-way streets with arrows (directed) and write the travel time on each road (weights). Forget the arrows and the satnav will send you the wrong way up a one-way street.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering the map comes first",
+      "arrows = asymmetric relationships"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Problem semantics decide whether direction, multiplicity, and disconnected vertices matter."
+      "Maps are drawn once; graphs change as data changes.",
+      "Two roads between the same towns are parallel edges."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A course prerequisite graph is directed because A requiring B does not imply B requires A.",
-      "A graph models vertices and directed or undirected edges, optionally with weights, labels, self-loops, or parallel edges.",
-      "Choose edge direction and graph features from the relationship semantics before selecting an algorithm.",
-      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      "relationship: Functions before Recursion",
+      "choose properties",
+      "store edge"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Identify",
         "state": {
-          "scenario": "A course prerequisite graph is directed because A requiring B does not imply B requires A."
+          "vertices": "Functions, Recursion",
+          "relationship": "requires"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The lessons become vertices and the requirement becomes an edge."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Decide",
         "state": {
-          "invariant": "A graph models vertices and directed or undirected edges, optionally with weights, labels, self-loops, or parallel edges."
+          "symmetric?": "no",
+          "direction": "Functions → Recursion"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "A course prerequisite graph is directed because requiring isn't mutual."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Store",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "prereqs['Functions']": "['Recursion']",
+          "reverse edge": "none"
         },
-        "explanation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Choose edge direction and graph features from the relationship semantics before selecting an algorithm."
-        },
-        "explanation": "Verify the result and reject this misconception: Every relationship graph should be treated as undirected for simpler traversal."
+        "explanation": "Only the true direction is stored."
       }
     ],
-    "textAlternative": "Starting artifact: A course prerequisite graph is directed because A requiring B does not imply B requires A. Step 1, Specification. State: scenario: A course prerequisite graph is directed because A requiring B does not imply B requires A.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: A graph models vertices and directed or undirected edges, optionally with weights, labels, self-loops, or parallel edges.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target. Step 4, Conclusion. State: correction: Choose edge direction and graph features from the relationship semantics before selecting an algorithm.. Verify the result and reject this misconception: Every relationship graph should be treated as undirected for simpler traversal."
+    "textAlternative": "Modelling one prerequisite. Step 1, Identify: vertices is Functions, Recursion; relationship is requires. The lessons become vertices and the requirement becomes an edge. Step 2, Decide: symmetric? is no; direction is Functions → Recursion. A course prerequisite graph is directed because requiring isn't mutual. Step 3, Store: prereqs['Functions'] is ['Recursion']; reverse edge is none. Only the true direction is stored."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Graph terminology and models: language-neutral trace”: state its starting evidence, apply the Graph terminology and models rule, and give the observable result in three short lines.",
+      "prompt": "For \"Which lesson needs which?\", explain why a course prerequisite graph is directed because A requiring B does not imply B requires A.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Vertices and edges.",
+        "Direction.",
+        "Check."
       ],
       "expectedEvidence": [
-        "Named example: Graph terminology and models: language-neutral trace.",
-        "Starting evidence: A course prerequisite graph is directed because A requiring B does not imply B requires A.",
-        "Core rule: A graph models vertices and directed or undirected edges, optionally with weights, labels, self-loops, or parallel edges.",
-        "Observable result: The conceptual result follows because Choose edge direction and graph features from the relationship semantics before selecting an algorithm.",
-        "Boundary check: Choose edge direction and graph features from the relationship semantics before selecting an algorithm."
+        "Names the example \"Which lesson needs which?\": lessons are vertices and requirements are edges.",
+        "A course prerequisite graph is directed.",
+        "A requiring B does not imply B requires A.",
+        "The app shows correct prerequisites."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: A graph models vertices and directed or undirected edges, optionally with weights, labels, self-loops, or parallel edges.",
+      "prompt": "Model these as graphs and justify each property: (a) a study group's mutual friendships; (b) video recommendations \"watch next\"; (c) flights with prices.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Symmetric or not?",
+        "Is there a number on each edge?"
       ],
       "expectedEvidence": [
-        "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
-        "Problem semantics decide whether direction, multiplicity, and disconnected vertices matter."
+        "(a) undirected, unweighted; (b) directed.",
+        "(c) directed, weighted by price; parallel edges for different airlines."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Graph terminology and models case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Pick a real system (course catalog, bus routes or a to-do app). Write its graph model: vertices, edges, direction, weights, labels, and whether loops or parallel edges are allowed, with a reason for each.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "One sentence of justification per property.",
+        "Give a tiny example graph."
       ],
       "expectedEvidence": [
-        "Model a real relationship problem as vertices and edges with justified graph properties.",
-        "Choose edge direction and graph features from the relationship semantics before selecting an algorithm."
+        "A complete, justified model.",
+        "An example stored in code."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.graphs.model.misconception",
-      "explanation": "Choose edge direction and graph features from the relationship semantics before selecting an algorithm.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'relationship semantics', then state one implementation-specific risk in the selected language."
+      "explanation": "For every relationship ask: **Is it mutual? Does it have a cost or amount? Can something relate to itself? Can two things relate in more than one way?** Record each answer before coding.",
+      "retryPrompt": "Apply this to \"The travel-time map\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to model a real relationship problem as vertices and edges with justified graph properties. Keep this boundary in view: Problem semantics decide whether direction, multiplicity, and disconnected vertices matter.",
+    "summary": "To model a real relationship problem as a graph, choose vertices and edges, then justify each property: directed when the relationship isn't mutual (like prerequisites), weighted when edges carry costs, and whether self-loops or parallel edges are allowed, so later algorithms answer the real question.",
     "retrievalPrompts": [
-      "State the Graph terminology and models invariant and complexity without code.",
-      "Why is this claim false: Every relationship graph should be treated as undirected for simpler traversal.",
-      "Map checkpoint 'relationship semantics' to C, C++, Java, and Python."
+      "How do you decide if a graph is directed?",
+      "What does a weight represent?",
+      "Why not make every graph undirected?"
     ],
     "nextReviewPrompt": "Next: continue to “Adjacency list and matrix”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

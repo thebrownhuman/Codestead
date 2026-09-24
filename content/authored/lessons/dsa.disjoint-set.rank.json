@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Union by rank or size attaches the shallower or smaller tree beneath the larger representative to limit height.",
+    "summary": "Plain union can build a long chain, making find O(n). **Union by rank** keeps trees short: each root stores a **rank**, an upper bound on its tree's height. When joining two roots, attach the **lower-rank** root **under the higher-rank** one; the height doesn't grow. Only when the ranks are **equal** do you pick either as the new root and **increase its rank by 1**. **Union by size** does the same with member counts: the smaller tree goes under the larger. Either way, tree height stays **O(log n)**, so find is O(log n) even before path compression.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Equal-rank roots are joined and the chosen new root's rank increases once. Your goal is to implement and trace union by rank or size while preserving representatives. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A platform merges learners into study groups one pair at a time, always attaching the old group under the newest learner. After 10,000 merges, checking whether two learners share a group walks a chain thousands of links long. Equal-rank roots are joined and the chosen new root's rank increases once. In this lesson you'll implement and trace union by rank or size while preserving representatives.\n\n```predict\n{\"question\": \"Root A has rank 3, root B has rank 1. Which goes under which?\", \"options\": [\"A under B\", \"B under A: the lower rank joins the higher\"], \"answer\": 1, \"why\": \"Hanging the short tree under the tall one keeps the height at 3.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Tree terminology and representation; Array representation and operations; Make, find and union. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Tree terminology and representation**, **Array representation and operations**, and **Make, find and union**."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Union by rank or size attaches the shallower or smaller tree beneath the larger representative to limit height. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The rule: short tree under tall tree",
+        "body": "```python\nclass DisjointSet:\n    def __init__(self, n):\n        self.parent = list(range(n))\n        self.rank = [0] * n                # upper bound on tree height.\n\n    def find(self, x):\n        while self.parent[x] != x:\n            x = self.parent[x]\n        return x\n\n    def union(self, x, y):\n        rx, ry = self.find(x), self.find(y)\n        if rx == ry:\n            return False\n        if self.rank[rx] < self.rank[ry]:\n            rx, ry = ry, rx                # make rx the higher (or equal) rank.\n        self.parent[ry] = rx               # lower rank goes under.\n        if self.rank[rx] == self.rank[ry]:\n            self.rank[rx] += 1             # equal ranks: height grows by one.\n        return True\n```\n\n| Ranks of the two roots | New root | New root's rank |\n|---|---|---|\n| 3 and 1. | the rank-3 root. | stays 3. |\n| 2 and 2. | either one. | becomes 3. |\n| 0 and 0 (two singletons). | either one. | becomes 1. |\n\n```reveal\n{\"prompt\": \"Why does this keep height O(log n)?\", \"answer\": \"A root reaches rank r only by merging two rank r - 1 trees, so a rank-r tree has at least 2^r members. With n members, r can't exceed log2 n.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Rank is a height bound rather than set size when used with compression, and ties require a consistent update. The draft therefore rejects: Union by rank attaches the larger-rank root under the smaller one."
+        "heading": "Size instead of rank",
+        "body": "```predict\n{\"question\": \"Union by size: group A has 50 members, group B has 3. Which root becomes the parent?\", \"options\": [\"B's root\", \"A's root: the smaller group goes under the larger\"], \"answer\": 1, \"why\": \"Size gives the same O(log n) height guarantee and also tells you group sizes for free.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Attach smaller or shallower trees to control height.",
-      "Implement and trace union by rank or size while preserving representatives.",
-      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      "Implement union by rank (or size) and update rank only on equal ranks.",
+      "Trace unions and explain the O(log n) height bound."
     ],
     "excludes": [
-      "Rank is a height bound rather than set size when used with compression, and ties require a consistent update."
+      "Path compression (next lesson).",
+      "Amortised inverse-Ackermann analysis."
     ]
   },
   "outcomes": [
@@ -68,142 +64,136 @@
   "examples": [
     {
       "id": "dsa.disjoint-set.rank.example-a",
-      "title": "Union by rank or size: language-neutral trace",
+      "title": "Keeping study-group trees short",
       "situation": "Equal-rank roots are joined and the chosen new root's rank increases once.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: Equal-rank roots are joined and the chosen new root's rank increases once.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Attach the lower-rank root under the higher-rank root to preserve a shallow structure."
+        "**Singletons:** union(0, 1) joins two rank-0 roots; 0 becomes the root and its rank rises to 1.",
+        "**Unequal ranks:** union(0, 2) puts rank-0 root 2 under rank-1 root 0, and the rank stays 1.",
+        "**Equal again:** union of two rank-1 groups makes one root rank 2; a test will check heights never exceed log2 of the group size."
       ],
-      "result": "The conceptual result follows because Attach the lower-rank root under the higher-rank root to preserve a shallow structure."
+      "result": "Membership checks stay fast after thousands of merges, because trees stay short."
     },
     {
       "id": "dsa.disjoint-set.rank.example-b",
-      "title": "Union by rank or size: implementation transfer",
-      "situation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
+      "title": "The chain built by always attaching left",
+      "situation": "A union that always sets parent[root(x)] = root(y) is given pairs (0, 1), (1, 2), (2, 3), ... up to 9,999. find(0) walks 9,999 links.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
-        "Step 3 — Retest this boundary in the selected implementation: Rank is a height bound rather than set size when used with compression, and ties require a consistent update."
+        "Each union put the whole existing tree under a new single item.",
+        "With union by rank, each new singleton (rank 0) goes under the big tree's root.",
+        "The tree stays height 1 for this sequence."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "find(0) takes one step instead of thousands."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.disjoint-set.rank.misconception",
       "mistakenBelief": "Union by rank attaches the larger-rank root under the smaller one.",
-      "correction": "Attach the lower-rank root under the higher-rank root to preserve a shallow structure.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Union by rank attaches the larger-rank root under the smaller one."
+      "correction": "It's the opposite: the lower-rank (shorter) tree is attached under the higher-rank root, so the combined height doesn't grow. Height grows only when two equal ranks meet.",
+      "diagnosticPrompt": "In the opening predict, which root stayed on top?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Union by rank or size, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Union by rank is like **merging two companies' org charts**: you place the smaller chart under the bigger company's CEO, so the chain of command doesn't get deeper. Only when two equally deep charts merge does the combined chart get one level deeper.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering short under tall",
+      "equal ranks = one level deeper"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Rank is a height bound rather than set size when used with compression, and ties require a consistent update."
+      "Real mergers negotiate; here the rule is fixed.",
+      "Size-based merging compares headcount instead of depth."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Equal-rank roots are joined and the chosen new root's rank increases once.",
-      "Union by rank or size attaches the shallower or smaller tree beneath the larger representative to limit height.",
-      "Attach the lower-rank root under the higher-rank root to preserve a shallow structure.",
-      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      "4 singletons, rank all 0",
+      "union(0,1), union(2,3)",
+      "union(0,2)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Pairs",
         "state": {
-          "scenario": "Equal-rank roots are joined and the chosen new root's rank increases once."
+          "roots": "0 (rank 1), 2 (rank 1)"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "Each pair of equal rank-0 roots makes a rank-1 root."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Equal ranks",
         "state": {
-          "invariant": "Union by rank or size attaches the shallower or smaller tree beneath the larger representative to limit height."
+          "new root": "0",
+          "rank[0]": "2",
+          "parent[2]": "0"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "Equal-rank roots are joined and the chosen new root's rank increases once."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Height",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "height": "2",
+          "members": "4 = 2^2"
         },
-        "explanation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Attach the lower-rank root under the higher-rank root to preserve a shallow structure."
-        },
-        "explanation": "Verify the result and reject this misconception: Union by rank attaches the larger-rank root under the smaller one."
+        "explanation": "The tree's height stays within log2 of its size."
       }
     ],
-    "textAlternative": "Starting artifact: Equal-rank roots are joined and the chosen new root's rank increases once. Step 1, Specification. State: scenario: Equal-rank roots are joined and the chosen new root's rank increases once.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Union by rank or size attaches the shallower or smaller tree beneath the larger representative to limit height.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target. Step 4, Conclusion. State: correction: Attach the lower-rank root under the higher-rank root to preserve a shallow structure.. Verify the result and reject this misconception: Union by rank attaches the larger-rank root under the smaller one."
+    "textAlternative": "Tracing union by rank. Step 1, Pairs: roots is 0 (rank 1), 2 (rank 1). Each pair of equal rank-0 roots makes a rank-1 root. Step 2, Equal ranks: new root is 0; rank[0] is 2; parent[2] is 0. Equal-rank roots are joined and the chosen new root's rank increases once. Step 3, Height: height is 2; members is 4 = 2^2. The tree's height stays within log2 of its size."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Union by rank or size: language-neutral trace”: state its starting evidence, apply the Union by rank or size rule, and give the observable result in three short lines.",
+      "prompt": "For \"Keeping study-group trees short\", explain how equal-rank roots are joined and the chosen new root's rank increases once.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Singletons.",
+        "Unequal.",
+        "Equal again."
       ],
       "expectedEvidence": [
-        "Named example: Union by rank or size: language-neutral trace.",
-        "Starting evidence: Equal-rank roots are joined and the chosen new root's rank increases once.",
-        "Core rule: Union by rank or size attaches the shallower or smaller tree beneath the larger representative to limit height.",
-        "Observable result: The conceptual result follows because Attach the lower-rank root under the higher-rank root to preserve a shallow structure.",
-        "Boundary check: Attach the lower-rank root under the higher-rank root to preserve a shallow structure."
+        "Names the example \"Keeping study-group trees short\": chains made find slow.",
+        "Unequal ranks put the lower under the higher.",
+        "Equal-rank roots are joined and the chosen new root's rank increases once.",
+        "Membership checks stay fast after thousands of merges."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Union by rank or size attaches the shallower or smaller tree beneath the larger representative to limit height.",
+      "prompt": "Implement union by size: keep size[root], put the smaller root under the larger, and add sizes. Trace union(0,1), union(2,0), union(3,4), union(4,0) on 5 singletons.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "size starts at 1.",
+        "Ties: pick either."
       ],
       "expectedEvidence": [
-        "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
-        "Rank is a height bound rather than set size when used with compression, and ties require a consistent update."
+        "Final root holds size 5.",
+        "No tree taller than 2."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Union by rank or size case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Measure the maximum find path length for plain union vs union by rank on 100,000 random and 100,000 chain-shaped unions. Report the numbers and compare with log2(100,000).",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Count parent steps in find.",
+        "Same union sequences for both."
       ],
       "expectedEvidence": [
-        "Implement and trace union by rank or size while preserving representatives.",
-        "Attach the lower-rank root under the higher-rank root to preserve a shallow structure."
+        "Rank version stays around log n or less.",
+        "Plain version grows long on chains."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.disjoint-set.rank.misconception",
-      "explanation": "Attach the lower-rank root under the higher-rank root to preserve a shallow structure.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'lower-rank root', then state one implementation-specific risk in the selected language."
+      "explanation": "At each union say: **\"lower rank goes under; if equal, bump the new root's rank.\"** Update rank only for roots and only on ties.",
+      "retryPrompt": "Apply this to \"The chain built by always attaching left\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and trace union by rank or size while preserving representatives. Keep this boundary in view: Rank is a height bound rather than set size when used with compression, and ties require a consistent update.",
+    "summary": "To implement union by rank or size, attach the lower-rank (or smaller) root under the higher-rank (or larger) one, increase the new root's rank only when two equal ranks join, and keep representatives as roots, which bounds tree height by O(log n) and keeps find fast.",
     "retrievalPrompts": [
-      "State the Union by rank or size invariant and complexity without code.",
-      "Why is this claim false: Union by rank attaches the larger-rank root under the smaller one.",
-      "Map checkpoint 'lower-rank root' to C, C++, Java, and Python."
+      "Which root goes under when ranks differ?",
+      "When does a rank increase?",
+      "Why is height O(log n) with union by rank?"
     ],
     "nextReviewPrompt": "Next: continue to “Path compression”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

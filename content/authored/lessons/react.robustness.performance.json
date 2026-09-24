@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "React performance work starts with measured user impact, component render cost, network, bundle, and DOM evidence.",
+    "summary": "Performance work starts with a **symptom learners feel**, such as slow typing, a janky scroll or a long first load, and then **evidence** of where the time goes. Check the React Profiler for slow renders, the browser Performance panel for long tasks, the Network panel for slow or big requests, and the bundle size for slow startup. Pick the fix that matches the cause: render fewer rows (pagination or virtualization), move state down so less re-renders, split code, or cache data. **Measure again** afterwards, and if nothing is actually slow, the right change is **no change**.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Profiler evidence identifies a slow 5000-row render before pagination or virtualization is selected. Your goal is to record a render-performance observation and justify either a targeted optimization or no change. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "An admin page lists all 5,000 learner submissions. Typing in its filter box lags about half a second per key. Someone proposes wrapping every row in memo. Profiler evidence identifies a slow 5000-row render before pagination or virtualization is selected. In this lesson you'll record a render-performance observation and justify either a targeted optimization or no change.\n\n```predict\n{\"question\": \"A component re-renders on every keystroke but each render takes 0.2 ms. Should you optimise it?\", \"options\": [\"Yes, every re-render is a bug\", \"No: it's fast enough; re-rendering is normal\"], \"answer\": 1, \"why\": \"Optimise measured slowness that users notice, not re-renders in general.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Routing and application context; Remote data and asynchronous UI; React developer tools; Minimal and normalized state. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Routing and application context** module, the **Remote data and asynchronous UI** module, **React developer tools** (the Profiler), and **Minimal and normalized state**, since smaller state can mean fewer re-renders."
       },
       {
-        "heading": "Technology rule",
-        "body": "React performance work starts with measured user impact, component render cost, network, bundle, and DOM evidence. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: symptom, evidence, targeted fix, re-measure",
+        "body": "| Symptom | Evidence to collect | Likely fix |\n|---|---|---|\n| typing lags. | Profiler: which component's render is slow. | render fewer items, move state down, memo a slow child. |\n| long first load. | Network + bundle size. | code-split routes, smaller dependencies. |\n| scroll janks. | Performance panel long tasks. | virtualize long lists, avoid layout thrash. |\n| spinner for ages. | Network timings. | cache, paginate, fix the API. |\n\n```text\nObservation note.\nSymptom: filter input lags ~500 ms per key.\nProfiler: SubmissionList render 480 ms, 5000 SubmissionRow children.\nCause: every keystroke re-renders 5000 rows.\nFix chosen: paginate to 50 rows per page.\nAfter: SubmissionList render 6 ms; typing feels instant.\n```\n\n```reveal\n{\"prompt\": \"Why paginate instead of memoizing each row?\", \"answer\": \"Memo still has to compare 5000 rows' props on every keystroke. Rendering 50 rows removes most of the work instead of skipping it one row at a time.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Development timings differ, rerenders can be cheap, virtualization affects accessibility, and premature caching adds complexity. This draft therefore rejects: Every rerender is a performance bug that should be prevented."
+        "heading": "When the answer is no change",
+        "body": "```predict\n{\"question\": \"The Profiler shows the slowest render is 3 ms, but the page still feels slow to open. Where next?\", \"options\": [\"Add useMemo everywhere\", \"Check the Network panel and bundle size; rendering isn't the bottleneck\"], \"answer\": 1, \"why\": \"Follow the evidence. React renders may not be the problem at all.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use React performance tools to identify actual expensive renders before memoizing.",
-      "Record a render-performance observation and justify either a targeted optimization or no change."
+      "Record a symptom and profiler or network evidence before optimising.",
+      "Choose a targeted fix, or justify no change, and re-measure."
     ],
     "excludes": [
-      "Development timings differ, rerenders can be cheap, virtualization affects accessibility, and premature caching adds complexity."
+      "memo, useMemo and useCallback details (next lesson).",
+      "Server performance tuning."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "react.robustness.performance.example-a",
-      "title": "Measure before optimization: concrete case",
+      "title": "The 5,000-row list",
       "situation": "Profiler evidence identifies a slow 5000-row render before pagination or virtualization is selected.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: Profiler evidence identifies a slow 5000-row render before pagination or virtualization is selected.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Rerenders are normal; optimize measured expensive work and verify the user-visible improvement."
+        "**Symptom:** typing in the filter lags about half a second on each key.",
+        "**Profiler evidence:** SubmissionList takes 480 ms per commit, rendering all 5000 rows.",
+        "**Select and re-measure:** pagination to 50 rows will cut the render to about 6 ms; a second recording confirms it."
       ],
-      "result": "The result follows because Rerenders are normal; optimize measured expensive work and verify the user-visible improvement."
+      "result": "Typing is instant again, and the change is justified by before-and-after measurements."
     },
     {
       "id": "react.robustness.performance.example-b",
-      "title": "Measure before optimization: boundary case",
-      "situation": "Development timings differ, rerenders can be cheap, virtualization affects accessibility, and premature caching adds complexity.",
+      "title": "The optimisation that did nothing",
+      "situation": "A developer wraps 30 small components in memo and useCallback \"for speed\". The app is no faster and the code is harder to read.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Development timings differ, rerenders can be cheap, virtualization affects accessibility, and premature caching adds complexity.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Every rerender is a performance bug that should be prevented."
+        "There was no measured slow render to begin with.",
+        "The real delay was a 2 MB chart library loaded on the home page.",
+        "Fix: remove the needless memo, lazy-load the chart route, and measure the first load."
       ],
-      "result": "The boundary requires this correction: Rerenders are normal; optimize measured expensive work and verify the user-visible improvement."
+      "result": "The home page loads faster, and the components are simple again."
     }
   ],
   "misconceptions": [
     {
       "id": "react.robustness.performance.misconception",
       "mistakenBelief": "Every rerender is a performance bug that should be prevented.",
-      "correction": "Rerenders are normal; optimize measured expensive work and verify the user-visible improvement.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Every rerender is a performance bug that should be prevented."
+      "correction": "Re-rendering is how React updates the screen and is usually cheap. Only renders that measurably slow down what learners do deserve optimisation, and the fix should match the measured cause.",
+      "diagnosticPrompt": "In the opening predict, why wasn't the 0.2 ms render worth optimising?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Measure before optimization, where inputs and state produce a UI description.",
+    "example": "Performance work is like **a doctor's visit**: start from the symptom (\"it hurts when I type\"), run the right test (Profiler, network), treat the actual cause, then check again. Handing out medicine for every organ (memo everywhere) doesn't cure anything.",
     "usefulFor": [
-      "Building a first mental model for Measure before optimization before using exact platform terms"
+      "remembering symptom, evidence, fix, re-check",
+      "no change = healthy result"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Development timings differ, rerenders can be cheap, virtualization affects accessibility, and premature caching adds complexity."
+      "Doctors can't undo treatments easily; you can revert code.",
+      "Some symptoms come from other departments: network or bundle, not React."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Profiler evidence identifies a slow 5000-row render before pagination or virtualization is selected.",
-      "React performance work starts with measured user impact, component render cost, network, bundle, and DOM evidence.",
-      "Rerenders are normal; optimize measured expensive work and verify the user-visible improvement."
+      "record typing 'asha' in the Profiler",
+      "read the flame chart",
+      "paginate and record again"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Record",
         "state": {
-          "evidence": "Profiler evidence identifies a slow 5000-row render before pagination or virtualization is selected."
+          "commits": "4",
+          "SubmissionList": "480 ms each"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "Profiler evidence identifies a slow 5000-row render."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Choose",
         "state": {
-          "rule": "React performance work starts with measured user impact, component render cost, network, bundle, and DOM evidence."
+          "cause": "5000 rows per render",
+          "fix": "pagination"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Pagination or virtualization is selected based on that evidence."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Re-measure",
         "state": {
-          "correction": "Rerenders are normal; optimize measured expensive work and verify the user-visible improvement."
+          "SubmissionList": "6 ms",
+          "typing": "instant"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Every rerender is a performance bug that should be prevented."
+        "explanation": "A second recording confirms the targeted fix."
       }
     ],
-    "textAlternative": "Starting artifact: Profiler evidence identifies a slow 5000-row render before pagination or virtualization is selected. Step 1, Artifact. State: evidence: Profiler evidence identifies a slow 5000-row render before pagination or virtualization is selected.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: React performance work starts with measured user impact, component render cost, network, bundle, and DOM evidence.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Rerenders are normal; optimize measured expensive work and verify the user-visible improvement.. Check the result against the boundary and reject this misconception: Every rerender is a performance bug that should be prevented."
+    "textAlternative": "Tracing a performance investigation. Step 1, Record: commits is 4; SubmissionList is 480 ms each. Profiler evidence identifies a slow 5000-row render. Step 2, Choose: cause is 5000 rows per render; fix is pagination. Pagination or virtualization is selected based on that evidence. Step 3, Re-measure: SubmissionList is 6 ms; typing is instant. A second recording confirms the targeted fix."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Measure before optimization: concrete case”: state its starting evidence, apply the Measure before optimization rule, and give the observable result in three short lines.",
+      "prompt": "For \"The 5,000-row list\", explain how Profiler evidence identifies a slow 5000-row render before pagination or virtualization is selected.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Symptom.",
+        "Evidence.",
+        "Fix and re-measure."
       ],
       "expectedEvidence": [
-        "Named example: Measure before optimization: concrete case.",
-        "Starting evidence: Profiler evidence identifies a slow 5000-row render before pagination or virtualization is selected.",
-        "Core rule: React performance work starts with measured user impact, component render cost, network, bundle, and DOM evidence.",
-        "Observable result: The result follows because Rerenders are normal; optimize measured expensive work and verify the user-visible improvement.",
-        "Boundary check: Rerenders are normal; optimize measured expensive work and verify the user-visible improvement."
+        "Names the example \"The 5,000-row list\": typing lagged on the list.",
+        "Profiler evidence identifies a slow 5000-row render.",
+        "Pagination or virtualization is selected after that.",
+        "Typing is instant again, backed by before-and-after measurements."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Development timings differ, rerenders can be cheap, virtualization affects accessibility, and premature caching adds complexity.",
+      "prompt": "Write an observation note for this: \"Opening a course takes 4 s; Profiler max render 5 ms; Network shows a 3.5 s /api/course request.\" What do you change, and what don't you?",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Where is the time?",
+        "Is React the bottleneck?"
       ],
       "expectedEvidence": [
-        "React performance work starts with measured user impact, component render cost, network, bundle, and DOM evidence.",
-        "Development timings differ, rerenders can be cheap, virtualization affects accessibility, and premature caching adds complexity."
+        "Don't touch rendering.",
+        "Investigate the API or add caching."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Measure before optimization and explain why the misconception fails.",
+      "prompt": "Pick one interaction in your app, record a before measurement, make one targeted change (or decide none), record an after measurement, and write a short note justifying the decision.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "One change at a time.",
+        "Keep the note with the PR."
       ],
       "expectedEvidence": [
-        "Record a render-performance observation and justify either a targeted optimization or no change.",
-        "Rerenders are normal; optimize measured expensive work and verify the user-visible improvement."
+        "Before and after numbers.",
+        "A clear justification."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.robustness.performance.misconception",
-      "explanation": "Rerenders are normal; optimize measured expensive work and verify the user-visible improvement.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'measured expensive work' and state the decisive evidence."
+      "explanation": "Before optimising write three lines: **What does the learner feel? What does the evidence show? Which one fix matches that cause?** After: **did the number move?**",
+      "retryPrompt": "Apply this to \"The optimisation that did nothing\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to record a render-performance observation and justify either a targeted optimization or no change. Keep this boundary in view: Development timings differ, rerenders can be cheap, virtualization affects accessibility, and premature caching adds complexity.",
+    "summary": "To record a render-performance observation, start from a symptom learners feel, gather Profiler, performance, network or bundle evidence, pick the fix that matches the cause such as pagination for a huge list, and re-measure, choosing no change when nothing is actually slow.",
     "retrievalPrompts": [
-      "Explain Measure before optimization using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: Every rerender is a performance bug that should be prevented.",
-      "Apply checkpoint 'measured expensive work' to a new artifact."
+      "Is every re-render a problem?",
+      "What evidence should you gather first?",
+      "When is no change the right answer?"
     ],
     "nextReviewPrompt": "Next: continue to “Memoization and stable identity”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

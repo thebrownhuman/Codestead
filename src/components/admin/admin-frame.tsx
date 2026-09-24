@@ -29,7 +29,7 @@ export function AdminFrame({
 }) {
   const pathname = usePathname();
   return (
-    <div className={styles.adminFrame}>
+    <div className={styles.adminFrame} data-admin-frame>
       <header className={styles.adminRail}>
         <div className={styles.adminIdentity}>
           <span><ShieldCheck size={18} /></span>

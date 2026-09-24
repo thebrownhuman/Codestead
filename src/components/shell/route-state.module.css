@@ -186,3 +186,20 @@
     background: Canvas;
   }
 }
+
+/* Most route loads finish quickly; only reveal the loading card when the wait
+   is long enough to notice, so navigation doesn't flash a full panel. */
+.frame[data-route-state="loading"] {
+  animation: route-loading-reveal 0.2s ease-out 0.4s both;
+}
+
+@keyframes route-loading-reveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .frame[data-route-state="loading"] {
+    animation-duration: 0s;
+  }
+}

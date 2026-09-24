@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A function contract states purpose, inputs, returned result, observable effects, preconditions, and failure behavior independently of the implementation steps.",
+    "summary": "A function is a **promise**. Its contract says what it needs (inputs), what it gives back (result), what else it touches (effects), and what happens with bad input. If you know the contract, you can use a function without reading its code — like pressing a lift button without knowing how the motor works.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A convertCelsius function accepts a finite Fahrenheit number, returns a Celsius number, and does not print or mutate external state. Your goal is to specify a small function contract independently of its implementation. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You find a function called `convert(x)` in a teammate's code. Does it turn Fahrenheit into Celsius or the other way round? Does it print, or return a number? Does it crash on text? The name and one parameter don't tell you. In this lesson you'll learn to read — and write — a function's contract: accepted input, returned result, side effects and failures, so you can use any function safely.\n\n```predict\n{\"question\": \"`def to_celsius(f): return (f - 32) * 5 / 9` — what does `to_celsius(212)` give back?\", \"options\": [\"100.0\", \"It prints 100 but returns nothing\"], \"answer\": 0, \"why\": \"It **returns** 100.0 and prints nothing. `return` hands a value back to the caller; printing would be a separate side effect.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Iteration; Decomposition. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Iteration** (repeating work) and **Decomposition** (splitting a problem into smaller parts). Functions are how you package each of those parts with a clear promise."
       },
       {
-        "heading": "Operational model",
-        "body": "A function contract states purpose, inputs, returned result, observable effects, preconditions, and failure behavior independently of the implementation steps. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The mental model: a contract with four clauses",
+        "body": "```python\ndef to_celsius(fahrenheit):\n    \"\"\"Takes a finite Fahrenheit number.\n    Returns the Celsius value as a float.\n    Prints nothing and changes nothing outside.\"\"\"\n    return (fahrenheit - 32) * 5 / 9\n```\n\n| Clause | For `to_celsius` |\n|---|---|\n| Input | one finite number (°F). |\n| Output | the °C value, returned. |\n| Effects | none — no printing, no global changes. |\n| Failure | text like `\"hot\"` raises a `TypeError`. |\n\n```reveal\n{\"prompt\": \"Why is \\\"prints nothing\\\" part of the contract?\", \"answer\": \"Because callers rely on it. If it secretly printed, a report using it 1,000 times would spam the screen. Effects are promises too.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "A short name or type signature alone does not describe units, valid ranges, side effects, exceptions, mutation, or ordering guarantees. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Knowing a function's name and parameter count is enough to use it safely without understanding its contract."
+        "heading": "Return vs print",
+        "body": "```predict\n{\"question\": \"What does `x` hold after `x = shout(\\\"hi\\\")` if `shout` only does `print(text.upper())`?\", \"options\": [\"\\\"HI\\\"\", \"None\"], \"answer\": 1, \"why\": \"`shout` prints but never `return`s, so Python gives back `None`. Printing shows text to a human; returning hands a value to code.\"}\n```\n\nA good habit: decide the contract **before** writing the body. It keeps functions small and honest."
       }
     ]
   },
   "scope": {
     "includes": [
-      "Describe a function by purpose, inputs, outputs and observable effects.",
-      "Specify a small function contract independently of its implementation."
+      "State a function's inputs, returned result, effects and failure behaviour.",
+      "Tell returning a value apart from printing it."
     ],
     "excludes": [
-      "A short name or type signature alone does not describe units, valid ranges, side effects, exceptions, mutation, or ordering guarantees."
+      "How a call works in memory (next lesson).",
+      "Default arguments and keyword-only parameters."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "pf.abstraction.functions.example-a",
-      "title": "Functions as contracts: direct case",
-      "situation": "A convertCelsius function accepts a finite Fahrenheit number, returns a Celsius number, and does not print or mutate external state.",
+      "title": "The temperature converter",
+      "situation": "`to_celsius(fahrenheit)` accepts a finite Fahrenheit number, returns a Celsius number, and does not print or change anything outside itself.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A convertCelsius function accepts a finite Fahrenheit number, returns a Celsius number, and does not print or mutate external state.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable."
+        "**Input:** one number, e.g. `212`. The contract says it must be finite and numeric.",
+        "**Output:** it computes `(212 - 32) * 5 / 9` and **returns** `100.0` to the caller.",
+        "**Effects:** nothing is printed and no outside variable changes, so it's safe to call anywhere."
       ],
-      "result": "The case supports the declared outcome because Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable."
+      "result": "`to_celsius(212)` returns `100.0` and has no side effects — exactly what its contract promises."
     },
     {
       "id": "pf.abstraction.functions.example-b",
-      "title": "Functions as contracts: boundary case",
-      "situation": "A withdraw function requires a positive amount not exceeding balance, returns the new balance, and declares how invalid requests fail.",
+      "title": "The misleading name",
+      "situation": "```python\ndef get_total(items):\n    total = sum(items)\n    print(total)\n```\nSomeone writes `bill = get_total([10, 20]) * 1.18`.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A withdraw function requires a positive amount not exceeding balance, returns the new balance, and declares how invalid requests fail.",
-        "Step 2 — Keep this boundary explicit: A short name or type signature alone does not describe units, valid ranges, side effects, exceptions, mutation, or ordering guarantees.",
-        "Step 3 — Reject the documented misconception: Knowing a function's name and parameter count is enough to use it safely without understanding its contract."
+        "The name says \"get\", so the caller expects a **returned** number.",
+        "But the body only prints 30 and never returns — the function returns `None`.",
+        "`None * 1.18` raises `TypeError`. Fix the contract: `return total` (and drop the print)."
       ],
-      "result": "This case demonstrates the declared outcome: Specify a small function contract independently of its implementation."
+      "result": "The caller crashes until `get_total` returns its total as its name promises."
     }
   ],
   "misconceptions": [
     {
       "id": "pf.abstraction.functions.misconception",
-      "mistakenBelief": "Knowing a function's name and parameter count is enough to use it safely without understanding its contract.",
-      "correction": "Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Knowing a function's name and parameter count is enough to use it safely without understanding its contract."
+      "mistakenBelief": "Knowing a function's name and how many parameters it takes is enough to use it safely.",
+      "correction": "Safe use depends on the whole contract: which inputs are accepted, what is returned, what effects happen, and how failures behave. A name and parameter count can hide printing instead of returning, or a crash on bad input.",
+      "diagnosticPrompt": "In \"The misleading name\", which clause of the contract did the name hide?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A service counter can model Functions as contracts: it advertises accepted requests and results while its internal work remains behind a named interface.",
+    "example": "A function is like a **vending machine**: the label says what coins it accepts (input), what drops out (output), whether it also gives change or a receipt (effects), and what happens with a foreign coin (failure).",
     "usefulFor": [
-      "Separating contracts, local work, calls, returned results, and repeated service use"
+      "remembering the four contract clauses",
+      "using something without seeing inside"
     ],
     "limitations": [
-      "A service counter does not capture language-specific frames, reference semantics, closures, or recursion limits.",
-      "A short name or type signature alone does not describe units, valid ranges, side effects, exceptions, mutation, or ordering guarantees."
+      "Real functions can be called with *any* value — the machine's coin slot physically blocks wrong coins, code usually doesn't.",
+      "A function can return complex things like lists, not just one snack."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A convertCelsius function accepts a finite Fahrenheit number, returns a Celsius number, and does not print or mutate external state.",
-      "A function contract states purpose, inputs, returned result, observable effects, preconditions, and failure behavior independently of the implementation steps.",
-      "Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable."
+      "def to_celsius(f): return (f - 32) * 5 / 9",
+      "c = to_celsius(212)",
+      "print(c)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Call with input",
         "state": {
-          "evidence": "A convertCelsius function accepts a finite Fahrenheit number, returns a Celsius number, and does not print or mutate external state."
+          "f": "212"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "The caller passes 212 as the Fahrenheit input described by the contract."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Compute and return",
         "state": {
-          "model": "A function contract states purpose, inputs, returned result, observable effects, preconditions, and failure behavior independently of the implementation steps."
+          "(f - 32) * 5 / 9": "100.0",
+          "returned": "100.0"
         },
-        "explanation": "Apply the declared Functions as contracts model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "The body computes the Celsius value and returns it without printing anything."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Caller uses result",
         "state": {
-          "correction": "Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable."
+          "c": "100.0",
+          "printed": "100.0"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Knowing a function's name and parameter count is enough to use it safely without understanding its contract."
+        "explanation": "The caller stores the returned value in c and decides itself to print it."
       }
     ],
-    "textAlternative": "Starting artifact: A convertCelsius function accepts a finite Fahrenheit number, returns a Celsius number, and does not print or mutate external state. Step 1, Observe. State: evidence: A convertCelsius function accepts a finite Fahrenheit number, returns a Celsius number, and does not print or mutate external state.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A function contract states purpose, inputs, returned result, observable effects, preconditions, and failure behavior independently of the implementation steps.. Apply the declared Functions as contracts model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable.. Compare the observation with the correction and reject the misconception: Knowing a function's name and parameter count is enough to use it safely without understanding its contract."
+    "textAlternative": "Calling a function that follows its contract. Step 1, Call with input: f is 212. The caller passes 212 as the Fahrenheit input described by the contract. Step 2, Compute and return: (f - 32) * 5 / 9 is 100.0; returned is 100.0. The body computes the Celsius value and returns it without printing anything. Step 3, Caller uses result: c is 100.0; printed is 100.0. The caller stores the returned value in c and decides itself to print it."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Functions as contracts: direct case”: state its starting evidence, apply the Functions as contracts rule, and give the observable result in three short lines.",
+      "prompt": "For \"The temperature converter\", write its contract in three lines: accepted Fahrenheit input, returned Celsius result, and effects.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Line 1: input.",
+        "Line 2: output — returned or printed?",
+        "Line 3: effects and failures."
       ],
       "expectedEvidence": [
-        "Named example: Functions as contracts: direct case.",
-        "Starting evidence: A convertCelsius function accepts a finite Fahrenheit number, returns a Celsius number, and does not print or mutate external state.",
-        "Core rule: A function contract states purpose, inputs, returned result, observable effects, preconditions, and failure behavior independently of the implementation steps.",
-        "Observable result: The case supports the declared outcome because Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable.",
-        "Boundary check: Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable."
+        "Names the example \"The temperature converter\": to_celsius accepts a finite Fahrenheit number.",
+        "It returns a Celsius number, e.g. 100.0 for 212.",
+        "It does not print or change anything outside, so it has no side effects.",
+        "Non-numbers like text fail with an error."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A withdraw function requires a positive amount not exceeding balance, returns the new balance, and declares how invalid requests fail.",
+      "prompt": "Write the contract for `average(scores)`: what input it accepts, what it returns, its effects, and what should happen for an empty list.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Empty list is the failure case.",
+        "Returned, not printed."
       ],
       "expectedEvidence": [
-        "A function contract states purpose, inputs, returned result, observable effects, preconditions, and failure behavior independently of the implementation steps.",
-        "A short name or type signature alone does not describe units, valid ranges, side effects, exceptions, mutation, or ordering guarantees."
+        "Accepts a non-empty list of numbers and returns their mean as a number.",
+        "No printing; empty list raises an error or returns a documented value."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Functions as contracts, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Pick a real feature (e.g. a tip calculator). Design two functions for it, writing each contract before any code.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Name input, output, effects, failure for each.",
+        "Keep printing out of calculation functions."
       ],
       "expectedEvidence": [
-        "Specify a small function contract independently of its implementation.",
-        "Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable."
+        "Two clear contracts with all four clauses.",
+        "Calculation functions return values; only one function handles printing."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "pf.abstraction.functions.misconception",
-      "explanation": "Callers and tests need explicit input constraints, result meaning, effects, and failure rules; implementation can change while that contract remains stable.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A withdraw function requires a positive amount not exceeding balance, returns the new balance, and declares how invalid requests fail."
+      "explanation": "Before using any function, fill four blanks: **Takes… Returns… Also does… Fails when…**. If you can't fill them, read its docstring or tests first.",
+      "retryPrompt": "Fill the four blanks for `get_total` in \"The misleading name\", then write the fixed version."
     }
   ],
   "recap": {
-    "summary": "You should now be able to specify a small function contract independently of its implementation. Keep this boundary in view: A short name or type signature alone does not describe units, valid ranges, side effects, exceptions, mutation, or ordering guarantees.",
+    "summary": "A function's contract = inputs + returned result + effects + failure behaviour. Returning hands a value to code; printing shows text to a human. Design the contract first and keep calculation functions free of surprise effects.",
     "retrievalPrompts": [
-      "Explain Functions as contracts without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Knowing a function's name and parameter count is enough to use it safely without understanding its contract.",
-      "Apply the model to this case from memory: A withdraw function requires a positive amount not exceeding balance, returns the new balance, and declares how invalid requests fail."
+      "What are the four clauses of a function contract?",
+      "Why is `x` None after calling a function that only prints?",
+      "Why is \"no side effects\" worth promising?"
     ],
     "nextReviewPrompt": "Next: continue to “Calls, parameters and returns”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

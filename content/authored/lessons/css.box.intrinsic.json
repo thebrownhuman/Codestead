@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Intrinsic sizing uses min-content, max-content, fit-content, aspect ratio, and content contributions to negotiate available space.",
+    "summary": "Boxes have **intrinsic** sizes from their content: `min-content` (as narrow as possible — the longest unbreakable word), `max-content` (no wrapping at all). Flex and grid items by default refuse to shrink below their **min-content**, so one long URL or code line can force a whole layout wider. Fixes: `minmax(0, 1fr)` in grid, `min-width: 0` on flex items, and letting text wrap with `overflow-wrap: anywhere`.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A grid track uses minmax(0,1fr) so long content may shrink instead of forcing the entire layout wider. Your goal is to implement a component that grows, shrinks and wraps without clipping realistic content. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A two-column layout looks perfect — until a comment contains a 120-character URL. The main column refuses to shrink, pushes the sidebar off-screen, and the page scrolls sideways on phones. A grid track uses minmax(0,1fr) so long content may shrink instead of forcing the entire layout wider. In this lesson you'll implement a component that grows, shrinks and wraps without clipping realistic content.\n\n```predict\n{\"question\": \"`grid-template-columns: 1fr 250px`. A cell in the 1fr column contains a very long unbroken URL. What happens?\", \"options\": [\"The 1fr column shrinks and the URL wraps\", \"The column grows to fit the URL, widening the grid\"], \"answer\": 1, \"why\": \"A plain `1fr` track has an automatic minimum of its content's min-content size. `minmax(0, 1fr)` removes that minimum.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Rules, declarations and values; Lengths, percentages and viewport units. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Rules, declarations and values** and **Lengths, percentages and viewport units**."
       },
       {
-        "heading": "Technology rule",
-        "body": "Intrinsic sizing uses min-content, max-content, fit-content, aspect ratio, and content contributions to negotiate available space. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: content sets a minimum unless you lift it",
+        "body": "```css\n.layout {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) 250px;   /* can shrink below content */\n  gap: 1rem;\n}\n.comment { overflow-wrap: anywhere; }            /* long URLs may break */\n\n.row { display: flex; gap: 1rem; }\n.row > .main { flex: 1; min-width: 0; }         /* flex item may shrink */\n```\n\n| Keyword / rule | Meaning |\n|---|---|\n| `min-content`. | narrowest without overflow (longest word). |\n| `max-content`. | widest, no wrapping. |\n| `fit-content`. | max-content but capped by available space. |\n| `1fr` (grid). | share of space, but min = auto (content). |\n| `minmax(0, 1fr)`. | share of space, allowed to shrink to 0. |\n| `min-width: 0` (flex). | lets the item shrink below content size. |\n\n```reveal\n{\"prompt\": \"Once the column can shrink, what stops the URL overflowing?\", \"answer\": \"The text must be allowed to break: `overflow-wrap: anywhere` (or `break-word`). Otherwise it just sticks out of the narrower box.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Long unbreakable content, replaced elements, min-width auto, and writing mode can defeat fixed-layout assumptions. This draft therefore rejects: A 1fr track always shrinks below its content's minimum without any additional rule."
+        "heading": "Grow, shrink, wrap",
+        "body": "```predict\n{\"question\": \"A tag list should wrap onto new lines when space runs out. Which rule?\", \"options\": [\"`flex-wrap: wrap` on the flex container\", \"`overflow: hidden`\"], \"answer\": 0, \"why\": \"Wrapping keeps every tag visible. overflow:hidden would just clip them.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use min/max/content-based sizing and aspect ratio to avoid brittle fixed dimensions.",
-      "Implement a component that grows, shrinks and wraps without clipping realistic content."
+      "Explain min-content, max-content and automatic minimum sizes.",
+      "Use minmax(0,1fr), min-width: 0, wrapping and overflow-wrap so components adapt to real content."
     ],
     "excludes": [
-      "Long unbreakable content, replaced elements, min-width auto, and writing mode can defeat fixed-layout assumptions."
+      "Grid track sizing in depth (grid lesson).",
+      "Container queries."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "css.box.intrinsic.example-a",
-      "title": "Intrinsic sizing and constraints: concrete case",
+      "title": "The long URL that widened the layout",
       "situation": "A grid track uses minmax(0,1fr) so long content may shrink instead of forcing the entire layout wider.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A grid track uses minmax(0,1fr) so long content may shrink instead of forcing the entire layout wider.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Account for intrinsic minimums; use an explicit zero minimum when a flexible track must be allowed to shrink."
+        "**Problem:** `grid-template-columns: 1fr 250px` — a 120-character URL sets the 1fr track's minimum, so the grid overflows the phone screen.",
+        "**Fix the track:** `minmax(0, 1fr)` lets the main column shrink below its content size.",
+        "**Let text wrap:** `overflow-wrap: anywhere` on comments; the browser will render the URL across lines, and the sidebar stays in view."
       ],
-      "result": "The result follows because Account for intrinsic minimums; use an explicit zero minimum when a flexible track must be allowed to shrink."
+      "result": "The layout fits at 320px wide, and the long URL wraps instead of widening everything."
     },
     {
       "id": "css.box.intrinsic.example-b",
-      "title": "Intrinsic sizing and constraints: boundary case",
-      "situation": "Long unbreakable content, replaced elements, min-width auto, and writing mode can defeat fixed-layout assumptions.",
+      "title": "The flex title that wouldn't truncate",
+      "situation": "A card row has an icon and a title (`flex: 1`) with `text-overflow: ellipsis`, but the long title pushes the icon out instead of truncating.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Long unbreakable content, replaced elements, min-width auto, and writing mode can defeat fixed-layout assumptions.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: A 1fr track always shrinks below its content's minimum without any additional rule."
+        "Flex items default to `min-width: auto`, i.e. their content's min-content size.",
+        "The title can't shrink, so ellipsis never kicks in.",
+        "Fix: `min-width: 0` on the title, plus `overflow: hidden; white-space: nowrap; text-overflow: ellipsis`."
       ],
-      "result": "The boundary requires this correction: Account for intrinsic minimums; use an explicit zero minimum when a flexible track must be allowed to shrink."
+      "result": "The title truncates with an ellipsis and the icon stays visible."
     }
   ],
   "misconceptions": [
     {
       "id": "css.box.intrinsic.misconception",
       "mistakenBelief": "A 1fr track always shrinks below its content's minimum without any additional rule.",
-      "correction": "Account for intrinsic minimums; use an explicit zero minimum when a flexible track must be allowed to shrink.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: A 1fr track always shrinks below its content's minimum without any additional rule."
+      "correction": "A 1fr track has an automatic minimum equal to its content's min-content size, so long unbreakable content widens it. Use minmax(0, 1fr) (or min-width: 0 for flex items) and allow text to wrap.",
+      "diagnosticPrompt": "In \"The long URL that widened the layout\", what set the column's minimum?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Intrinsic sizing and constraints, where rules size, place, and paint existing content.",
+    "example": "Intrinsic sizing is like **packing a suitcase with a rigid item**: soft clothes (wrappable text) squeeze, but a long umbrella (an unbreakable URL) sets the suitcase's minimum length — unless you allow it to fold (overflow-wrap) and the suitcase to be smaller than the umbrella (minmax(0,1fr)).",
     "usefulFor": [
-      "Building a first mental model for Intrinsic sizing and constraints before using exact platform terms"
+      "remembering content sets a minimum",
+      "lifting the minimum and allowing wraps"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "Long unbreakable content, replaced elements, min-width auto, and writing mode can defeat fixed-layout assumptions."
+      "Umbrellas don't fold at arbitrary points; text can with overflow-wrap.",
+      "Suitcases have fixed sizes; grid tracks share space."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A grid track uses minmax(0,1fr) so long content may shrink instead of forcing the entire layout wider.",
-      "Intrinsic sizing uses min-content, max-content, fit-content, aspect ratio, and content contributions to negotiate available space.",
-      "Account for intrinsic minimums; use an explicit zero minimum when a flexible track must be allowed to shrink."
+      "grid-template-columns: 1fr 250px",
+      "a 120-character URL in the 1fr column",
+      "grid-template-columns: minmax(0, 1fr) 250px + overflow-wrap: anywhere"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Automatic minimum",
         "state": {
-          "evidence": "A grid track uses minmax(0,1fr) so long content may shrink instead of forcing the entire layout wider."
+          "1fr min": "URL min-content ≈ 900px"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The long URL sets the plain 1fr track's minimum size."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Overflow",
         "state": {
-          "rule": "Intrinsic sizing uses min-content, max-content, fit-content, aspect ratio, and content contributions to negotiate available space."
+          "layout width": "> viewport",
+          "sideways scroll": "yes"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The whole grid is forced wider than the screen."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Fixed",
         "state": {
-          "correction": "Account for intrinsic minimums; use an explicit zero minimum when a flexible track must be allowed to shrink."
+          "track": "minmax(0,1fr)",
+          "URL": "wraps",
+          "fits 320px": "yes"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: A 1fr track always shrinks below its content's minimum without any additional rule."
+        "explanation": "A grid track uses minmax(0,1fr) so long content may shrink."
       }
     ],
-    "textAlternative": "Starting artifact: A grid track uses minmax(0,1fr) so long content may shrink instead of forcing the entire layout wider. Step 1, Artifact. State: evidence: A grid track uses minmax(0,1fr) so long content may shrink instead of forcing the entire layout wider.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Intrinsic sizing uses min-content, max-content, fit-content, aspect ratio, and content contributions to negotiate available space.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Account for intrinsic minimums; use an explicit zero minimum when a flexible track must be allowed to shrink.. Check the result against the boundary and reject this misconception: A 1fr track always shrinks below its content's minimum without any additional rule."
+    "textAlternative": "Lifting a grid track's automatic minimum. Step 1, Automatic minimum: 1fr min is URL min-content ≈ 900px. The long URL sets the plain 1fr track's minimum size. Step 2, Overflow: layout width is > viewport; sideways scroll is yes. The whole grid is forced wider than the screen. Step 3, Fixed: track is minmax(0,1fr); URL is wraps; fits 320px is yes. A grid track uses minmax(0,1fr) so long content may shrink."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Intrinsic sizing and constraints: concrete case”: state its starting evidence, apply the Intrinsic sizing and constraints rule, and give the observable result in three short lines.",
+      "prompt": "For \"The long URL that widened the layout\", explain why the grid track uses minmax(0,1fr) so long content may shrink instead of forcing the entire layout wider, and what else lets the URL wrap.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Problem.",
+        "Track fix.",
+        "Text fix."
       ],
       "expectedEvidence": [
-        "Named example: Intrinsic sizing and constraints: concrete case.",
-        "Starting evidence: A grid track uses minmax(0,1fr) so long content may shrink instead of forcing the entire layout wider.",
-        "Core rule: Intrinsic sizing uses min-content, max-content, fit-content, aspect ratio, and content contributions to negotiate available space.",
-        "Observable result: The result follows because Account for intrinsic minimums; use an explicit zero minimum when a flexible track must be allowed to shrink.",
-        "Boundary check: Account for intrinsic minimums; use an explicit zero minimum when a flexible track must be allowed to shrink."
+        "Names the example \"The long URL that widened the layout\": a grid track uses minmax(0,1fr).",
+        "Long content may shrink instead of forcing the entire layout wider.",
+        "overflow-wrap: anywhere lets the URL wrap.",
+        "The layout fits at 320px."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Long unbreakable content, replaced elements, min-width auto, and writing mode can defeat fixed-layout assumptions.",
+      "prompt": "A flex row has a search input and a button. On narrow screens the input overflows. Which two properties fix it?",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Input as a flex item.",
+        "Minimum size."
       ],
       "expectedEvidence": [
-        "Intrinsic sizing uses min-content, max-content, fit-content, aspect ratio, and content contributions to negotiate available space.",
-        "Long unbreakable content, replaced elements, min-width auto, and writing mode can defeat fixed-layout assumptions."
+        "`flex: 1` and `min-width: 0` on the input.",
+        "Optionally flex-wrap: wrap on the row."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Intrinsic sizing and constraints and explain why the misconception fails.",
+      "prompt": "Build a card component and stress-test it: a 60-character word, a translated label twice as long, three tags and fifteen tags, at 320px and 1200px. Fix every overflow without clipping content.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Use minmax/min-width/overflow-wrap.",
+        "Screenshot each case."
       ],
       "expectedEvidence": [
-        "Implement a component that grows, shrinks and wraps without clipping realistic content.",
-        "Account for intrinsic minimums; use an explicit zero minimum when a flexible track must be allowed to shrink."
+        "Component adapts in every stress test.",
+        "No clipped or overflowing content."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.box.intrinsic.misconception",
-      "explanation": "Account for intrinsic minimums; use an explicit zero minimum when a flexible track must be allowed to shrink.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'intrinsic minimums' and state the decisive evidence."
+      "explanation": "When something overflows, select it in DevTools and check: **Is it a flex/grid item with an automatic minimum? Can its text wrap?** Fix the minimum first, then the wrapping.",
+      "retryPrompt": "Apply this to \"The flex title that wouldn't truncate\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement a component that grows, shrinks and wraps without clipping realistic content. Keep this boundary in view: Long unbreakable content, replaced elements, min-width auto, and writing mode can defeat fixed-layout assumptions.",
+    "summary": "To implement a component that grows, shrinks and wraps without clipping realistic content, remember flex and grid items default to a min-content minimum; lift it with minmax(0, 1fr) or min-width: 0, allow wrapping with flex-wrap and overflow-wrap, and stress-test with long content.",
     "retrievalPrompts": [
-      "Explain Intrinsic sizing and constraints using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: A 1fr track always shrinks below its content's minimum without any additional rule.",
-      "Apply checkpoint 'intrinsic minimums' to a new artifact."
+      "Why doesn't 1fr always shrink?",
+      "What does min-width: 0 do on a flex item?",
+      "How do you let a long URL wrap?"
     ],
     "nextReviewPrompt": "Next: continue to “Overflow and containment”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

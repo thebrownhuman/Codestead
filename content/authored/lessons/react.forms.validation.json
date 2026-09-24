@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "React form validation combines native constraints, controlled domain rules, submit handling, accessible errors, and authoritative server results.",
+    "summary": "Good form validation tells people **what's wrong, where, and how to fix it**. Check your rules on submit (and optionally on blur), then show a **text error next to each field**, linked with `aria-describedby` and marked `aria-invalid`, and **move focus to the first invalid field**. Model the form's status explicitly: `idle`, `submitting`, `success`, `error`. The **server has the final say**: it may reject an email that's already taken, so show its message too, as text, never as HTML. A disabled submit button alone explains nothing.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Submit reveals linked text errors, focuses the first invalid field, and preserves server error messages safely. Your goal is to implement and test a form's invalid, submitting, success and server-error states. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A course sign-up form greys out Submit until everything is valid. Learners stare at the disabled button with no idea what's missing, and when the server says \"email already registered\", the form just resets. Submit reveals linked text errors, focuses the first invalid field, and preserves server error messages safely. In this lesson you'll implement and test a form's invalid, submitting, success and server-error states.\n\n```predict\n{\"question\": \"The submit button is disabled while a password is too short. A screen-reader user reaches the button. What do they learn?\", \"options\": [\"That the password needs 8 characters\", \"Only that the button is dimmed or unavailable, not why\"], \"answer\": 1, \"why\": \"Explain each problem next to its field, and let submit reveal the errors.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: State and events; html forms; Controlled inputs; html forms validation. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **State and events** module, **Forms and native controls**, **Controlled inputs**, and **Native constraints and error semantics** (required, type and native messages)."
       },
       {
-        "heading": "Technology rule",
-        "body": "React form validation combines native constraints, controlled domain rules, submit handling, accessible errors, and authoritative server results. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: validate, explain, focus, then trust the server",
+        "body": "```jsx\nimport { useRef, useState } from \"react\";\n\nfunction validate({ email, password }) {\n  const errors = {};\n  if (!email.includes(\"@\")) errors.email = \"Enter an email like name@example.com.\";\n  if (password.length < 8) errors.password = \"Use at least 8 characters.\";\n  return errors;\n}\n\nexport function SignupForm({ signup }) {\n  const [values, setValues] = useState({ email: \"\", password: \"\" });\n  const [errors, setErrors] = useState({});\n  const [status, setStatus] = useState(\"idle\");   // idle | submitting | success | error.\n  const [serverError, setServerError] = useState(\"\");\n  const refs = { email: useRef(null), password: useRef(null) };\n\n  async function handleSubmit(e) {\n    e.preventDefault();\n    const found = validate(values);\n    setErrors(found);\n    const first = Object.keys(found)[0];\n    if (first) return refs[first].current.focus();\n    setStatus(\"submitting\");\n    const result = await signup(values);           // { ok } or { ok: false, message }.\n    if (result.ok) setStatus(\"success\");\n    else { setServerError(result.message); setStatus(\"error\"); }\n  }\n  // Render: inputs use aria-invalid and aria-describedby.\n}\n```\n\n| Status | Learner sees |\n|---|---|\n| invalid. | text error per field, focus on the first. |\n| submitting. | button busy, no double submit. |\n| success. | confirmation. |\n| server error. | its message, values kept. |\n\n```reveal\n{\"prompt\": \"Why keep the typed values after a server error?\", \"answer\": \"Retyping everything because one field was rejected is frustrating. Keep values, show the message, let them fix one thing.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Validation timing can annoy users, async checks race, and client rules remain bypassable. This draft therefore rejects: Disabling the submit button is enough to explain every invalid field."
+        "heading": "Show the server message safely",
+        "body": "```predict\n{\"question\": \"The server returns `message: \\\"<b>Email</b> taken\\\"`. How should you show it?\", \"options\": [\"dangerouslySetInnerHTML so the bold works\", \"As text in JSX: `{serverError}`\"], \"answer\": 1, \"why\": \"Server text is still untrusted. JSX text escaping keeps it safe.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Combine native constraints and domain validation with persistent instructions and focus-aware errors.",
-      "Implement and test a form's invalid, submitting, success and server-error states."
+      "Show linked, accessible field errors and focus the first invalid field.",
+      "Model submitting, success and server-error states and test each."
     ],
     "excludes": [
-      "Validation timing can annoy users, async checks race, and client rules remain bypassable."
+      "Schema libraries like Zod.",
+      "Server-side validation code."
     ]
   },
   "outcomes": [
@@ -68,133 +69,137 @@
   "examples": [
     {
       "id": "react.forms.validation.example-a",
-      "title": "Validation and error recovery: concrete case",
+      "title": "Errors a learner can find and fix",
       "situation": "Submit reveals linked text errors, focuses the first invalid field, and preserves server error messages safely.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: Submit reveals linked text errors, focuses the first invalid field, and preserves server error messages safely.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Expose field-specific text errors and server validation; disabled submission alone does not identify what to fix."
+        "**Submit reveals linked text errors:** each message sits under its field, connected with aria-describedby and aria-invalid.",
+        "**Focus the first invalid field:** the email ref receives focus when the email is wrong.",
+        "**Preserve server errors:** \"Email already registered\" will show as text in an alert, and the typed values stay."
       ],
-      "result": "The result follows because Expose field-specific text errors and server validation; disabled submission alone does not identify what to fix."
+      "result": "Learners know exactly what to fix, keyboard users land on the problem, and server rejections are explained instead of wiping the form."
     },
     {
       "id": "react.forms.validation.example-b",
-      "title": "Validation and error recovery: boundary case",
-      "situation": "Validation timing can annoy users, async checks race, and client rules remain bypassable.",
+      "title": "The double sign-up",
+      "situation": "On a slow connection, learners press Sign up twice and two accounts are requested.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Validation timing can annoy users, async checks race, and client rules remain bypassable.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Disabling the submit button is enough to explain every invalid field."
+        "Nothing blocked a second submit while the first was running.",
+        "Set status to submitting and disable the button while it's pending.",
+        "Also return early from handleSubmit when status is already submitting."
       ],
-      "result": "The boundary requires this correction: Expose field-specific text errors and server validation; disabled submission alone does not identify what to fix."
+      "result": "Only one request is sent, however many times the button is pressed."
     }
   ],
   "misconceptions": [
     {
       "id": "react.forms.validation.misconception",
       "mistakenBelief": "Disabling the submit button is enough to explain every invalid field.",
-      "correction": "Expose field-specific text errors and server validation; disabled submission alone does not identify what to fix.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Disabling the submit button is enough to explain every invalid field."
+      "correction": "A disabled button hides the reason and can't be focused by some assistive tech. Learners need a text message next to each field, linked to it, plus focus on the first problem.",
+      "diagnosticPrompt": "In \"Errors a learner can find and fix\", how did learners find out what was wrong?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Validation and error recovery, where inputs and state produce a UI description.",
+    "example": "Validation is like **a teacher marking homework**: circle each mistake on the page with a note (field errors), put the pupil's finger on the first one (focus), and if the head teacher (server) rejects it, pass that note on too. Just saying \"not accepted\" at the door teaches nothing.",
     "usefulFor": [
-      "Building a first mental model for Validation and error recovery before using exact platform terms"
+      "remembering explain, point, pass on",
+      "server = final marker"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Validation timing can annoy users, async checks race, and client rules remain bypassable."
+      "Teachers don't erase the homework on rejection; forms shouldn't either.",
+      "Red ink alone isn't enough: errors need text, not just colour."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Submit reveals linked text errors, focuses the first invalid field, and preserves server error messages safely.",
-      "React form validation combines native constraints, controlled domain rules, submit handling, accessible errors, and authoritative server results.",
-      "Expose field-specific text errors and server validation; disabled submission alone does not identify what to fix."
+      "submit with bad email",
+      "fix email, submit",
+      "server replies: email taken"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Invalid",
         "state": {
-          "evidence": "Submit reveals linked text errors, focuses the first invalid field, and preserves server error messages safely."
+          "errors.email": "Enter an email...",
+          "focus": "email input"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "Submit reveals linked text errors and focuses the first invalid field."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Submitting",
         "state": {
-          "rule": "React form validation combines native constraints, controlled domain rules, submit handling, accessible errors, and authoritative server results."
+          "status": "submitting",
+          "button": "busy"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Valid values are sent once while the button is busy."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Server error",
         "state": {
-          "correction": "Expose field-specific text errors and server validation; disabled submission alone does not identify what to fix."
+          "status": "error",
+          "message": "Email already registered",
+          "values": "kept"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Disabling the submit button is enough to explain every invalid field."
+        "explanation": "The form preserves server error messages safely as text."
       }
     ],
-    "textAlternative": "Starting artifact: Submit reveals linked text errors, focuses the first invalid field, and preserves server error messages safely. Step 1, Artifact. State: evidence: Submit reveals linked text errors, focuses the first invalid field, and preserves server error messages safely.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: React form validation combines native constraints, controlled domain rules, submit handling, accessible errors, and authoritative server results.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Expose field-specific text errors and server validation; disabled submission alone does not identify what to fix.. Check the result against the boundary and reject this misconception: Disabling the submit button is enough to explain every invalid field."
+    "textAlternative": "Walking through a form's states. Step 1, Invalid: errors.email is Enter an email...; focus is email input. Submit reveals linked text errors and focuses the first invalid field. Step 2, Submitting: status is submitting; button is busy. Valid values are sent once while the button is busy. Step 3, Server error: status is error; message is Email already registered; values is kept. The form preserves server error messages safely as text."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Validation and error recovery: concrete case”: state its starting evidence, apply the Validation and error recovery rule, and give the observable result in three short lines.",
+      "prompt": "For \"Errors a learner can find and fix\", explain how submit reveals linked text errors, focuses the first invalid field, and preserves server error messages safely.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Errors.",
+        "Focus.",
+        "Server."
       ],
       "expectedEvidence": [
-        "Named example: Validation and error recovery: concrete case.",
-        "Starting evidence: Submit reveals linked text errors, focuses the first invalid field, and preserves server error messages safely.",
-        "Core rule: React form validation combines native constraints, controlled domain rules, submit handling, accessible errors, and authoritative server results.",
-        "Observable result: The result follows because Expose field-specific text errors and server validation; disabled submission alone does not identify what to fix.",
-        "Boundary check: Expose field-specific text errors and server validation; disabled submission alone does not identify what to fix."
+        "Names the example \"Errors a learner can find and fix\": submit reveals linked text errors.",
+        "It focuses the first invalid field.",
+        "It preserves server error messages safely as text.",
+        "Learners know exactly what to fix."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Validation timing can annoy users, async checks race, and client rules remain bypassable.",
+      "prompt": "Add validation to a feedback form (message ≥ 10 characters, rating 1-5). Show linked errors, focus the first, and keep values after a fake server error.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "validate() returns an errors object.",
+        "aria-describedby ids."
       ],
       "expectedEvidence": [
-        "React form validation combines native constraints, controlled domain rules, submit handling, accessible errors, and authoritative server results.",
-        "Validation timing can annoy users, async checks race, and client rules remain bypassable."
+        "Linked errors and focus.",
+        "Values survive a server error."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Validation and error recovery and explain why the misconception fails.",
+      "prompt": "Build and test a sign-up form with invalid, submitting, success and server-error states. Tests should use labels and roles, check focus, check aria-invalid, and prove only one request is sent.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Fake signup returning ok or a message.",
+        "user.keyboard for Enter submission."
       ],
       "expectedEvidence": [
-        "Implement and test a form's invalid, submitting, success and server-error states.",
-        "Expose field-specific text errors and server validation; disabled submission alone does not identify what to fix."
+        "Four state tests.",
+        "A double-submit test."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.forms.validation.misconception",
-      "explanation": "Expose field-specific text errors and server validation; disabled submission alone does not identify what to fix.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'field-specific text errors' and state the decisive evidence."
+      "explanation": "For every rule write: **the message, which field it links to, and where focus goes.** For every submit ask: **what does the learner see while waiting, on success, and when the server says no?**",
+      "retryPrompt": "Apply this to \"The double sign-up\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test a form's invalid, submitting, success and server-error states. Keep this boundary in view: Validation timing can annoy users, async checks race, and client rules remain bypassable.",
+    "summary": "To implement and test a form's invalid, submitting, success and server-error states, validate on submit, show text errors linked to each field with aria-describedby and aria-invalid, focus the first invalid field, block double submits while pending, and show server messages as text while keeping the learner's values.",
     "retrievalPrompts": [
-      "Explain Validation and error recovery using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: Disabling the submit button is enough to explain every invalid field.",
-      "Apply checkpoint 'field-specific text errors' to a new artifact."
+      "Why isn't a disabled button enough?",
+      "Where should focus go after failed validation?",
+      "How should server error text be shown?"
     ],
     "nextReviewPrompt": "Next: continue to “useReducer”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A Git repository stores versioned objects and references in its metadata while the working tree presents one checked-out snapshot plus local changes.",
+    "summary": "A Git **repository** has two parts. The hidden **.git folder** is the database: every saved snapshot (**commit**), plus names like branches that point at commits. The **working tree** is the ordinary files you see and edit, one checked-out snapshot plus whatever you've changed since. Editing a file changes **only the working tree**; the saved commits don't change until you **stage** and **commit** new content. And not everything in the folder is versioned: new files are **untracked** until you add them, so generated files and secrets should never be added in the first place.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Editing README changes the working tree but does not alter the last commit object until new content is staged and committed. Your goal is to initialize and inspect a repository without committing generated or secret files. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner creates a repository for their study notes, makes a first commit, then edits README.md. A friend asks: \"Did that edit change your saved version?\" The learner isn't sure whether Git saves everything in the folder automatically. Editing README changes the working tree but does not alter the last commit object until new content is staged and committed. In this lesson you'll initialize and inspect a repository without committing generated or secret files.\n\n```predict\n{\"question\": \"You run `git init` in a folder with 10 files. How many are versioned now?\", \"options\": [\"All 10\", \"None yet: they're untracked until you add and commit them\"], \"answer\": 1, \"why\": \"git init creates the .git database; it doesn't save any files.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Filesystem and terminal fluency; List, read and search. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Filesystem and terminal fluency** module and **List, read and search** (ls -la and git status)."
       },
       {
-        "heading": "Operational model",
-        "body": "A Git repository stores versioned objects and references in its metadata while the working tree presents one checked-out snapshot plus local changes. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The model: a database of snapshots plus a working copy",
+        "body": "```bash\nmkdir study-notes && cd study-notes\ngit init                          # creates the hidden .git database.\nls -la                            # shows .git/ next to your files.\n\necho \"# Study notes\" > README.md\ngit status                        # README.md is untracked.\ngit add README.md\ngit commit -m \"Add README\"        # first snapshot saved in .git.\n\necho \"Week 1: loops\" >> README.md\ngit status                        # modified in the working tree only.\ngit diff                          # the change vs the saved snapshot.\ngit show HEAD:README.md           # the committed version is unchanged.\n```\n\n| Part | What it is | Changed by |\n|---|---|---|\n| .git folder. | commits, branches, history. | git add, git commit, git fetch... |\n| working tree. | files you see and edit. | your editor and shell commands. |\n| untracked files. | in the folder, not in Git. | nothing until you git add them. |\n\n```reveal\n{\"prompt\": \"What happens if you delete the .git folder?\", \"answer\": \"Your files stay, but all history, branches and commits are gone: the folder is no longer a repository. Never delete .git to \\\"reset\\\" something.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Bare repositories have no normal working tree, nested repositories and worktrees alter layout, and untracked files are not yet represented in committed history. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: The repository is just the visible project folder, so every file in it is automatically versioned."
+        "heading": "Keep junk and secrets out",
+        "body": "```predict\n{\"question\": \"After `git init` in a project with node_modules/ and .env, should you run `git add .` right away?\", \"options\": [\"Yes, add everything\", \"No: first add a .gitignore so generated folders and secrets are never staged\"], \"answer\": 1, \"why\": \"Check git status before the first add; it shows exactly what would be included.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Distinguish project files, repository metadata, tracked state and untracked files.",
-      "Initialize and inspect a repository without committing generated or secret files."
+      "Initialise a repository and inspect .git, the working tree and untracked files.",
+      "Explain that edits change only the working tree until staged and committed."
     ],
     "excludes": [
-      "Bare repositories have no normal working tree, nested repositories and worktrees alter layout, and untracked files are not yet represented in committed history."
+      "Git's internal object format in depth.",
+      "Remote repositories (later module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "git.model.repository.example-a",
-      "title": "Repository and working tree: direct case",
+      "title": "Editing the README after the first commit",
       "situation": "Editing README changes the working tree but does not alter the last commit object until new content is staged and committed.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: Editing README changes the working tree but does not alter the last commit object until new content is staged and committed.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Distinguish Git's object/reference database from the working tree and use status to see which visible files are tracked, modified, staged, or untracked."
+        "**First commit:** git add README.md and git commit save the snapshot in .git.",
+        "**Edit changes the working tree:** appending \"Week 1: loops\" makes git status report README.md as modified.",
+        "**Inspect:** git diff shows the new line, while `git show HEAD:README.md` will print the old committed text, proving the commit didn't change."
       ],
-      "result": "The case supports the declared outcome because Distinguish Git's object/reference database from the working tree and use status to see which visible files are tracked, modified, staged, or untracked."
+      "result": "The learner knows the saved version is safe, and that a new commit is needed to record the edit."
     },
     {
       "id": "git.model.repository.example-b",
-      "title": "Repository and working tree: boundary case",
-      "situation": "Deleting the .git metadata leaves ordinary files visible but removes that directory's repository history and references.",
+      "title": "The first commit that included everything",
+      "situation": "A learner runs `git init`, then `git add .` and `git commit` in a web project. The commit includes 40,000 files from node_modules and an .env with an API key.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: Deleting the .git metadata leaves ordinary files visible but removes that directory's repository history and references.",
-        "Step 2 — Keep this boundary explicit: Bare repositories have no normal working tree, nested repositories and worktrees alter layout, and untracked files are not yet represented in committed history.",
-        "Step 3 — Reject the documented misconception: The repository is just the visible project folder, so every file in it is automatically versioned."
+        "git add . stages every untracked file that isn't ignored.",
+        "Generated folders and secrets were never excluded.",
+        "Before the first add: create .gitignore, then check git status lists only source files."
       ],
-      "result": "This case demonstrates the declared outcome: Initialize and inspect a repository without committing generated or secret files."
+      "result": "The first commit contains just the project's own files, with no secrets or generated output."
     }
   ],
   "misconceptions": [
     {
       "id": "git.model.repository.misconception",
       "mistakenBelief": "The repository is just the visible project folder, so every file in it is automatically versioned.",
-      "correction": "Distinguish Git's object/reference database from the working tree and use status to see which visible files are tracked, modified, staged, or untracked.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: The repository is just the visible project folder, so every file in it is automatically versioned."
+      "correction": "Git stores history in the hidden .git database, and only content you add and commit is versioned. Files in the folder stay untracked until added, and edits aren't saved until committed.",
+      "diagnosticPrompt": "In the opening predict, how many files were versioned after git init?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A photo studio can model Repository and working tree: the set is the working tree, a selected proof is the index, and an archived photograph is a commit snapshot.",
+    "example": "A repository is like **a photo album plus the room you're photographing**. The room (working tree) changes all the time as you move things. The album (.git) only changes when you take and paste in a new photo (commit). Things you never photograph (untracked files) aren't in the album at all.",
     "usefulFor": [
-      "Separating working changes, staged content, committed snapshots, and repository metadata"
+      "remembering album vs room",
+      "untracked = never photographed"
     ],
     "limitations": [
-      "Git stores content-addressed objects and references rather than physical photographs or one linear album.",
-      "Bare repositories have no normal working tree, nested repositories and worktrees alter layout, and untracked files are not yet represented in committed history."
+      "Photos can't be edited; commits can't either, only replaced by new ones.",
+      "Throwing away the album (deleting .git) loses every past photo."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Editing README changes the working tree but does not alter the last commit object until new content is staged and committed.",
-      "A Git repository stores versioned objects and references in its metadata while the working tree presents one checked-out snapshot plus local changes.",
-      "Distinguish Git's object/reference database from the working tree and use status to see which visible files are tracked, modified, staged, or untracked."
+      "git init; add; commit README",
+      "edit README",
+      "git status / git diff / git show HEAD:README.md"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Commit",
         "state": {
-          "evidence": "Editing README changes the working tree but does not alter the last commit object until new content is staged and committed."
+          "HEAD": "Add README",
+          "working tree": "same as commit"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "The first snapshot is saved in .git."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Edit",
         "state": {
-          "model": "A Git repository stores versioned objects and references in its metadata while the working tree presents one checked-out snapshot plus local changes."
+          "working tree": "README modified",
+          "HEAD": "unchanged"
         },
-        "explanation": "Apply the declared Repository and working tree model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "Editing README changes the working tree but does not alter the last commit object."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Inspect",
         "state": {
-          "correction": "Distinguish Git's object/reference database from the working tree and use status to see which visible files are tracked, modified, staged, or untracked."
+          "git diff": "+Week 1: loops",
+          "HEAD version": "old text"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: The repository is just the visible project folder, so every file in it is automatically versioned."
+        "explanation": "Nothing is saved until new content is staged and committed."
       }
     ],
-    "textAlternative": "Starting artifact: Editing README changes the working tree but does not alter the last commit object until new content is staged and committed. Step 1, Observe. State: evidence: Editing README changes the working tree but does not alter the last commit object until new content is staged and committed.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A Git repository stores versioned objects and references in its metadata while the working tree presents one checked-out snapshot plus local changes.. Apply the declared Repository and working tree model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Distinguish Git's object/reference database from the working tree and use status to see which visible files are tracked, modified, staged, or untracked.. Compare the observation with the correction and reject the misconception: The repository is just the visible project folder, so every file in it is automatically versioned."
+    "textAlternative": "Tracing working tree vs commit. Step 1, Commit: HEAD is Add README; working tree is same as commit. The first snapshot is saved in .git. Step 2, Edit: working tree is README modified; HEAD is unchanged. Editing README changes the working tree but does not alter the last commit object. Step 3, Inspect: git diff is +Week 1: loops; HEAD version is old text. Nothing is saved until new content is staged and committed."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Repository and working tree: direct case”: state its starting evidence, apply the Repository and working tree rule, and give the observable result in three short lines.",
+      "prompt": "For \"Editing the README after the first commit\", explain how editing README changes the working tree but does not alter the last commit object until new content is staged and committed.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Commit.",
+        "Edit.",
+        "Inspect."
       ],
       "expectedEvidence": [
-        "Named example: Repository and working tree: direct case.",
-        "Starting evidence: Editing README changes the working tree but does not alter the last commit object until new content is staged and committed.",
-        "Core rule: A Git repository stores versioned objects and references in its metadata while the working tree presents one checked-out snapshot plus local changes.",
-        "Observable result: The case supports the declared outcome because Distinguish Git's object/reference database from the working tree and use status to see which visible files are tracked, modified, staged, or untracked.",
-        "Boundary check: Distinguish Git's object/reference database from the working tree and use status to see which visible files are tracked, modified, staged, or untracked."
+        "Names the example \"Editing the README after the first commit\": the first commit was already saved.",
+        "Editing README changes the working tree.",
+        "It does not alter the last commit object until new content is staged and committed.",
+        "The learner knows the saved version is safe."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: Deleting the .git metadata leaves ordinary files visible but removes that directory's repository history and references.",
+      "prompt": "In a disposable folder, run git init, create two files, commit one of them, then edit it. Predict and then check what git status shows for each file.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "One committed, one untracked.",
+        "Then one modified."
       ],
       "expectedEvidence": [
-        "A Git repository stores versioned objects and references in its metadata while the working tree presents one checked-out snapshot plus local changes.",
-        "Bare repositories have no normal working tree, nested repositories and worktrees alter layout, and untracked files are not yet represented in committed history."
+        "Untracked and modified states shown.",
+        "git show HEAD:<file> prints the old version."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Repository and working tree, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Initialise a repository for an existing small project that has a build folder and a .env file. Write a .gitignore first, check git status, make the first commit, and show with git ls-files that neither the build output nor .env is tracked.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Check status before any add.",
+        "git ls-files lists tracked files."
       ],
       "expectedEvidence": [
-        "Initialize and inspect a repository without committing generated or secret files.",
-        "Distinguish Git's object/reference database from the working tree and use status to see which visible files are tracked, modified, staged, or untracked."
+        "Only source files tracked.",
+        "A short note explaining each ignored entry."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.model.repository.misconception",
-      "explanation": "Distinguish Git's object/reference database from the working tree and use status to see which visible files are tracked, modified, staged, or untracked.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: Deleting the .git metadata leaves ordinary files visible but removes that directory's repository history and references."
+      "explanation": "Ask two questions: **Is this change in the working tree only, or committed?** (git status and git diff tell you.) **Is this file tracked at all?** (git ls-files tells you.)",
+      "retryPrompt": "Apply this to \"The first commit that included everything\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to initialize and inspect a repository without committing generated or secret files. Keep this boundary in view: Bare repositories have no normal working tree, nested repositories and worktrees alter layout, and untracked files are not yet represented in committed history.",
+    "summary": "To initialize and inspect a repository, run git init to create the .git database, remember the working tree is just your editable files, that new files stay untracked until added and edits don't change any commit until staged and committed, and exclude generated and secret files before the first add.",
     "retrievalPrompts": [
-      "Explain Repository and working tree without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: The repository is just the visible project folder, so every file in it is automatically versioned.",
-      "Apply the model to this case from memory: Deleting the .git metadata leaves ordinary files visible but removes that directory's repository history and references."
+      "What does git init create?",
+      "Does editing a file change the last commit?",
+      "What does untracked mean?"
     ],
     "nextReviewPrompt": "Next: continue to “Working tree, index and HEAD”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

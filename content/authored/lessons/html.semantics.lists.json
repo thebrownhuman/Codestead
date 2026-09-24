@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Ordered lists communicate sequence, unordered lists communicate a set without ranking, and description lists associate terms with descriptions.",
+    "summary": "HTML has three list types, chosen by meaning: `<ol>` when **order matters** (steps, rankings), `<ul>` when it doesn't (a set of items), and `<dl>` for **term–value pairs** (glossaries, specs, FAQ). Screen readers announce \"list, 5 items\", which helps people know what's coming. Children must be the right type: `li` inside ol/ul; `dt` and `dd` inside dl.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Recipe steps use ol because changing order changes the result, while ingredient names use ul. Your goal is to select and create the appropriate list structure for steps, sets and term-value pairs. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A recipe page lists ingredients and method steps. If the steps were an unordered list, a reader couldn't say \"I'm on step 3\" — and shuffling them would ruin the cake. Recipe steps use ol because changing order changes the result, while ingredient names use ul. In this lesson you'll select and create the appropriate list structure for steps, sets and term-value pairs.\n\n```predict\n{\"question\": \"Which list type fits a product spec: \\\"Weight: 1.2 kg, Battery: 10 hours, Colour: Blue\\\"?\", \"options\": [\"ul\", \"dl (description list)\"], \"answer\": 1, \"why\": \"Each line is a term with a value. `<dl><dt>Weight</dt><dd>1.2 kg</dd>…</dl>` keeps each pair together.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Standards-mode document skeleton; Paragraph and inline meaning. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Standards-mode document skeleton** and **Paragraph and inline meaning**."
       },
       {
-        "heading": "Technology rule",
-        "body": "Ordered lists communicate sequence, unordered lists communicate a set without ranking, and description lists associate terms with descriptions. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The distinction: order, set, or pairs",
+        "body": "```html\n<h2>Ingredients</h2>\n<ul>\n  <li>2 eggs</li>\n  <li>200 g flour</li>\n</ul>\n\n<h2>Method</h2>\n<ol>\n  <li>Whisk the eggs.</li>\n  <li>Fold in the flour.</li>\n</ol>\n\n<h2>Details</h2>\n<dl>\n  <dt>Serves</dt><dd>4</dd>\n  <dt>Time</dt><dd>30 minutes</dd>\n</dl>\n```\n\n| Question | List |\n|---|---|\n| Would reordering change the meaning? | ol. |\n| Is it just a group of items? | ul. |\n| Is each item a name with a value? | dl. |\n\n```reveal\n{\"prompt\": \"Can a list item contain another list?\", \"answer\": \"Yes — nest the inner `ul` or `ol` **inside** an `li`, never directly inside the outer list.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Visual bullets alone do not create list semantics, and navigation menus are usually lists of links rather than arbitrary div rows. This draft therefore rejects: All groups of repeated text should use ul because list order never affects meaning."
+        "heading": "Valid children only",
+        "body": "```predict\n{\"question\": \"`<ul><p>Milk</p><li>Eggs</li></ul>` — what's wrong?\", \"options\": [\"Nothing\", \"A ul may only contain li elements (plus script-supporting elements)\"], \"answer\": 1, \"why\": \"Put every item in its own li. Screen readers count li children, so stray elements confuse the item count.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use ordered, unordered and description lists according to content relationships.",
-      "Select and create the appropriate list structure for steps, sets and term-value pairs."
+      "Choose ol, ul or dl based on meaning.",
+      "Write valid list markup, including nested lists."
     ],
     "excludes": [
-      "Visual bullets alone do not create list semantics, and navigation menus are usually lists of links rather than arbitrary div rows."
+      "Styling bullets and numbers with CSS.",
+      "Navigation menus (navigation module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "html.semantics.lists.example-a",
-      "title": "Lists and grouped content: concrete case",
+      "title": "Recipe steps and ingredients",
       "situation": "Recipe steps use ol because changing order changes the result, while ingredient names use ul.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: Recipe steps use ol because changing order changes the result, while ingredient names use ul.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Choose ol when sequence is meaningful, ul when it is not, and preserve real list elements instead of visual imitation."
+        "**Recipe steps use ol:** whisking before folding matters — changing order changes the result.",
+        "**Ingredient names use ul:** eggs and flour can be listed in any order.",
+        "**Check:** a screen reader will read \"list, 2 items\" for each, and the numbered steps let cooks say \"step 2\"."
       ],
-      "result": "The result follows because Choose ol when sequence is meaningful, ul when it is not, and preserve real list elements instead of visual imitation."
+      "result": "Each list type matches its meaning: numbered steps and a bulleted set of ingredients."
     },
     {
       "id": "html.semantics.lists.example-b",
-      "title": "Lists and grouped content: boundary case",
-      "situation": "Visual bullets alone do not create list semantics, and navigation menus are usually lists of links rather than arbitrary div rows.",
+      "title": "The FAQ made of paragraphs",
+      "situation": "An FAQ uses `<p><b>Q: Do you ship abroad?</b></p><p>Yes, to 20 countries.</p>` for every question.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Visual bullets alone do not create list semantics, and navigation menus are usually lists of links rather than arbitrary div rows.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: All groups of repeated text should use ul because list order never affects meaning."
+        "Questions and answers aren't linked in the markup.",
+        "Each question is a term and its answer is a value — a description list fits.",
+        "Fix: `<dl><dt>Do you ship abroad?</dt><dd>Yes, to 20 countries.</dd></dl>` (or headings with sections for long answers)."
       ],
-      "result": "The boundary requires this correction: Choose ol when sequence is meaningful, ul when it is not, and preserve real list elements instead of visual imitation."
+      "result": "Each question is paired with its answer in the structure, not just visually."
     }
   ],
   "misconceptions": [
     {
       "id": "html.semantics.lists.misconception",
-      "mistakenBelief": "All groups of repeated text should use ul because list order never affects meaning.",
-      "correction": "Choose ol when sequence is meaningful, ul when it is not, and preserve real list elements instead of visual imitation.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: All groups of repeated text should use ul because list order never affects meaning."
+      "mistakenBelief": "All groups of repeated text should use ul, because list order never affects meaning.",
+      "correction": "Choose by meaning: ol when order matters, ul for unordered sets, dl for term–value pairs. The wrong type loses information such as step numbers or which value belongs to which term.",
+      "diagnosticPrompt": "In \"Recipe steps and ingredients\", why do the steps need ol?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model Lists and grouped content, with structure carrying meaning before decoration.",
+    "example": "Lists are like **different kinds of notes**: a numbered to-do for assembling furniture (ol), a shopping list (ul), and a phone contact card with labels and values (dl).",
     "usefulFor": [
-      "Building a first mental model for Lists and grouped content before using exact platform terms"
+      "remembering order vs set vs pairs",
+      "matching the list to its job"
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "Visual bullets alone do not create list semantics, and navigation menus are usually lists of links rather than arbitrary div rows."
+      "Paper notes don't get announced; screen readers announce list type and length.",
+      "HTML lists can nest; notes rarely do cleanly."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Recipe steps use ol because changing order changes the result, while ingredient names use ul.",
-      "Ordered lists communicate sequence, unordered lists communicate a set without ranking, and description lists associate terms with descriptions.",
-      "Choose ol when sequence is meaningful, ul when it is not, and preserve real list elements instead of visual imitation."
+      "<ul><li>2 eggs</li><li>200 g flour</li></ul>",
+      "<ol><li>Whisk the eggs.</li><li>Fold in the flour.</li></ol>",
+      "screen reader output"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Ingredients",
         "state": {
-          "evidence": "Recipe steps use ol because changing order changes the result, while ingredient names use ul."
+          "type": "ul",
+          "items": "2"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "Ingredient names use ul because their order doesn't matter."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Steps",
         "state": {
-          "rule": "Ordered lists communicate sequence, unordered lists communicate a set without ranking, and description lists associate terms with descriptions."
+          "type": "ol",
+          "items": "1. Whisk, 2. Fold"
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Recipe steps use ol because changing order changes the result."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Announced",
         "state": {
-          "correction": "Choose ol when sequence is meaningful, ul when it is not, and preserve real list elements instead of visual imitation."
+          "reads": "list, 2 items"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: All groups of repeated text should use ul because list order never affects meaning."
+        "explanation": "Assistive technology reads each list type and its length."
       }
     ],
-    "textAlternative": "Starting artifact: Recipe steps use ol because changing order changes the result, while ingredient names use ul. Step 1, Artifact. State: evidence: Recipe steps use ol because changing order changes the result, while ingredient names use ul.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Ordered lists communicate sequence, unordered lists communicate a set without ranking, and description lists associate terms with descriptions.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Choose ol when sequence is meaningful, ul when it is not, and preserve real list elements instead of visual imitation.. Check the result against the boundary and reject this misconception: All groups of repeated text should use ul because list order never affects meaning."
+    "textAlternative": "Choosing list types for a recipe. Step 1, Ingredients: type is ul; items is 2. Ingredient names use ul because their order doesn't matter. Step 2, Steps: type is ol; items is 1. Whisk, 2. Fold. Recipe steps use ol because changing order changes the result. Step 3, Announced: reads is list, 2 items. Assistive technology reads each list type and its length."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Lists and grouped content: concrete case”: state its starting evidence, apply the Lists and grouped content rule, and give the observable result in three short lines.",
+      "prompt": "For \"Recipe steps and ingredients\", explain why the recipe steps use ol because changing order changes the result, while ingredient names use ul.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Steps.",
+        "Ingredients.",
+        "Announcement."
       ],
       "expectedEvidence": [
-        "Named example: Lists and grouped content: concrete case.",
-        "Starting evidence: Recipe steps use ol because changing order changes the result, while ingredient names use ul.",
-        "Core rule: Ordered lists communicate sequence, unordered lists communicate a set without ranking, and description lists associate terms with descriptions.",
-        "Observable result: The result follows because Choose ol when sequence is meaningful, ul when it is not, and preserve real list elements instead of visual imitation.",
-        "Boundary check: Choose ol when sequence is meaningful, ul when it is not, and preserve real list elements instead of visual imitation."
+        "Names the example \"Recipe steps and ingredients\": recipe steps use ol.",
+        "Changing order changes the result.",
+        "Ingredient names use ul because order doesn't matter.",
+        "Screen readers announce the list type and item count."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Visual bullets alone do not create list semantics, and navigation menus are usually lists of links rather than arbitrary div rows.",
+      "prompt": "Mark up a top-3 movie ranking, a list of genres you like, and a glossary with two terms.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Ranking has order.",
+        "Glossary is pairs."
       ],
       "expectedEvidence": [
-        "Ordered lists communicate sequence, unordered lists communicate a set without ranking, and description lists associate terms with descriptions.",
-        "Visual bullets alone do not create list semantics, and navigation menus are usually lists of links rather than arbitrary div rows."
+        "ol for the ranking, ul for genres.",
+        "dl with dt/dd pairs for the glossary."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Lists and grouped content and explain why the misconception fails.",
+      "prompt": "Build a course page with a nested list: modules (ordered) each containing their topics (unordered). Validate it and check the item counts in the accessibility tree.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Nest inside li.",
+        "Use DevTools accessibility pane."
       ],
       "expectedEvidence": [
-        "Select and create the appropriate list structure for steps, sets and term-value pairs.",
-        "Choose ol when sequence is meaningful, ul when it is not, and preserve real list elements instead of visual imitation."
+        "Valid nested ol/ul structure.",
+        "Accessibility tree shows the expected item counts."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.semantics.lists.misconception",
-      "explanation": "Choose ol when sequence is meaningful, ul when it is not, and preserve real list elements instead of visual imitation.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'sequence is meaningful' and state the decisive evidence."
+      "explanation": "Ask: **Would reordering break it? → ol. Is each item a label plus a value? → dl. Otherwise → ul.** Then check each child is li (or dt/dd).",
+      "retryPrompt": "Apply this to \"The FAQ made of paragraphs\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to select and create the appropriate list structure for steps, sets and term-value pairs. Keep this boundary in view: Visual bullets alone do not create list semantics, and navigation menus are usually lists of links rather than arbitrary div rows.",
+    "summary": "To select and create the appropriate list structure, use ol for steps where order matters, ul for unordered sets, and dl for term–value pairs. Keep only li children in ol/ul, and nest inner lists inside an li.",
     "retrievalPrompts": [
-      "Explain Lists and grouped content using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: All groups of repeated text should use ul because list order never affects meaning.",
-      "Apply checkpoint 'sequence is meaningful' to a new artifact."
+      "When should you use ol instead of ul?",
+      "What is a dl for?",
+      "Where does a nested list go?"
     ],
     "nextReviewPrompt": "Next: continue to “Sections and landmarks”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

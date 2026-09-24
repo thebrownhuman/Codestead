@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Stylesheets, scripts, icons, and preload hints declare external resources with loading behavior that can affect rendering, execution order, security, and performance.",
+    "summary": "Pages pull in other files: stylesheets with `<link rel=\"stylesheet\">`, scripts with `<script>`, icons, fonts. How they load matters. A normal stylesheet **blocks rendering** until it arrives (so the page doesn't flash unstyled). A plain `<script>` in the head **blocks parsing**; `defer` and `type=\"module\"` scripts download in parallel and run after parsing. Hints like `preload` fetch something early — use them sparingly, only for truly critical resources.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A noncritical module script loads with module semantics while the main stylesheet remains a normal render dependency. Your goal is to configure document resources and explain their loading relationship. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Your page shows a blank white screen for two seconds. DevTools shows a 400 KB analytics script in the head, loaded before any HTML was parsed. Meanwhile, a teammate added `preload` to twelve files and made things slower. A noncritical module script loads with module semantics while the main stylesheet remains a normal render dependency. In this lesson you'll configure document resources and explain their loading relationship.\n\n```predict\n{\"question\": \"A `<script src=\\\"app.js\\\">` (no defer/async) sits in the head. What happens while it downloads?\", \"options\": [\"The page keeps parsing\", \"HTML parsing pauses until it downloads and runs\"], \"answer\": 1, \"why\": \"Classic scripts block the parser. `defer` or `type=\\\"module\\\"` let parsing continue.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Document foundations; Text and page semantics; Forms and native controls; Relative and absolute URLs; Standards-mode document skeleton. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Document foundations**, **Text and page semantics** and **Forms and native controls** modules, plus **Relative and absolute URLs** and the **Standards-mode document skeleton**."
       },
       {
-        "heading": "Technology rule",
-        "body": "Stylesheets, scripts, icons, and preload hints declare external resources with loading behavior that can affect rendering, execution order, security, and performance. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: what blocks, what waits",
+        "body": "```html\n<head>\n  <meta charset=\"utf-8\">\n  <title>Course home – Codestead</title>\n  <link rel=\"stylesheet\" href=\"/css/main.css\">          <!-- render dependency -->\n  <link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\">\n  <script type=\"module\" src=\"/js/quiz.js\"></script>     <!-- deferred by default -->\n  <script src=\"/js/analytics.js\" defer></script>         <!-- runs after parsing -->\n</head>\n```\n\n| Resource | Loading behaviour |\n|---|---|\n| stylesheet link. | blocks rendering until loaded. |\n| classic script. | blocks parsing. |\n| `defer` script. | downloads in parallel, runs in order after parsing. |\n| `type=\"module\"`. | deferred by default; supports import. |\n| `async` script. | runs as soon as it arrives, order not guaranteed. |\n| `preload`. | fetch early — only for critical late-discovered files. |\n\n```reveal\n{\"prompt\": \"Why not preload every file?\", \"answer\": \"Preloads compete for bandwidth. Preloading non-critical files delays the critical ones, making the page slower.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Preload can waste bandwidth, blocking scripts delay parsing, integrity and CORS interact, and module scripts follow different dependency behavior. This draft therefore rejects: Adding preload to every resource always improves page speed."
+        "heading": "Measure it",
+        "body": "```predict\n{\"question\": \"How do you check what blocks your page?\", \"options\": [\"Guess from the source\", \"DevTools Network and Performance panels show request timing and render-blocking resources\"], \"answer\": 1, \"why\": \"The waterfall shows what loaded when; Lighthouse lists render-blocking resources.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Link icons, styles and selected resource hints without redundant or harmful preloading.",
-      "Configure document resources and explain their loading relationship."
+      "Link stylesheets, icons and scripts with correct loading attributes.",
+      "Explain render-blocking, parser-blocking, defer, module and preload behaviour."
     ],
     "excludes": [
-      "Preload can waste bandwidth, blocking scripts delay parsing, integrity and CORS interact, and module scripts follow different dependency behavior."
+      "HTTP caching headers.",
+      "Bundlers and build tools."
     ]
   },
   "outcomes": [
@@ -63,133 +64,134 @@
   "examples": [
     {
       "id": "html.metadata.resources.example-a",
-      "title": "Linked resources and loading hints: concrete case",
+      "title": "Main stylesheet and a module script",
       "situation": "A noncritical module script loads with module semantics while the main stylesheet remains a normal render dependency.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A noncritical module script loads with module semantics while the main stylesheet remains a normal render dependency.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Declare only measured critical resource hints and understand each resource's fetch and execution behavior."
+        "**Main stylesheet:** `<link rel=\"stylesheet\" href=\"/css/main.css\">` remains a normal render dependency, so the page never flashes unstyled.",
+        "**Noncritical module script:** `<script type=\"module\" src=\"/js/quiz.js\">` loads with module semantics — downloaded in parallel and run after parsing.",
+        "**Measure:** the Performance panel will show HTML parsing finishing before quiz.js runs."
       ],
-      "result": "The result follows because Declare only measured critical resource hints and understand each resource's fetch and execution behavior."
+      "result": "The page renders styled content quickly, and the quiz script runs without blocking the parser."
     },
     {
       "id": "html.metadata.resources.example-b",
-      "title": "Linked resources and loading hints: boundary case",
-      "situation": "Preload can waste bandwidth, blocking scripts delay parsing, integrity and CORS interact, and module scripts follow different dependency behavior.",
+      "title": "The preload pile-up",
+      "situation": "A developer adds `<link rel=\"preload\">` for 12 images, 4 fonts and 3 scripts. Largest Contentful Paint gets slower.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Preload can waste bandwidth, blocking scripts delay parsing, integrity and CORS interact, and module scripts follow different dependency behavior.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Adding preload to every resource always improves page speed."
+        "All 19 files compete for bandwidth at the start.",
+        "The hero image the user actually needs first arrives later.",
+        "Fix: remove preloads except for one critical late-discovered resource (e.g. the hero font), then re-measure."
       ],
-      "result": "The boundary requires this correction: Declare only measured critical resource hints and understand each resource's fetch and execution behavior."
+      "result": "With fewer, targeted preloads, the critical content appears sooner."
     }
   ],
   "misconceptions": [
     {
       "id": "html.metadata.resources.misconception",
       "mistakenBelief": "Adding preload to every resource always improves page speed.",
-      "correction": "Declare only measured critical resource hints and understand each resource's fetch and execution behavior.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: Adding preload to every resource always improves page speed."
+      "correction": "Preload raises a resource's priority; preloading many files makes them compete and can delay what's truly critical. Use preload only for critical resources discovered late, and measure the effect.",
+      "diagnosticPrompt": "In \"The preload pile-up\", why did the page get slower?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model Linked resources and loading hints, with structure carrying meaning before decoration.",
+    "example": "Loading resources is like **preparing a stage show**: the set (stylesheet) must be up before the curtain opens; some actors (defer/module scripts) can arrive while the audience sits down. Rushing every prop to the front door at once (preload everything) jams the entrance.",
     "usefulFor": [
-      "Building a first mental model for Linked resources and loading hints before using exact platform terms"
+      "remembering what must be ready first",
+      "seeing preload as a priority pass, not a speed boost"
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "Preload can waste bandwidth, blocking scripts delay parsing, integrity and CORS interact, and module scripts follow different dependency behavior."
+      "Shows start once; pages may keep loading resources.",
+      "Browsers schedule downloads automatically — hints only adjust priority."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A noncritical module script loads with module semantics while the main stylesheet remains a normal render dependency.",
-      "Stylesheets, scripts, icons, and preload hints declare external resources with loading behavior that can affect rendering, execution order, security, and performance.",
-      "Declare only measured critical resource hints and understand each resource's fetch and execution behavior."
+      "<link rel='stylesheet' href='/css/main.css'>",
+      "<script type='module' src='/js/quiz.js'>",
+      "HTML parsing and first render"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Stylesheet",
         "state": {
-          "evidence": "A noncritical module script loads with module semantics while the main stylesheet remains a normal render dependency."
+          "main.css": "render dependency"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The main stylesheet remains a normal render dependency."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Module script",
         "state": {
-          "rule": "Stylesheets, scripts, icons, and preload hints declare external resources with loading behavior that can affect rendering, execution order, security, and performance."
+          "quiz.js": "downloads in parallel, deferred"
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The noncritical module script loads with module semantics."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Render",
         "state": {
-          "correction": "Declare only measured critical resource hints and understand each resource's fetch and execution behavior."
+          "parsing": "not blocked",
+          "quiz.js runs": "after parsing"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Adding preload to every resource always improves page speed."
+        "explanation": "Parsing completes and styled content renders before the script runs."
       }
     ],
-    "textAlternative": "Starting artifact: A noncritical module script loads with module semantics while the main stylesheet remains a normal render dependency. Step 1, Artifact. State: evidence: A noncritical module script loads with module semantics while the main stylesheet remains a normal render dependency.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Stylesheets, scripts, icons, and preload hints declare external resources with loading behavior that can affect rendering, execution order, security, and performance.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Declare only measured critical resource hints and understand each resource's fetch and execution behavior.. Check the result against the boundary and reject this misconception: Adding preload to every resource always improves page speed."
+    "textAlternative": "Resource loading relationships. Step 1, Stylesheet: main.css is render dependency. The main stylesheet remains a normal render dependency. Step 2, Module script: quiz.js is downloads in parallel, deferred. The noncritical module script loads with module semantics. Step 3, Render: parsing is not blocked; quiz.js runs is after parsing. Parsing completes and styled content renders before the script runs."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Linked resources and loading hints: concrete case”: state its starting evidence, apply the Linked resources and loading hints rule, and give the observable result in three short lines.",
+      "prompt": "For \"Main stylesheet and a module script\", explain why the main stylesheet remains a normal render dependency and how the noncritical module script loads with module semantics.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Stylesheet.",
+        "Module script.",
+        "Effect."
       ],
       "expectedEvidence": [
-        "Named example: Linked resources and loading hints: concrete case.",
-        "Starting evidence: A noncritical module script loads with module semantics while the main stylesheet remains a normal render dependency.",
-        "Core rule: Stylesheets, scripts, icons, and preload hints declare external resources with loading behavior that can affect rendering, execution order, security, and performance.",
-        "Observable result: The result follows because Declare only measured critical resource hints and understand each resource's fetch and execution behavior.",
-        "Boundary check: Declare only measured critical resource hints and understand each resource's fetch and execution behavior."
+        "Names the example \"Main stylesheet and a module script\": the main stylesheet remains a normal render dependency.",
+        "The noncritical module script loads with module semantics.",
+        "It downloads in parallel and runs after parsing.",
+        "The page renders styled content quickly."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Preload can waste bandwidth, blocking scripts delay parsing, integrity and CORS interact, and module scripts follow different dependency behavior.",
+      "prompt": "A page has three scripts: a chat widget (not critical), the main app (needs the DOM), and a tiny inline theme setter that must run before paint. Choose loading attributes for each.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Order matters for the app?",
+        "What must run before paint?"
       ],
       "expectedEvidence": [
-        "Stylesheets, scripts, icons, and preload hints declare external resources with loading behavior that can affect rendering, execution order, security, and performance.",
-        "Preload can waste bandwidth, blocking scripts delay parsing, integrity and CORS interact, and module scripts follow different dependency behavior."
+        "Chat: async or defer; app: defer or module.",
+        "Theme setter: small inline script in head."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Linked resources and loading hints and explain why the misconception fails.",
+      "prompt": "Record a Performance profile of one of your pages. Identify render-blocking and parser-blocking resources, change attributes, and compare the before/after timings.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Use Lighthouse too.",
+        "Change one thing at a time."
       ],
       "expectedEvidence": [
-        "Configure document resources and explain their loading relationship.",
-        "Declare only measured critical resource hints and understand each resource's fetch and execution behavior."
+        "Identified blocking resources.",
+        "Measured improvement after changes."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.metadata.resources.misconception",
-      "explanation": "Declare only measured critical resource hints and understand each resource's fetch and execution behavior.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'measured critical resource hints' and state the decisive evidence."
+      "explanation": "For each resource ask: **Is it needed before the first paint?** Yes → normal stylesheet / tiny inline script. No → defer, module or async. Preload only if critical and discovered late.",
+      "retryPrompt": "Apply this to \"The preload pile-up\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to configure document resources and explain their loading relationship. Keep this boundary in view: Preload can waste bandwidth, blocking scripts delay parsing, integrity and CORS interact, and module scripts follow different dependency behavior.",
+    "summary": "To configure document resources, link the main stylesheet normally (it's a render dependency), load scripts with defer or type=\"module\" so parsing isn't blocked, and use preload only for a few critical late-discovered files — then measure the loading relationship in DevTools.",
     "retrievalPrompts": [
-      "Explain Linked resources and loading hints using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: Adding preload to every resource always improves page speed.",
-      "Apply checkpoint 'measured critical resource hints' to a new artifact."
+      "What does a classic head script block?",
+      "How do module scripts load?",
+      "Why can preloading everything hurt?"
     ],
     "nextReviewPrompt": "Next: continue to “Native semantics before ARIA”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

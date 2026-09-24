@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Selection evaluates Boolean conditions to choose the one appropriate path, with branch order and boundary comparisons determining which path handles each input.",
+    "summary": "`if` / `elif` / `else` lets a program **choose one path**. Conditions are checked **top to bottom**, and the first true one wins — so the order of your conditions, and whether you use `>` or `>=`, decides who gets which result.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A grading rule tests score at least 90 before score at least 75 so a score of 95 reaches the highest band instead of the first broad match. Your goal is to design and trace nested and multi-branch decisions including boundary cases. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A teacher writes a grading program: 75 or more is a B, 90 or more is an A. A student scores 95… and gets a B. 😤 The code has no typo. The conditions are simply in the wrong order. In this lesson you'll learn exactly how a score like 95 travels through `if`/`elif`/`else`, why the first match wins, and how boundaries like 90 vs \"above 90\" trip people up.\n\n```predict\n{\"code\": \"score = 95\\nif score >= 75:\\n    grade = \\\"B\\\"\\nelif score >= 90:\\n    grade = \\\"A\\\"\\nprint(grade)\", \"question\": \"What grade does a score of 95 get?\", \"options\": [\"A\", \"B\"], \"answer\": 1, \"why\": \"`95 >= 75` is checked first and it's true, so the `elif` never runs. The first true condition wins. Put the strictest check (`>= 90`) first.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Expressions and evaluation; Sequence. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Expressions and evaluation** (like `score >= 90` becoming `True` or `False`) and **Sequence** (statements running in order). Selection decides *which* statements run."
       },
       {
-        "heading": "Operational model",
-        "body": "Selection evaluates Boolean conditions to choose the one appropriate path, with branch order and boundary comparisons determining which path handles each input. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The rule: first true condition wins",
+        "body": "```python\nif score >= 90:\n    grade = \"A\"\nelif score >= 75:\n    grade = \"B\"\nelse:\n    grade = \"C\"\n```\n\nPython tests each condition in order and runs **only the first** block whose condition is true. `else` catches everything left over. Exactly one path runs.\n\n```reveal\n{\"prompt\": \"With this fixed version, which grades do 90, 89 and 75 get?\", \"answer\": \"90 → A (`90 >= 90` is true). 89 → B. 75 → B (`>=` includes 75). Boundary values are where bugs hide — always test them.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Overlapping conditions, unreachable branches, missing default behavior, and floating-point comparisons can make an apparently complete decision incomplete or order-dependent. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Separate if statements and one if-else-if chain always have identical behavior when several conditions are true."
+        "heading": "`elif` chain vs separate `if`s",
+        "body": "```predict\n{\"code\": \"n = 12\\nif n > 10:\\n    print(\\\"big\\\")\\nif n % 2 == 0:\\n    print(\\\"even\\\")\", \"question\": \"How many messages print for `n = 12`?\", \"options\": [\"1\", \"2\"], \"answer\": 1, \"why\": \"These are two **separate** `if` statements, so both are checked and both are true. An `if`/`elif` chain would stop after the first match and print just one.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use Boolean conditions to choose among mutually appropriate paths.",
-      "Design and trace nested and multi-branch decisions including boundary cases."
+      "Predict which branch runs for a given input, including boundary values.",
+      "Choose between an if/elif chain and separate if statements."
     ],
     "excludes": [
-      "Overlapping conditions, unreachable branches, missing default behavior, and floating-point comparisons can make an apparently complete decision incomplete or order-dependent."
+      "Match/switch statements.",
+      "Short-circuit evaluation of `and`/`or` in depth."
     ]
   },
   "outcomes": [
@@ -63,133 +64,136 @@
   "examples": [
     {
       "id": "pf.control.selection.example-a",
-      "title": "Selection: direct case",
-      "situation": "A grading rule tests score at least 90 before score at least 75 so a score of 95 reaches the highest band instead of the first broad match.",
+      "title": "The grading bug",
+      "situation": "Scores are graded with `if score >= 75` → B **before** `elif score >= 90` → A. A score of 95 comes in.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A grading rule tests score at least 90 before score at least 75 so a score of 95 reaches the highest band instead of the first broad match.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Choose independent or mutually exclusive branches deliberately, order overlapping conditions from specific to broad, and test every boundary and default path."
+        "Test the first condition: `95 >= 75` is **True**, so grade becomes \"B\".",
+        "Because one branch already ran, the `elif score >= 90` line is **skipped** entirely.",
+        "Fix: test the highest band first — `if score >= 90` then `elif score >= 75` — so 95 reaches the A branch."
       ],
-      "result": "The case supports the declared outcome because Choose independent or mutually exclusive branches deliberately, order overlapping conditions from specific to broad, and test every boundary and default path."
+      "result": "Before the fix, a score of 95 gets B; after reordering, it gets A. The first true condition wins."
     },
     {
       "id": "pf.control.selection.example-b",
-      "title": "Selection: boundary case",
-      "situation": "A delivery rule handles negative distance as invalid, zero as pickup, up to five as local, and larger values as extended delivery.",
+      "title": "Free shipping at exactly 500",
+      "situation": "`if total > 500: shipping = 0` `else: shipping = 40`. A customer's cart is exactly 500.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A delivery rule handles negative distance as invalid, zero as pickup, up to five as local, and larger values as extended delivery.",
-        "Step 2 — Keep this boundary explicit: Overlapping conditions, unreachable branches, missing default behavior, and floating-point comparisons can make an apparently complete decision incomplete or order-dependent.",
-        "Step 3 — Reject the documented misconception: Separate if statements and one if-else-if chain always have identical behavior when several conditions are true."
+        "Evaluate `500 > 500` — it's **False** (500 isn't bigger than itself).",
+        "So the `else` branch runs and shipping is 40.",
+        "If the rule is \"500 or more ships free\", the condition must be `total >= 500`."
       ],
-      "result": "This case demonstrates the declared outcome: Design and trace nested and multi-branch decisions including boundary cases."
+      "result": "The customer pays 40 shipping. Changing `>` to `>=` makes exactly 500 qualify."
     }
   ],
   "misconceptions": [
     {
       "id": "pf.control.selection.misconception",
-      "mistakenBelief": "Separate if statements and one if-else-if chain always have identical behavior when several conditions are true.",
-      "correction": "Choose independent or mutually exclusive branches deliberately, order overlapping conditions from specific to broad, and test every boundary and default path.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Separate if statements and one if-else-if chain always have identical behavior when several conditions are true."
+      "mistakenBelief": "Separate `if` statements and one `if`/`elif` chain always behave the same, even when several conditions are true.",
+      "correction": "An `if`/`elif` chain runs only the first true branch and skips the rest; separate `if` statements are each checked independently, so several can run. They differ whenever more than one condition is true.",
+      "diagnosticPrompt": "For `n = 12`, how many lines print with two separate ifs, and how many with if/elif?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A route with ordered checkpoints, forks, and repeated laps can model Selection while each decision uses the current conditions.",
+    "example": "Like a **bouncer checking a list** of rules from the top: \"VIP? Go left. Over 18? Go straight. Otherwise, go home.\" He stops at the first rule you match.",
     "usefulFor": [
-      "Visualizing order, branching, repetition, progress, and nested routes"
+      "remembering that order decides the outcome",
+      "picturing `else` as \"everyone else\""
     ],
     "limitations": [
-      "Real control flow can include calls, exceptions, concurrency, and evaluation rules absent from a physical route.",
-      "Overlapping conditions, unreachable branches, missing default behavior, and floating-point comparisons can make an apparently complete decision incomplete or order-dependent."
+      "A real bouncer might use judgement; the program checks conditions exactly as written.",
+      "Separate `if` statements are like several independent checkpoints — the one-bouncer picture hides that."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A grading rule tests score at least 90 before score at least 75 so a score of 95 reaches the highest band instead of the first broad match.",
-      "Selection evaluates Boolean conditions to choose the one appropriate path, with branch order and boundary comparisons determining which path handles each input.",
-      "Choose independent or mutually exclusive branches deliberately, order overlapping conditions from specific to broad, and test every boundary and default path."
+      "score = 95",
+      "if score >= 75: grade = 'B'",
+      "elif score >= 90: grade = 'A'",
+      "print(grade)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Check first condition",
         "state": {
-          "evidence": "A grading rule tests score at least 90 before score at least 75 so a score of 95 reaches the highest band instead of the first broad match."
+          "score": "95",
+          "score >= 75": "True"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "The first condition is tested and it is true for a score of 95."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Run B branch",
         "state": {
-          "model": "Selection evaluates Boolean conditions to choose the one appropriate path, with branch order and boundary comparisons determining which path handles each input."
+          "grade": "B"
         },
-        "explanation": "Apply the declared Selection model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "Only the first true branch runs, so grade becomes B."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Skip the rest",
         "state": {
-          "correction": "Choose independent or mutually exclusive branches deliberately, order overlapping conditions from specific to broad, and test every boundary and default path."
+          "elif checked": "no",
+          "printed": "B"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Separate if statements and one if-else-if chain always have identical behavior when several conditions are true."
+        "explanation": "The elif is never tested once a branch has run, so the program prints B."
       }
     ],
-    "textAlternative": "Starting artifact: A grading rule tests score at least 90 before score at least 75 so a score of 95 reaches the highest band instead of the first broad match. Step 1, Observe. State: evidence: A grading rule tests score at least 90 before score at least 75 so a score of 95 reaches the highest band instead of the first broad match.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Selection evaluates Boolean conditions to choose the one appropriate path, with branch order and boundary comparisons determining which path handles each input.. Apply the declared Selection model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Choose independent or mutually exclusive branches deliberately, order overlapping conditions from specific to broad, and test every boundary and default path.. Compare the observation with the correction and reject the misconception: Separate if statements and one if-else-if chain always have identical behavior when several conditions are true."
+    "textAlternative": "Grading a score of 95 with the conditions in the wrong order. Step 1, Check first condition: score is 95; score >= 75 is True. The first condition is tested and it is true for a score of 95. Step 2, Run B branch: grade is B. Only the first true branch runs, so grade becomes B. Step 3, Skip the rest: elif checked is no; printed is B. The elif is never tested once a branch has run, so the program prints B."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Selection: direct case”: state its starting evidence, apply the Selection rule, and give the observable result in three short lines.",
+      "prompt": "In \"The grading bug\", explain in three lines which condition a score of 95 hits first, what gets skipped, and how to fix the grading order.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Line 1: the first condition tested.",
+        "Line 2: what's skipped.",
+        "Line 3: the reordered fix."
       ],
       "expectedEvidence": [
-        "Named example: Selection: direct case.",
-        "Starting evidence: A grading rule tests score at least 90 before score at least 75 so a score of 95 reaches the highest band instead of the first broad match.",
-        "Core rule: Selection evaluates Boolean conditions to choose the one appropriate path, with branch order and boundary comparisons determining which path handles each input.",
-        "Observable result: The case supports the declared outcome because Choose independent or mutually exclusive branches deliberately, order overlapping conditions from specific to broad, and test every boundary and default path.",
-        "Boundary check: Choose independent or mutually exclusive branches deliberately, order overlapping conditions from specific to broad, and test every boundary and default path."
+        "Names the example \"The grading bug\": score 95 with `score >= 75` checked before `score >= 90`.",
+        "95 >= 75 is true, so the B branch runs first.",
+        "The elif for A is skipped because the first true condition wins.",
+        "Reordering so `>= 90` is first means a score of 95 gets A instead of B."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A delivery rule handles negative distance as invalid, zero as pickup, up to five as local, and larger values as extended delivery.",
+      "prompt": "A thermostat: `if temp < 18: heat` `elif temp < 10: heat_max`. At 5°C, which runs? Reorder it so freezing rooms get heat_max.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Which condition is true first for 5?",
+        "Put the stricter one first."
       ],
       "expectedEvidence": [
-        "Selection evaluates Boolean conditions to choose the one appropriate path, with branch order and boundary comparisons determining which path handles each input.",
-        "Overlapping conditions, unreachable branches, missing default behavior, and floating-point comparisons can make an apparently complete decision incomplete or order-dependent."
+        "At 5, `temp < 18` is true first, so only heat runs.",
+        "Fixed order: `if temp < 10: heat_max` then `elif temp < 18: heat`."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Selection, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Write an if/elif/else that labels a ticket price: under 13 → child, 60 or over → senior, otherwise adult. List the boundary ages you'd test and the expected label for each.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Boundaries: 12, 13, 59, 60.",
+        "Order the checks so no branch is unreachable."
       ],
       "expectedEvidence": [
-        "Design and trace nested and multi-branch decisions including boundary cases.",
-        "Choose independent or mutually exclusive branches deliberately, order overlapping conditions from specific to broad, and test every boundary and default path."
+        "Correct chain where every branch is reachable.",
+        "Boundary tests with correct labels (12 child, 13 adult, 59 adult, 60 senior)."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "pf.control.selection.misconception",
-      "explanation": "Choose independent or mutually exclusive branches deliberately, order overlapping conditions from specific to broad, and test every boundary and default path.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A delivery rule handles negative distance as invalid, zero as pickup, up to five as local, and larger values as extended delivery."
+      "explanation": "Read a chain like the computer: go down the list, stop at the **first** True. Write the input next to each condition with True/False until you hit one.",
+      "retryPrompt": "Redo \"The grading bug\" this way for scores 95, 80 and 60 with the fixed order."
     }
   ],
   "recap": {
-    "summary": "You should now be able to design and trace nested and multi-branch decisions including boundary cases. Keep this boundary in view: Overlapping conditions, unreachable branches, missing default behavior, and floating-point comparisons can make an apparently complete decision incomplete or order-dependent.",
+    "summary": "`if`/`elif`/`else` runs exactly one branch: the first whose condition is true. Put stricter conditions first, and test boundary values (like exactly 90 or exactly 500) because `>` vs `>=` changes them. Separate `if`s are all checked; a chain stops at the first match.",
     "retrievalPrompts": [
-      "Explain Selection without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Separate if statements and one if-else-if chain always have identical behavior when several conditions are true.",
-      "Apply the model to this case from memory: A delivery rule handles negative distance as invalid, zero as pickup, up to five as local, and larger values as extended delivery."
+      "Why did 95 get a B in the grading bug?",
+      "What's the difference between `> 500` and `>= 500` at exactly 500?",
+      "When do separate ifs and an elif chain behave differently?"
     ],
     "nextReviewPrompt": "Next: continue to “Iteration”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

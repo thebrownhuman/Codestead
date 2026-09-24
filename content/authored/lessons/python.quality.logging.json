@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Python logging emits severity-appropriate structured operational events through configured handlers, keeping diagnostics separate from user output and excluding secrets or excessive personal data.",
+    "summary": "**Logs** are notes for developers and operators; **user-facing output** is a short, friendly message for the person using the app. Use the `logging` module with a named logger (`logging.getLogger(__name__)`), pick the right **level** (DEBUG, INFO, WARNING, ERROR), include safe identifiers like a request id, use `logger.exception` inside `except` to keep the traceback — and **never** log passwords, tokens or raw personal data, at any level.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A service logs a safe request id, operation, and failure category with logger.exception while the user receives a bounded message. Your goal is to add useful operational logging and distinguish it from user-facing output. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A user's upload fails at 2 a.m. They see \"Something went wrong\". You, next morning, need to know which request, which step, and why. Good logging gives you exactly that — without leaking the user's data. A service logs a safe request id, operation, and failure category with logger.exception while the user receives a bounded message. In this lesson you'll add useful operational logging and distinguish it from user-facing output.\n\n```predict\n{\"question\": \"`logger.debug(\\\"login %s %s\\\", username, password)` — is this OK because debug logs are off in production?\", \"options\": [\"Yes, debug is filtered\", \"No — secrets must never be logged at any level\"], \"answer\": 1, \"why\": \"Debug gets switched on during incidents, logs get copied and shipped to other systems. Never log secrets, whatever the level.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Project metadata and command entry; Exceptions, files and resources; Classes and object protocols; Exception handling and propagation; Packages and public APIs. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Project metadata and command entry**, **Exceptions, files and resources**, **Classes and object protocols**, **Exception handling and propagation**, and **Packages and public APIs**."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Python logging emits severity-appropriate structured operational events through configured handlers, keeping diagnostics separate from user output and excluding secrets or excessive personal data. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: two audiences, two channels",
+        "body": "```python\nimport logging\nlog = logging.getLogger(__name__)\n\ndef handle_upload(request_id: str, data: bytes) -> str:\n    log.info(\"upload started\", extra={\"request_id\": request_id, \"size\": len(data)})\n    try:\n        store(data)\n    except StorageFullError:\n        log.exception(\"upload failed\", extra={\"request_id\": request_id, \"category\": \"storage_full\"})\n        return \"We couldn't save your file right now. Please try again later.\"\n    return \"Uploaded!\"\n\n# once, at program start (not in library modules):\nlogging.basicConfig(level=logging.INFO, format=\"%(asctime)s %(levelname)s %(name)s %(message)s\")\n```\n\n| Level | Use for |\n|---|---|\n| DEBUG. | detailed diagnostics while investigating. |\n| INFO. | normal milestones (started, finished). |\n| WARNING. | unexpected but handled. |\n| ERROR / exception. | a failure; `.exception` adds the traceback. |\n\n```reveal\n{\"prompt\": \"Why not just `print()` diagnostics?\", \"answer\": \"print mixes developer notes into user output, has no levels, timestamps or logger names, and can't be filtered or routed to a file or log service.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "String interpolation can happen before filtering, handlers can duplicate messages, exception logging may expose inputs, library code should not own global configuration, and logs are not control flow. The learner must reject this documented misconception: Debug level permits passwords, tokens, or raw learner data because production normally filters those records."
+        "heading": "Safe fields only",
+        "body": "```predict\n{\"question\": \"Which is safe to log for a failed login?\", \"options\": [\"The typed password\", \"A request id and the failure category \\\"bad_credentials\\\"\"], \"answer\": 1, \"why\": \"Identifiers and categories help you investigate; secrets and raw personal data create a security incident of their own.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Emit structured severity-appropriate diagnostics without leaking secrets or replacing exception handling.",
-      "Add useful operational logging and distinguish it from user-facing output."
+      "Use named loggers, levels and logger.exception with safe context fields.",
+      "Keep user-facing messages separate from operational logs."
     ],
     "excludes": [
-      "String interpolation can happen before filtering, handlers can duplicate messages, exception logging may expose inputs, library code should not own global configuration, and logs are not control flow."
+      "Log shipping and observability platforms.",
+      "Structured logging libraries."
     ]
   },
   "outcomes": [
@@ -63,133 +64,136 @@
   "examples": [
     {
       "id": "python.quality.logging.example.direct",
-      "title": "Logging and diagnostics: direct language case",
+      "title": "Logging a failed request safely",
       "situation": "A service logs a safe request id, operation, and failure category with logger.exception while the user receives a bounded message.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A service logs a safe request id, operation, and failure category with logger.exception while the user receives a bounded message.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Never place secrets in log arguments, use structured safe context and appropriate severity, and configure handlers at the application boundary."
+        "**Operation:** `log.info(\"upload started\", ...)` records the request id and size.",
+        "**Failure:** in the except block, `log.exception` records the safe request id, the failure category `storage_full` and the traceback.",
+        "**User output:** the function returns a bounded message: \"We couldn't save your file right now. Please try again later.\""
       ],
-      "result": "The example meets the atomic outcome because Never place secrets in log arguments, use structured safe context and appropriate severity, and configure handlers at the application boundary."
+      "result": "Operators can trace request r-42 to its traceback, while the user sees a short, friendly message with no internals."
     },
     {
       "id": "python.quality.logging.example.boundary",
-      "title": "Logging and diagnostics: boundary and transfer case",
-      "situation": "An API token and full payload are excluded or redacted even during debug logging, and a test asserts the secret never enters captured logs.",
+      "title": "The log that leaked a token",
+      "situation": "An API client logs every request with `log.debug(\"calling %s headers=%s\", url, headers)`. The headers include `Authorization: Bearer …`.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: An API token and full payload are excluded or redacted even during debug logging, and a test asserts the secret never enters captured logs.",
-        "Step 2 — Keep the language boundary explicit: String interpolation can happen before filtering, handlers can duplicate messages, exception logging may expose inputs, library code should not own global configuration, and logs are not control flow.",
-        "Step 3 — Reject the tempting but incorrect rule: Debug level permits passwords, tokens, or raw learner data because production normally filters those records."
+        "During an incident someone enables DEBUG, and tokens flow into a shared log system.",
+        "Anyone with log access could now call the API as that user.",
+        "Fix: log only the method, URL path and status; redact or omit headers; rotate the leaked token."
       ],
-      "result": "This case demonstrates the declared outcome: Add useful operational logging and distinguish it from user-facing output."
+      "result": "Logs stay useful for debugging without exposing credentials."
     }
   ],
   "misconceptions": [
     {
       "id": "python.quality.logging.misconception",
-      "mistakenBelief": "Debug level permits passwords, tokens, or raw learner data because production normally filters those records.",
-      "correction": "Never place secrets in log arguments, use structured safe context and appropriate severity, and configure handlers at the application boundary.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Debug level permits passwords, tokens, or raw learner data because production normally filters those records."
+      "mistakenBelief": "Debug level permits passwords, tokens or raw learner data, because production normally filters those records.",
+      "correction": "Log levels control volume, not secrecy: debug may be enabled and logs are copied widely. Never log secrets or raw personal data at any level — log safe identifiers and categories instead.",
+      "diagnosticPrompt": "In \"The log that leaked a token\", what should have been logged instead of headers?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "an inspected delivery package whose interface notes, repeatable checks, safe incident log, and clean installation prove bounded quality claims can introduce Logging and diagnostics, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "example": "Logs are like a **ship's logbook**: timestamps, events, problems, for the crew. The captain's announcement to passengers is the user message. You'd never write passengers' passport numbers in the logbook \"just in case\".",
     "usefulFor": [
-      "typing, tests, logging, debugging, and project completion"
+      "remembering two audiences",
+      "keeping sensitive data out of the book"
     ],
     "limitations": [
-      "annotations do not enforce runtime types, mocks can mislead, logs can leak, and local editable installs can hide packaging defects",
-      "String interpolation can happen before filtering, handlers can duplicate messages, exception logging may expose inputs, library code should not own global configuration, and logs are not control flow."
+      "Logbooks are private; software logs often travel to many systems.",
+      "Levels are like marking entries routine vs urgent."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A service logs a safe request id, operation, and failure category with logger.exception while the user receives a bounded message.",
-      "Python logging emits severity-appropriate structured operational events through configured handlers, keeping diagnostics separate from user output and excluding secrets or excessive personal data.",
-      "Never place secrets in log arguments, use structured safe context and appropriate severity, and configure handlers at the application boundary."
+      "log.info('upload started', extra={'request_id': 'r-42'})",
+      "store(data) raises StorageFullError",
+      "log.exception(...); return bounded message"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Milestone",
         "state": {
-          "evidence": "A service logs a safe request id, operation, and failure category with logger.exception while the user receives a bounded message."
+          "level": "INFO",
+          "request_id": "r-42"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "The service logs a safe request id and the operation starting."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Failure logged",
         "state": {
-          "rule": "Python logging emits severity-appropriate structured operational events through configured handlers, keeping diagnostics separate from user output and excluding secrets or excessive personal data."
+          "level": "ERROR",
+          "category": "storage_full",
+          "traceback": "included"
         },
-        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "logger.exception records the failure category with the traceback."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "User message",
         "state": {
-          "correction": "Never place secrets in log arguments, use structured safe context and appropriate severity, and configure handlers at the application boundary."
+          "returned": "We couldn't save your file right now."
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Debug level permits passwords, tokens, or raw learner data because production normally filters those records."
+        "explanation": "The user receives a bounded message with no internal details."
       }
     ],
-    "textAlternative": "Starting artifact: A service logs a safe request id, operation, and failure category with logger.exception while the user receives a bounded message. Step 1, Observe. State: evidence: A service logs a safe request id, operation, and failure category with logger.exception while the user receives a bounded message.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Python logging emits severity-appropriate structured operational events through configured handlers, keeping diagnostics separate from user output and excluding secrets or excessive personal data.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Never place secrets in log arguments, use structured safe context and appropriate severity, and configure handlers at the application boundary.. Compare the observation with the correction and explain why the misconception fails: Debug level permits passwords, tokens, or raw learner data because production normally filters those records."
+    "textAlternative": "Logging a failed upload. Step 1, Milestone: level is INFO; request_id is r-42. The service logs a safe request id and the operation starting. Step 2, Failure logged: level is ERROR; category is storage_full; traceback is included. logger.exception records the failure category with the traceback. Step 3, User message: returned is We couldn't save your file right now.. The user receives a bounded message with no internal details."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Logging and diagnostics: direct language case”: state its starting evidence, apply the Logging and diagnostics rule, and give the observable result in three short lines.",
+      "prompt": "For \"Logging a failed request safely\", explain what the service logs (safe request id, operation, failure category), why it uses logger.exception, and what bounded message the user receives.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Log fields.",
+        "exception.",
+        "User message."
       ],
       "expectedEvidence": [
-        "Named example: Logging and diagnostics: direct language case.",
-        "Starting evidence: A service logs a safe request id, operation, and failure category with logger.exception while the user receives a bounded message.",
-        "Core rule: Python logging emits severity-appropriate structured operational events through configured handlers, keeping diagnostics separate from user output and excluding secrets or excessive personal data.",
-        "Observable result: The example meets the atomic outcome because Never place secrets in log arguments, use structured safe context and appropriate severity, and configure handlers at the application boundary.",
-        "Boundary check: Never place secrets in log arguments, use structured safe context and appropriate severity, and configure handlers at the application boundary."
+        "Names the example \"Logging a failed request safely\": the service logs a safe request id, operation, and failure category.",
+        "It uses logger.exception to keep the traceback.",
+        "The user receives a bounded message without internals.",
+        "No secrets or raw data are logged."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: An API token and full payload are excluded or redacted even during debug logging, and a test asserts the secret never enters captured logs.",
+      "prompt": "Rewrite `print(f\"Error: {e} for user {email} pw={pw}\")` inside an except block into proper logging plus a user message.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "logger.exception.",
+        "Drop the password; consider hashing or omitting email."
       ],
       "expectedEvidence": [
-        "Python logging emits severity-appropriate structured operational events through configured handlers, keeping diagnostics separate from user output and excluding secrets or excessive personal data.",
-        "String interpolation can happen before filtering, handlers can duplicate messages, exception logging may expose inputs, library code should not own global configuration, and logs are not control flow."
+        "Uses log.exception with a safe id and category.",
+        "Returns or prints a short friendly user message separately."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Logging and diagnostics, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Add logging to your CLI project: configure it once in main, add INFO milestones and exception logging at boundaries, and add a `--verbose` flag that switches to DEBUG. Check that no secrets appear.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "getLogger(__name__) in modules.",
+        "basicConfig only in main."
       ],
       "expectedEvidence": [
-        "Add useful operational logging and distinguish it from user-facing output.",
-        "Never place secrets in log arguments, use structured safe context and appropriate severity, and configure handlers at the application boundary."
+        "Consistent logging across modules with levels.",
+        "Verbose flag works and a review confirms no sensitive data."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "python.quality.logging.misconception",
-      "explanation": "Never place secrets in log arguments, use structured safe context and appropriate severity, and configure handlers at the application boundary.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: An API token and full payload are excluded or redacted even during debug logging, and a test asserts the secret never enters captured logs."
+      "explanation": "For every log line ask: **Who reads this? Is every field safe to show an operator? Is the level right?** For every user message: **Is it short, helpful and free of internals?**",
+      "retryPrompt": "Apply this to \"The log that leaked a token\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to add useful operational logging and distinguish it from user-facing output. Keep this boundary in view: String interpolation can happen before filtering, handlers can duplicate messages, exception logging may expose inputs, library code should not own global configuration, and logs are not control flow.",
+    "summary": "To add useful operational logging, use named loggers and levels, log safe identifiers and failure categories with logger.exception at boundaries, and keep user-facing output as a separate bounded message. Never log secrets at any level.",
     "retrievalPrompts": [
-      "Explain Logging and diagnostics using canonical Python: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Debug level permits passwords, tokens, or raw learner data because production normally filters those records.",
-      "Predict this case from memory: An API token and full payload are excluded or redacted even during debug logging, and a test asserts the secret never enters captured logs."
+      "Why not use print for diagnostics?",
+      "What does logger.exception add?",
+      "Is it safe to log passwords at DEBUG?"
     ],
     "nextReviewPrompt": "Next: continue to “Debugger and final project”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

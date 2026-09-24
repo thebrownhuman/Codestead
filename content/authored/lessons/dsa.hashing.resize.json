@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Hash tables resize and rehash when load policy threatens probe or chain performance, producing amortized rather than worst-case constant insertion.",
+    "summary": "As a hash table fills, chains get longer or probe paths get longer, and lookups slow down. The **load factor** α = items / buckets measures this. When α passes a limit (often around 0.75 for probing, 1 or so for chaining), the table **grows**, usually doubling, and **rehashes**: every key is re-inserted, because its bucket `hash(key) % capacity` **depends on the capacity**. A single resize costs O(n), but it happens rarely enough that inserts cost **O(1) amortised**: spread over all the inserts that led up to it, the extra work is a constant per insert.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Doubling capacity requires recomputing each bucket because bucket index depends on the new capacity. Your goal is to implement or simulate rehashing and derive its amortized effect. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A teaching hash table doubles its bucket array from 8 to 16 when it gets crowded by copying each bucket into the same index of the new array. Afterwards, half the lookups fail. Doubling capacity requires recomputing each bucket because bucket index depends on the new capacity. In this lesson you'll implement or simulate rehashing and derive its amortized effect.\n\n```predict\n{\"question\": \"hash(key) = 13. With 8 buckets it lives in bucket 13 % 8 = 5. After growing to 16 buckets, where should find look?\", \"options\": [\"Bucket 5, same as before\", \"Bucket 13, because 13 % 16 = 13\"], \"answer\": 1, \"why\": \"Some keys stay (hash 21 stays in 5) and some move (hash 13 moves to 13). You must recompute every key's bucket.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Array representation and operations; Linked lists; Collision resolution; Time, space and asymptotic growth. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Array representation and operations**, the **Linked lists** module, **Collision resolution**, and **Time, space and asymptotic growth**, for the amortised argument."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Hash tables resize and rehash when load policy threatens probe or chain performance, producing amortized rather than worst-case constant insertion. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The rule: grow, then recompute every bucket",
+        "body": "```python\nclass ChainingTable:\n    def __init__(self):\n        self.buckets = [[] for _ in range(8)]\n        self.count = 0\n\n    def _index(self, key, capacity):\n        return hash(key) % capacity              # depends on capacity.\n\n    def put(self, key, value):\n        bucket = self.buckets[self._index(key, len(self.buckets))]\n        for pair in bucket:\n            if pair[0] == key:\n                pair[1] = value\n                return\n        bucket.append([key, value])\n        self.count += 1\n        if self.count / len(self.buckets) > 1.0:   # load factor limit.\n            self._resize(2 * len(self.buckets))\n\n    def _resize(self, new_capacity):             # O(n), rare.\n        old = self.buckets\n        self.buckets = [[] for _ in range(new_capacity)]\n        for bucket in old:\n            for key, value in bucket:\n                self.buckets[self._index(key, new_capacity)].append([key, value])\n```\n\n| Inserts so far | Resize work (copies) |\n|---|---|\n| 9th (8 → 16). | 8. |\n| 17th (16 → 32). | 16. |\n| 33rd (32 → 64). | 32. |\n| total after n inserts. | less than 2n, so O(1) amortised per insert. |\n\n```reveal\n{\"prompt\": \"Why double instead of adding 8 buckets each time?\", \"answer\": \"Adding a fixed amount means resizing every few inserts, which totals O(n²) copying. Doubling keeps the total under 2n.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Capacity choice, maximum load, incremental rehash, and allocation failure vary by implementation. The draft therefore rejects: Existing bucket indexes remain valid after capacity changes."
+        "heading": "Amortised, not worst-case",
+        "body": "```predict\n{\"question\": \"Is every single insert O(1)?\", \"options\": [\"Yes\", \"No: the insert that triggers a resize costs O(n); the average over many inserts is O(1)\"], \"answer\": 1, \"why\": \"Amortised O(1) means cheap on average across a sequence, with occasional expensive steps.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Relate capacity and load factor to amortized expected operations and adversarial caveats.",
-      "Implement or simulate rehashing and derive its amortized effect.",
-      "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
+      "Track load factor and resize by doubling with a full rehash.",
+      "Derive why doubling gives O(1) amortised inserts."
     ],
     "excludes": [
-      "Capacity choice, maximum load, incremental rehash, and allocation failure vary by implementation."
+      "Incremental rehashing for real-time systems.",
+      "Shrinking policies in depth."
     ]
   },
   "outcomes": [
@@ -68,142 +64,137 @@
   "examples": [
     {
       "id": "dsa.hashing.resize.example-a",
-      "title": "Resizing and expected complexity: language-neutral trace",
+      "title": "Doubling the table without losing keys",
       "situation": "Doubling capacity requires recomputing each bucket because bucket index depends on the new capacity.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: Doubling capacity requires recomputing each bucket because bucket index depends on the new capacity.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Rehash stored entries when capacity changes; bucket placement depends on both hash and current capacity."
+        "**Bug:** copying bucket 5 into new bucket 5 left keys like hash 13 in the wrong place (13 % 16 = 13).",
+        "**Recompute each bucket:** _resize re-inserts every key using hash(key) % new_capacity.",
+        "**Test:** insert 100 keys into a table starting at 8 buckets, and a test will check every key is still found after all resizes."
       ],
-      "result": "The conceptual result follows because Rehash stored entries when capacity changes; bucket placement depends on both hash and current capacity."
+      "result": "The table grows automatically, stays fast, and never loses a key."
     },
     {
       "id": "dsa.hashing.resize.example-b",
-      "title": "Resizing and expected complexity: implementation transfer",
-      "situation": "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__.",
+      "title": "Counting the cost of growth",
+      "situation": "A team worries that resizing makes their course index slow. They log copies while inserting 1,000 keys into a doubling table starting at 8 buckets.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__.",
-        "Step 3 — Retest this boundary in the selected implementation: Capacity choice, maximum load, incremental rehash, and allocation failure vary by implementation."
+        "Resizes happen at 9, 17, 33, 65, 129, 257 and 513 items.",
+        "Total copies: 8 + 16 + 32 + 64 + 128 + 256 + 512 = 1,016.",
+        "That's about one extra copy per insert: O(1) amortised."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "The team keeps the doubling policy, confident the average cost stays constant."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.hashing.resize.misconception",
       "mistakenBelief": "Existing bucket indexes remain valid after capacity changes.",
-      "correction": "Rehash stored entries when capacity changes; bucket placement depends on both hash and current capacity.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Existing bucket indexes remain valid after capacity changes."
+      "correction": "A key's bucket is hash(key) % capacity, so changing capacity changes where many keys belong. Resizing must rehash every key into the new array.",
+      "diagnosticPrompt": "In \"Doubling the table without losing keys\", which keys ended up in the wrong bucket?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Resizing and expected complexity, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Resizing is like **a school moving from 8 classrooms to 16**: pupils are assigned by \"student number mod rooms\", so after the move you must recompute every pupil's room. Moving each class into the room with the same number leaves half the pupils in the wrong place.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering recompute every room",
+      "doubling = moving rarely"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Capacity choice, maximum load, incremental rehash, and allocation failure vary by implementation."
+      "Schools don't move every term; tables resize only when crowded.",
+      "The move day is expensive, but it's spread over many ordinary days."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Doubling capacity requires recomputing each bucket because bucket index depends on the new capacity.",
-      "Hash tables resize and rehash when load policy threatens probe or chain performance, producing amortized rather than worst-case constant insertion.",
-      "Rehash stored entries when capacity changes; bucket placement depends on both hash and current capacity.",
-      "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
+      "8 buckets, 8 keys",
+      "9th insert: load 9/8 > 1",
+      "resize to 16"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Full",
         "state": {
-          "scenario": "Doubling capacity requires recomputing each bucket because bucket index depends on the new capacity."
+          "capacity": "8",
+          "count": "8",
+          "load": "1.0"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The table reaches its load factor limit."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Trigger",
         "state": {
-          "invariant": "Hash tables resize and rehash when load policy threatens probe or chain performance, producing amortized rather than worst-case constant insertion."
+          "count": "9",
+          "action": "resize to 16"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "Doubling capacity is triggered by the ninth insert."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Rehash",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "hash 13": "bucket 5 → 13",
+          "hash 21": "stays 5"
         },
-        "explanation": "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Rehash stored entries when capacity changes; bucket placement depends on both hash and current capacity."
-        },
-        "explanation": "Verify the result and reject this misconception: Existing bucket indexes remain valid after capacity changes."
+        "explanation": "Each bucket is recomputed because bucket index depends on the new capacity."
       }
     ],
-    "textAlternative": "Starting artifact: Doubling capacity requires recomputing each bucket because bucket index depends on the new capacity. Step 1, Specification. State: scenario: Doubling capacity requires recomputing each bucket because bucket index depends on the new capacity.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Hash tables resize and rehash when load policy threatens probe or chain performance, producing amortized rather than worst-case constant insertion.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__. Step 4, Conclusion. State: correction: Rehash stored entries when capacity changes; bucket placement depends on both hash and current capacity.. Verify the result and reject this misconception: Existing bucket indexes remain valid after capacity changes."
+    "textAlternative": "Tracing one resize. Step 1, Full: capacity is 8; count is 8; load is 1.0. The table reaches its load factor limit. Step 2, Trigger: count is 9; action is resize to 16. Doubling capacity is triggered by the ninth insert. Step 3, Rehash: hash 13 is bucket 5 → 13; hash 21 is stays 5. Each bucket is recomputed because bucket index depends on the new capacity."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Resizing and expected complexity: language-neutral trace”: state its starting evidence, apply the Resizing and expected complexity rule, and give the observable result in three short lines.",
+      "prompt": "For \"Doubling the table without losing keys\", explain why doubling capacity requires recomputing each bucket because bucket index depends on the new capacity.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Bug.",
+        "Rehash.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Resizing and expected complexity: language-neutral trace.",
-        "Starting evidence: Doubling capacity requires recomputing each bucket because bucket index depends on the new capacity.",
-        "Core rule: Hash tables resize and rehash when load policy threatens probe or chain performance, producing amortized rather than worst-case constant insertion.",
-        "Observable result: The conceptual result follows because Rehash stored entries when capacity changes; bucket placement depends on both hash and current capacity.",
-        "Boundary check: Rehash stored entries when capacity changes; bucket placement depends on both hash and current capacity."
+        "Names the example \"Doubling the table without losing keys\": copying buckets by index lost keys.",
+        "Doubling capacity requires recomputing each bucket.",
+        "Bucket index depends on the new capacity.",
+        "The table grows automatically and never loses a key."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Hash tables resize and rehash when load policy threatens probe or chain performance, producing amortized rather than worst-case constant insertion.",
+      "prompt": "With 4 buckets, keys with hashes 1, 5, 9 and 6 are stored. Show the buckets, then resize to 8 and show where each key goes.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "h % 4, then h % 8.",
+        "Some stay, some move."
       ],
       "expectedEvidence": [
-        "In C, implement or select a table with explicit hash, equality, capacity, and ownership; in C++, unordered containers require compatible hash/equality and stable keys; in Java, HashMap/HashSet depend on equals and hashCode; in Python, dict/set require hashable keys with consistent __eq__ and __hash__.",
-        "Capacity choice, maximum load, incremental rehash, and allocation failure vary by implementation."
+        "Before: 1, 5, 9 in bucket 1; 6 in bucket 2.",
+        "After: 1 and 9 in 1; 5 in 5; 6 in 6."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Resizing and expected complexity case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Add resize to your probing table from the collisions lesson (grow when load > 0.7, drop tombstones during rehash). Log total copies for 10,000 inserts and show it's under 2n.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Rehash only live entries.",
+        "Count copies in _resize."
       ],
       "expectedEvidence": [
-        "Implement or simulate rehashing and derive its amortized effect.",
-        "Rehash stored entries when capacity changes; bucket placement depends on both hash and current capacity."
+        "All keys found after every resize.",
+        "Measured copies under 20,000."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.hashing.resize.misconception",
-      "explanation": "Rehash stored entries when capacity changes; bucket placement depends on both hash and current capacity.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'Rehash stored entries', then state one implementation-specific risk in the selected language."
+      "explanation": "Whenever capacity changes, say: **every index was computed with the old capacity, so every key must be placed again.** Then check the growth factor is a multiple (like ×2), not a fixed step.",
+      "retryPrompt": "Apply this to \"Counting the cost of growth\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement or simulate rehashing and derive its amortized effect. Keep this boundary in view: Capacity choice, maximum load, incremental rehash, and allocation failure vary by implementation.",
+    "summary": "To implement or simulate rehashing, track the load factor, double the capacity when it's too high, and re-insert every key with hash(key) % new_capacity, since bucket indexes depend on capacity. Doubling keeps total copying under about 2n, so inserts cost O(1) amortised even though one resize is O(n).",
     "retrievalPrompts": [
-      "State the Resizing and expected complexity invariant and complexity without code.",
-      "Why is this claim false: Existing bucket indexes remain valid after capacity changes.",
-      "Map checkpoint 'Rehash stored entries' to C, C++, Java, and Python."
+      "What is the load factor?",
+      "Why must every key be rehashed?",
+      "Why does doubling give O(1) amortised inserts?"
     ],
     "nextReviewPrompt": "Next: continue to “Frequency and lookup patterns”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

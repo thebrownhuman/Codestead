@@ -578,8 +578,10 @@ const ROLE_SETTINGS_SQL = `
           )
         )
       )
-   order by database_name collate "C",
-            role_name collate "C",
+   order by (case when setting.setdatabase = 0 then '@all-databases'
+                  else database_row.datname::text end) collate "C",
+            (case when setting.setrole = 0 then '@all-roles'
+                  else role_row.rolname::text end) collate "C",
             setting_value.ordinality nulls first
    /* bootstrap_database_runtime_capability_role_settings */`;
 
@@ -845,7 +847,8 @@ const COLUMNS_SQL = `
       on grantee_role.oid = acl_item.grantee
    where relation.relkind in ('r', 'p', 'v', 'm', 'f')
      and attribute.attnum > 0
-   order by relation_identity collate "C",
+   order by (namespace_row.nspname::text || '.' ||
+              relation.relname::text) collate "C",
             attribute.attnum,
             acl_item.ordinality nulls first
    /* bootstrap_database_runtime_capability_columns */`;

@@ -53,34 +53,35 @@ def verify_mobile_chrome(browser, base_url: str, artifacts: Path) -> None:
             visit(page, f"{base_url}/learn")
             geometry = page.evaluate(
                 """() => {
-                  const header = document.querySelector('header');
                   const main = document.querySelector('#main-content');
-                  const nav = document.querySelector('nav[aria-label="Mobile navigation"]');
-                  if (!(header instanceof HTMLElement) || !(main instanceof HTMLElement) || !(nav instanceof HTMLElement)) {
+                  const menu = document.querySelector('button[aria-label="Open navigation"]');
+                  const heading = main?.querySelector('h1, h2, h3, h4, h5, h6, [role="heading"]');
+                  if (!(main instanceof HTMLElement) || !(menu instanceof HTMLElement) || !(heading instanceof HTMLElement)) {
                     throw new Error('Mobile shell structure is missing');
                   }
-                  const headerBox = header.getBoundingClientRect();
-                  const mainBox = main.getBoundingClientRect();
-                  const navBox = nav.getBoundingClientRect();
+                  const menuBox = menu.getBoundingClientRect();
+                  const headingBox = heading.getBoundingClientRect();
+                  const menuStyle = getComputedStyle(menu);
                   return {
-                    headerBottom: headerBox.bottom,
-                    mainTop: mainBox.top,
-                    navLeft: navBox.left,
-                    navRight: navBox.right,
-                    navBottom: navBox.bottom,
-                    navHeight: navBox.height,
-                    mainPaddingBottom: parseFloat(getComputedStyle(main).paddingBottom),
+                    mobileNavCount: document.querySelectorAll('nav[aria-label="Mobile navigation"]').length,
+                    menuVisible: menuBox.width > 0 && menuBox.height > 0
+                      && menuStyle.visibility !== 'hidden' && menuStyle.display !== 'none',
+                    menuLeft: menuBox.left,
+                    menuRight: menuBox.right,
+                    overlapsHeading: menuBox.left < headingBox.right && headingBox.left < menuBox.right
+                      && menuBox.top < headingBox.bottom && headingBox.top < menuBox.bottom,
                     routeAnimation: getComputedStyle(document.querySelector('[data-route-stage]')).animationName,
                   };
                 }"""
             )
-            if geometry["mainTop"] < geometry["headerBottom"] - 1:
-                raise AssertionError(f"{width}px/{text_size}%: header overlaps main {geometry}")
-            if geometry["navLeft"] < 0 or geometry["navRight"] > width + 1:
-                raise AssertionError(f"{width}px/{text_size}%: navigation leaves viewport {geometry}")
-            bottom_gap = height - geometry["navBottom"]
-            if geometry["mainPaddingBottom"] < geometry["navHeight"] + bottom_gap:
-                raise AssertionError(f"{width}px/{text_size}%: main lacks navigation clearance {geometry}")
+            if geometry["mobileNavCount"] != 0:
+                raise AssertionError(f"{width}px/{text_size}%: mobile bottom navigation still rendered {geometry}")
+            if not geometry["menuVisible"]:
+                raise AssertionError(f"{width}px/{text_size}%: menu button not visible {geometry}")
+            if geometry["menuLeft"] < 0 or geometry["menuRight"] > width + 1:
+                raise AssertionError(f"{width}px/{text_size}%: menu button leaves viewport {geometry}")
+            if geometry["overlapsHeading"]:
+                raise AssertionError(f"{width}px/{text_size}%: menu button overlaps first heading {geometry}")
             if geometry["routeAnimation"] != "none":
                 raise AssertionError(f"{width}px/{text_size}%: reduced motion kept route animation")
             assert_no_overflow(page, f"{width}px/{text_size}% learning home")

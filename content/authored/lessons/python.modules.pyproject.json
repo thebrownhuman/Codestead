@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "pyproject.toml records build-system requirements and project metadata, while a conventional source/test layout and declared command entry point make a package buildable and invocable reproducibly.",
+    "summary": "`pyproject.toml` is your project's **ID card**: it names the **build backend**, the project's name, version and dependencies, and any **console scripts** — commands like `notes` that call `package.cli:main`. With a `src/` layout, you must install the project (`pip install -e .`) before running it, which proves the package really installs — not just that it works from your folder.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A src-layout project declares its build backend, project name/version/dependencies, and a console script that calls package.cli:main. Your goal is to package and invoke a multi-module command-line application reproducibly. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You've built a note-taking CLI across several modules. Right now you run it with `python src/notes/cli.py` from one exact folder. You want teammates to type `notes add \"buy milk\"` from anywhere. A src-layout project declares its build backend, project name, version and dependencies, and a console script that calls package.cli:main. In this lesson you'll package and invoke a multi-module command-line application reproducibly.\n\n```predict\n{\"question\": \"In pyproject, `notes = \\\"notes.cli:main\\\"` under `[project.scripts]` means:\", \"options\": [\"Run the file notes.cli\", \"Create a `notes` command that imports notes.cli and calls main()\"], \"answer\": 1, \"why\": \"`module:function` — installing creates a small launcher that imports the module and calls the function.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Function contracts and returns; Interpreter and environment; Virtual environments and dependencies; Scripts, indentation and main guard. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Function contracts and returns**, **Interpreter and environment**, **Virtual environments and dependencies**, and **Scripts, indentation and main guard**."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "pyproject.toml records build-system requirements and project metadata, while a conventional source/test layout and declared command entry point make a package buildable and invocable reproducibly. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: metadata, build backend, entry point",
+        "body": "```text\nnotes-app/\n├── pyproject.toml\n└── src/\n    └── notes/\n        ├── __init__.py\n        ├── store.py\n        └── cli.py        # def main(): ...\n```\n\n```toml\n[build-system]\nrequires = [\"setuptools>=68\"]\nbuild-backend = \"setuptools.build_meta\"\n\n[project]\nname = \"notes-app\"\nversion = \"0.1.0\"\nrequires-python = \">=3.11\"\ndependencies = [\"rich>=13\"]\n\n[project.scripts]\nnotes = \"notes.cli:main\"\n```\n\n```reveal\n{\"prompt\": \"Why use a `src/` folder instead of putting `notes/` at the top?\", \"answer\": \"With src layout, `import notes` only works after installation, so your tests check the **installed** package, not a lucky local import.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "Metadata does not lock every application dependency, build backends differ, editable installs can hide packaging mistakes, package discovery needs configuration, and generated artifacts need clean-build checks. The learner must reject this documented misconception: Adding any pyproject.toml automatically discovers every module, locks all dependencies, and proves the built wheel contains the working tree."
+        "heading": "Install and run",
+        "body": "```bash\npython -m venv .venv\n.venv/bin/python -m pip install -e .\nnotes add \"buy milk\"\n```\n\n```predict\n{\"question\": \"Does a pyproject.toml pin the exact version of every dependency?\", \"options\": [\"Yes, automatically\", \"No — it declares allowed ranges; a lock file or requirements pin exact versions\"], \"answer\": 1, \"why\": \"`rich>=13` allows many versions. For identical rebuilds, record pinned versions separately (e.g. `pip freeze` or a lock tool).\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use pyproject metadata and a conventional source/test layout for a small application.",
-      "Package and invoke a multi-module command-line application reproducibly."
+      "Write pyproject.toml with a build backend, metadata, dependencies and a console script.",
+      "Install in a venv and invoke the command reproducibly."
     ],
     "excludes": [
-      "Metadata does not lock every application dependency, build backends differ, editable installs can hide packaging mistakes, package discovery needs configuration, and generated artifacts need clean-build checks."
+      "Publishing to PyPI.",
+      "Choosing between build backends in depth."
     ]
   },
   "outcomes": [
@@ -63,133 +64,137 @@
   "examples": [
     {
       "id": "python.modules.pyproject.example.direct",
-      "title": "Project metadata and command entry: direct language case",
+      "title": "A src-layout project with a console command",
       "situation": "A src-layout project declares its build backend, project name/version/dependencies, and a console script that calls package.cli:main.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A src-layout project declares its build backend, project name/version/dependencies, and a console script that calls package.cli:main.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Treat pyproject metadata and backend configuration as a build contract, then inspect and test the built artifact in a fresh environment."
+        "**Build backend:** `[build-system]` declares setuptools as the backend that turns the source into an installable wheel.",
+        "**Project name/version/dependencies:** `name = \"notes-app\"`, `version = \"0.1.0\"`, `dependencies = [\"rich>=13\"]`.",
+        "**Console script:** `notes = \"notes.cli:main\"`; after `pip install -e .`, running `notes` calls package.cli:main."
       ],
-      "result": "The example meets the atomic outcome because Treat pyproject metadata and backend configuration as a build contract, then inspect and test the built artifact in a fresh environment."
+      "result": "Teammates install once and run `notes` from any folder, with dependencies installed automatically."
     },
     {
       "id": "python.modules.pyproject.example.boundary",
-      "title": "Project metadata and command entry: boundary and transfer case",
-      "situation": "A wheel is built in an isolated clean environment and installed into a fresh venv before the CLI is tested, exposing a missing package-data declaration.",
+      "title": "The wheel that was missing a module",
+      "situation": "A project with a flat layout works when run from its folder, but after building a wheel and installing elsewhere, `import notes.store` fails.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A wheel is built in an isolated clean environment and installed into a fresh venv before the CLI is tested, exposing a missing package-data declaration.",
-        "Step 2 — Keep the language boundary explicit: Metadata does not lock every application dependency, build backends differ, editable installs can hide packaging mistakes, package discovery needs configuration, and generated artifacts need clean-build checks.",
-        "Step 3 — Reject the tempting but incorrect rule: Adding any pyproject.toml automatically discovers every module, locks all dependencies, and proves the built wheel contains the working tree."
+        "From the folder, Python imported files straight from the working tree, hiding the problem.",
+        "Package discovery didn't include `store.py` in the built wheel.",
+        "Fix: switch to src layout (or configure discovery), install the build in a clean venv, and run the command there."
       ],
-      "result": "This case demonstrates the declared outcome: Package and invoke a multi-module command-line application reproducibly."
+      "result": "Testing the installed package, not the working tree, catches missing modules before users do."
     }
   ],
   "misconceptions": [
     {
       "id": "python.modules.pyproject.misconception",
       "mistakenBelief": "Adding any pyproject.toml automatically discovers every module, locks all dependencies, and proves the built wheel contains the working tree.",
-      "correction": "Treat pyproject metadata and backend configuration as a build contract, then inspect and test the built artifact in a fresh environment.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Adding any pyproject.toml automatically discovers every module, locks all dependencies, and proves the built wheel contains the working tree."
+      "correction": "pyproject declares metadata and allowed dependency ranges; discovery depends on layout and configuration, and exact pins need a lock file. Only installing and running the built package in a clean environment proves it works.",
+      "diagnosticPrompt": "In \"The wheel that was missing a module\", why did running from the folder hide the bug?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a library whose catalogs, shelves, isolated rooms, and shipping manifest separate import names from installable distributions can introduce Project metadata and command entry, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "example": "pyproject.toml is like a **shipping label plus packing instructions**: what's in the box, who built it, what else must arrive with it, and which button starts it. A src layout is sealing the box before testing — you test what the customer receives.",
     "usefulFor": [
-      "imports, packages, virtual environments, and pyproject builds"
+      "remembering metadata + entry point",
+      "testing the installed box, not the workbench"
     ],
     "limitations": [
-      "sys.path, partial module initialization, build backends, editable installs, and wheel contents need direct inspection",
-      "Metadata does not lock every application dependency, build backends differ, editable installs can hide packaging mistakes, package discovery needs configuration, and generated artifacts need clean-build checks."
+      "A label doesn't guarantee contents — you still need to inspect the box (install and test).",
+      "Dependency ranges are like \"any brand of batteries\", not an exact model."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A src-layout project declares its build backend, project name/version/dependencies, and a console script that calls package.cli:main.",
-      "pyproject.toml records build-system requirements and project metadata, while a conventional source/test layout and declared command entry point make a package buildable and invocable reproducibly.",
-      "Treat pyproject metadata and backend configuration as a build contract, then inspect and test the built artifact in a fresh environment."
+      "pyproject.toml: [project.scripts] notes = 'notes.cli:main'",
+      "python -m pip install -e .",
+      "notes add 'buy milk'"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Declare",
         "state": {
-          "evidence": "A src-layout project declares its build backend, project name/version/dependencies, and a console script that calls package.cli:main."
+          "build-backend": "setuptools",
+          "name": "notes-app",
+          "version": "0.1.0"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "The src-layout project declares its build backend and project name, version and dependencies."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Install",
         "state": {
-          "rule": "pyproject.toml records build-system requirements and project metadata, while a conventional source/test layout and declared command entry point make a package buildable and invocable reproducibly."
+          "rich": "installed",
+          "notes command": "created"
         },
-        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "Installing resolves dependencies and creates the console script launcher."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Invoke",
         "state": {
-          "correction": "Treat pyproject metadata and backend configuration as a build contract, then inspect and test the built artifact in a fresh environment."
+          "calls": "notes.cli:main",
+          "output": "Added: buy milk"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Adding any pyproject.toml automatically discovers every module, locks all dependencies, and proves the built wheel contains the working tree."
+        "explanation": "Running notes calls package.cli:main from any folder."
       }
     ],
-    "textAlternative": "Starting artifact: A src-layout project declares its build backend, project name/version/dependencies, and a console script that calls package.cli:main. Step 1, Observe. State: evidence: A src-layout project declares its build backend, project name/version/dependencies, and a console script that calls package.cli:main.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: pyproject.toml records build-system requirements and project metadata, while a conventional source/test layout and declared command entry point make a package buildable and invocable reproducibly.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Treat pyproject metadata and backend configuration as a build contract, then inspect and test the built artifact in a fresh environment.. Compare the observation with the correction and explain why the misconception fails: Adding any pyproject.toml automatically discovers every module, locks all dependencies, and proves the built wheel contains the working tree."
+    "textAlternative": "Packaging and invoking a CLI. Step 1, Declare: build-backend is setuptools; name is notes-app; version is 0.1.0. The src-layout project declares its build backend and project name, version and dependencies. Step 2, Install: rich is installed; notes command is created. Installing resolves dependencies and creates the console script launcher. Step 3, Invoke: calls is notes.cli:main; output is Added: buy milk. Running notes calls package.cli:main from any folder."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Project metadata and command entry: direct language case”: state its starting evidence, apply the Project metadata and command entry rule, and give the observable result in three short lines.",
+      "prompt": "For \"A src-layout project with a console command\", describe what the pyproject declares — build backend, project name/version/dependencies — and how the console script calls package.cli:main.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Build backend.",
+        "Metadata.",
+        "Console script."
       ],
       "expectedEvidence": [
-        "Named example: Project metadata and command entry: direct language case.",
-        "Starting evidence: A src-layout project declares its build backend, project name/version/dependencies, and a console script that calls package.cli:main.",
-        "Core rule: pyproject.toml records build-system requirements and project metadata, while a conventional source/test layout and declared command entry point make a package buildable and invocable reproducibly.",
-        "Observable result: The example meets the atomic outcome because Treat pyproject metadata and backend configuration as a build contract, then inspect and test the built artifact in a fresh environment.",
-        "Boundary check: Treat pyproject metadata and backend configuration as a build contract, then inspect and test the built artifact in a fresh environment."
+        "Names the example \"A src-layout project with a console command\": a src-layout project.",
+        "Declares its build backend, e.g. setuptools.",
+        "Declares project name/version/dependencies such as rich>=13.",
+        "A console script notes calls package.cli:main after install."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A wheel is built in an isolated clean environment and installed into a fresh venv before the CLI is tested, exposing a missing package-data declaration.",
+      "prompt": "Write the `[project]` and `[project.scripts]` sections for a CLI `tipcalc` whose main is in `tipcalc/app.py`, needing Python 3.11+ and no dependencies.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "name, version, requires-python.",
+        "tipcalc = \"tipcalc.app:main\"."
       ],
       "expectedEvidence": [
-        "pyproject.toml records build-system requirements and project metadata, while a conventional source/test layout and declared command entry point make a package buildable and invocable reproducibly.",
-        "Metadata does not lock every application dependency, build backends differ, editable installs can hide packaging mistakes, package discovery needs configuration, and generated artifacts need clean-build checks."
+        "Valid [project] table with name, version and requires-python.",
+        "Console script entry tipcalc = \"tipcalc.app:main\"."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Project metadata and command entry, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Convert one of your multi-module projects to src layout with pyproject.toml. Install it into a fresh venv, run its command from a different folder, and write down the steps a teammate should follow.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Test from outside the project folder.",
+        "Record Python version and pins."
       ],
       "expectedEvidence": [
-        "Package and invoke a multi-module command-line application reproducibly.",
-        "Treat pyproject metadata and backend configuration as a build contract, then inspect and test the built artifact in a fresh environment."
+        "Working installable project with a console command.",
+        "Reproducible setup notes that a teammate could follow."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "python.modules.pyproject.misconception",
-      "explanation": "Treat pyproject metadata and backend configuration as a build contract, then inspect and test the built artifact in a fresh environment.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A wheel is built in an isolated clean environment and installed into a fresh venv before the CLI is tested, exposing a missing package-data declaration."
+      "explanation": "Checklist: **build-system present? name + version? dependencies listed? scripts point to module:function? installed in a clean venv? command runs from another folder?**",
+      "retryPrompt": "Run the checklist on \"The wheel that was missing a module\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to package and invoke a multi-module command-line application reproducibly. Keep this boundary in view: Metadata does not lock every application dependency, build backends differ, editable installs can hide packaging mistakes, package discovery needs configuration, and generated artifacts need clean-build checks.",
+    "summary": "To package and invoke a multi-module command-line application reproducibly, declare the build backend, metadata, dependencies and a console script in pyproject.toml, use src layout, install into a clean venv, and run the command from anywhere. Pin exact versions separately.",
     "retrievalPrompts": [
-      "Explain Project metadata and command entry using canonical Python: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Adding any pyproject.toml automatically discovers every module, locks all dependencies, and proves the built wheel contains the working tree.",
-      "Predict this case from memory: A wheel is built in an isolated clean environment and installed into a fresh venv before the CLI is tested, exposing a missing package-data declaration."
+      "What does `notes = \"notes.cli:main\"` create?",
+      "Why use src layout?",
+      "Does pyproject pin exact dependency versions?"
     ],
     "nextReviewPrompt": "Next: continue to “Exception handling and propagation”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

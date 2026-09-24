@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A Java record declares a transparent nominal carrier whose components define generated accessors, construction, equality, hashing, and representation, while validation can live in a compact constructor.",
+    "summary": "A **record** is a concise class for **plain data**: `record Point(double x, double y) {}`. From the component list, Java generates **private final fields**, a constructor, **accessors** `x()` and `y()`, and correct **`equals`, `hashCode` and `toString`**. Add validation in a **compact constructor**. Records are **shallowly immutable**: the fields can't be reassigned, but if a component is a mutable object (like a `List`), its contents can still change, so copy it (`List.copyOf`) in the constructor. Choose a record when the data **is** its value; choose a class when you need hidden state, mutation or a different interface.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A Point record validates finite coordinates and relies on generated component accessors and value equality. Your goal is to choose and implement a record or class for a stated domain model and justify the choice. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner writes 40 lines for a Point class with fields, constructor, getters, equals, hashCode and toString, and one bug where hashCode ignores y. Later they create a record holding a List and are surprised when a caller adds to that list. A Point record validates finite coordinates and relies on generated component accessors and value equality. In this lesson you'll choose and implement a record or class for a stated domain model and justify the choice.\n\n```predict\n{\"question\": \"`record Team(String name, List<String> members) {}` Can a caller add a member through team.members().add(\\\"x\\\")?\", \"options\": [\"No, records are immutable\", \"Yes, if the list passed in was mutable: records are only shallowly immutable\"], \"answer\": 1, \"why\": \"Copy mutable components with List.copyOf in the constructor.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Method contracts and parameters; pf data records; References, identity and equality. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Method contracts and parameters**, **Records and entities** and **References, identity and equality** (equals and hashCode)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "A Java record declares a transparent nominal carrier whose components define generated accessors, construction, equality, hashing, and representation, while validation can live in a compact constructor. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: components generate a value class",
+        "body": "```java\nimport java.util.HashSet;\nimport java.util.List;\n\npublic class Records {\n    record Point(double x, double y) {\n        Point {                                     // compact constructor: validate.\n            if (!Double.isFinite(x) || !Double.isFinite(y))\n                throw new IllegalArgumentException(\"coordinates must be finite\");\n        }\n        double distanceTo(Point o) { return Math.hypot(x - o.x, y - o.y); }\n    }\n\n    record Team(String name, List<String> members) {\n        Team {\n            members = List.copyOf(members);          // defensive, unmodifiable copy.\n        }\n    }\n\n    public static void main(String[] args) {\n        Point a = new Point(0, 0), b = new Point(3, 4);\n        System.out.println(a.distanceTo(b));        // 5.0\n        System.out.println(new Point(3, 4).equals(b) + \" \" + b);   // true Point[x=3.0, y=4.0]\n        var set = new HashSet<Point>(List.of(b, new Point(3, 4)));\n        System.out.println(set.size());             // 1\n    }\n}\n```\n\n| Choose a record when | Choose a class when |\n|---|---|\n| the data is the value. | there's hidden or changing state. |\n| all fields are exposed. | representation must stay private. |\n| value equality is right. | identity or custom equality matters. |\n\n```reveal\n{\"prompt\": \"Can a record have extra fields or setters?\", \"answer\": \"No instance fields beyond its components, and no reassignment of them. It can have methods (like distanceTo), static fields and extra constructors that delegate to the canonical one.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "A record is shallowly immutable, component references may denote mutable objects, records cannot extend another class, and hidden mutable representation or identity-rich lifecycle may call for a class. The learner must reject this documented misconception: Record components and every object reachable from them become deeply immutable automatically."
+        "heading": "Generated equality",
+        "body": "```predict\n{\"question\": \"`new Point(3, 4).equals(new Point(3, 4))` for a record Point?\", \"options\": [\"false: different objects\", \"true: records generate value-based equals and hashCode\"], \"answer\": 1, \"why\": \"Records compare all components.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use records for transparent immutable carriers and classes when behavior or hidden representation dominates.",
-      "Choose and implement a record or class for a stated domain model and justify the choice."
+      "Declare records with compact-constructor validation and use generated accessors and equality.",
+      "Explain shallow immutability and choose between a record and a class."
     ],
     "excludes": [
-      "A record is shallowly immutable, component references may denote mutable objects, records cannot extend another class, and hidden mutable representation or identity-rich lifecycle may call for a class."
+      "Sealed interfaces and record patterns in depth.",
+      "Serialisation."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "java.objects.records.example.direct",
-      "title": "Records and immutable data: direct language case",
+      "title": "A Point record with checked coordinates",
       "situation": "A Point record validates finite coordinates and relies on generated component accessors and value equality.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: A Point record validates finite coordinates and relies on generated component accessors and value equality.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Use a record for transparent shallowly immutable data and defensively copy mutable components when deep isolation is part of the contract."
+        "**A Point record validates finite coordinates:** the compact constructor rejects NaN and infinity.",
+        "**Relies on generated component accessors:** distanceTo uses x and y; callers use p.x() and p.y().",
+        "**And value equality:** two Point(3, 4) values are equal, and a HashSet will keep one."
       ],
-      "result": "The example meets the atomic outcome because Use a record for transparent shallowly immutable data and defensively copy mutable components when deep isolation is part of the contract."
+      "result": "Forty lines become four, with correct equality guaranteed."
     },
     {
       "id": "java.objects.records.example.boundary",
-      "title": "Records and immutable data: boundary and transfer case",
-      "situation": "A domain aggregate with hidden cache and state transitions remains a class because transparent component state is not its intended public contract.",
+      "title": "The team that changed itself",
+      "situation": "A caller builds a Team from an ArrayList, later adds to that ArrayList, and the Team's members change too.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A domain aggregate with hidden cache and state transitions remains a class because transparent component state is not its intended public contract.",
-        "Step 2 — Keep the language boundary explicit: A record is shallowly immutable, component references may denote mutable objects, records cannot extend another class, and hidden mutable representation or identity-rich lifecycle may call for a class.",
-        "Step 3 — Reject the tempting but incorrect rule: Record components and every object reachable from them become deeply immutable automatically."
+        "The record stored a reference to the caller's mutable list.",
+        "Copy it in the compact constructor with List.copyOf.",
+        "Now team.members() is unmodifiable and independent of the caller."
       ],
-      "result": "This case demonstrates the declared outcome: Choose and implement a record or class for a stated domain model and justify the choice."
+      "result": "A Team's members can't change after it's created."
     }
   ],
   "misconceptions": [
     {
       "id": "java.objects.records.misconception",
       "mistakenBelief": "Record components and every object reachable from them become deeply immutable automatically.",
-      "correction": "Use a record for transparent shallowly immutable data and defensively copy mutable components when deep isolation is part of the contract.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Record components and every object reachable from them become deeply immutable automatically."
+      "correction": "Records only make their fields final. Mutable objects referenced by components can still change, so copy them defensively.",
+      "diagnosticPrompt": "In the opening predict, why could members still change?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a secured service object whose constructor admits only valid state and whose public desk exposes approved behavior can introduce Records and immutable data, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "example": "A record is like **a sealed, labelled envelope of facts**: you can read every label (accessors) and two envelopes with the same facts count as equal. But if one \"fact\" is **a shared notebook** (a mutable list), others with the same notebook can still scribble in it, so seal a photocopy (List.copyOf) instead.",
     "usefulFor": [
-      "understanding encapsulation, construction, identity, equality, and records"
+      "remembering sealed labels",
+      "photocopy shared notebooks"
     ],
     "limitations": [
-      "object references, hashing, shallow immutability, and garbage collection are not physical ownership rules",
-      "A record is shallowly immutable, component references may denote mutable objects, records cannot extend another class, and hidden mutable representation or identity-rich lifecycle may call for a class."
+      "Envelopes can be opened; record fields can't be reassigned.",
+      "A class is a filing cabinet with private drawers."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A Point record validates finite coordinates and relies on generated component accessors and value equality.",
-      "A Java record declares a transparent nominal carrier whose components define generated accessors, construction, equality, hashing, and representation, while validation can live in a compact constructor.",
-      "Use a record for transparent shallowly immutable data and defensively copy mutable components when deep isolation is part of the contract."
+      "new Point(0, 0); new Point(3, 4)",
+      "a.distanceTo(b); equals",
+      "new Point(Double.NaN, 1)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Create",
         "state": {
-          "evidence": "A Point record validates finite coordinates and relies on generated component accessors and value equality."
+          "a": "Point[x=0.0, y=0.0]",
+          "b": "Point[x=3.0, y=4.0]"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "The Point record validates finite coordinates on construction."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Use",
         "state": {
-          "rule": "A Java record declares a transparent nominal carrier whose components define generated accessors, construction, equality, hashing, and representation, while validation can live in a compact constructor."
+          "distance": "5.0",
+          "equals": "true"
         },
-        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "It relies on generated component accessors and value equality."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Reject",
         "state": {
-          "correction": "Use a record for transparent shallowly immutable data and defensively copy mutable components when deep isolation is part of the contract."
+          "exception": "IllegalArgumentException"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Record components and every object reachable from them become deeply immutable automatically."
+        "explanation": "Invalid coordinates never produce a Point object."
       }
     ],
-    "textAlternative": "Starting artifact: A Point record validates finite coordinates and relies on generated component accessors and value equality. Step 1, Observe. State: evidence: A Point record validates finite coordinates and relies on generated component accessors and value equality.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A Java record declares a transparent nominal carrier whose components define generated accessors, construction, equality, hashing, and representation, while validation can live in a compact constructor.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Use a record for transparent shallowly immutable data and defensively copy mutable components when deep isolation is part of the contract.. Compare the observation with the correction and explain why the misconception fails: Record components and every object reachable from them become deeply immutable automatically."
+    "textAlternative": "Tracing a validated record. Step 1, Create: a is Point[x=0.0, y=0.0]; b is Point[x=3.0, y=4.0]. The Point record validates finite coordinates on construction. Step 2, Use: distance is 5.0; equals is true. It relies on generated component accessors and value equality. Step 3, Reject: exception is IllegalArgumentException. Invalid coordinates never produce a Point object."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Records and immutable data: direct language case”: state its starting evidence, apply the Records and immutable data rule, and give the observable result in three short lines.",
+      "prompt": "For \"A Point record with checked coordinates\", explain how a Point record validates finite coordinates and relies on generated component accessors and value equality.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Validate.",
+        "Access.",
+        "Compare."
       ],
       "expectedEvidence": [
-        "Named example: Records and immutable data: direct language case.",
-        "Starting evidence: A Point record validates finite coordinates and relies on generated component accessors and value equality.",
-        "Core rule: A Java record declares a transparent nominal carrier whose components define generated accessors, construction, equality, hashing, and representation, while validation can live in a compact constructor.",
-        "Observable result: The example meets the atomic outcome because Use a record for transparent shallowly immutable data and defensively copy mutable components when deep isolation is part of the contract.",
-        "Boundary check: Use a record for transparent shallowly immutable data and defensively copy mutable components when deep isolation is part of the contract."
+        "Names the example \"A Point record with checked coordinates\": 40 hand-written lines hid a hashCode bug.",
+        "A Point record validates finite coordinates.",
+        "It relies on generated component accessors and value equality.",
+        "Correct equality is guaranteed."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A domain aggregate with hidden cache and state transitions remains a class because transparent component state is not its intended public contract.",
+      "prompt": "Write record Range(int min, int max) with a compact constructor rejecting min > max and a contains method. Test equality, toString and invalid input.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Throw IllegalArgumentException.",
+        "Records print as Range[min=.., max=..]."
       ],
       "expectedEvidence": [
-        "A Java record declares a transparent nominal carrier whose components define generated accessors, construction, equality, hashing, and representation, while validation can live in a compact constructor.",
-        "A record is shallowly immutable, component references may denote mutable objects, records cannot extend another class, and hidden mutable representation or identity-rich lifecycle may call for a class."
+        "Tests pass.",
+        "Invalid ranges rejected."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Records and immutable data, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Model a library with Book (isbn, title, authors list) and Loan (book, member, due date, returned flag). Decide which should be records and which classes, justify it, implement both, and prove Book is immutable even when the authors list passed in is modified.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Loans change state when returned.",
+        "List.copyOf for authors."
       ],
       "expectedEvidence": [
-        "Choose and implement a record or class for a stated domain model and justify the choice.",
-        "Use a record for transparent shallowly immutable data and defensively copy mutable components when deep isolation is part of the contract."
+        "Choices justified.",
+        "Immutability test passes."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "java.objects.records.misconception",
-      "explanation": "Use a record for transparent shallowly immutable data and defensively copy mutable components when deep isolation is part of the contract.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A domain aggregate with hidden cache and state transitions remains a class because transparent component state is not its intended public contract."
+      "explanation": "Ask: **is this object just its data, and should equal data mean equal objects?** If yes, use a record and copy any mutable components. If it has hidden or changing state, use a class.",
+      "retryPrompt": "Apply this to \"The team that changed itself\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to choose and implement a record or class for a stated domain model and justify the choice. Keep this boundary in view: A record is shallowly immutable, component references may denote mutable objects, records cannot extend another class, and hidden mutable representation or identity-rich lifecycle may call for a class.",
+    "summary": "To choose and implement records, use them for transparent data whose value is its identity, validate in a compact constructor, rely on the generated accessors, equals, hashCode and toString, copy mutable components because records are only shallowly immutable, and use classes when state is hidden or changes.",
     "retrievalPrompts": [
-      "Explain Records and immutable data using canonical Java: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Record components and every object reachable from them become deeply immutable automatically.",
-      "Predict this case from memory: A domain aggregate with hidden cache and state transitions remains a class because transparent component state is not its intended public contract."
+      "What does a record generate?",
+      "Are records deeply immutable?",
+      "When is a class a better choice?"
     ],
     "nextReviewPrompt": "Next: continue to “Interfaces”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

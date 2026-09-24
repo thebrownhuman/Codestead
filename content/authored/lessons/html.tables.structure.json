@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Data tables use table, row groups, rows, header cells, and data cells to preserve two-dimensional relationships.",
+    "summary": "A **data table** arranges values in rows and columns so each cell's meaning comes from its row and column. Build it with `<table>`, group the heading row in `<thead>` and the data rows in `<tbody>`, write each row as `<tr>`, and each cell as `<td>` (data) or `<th>` (header). Tables are for **data**, not page layout — and a grid of styled divs doesn't give screen readers row/column relationships.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A score table places column headings in thead and one learner record in each tbody row. Your goal is to create a valid table structure from a small data matrix. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A teacher wants learner scores online: three learners, two quizzes. With divs and CSS grid it *looks* like a table, but a screen reader just reads a stream of numbers — \"Asha 8 9 Ben 6 7\" — with no idea which number belongs to which quiz. A score table places column headings in thead and one learner record in each tbody row. In this lesson you'll create a valid table structure from a small data matrix.\n\n```predict\n{\"question\": \"Can a screen-reader user ask \\\"which column is this cell in?\\\" for a CSS-grid of divs?\", \"options\": [\"Yes, grid creates columns\", \"No — only real table markup exposes row and column relationships\"], \"answer\": 1, \"why\": \"CSS grid is visual. A `<table>` tells assistive technology which headers apply to each cell.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Heading hierarchy. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Heading hierarchy** — the table usually sits under a heading that introduces it."
       },
       {
-        "heading": "Technology rule",
-        "body": "Data tables use table, row groups, rows, header cells, and data cells to preserve two-dimensional relationships. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: rows of cells, grouped into head and body",
+        "body": "```html\n<table>\n  <thead>\n    <tr><th>Learner</th><th>Quiz 1</th><th>Quiz 2</th></tr>\n  </thead>\n  <tbody>\n    <tr><td>Asha</td><td>8</td><td>9</td></tr>\n    <tr><td>Ben</td><td>6</td><td>7</td></tr>\n    <tr><td>Chen</td><td>9</td><td>10</td></tr>\n  </tbody>\n</table>\n```\n\n| Element | Holds |\n|---|---|\n| `table`. | the whole grid. |\n| `thead` / `tbody` / `tfoot`. | header rows / data rows / summary rows. |\n| `tr`. | one row. |\n| `th` / `td`. | a header cell / a data cell. |\n\nEvery row should have the same number of cells (unless you deliberately span them).\n\n```reveal\n{\"prompt\": \"Should you use a table to put a sidebar next to content?\", \"answer\": \"No. Tables are for data. Use CSS layout (flexbox or grid) for page structure.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Tables should not be used for page layout, and visual alignment alone does not expose row and column relationships. This draft therefore rejects: Div elements styled as a grid automatically expose the same relationships as a table."
+        "heading": "One record per row",
+        "body": "```predict\n{\"question\": \"Which layout matches the data \\\"Asha scored 8 and 9\\\"?\", \"options\": [\"Each learner's scores spread across different rows\", \"One row per learner, one column per quiz\"], \"answer\": 1, \"why\": \"Keep one record per row and one kind of value per column, so each cell's meaning comes from its row and column.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use table, row, head, body, foot and cell elements for tabular data only.",
-      "Create a valid table structure from a small data matrix."
+      "Build tables with table, thead, tbody, tr, th and td.",
+      "Keep one record per row and the same number of cells per row."
     ],
     "excludes": [
-      "Tables should not be used for page layout, and visual alignment alone does not expose row and column relationships."
+      "Header scope attributes (next lesson).",
+      "Styling tables with CSS."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "html.tables.structure.example-a",
-      "title": "Rows, cells and sections: concrete case",
+      "title": "A learner score table",
       "situation": "A score table places column headings in thead and one learner record in each tbody row.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A score table places column headings in thead and one learner record in each tbody row.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Use native table structure for tabular data so row and column relationships remain programmatically available."
+        "**Column headings in thead:** Learner, Quiz 1, Quiz 2 go in one header row.",
+        "**One learner record in each tbody row:** Asha 8 9; Ben 6 7; Chen 9 10.",
+        "**Validate:** every row has three cells, so the browser will render a consistent 3 × 4 grid."
       ],
-      "result": "The result follows because Use native table structure for tabular data so row and column relationships remain programmatically available."
+      "result": "The table has one header row and three learner rows, each cell tied to its learner and quiz."
     },
     {
       "id": "html.tables.structure.example-b",
-      "title": "Rows, cells and sections: boundary case",
-      "situation": "Tables should not be used for page layout, and visual alignment alone does not expose row and column relationships.",
+      "title": "The div grid",
+      "situation": "A price list is built from `<div class=\"row\"><div class=\"cell\">…` with CSS grid.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Tables should not be used for page layout, and visual alignment alone does not expose row and column relationships.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Div elements styled as a grid automatically expose the same relationships as a table."
+        "Visually it's tidy, but there are no rows, columns or headers in the markup.",
+        "A screen reader reads prices without their product names or column headings.",
+        "Fix: rebuild it with table, thead, tbody, th and td; keep CSS for styling."
       ],
-      "result": "The boundary requires this correction: Use native table structure for tabular data so row and column relationships remain programmatically available."
+      "result": "The price list now exposes which product and column each price belongs to."
     }
   ],
   "misconceptions": [
     {
       "id": "html.tables.structure.misconception",
       "mistakenBelief": "Div elements styled as a grid automatically expose the same relationships as a table.",
-      "correction": "Use native table structure for tabular data so row and column relationships remain programmatically available.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: Div elements styled as a grid automatically expose the same relationships as a table."
+      "correction": "CSS grid changes only the visual layout. Only table markup (table, tr, th, td) tells assistive technology how cells relate to rows and column headers.",
+      "diagnosticPrompt": "In \"The div grid\", what information did a screen reader lose?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model Rows, cells and sections, with structure carrying meaning before decoration.",
+    "example": "A table is like a **spreadsheet**: rows are records, columns are fields, the top row names the fields. A div grid is like a photo of a spreadsheet — it looks the same, but you can't click a cell to see its column.",
     "usefulFor": [
-      "Building a first mental model for Rows, cells and sections before using exact platform terms"
+      "remembering rows = records, columns = fields",
+      "seeing div grids as pictures"
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "Tables should not be used for page layout, and visual alignment alone does not expose row and column relationships."
+      "Spreadsheets can calculate; HTML tables just present data.",
+      "HTML tables are read one cell at a time by screen readers."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A score table places column headings in thead and one learner record in each tbody row.",
-      "Data tables use table, row groups, rows, header cells, and data cells to preserve two-dimensional relationships.",
-      "Use native table structure for tabular data so row and column relationships remain programmatically available."
+      "<thead><tr><th>Learner</th><th>Quiz 1</th><th>Quiz 2</th></tr></thead>",
+      "<tbody><tr><td>Asha</td><td>8</td><td>9</td></tr>…</tbody>",
+      "screen reader on cell 9"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Header row",
         "state": {
-          "evidence": "A score table places column headings in thead and one learner record in each tbody row."
+          "thead": "Learner, Quiz 1, Quiz 2"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The score table places column headings in thead."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Data rows",
         "state": {
-          "rule": "Data tables use table, row groups, rows, header cells, and data cells to preserve two-dimensional relationships."
+          "tbody rows": "3",
+          "cells per row": "3"
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "One learner record sits in each tbody row."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Cell meaning",
         "state": {
-          "correction": "Use native table structure for tabular data so row and column relationships remain programmatically available."
+          "announced": "Quiz 2, 9"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Div elements styled as a grid automatically expose the same relationships as a table."
+        "explanation": "Assistive technology can pair each cell with its column heading."
       }
     ],
-    "textAlternative": "Starting artifact: A score table places column headings in thead and one learner record in each tbody row. Step 1, Artifact. State: evidence: A score table places column headings in thead and one learner record in each tbody row.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Data tables use table, row groups, rows, header cells, and data cells to preserve two-dimensional relationships.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use native table structure for tabular data so row and column relationships remain programmatically available.. Check the result against the boundary and reject this misconception: Div elements styled as a grid automatically expose the same relationships as a table."
+    "textAlternative": "Building a score table. Step 1, Header row: thead is Learner, Quiz 1, Quiz 2. The score table places column headings in thead. Step 2, Data rows: tbody rows is 3; cells per row is 3. One learner record sits in each tbody row. Step 3, Cell meaning: announced is Quiz 2, 9. Assistive technology can pair each cell with its column heading."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Rows, cells and sections: concrete case”: state its starting evidence, apply the Rows, cells and sections rule, and give the observable result in three short lines.",
+      "prompt": "For \"A learner score table\", explain how the score table places column headings in thead and one learner record in each tbody row.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "thead.",
+        "tbody rows.",
+        "Cells."
       ],
       "expectedEvidence": [
-        "Named example: Rows, cells and sections: concrete case.",
-        "Starting evidence: A score table places column headings in thead and one learner record in each tbody row.",
-        "Core rule: Data tables use table, row groups, rows, header cells, and data cells to preserve two-dimensional relationships.",
-        "Observable result: The result follows because Use native table structure for tabular data so row and column relationships remain programmatically available.",
-        "Boundary check: Use native table structure for tabular data so row and column relationships remain programmatically available."
+        "Names the example \"A learner score table\": a score table places column headings in thead.",
+        "One learner record in each tbody row.",
+        "Every row has three cells.",
+        "Each cell's meaning comes from its row and column."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Tables should not be used for page layout, and visual alignment alone does not expose row and column relationships.",
+      "prompt": "Build a table for a weekly timetable: days as columns (Mon–Wed), two periods as rows. What goes in thead?",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Header row: an empty corner plus days.",
+        "One row per period."
       ],
       "expectedEvidence": [
-        "Data tables use table, row groups, rows, header cells, and data cells to preserve two-dimensional relationships.",
-        "Tables should not be used for page layout, and visual alignment alone does not expose row and column relationships."
+        "thead with Period, Mon, Tue, Wed.",
+        "tbody rows for period 1 and 2 with equal cell counts."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Rows, cells and sections and explain why the misconception fails.",
+      "prompt": "Convert a real div-based grid from a page you know into a table. Test it with a screen reader's table navigation (Ctrl+Alt+arrows in NVDA or VoiceOver's table commands).",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Map each div to tr/th/td.",
+        "Check headers are announced."
       ],
       "expectedEvidence": [
-        "Create a valid table structure from a small data matrix.",
-        "Use native table structure for tabular data so row and column relationships remain programmatically available."
+        "Valid table markup replacing the divs.",
+        "Screen reader announces headers while moving between cells."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.tables.structure.misconception",
-      "explanation": "Use native table structure for tabular data so row and column relationships remain programmatically available.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'tabular data' and state the decisive evidence."
+      "explanation": "Sketch the data as a grid on paper: label the columns across the top, one record per row. Then translate: top row → thead with th; each record → tr in tbody with td.",
+      "retryPrompt": "Sketch \"The div grid\" price list."
     }
   ],
   "recap": {
-    "summary": "You should now be able to create a valid table structure from a small data matrix. Keep this boundary in view: Tables should not be used for page layout, and visual alignment alone does not expose row and column relationships.",
+    "summary": "To create a valid table structure from a small data matrix, use table with thead for column headings and tbody with one record per tr, th for headers, td for data, and equal cells per row. Tables are for data, not layout.",
     "retrievalPrompts": [
-      "Explain Rows, cells and sections using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: Div elements styled as a grid automatically expose the same relationships as a table.",
-      "Apply checkpoint 'tabular data' to a new artifact."
+      "Why can't a div grid replace a table?",
+      "What goes in thead?",
+      "What should each tbody row contain?"
     ],
     "nextReviewPrompt": "Next: continue to “Headers and scope”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

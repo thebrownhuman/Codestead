@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Client routing maps URLs to views while preserving addressability, history, refresh behavior, and server fallback configuration.",
+    "summary": "A client-side router maps **URLs to views** without full page reloads. With React Router you declare routes like `<Route path=\"courses/:courseId\" element={<Course />} />`, nest them inside a layout that renders an `<Outlet />`, and navigate with `<Link to=\"/courses/css\">`. Every view keeps a real **address**: it can be bookmarked, shared, refreshed, and reached with Back and Forward. But the router only runs **after** the browser has loaded your app. When someone refreshes `/courses/css`, the **server** must answer that path with `index.html` (a fallback rule), or they'll get a 404.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Navigating to /courses/c renders the course view and refreshing that URL is served by configured hosting. Your goal is to implement nested routes and verify direct, link and back-forward navigation. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner shares a link to `/courses/css`. Clicking around inside the app works perfectly, but opening the link fresh gives the host's \"404 Not Found\" page. Navigating to /courses/c renders the course view and refreshing that URL is served by configured hosting. In this lesson you'll implement nested routes and verify direct, link and back-forward navigation.\n\n```predict\n{\"question\": \"Inside the app, a Link to /courses/css works. A fresh visit to the same URL returns 404. Where's the problem?\", \"options\": [\"In the React routes\", \"In the hosting: the server has no file at that path and needs a fallback to index.html\"], \"answer\": 1, \"why\": \"The browser asks the server first. Only index.html loads the router.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Remote data and asynchronous UI; javascript browser url; Children and composition. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Remote data and asynchronous UI** module, **URL and history state** (paths, search and history), and **Children and composition**, since layouts wrap child routes."
       },
       {
-        "heading": "Technology rule",
-        "body": "Client routing maps URLs to views while preserving addressability, history, refresh behavior, and server fallback configuration. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: URL to view, layouts with outlets",
+        "body": "```jsx\nimport { BrowserRouter, Routes, Route, Link, Outlet } from \"react-router\";\n\nfunction Layout() {\n  return (\n    <>\n      <header><nav aria-label=\"Main\"><Link to=\"/\">Home</Link> <Link to=\"/courses\">Courses</Link></nav></header>\n      <main><Outlet /></main>          {/* the matched child route renders here. */}\n    </>\n  );\n}\n\nexport function App() {\n  return (\n    <BrowserRouter>\n      <Routes>\n        <Route element={<Layout />}>\n          <Route index element={<Home />} />\n          <Route path=\"courses\" element={<CourseList />} />\n          <Route path=\"courses/:courseId\" element={<Course />} />\n          <Route path=\"*\" element={<NotFound />} />\n        </Route>\n      </Routes>\n    </BrowserRouter>\n  );\n}\n```\n\n| Navigation | Works if |\n|---|---|\n| clicking a Link. | the route is declared. |\n| Back / Forward. | links used real paths. |\n| refresh or shared link. | the host serves index.html for app paths. |\n| unknown path. | a `*` route shows NotFound. |\n\n```reveal\n{\"prompt\": \"What does a hosting fallback look like?\", \"answer\": \"For example, a rewrite rule that sends every non-file path to /index.html. Each host (Netlify, Vercel, nginx) has its own syntax.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Nested routes, base paths, loaders, not-found states, and direct deployment requests require router-specific setup. This draft therefore rejects: A client router makes every deep URL work on the server automatically."
+        "heading": "Link vs a",
+        "body": "```predict\n{\"question\": \"`<a href=\\\"/courses\\\">` inside the app. What happens on click?\", \"options\": [\"Same as Link\", \"A full page reload: state is lost and the app restarts\"], \"answer\": 1, \"why\": \"Use Link for in-app navigation; the router updates history without reloading.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Map paths to page-level components and navigate with real links that preserve browser behavior.",
-      "Implement nested routes and verify direct, link and back-forward navigation."
+      "Declare nested routes with a layout, Outlet, index and not-found route.",
+      "Verify direct, link and back-forward navigation, including hosting fallback."
     ],
     "excludes": [
-      "Nested routes, base paths, loaders, not-found states, and direct deployment requests require router-specific setup."
+      "Data loaders and actions.",
+      "Server-side rendering."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "react.routing.routes.example-a",
-      "title": "Declarative routes and links: concrete case",
+      "title": "A course URL that survives refresh",
       "situation": "Navigating to /courses/c renders the course view and refreshing that URL is served by configured hosting.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: Navigating to /courses/c renders the course view and refreshing that URL is served by configured hosting.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Configure hosting for direct route requests and test navigation, refresh, back, forward, and not-found behavior."
+        "**Declare routes:** `courses/:courseId` renders Course inside Layout's Outlet.",
+        "**Configure hosting:** a rewrite sends /courses/c and other app paths to index.html.",
+        "**Check three ways:** click a Link, press Back and Forward, then refresh the URL; each will render the course view."
       ],
-      "result": "The result follows because Configure hosting for direct route requests and test navigation, refresh, back, forward, and not-found behavior."
+      "result": "Shared and refreshed course links open the right page instead of a 404."
     },
     {
       "id": "react.routing.routes.example-b",
-      "title": "Declarative routes and links: boundary case",
-      "situation": "Nested routes, base paths, loaders, not-found states, and direct deployment requests require router-specific setup.",
+      "title": "The link that wiped the progress",
+      "situation": "The navigation uses `<a href>` tags. Moving between lessons resets the quiz progress kept in React state.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Nested routes, base paths, loaders, not-found states, and direct deployment requests require router-specific setup.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: A client router makes every deep URL work on the server automatically."
+        "Plain anchors trigger a full page load.",
+        "The whole React app restarts and its state is lost.",
+        "Fix: use `<Link to=...>` so the router changes views without reloading."
       ],
-      "result": "The boundary requires this correction: Configure hosting for direct route requests and test navigation, refresh, back, forward, and not-found behavior."
+      "result": "Moving between lessons keeps the quiz progress."
     }
   ],
   "misconceptions": [
     {
       "id": "react.routing.routes.misconception",
       "mistakenBelief": "A client router makes every deep URL work on the server automatically.",
-      "correction": "Configure hosting for direct route requests and test navigation, refresh, back, forward, and not-found behavior.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: A client router makes every deep URL work on the server automatically."
+      "correction": "The router runs in the browser after index.html loads. A direct request for a deep path goes to the server first, which needs a fallback rule to return index.html.",
+      "diagnosticPrompt": "In \"A course URL that survives refresh\", what did the host need?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Declarative routes and links, where inputs and state produce a UI description.",
+    "example": "A client router is like **the receptionist inside a building** directing you to rooms. It works once you're inside. If someone gives the taxi driver a room number (a deep URL), the **building's front gate** (the server) must know to let them in through reception (index.html).",
     "usefulFor": [
-      "Building a first mental model for Declarative routes and links before using exact platform terms"
+      "remembering router inside, server at the gate",
+      "Link = walking between rooms without leaving"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Nested routes, base paths, loaders, not-found states, and direct deployment requests require router-specific setup."
+      "Receptionists don't need rewrites; servers do.",
+      "An `a href` is leaving and re-entering the building."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Navigating to /courses/c renders the course view and refreshing that URL is served by configured hosting.",
-      "Client routing maps URLs to views while preserving addressability, history, refresh behavior, and server fallback configuration.",
-      "Configure hosting for direct route requests and test navigation, refresh, back, forward, and not-found behavior."
+      "click Link to /courses/c",
+      "refresh /courses/c",
+      "press Back"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Link",
         "state": {
-          "evidence": "Navigating to /courses/c renders the course view and refreshing that URL is served by configured hosting."
+          "reload": "no",
+          "view": "Course c"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "Navigating to /courses/c renders the course view without a reload."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Refresh",
         "state": {
-          "rule": "Client routing maps URLs to views while preserving addressability, history, refresh behavior, and server fallback configuration."
+          "server returns": "index.html",
+          "view": "Course c"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Refreshing that URL is served by configured hosting."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Back",
         "state": {
-          "correction": "Configure hosting for direct route requests and test navigation, refresh, back, forward, and not-found behavior."
+          "URL": "/courses",
+          "view": "CourseList"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: A client router makes every deep URL work on the server automatically."
+        "explanation": "History works because each view has a real path."
       }
     ],
-    "textAlternative": "Starting artifact: Navigating to /courses/c renders the course view and refreshing that URL is served by configured hosting. Step 1, Artifact. State: evidence: Navigating to /courses/c renders the course view and refreshing that URL is served by configured hosting.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Client routing maps URLs to views while preserving addressability, history, refresh behavior, and server fallback configuration.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Configure hosting for direct route requests and test navigation, refresh, back, forward, and not-found behavior.. Check the result against the boundary and reject this misconception: A client router makes every deep URL work on the server automatically."
+    "textAlternative": "Checking three kinds of navigation. Step 1, Link: reload is no; view is Course c. Navigating to /courses/c renders the course view without a reload. Step 2, Refresh: server returns is index.html; view is Course c. Refreshing that URL is served by configured hosting. Step 3, Back: URL is /courses; view is CourseList. History works because each view has a real path."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Declarative routes and links: concrete case”: state its starting evidence, apply the Declarative routes and links rule, and give the observable result in three short lines.",
+      "prompt": "For \"A course URL that survives refresh\", explain how navigating to /courses/c renders the course view and refreshing that URL is served by configured hosting.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Routes.",
+        "Hosting.",
+        "Checks."
       ],
       "expectedEvidence": [
-        "Named example: Declarative routes and links: concrete case.",
-        "Starting evidence: Navigating to /courses/c renders the course view and refreshing that URL is served by configured hosting.",
-        "Core rule: Client routing maps URLs to views while preserving addressability, history, refresh behavior, and server fallback configuration.",
-        "Observable result: The result follows because Configure hosting for direct route requests and test navigation, refresh, back, forward, and not-found behavior.",
-        "Boundary check: Configure hosting for direct route requests and test navigation, refresh, back, forward, and not-found behavior."
+        "Names the example \"A course URL that survives refresh\": the course URL must survive refresh.",
+        "Navigating to /courses/c renders the course view.",
+        "Refreshing that URL is served by configured hosting.",
+        "Shared and refreshed course links open the right page."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Nested routes, base paths, loaders, not-found states, and direct deployment requests require router-specific setup.",
+      "prompt": "Add a nested `courses/:courseId/lessons/:lessonId` route rendered inside Course's own Outlet, with a Link list of lessons.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Course renders <Outlet />.",
+        "Relative or absolute Link paths."
       ],
       "expectedEvidence": [
-        "Client routing maps URLs to views while preserving addressability, history, refresh behavior, and server fallback configuration.",
-        "Nested routes, base paths, loaders, not-found states, and direct deployment requests require router-specific setup."
+        "Lesson view appears inside the course page.",
+        "Back returns to the course."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Declarative routes and links and explain why the misconception fails.",
+      "prompt": "Build routes for home, courses, a course and not-found with a shared layout. Deploy or preview with a fallback rule, and write a checklist test: link, back/forward, refresh and unknown URL.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Test with MemoryRouter for routes.",
+        "Check the host's rewrite config."
       ],
       "expectedEvidence": [
-        "Implement nested routes and verify direct, link and back-forward navigation.",
-        "Configure hosting for direct route requests and test navigation, refresh, back, forward, and not-found behavior."
+        "All four checks pass.",
+        "Unknown paths show NotFound."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.routing.routes.misconception",
-      "explanation": "Configure hosting for direct route requests and test navigation, refresh, back, forward, and not-found behavior.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'direct route requests' and state the decisive evidence."
+      "explanation": "For each route, test **three doors**: click in, Back/Forward, and paste the URL fresh. If the third fails, fix the host, not the routes.",
+      "retryPrompt": "Apply this to \"The link that wiped the progress\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement nested routes and verify direct, link and back-forward navigation. Keep this boundary in view: Nested routes, base paths, loaders, not-found states, and direct deployment requests require router-specific setup.",
+    "summary": "To implement nested routes and verify direct, link and back-forward navigation, declare routes inside a layout with an Outlet, use Link for in-app moves, include a not-found route, and configure the host to serve index.html for app paths so refreshed and shared deep links work.",
     "retrievalPrompts": [
-      "Explain Declarative routes and links using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: A client router makes every deep URL work on the server automatically.",
-      "Apply checkpoint 'direct route requests' to a new artifact."
+      "Why can a deep link 404 on refresh?",
+      "What does Outlet do?",
+      "Why use Link instead of a plain anchor?"
     ],
     "nextReviewPrompt": "Next: continue to “Parameters, search state and not-found views”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

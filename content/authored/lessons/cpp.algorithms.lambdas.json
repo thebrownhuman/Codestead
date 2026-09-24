@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A lambda creates a closure object whose capture list determines copied or referenced state, parameter list defines calls, and mutable affects copied capture modification.",
+    "summary": "A **lambda** is an unnamed function object you write inline: `[capture](params) { body }`. The **capture list** decides how it sees surrounding variables. `[x]` **copies** x when the lambda is created, so later changes outside don't affect it. `[&x]` **refers** to x, so the lambda sees changes, but only while x **still exists**. `[=]` and `[&]` capture everything used, by copy or by reference. A lambda that **outlives** the variables it captured by reference (stored, returned, or run later on another thread) holds **dangling references**. Captured copies are `const` inside the lambda unless you mark it **`mutable`**.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A count_if lambda captures threshold by value so later changes to the outer variable do not alter the predicate. Your goal is to implement and trace value and reference captures in an algorithm call. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner builds a filter `auto is_high = [&](int s) { return s >= threshold; };`, then changes threshold for a different report, and the first report's filter silently changes too. Another lambda returned from a function crashes when called. A count_if lambda captures threshold by value so later changes to the outer variable do not alter the predicate. In this lesson you'll implement and trace value and reference captures in an algorithm call.\n\n```predict\n{\"question\": \"`int t = 50; auto f = [t](int s) { return s >= t; }; t = 90;` What is f(60)?\", \"options\": [\"false\", \"true: f copied t = 50 when it was created\"], \"answer\": 1, \"why\": \"Capture by value freezes the value at creation.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Iterators and invalidation; Overloading and default arguments; Standard algorithms; Value, reference and const-reference parameters. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Iterators and invalidation**, **Overloading and default arguments**, **Standard algorithms** and **Value, reference and const-reference parameters**."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "A lambda creates a closure object whose capture list determines copied or referenced state, parameter list defines calls, and mutable affects copied capture modification. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The model: captures copy or refer",
+        "body": "```cpp\n#include <algorithm>\n#include <functional>\n#include <vector>\n\nstd::function<bool(int)> make_filter(int threshold) {\n    return [threshold](int s) { return s >= threshold; };   // copy: safe to return.\n    // return [&threshold](int s) { ... };  // dangling: threshold dies on return.\n}\n\nint main() {\n    std::vector<int> scores{55, 72, 91, 64, 98};\n    int threshold = 70;\n    auto high = std::count_if(scores.begin(), scores.end(),\n                              [threshold](int s) { return s >= threshold; });   // 3.\n\n    int total = 0;\n    std::for_each(scores.begin(), scores.end(),\n                  [&total](int s) { total += s; });   // reference: updates total. 380.\n\n    int calls = 0;\n    auto counter = [calls]() mutable { return ++calls; };   // modifies its OWN copy.\n    counter(); counter();                                   // outer calls is still 0.\n    auto f = make_filter(80);                               // f(91) is true.\n    (void)high; (void)f;\n}\n```\n\n| Capture | Sees later outside changes? | Safe if lambda outlives scope? |\n|---|---|---|\n| `[x]`. | no. | yes. |\n| `[&x]`. | yes. | no. |\n| `[=]`, `[&]`. | per member above. | only `[=]` (for locals). |\n\n```reveal\n{\"prompt\": \"Is [=] inside a member function always safe to return?\", \"answer\": \"Not necessarily: it captures the this pointer to use members, so the lambda still depends on the object being alive. Capture the specific member values you need, e.g. [limit = limit_].\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Reference captures can dangle, [=] can copy more context than intended, this capture rules evolve, and closure types are unique unnamed types. Therefore the draft explicitly rejects this beginner failure model: A lambda using [&] safely keeps every referenced local alive for as long as the lambda object exists."
+        "heading": "Reference captures and lifetime",
+        "body": "```predict\n{\"question\": \"A lambda capturing [&name] is stored and called after name's function has returned. What happens?\", \"options\": [\"It uses the last value\", \"Undefined behaviour: the reference dangles\"], \"answer\": 1, \"why\": \"Capture by value for anything that runs later.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Define local callables and capture only intended state with explicit lifetime reasoning.",
-      "Implement and trace value and reference captures in an algorithm call."
+      "Write lambdas for algorithms and choose value or reference captures deliberately.",
+      "Recognise dangling reference captures and use mutable for modifiable copies."
     ],
     "excludes": [
-      "Reference captures can dangle, [=] can copy more context than intended, this capture rules evolve, and closure types are unique unnamed types."
+      "Generic lambdas and templates in depth.",
+      "Coroutines."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "cpp.algorithms.lambdas.example-a",
-      "title": "Lambdas and captures: defined case",
+      "title": "A threshold captured by value",
       "situation": "A count_if lambda captures threshold by value so later changes to the outer variable do not alter the predicate.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A count_if lambda captures threshold by value so later changes to the outer variable do not alter the predicate.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Reference capture does not extend local lifetime; ensure every referenced object outlives all closure calls or capture an owned value."
+        "**A count_if lambda captures threshold by value:** [threshold](int s) { return s >= threshold; }.",
+        "**So later changes to the outer variable:** threshold = 90 for another report afterwards,",
+        "**Do not alter the predicate:** the stored filter will still count scores >= 70, giving 3."
       ],
-      "result": "The defined result follows because Reference capture does not extend local lifetime; ensure every referenced object outlives all closure calls or capture an owned value."
+      "result": "Each filter keeps the rule it was built with."
     },
     {
       "id": "cpp.algorithms.lambdas.example-b",
-      "title": "Lambdas and captures: boundary case",
-      "situation": "A callback that outlives its creating scope avoids reference capture of a local variable that would dangle.",
+      "title": "The returned filter that crashed",
+      "situation": "make_filter returned [&threshold](int s) {...}. Calling the filter later reads freed stack memory.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A callback that outlives its creating scope avoids reference capture of a local variable that would dangle.",
-        "Step 2 — Keep this standard boundary visible: Reference captures can dangle, [=] can copy more context than intended, this capture rules evolve, and closure types are unique unnamed types.",
-        "Step 3 — Reject the tempting rule: A lambda using [&] safely keeps every referenced local alive for as long as the lambda object exists."
+        "threshold was a parameter: its lifetime ended when make_filter returned.",
+        "The reference capture outlived it.",
+        "Capture by value: [threshold]."
       ],
-      "result": "This case demonstrates the declared outcome: Implement and trace value and reference captures in an algorithm call."
+      "result": "The returned filter owns its own copy and works indefinitely."
     }
   ],
   "misconceptions": [
     {
       "id": "cpp.algorithms.lambdas.misconception",
       "mistakenBelief": "A lambda using [&] safely keeps every referenced local alive for as long as the lambda object exists.",
-      "correction": "Reference capture does not extend local lifetime; ensure every referenced object outlives all closure calls or capture an owned value.",
-      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: A lambda using [&] safely keeps every referenced local alive for as long as the lambda object exists."
+      "correction": "Reference captures don't extend lifetimes. If the lambda outlives the captured variables, its references dangle; capture by value for lambdas that are stored or returned.",
+      "diagnosticPrompt": "In \"The returned filter that crashed\", why did the reference dangle?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A system of self-managing components can model Lambdas and captures: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "example": "Capturing by value is **taking a photo** of a whiteboard: later edits to the board don't change your photo. Capturing by reference is **remembering which room the board is in**: you always see the latest version, until the room is demolished (scope ends).",
     "usefulFor": [
-      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+      "remembering photo vs room number",
+      "demolished room = dangling"
     ],
     "limitations": [
-      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
-      "Reference captures can dangle, [=] can copy more context than intended, this capture rules evolve, and closure types are unique unnamed types."
+      "Photos are cheap for small things; copying big objects isn't.",
+      "mutable lets you draw on your own photo."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A count_if lambda captures threshold by value so later changes to the outer variable do not alter the predicate.",
-      "A lambda creates a closure object whose capture list determines copied or referenced state, parameter list defines calls, and mutable affects copied capture modification.",
-      "Reference capture does not extend local lifetime; ensure every referenced object outlives all closure calls or capture an owned value."
+      "int threshold = 70;",
+      "count_if with [threshold]",
+      "threshold = 90; reuse the stored filter"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Create",
         "state": {
-          "evidence": "A count_if lambda captures threshold by value so later changes to the outer variable do not alter the predicate."
+          "captured threshold": "70"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "A count_if lambda captures threshold by value at creation."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Count",
         "state": {
-          "rule": "A lambda creates a closure object whose capture list determines copied or referenced state, parameter list defines calls, and mutable affects copied capture modification."
+          "high": "3"
         },
-        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+        "explanation": "The predicate counts scores >= 70."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Change",
         "state": {
-          "conclusion": "Reference capture does not extend local lifetime; ensure every referenced object outlives all closure calls or capture an owned value."
+          "outer threshold": "90",
+          "lambda's copy": "70"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: A lambda using [&] safely keeps every referenced local alive for as long as the lambda object exists."
+        "explanation": "Later changes to the outer variable do not alter the predicate."
       }
     ],
-    "textAlternative": "Starting artifact: A count_if lambda captures threshold by value so later changes to the outer variable do not alter the predicate. Step 1, Source and state. State: evidence: A count_if lambda captures threshold by value so later changes to the outer variable do not alter the predicate.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A lambda creates a closure object whose capture list determines copied or referenced state, parameter list defines calls, and mutable affects copied capture modification.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Reference capture does not extend local lifetime; ensure every referenced object outlives all closure calls or capture an owned value.. Check the conclusion against the boundary and reject this misconception: A lambda using [&] safely keeps every referenced local alive for as long as the lambda object exists."
+    "textAlternative": "Tracing value capture. Step 1, Create: captured threshold is 70. A count_if lambda captures threshold by value at creation. Step 2, Count: high is 3. The predicate counts scores >= 70. Step 3, Change: outer threshold is 90; lambda's copy is 70. Later changes to the outer variable do not alter the predicate."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Lambdas and captures: defined case”: state its starting evidence, apply the Lambdas and captures rule, and give the observable result in three short lines.",
+      "prompt": "For \"A threshold captured by value\", explain how a count_if lambda captures threshold by value so later changes to the outer variable do not alter the predicate.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Capture.",
+        "Count.",
+        "Change."
       ],
       "expectedEvidence": [
-        "Named example: Lambdas and captures: defined case.",
-        "Starting evidence: A count_if lambda captures threshold by value so later changes to the outer variable do not alter the predicate.",
-        "Core rule: A lambda creates a closure object whose capture list determines copied or referenced state, parameter list defines calls, and mutable affects copied capture modification.",
-        "Observable result: The defined result follows because Reference capture does not extend local lifetime; ensure every referenced object outlives all closure calls or capture an owned value.",
-        "Boundary check: Reference capture does not extend local lifetime; ensure every referenced object outlives all closure calls or capture an owned value."
+        "Names the example \"A threshold captured by value\": [&] let a report's filter change.",
+        "A count_if lambda captures threshold by value.",
+        "Later changes to the outer variable do not alter the predicate.",
+        "Each filter keeps the rule it was built with."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same CPP rule to this related boundary case: A callback that outlives its creating scope avoids reference capture of a local variable that would dangle.",
+      "prompt": "Predict and check: a lambda capturing x by value and one by reference, both created when x = 1, called after x = 5. Then write a mutable lambda that counts its own calls.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Value: 1. Reference: 5.",
+        "mutable modifies the copy."
       ],
       "expectedEvidence": [
-        "A lambda creates a closure object whose capture list determines copied or referenced state, parameter list defines calls, and mutable affects copied capture modification.",
-        "Reference captures can dangle, [=] can copy more context than intended, this capture rules evolve, and closure types are unique unnamed types."
+        "Predictions checked.",
+        "Counter works."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CPP example for Lambdas and captures, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Write make_multiplier(int factor) returning a std::function<int(int)>, and a vector of such functions. Show a buggy version with [&factor] under -fsanitize=address, then fix it and test all multipliers.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Store functions, call later.",
+        "Sanitizer reports stack-use-after-return (may need an option)."
       ],
       "expectedEvidence": [
-        "Implement and trace value and reference captures in an algorithm call.",
-        "Reference capture does not extend local lifetime; ensure every referenced object outlives all closure calls or capture an owned value."
+        "Bug demonstrated.",
+        "Fixed version tested."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "cpp.algorithms.lambdas.misconception",
-      "explanation": "Reference capture does not extend local lifetime; ensure every referenced object outlives all closure calls or capture an owned value.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'does not extend local lifetime' and state the decisive evidence: A callback that outlives its creating scope avoids reference capture of a local variable that would dangle."
+      "explanation": "For each capture ask: **will this lambda run after the variable's scope ends?** If yes, or if it shouldn't see later changes, capture by value.",
+      "retryPrompt": "Apply this to \"The returned filter that crashed\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and trace value and reference captures in an algorithm call. Keep this boundary in view: Reference captures can dangle, [=] can copy more context than intended, this capture rules evolve, and closure types are unique unnamed types.",
+    "summary": "To write lambdas safely, capture by value when the lambda should keep a snapshot or may outlive the current scope, capture by reference only when it must see or update a variable that will outlive it, mark lambdas mutable to change their own copies, and use them to express predicates for algorithms.",
     "retrievalPrompts": [
-      "Explain Lambdas and captures using a concrete CPP rule rather than the optional analogy.",
-      "Why is this claim incorrect: A lambda using [&] safely keeps every referenced local alive for as long as the lambda object exists.",
-      "Apply the checkpoint 'does not extend local lifetime' to the boundary case from memory."
+      "What does [x] capture?",
+      "When does [&x] dangle?",
+      "What does mutable allow?"
     ],
     "nextReviewPrompt": "Next: continue to “Comparators and ordering”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

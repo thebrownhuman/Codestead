@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Painting order and stacking contexts determine overlap; z-index compares boxes within the same relevant stacking context rather than globally.",
+    "summary": "`z-index` orders overlapping positioned boxes — but only **within the same stacking context**. Certain properties (`position` with a z-index, `opacity` below 1, `transform`, `filter`, `isolation: isolate`…) turn an element into a new stacking context: a sealed layer whose children are stacked **inside** it. A child's z-index of 9999 can never lift it above something that outranks its parent's whole context.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A tooltip remains under a modal because its ancestor stacking context is below the modal, despite a large child z-index. Your goal is to diagnose and repair an overlay ordering defect using stacking-context evidence. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A tooltip has `z-index: 9999`, yet it appears **under** a modal with `z-index: 100`. More nines won't help. The tooltip lives inside a card that forms its own stacking context at `z-index: 1`, and that whole card sits below the modal. A tooltip remains under a modal because its ancestor stacking context is below the modal, despite a large child z-index. In this lesson you'll diagnose and repair an overlay ordering defect using stacking-context evidence.\n\n```predict\n{\"question\": \"Card: `position: relative; z-index: 1`. Tooltip inside: `z-index: 9999`. Modal elsewhere: `z-index: 100`. Who's on top?\", \"options\": [\"The tooltip\", \"The modal\"], \"answer\": 1, \"why\": \"The tooltip's 9999 only counts inside the card's context. The comparison that matters is card (1) vs modal (100).\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Box model, sizing and overflow; html semantics landmarks; Relative, absolute, fixed and sticky positioning. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Box model, sizing and overflow** module, **Sections and landmarks**, and **Relative, absolute, fixed and sticky positioning**."
       },
       {
-        "heading": "Technology rule",
-        "body": "Painting order and stacking contexts determine overlap; z-index compares boxes within the same relevant stacking context rather than globally. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: sealed layers, compared at the top level",
+        "body": "```text\nroot stacking context\n├── .card        (z-index: 1)    ← its own context\n│   └── .tooltip (z-index: 9999) ← ranked only among card's children\n└── .modal       (z-index: 100)\n```\n\nCreators of a stacking context include:\n\n| Property | Creates a context when |\n|---|---|\n| position + z-index. | z-index isn't auto. |\n| opacity. | less than 1. |\n| transform / filter. | anything but none. |\n| isolation. | isolate. |\n| position: fixed / sticky. | always. |\n\n```reveal\n{\"prompt\": \"How do you find which ancestor created the context?\", \"answer\": \"Walk up the element's ancestors in DevTools, checking each for z-index, opacity, transform, filter and isolation. Some browsers' Layers panel shows contexts directly.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Opacity, transforms, positioned elements, isolation, and top-layer features can create contexts that trap high z-index descendants. This draft therefore rejects: The largest z-index anywhere in the document always appears on top."
+        "heading": "Repair options",
+        "body": "```predict\n{\"question\": \"Best fix for the trapped tooltip?\", \"options\": [\"z-index: 999999 on the tooltip\", \"Remove the card's unnecessary context (e.g. drop its z-index or transform), or render the tooltip at the top level\"], \"answer\": 1, \"why\": \"Raising a trapped child never escapes its parent context. Change the context structure instead.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Explain paint order and stacking-context boundaries instead of escalating z-index values blindly.",
-      "Diagnose and repair an overlay ordering defect using stacking-context evidence."
+      "Identify stacking contexts and what creates them.",
+      "Fix overlay ordering by changing context structure rather than inflating z-index."
     ],
     "excludes": [
-      "Opacity, transforms, positioned elements, isolation, and top-layer features can create contexts that trap high z-index descendants."
+      "The top layer (dialog, popover) in depth.",
+      "3D transforms and preserve-3d."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "css.layout.stacking.example-a",
-      "title": "Stacking contexts and z-order: concrete case",
+      "title": "The tooltip trapped under the modal",
       "situation": "A tooltip remains under a modal because its ancestor stacking context is below the modal, despite a large child z-index.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A tooltip remains under a modal because its ancestor stacking context is below the modal, despite a large child z-index.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Inspect stacking-context ancestry; z-index values only compete within the applicable context."
+        "**Evidence:** DevTools shows `.card { position: relative; z-index: 1; }` — an ancestor stacking context.",
+        "**Compare correctly:** the top-level comparison is card (1) vs modal (100), so the whole card, tooltip included, is below the modal despite the large child z-index.",
+        "**Repair:** the card didn't need `z-index: 1`; removing it means the tooltip will compete at the root level. Better still, render tooltips in a top-level container."
       ],
-      "result": "The result follows because Inspect stacking-context ancestry; z-index values only compete within the applicable context."
+      "result": "The tooltip appears above the modal where intended, and no z-index escalation was needed."
     },
     {
       "id": "css.layout.stacking.example-b",
-      "title": "Stacking contexts and z-order: boundary case",
-      "situation": "Opacity, transforms, positioned elements, isolation, and top-layer features can create contexts that trap high z-index descendants.",
+      "title": "The fading card that broke a dropdown",
+      "situation": "A card uses `opacity: 0.98` for a subtle effect. Its dropdown menu now appears behind the next card.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Opacity, transforms, positioned elements, isolation, and top-layer features can create contexts that trap high z-index descendants.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: The largest z-index anywhere in the document always appears on top."
+        "opacity below 1 created a new stacking context on each card.",
+        "The dropdown is sealed inside its card; the later card paints on top.",
+        "Fix: remove the opacity trick (use a colour instead), or give the open card `z-index: 1` while its menu is open."
       ],
-      "result": "The boundary requires this correction: Inspect stacking-context ancestry; z-index values only compete within the applicable context."
+      "result": "The dropdown shows above neighbouring cards."
     }
   ],
   "misconceptions": [
     {
       "id": "css.layout.stacking.misconception",
       "mistakenBelief": "The largest z-index anywhere in the document always appears on top.",
-      "correction": "Inspect stacking-context ancestry; z-index values only compete within the applicable context.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: The largest z-index anywhere in the document always appears on top."
+      "correction": "z-index only compares elements within the same stacking context. A child with a huge z-index can't rise above something that outranks its ancestor's stacking context.",
+      "diagnosticPrompt": "In \"The tooltip trapped under the modal\", which two values actually decided the order?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Stacking contexts and z-order, where rules size, place, and paint existing content.",
+    "example": "Stacking contexts are like **folders on a desk**: you can reorder sheets inside a folder (child z-index) as much as you like, but a sheet can never get above another folder lying on top of its own folder.",
     "usefulFor": [
-      "Building a first mental model for Stacking contexts and z-order before using exact platform terms"
+      "remembering children are sealed in their folder",
+      "fixing by moving folders, not sheets"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "Opacity, transforms, positioned elements, isolation, and top-layer features can create contexts that trap high z-index descendants."
+      "Folders are obvious; stacking contexts are invisible until you inspect.",
+      "Many unexpected properties (opacity, transform) quietly create folders."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A tooltip remains under a modal because its ancestor stacking context is below the modal, despite a large child z-index.",
-      "Painting order and stacking contexts determine overlap; z-index compares boxes within the same relevant stacking context rather than globally.",
-      "Inspect stacking-context ancestry; z-index values only compete within the applicable context."
+      ".card { position: relative; z-index: 1 }",
+      ".card .tooltip { z-index: 9999 }",
+      ".modal { z-index: 100 }"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Find context",
         "state": {
-          "evidence": "A tooltip remains under a modal because its ancestor stacking context is below the modal, despite a large child z-index."
+          ".card": "stacking context (z-index 1)"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The tooltip's ancestor forms its own stacking context."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Compare at the right level",
         "state": {
-          "rule": "Painting order and stacking contexts determine overlap; z-index compares boxes within the same relevant stacking context rather than globally."
+          "card": "1",
+          "modal": "100",
+          "winner": "modal"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The tooltip remains under the modal because its ancestor stacking context is below the modal."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Repair",
         "state": {
-          "correction": "Inspect stacking-context ancestry; z-index values only compete within the applicable context."
+          "card z-index": "removed",
+          "tooltip vs modal": "compared directly"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: The largest z-index anywhere in the document always appears on top."
+        "explanation": "Changing the context structure fixes it without a larger child z-index."
       }
     ],
-    "textAlternative": "Starting artifact: A tooltip remains under a modal because its ancestor stacking context is below the modal, despite a large child z-index. Step 1, Artifact. State: evidence: A tooltip remains under a modal because its ancestor stacking context is below the modal, despite a large child z-index.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Painting order and stacking contexts determine overlap; z-index compares boxes within the same relevant stacking context rather than globally.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Inspect stacking-context ancestry; z-index values only compete within the applicable context.. Check the result against the boundary and reject this misconception: The largest z-index anywhere in the document always appears on top."
+    "textAlternative": "Diagnosing a stacking-context defect. Step 1, Find context: .card is stacking context (z-index 1). The tooltip's ancestor forms its own stacking context. Step 2, Compare at the right level: card is 1; modal is 100; winner is modal. The tooltip remains under the modal because its ancestor stacking context is below the modal. Step 3, Repair: card z-index is removed; tooltip vs modal is compared directly. Changing the context structure fixes it without a larger child z-index."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Stacking contexts and z-order: concrete case”: state its starting evidence, apply the Stacking contexts and z-order rule, and give the observable result in three short lines.",
+      "prompt": "For \"The tooltip trapped under the modal\", explain why the tooltip remains under a modal because its ancestor stacking context is below the modal, despite a large child z-index, and how to repair it.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Evidence.",
+        "Comparison.",
+        "Repair."
       ],
       "expectedEvidence": [
-        "Named example: Stacking contexts and z-order: concrete case.",
-        "Starting evidence: A tooltip remains under a modal because its ancestor stacking context is below the modal, despite a large child z-index.",
-        "Core rule: Painting order and stacking contexts determine overlap; z-index compares boxes within the same relevant stacking context rather than globally.",
-        "Observable result: The result follows because Inspect stacking-context ancestry; z-index values only compete within the applicable context.",
-        "Boundary check: Inspect stacking-context ancestry; z-index values only compete within the applicable context."
+        "Names the example \"The tooltip trapped under the modal\": the tooltip remains under a modal.",
+        "Its ancestor stacking context (the card, z-index 1) is below the modal.",
+        "The large child z-index only counts inside the card.",
+        "Remove the card's context or render the tooltip at the top level."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Opacity, transforms, positioned elements, isolation, and top-layer features can create contexts that trap high z-index descendants.",
+      "prompt": "An element has `transform: translateZ(0)` added \"for performance\". Its popup now hides behind the footer. Explain and fix.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "transform creates a context.",
+        "Remove it or restructure."
       ],
       "expectedEvidence": [
-        "Painting order and stacking contexts determine overlap; z-index compares boxes within the same relevant stacking context rather than globally.",
-        "Opacity, transforms, positioned elements, isolation, and top-layer features can create contexts that trap high z-index descendants."
+        "The transform created a stacking context that traps the popup.",
+        "Remove the unnecessary transform or move the popup out."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Stacking contexts and z-order and explain why the misconception fails.",
+      "prompt": "Build a page with a header, cards with dropdowns, and a modal. Deliberately create a context bug with opacity or transform, diagnose it in DevTools, and fix it without raising z-index values.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Record the ancestor chain.",
+        "Explain the fix."
       ],
       "expectedEvidence": [
-        "Diagnose and repair an overlay ordering defect using stacking-context evidence.",
-        "Inspect stacking-context ancestry; z-index values only compete within the applicable context."
+        "Recorded evidence of the offending context.",
+        "Fix that changes structure, not z-index size."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.layout.stacking.misconception",
-      "explanation": "Inspect stacking-context ancestry; z-index values only compete within the applicable context.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'stacking-context ancestry' and state the decisive evidence."
+      "explanation": "When a layer is wrongly on top or below: **list both elements' ancestor chains, find the first ancestor that creates a context in each, and compare those.** That's the real contest.",
+      "retryPrompt": "Do this for \"The fading card that broke a dropdown\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to diagnose and repair an overlay ordering defect using stacking-context evidence. Keep this boundary in view: Opacity, transforms, positioned elements, isolation, and top-layer features can create contexts that trap high z-index descendants.",
+    "summary": "To diagnose and repair an overlay ordering defect, find the stacking contexts created by z-index, opacity, transform, filter or isolation, compare elements at the level where their contexts meet, and fix the structure instead of inflating z-index.",
     "retrievalPrompts": [
-      "Explain Stacking contexts and z-order using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: The largest z-index anywhere in the document always appears on top.",
-      "Apply checkpoint 'stacking-context ancestry' to a new artifact."
+      "Why can't z-index: 9999 escape its parent?",
+      "Name three properties that create stacking contexts.",
+      "What's the right fix for a trapped tooltip?"
     ],
     "nextReviewPrompt": "Next: continue to “Logical properties and writing modes”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A C string is a character sequence terminated by the first null character, stored within an array or other valid region large enough for content plus the terminator.",
+    "summary": "C has no string type. A **C string** is a sequence of chars **ending at the first `'\\0'`** (the null terminator), stored in an array or other valid memory. So `\"cat\"` needs **four bytes**: `'c' 'a' 't' '\\0'`. `strlen` counts characters **before** the terminator (3); `sizeof` an array counts its **capacity** in bytes (4 or more). Functions like `strlen`, `printf(\"%s\")` and `strcpy` keep reading until they find `'\\0'`: if it's missing, they run off the end into other memory. Also, string literals are **read-only**: `char *s = \"cat\"; s[0] = 'b';` is undefined, while `char s[] = \"cat\";` makes a modifiable copy.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: The array {'c','a','t','\\0'} is a four-byte representation of the three-character C string cat. Your goal is to trace string length, storage capacity and termination in memory. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner builds a word letter by letter: `char word[3] = {'c', 'a', 't'};` and prints it with `printf(\"%s\", word)`. It shows \"cat\" followed by random symbols. The array {'c','a','t','\\0'} is a four-byte representation of the three-character C string cat. In this lesson you'll trace string length, storage capacity and termination in memory.\n\n```predict\n{\"question\": \"`char word[] = \\\"cat\\\";` What are sizeof word and strlen(word)?\", \"options\": [\"3 and 3\", \"4 and 3: the array includes the terminator; strlen doesn't count it\"], \"answer\": 1, \"why\": \"Capacity must always be at least length + 1.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: while, do and for; Parameters and return values; One-dimensional arrays. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **while, do and for**, **Parameters and return values** and **One-dimensional arrays** (sizeof and fixed capacity)."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "A C string is a character sequence terminated by the first null character, stored within an array or other valid region large enough for content plus the terminator. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The invariant: content, then '\\0', within capacity",
+        "body": "```c\n#include <stdio.h>\n#include <string.h>\n\nint main(void) {\n    char a[] = \"cat\";                     /* {'c','a','t','\\0'}: size 4. */\n    char b[3] = {'c', 'a', 't'};           /* NOT a string: no terminator. */\n    char c[10] = \"cat\";                   /* capacity 10, length 3, rest '\\0'. */\n    const char *lit = \"cat\";              /* points at a read-only literal. */\n\n    printf(\"%zu %zu\\n\", sizeof a, strlen(a));   /* 4 3. */\n    printf(\"%zu %zu\\n\", sizeof c, strlen(c));   /* 10 3. */\n    /* printf(\"%s\", b);  undefined: reads past b looking for '\\0'. */\n    /* lit[0] = 'b';     undefined: literals are read-only. */\n    a[0] = 'b';                            /* fine: a is a modifiable copy. */\n    puts(a);                               /* bat. */\n    return 0;\n}\n```\n\n| | Meaning |\n|---|---|\n| length (strlen). | chars before the first '\\0'. |\n| capacity (sizeof array). | bytes the array can hold. |\n| rule. | capacity >= length + 1. |\n\n```reveal\n{\"prompt\": \"What is strlen of \\\"ca\\\\0t\\\"?\", \"answer\": \"2. The string ends at the first '\\\\0'; the 't' after it is stored but invisible to string functions.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Character arrays need not contain a string, embedded nulls end string operations early, string literals are not modifiable, and encoding can use multibyte sequences. Therefore the draft explicitly rejects this beginner failure model: Every char array is automatically null-terminated and safe to pass to strlen or printf with %s."
+        "heading": "Char arrays aren't always strings",
+        "body": "```predict\n{\"question\": \"Is every char array safe to pass to strlen?\", \"options\": [\"Yes\", \"No: only ones that contain a '\\\\0' within their capacity\"], \"answer\": 1, \"why\": \"A char array is just bytes until it's terminated.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Treat strings as character arrays terminated by a null character with finite capacity.",
-      "Trace string length, storage capacity and termination in memory."
+      "Trace string length, capacity and the null terminator in memory.",
+      "Distinguish modifiable char arrays from read-only string literals and unterminated char arrays."
     ],
     "excludes": [
-      "Character arrays need not contain a string, embedded nulls end string operations early, string literals are not modifiable, and encoding can use multibyte sequences."
+      "Copying and concatenating safely (next lesson).",
+      "Unicode and multibyte encodings."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "c.strings.representation.example-a",
-      "title": "C string representation: defined case",
+      "title": "Three letters, four bytes",
       "situation": "The array {'c','a','t','\\0'} is a four-byte representation of the three-character C string cat.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: The array {'c','a','t','\\0'} is a four-byte representation of the three-character C string cat.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Before using string functions, prove that a null terminator occurs within the valid array bounds and keep capacity for it."
+        "**The array {'c','a','t','\\0'}:** char word[4] with the terminator added explicitly.",
+        "**Is a four-byte representation:** sizeof word is 4.",
+        "**Of the three-character C string cat:** strlen(word) is 3, and printf(\"%s\") will stop exactly at the terminator."
       ],
-      "result": "The defined result follows because Before using string functions, prove that a null terminator occurs within the valid array bounds and keep capacity for it."
+      "result": "cat prints cleanly, with no garbage after it."
     },
     {
       "id": "c.strings.representation.example-b",
-      "title": "C string representation: boundary case",
-      "situation": "char label[3] = {'c','a','t'} is an array but not a C string because no null terminator fits.",
+      "title": "The name buffer that was one short",
+      "situation": "`char name[5]; strcpy(name, \"Asha!\");` corrupts a neighbouring variable.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: char label[3] = {'c','a','t'} is an array but not a C string because no null terminator fits.",
-        "Step 2 — Keep this standard boundary visible: Character arrays need not contain a string, embedded nulls end string operations early, string literals are not modifiable, and encoding can use multibyte sequences.",
-        "Step 3 — Reject the tempting rule: Every char array is automatically null-terminated and safe to pass to strlen or printf with %s."
+        "\"Asha!\" has 5 characters and needs 6 bytes with its terminator.",
+        "strcpy writes the '\\0' one byte past the array.",
+        "Make name at least 6 bytes, or use a bounded copy (next lesson)."
       ],
-      "result": "This case demonstrates the declared outcome: Trace string length, storage capacity and termination in memory."
+      "result": "The name fits with its terminator, and nothing else is overwritten."
     }
   ],
   "misconceptions": [
     {
       "id": "c.strings.representation.misconception",
       "mistakenBelief": "Every char array is automatically null-terminated and safe to pass to strlen or printf with %s.",
-      "correction": "Before using string functions, prove that a null terminator occurs within the valid array bounds and keep capacity for it.",
-      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: Every char array is automatically null-terminated and safe to pass to strlen or printf with %s."
+      "correction": "Only initialisation from a string literal (with room) or explicit code adds '\\0'. A char array filled character by character has no terminator unless you write one.",
+      "diagnosticPrompt": "In the opening story, why did random symbols appear after cat?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A manually managed workshop can model C string representation: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "example": "A C string is like **a train with a red caboose at the end**. String functions walk carriage by carriage until they see the caboose ('\\0'). No caboose, and they keep walking onto whatever track comes next. The platform length (capacity) must fit the train **plus** its caboose.",
     "usefulFor": [
-      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+      "remembering the caboose",
+      "platform must fit caboose too"
     ],
     "limitations": [
-      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
-      "Character arrays need not contain a string, embedded nulls end string operations early, string literals are not modifiable, and encoding can use multibyte sequences."
+      "Trains have visible ends; memory doesn't.",
+      "A literal is a museum train: look, don't modify."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "The array {'c','a','t','\\0'} is a four-byte representation of the three-character C string cat.",
-      "A C string is a character sequence terminated by the first null character, stored within an array or other valid region large enough for content plus the terminator.",
-      "Before using string functions, prove that a null terminator occurs within the valid array bounds and keep capacity for it."
+      "char word[4] = {'c','a','t','\\0'};",
+      "strlen(word)",
+      "printf(\"%s\", word)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Store",
         "state": {
-          "evidence": "The array {'c','a','t','\\0'} is a four-byte representation of the three-character C string cat."
+          "bytes": "c a t \\0",
+          "sizeof": "4"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "The array is a four-byte representation including the terminator."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Measure",
         "state": {
-          "rule": "A C string is a character sequence terminated by the first null character, stored within an array or other valid region large enough for content plus the terminator."
+          "strlen": "3"
         },
-        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+        "explanation": "strlen counts the three-character C string cat, not the terminator."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Print",
         "state": {
-          "conclusion": "Before using string functions, prove that a null terminator occurs within the valid array bounds and keep capacity for it."
+          "output": "cat"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: Every char array is automatically null-terminated and safe to pass to strlen or printf with %s."
+        "explanation": "printf stops at the null terminator, so nothing extra appears."
       }
     ],
-    "textAlternative": "Starting artifact: The array {'c','a','t','\\0'} is a four-byte representation of the three-character C string cat. Step 1, Source and state. State: evidence: The array {'c','a','t','\\0'} is a four-byte representation of the three-character C string cat.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A C string is a character sequence terminated by the first null character, stored within an array or other valid region large enough for content plus the terminator.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Before using string functions, prove that a null terminator occurs within the valid array bounds and keep capacity for it.. Check the conclusion against the boundary and reject this misconception: Every char array is automatically null-terminated and safe to pass to strlen or printf with %s."
+    "textAlternative": "Tracing a terminated string. Step 1, Store: bytes is c a t \\0; sizeof is 4. The array is a four-byte representation including the terminator. Step 2, Measure: strlen is 3. strlen counts the three-character C string cat, not the terminator. Step 3, Print: output is cat. printf stops at the null terminator, so nothing extra appears."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “C string representation: defined case”: state its starting evidence, apply the C string representation rule, and give the observable result in three short lines.",
+      "prompt": "For \"Three letters, four bytes\", explain why the array {'c','a','t','\\0'} is a four-byte representation of the three-character C string cat.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Store.",
+        "Measure.",
+        "Print."
       ],
       "expectedEvidence": [
-        "Named example: C string representation: defined case.",
-        "Starting evidence: The array {'c','a','t','\\0'} is a four-byte representation of the three-character C string cat.",
-        "Core rule: A C string is a character sequence terminated by the first null character, stored within an array or other valid region large enough for content plus the terminator.",
-        "Observable result: The defined result follows because Before using string functions, prove that a null terminator occurs within the valid array bounds and keep capacity for it.",
-        "Boundary check: Before using string functions, prove that a null terminator occurs within the valid array bounds and keep capacity for it."
+        "Names the example \"Three letters, four bytes\": a missing terminator printed garbage.",
+        "The array {'c','a','t','\\0'} is a four-byte representation.",
+        "It represents the three-character C string cat.",
+        "cat prints cleanly, with no garbage after it."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same C rule to this related boundary case: char label[3] = {'c','a','t'} is an array but not a C string because no null terminator fits.",
+      "prompt": "For each, give sizeof and strlen (or say \"not a string\"): char a[] = \"hi\"; char b[8] = \"hi\"; char c[2] = {'h','i'}; char d[] = \"a\\0bc\";",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "sizeof counts every byte of the array.",
+        "strlen stops at the first '\\0'."
       ],
       "expectedEvidence": [
-        "A C string is a character sequence terminated by the first null character, stored within an array or other valid region large enough for content plus the terminator.",
-        "Character arrays need not contain a string, embedded nulls end string operations early, string literals are not modifiable, and encoding can use multibyte sequences."
+        "Four answers.",
+        "c identified as not a string."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new C example for C string representation, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Write size_t my_strlen(const char *s) and bool is_terminated(const char *buf, size_t cap) that checks for a '\\0' within cap bytes. Test with normal, empty, exactly-full and unterminated buffers.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Never read past cap in is_terminated.",
+        "Empty string: length 0."
       ],
       "expectedEvidence": [
-        "Trace string length, storage capacity and termination in memory.",
-        "Before using string functions, prove that a null terminator occurs within the valid array bounds and keep capacity for it."
+        "All cases tested.",
+        "No out-of-bounds read."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "c.strings.representation.misconception",
-      "explanation": "Before using string functions, prove that a null terminator occurs within the valid array bounds and keep capacity for it.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'null terminator' and state the decisive evidence: char label[3] = {'c','a','t'} is an array but not a C string because no null terminator fits."
+      "explanation": "For every string, write three numbers: **length, capacity, and where the '\\0' is.** If there's no '\\0' within capacity, it's not a string.",
+      "retryPrompt": "Apply this to \"The name buffer that was one short\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to trace string length, storage capacity and termination in memory. Keep this boundary in view: Character arrays need not contain a string, embedded nulls end string operations early, string literals are not modifiable, and encoding can use multibyte sequences.",
+    "summary": "To trace C strings, remember a string is characters up to the first '\\0', stored in memory with capacity of at least length + 1, strlen counts characters before the terminator while sizeof counts the array's bytes, unterminated char arrays aren't strings, and literals are read-only.",
     "retrievalPrompts": [
-      "Explain C string representation using a concrete C rule rather than the optional analogy.",
-      "Why is this claim incorrect: Every char array is automatically null-terminated and safe to pass to strlen or printf with %s.",
-      "Apply the checkpoint 'null terminator' to the boundary case from memory."
+      "How many bytes does \"cat\" need?",
+      "What does strlen count?",
+      "Why can't you modify a string literal?"
     ],
     "nextReviewPrompt": "Next: continue to “Bounded string processing”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

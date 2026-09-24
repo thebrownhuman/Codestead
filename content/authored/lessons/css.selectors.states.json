@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Pseudo-classes select state or structure such as :focus-visible, :checked, :disabled, and :nth-child, while pseudo-elements represent generated boxes.",
+    "summary": "**Pseudo-classes** match elements in a **state**: `:hover` (pointer over it), `:focus-visible` (keyboard focus that should be shown), `:checked`, `:disabled`, `:invalid`, `:user-invalid`, and structural ones like `:first-child` and `:nth-child(odd)`. **Pseudo-elements** style a **part** or generated box: `::before`, `::after`, `::placeholder`, `::marker`. Hover-only styling leaves keyboard and touch users out — always give `:focus-visible` its own clear style.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A control has visible :focus-visible styling independent of its hover styling. Your goal is to implement hover, focus-visible, validation and structural states without hiding keyboard focus. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Your buttons light up beautifully on hover. A keyboard user tabs through the page and sees… nothing change at all, because an old reset removed outlines. On a phone, there's no hover either. A control has visible :focus-visible styling independent of its hover styling. In this lesson you'll implement hover, focus-visible, validation and structural states without hiding keyboard focus.\n\n```predict\n{\"question\": \"A menu opens only on `:hover`. Can a keyboard user open it?\", \"options\": [\"Yes\", \"No — keyboard focus doesn't trigger :hover\"], \"answer\": 1, \"why\": \"Hover requires a pointer. Keyboard and many touch users never trigger it. Use :focus-within, a button toggle, or both.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Specificity and source order; html semantics; Type, class, attribute and combinator selectors; html forms labels controls. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Specificity and source order**, **Text and page semantics**, **Type, class, attribute and combinator selectors**, and **Labels and input controls** — many states belong to form controls."
       },
       {
-        "heading": "Technology rule",
-        "body": "Pseudo-classes select state or structure such as :focus-visible, :checked, :disabled, and :nth-child, while pseudo-elements represent generated boxes. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: states and parts",
+        "body": "```css\n.btn:hover { background: #1d4ed8; }\n.btn:focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }  /* keyboard */\n.btn:disabled { opacity: 0.6; cursor: not-allowed; }\n\ninput:user-invalid { border-color: #b91c1c; }   /* only after the user interacts */\ntr:nth-child(even) { background: #f3f4f6; }       /* zebra stripes */\n.required::after { content: \" *\"; }             /* generated, decorative */\n```\n\n| Selector | Matches |\n|---|---|\n| `:hover`. | pointer over the element. |\n| `:focus-visible`. | focused and the browser judges focus should be shown (e.g. keyboard). |\n| `:user-invalid`. | invalid after the user has interacted. |\n| `:nth-child(even)`. | every second child. |\n| `::after`. | a generated box after the content. |\n\n```reveal\n{\"prompt\": \"Why `:focus-visible` instead of `:focus`?\", \"answer\": \"`:focus` also fires on mouse clicks, which some designers dislike, so they remove it — hurting keyboard users. `:focus-visible` shows focus when it's needed, so there's no reason to hide it.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Hover is unavailable to many users, generated content may not be reliably exposed, and structural indexes count actual sibling rules. This draft therefore rejects: If an interface works on :hover, it automatically works for keyboard and touch users."
+        "heading": "Never hide focus",
+        "body": "```predict\n{\"question\": \"`*:focus { outline: none; }` in a reset — safe?\", \"options\": [\"Yes, it looks cleaner\", \"No — keyboard users lose track of where they are\"], \"answer\": 1, \"why\": \"If you remove the default outline, you must replace it with a visible :focus-visible style.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Style interaction, structural and generated parts while preserving native behavior.",
-      "Implement hover, focus-visible, validation and structural states without hiding keyboard focus."
+      "Style hover, focus-visible, disabled, validation and structural states.",
+      "Use pseudo-elements for decorative parts and keep focus always visible."
     ],
     "excludes": [
-      "Hover is unavailable to many users, generated content may not be reliably exposed, and structural indexes count actual sibling rules."
+      ":has() and complex relational selectors.",
+      "Animating state changes (motion module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "css.selectors.states.example-a",
-      "title": "Pseudo-classes and pseudo-elements: concrete case",
+      "title": "Focus that doesn't depend on hover",
       "situation": "A control has visible :focus-visible styling independent of its hover styling.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A control has visible :focus-visible styling independent of its hover styling.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Design hover, focus, active, disabled, and touch behavior separately, with a visible :focus-visible state."
+        "**Hover:** `.btn:hover` darkens the background for pointer users.",
+        "**Independent :focus-visible:** `.btn:focus-visible` adds a 3px amber outline with offset — a different, clearly visible style.",
+        "**Test:** Tab to the button; the browser will render the outline even with no mouse present."
       ],
-      "result": "The result follows because Design hover, focus, active, disabled, and touch behavior separately, with a visible :focus-visible state."
+      "result": "Keyboard users can always see which control has focus, whether or not anyone hovers."
     },
     {
       "id": "css.selectors.states.example-b",
-      "title": "Pseudo-classes and pseudo-elements: boundary case",
-      "situation": "Hover is unavailable to many users, generated content may not be reliably exposed, and structural indexes count actual sibling rules.",
+      "title": "The error shown too early",
+      "situation": "A sign-up form uses `input:invalid { border: red }`. Every empty required field is red before the user types anything.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Hover is unavailable to many users, generated content may not be reliably exposed, and structural indexes count actual sibling rules.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: If an interface works on :hover, it automatically works for keyboard and touch users."
+        ":invalid matches immediately, even before interaction.",
+        "Users feel scolded before they start.",
+        "Fix: `input:user-invalid` so the red border (plus a text message) appears only after the user has interacted."
       ],
-      "result": "The boundary requires this correction: Design hover, focus, active, disabled, and touch behavior separately, with a visible :focus-visible state."
+      "result": "Errors appear after users interact, not the moment the page loads."
     }
   ],
   "misconceptions": [
     {
       "id": "css.selectors.states.misconception",
       "mistakenBelief": "If an interface works on :hover, it automatically works for keyboard and touch users.",
-      "correction": "Design hover, focus, active, disabled, and touch behavior separately, with a visible :focus-visible state.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: If an interface works on :hover, it automatically works for keyboard and touch users."
+      "correction": "Hover depends on a pointer; keyboard and many touch users never trigger it. Provide :focus-visible styles and keyboard-reachable controls, and never make essential content hover-only.",
+      "diagnosticPrompt": "In the opening predict, why couldn't the keyboard user open the menu?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Pseudo-classes and pseudo-elements, where rules size, place, and paint existing content.",
+    "example": "Pseudo-classes are like **status lights on a machine**: \"power on\" (hover), \"selected\" (focus), \"out of order\" (disabled). If one light only works when someone touches the machine with a mouse, people using the keypad never see it.",
     "usefulFor": [
-      "Building a first mental model for Pseudo-classes and pseudo-elements before using exact platform terms"
+      "remembering each state needs its own visible signal",
+      "focus is for keyboard users"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "Hover is unavailable to many users, generated content may not be reliably exposed, and structural indexes count actual sibling rules."
+      "Machines have fixed lights; CSS states can be styled any way.",
+      "Pseudo-elements are like stickers added to the machine — decoration, not new parts."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A control has visible :focus-visible styling independent of its hover styling.",
-      "Pseudo-classes select state or structure such as :focus-visible, :checked, :disabled, and :nth-child, while pseudo-elements represent generated boxes.",
-      "Design hover, focus, active, disabled, and touch behavior separately, with a visible :focus-visible state."
+      ".btn:hover { background: #1d4ed8 }",
+      ".btn:focus-visible { outline: 3px solid #f59e0b }",
+      "Tab to .btn"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Hover style",
         "state": {
-          "evidence": "A control has visible :focus-visible styling independent of its hover styling."
+          "pointer": "over",
+          "background": "#1d4ed8"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "Hover styling applies only when a pointer is over the button."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Keyboard focus",
         "state": {
-          "rule": "Pseudo-classes select state or structure such as :focus-visible, :checked, :disabled, and :nth-child, while pseudo-elements represent generated boxes."
+          "focus-visible": "true",
+          "outline": "3px amber"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The control has visible :focus-visible styling independent of its hover styling."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "No pointer",
         "state": {
-          "correction": "Design hover, focus, active, disabled, and touch behavior separately, with a visible :focus-visible state."
+          "hover": "false",
+          "focus visible": "yes"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: If an interface works on :hover, it automatically works for keyboard and touch users."
+        "explanation": "Keyboard users still see where focus is."
       }
     ],
-    "textAlternative": "Starting artifact: A control has visible :focus-visible styling independent of its hover styling. Step 1, Artifact. State: evidence: A control has visible :focus-visible styling independent of its hover styling.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Pseudo-classes select state or structure such as :focus-visible, :checked, :disabled, and :nth-child, while pseudo-elements represent generated boxes.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Design hover, focus, active, disabled, and touch behavior separately, with a visible :focus-visible state.. Check the result against the boundary and reject this misconception: If an interface works on :hover, it automatically works for keyboard and touch users."
+    "textAlternative": "Independent hover and focus styles. Step 1, Hover style: pointer is over; background is #1d4ed8. Hover styling applies only when a pointer is over the button. Step 2, Keyboard focus: focus-visible is true; outline is 3px amber. The control has visible :focus-visible styling independent of its hover styling. Step 3, No pointer: hover is false; focus visible is yes. Keyboard users still see where focus is."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Pseudo-classes and pseudo-elements: concrete case”: state its starting evidence, apply the Pseudo-classes and pseudo-elements rule, and give the observable result in three short lines.",
+      "prompt": "For \"Focus that doesn't depend on hover\", explain how the control has visible :focus-visible styling independent of its hover styling, and how you'd test it.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Hover.",
+        "Focus-visible.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Pseudo-classes and pseudo-elements: concrete case.",
-        "Starting evidence: A control has visible :focus-visible styling independent of its hover styling.",
-        "Core rule: Pseudo-classes select state or structure such as :focus-visible, :checked, :disabled, and :nth-child, while pseudo-elements represent generated boxes.",
-        "Observable result: The result follows because Design hover, focus, active, disabled, and touch behavior separately, with a visible :focus-visible state.",
-        "Boundary check: Design hover, focus, active, disabled, and touch behavior separately, with a visible :focus-visible state."
+        "Names the example \"Focus that doesn't depend on hover\": the control has visible :focus-visible styling.",
+        "It is independent of its hover styling.",
+        "Tab to it with no mouse to test.",
+        "Keyboard users can always see focus."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Hover is unavailable to many users, generated content may not be reliably exposed, and structural indexes count actual sibling rules.",
+      "prompt": "Style a checkbox label so it turns bold when checked, and a disabled input so it looks unavailable. Which selectors?",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Use :checked with a sibling combinator.",
+        "Use :disabled."
       ],
       "expectedEvidence": [
-        "Pseudo-classes select state or structure such as :focus-visible, :checked, :disabled, and :nth-child, while pseudo-elements represent generated boxes.",
-        "Hover is unavailable to many users, generated content may not be reliably exposed, and structural indexes count actual sibling rules."
+        "`input:checked + label { font-weight: 700; }`.",
+        "`input:disabled { opacity: 0.6; }` plus cursor."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Pseudo-classes and pseudo-elements and explain why the misconception fails.",
+      "prompt": "Take a component with hover-only effects. Add :focus-visible, :active and :disabled styles, test with keyboard and touch emulation, and check the colour contrast of each state.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "DevTools can force states.",
+        "Check contrast with the picker."
       ],
       "expectedEvidence": [
-        "Implement hover, focus-visible, validation and structural states without hiding keyboard focus.",
-        "Design hover, focus, active, disabled, and touch behavior separately, with a visible :focus-visible state."
+        "Every state visibly styled.",
+        "Keyboard and touch tests pass with sufficient contrast."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.selectors.states.misconception",
-      "explanation": "Design hover, focus, active, disabled, and touch behavior separately, with a visible :focus-visible state.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint ':focus-visible' and state the decisive evidence."
+      "explanation": "For every interactive element, list its states — **default, hover, focus-visible, active, disabled, invalid** — and check each has a visible style. Use DevTools' \":hov\" panel to force them.",
+      "retryPrompt": "Do this for \"The error shown too early\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement hover, focus-visible, validation and structural states without hiding keyboard focus. Keep this boundary in view: Hover is unavailable to many users, generated content may not be reliably exposed, and structural indexes count actual sibling rules.",
+    "summary": "To implement hover, focus-visible, validation and structural states, give every state its own visible style, prefer :focus-visible and :user-invalid, use pseudo-elements for decorative parts, and never hide keyboard focus.",
     "retrievalPrompts": [
-      "Explain Pseudo-classes and pseudo-elements using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: If an interface works on :hover, it automatically works for keyboard and touch users.",
-      "Apply checkpoint ':focus-visible' to a new artifact."
+      "Does :hover work for keyboard users?",
+      "Why use :focus-visible?",
+      "When does :user-invalid match?"
     ],
     "nextReviewPrompt": "Next: continue to “Custom properties and design tokens”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

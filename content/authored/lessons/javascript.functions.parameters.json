@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Parameters receive argument values and can use defaults, rest collection, and destructuring with explicit validation.",
+    "summary": "Parameters receive arguments by position. A **default** (`size = 10`) applies only when the argument is `undefined` — **not** for `null`, `0` or `\"\"`. **Rest** parameters (`...items`) collect extra arguments into an array. For functions with several optional settings, take one **options object** with `= {}` and destructure it with defaults. A clear contract also says what's **returned** and when the function **throws**.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A function uses options = {} before destructuring optional properties. Your goal is to design and test a function with a clear parameter and failure contract. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A `formatPrice(amount, currency, decimals)` call reads `formatPrice(99, undefined, 0)` — hard to read, easy to get wrong. And when someone passes `null` for currency, the default doesn't kick in! A function uses options = {} before destructuring optional properties. In this lesson you'll design and test a function with a clear parameter and failure contract.\n\n```predict\n{\"question\": \"`function f(x = 5) { return x; }` What are `f()`, `f(undefined)`, `f(null)`?\", \"options\": [\"5, 5, 5\", \"5, 5, null\"], \"answer\": 1, \"why\": \"Defaults apply only for undefined. null is a real value that you passed.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Values, types and expressions; pf abstraction calls; Function declarations, expressions and arrows; let, const and binding. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Values, types and expressions** module, **Calls, parameters and returns**, **Function declarations, expressions and arrows**, and **let, const and binding**."
       },
       {
-        "heading": "Technology rule",
-        "body": "Parameters receive argument values and can use defaults, rest collection, and destructuring with explicit validation. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The rule: defaults for undefined, rest for many, options for optional",
+        "body": "```js\nfunction formatPrice(amount, { currency = \"INR\", decimals = 2 } = {}) {\n  if (!Number.isFinite(amount)) {\n    throw new TypeError(\"amount must be a finite number\");\n  }\n  return new Intl.NumberFormat(\"en-IN\", {\n    style: \"currency\", currency, minimumFractionDigits: decimals,\n  }).format(amount);\n}\n\nformatPrice(99);                       // \"₹99.00\"\nformatPrice(99, { decimals: 0 });      // \"₹99\"\n\nfunction sum(...nums) { return nums.reduce((t, n) => t + n, 0); }\nsum(1, 2, 3);                          // 6\n```\n\n| Feature | Behaviour |\n|---|---|\n| `x = 5`. | used when x is undefined. |\n| `...rest`. | array of remaining arguments. |\n| `{ a = 1 } = {}`. | safe destructuring even with no argument. |\n| throw on invalid input. | a clear failure contract. |\n\n```reveal\n{\"prompt\": \"Why `= {}` after the destructuring pattern?\", \"answer\": \"Without it, calling `formatPrice(99)` would try to destructure undefined and throw. `= {}` supplies an empty object so the inner defaults apply.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Defaults apply only to undefined, objects remain shared references, and destructuring can throw on nullish input. This draft therefore rejects: A default parameter runs for null and every other falsy argument."
+        "heading": "Readable calls",
+        "body": "```predict\n{\"question\": \"Which call is easier to understand six months later?\", \"options\": [\"`formatPrice(99, undefined, 0)`\", \"`formatPrice(99, { decimals: 0 })`\"], \"answer\": 1, \"why\": \"Named options explain themselves and let callers skip settings they don't care about.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use defaults, destructuring, rest parameters and explicit return behavior without shared mutable defaults.",
-      "Design and test a function with a clear parameter and failure contract."
+      "Use default, rest and destructured options parameters.",
+      "State and test a function's return value and failure behaviour."
     ],
     "excludes": [
-      "Defaults apply only to undefined, objects remain shared references, and destructuring can throw on nullish input."
+      "arguments object and call/apply.",
+      "Currying."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "javascript.functions.parameters.example-a",
-      "title": "Parameters, rest and return contracts: concrete case",
+      "title": "An options object with safe defaults",
       "situation": "A function uses options = {} before destructuring optional properties.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A function uses options = {} before destructuring optional properties.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Parameter defaults apply when the argument is undefined, not for null or all falsy values."
+        "**Signature:** `formatPrice(amount, { currency = \"INR\", decimals = 2 } = {})` — options = {} before destructuring.",
+        "**Calls:** `formatPrice(99)` uses both defaults → \"₹99.00\"; `formatPrice(99, { decimals: 0 })` → \"₹99\".",
+        "**Failure contract:** `formatPrice(\"abc\")` will throw TypeError, and a test checks that."
       ],
-      "result": "The result follows because Parameter defaults apply when the argument is undefined, not for null or all falsy values."
+      "result": "Callers get readable, safe defaults, and bad input fails loudly instead of printing \"₹NaN\"."
     },
     {
       "id": "javascript.functions.parameters.example-b",
-      "title": "Parameters, rest and return contracts: boundary case",
-      "situation": "Defaults apply only to undefined, objects remain shared references, and destructuring can throw on nullish input.",
+      "title": "The null that skipped the default",
+      "situation": "`function greet(name = \"guest\") { return `Hi ${name}`; }` returns \"Hi null\" when a form sends null.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Defaults apply only to undefined, objects remain shared references, and destructuring can throw on nullish input.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: A default parameter runs for null and every other falsy argument."
+        "Defaults only apply for undefined.",
+        "null was passed explicitly, so name is null.",
+        "Fix: `greet(name ?? undefined)` at the call site, or `const n = name ?? \"guest\"` inside."
       ],
-      "result": "The boundary requires this correction: Parameter defaults apply when the argument is undefined, not for null or all falsy values."
+      "result": "greet(null) now returns \"Hi guest\" instead of \"Hi null\"."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.functions.parameters.misconception",
       "mistakenBelief": "A default parameter runs for null and every other falsy argument.",
-      "correction": "Parameter defaults apply when the argument is undefined, not for null or all falsy values.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: A default parameter runs for null and every other falsy argument."
+      "correction": "Default parameters apply only when the argument is undefined (missing or explicitly undefined). null, 0, false and \"\" are real values and are used as-is; handle null with ?? if needed.",
+      "diagnosticPrompt": "In the opening predict, why did f(null) return null?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Parameters, rest and return contracts, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "An options object is like **ordering coffee by saying what you want changed**: \"large, oat milk\" — everything else stays standard (defaults). Positional arguments are like having to say every setting in a fixed order: \"medium, no, yes, no, oat…\".",
     "usefulFor": [
-      "Building a first mental model for Parameters, rest and return contracts before using exact platform terms"
+      "remembering named options",
+      "defaults for what you don't mention"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Defaults apply only to undefined, objects remain shared references, and destructuring can throw on nullish input."
+      "Baristas understand \"none\" as a choice — like null skipping the default.",
+      "Rest parameters are like \"and these extra toppings…\"."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A function uses options = {} before destructuring optional properties.",
-      "Parameters receive argument values and can use defaults, rest collection, and destructuring with explicit validation.",
-      "Parameter defaults apply when the argument is undefined, not for null or all falsy values."
+      "function formatPrice(amount, { currency = 'INR', decimals = 2 } = {})",
+      "formatPrice(99)",
+      "formatPrice(99, { decimals: 0 })"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "No options",
         "state": {
-          "evidence": "A function uses options = {} before destructuring optional properties."
+          "options": "{} (default)",
+          "currency": "INR",
+          "decimals": "2"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The function uses options = {} before destructuring optional properties."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Result",
         "state": {
-          "rule": "Parameters receive argument values and can use defaults, rest collection, and destructuring with explicit validation."
+          "returned": "₹99.00"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "With both defaults applied, the price is formatted with two decimals."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "One option",
         "state": {
-          "correction": "Parameter defaults apply when the argument is undefined, not for null or all falsy values."
+          "decimals": "0",
+          "returned": "₹99"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: A default parameter runs for null and every other falsy argument."
+        "explanation": "Passing only decimals overrides one setting and keeps the other default."
       }
     ],
-    "textAlternative": "Starting artifact: A function uses options = {} before destructuring optional properties. Step 1, Artifact. State: evidence: A function uses options = {} before destructuring optional properties.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Parameters receive argument values and can use defaults, rest collection, and destructuring with explicit validation.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Parameter defaults apply when the argument is undefined, not for null or all falsy values.. Check the result against the boundary and reject this misconception: A default parameter runs for null and every other falsy argument."
+    "textAlternative": "Destructuring an options object. Step 1, No options: options is {} (default); currency is INR; decimals is 2. The function uses options = {} before destructuring optional properties. Step 2, Result: returned is ₹99.00. With both defaults applied, the price is formatted with two decimals. Step 3, One option: decimals is 0; returned is ₹99. Passing only decimals overrides one setting and keeps the other default."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Parameters, rest and return contracts: concrete case”: state its starting evidence, apply the Parameters, rest and return contracts rule, and give the observable result in three short lines.",
+      "prompt": "For \"An options object with safe defaults\", explain why the function uses options = {} before destructuring optional properties, and what two calls return.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Signature.",
+        "Calls.",
+        "Failure."
       ],
       "expectedEvidence": [
-        "Named example: Parameters, rest and return contracts: concrete case.",
-        "Starting evidence: A function uses options = {} before destructuring optional properties.",
-        "Core rule: Parameters receive argument values and can use defaults, rest collection, and destructuring with explicit validation.",
-        "Observable result: The result follows because Parameter defaults apply when the argument is undefined, not for null or all falsy values.",
-        "Boundary check: Parameter defaults apply when the argument is undefined, not for null or all falsy values."
+        "Names the example \"An options object with safe defaults\": the function uses options = {} before destructuring.",
+        "Optional properties get defaults INR and 2.",
+        "formatPrice(99) returns ₹99.00; with decimals 0, ₹99.",
+        "Invalid amounts throw TypeError."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Defaults apply only to undefined, objects remain shared references, and destructuring can throw on nullish input.",
+      "prompt": "Write `makeTag(name, ...classes)` that returns `<name class=\"a b\">`. What does `makeTag(\"p\")` return?",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Rest parameter.",
+        "Empty classes case."
       ],
       "expectedEvidence": [
-        "Parameters receive argument values and can use defaults, rest collection, and destructuring with explicit validation.",
-        "Defaults apply only to undefined, objects remain shared references, and destructuring can throw on nullish input."
+        "Uses ...classes and join(\" \").",
+        "makeTag(\"p\") returns `<p>` (or with an empty class, decided and documented)."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Parameters, rest and return contracts and explain why the misconception fails.",
+      "prompt": "Design `searchCourses(query, options)` with page, pageSize and sort options, validation that throws for bad input, and tests for defaults, overrides and failures.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "options = {} with defaults.",
+        "Throw for pageSize < 1."
       ],
       "expectedEvidence": [
-        "Design and test a function with a clear parameter and failure contract.",
-        "Parameter defaults apply when the argument is undefined, not for null or all falsy values."
+        "Clear signature with documented defaults.",
+        "Tests for defaults, overrides and each failure."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.functions.parameters.misconception",
-      "explanation": "Parameter defaults apply when the argument is undefined, not for null or all falsy values.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'argument is undefined' and state the decisive evidence."
+      "explanation": "Write the contract first: **required params, optional settings (with defaults), return value, when it throws.** Then check: does any optional setting sit in a positional slot? Move it into options.",
+      "retryPrompt": "Write the contract for greet from \"The null that skipped the default\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to design and test a function with a clear parameter and failure contract. Keep this boundary in view: Defaults apply only to undefined, objects remain shared references, and destructuring can throw on nullish input.",
+    "summary": "To design and test a function with a clear parameter and failure contract, use defaults (which apply only to undefined), rest parameters for variable arguments, and an options object with = {} and destructured defaults; then document and test its return value and when it throws.",
     "retrievalPrompts": [
-      "Explain Parameters, rest and return contracts using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: A default parameter runs for null and every other falsy argument.",
-      "Apply checkpoint 'argument is undefined' to a new artifact."
+      "When does a default parameter apply?",
+      "What does ...rest collect?",
+      "Why add = {} after a destructured options parameter?"
     ],
     "nextReviewPrompt": "Next: continue to “Arrays and indexed data”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

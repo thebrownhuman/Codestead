@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A classical planning action has preconditions defining applicability and effects defining the successor state; a plan is valid when each action applies in sequence and the final state satisfies the goal.",
+    "summary": "**Classical planning** describes the world as a set of true facts, and each **action** as three parts. **Preconditions**: facts that must be true for the action to be allowed. **Delete effects**: facts that stop being true. **Add effects**: facts that become true. A **plan** is a sequence of actions, and it is **valid** only if, starting from the initial state, **every** action's preconditions hold when it runs, and the final state satisfies the **goal**. A **validator** checks this by simulating each step. Planners search over these action descriptions, so the same actions can solve many different goals.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: pick-up(key) requires at(key) and empty-hand, removes at(key), and adds holding(key); the validator simulates every step before testing the door-open goal. Your goal is to encode and validate a small goal-directed planning problem. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner writes a plan for a robot: [go(door), open(door)]. It \"reaches\" the goal because the last action mentions the door. In the real run the robot tries to open a locked door with an empty hand. A second plan picks up the key while already holding a box. pick-up(key) requires at(key) and empty-hand, removes at(key), and adds holding(key); the validator simulates every step before testing the door-open goal. In this lesson you'll encode and validate a small goal-directed planning problem.\n\n```predict\n{\"question\": \"A plan's last action is open(door) and the goal is door-open. Is the plan valid?\", \"options\": [\"Yes, the last action achieves the goal\", \"Only if every action's preconditions hold when it runs\"], \"answer\": 1, \"why\": \"Simulate every step, not just the last.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: State-space and adversarial search; Knowledge representation and uncertainty; States, actions, goals and costs; Symbols, predicates and rules. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **State-space and adversarial search**, **Knowledge representation and uncertainty**, **States, actions, goals and costs** and **Symbols, predicates and rules**."
       },
       {
-        "heading": "Bounded operational model",
-        "body": "A classical planning action has preconditions defining applicability and effects defining the successor state; a plan is valid when each action applies in sequence and the final state satisfies the goal. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+        "heading": "The model: preconditions, delete and add effects",
+        "body": "```python\n# Each action: name -> (preconditions, delete, add).\nACTIONS = {\n    \"go(key)\":      (set(), {\"at(door)\"}, {\"at(key)\"}),          # move.\n    \"pickup(key)\":  ({\"at(key)\", \"empty-hand\"}, {\"empty-hand\"}, {\"holding(key)\"}),   # grab.\n    \"go(door)\":     (set(), {\"at(key)\"}, {\"at(door)\"}),          # move back.\n    \"open(door)\":   ({\"at(door)\", \"holding(key)\"}, {\"door-locked\"}, {\"door-open\"}),  # unlock.\n}\n\ndef validate(state, plan, goal):\n    state = set(state)\n    for step in plan:\n        pre, delete, add = ACTIONS[step]\n        missing = pre - state\n        if missing:\n            return f\"invalid at {step}: missing {sorted(missing)}\"\n        state = (state - delete) | add\n    return \"valid\" if goal <= state else f\"goal not met: {sorted(goal - state)}\"\n\nstart = {\"at(door)\", \"empty-hand\", \"door-locked\"}\ngoal = {\"door-open\"}\nprint(validate(start, [\"open(door)\"], goal))\n# invalid at open(door): missing ['holding(key)']\nprint(validate(start, [\"go(key)\", \"pickup(key)\", \"go(door)\", \"open(door)\"], goal))\n# valid\n```\n\n```reveal\n{\"prompt\": \"Why does go(key) delete at(door)?\", \"answer\": \"The robot can only be in one place. Without the delete effect, the state would claim it's at the key and the door at once, allowing impossible later steps.\"}\n```"
       },
       {
-        "heading": "Failure boundary and non-claim",
-        "body": "Frame assumptions must preserve unaffected facts, real actions can be stochastic or durative, resource conflicts need representation, a valid plan may be costly or unsafe, and omitted effects invalidate simulation. The learner must reject this overclaim: A list of actions is a valid plan whenever its final action mentions the goal, regardless of intermediate preconditions."
+        "heading": "Goals versus final actions",
+        "body": "```predict\n{\"question\": \"Can a plan be invalid even if its final state satisfies the goal?\", \"options\": [\"No, the goal is what matters\", \"Yes: if any earlier action ran without its preconditions, the plan can't be executed\"], \"answer\": 1, \"why\": \"Validity is about every step being executable.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Represent a planning domain and distinguish plan validity from plan quality.",
-      "Encode and validate a small goal-directed planning problem."
+      "Encode actions with preconditions, delete effects and add effects.",
+      "Validate plans by simulating every step and checking the goal."
     ],
     "excludes": [
-      "Frame assumptions must preserve unaffected facts, real actions can be stochastic or durative, resource conflicts need representation, a valid plan may be costly or unsafe, and omitted effects invalidate simulation."
+      "Automated planners such as Graphplan.",
+      "Temporal and resource planning."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "ai.planning.actions.example.direct",
-      "title": "Actions, preconditions and effects: bounded direct case",
+      "title": "Pick up the key, then open the door",
       "situation": "pick-up(key) requires at(key) and empty-hand, removes at(key), and adds holding(key); the validator simulates every step before testing the door-open goal.",
       "walkthrough": [
-        "Step 1 — Observe the exact data, state, metric, or tool behavior: pick-up(key) requires at(key) and empty-hand, removes at(key), and adds holding(key); the validator simulates every step before testing the door-open goal.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the claim boundary with: Simulate actions from the initial state, require every precondition when used, apply complete effects, and test the explicit goal after the full sequence."
+        "**pick-up(key) requires at(key) and empty-hand:** its preconditions must both be in the state.",
+        "**Removes and adds facts:** its effects change which facts are true (in the code it removes empty-hand and adds holding(key)).",
+        "**The validator simulates every step before testing the door-open goal:** we run the four-step plan and it returns valid."
       ],
-      "result": "This example supports only the atomic outcome because Simulate actions from the initial state, require every precondition when used, apply complete effects, and test the explicit goal after the full sequence."
+      "result": "Only executable plans are accepted, and the failing step is named otherwise."
     },
     {
       "id": "ai.planning.actions.example.stress",
-      "title": "Actions, preconditions and effects: stress and transfer case",
-      "situation": "Two individually applicable actions compete for one battery resource, so the state adds remaining energy before the plan is judged valid.",
+      "title": "The door opened with no key",
+      "situation": "A plan [open(door)] was accepted because it mentions the goal, but the robot failed on the real door.",
       "walkthrough": [
-        "Step 1 — Name the changed population, input, assumption, or failure: Two individually applicable actions compete for one battery resource, so the state adds remaining energy before the plan is judged valid.",
-        "Step 2 — Keep the non-claim visible: Frame assumptions must preserve unaffected facts, real actions can be stochastic or durative, resource conflicts need representation, a valid plan may be costly or unsafe, and omitted effects invalidate simulation.",
-        "Step 3 — Reject the tempting overclaim: A list of actions is a valid plan whenever its final action mentions the goal, regardless of intermediate preconditions."
+        "open(door) requires holding(key), which wasn't true.",
+        "Run the validator: it reports invalid at open(door).",
+        "Add go(key), pickup(key), go(door) before opening."
       ],
-      "result": "This case demonstrates the declared outcome: Encode and validate a small goal-directed planning problem."
+      "result": "The corrected plan works when executed for real."
     }
   ],
   "misconceptions": [
     {
       "id": "ai.planning.actions.misconception",
       "mistakenBelief": "A list of actions is a valid plan whenever its final action mentions the goal, regardless of intermediate preconditions.",
-      "correction": "Simulate actions from the initial state, require every precondition when used, apply complete effects, and test the explicit goal after the full sequence.",
-      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: A list of actions is a valid plan whenever its final action mentions the goal, regardless of intermediate preconditions."
+      "correction": "A plan is valid only if every action's preconditions hold in sequence and the final state satisfies the goal.",
+      "diagnosticPrompt": "In \"The door opened with no key\", which precondition failed?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a bounded operations desk that checks action preconditions, resource constraints, uncertain outcomes, and proxy rewards before acting can introduce Actions, preconditions and effects only after its canonical technical definition and evidence boundary are stated.",
+    "example": "Planning actions are like **recipe steps**. \"Whisk the eggs\" has a precondition (eggs are cracked into a bowl), removes something (whole eggs), and adds something (whisked eggs). A recipe whose last step says \"serve the cake\" isn't valid if an earlier step asked you to ice a cake you never baked. Checking a plan is **cooking it in your head, step by step**.",
     "usefulFor": [
-      "planning, constraints, expected utility, and sequential decisions"
+      "remembering preconditions, removes, adds",
+      "cook it in your head"
     ],
     "limitations": [
-      "real preferences, uncertainty, stakeholders, safety constraints, and dynamics exceed one plan or reward score",
-      "Frame assumptions must preserve unaffected facts, real actions can be stochastic or durative, resource conflicts need representation, a valid plan may be costly or unsafe, and omitted effects invalidate simulation."
+      "Delete effects are ingredients used up.",
+      "The goal is the finished dish."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "pick-up(key) requires at(key) and empty-hand, removes at(key), and adds holding(key); the validator simulates every step before testing the door-open goal.",
-      "A classical planning action has preconditions defining applicability and effects defining the successor state; a plan is valid when each action applies in sequence and the final state satisfies the goal.",
-      "Simulate actions from the initial state, require every precondition when used, apply complete effects, and test the explicit goal after the full sequence."
+      "validate [open(door)]",
+      "validate four-step plan",
+      "check goal"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Reject",
         "state": {
-          "boundedEvidence": "pick-up(key) requires at(key) and empty-hand, removes at(key), and adds holding(key); the validator simulates every step before testing the door-open goal."
+          "step": "open(door)",
+          "missing": "holding(key)"
         },
-        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+        "explanation": "The validator simulates each step and finds a failed precondition."
       },
       {
         "step": 2,
-        "focus": "Model",
+        "focus": "Apply",
         "state": {
-          "operationalRule": "A classical planning action has preconditions defining applicability and effects defining the successor state; a plan is valid when each action applies in sequence and the final state satisfies the goal."
+          "after pickup": "holding(key), at(key)"
         },
-        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+        "explanation": "pick-up(key) requires at(key) and empty-hand, then updates the state."
       },
       {
         "step": 3,
-        "focus": "Limit",
+        "focus": "Goal",
         "state": {
-          "correction": "Simulate actions from the initial state, require every precondition when used, apply complete effects, and test the explicit goal after the full sequence."
+          "state includes": "door-open",
+          "result": "valid"
         },
-        "explanation": "State what the evidence does not establish and reject the misconception: A list of actions is a valid plan whenever its final action mentions the goal, regardless of intermediate preconditions."
+        "explanation": "The validator tests the door-open goal after every step succeeds."
       }
     ],
-    "textAlternative": "Starting artifact: pick-up(key) requires at(key) and empty-hand, removes at(key), and adds holding(key); the validator simulates every step before testing the door-open goal. Step 1, Observe. State: boundedEvidence: pick-up(key) requires at(key) and empty-hand, removes at(key), and adds holding(key); the validator simulates every step before testing the door-open goal.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: A classical planning action has preconditions defining applicability and effects defining the successor state; a plan is valid when each action applies in sequence and the final state satisfies the goal.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Simulate actions from the initial state, require every precondition when used, apply complete effects, and test the explicit goal after the full sequence.. State what the evidence does not establish and reject the misconception: A list of actions is a valid plan whenever its final action mentions the goal, regardless of intermediate preconditions."
+    "textAlternative": "Tracing plan validation. Step 1, Reject: step is open(door); missing is holding(key). The validator simulates each step and finds a failed precondition. Step 2, Apply: after pickup is holding(key), at(key). pick-up(key) requires at(key) and empty-hand, then updates the state. Step 3, Goal: state includes is door-open; result is valid. The validator tests the door-open goal after every step succeeds."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Actions, preconditions and effects: bounded direct case”: state its starting evidence, apply the Actions, preconditions and effects rule, and give the observable result in three short lines.",
+      "prompt": "For \"Pick up the key, then open the door\", explain how pick-up(key) requires at(key) and empty-hand, removes at(key), and adds holding(key); the validator simulates every step before testing the door-open goal.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Preconditions.",
+        "Effects.",
+        "Validate."
       ],
       "expectedEvidence": [
-        "Named example: Actions, preconditions and effects: bounded direct case.",
-        "Starting evidence: pick-up(key) requires at(key) and empty-hand, removes at(key), and adds holding(key); the validator simulates every step before testing the door-open goal.",
-        "Core rule: A classical planning action has preconditions defining applicability and effects defining the successor state; a plan is valid when each action applies in sequence and the final state satisfies the goal.",
-        "Observable result: This example supports only the atomic outcome because Simulate actions from the initial state, require every precondition when used, apply complete effects, and test the explicit goal after the full sequence.",
-        "Boundary check: Simulate actions from the initial state, require every precondition when used, apply complete effects, and test the explicit goal after the full sequence."
+        "Names the example \"Pick up the key, then open the door\": a keyless plan was accepted.",
+        "pick-up(key) requires at(key) and empty-hand and changes the state with its effects.",
+        "The validator simulates every step before testing the door-open goal.",
+        "Only executable plans pass."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed case: Two individually applicable actions compete for one battery resource, so the state adds remaining energy before the plan is judged valid.",
+      "prompt": "Add a box the robot must put down before picking up the key. Encode putdown(box), update pickup's preconditions, and validate one invalid and one valid plan.",
       "scaffold": [
-        "Identify which assumption, population, input, or objective changed.",
-        "Preserve provenance and the declared failure boundary."
+        "holding(box) blocks empty-hand.",
+        "Report the failing step."
       ],
       "expectedEvidence": [
-        "A classical planning action has preconditions defining applicability and effects defining the successor state; a plan is valid when each action applies in sequence and the final state satisfies the goal.",
-        "Frame assumptions must preserve unaffected facts, real actions can be stochastic or durative, resource conflicts need representation, a valid plan may be costly or unsafe, and omitted effects invalidate simulation."
+        "Invalid plan rejected with reason.",
+        "Valid plan accepted."
       ]
     },
     "farTransfer": {
-      "prompt": "Design a neutral-context example or evaluation for Actions, preconditions and effects and list the evidence that would support and falsify its bounded claim.",
+      "prompt": "Write a breadth-first planner that searches over action sequences using the same ACTIONS table and returns the shortest valid plan for door-open. Validate its output with your validator.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+        "States as frozensets.",
+        "Apply only actions whose preconditions hold."
       ],
       "expectedEvidence": [
-        "Encode and validate a small goal-directed planning problem.",
-        "Simulate actions from the initial state, require every precondition when used, apply complete effects, and test the explicit goal after the full sequence."
+        "Shortest plan found.",
+        "Validator agrees."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "ai.planning.actions.misconception",
-      "explanation": "Simulate actions from the initial state, require every precondition when used, apply complete effects, and test the explicit goal after the full sequence.",
-      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: Two individually applicable actions compete for one battery resource, so the state adds remaining energy before the plan is judged valid."
+      "explanation": "For any plan, **simulate it**: at each step, check preconditions, apply deletes then adds, and only at the end test the goal.",
+      "retryPrompt": "Apply this to \"The door opened with no key\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to encode and validate a small goal-directed planning problem. Keep this boundary in view: Frame assumptions must preserve unaffected facts, real actions can be stochastic or durative, resource conflicts need representation, a valid plan may be costly or unsafe, and omitted effects invalidate simulation.",
+    "summary": "To encode and validate a small goal-directed planning problem, describe each action by preconditions, delete effects and add effects, then simulate the plan from the initial state, rejecting any step whose preconditions fail and checking the goal in the final state.",
     "retrievalPrompts": [
-      "Explain Actions, preconditions and effects with one technical mechanism, one evidence requirement, and one non-claim.",
-      "Why is this overclaim invalid: A list of actions is a valid plan whenever its final action mentions the goal, regardless of intermediate preconditions.",
-      "Apply the boundary to: Two individually applicable actions compete for one battery resource, so the state adds remaining energy before the plan is judged valid."
+      "What are the three parts of an action?",
+      "When is a plan valid?",
+      "Why do delete effects matter?"
     ],
     "nextReviewPrompt": "Next: continue to “Constraint-satisfaction problems”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

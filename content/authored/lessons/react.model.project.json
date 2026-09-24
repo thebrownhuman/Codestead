@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A React project needs pinned React/build versions, one understood entry path, module boundaries, tests, and production build behavior.",
+    "summary": "A React project is reproducible when anyone can clone it, run `npm ci`, and get **the same dependency versions** from the **lockfile** (`package-lock.json`). `package.json` lists what you depend on; the lockfile pins exactly which versions were installed, so commit both. With Vite, `index.html` loads `src/main.jsx`, the **one entry path** that creates the root. `npm run dev` is a fast development server, but **`npm run build` is what users get**: an optimised production bundle. Only variables prefixed `VITE_` reach browser code, and they are public. Check the production build with `npm run preview` before shipping.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A Vite project renders under StrictMode, keeps browser-safe config explicit, and verifies a production build. Your goal is to create and reproduce a React project from its manifest and lockfile. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A teammate clones your React project and gets a blank page. You had upgraded a library locally without committing the lockfile, and the production build also fails on a code path the dev server never touched. A Vite project renders under StrictMode, keeps browser-safe config explicit, and verifies a production build. In this lesson you'll create and reproduce a React project from its manifest and lockfile.\n\n```predict\n{\"question\": \"`npm run dev` works perfectly. Is the production build guaranteed to work?\", \"options\": [\"Yes\", \"No: the build bundles, optimises and checks differently, so run it too\"], \"answer\": 1, \"why\": \"Dev and build are different pipelines. Always run `npm run build` and `npm run preview`.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: javascript project browser app; Application root and rendering; git tools dependencies. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Modular browser application**, **Application root and rendering**, and **Dependency manifests and lockfiles** (package.json and lockfiles in version control)."
       },
       {
-        "heading": "Technology rule",
-        "body": "A React project needs pinned React/build versions, one understood entry path, module boundaries, tests, and production build behavior. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: manifest, lockfile, entry, build",
+        "body": "```text\nmy-app/\n  package.json        # what we depend on + scripts.\n  package-lock.json   # exact versions installed. Commit it.\n  index.html          # loads /src/main.jsx.\n  vite.config.js\n  .env.example        # documents VITE_ variables; no secrets.\n  src/\n    main.jsx          # the one entry: createRoot + StrictMode.\n    App.jsx\n```\n\n```json\n{\n  \"scripts\": {\n    \"dev\": \"vite\",\n    \"build\": \"vite build\",\n    \"preview\": \"vite preview\",\n    \"test\": \"vitest\"\n  },\n  \"dependencies\": { \"react\": \"19.1.0\", \"react-dom\": \"19.1.0\" },\n  \"devDependencies\": { \"vite\": \"7.1.3\", \"@vitejs/plugin-react\": \"5.0.2\", \"vitest\": \"3.2.4\" }\n}\n```\n\n| Command | Use |\n|---|---|\n| `npm ci`. | clean install exactly from the lockfile. |\n| `npm run dev`. | local development with fast refresh. |\n| `npm run build`. | production bundle in dist/. |\n| `npm run preview`. | serve dist/ locally to check it. |\n\n```reveal\n{\"prompt\": \"Why `npm ci` instead of `npm install` on a fresh clone or in CI?\", \"answer\": \"npm ci installs exactly what the lockfile says and fails if package.json and the lockfile disagree, so everyone gets the same versions.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Development Strict Mode can repeat work, environment values can be public, and framework conventions differ. This draft therefore rejects: If the development server works, dependency and production configuration are necessarily correct."
+        "heading": "What reaches the browser",
+        "body": "```predict\n{\"question\": \"`.env` has `VITE_API_URL=https://api.example.com` and `DB_PASSWORD=secret`. Which can browser code read via import.meta.env?\", \"options\": [\"Both\", \"Only VITE_API_URL, and it becomes public in the bundle\"], \"answer\": 1, \"why\": \"Vite exposes only VITE_-prefixed variables to the client, by copying them into the bundle.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Run development, build and preview commands while preserving a reviewed lockfile.",
-      "Create and reproduce a React project from its manifest and lockfile."
+      "Set up a Vite React project with a pinned manifest, committed lockfile and one entry.",
+      "Reproduce it with npm ci and verify a production build."
     ],
     "excludes": [
-      "Development Strict Mode can repeat work, environment values can be public, and framework conventions differ."
+      "Choosing between frameworks like Next.js.",
+      "Deployment platforms."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "react.model.project.example-a",
-      "title": "Vite project and dependency pinning: concrete case",
-      "situation": "A Vite project renders under StrictMode, keeps browser-safe config explicit, and verifies a production build.",
+      "title": "Works on my machine, and in the build",
+      "situation": "A Vite project renders under StrictMode, keeps browser-safe config explicit, and verifies a production build on a teammate's clone.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A Vite project renders under StrictMode, keeps browser-safe config explicit, and verifies a production build.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Verify the pinned production build and runtime configuration; development success is not deployment evidence."
+        "**Pin and commit:** package.json uses exact versions and package-lock.json is committed.",
+        "**One entry:** index.html loads src/main.jsx, which renders App under StrictMode; .env.example lists only VITE_API_URL.",
+        "**Verify:** on a fresh clone, `npm ci`, `npm test` and `npm run build` will all pass before anyone pushes."
       ],
-      "result": "The result follows because Verify the pinned production build and runtime configuration; development success is not deployment evidence."
+      "result": "Any teammate can reproduce the same working app, and the production build is checked, not assumed."
     },
     {
       "id": "react.model.project.example-b",
-      "title": "Vite project and dependency pinning: boundary case",
-      "situation": "Development Strict Mode can repeat work, environment values can be public, and framework conventions differ.",
+      "title": "The secret in the bundle",
+      "situation": "A developer renames `API_SECRET` to `VITE_API_SECRET` because the app \"couldn't read it\". The secret now appears in dist/assets/index-*.js.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Development Strict Mode can repeat work, environment values can be public, and framework conventions differ.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: If the development server works, dependency and production configuration are necessarily correct."
+        "Only VITE_ variables are exposed to browser code.",
+        "Exposing means copying the value into the public bundle.",
+        "Fix: keep the secret on a server endpoint, revoke the leaked one, and search dist/ for it in CI."
       ],
-      "result": "The boundary requires this correction: Verify the pinned production build and runtime configuration; development success is not deployment evidence."
+      "result": "The bundle contains no secrets, and the app calls a server that holds the key."
     }
   ],
   "misconceptions": [
     {
       "id": "react.model.project.misconception",
       "mistakenBelief": "If the development server works, dependency and production configuration are necessarily correct.",
-      "correction": "Verify the pinned production build and runtime configuration; development success is not deployment evidence.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: If the development server works, dependency and production configuration are necessarily correct."
+      "correction": "The dev server doesn't bundle or optimise the same way, and your machine may have different dependency versions. Reproduce with npm ci from the lockfile and run the production build to be sure.",
+      "diagnosticPrompt": "In \"Works on my machine, and in the build\", what two things were missing?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Vite project and dependency pinning, where inputs and state produce a UI description.",
+    "example": "package.json is a **shopping list** (\"flour, eggs\"); the lockfile is the **receipt** with exact brands and sizes. To bake the same cake elsewhere you need the receipt. The dev server is **tasting while cooking**; the production build is **the cake you serve**, so taste that too.",
     "usefulFor": [
-      "Building a first mental model for Vite project and dependency pinning before using exact platform terms"
+      "remembering list vs receipt",
+      "build = the served cake"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Development Strict Mode can repeat work, environment values can be public, and framework conventions differ."
+      "Receipts don't update themselves; you commit the lockfile after installs.",
+      "Anything in the cake (bundle) can be seen by guests."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A Vite project renders under StrictMode, keeps browser-safe config explicit, and verifies a production build.",
-      "A React project needs pinned React/build versions, one understood entry path, module boundaries, tests, and production build behavior.",
-      "Verify the pinned production build and runtime configuration; development success is not deployment evidence."
+      "git clone",
+      "npm ci",
+      "npm run build && npm run preview"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Clone",
         "state": {
-          "evidence": "A Vite project renders under StrictMode, keeps browser-safe config explicit, and verifies a production build."
+          "files": "package.json, package-lock.json, src/"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The repository carries the manifest and the lockfile together."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Install",
         "state": {
-          "rule": "A React project needs pinned React/build versions, one understood entry path, module boundaries, tests, and production build behavior."
+          "react": "19.1.0 (from lockfile)",
+          "mismatch": "none"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "npm ci reproduces exact versions under StrictMode-ready code."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Build",
         "state": {
-          "correction": "Verify the pinned production build and runtime configuration; development success is not deployment evidence."
+          "dist/": "created",
+          "preview": "app renders"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: If the development server works, dependency and production configuration are necessarily correct."
+        "explanation": "The Vite project verifies a production build before shipping."
       }
     ],
-    "textAlternative": "Starting artifact: A Vite project renders under StrictMode, keeps browser-safe config explicit, and verifies a production build. Step 1, Artifact. State: evidence: A Vite project renders under StrictMode, keeps browser-safe config explicit, and verifies a production build.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A React project needs pinned React/build versions, one understood entry path, module boundaries, tests, and production build behavior.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Verify the pinned production build and runtime configuration; development success is not deployment evidence.. Check the result against the boundary and reject this misconception: If the development server works, dependency and production configuration are necessarily correct."
+    "textAlternative": "Reproducing a project. Step 1, Clone: files is package.json, package-lock.json, src/. The repository carries the manifest and the lockfile together. Step 2, Install: react is 19.1.0 (from lockfile); mismatch is none. npm ci reproduces exact versions under StrictMode-ready code. Step 3, Build: dist/ is created; preview is app renders. The Vite project verifies a production build before shipping."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Vite project and dependency pinning: concrete case”: state its starting evidence, apply the Vite project and dependency pinning rule, and give the observable result in three short lines.",
+      "prompt": "For \"Works on my machine, and in the build\", explain how a Vite project renders under StrictMode, keeps browser-safe config explicit, and verifies a production build.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Pin.",
+        "Entry and config.",
+        "Verify."
       ],
       "expectedEvidence": [
-        "Named example: Vite project and dependency pinning: concrete case.",
-        "Starting evidence: A Vite project renders under StrictMode, keeps browser-safe config explicit, and verifies a production build.",
-        "Core rule: A React project needs pinned React/build versions, one understood entry path, module boundaries, tests, and production build behavior.",
-        "Observable result: The result follows because Verify the pinned production build and runtime configuration; development success is not deployment evidence.",
-        "Boundary check: Verify the pinned production build and runtime configuration; development success is not deployment evidence."
+        "Names the example \"Works on my machine, and in the build\": the lockfile is committed.",
+        "The Vite project renders under StrictMode from one entry.",
+        "Browser-safe config is explicit in .env.example.",
+        "The production build is verified with npm run build."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Development Strict Mode can repeat work, environment values can be public, and framework conventions differ.",
+      "prompt": "A project has `\"react\": \"^19.0.0\"` and no lockfile in git. List what could differ between two machines and the two changes you'd make.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Caret ranges allow newer minors.",
+        "Commit the lockfile."
       ],
       "expectedEvidence": [
-        "A React project needs pinned React/build versions, one understood entry path, module boundaries, tests, and production build behavior.",
-        "Development Strict Mode can repeat work, environment values can be public, and framework conventions differ."
+        "Different React or plugin versions.",
+        "Pin or commit the lockfile, and use npm ci."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Vite project and dependency pinning and explain why the misconception fails.",
+      "prompt": "Create a Vite React project from scratch, commit it, clone it into a new folder, and prove it reproduces: npm ci, tests, build and preview. Write a README with those exact commands.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Use StrictMode in main.jsx.",
+        "Add .env.example."
       ],
       "expectedEvidence": [
-        "Create and reproduce a React project from its manifest and lockfile.",
-        "Verify the pinned production build and runtime configuration; development success is not deployment evidence."
+        "A clean clone builds and previews.",
+        "A README someone else can follow."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.model.project.misconception",
-      "explanation": "Verify the pinned production build and runtime configuration; development success is not deployment evidence.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'production build' and state the decisive evidence."
+      "explanation": "Before sharing a project ask: **Is the lockfile committed? Does a fresh clone with npm ci pass tests and build? Is anything secret prefixed VITE_?**",
+      "retryPrompt": "Apply this to \"The secret in the bundle\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to create and reproduce a React project from its manifest and lockfile. Keep this boundary in view: Development Strict Mode can repeat work, environment values can be public, and framework conventions differ.",
+    "summary": "To create and reproduce a React project from its manifest and lockfile, commit package.json and the lockfile, install with npm ci, keep one entry in main.jsx under StrictMode, expose only public VITE_ config, and run the production build and preview instead of trusting the dev server.",
     "retrievalPrompts": [
-      "Explain Vite project and dependency pinning using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: If the development server works, dependency and production configuration are necessarily correct.",
-      "Apply checkpoint 'production build' to a new artifact."
+      "Why commit the lockfile?",
+      "What does npm ci guarantee?",
+      "Why run npm run build if dev works?"
     ],
     "nextReviewPrompt": "Next: continue to “Declarative UI and re-rendering”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

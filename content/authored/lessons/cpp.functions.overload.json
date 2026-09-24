@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Overload resolution forms a candidate set, checks viability, ranks conversions and templates, and selects one best function or reports ambiguity.",
+    "summary": "C++ lets several functions share a name if their **parameter lists differ**: `print(int)`, `print(double)`, `print(const std::string&)`. At **compile time**, the compiler gathers the **candidates**, drops those that can't accept the arguments, and **ranks** the rest by how much conversion each needs: exact match beats **promotion** (short to int, float to double), which beats **conversion** (int to double). If two tie, the call is **ambiguous**. **Default arguments** (`void log(std::string_view msg, int level = 1)`) fill missing trailing arguments, and they can also create ambiguity with overloads. The choice never depends on the value at run time.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Calls with int and double select matching overloads without conversion, while a short argument may promote and create an unexpected choice. Your goal is to resolve overload calls and repair ambiguity in a small API. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner writes `print(int)` and `print(double)`, then calls `print(2.5f)` and `print(someLong)`. The float call picks print(double), which is fine, but print(someLong) fails with \"call is ambiguous\". Calls with int and double select matching overloads without conversion, while a short argument may promote and create an unexpected choice. In this lesson you'll resolve overload calls and repair ambiguity in a small API.\n\n```predict\n{\"question\": \"print(int) and print(double) exist. Which does print(short{3}) call?\", \"options\": [\"print(double)\", \"print(int): short promotes to int, which ranks above converting to double\"], \"answer\": 1, \"why\": \"Promotions beat conversions in overload ranking.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Loops and range iteration; pf abstraction calls; Value, reference and const-reference parameters; Expressions, operators and conversions. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Loops and range iteration**, **Calls, parameters and returns**, **Value, reference and const-reference parameters** and **Expressions, operators and conversions**."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "Overload resolution forms a candidate set, checks viability, ranks conversions and templates, and selects one best function or reports ambiguity. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The model: candidates, viability, ranking",
+        "body": "```cpp\n#include <iostream>\n#include <string_view>\n\nvoid print(int x)              { std::cout << \"int \" << x << '\\n'; }\nvoid print(double x)           { std::cout << \"double \" << x << '\\n'; }\nvoid print(std::string_view s) { std::cout << \"text \" << s << '\\n'; }\n\nint main() {\n    print(42);          // exact match: int.\n    print(2.5);         // exact match: double.\n    print(short{3});    // promotion short -> int: int.\n    print(2.5f);        // promotion float -> double: double.\n    print(\"hi\");        // converts to string_view: text.\n    long n = 7;\n    // print(n);        // error: ambiguous (long->int and long->double are both conversions).\n    print(static_cast<int>(n));   // explicit choice.\n}\n```\n\n| Rank (best first) | Example |\n|---|---|\n| exact match. | int to int. |\n| promotion. | short to int, float to double. |\n| standard conversion. | long to int, int to double. |\n| user-defined conversion. | const char* to string_view. |\n\n```reveal\n{\"prompt\": \"Can the chosen overload depend on the value, like picking print(int) only for whole numbers?\", \"answer\": \"No. Overload resolution happens at compile time from argument types only. print(2.0) always calls print(double).\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Implicit conversions, initializer lists, default arguments, templates, concepts, and hidden base overloads can produce surprising candidate rankings. Therefore the draft explicitly rejects this beginner failure model: C++ chooses the overload whose implementation seems most specific to the runtime value."
+        "heading": "Defaults and overloads",
+        "body": "```predict\n{\"question\": \"`void log(int level = 1);` and `void log();` both exist. What does log() do?\", \"options\": [\"Calls log()\", \"Error: ambiguous, because both can be called with no arguments\"], \"answer\": 1, \"why\": \"Choose either the default argument or the extra overload, not both.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Create coherent overload sets without ambiguous or surprising conversions.",
-      "Resolve overload calls and repair ambiguity in a small API."
+      "Predict overload choices from exact matches, promotions and conversions.",
+      "Repair ambiguous calls with explicit casts, extra overloads or redesigned defaults."
     ],
     "excludes": [
-      "Implicit conversions, initializer lists, default arguments, templates, concepts, and hidden base overloads can produce surprising candidate rankings."
+      "Template overload ranking (templates module).",
+      "Operator overloading (classes module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "cpp.functions.overload.example-a",
-      "title": "Overloading and default arguments: defined case",
+      "title": "print(int), print(double) and a short",
       "situation": "Calls with int and double select matching overloads without conversion, while a short argument may promote and create an unexpected choice.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: Calls with int and double select matching overloads without conversion, while a short argument may promote and create an unexpected choice.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Overload resolution uses compile-time argument types and ranked conversions, not runtime values or function-body intent."
+        "**Calls with int and double select matching overloads without conversion:** print(42) and print(2.5) are exact matches.",
+        "**A short argument may promote:** print(short{3}) chooses print(int).",
+        "**And create an unexpected choice:** print(someLong) is ambiguous; adding print(long) or casting will make the call resolve."
       ],
-      "result": "The defined result follows because Overload resolution uses compile-time argument types and ranked conversions, not runtime values or function-body intent."
+      "result": "Every call resolves predictably, and the API author knows why."
     },
     {
       "id": "cpp.functions.overload.example-b",
-      "title": "Overloading and default arguments: boundary case",
-      "situation": "A derived class adds one overload and uses using Base::name to keep intended base overloads visible.",
+      "title": "The boolean surprise",
+      "situation": "An API has `set(bool)` and `set(const std::string&)`. `set(\"on\")` calls set(bool).",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A derived class adds one overload and uses using Base::name to keep intended base overloads visible.",
-        "Step 2 — Keep this standard boundary visible: Implicit conversions, initializer lists, default arguments, templates, concepts, and hidden base overloads can produce surprising candidate rankings.",
-        "Step 3 — Reject the tempting rule: C++ chooses the overload whose implementation seems most specific to the runtime value."
+        "\"on\" is a const char*, which converts to bool by a standard conversion.",
+        "Converting to std::string is user-defined, so it ranks lower.",
+        "Add set(std::string_view) or set(const char*) so text matches better."
       ],
-      "result": "This case demonstrates the declared outcome: Resolve overload calls and repair ambiguity in a small API."
+      "result": "Text arguments reach the text overload."
     }
   ],
   "misconceptions": [
     {
       "id": "cpp.functions.overload.misconception",
       "mistakenBelief": "C++ chooses the overload whose implementation seems most specific to the runtime value.",
-      "correction": "Overload resolution uses compile-time argument types and ranked conversions, not runtime values or function-body intent.",
-      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: C++ chooses the overload whose implementation seems most specific to the runtime value."
+      "correction": "Overload resolution is done at compile time from argument types and conversion ranks; run-time values and function bodies play no part.",
+      "diagnosticPrompt": "In the opening predict, why did print(short{3}) choose int?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A system of self-managing components can model Overloading and default arguments: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "example": "Overload resolution is like **a hotel receptionist matching guests to rooms by their booking type**, before seeing the guests: exact booking first, then an upgrade (promotion), then a different room type (conversion). If two rooms are equally good, the receptionist refuses to choose (ambiguous).",
     "usefulFor": [
-      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+      "remembering match by booking, not by the guest",
+      "tie = refusal"
     ],
     "limitations": [
-      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
-      "Implicit conversions, initializer lists, default arguments, templates, concepts, and hidden base overloads can produce surprising candidate rankings."
+      "Receptionists can ask questions; compilers can't.",
+      "Default arguments are a room that fits several booking types."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Calls with int and double select matching overloads without conversion, while a short argument may promote and create an unexpected choice.",
-      "Overload resolution forms a candidate set, checks viability, ranks conversions and templates, and selects one best function or reports ambiguity.",
-      "Overload resolution uses compile-time argument types and ranked conversions, not runtime values or function-body intent."
+      "print(42)",
+      "print(short{3})",
+      "print(n) with long n"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Exact",
         "state": {
-          "evidence": "Calls with int and double select matching overloads without conversion, while a short argument may promote and create an unexpected choice."
+          "call": "print(int)"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "Calls with int select matching overloads without conversion."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Promote",
         "state": {
-          "rule": "Overload resolution forms a candidate set, checks viability, ranks conversions and templates, and selects one best function or reports ambiguity."
+          "call": "print(int)"
         },
-        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+        "explanation": "A short argument promotes to int, ranking above the double conversion."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Ambiguous",
         "state": {
-          "conclusion": "Overload resolution uses compile-time argument types and ranked conversions, not runtime values or function-body intent."
+          "candidates": "int, double",
+          "rank": "tie"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: C++ chooses the overload whose implementation seems most specific to the runtime value."
+        "explanation": "Two equal conversions tie, so the compiler reports ambiguity."
       }
     ],
-    "textAlternative": "Starting artifact: Calls with int and double select matching overloads without conversion, while a short argument may promote and create an unexpected choice. Step 1, Source and state. State: evidence: Calls with int and double select matching overloads without conversion, while a short argument may promote and create an unexpected choice.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: Overload resolution forms a candidate set, checks viability, ranks conversions and templates, and selects one best function or reports ambiguity.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Overload resolution uses compile-time argument types and ranked conversions, not runtime values or function-body intent.. Check the conclusion against the boundary and reject this misconception: C++ chooses the overload whose implementation seems most specific to the runtime value."
+    "textAlternative": "Tracing overload resolution. Step 1, Exact: call is print(int). Calls with int select matching overloads without conversion. Step 2, Promote: call is print(int). A short argument promotes to int, ranking above the double conversion. Step 3, Ambiguous: candidates is int, double; rank is tie. Two equal conversions tie, so the compiler reports ambiguity."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Overloading and default arguments: defined case”: state its starting evidence, apply the Overloading and default arguments rule, and give the observable result in three short lines.",
+      "prompt": "For \"print(int), print(double) and a short\", explain how calls with int and double select matching overloads without conversion, while a short argument may promote and create an unexpected choice.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Exact.",
+        "Promote.",
+        "Repair."
       ],
       "expectedEvidence": [
-        "Named example: Overloading and default arguments: defined case.",
-        "Starting evidence: Calls with int and double select matching overloads without conversion, while a short argument may promote and create an unexpected choice.",
-        "Core rule: Overload resolution forms a candidate set, checks viability, ranks conversions and templates, and selects one best function or reports ambiguity.",
-        "Observable result: The defined result follows because Overload resolution uses compile-time argument types and ranked conversions, not runtime values or function-body intent.",
-        "Boundary check: Overload resolution uses compile-time argument types and ranked conversions, not runtime values or function-body intent."
+        "Names the example \"print(int), print(double) and a short\": print(someLong) was ambiguous.",
+        "Calls with int and double select matching overloads without conversion.",
+        "A short argument may promote and create an unexpected choice.",
+        "Every call resolves predictably."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same CPP rule to this related boundary case: A derived class adds one overload and uses using Base::name to keep intended base overloads visible.",
+      "prompt": "With overloads f(int), f(double) and f(const std::string&), predict the choice for f('a'), f(3.0f), f(5u), f(\"x\") and f(std::string{\"x\"}). Check by compiling.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "char promotes to int.",
+        "unsigned to int or double are both conversions."
       ],
       "expectedEvidence": [
-        "Overload resolution forms a candidate set, checks viability, ranks conversions and templates, and selects one best function or reports ambiguity.",
-        "Implicit conversions, initializer lists, default arguments, templates, concepts, and hidden base overloads can produce surprising candidate rankings."
+        "Five predictions checked.",
+        "Ambiguous cases fixed."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CPP example for Overloading and default arguments, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Design a small logging API with overloads for text, numbers and a level with a default. Write calls that would be ambiguous in a naive design, then redesign (fewer overloads, string_view, distinct names) until every intended call resolves, and test them.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Avoid default + overload collisions.",
+        "Prefer distinct names when meaning differs."
       ],
       "expectedEvidence": [
-        "Resolve overload calls and repair ambiguity in a small API.",
-        "Overload resolution uses compile-time argument types and ranked conversions, not runtime values or function-body intent."
+        "All intended calls compile.",
+        "No ambiguity."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "cpp.functions.overload.misconception",
-      "explanation": "Overload resolution uses compile-time argument types and ranked conversions, not runtime values or function-body intent.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'compile-time argument types' and state the decisive evidence: A derived class adds one overload and uses using Base::name to keep intended base overloads visible."
+      "explanation": "For each call list: **the argument types, each candidate's required conversion, and its rank.** If two tie, cast, add an exact overload, or rename.",
+      "retryPrompt": "Apply this to \"The boolean surprise\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to resolve overload calls and repair ambiguity in a small API. Keep this boundary in view: Implicit conversions, initializer lists, default arguments, templates, concepts, and hidden base overloads can produce surprising candidate rankings.",
+    "summary": "To resolve overload calls, gather the same-named candidates, discard those that can't take the arguments, rank the rest by exact match, promotion, standard conversion and user-defined conversion, fix ties with casts, exact overloads or distinct names, and avoid default arguments that overlap other overloads.",
     "retrievalPrompts": [
-      "Explain Overloading and default arguments using a concrete CPP rule rather than the optional analogy.",
-      "Why is this claim incorrect: C++ chooses the overload whose implementation seems most specific to the runtime value.",
-      "Apply the checkpoint 'compile-time argument types' to the boundary case from memory."
+      "Is overload choice made at run time?",
+      "Which ranks higher: promotion or conversion?",
+      "How can default arguments cause ambiguity?"
     ],
     "nextReviewPrompt": "Next: continue to “Headers and source separation”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

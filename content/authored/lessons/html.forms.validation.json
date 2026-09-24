@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Native constraints such as required, type, min, max, and pattern provide browser validation semantics and should be paired with clear instructions and errors.",
+    "summary": "HTML can check input before it's sent: `required`, `type=\"email\"`, `minlength`, `min`/`max`, `pattern`. That's a **convenience** for users — quick feedback, fewer round trips. It is **not security**: anyone can remove the attributes or send data without your form, so the **server must validate again**. Good errors are **text** (not only red borders), say how to fix the problem, and are connected to the field.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: An email input is labeled, required, and reports a text error linked to the control while the server repeats validation. Your goal is to implement and test native constraints and describe how errors will be identified and corrected. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A sign-up form marks the email box red when it's wrong — nothing else. A colour-blind user sees no difference; a screen-reader user hears nothing. Meanwhile, a bot posts straight to the server, skipping every browser check. An email input is labeled, required, and reports a text error linked to the control, while the server repeats validation. In this lesson you'll implement and test native constraints and describe how errors will be identified and corrected.\n\n```predict\n{\"question\": \"The email input has `required`. Can bad data still reach the server?\", \"options\": [\"No, required blocks it\", \"Yes — requests can be sent without the form, or with attributes removed\"], \"answer\": 1, \"why\": \"Browser checks run only in the browser. The server must validate every request itself.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Paragraph and inline meaning; Relative and absolute URLs; Groups, choices and autocomplete. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Paragraph and inline meaning**, **Relative and absolute URLs**, and **Groups, choices and autocomplete** — plus labels and aria-describedby from earlier."
       },
       {
-        "heading": "Technology rule",
-        "body": "Native constraints such as required, type, min, max, and pattern provide browser validation semantics and should be paired with clear instructions and errors. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: browser checks help users; the server enforces rules",
+        "body": "```html\n<form action=\"/signup\" method=\"post\" novalidate>\n  <label for=\"email\">Email address (required)</label>\n  <input id=\"email\" name=\"email\" type=\"email\" required autocomplete=\"email\"\n         aria-describedby=\"email-error\" aria-invalid=\"true\">\n  <p id=\"email-error\">Enter an email address like name@example.com.</p>\n  <label for=\"age\">Age</label>\n  <input id=\"age\" name=\"age\" type=\"number\" min=\"13\" max=\"120\">\n  <button>Sign up</button>\n</form>\n```\n\n| Layer | Role |\n|---|---|\n| HTML constraints. | instant hints; can be bypassed. |\n| error text + aria-describedby. | says what's wrong and how to fix it. |\n| `aria-invalid=\"true\"`. | marks the field as currently invalid. |\n| server validation. | the real gatekeeper — always. |\n\n```reveal\n{\"prompt\": \"Why might a team add `novalidate` and show their own messages?\", \"answer\": \"Native bubbles vary between browsers and can disappear quickly. Custom text errors can stay visible, be styled, and be linked with aria-describedby — while the constraints still power the checks via the Constraint Validation API.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Client validation is bypassable, pattern syntax and locale need care, and invalid styling alone cannot communicate an error. This draft therefore rejects: The required attribute guarantees valid and trustworthy data reaches the server."
+        "heading": "Errors people can use",
+        "body": "```predict\n{\"question\": \"Best error for a bad email?\", \"options\": [\"A red border only\", \"\\\"Enter an email address like name@example.com.\\\" shown next to the field\"], \"answer\": 1, \"why\": \"Colour alone fails colour-blind and screen-reader users. Text that names the fix helps everyone.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use required, type, range, length and pattern constraints while planning understandable server validation.",
-      "Implement and test native constraints and describe how errors will be identified and corrected."
+      "Use required, type, min/max, minlength and pattern as native constraints.",
+      "Show text errors linked to fields and keep server-side validation."
     ],
     "excludes": [
-      "Client validation is bypassable, pattern syntax and locale need care, and invalid styling alone cannot communicate an error."
+      "JavaScript validation libraries.",
+      "Server frameworks' validation APIs."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "html.forms.validation.example-a",
-      "title": "Native constraints and error semantics: concrete case",
+      "title": "A required email with a clear error",
       "situation": "An email input is labeled, required, and reports a text error linked to the control while the server repeats validation.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: An email input is labeled, required, and reports a text error linked to the control while the server repeats validation.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Use native constraints for user feedback, then perform authoritative validation on the server and communicate errors in text."
+        "**Labeled and required:** `<label for=\"email\">Email address (required)</label>` and `required type=\"email\"` on the input.",
+        "**Text error linked to the control:** invalid input shows \"Enter an email address like name@example.com.\" connected with aria-describedby and aria-invalid.",
+        "**Server repeats validation:** the /signup handler will validate the email again and return the same error if it's bad."
       ],
-      "result": "The result follows because Use native constraints for user feedback, then perform authoritative validation on the server and communicate errors in text."
+      "result": "Users get a clear, readable fix in the browser, and bad data is still rejected by the server."
     },
     {
       "id": "html.forms.validation.example-b",
-      "title": "Native constraints and error semantics: boundary case",
-      "situation": "Client validation is bypassable, pattern syntax and locale need care, and invalid styling alone cannot communicate an error.",
+      "title": "The pattern that trusted the client",
+      "situation": "A coupon field uses `pattern=\"[A-Z]{5}\"` and the server applies any coupon it receives. Someone sends `ADMIN100` directly with a script.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Client validation is bypassable, pattern syntax and locale need care, and invalid styling alone cannot communicate an error.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: The required attribute guarantees valid and trustworthy data reaches the server."
+        "The pattern only ran in the browser; the script skipped it.",
+        "The server accepted an unknown coupon.",
+        "Fix: the server checks the coupon exists and is valid; the pattern stays only as user convenience."
       ],
-      "result": "The boundary requires this correction: Use native constraints for user feedback, then perform authoritative validation on the server and communicate errors in text."
+      "result": "The fake coupon is rejected by the server, whatever the client sends."
     }
   ],
   "misconceptions": [
     {
       "id": "html.forms.validation.misconception",
       "mistakenBelief": "The required attribute guarantees valid and trustworthy data reaches the server.",
-      "correction": "Use native constraints for user feedback, then perform authoritative validation on the server and communicate errors in text.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: The required attribute guarantees valid and trustworthy data reaches the server."
+      "correction": "Native constraints run only in the browser and can be bypassed. They improve user experience, but the server must validate every submission, and errors should be shown as linked text that explains the fix.",
+      "diagnosticPrompt": "In \"The pattern that trusted the client\", how did the bad coupon get through?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model Native constraints and error semantics, with structure carrying meaning before decoration.",
+    "example": "Browser validation is like a **friendly receptionist** reminding you to fill in the date on a form. The server is the **bank clerk** who actually checks your signature. You'd never let the receptionist approve a withdrawal.",
     "usefulFor": [
-      "Building a first mental model for Native constraints and error semantics before using exact platform terms"
+      "remembering client checks are helpful, not trusted",
+      "server = the real check"
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "Client validation is bypassable, pattern syntax and locale need care, and invalid styling alone cannot communicate an error."
+      "Receptionists can't be bypassed by mail; browsers can by direct requests.",
+      "Good error text is like the receptionist pointing to the exact box."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "An email input is labeled, required, and reports a text error linked to the control while the server repeats validation.",
-      "Native constraints such as required, type, min, max, and pattern provide browser validation semantics and should be paired with clear instructions and errors.",
-      "Use native constraints for user feedback, then perform authoritative validation on the server and communicate errors in text."
+      "<input id='email' type='email' required aria-describedby='email-error'>",
+      "user types 'asha@' and submits",
+      "server receives a direct POST with 'asha@'"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Native check",
         "state": {
-          "evidence": "An email input is labeled, required, and reports a text error linked to the control while the server repeats validation."
+          "validity": "typeMismatch",
+          "submit": "blocked"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The required email input catches the bad value in the browser."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Text error",
         "state": {
-          "rule": "Native constraints such as required, type, min, max, and pattern provide browser validation semantics and should be paired with clear instructions and errors."
+          "aria-invalid": "true",
+          "error": "Enter an email address like name@example.com."
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "It reports a text error linked to the control."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Server check",
         "state": {
-          "correction": "Use native constraints for user feedback, then perform authoritative validation on the server and communicate errors in text."
+          "server": "rejects 'asha@' with 400"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: The required attribute guarantees valid and trustworthy data reaches the server."
+        "explanation": "The server repeats validation for requests that skip the form."
       }
     ],
-    "textAlternative": "Starting artifact: An email input is labeled, required, and reports a text error linked to the control while the server repeats validation. Step 1, Artifact. State: evidence: An email input is labeled, required, and reports a text error linked to the control while the server repeats validation.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Native constraints such as required, type, min, max, and pattern provide browser validation semantics and should be paired with clear instructions and errors.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use native constraints for user feedback, then perform authoritative validation on the server and communicate errors in text.. Check the result against the boundary and reject this misconception: The required attribute guarantees valid and trustworthy data reaches the server."
+    "textAlternative": "Validating an email in the browser and on the server. Step 1, Native check: validity is typeMismatch; submit is blocked. The required email input catches the bad value in the browser. Step 2, Text error: aria-invalid is true; error is Enter an email address like name@example.com.. It reports a text error linked to the control. Step 3, Server check: server is rejects 'asha@' with 400. The server repeats validation for requests that skip the form."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Native constraints and error semantics: concrete case”: state its starting evidence, apply the Native constraints and error semantics rule, and give the observable result in three short lines.",
+      "prompt": "For \"A required email with a clear error\", explain how the email input is labeled and required, how it reports a text error linked to the control, and why the server repeats validation.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Label + required.",
+        "Error text.",
+        "Server."
       ],
       "expectedEvidence": [
-        "Named example: Native constraints and error semantics: concrete case.",
-        "Starting evidence: An email input is labeled, required, and reports a text error linked to the control while the server repeats validation.",
-        "Core rule: Native constraints such as required, type, min, max, and pattern provide browser validation semantics and should be paired with clear instructions and errors.",
-        "Observable result: The result follows because Use native constraints for user feedback, then perform authoritative validation on the server and communicate errors in text.",
-        "Boundary check: Use native constraints for user feedback, then perform authoritative validation on the server and communicate errors in text."
+        "Names the example \"A required email with a clear error\": the email input is labeled and required.",
+        "It reports a text error linked to the control with aria-describedby.",
+        "The server repeats validation because browser checks can be bypassed.",
+        "Users see a clear fix; bad data is still rejected."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Client validation is bypassable, pattern syntax and locale need care, and invalid styling alone cannot communicate an error.",
+      "prompt": "Add constraints and an error message for a username that must be 3–16 letters or digits. What must the server also check?",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "minlength, maxlength, pattern.",
+        "Server: same rules, plus uniqueness."
       ],
       "expectedEvidence": [
-        "Native constraints such as required, type, min, max, and pattern provide browser validation semantics and should be paired with clear instructions and errors.",
-        "Client validation is bypassable, pattern syntax and locale need care, and invalid styling alone cannot communicate an error."
+        "`minlength=\"3\" maxlength=\"16\" pattern=\"[A-Za-z0-9]+\"` with a linked text error.",
+        "Server repeats the rules and checks the name isn't taken."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Native constraints and error semantics and explain why the misconception fails.",
+      "prompt": "Build a small form with three constrained fields. Test it by (a) normal use, (b) removing attributes in DevTools, (c) sending a request with curl. Document what catches each bad input.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Watch which layer rejects it.",
+        "Errors must be text."
       ],
       "expectedEvidence": [
-        "Implement and test native constraints and describe how errors will be identified and corrected.",
-        "Use native constraints for user feedback, then perform authoritative validation on the server and communicate errors in text."
+        "Test results for all three routes.",
+        "Evidence that only the server catches (b) and (c)."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.forms.validation.misconception",
-      "explanation": "Use native constraints for user feedback, then perform authoritative validation on the server and communicate errors in text.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'authoritative validation on the server' and state the decisive evidence."
+      "explanation": "For each rule write two lines: **how the browser hints it (attribute + error text)** and **how the server enforces it**. If the second line is empty, the rule isn't enforced.",
+      "retryPrompt": "Write both lines for the coupon field."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test native constraints and describe how errors will be identified and corrected. Keep this boundary in view: Client validation is bypassable, pattern syntax and locale need care, and invalid styling alone cannot communicate an error.",
+    "summary": "To implement and test native constraints, use required, type, min/max, minlength and pattern for quick feedback, identify errors with linked text (not colour alone) that says how to correct them, and always repeat validation on the server — browser checks can be bypassed.",
     "retrievalPrompts": [
-      "Explain Native constraints and error semantics using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: The required attribute guarantees valid and trustworthy data reaches the server.",
-      "Apply checkpoint 'authoritative validation on the server' to a new artifact."
+      "Does required make data trustworthy?",
+      "Why is a red border not enough?",
+      "Where must validation always happen?"
     ],
     "nextReviewPrompt": "Next: continue to “Title and descriptive metadata”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

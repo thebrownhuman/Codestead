@@ -7,7 +7,7 @@ import {
   BookOpen,
   BriefcaseBusiness,
   ClipboardCheck,
-  ChevronDown,
+  ChevronUp,
   CodeXml,
   Compass,
   FolderKanban,
@@ -15,6 +15,8 @@ import {
   Lightbulb,
   LogOut,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   MessageCircleMore,
   Search,
   Settings,
@@ -25,6 +27,8 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { BrandMark } from "@/components/brand-mark";
+import { TutorLessonProvider } from "@/components/lesson/tutor-context";
+import { TutorLauncherHost } from "@/components/lesson/tutor-panel";
 import { authClient } from "@/lib/auth-client";
 import { BrowserDurabilityNamespaceProvider } from "@/lib/browser-durability/context";
 import { openBrowserOutbox } from "@/lib/browser-durability/indexed-db";
@@ -35,8 +39,10 @@ import {
 import { signOutWithBrowserDurabilityCleanup } from "@/lib/drafts/logout";
 import styles from "./app-shell.module.css";
 import { ExamLockdownOverlay } from "./exam-lockdown-overlay";
-import { InterfaceThemeMenu } from "./interface-theme-menu";
+import { InterfaceThemeOptions } from "./interface-theme-menu";
 import { NotificationMenu } from "./notification-menu";
+
+const SIDEBAR_HIDDEN_KEY = "codestead.sidebar-collapsed";
 
 const navItems = [
   { href: "/learn", label: "Home", icon: LayoutDashboard },
@@ -52,14 +58,6 @@ const navItems = [
   { href: "/portfolio", label: "Public portfolio", icon: UserRoundCheck },
   { href: "/community", label: "Community", icon: Trophy }
 ];
-
-const mobileNavLabels: Readonly<Record<string, string>> = {
-  "/learn": "Home",
-  "/roadmap": "Path",
-  "/courses": "Learn",
-  "/playground": "Code",
-  "/projects": "Build",
-};
 
 function isActivePath(pathname: string, href: string) {
   return pathname === href || (href !== "/learn" && pathname.startsWith(`${href}/`));
@@ -83,7 +81,14 @@ export function AppShell({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [compactNavigation, setCompactNavigation] = useState(false);
+  const [narrowViewport, setNarrowViewport] = useState(false);
+  const [sidebarHidden, setSidebarHidden] = useState(false);
+  // After collapsing, the pointer is still over the rail; keep it collapsed until
+  // the pointer leaves once, as browser vertical tabs do.
+  const [railHoverSuppressed, setRailHoverSuppressed] = useState(false);
+  // Collapsed (desktop) keeps an icon rail that expands on hover, like browser
+  // vertical tabs; only narrow viewports switch to the off-canvas drawer.
+  const compactNavigation = narrowViewport;
   const [preparation, setPreparation] = useState<{
     namespace: string | null;
     status: "preparing" | "ready" | "failed";
@@ -196,13 +201,36 @@ export function AppShell({
     if (typeof window.matchMedia !== "function") return;
     const query = window.matchMedia("(max-width: 920px)");
     const syncNavigationMode = () => {
-      setCompactNavigation(query.matches);
+      setNarrowViewport(query.matches);
       if (!query.matches) setOpen(false);
     };
     syncNavigationMode();
     query.addEventListener("change", syncNavigationMode);
     return () => query.removeEventListener("change", syncNavigationMode);
   }, []);
+
+  useEffect(() => {
+    try {
+      // Read after mount on purpose: localStorage is unavailable during the server render.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSidebarHidden(window.localStorage.getItem(SIDEBAR_HIDDEN_KEY) === "true");
+    } catch {
+      // Storage can be unavailable (private mode); the sidebar then stays visible.
+    }
+  }, []);
+
+  function toggleSidebarHidden() {
+    const next = !sidebarHidden;
+    setSidebarHidden(next);
+    setRailHoverSuppressed(next);
+    setOpen(false);
+    if (next && document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    try {
+      window.localStorage.setItem(SIDEBAR_HIDDEN_KEY, String(next));
+    } catch {
+      // Preference is a convenience only.
+    }
+  }
 
   useEffect(() => {
     if (!compactNavigation) {
@@ -239,7 +267,7 @@ export function AppShell({
   useEffect(() => {
     if (!profileOpen) return;
     const frame = window.requestAnimationFrame(() => {
-      profileMenuRef.current?.querySelector<HTMLElement>("[role='menuitem']")?.focus();
+      profileMenuRef.current?.querySelector<HTMLElement>("[role='menuitem'], [role='menuitemradio']")?.focus();
     });
     const closeOnOutsidePointer = (event: PointerEvent) => {
       if (!profileMenuRef.current?.contains(event.target as Node)) setProfileOpen(false);
@@ -268,7 +296,7 @@ export function AppShell({
 
   function handleProfileMenuKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     const items = Array.from(
-      profileMenuRef.current?.querySelectorAll<HTMLElement>("[role='menuitem']") ?? [],
+      profileMenuRef.current?.querySelectorAll<HTMLElement>("[role='menuitem'], [role='menuitemradio']") ?? [],
     );
     const activeIndex = items.findIndex((item) => item === document.activeElement);
     const focusAt = (index: number) => items[(index + items.length) % items.length]?.focus();
@@ -299,15 +327,17 @@ export function AppShell({
 
   return (
     <BrowserDurabilityNamespaceProvider namespace={browserDurabilityNamespace}>
-    <div className={styles.shell}>
+    <TutorLessonProvider>
+    <div className={`${styles.shell} ${sidebarHidden ? styles.shellDrawer : ""}`}>
       {recoveryReady && (
         <ExamLockdownOverlay enabled={authenticatedSessionMonitoring} />
       )}
       <aside
         aria-hidden={compactNavigation && !open ? true : undefined}
         aria-label="Primary navigation"
-        className={`${styles.sidebar} ${open ? styles.sidebarOpen : ""}`}
+        className={`${styles.sidebar} ${open ? styles.sidebarOpen : ""} ${railHoverSuppressed ? styles.railSuppressed : ""} ${profileOpen ? styles.railMenuOpen : ""}`}
         id="app-sidebar"
+        onMouseLeave={() => setRailHoverSuppressed(false)}
         inert={compactNavigation && !open ? true : undefined}
       >
         <button
@@ -320,6 +350,17 @@ export function AppShell({
         />
         <div className={styles.sidebarHeader}>
           <BrandMark />
+          {!narrowViewport && (
+            <button
+              aria-label={sidebarHidden ? "Pin sidebar open" : "Collapse sidebar"}
+              className={styles.sidebarToggle}
+              onClick={toggleSidebarHidden}
+              title={sidebarHidden ? "Pin sidebar open" : "Collapse sidebar"}
+              type="button"
+            >
+              {sidebarHidden ? <PanelLeftOpen aria-hidden="true" size={18} /> : <PanelLeftClose aria-hidden="true" size={18} />}
+            </button>
+          )}
           <button ref={closeMenuRef} aria-label="Close navigation" className={styles.closeMenu} onClick={() => setOpen(false)} type="button">
             <X aria-hidden="true" size={20} />
           </button>
@@ -329,7 +370,6 @@ export function AppShell({
           <span>Search · coming soon</span>
         </div>
         <nav className={styles.sideNav} aria-label="Learner navigation">
-          <span className={styles.navLabel}>LEARN</span>
           {navItems.map(({ href, label, icon: Icon }) => {
             const active = isActivePath(pathname, href);
             return (
@@ -338,14 +378,31 @@ export function AppShell({
               </Link>
             );
           })}
-          <span className={styles.navLabel}>SUPPORT</span>
           <Link aria-current={isActivePath(pathname, "/tutor") ? "page" : undefined} className={isActivePath(pathname, "/tutor") ? styles.activeNav : ""} href="/tutor" onClick={() => setOpen(false)}><MessageCircleMore aria-hidden="true" size={18} /><span>Codestead mentor</span><i /></Link>
           <Link aria-current={isActivePath(pathname, "/settings") ? "page" : undefined} className={isActivePath(pathname, "/settings") ? styles.activeNav : ""} href="/settings" onClick={() => setOpen(false)} ref={admin ? undefined : lastSidebarControlRef}><Settings aria-hidden="true" size={18} /><span>Settings</span></Link>
+          <NotificationMenu inSidebar />
           {admin && <Link aria-current={isActivePath(pathname, "/admin") ? "page" : undefined} className={isActivePath(pathname, "/admin") ? styles.activeNav : ""} href="/admin" onClick={() => setOpen(false)} ref={lastSidebarControlRef}><Shield aria-hidden="true" size={18} /><span>Admin studio</span></Link>}
         </nav>
-        <div className={styles.sidebarFoot}>
-          <div className={styles.levelTop}><span>Evidence before points</span></div>
-          <small>Mastery appears only after independent, deterministic evidence. Practice replays never farm unlimited XP.</small>
+        <div
+          className={styles.sidebarAccount}
+          onBlur={(event) => {
+            const nextTarget = event.relatedTarget;
+            if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
+              setProfileOpen(false);
+            }
+          }}
+          ref={profileMenuRef}
+        >
+          <button ref={profileButtonRef} aria-controls="profile-menu" aria-expanded={profileOpen} aria-haspopup="menu" className={styles.accountButton} onClick={() => setProfileOpen(!profileOpen)} onKeyDown={(event) => { if (event.key === "ArrowUp" || event.key === "ArrowDown") { event.preventDefault(); setProfileOpen(true); } }} type="button">
+            <span className={styles.avatar}>{initials || "LC"}</span>
+            <span className={styles.profileCopy}><strong>{viewer.name}</strong><small>{viewer.role}</small></span>
+            <ChevronUp aria-hidden="true" size={15} />
+          </button>
+          {profileOpen && <div aria-label="Account menu" className={styles.accountDropdown} id="profile-menu" onKeyDown={handleProfileMenuKeyDown} role="menu">
+            <InterfaceThemeOptions onChosen={() => setProfileOpen(false)} />
+            <span className={styles.accountDivider} role="presentation" />
+            <button disabled={signOutPending} role="menuitem" tabIndex={-1} type="button" onClick={() => void handleSignOut()}><LogOut aria-hidden="true" size={15} /> {signOutPending ? "Signing out..." : "Sign out"}</button>
+          </div>}
         </div>
         <button
           aria-label="Wrap to first navigation item"
@@ -360,32 +417,11 @@ export function AppShell({
       {open && <button className={styles.scrim} aria-label="Close navigation" onClick={() => setOpen(false)} tabIndex={-1} type="button" />}
 
       <div className={styles.contentColumn} id="app-content-column" inert={compactNavigation && open ? true : undefined}>
-        <header className={styles.topbar}>
-          <button ref={menuButtonRef} className={styles.menuButton} aria-controls="app-sidebar" aria-expanded={open} aria-label="Open navigation" onClick={() => setOpen(true)} type="button">
-            <Menu aria-hidden="true" size={21} />
-          </button>
-          <div className={styles.mobileBrand}><BrandMark compact /></div>
-          <div className={styles.topbarSpacer} />
-          <InterfaceThemeMenu />
-          <NotificationMenu />
-          <div
-            className={styles.profileMenu}
-            onBlur={(event) => {
-              const nextTarget = event.relatedTarget;
-              if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
-                setProfileOpen(false);
-              }
-            }}
-            ref={profileMenuRef}
-          >
-            <button ref={profileButtonRef} aria-controls="profile-menu" aria-expanded={profileOpen} aria-haspopup="menu" className={styles.profileButton} onClick={() => setProfileOpen(!profileOpen)} onKeyDown={(event) => { if (event.key === "ArrowDown") { event.preventDefault(); setProfileOpen(true); } }} type="button">
-              <span className={styles.avatar}>{initials || "LC"}</span>
-              <span className={styles.profileCopy}><strong>{viewer.name}</strong><small>{viewer.role}</small></span>
-              <ChevronDown aria-hidden="true" size={15} />
-            </button>
-            {profileOpen && <div aria-label="Account menu" className={styles.profileDropdown} id="profile-menu" onKeyDown={handleProfileMenuKeyDown} role="menu"><Link href="/settings" role="menuitem" tabIndex={-1} onClick={() => setProfileOpen(false)}><Settings aria-hidden="true" size={15} /> Settings</Link>{admin && <Link href="/admin" role="menuitem" tabIndex={-1} onClick={() => setProfileOpen(false)}><Shield aria-hidden="true" size={15} /> Admin studio</Link>}<button disabled={signOutPending} role="menuitem" tabIndex={-1} type="button" onClick={() => void handleSignOut()}><LogOut aria-hidden="true" size={15} /> {signOutPending ? "Signing out..." : "Sign out"}</button></div>}
-          </div>
-        </header>
+        {/* No top bar (owner preference, like Claude): on narrow screens a single
+            floating button opens the navigation drawer. */}
+        <button ref={menuButtonRef} className={styles.menuButton} aria-controls="app-sidebar" aria-expanded={open} aria-label="Open navigation" onClick={() => setOpen(true)} type="button">
+          <Menu aria-hidden="true" size={21} />
+        </button>
         {signOutError && <p role="alert">Sign-out could not be confirmed, so saved browser work was kept. Check your connection and retry.</p>}
         <main ref={mainRef} id="main-content" className={styles.main} tabIndex={-1}>
           <div className={styles.routeStage} data-route-stage={pathname} key={pathname}>
@@ -394,14 +430,10 @@ export function AppShell({
               : <p role="status">Preparing private browser recovery storage...</p>}
           </div>
         </main>
-        <nav className={styles.mobileNav} aria-label="Mobile navigation">
-          {navItems.filter((item) => ["/learn", "/roadmap", "/courses", "/playground", "/projects"].includes(item.href)).map(({ href, label, icon: Icon }) => {
-            const active = isActivePath(pathname, href);
-            return <Link aria-label={label} aria-current={active ? "page" : undefined} className={active ? styles.mobileActive : ""} href={href} key={href}><Icon aria-hidden="true" size={19} /><span>{mobileNavLabels[href] ?? label}</span></Link>;
-          })}
-        </nav>
+        {recoveryReady && <TutorLauncherHost />}
       </div>
     </div>
+    </TutorLessonProvider>
     </BrowserDurabilityNamespaceProvider>
   );
 }

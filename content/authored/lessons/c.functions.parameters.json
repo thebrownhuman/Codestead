@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "C passes argument values into parameter objects; a pointer value can let a function access caller-owned objects, but the pointer itself is still passed by value.",
+    "summary": "C **always passes by value**: each parameter is a **new local variable initialised with a copy** of the argument. Changing the parameter changes the copy, not the caller's variable. To let a function change a caller's object, pass its **address** (`&x`); the function receives a **copy of the pointer**, and writing through it (`*p = 5`) changes the original. But reassigning the pointer parameter itself (`p = other`) only changes the local copy. Functions return **one value**; use pointer parameters (\"out-parameters\") or a struct when you need more.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A swap function receives pointers to two int objects and writes through them, while reassigning only its local pointer parameters would not change caller pointers. Your goal is to predict which caller-visible values change across a function call. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner writes `void swap(int a, int b) { int t = a; a = b; b = t; }`, calls `swap(x, y)`, and x and y are unchanged. They conclude swap \"doesn't run\". A swap function receives pointers to two int objects and writes through them, while reassigning only its local pointer parameters would not change caller pointers. In this lesson you'll predict which caller-visible values change across a function call.\n\n```predict\n{\"question\": \"`void bump(int n) { n++; }` then `int x = 1; bump(x);`. What is x?\", \"options\": [\"2\", \"1: bump changed its own copy\"], \"answer\": 1, \"why\": \"Parameters are copies. Pass &x to change x.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: while, do and for; pf abstraction calls; Declarations, prototypes and definitions. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **while, do and for**, **Calls, parameters and returns** (arguments and parameters) and **Declarations, prototypes and definitions**."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "C passes argument values into parameter objects; a pointer value can let a function access caller-owned objects, but the pointer itself is still passed by value. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The model: copies in, pointer lets you reach back",
+        "body": "```c\nvoid swap_broken(int a, int b) {    /* a, b are copies. */\n    int t = a; a = b; b = t;         /* caller never sees this. */\n}\n\nvoid swap(int *a, int *b) {          /* copies of two addresses. */\n    int t = *a;\n    *a = *b;                         /* writes the caller's objects. */\n    *b = t;\n}\n\nvoid repoint(int *p, int *other) {\n    p = other;                       /* only the local copy of p changes. */\n}\n\nint main(void) {\n    int x = 1, y = 2;\n    swap_broken(x, y);               /* x = 1, y = 2. */\n    swap(&x, &y);                    /* x = 2, y = 1. */\n    return 0;\n}\n```\n\n| Inside the function | Caller sees a change? |\n|---|---|\n| `a = 5;` (int parameter). | no. |\n| `*p = 5;` (write through pointer). | yes: the pointed-to object. |\n| `p = other;` (reassign pointer). | no: the caller's pointer is unchanged. |\n\n```reveal\n{\"prompt\": \"How can a function change the caller's pointer itself?\", \"answer\": \"Pass a pointer to the pointer: `void repoint(int **pp, int *other) { *pp = other; }`, called as repoint(&p, &z).\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Array parameters adjust to pointers, object lifetime and const qualification constrain access, and aliasing can make writes through two pointers interact. Therefore the draft explicitly rejects this beginner failure model: C passes variables by reference whenever their names are used as function arguments."
+        "heading": "Returning more than one value",
+        "body": "```predict\n{\"question\": \"A function must return both a minimum and a maximum. A clean C approach?\", \"options\": [\"return min, max;\", \"Out-parameters: void min_max(const int *v, size_t n, int *min, int *max)\"], \"answer\": 1, \"why\": \"`return min, max;` uses the comma operator and returns only max.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Apply C's value-passing model and use pointer parameters only with clear contracts.",
-      "Predict which caller-visible values change across a function call."
+      "Predict that parameters are copies and that writes through pointers reach caller objects.",
+      "Use out-parameters or structs to produce several results."
     ],
     "excludes": [
-      "Array parameters adjust to pointers, object lifetime and const qualification constrain access, and aliasing can make writes through two pointers interact."
+      "Arrays as parameters (arrays module).",
+      "Function pointers (pointers module)."
     ]
   },
   "outcomes": [
@@ -63,133 +64,137 @@
   "examples": [
     {
       "id": "c.functions.parameters.example-a",
-      "title": "Parameters and return values: defined case",
+      "title": "Writing a swap that works",
       "situation": "A swap function receives pointers to two int objects and writes through them, while reassigning only its local pointer parameters would not change caller pointers.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A swap function receives pointers to two int objects and writes through them, while reassigning only its local pointer parameters would not change caller pointers.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: C passes by value; pass an address explicitly when the function must access caller-owned storage, then validate lifetime and nullability."
+        "**A swap function receives pointers to two int objects:** swap(&x, &y) passes copies of two addresses.",
+        "**Writes through them:** *a = *b and *b = t change x and y themselves; x becomes 2 and y becomes 1.",
+        "**Reassigning only its local pointer parameters would not change caller pointers:** repoint(p, &z) will leave the caller's p unchanged."
       ],
-      "result": "The defined result follows because C passes by value; pass an address explicitly when the function must access caller-owned storage, then validate lifetime and nullability."
+      "result": "The learner predicts exactly which caller values change."
     },
     {
       "id": "c.functions.parameters.example-b",
-      "title": "Parameters and return values: boundary case",
-      "situation": "A read-only sum function accepts const int * plus a size_t count and cannot modify elements through that pointer.",
+      "title": "The average with a status",
+      "situation": "A function should return an average but also report \"no data\" for an empty array.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A read-only sum function accepts const int * plus a size_t count and cannot modify elements through that pointer.",
-        "Step 2 — Keep this standard boundary visible: Array parameters adjust to pointers, object lifetime and const qualification constrain access, and aliasing can make writes through two pointers interact.",
-        "Step 3 — Reject the tempting rule: C passes variables by reference whenever their names are used as function arguments."
+        "Return a bool status: true if an average exists.",
+        "Write the average through a double *out parameter.",
+        "Call: `double avg; if (average(v, n, &avg)) printf(\"%.2f\", avg);`."
       ],
-      "result": "This case demonstrates the declared outcome: Predict which caller-visible values change across a function call."
+      "result": "Callers can't mistake \"no data\" for an average of 0."
     }
   ],
   "misconceptions": [
     {
       "id": "c.functions.parameters.misconception",
       "mistakenBelief": "C passes variables by reference whenever their names are used as function arguments.",
-      "correction": "C passes by value; pass an address explicitly when the function must access caller-owned storage, then validate lifetime and nullability.",
-      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: C passes variables by reference whenever their names are used as function arguments."
+      "correction": "C copies every argument into a new parameter. Only writing through a passed pointer reaches the caller's object, and the pointer itself is still a copy.",
+      "diagnosticPrompt": "In the opening predict, why was x still 1?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A manually managed workshop can model Parameters and return values: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "example": "Passing by value is like **giving someone a photocopy of your shopping list**: they can scribble on it, but your list doesn't change. Passing a pointer is **giving them your home address**: they can go to your house and move the furniture (write through it). Crossing out the address on their note (reassigning the pointer) doesn't move your house.",
     "usefulFor": [
-      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+      "remembering photocopy vs address",
+      "crossing out the address changes nothing at home"
     ],
     "limitations": [
-      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
-      "Array parameters adjust to pointers, object lifetime and const qualification constrain access, and aliasing can make writes through two pointers interact."
+      "Real visitors need permission; C only needs const to forbid writes.",
+      "An address to an address lets them change which house you point at."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A swap function receives pointers to two int objects and writes through them, while reassigning only its local pointer parameters would not change caller pointers.",
-      "C passes argument values into parameter objects; a pointer value can let a function access caller-owned objects, but the pointer itself is still passed by value.",
-      "C passes by value; pass an address explicitly when the function must access caller-owned storage, then validate lifetime and nullability."
+      "int x = 1, y = 2;",
+      "swap(&x, &y);",
+      "after the call"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Call",
         "state": {
-          "evidence": "A swap function receives pointers to two int objects and writes through them, while reassigning only its local pointer parameters would not change caller pointers."
+          "a": "&x (copy)",
+          "b": "&y (copy)"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "The swap function receives pointers to two int objects."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Write",
         "state": {
-          "rule": "C passes argument values into parameter objects; a pointer value can let a function access caller-owned objects, but the pointer itself is still passed by value."
+          "*a": "2",
+          "*b": "1"
         },
-        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+        "explanation": "It writes through them, changing the caller's x and y."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Return",
         "state": {
-          "conclusion": "C passes by value; pass an address explicitly when the function must access caller-owned storage, then validate lifetime and nullability."
+          "x": "2",
+          "y": "1",
+          "caller pointers": "unchanged"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: C passes variables by reference whenever their names are used as function arguments."
+        "explanation": "Reassigning only local pointer parameters would not change caller pointers."
       }
     ],
-    "textAlternative": "Starting artifact: A swap function receives pointers to two int objects and writes through them, while reassigning only its local pointer parameters would not change caller pointers. Step 1, Source and state. State: evidence: A swap function receives pointers to two int objects and writes through them, while reassigning only its local pointer parameters would not change caller pointers.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: C passes argument values into parameter objects; a pointer value can let a function access caller-owned objects, but the pointer itself is still passed by value.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: C passes by value; pass an address explicitly when the function must access caller-owned storage, then validate lifetime and nullability.. Check the conclusion against the boundary and reject this misconception: C passes variables by reference whenever their names are used as function arguments."
+    "textAlternative": "Tracing a pointer swap. Step 1, Call: a is &x (copy); b is &y (copy). The swap function receives pointers to two int objects. Step 2, Write: *a is 2; *b is 1. It writes through them, changing the caller's x and y. Step 3, Return: x is 2; y is 1; caller pointers is unchanged. Reassigning only local pointer parameters would not change caller pointers."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Parameters and return values: defined case”: state its starting evidence, apply the Parameters and return values rule, and give the observable result in three short lines.",
+      "prompt": "For \"Writing a swap that works\", explain how a swap function receives pointers to two int objects and writes through them, while reassigning only its local pointer parameters would not change caller pointers.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Copies.",
+        "Write through.",
+        "Reassign."
       ],
       "expectedEvidence": [
-        "Named example: Parameters and return values: defined case.",
-        "Starting evidence: A swap function receives pointers to two int objects and writes through them, while reassigning only its local pointer parameters would not change caller pointers.",
-        "Core rule: C passes argument values into parameter objects; a pointer value can let a function access caller-owned objects, but the pointer itself is still passed by value.",
-        "Observable result: The defined result follows because C passes by value; pass an address explicitly when the function must access caller-owned storage, then validate lifetime and nullability.",
-        "Boundary check: C passes by value; pass an address explicitly when the function must access caller-owned storage, then validate lifetime and nullability."
+        "Names the example \"Writing a swap that works\": swap(x, y) changed nothing.",
+        "A swap function receives pointers to two int objects and writes through them.",
+        "Reassigning only its local pointer parameters would not change caller pointers.",
+        "The learner predicts which caller values change."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same C rule to this related boundary case: A read-only sum function accepts const int * plus a size_t count and cannot modify elements through that pointer.",
+      "prompt": "Predict, then run: a function that doubles an int parameter, one that doubles through an int *, and one that reassigns its int * parameter. Print the caller's values after each.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Only the second changes the caller.",
+        "Print addresses with %p if curious."
       ],
       "expectedEvidence": [
-        "C passes argument values into parameter objects; a pointer value can let a function access caller-owned objects, but the pointer itself is still passed by value.",
-        "Array parameters adjust to pointers, object lifetime and const qualification constrain access, and aliasing can make writes through two pointers interact."
+        "Predictions match output.",
+        "Each result explained."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new C example for Parameters and return values, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Write bool min_max(const int *v, size_t n, int *min, int *max) returning false for n = 0. Test it, then write a version returning a struct {int min, max; bool ok;} and compare the two designs.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Don't write to *min when n = 0.",
+        "Structs are returned by value too."
       ],
       "expectedEvidence": [
-        "Predict which caller-visible values change across a function call.",
-        "C passes by value; pass an address explicitly when the function must access caller-owned storage, then validate lifetime and nullability."
+        "Both versions tested.",
+        "Trade-offs explained."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "c.functions.parameters.misconception",
-      "explanation": "C passes by value; pass an address explicitly when the function must access caller-owned storage, then validate lifetime and nullability.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'passes by value' and state the decisive evidence: A read-only sum function accepts const int * plus a size_t count and cannot modify elements through that pointer."
+      "explanation": "For every parameter ask: **is it a copy of a value, or a copy of an address?** Only writes through an address reach the caller.",
+      "retryPrompt": "Apply this to \"The average with a status\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to predict which caller-visible values change across a function call. Keep this boundary in view: Array parameters adjust to pointers, object lifetime and const qualification constrain access, and aliasing can make writes through two pointers interact.",
+    "summary": "To predict caller-visible changes, remember C copies every argument into its parameter, so changes to parameters stay local, writes through a passed pointer change the caller's object, reassigning a pointer parameter changes only the copy, and out-parameters or structs return several results.",
     "retrievalPrompts": [
-      "Explain Parameters and return values using a concrete C rule rather than the optional analogy.",
-      "Why is this claim incorrect: C passes variables by reference whenever their names are used as function arguments.",
-      "Apply the checkpoint 'passes by value' to the boundary case from memory."
+      "What does C pass to a function?",
+      "How does swap change the caller's ints?",
+      "Does p = other inside a function change the caller's pointer?"
     ],
     "nextReviewPrompt": "Next: continue to “Scope, linkage and storage duration”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

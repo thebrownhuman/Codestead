@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Push asks a remote to update selected references with local objects, subject to authentication, fast-forward, protection, and server policy.",
+    "summary": "`git push origin feature` asks the server to **update one branch** with your commits. The server checks that you're **authenticated**, that the branch isn't **protected** (like main on most teams), and that the update is a **fast-forward**: your commits must sit on top of what's already there. If someone pushed first, you get **rejected (non-fast-forward)**. The fix is to **fetch, integrate, re-test and push again**, not to force. `--force` overwrites others' commits; if you truly must replace your own rewritten branch, use `--force-with-lease`, which refuses when the server has work you haven't seen.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A feature branch is pushed to a same-named remote branch after tests, then used to open review without updating protected main directly. Your goal is to push a feature branch and safely resolve a rejected update without force-overwriting others. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner finishes a feature and runs `git push`, which is rejected. Frustrated, they search online and find `git push --force`. That would have deleted a teammate's commit on the shared branch. A feature branch is pushed to a same-named remote branch after tests, then used to open review without updating protected main directly. In this lesson you'll push a feature branch and safely resolve a rejected update without force-overwriting others.\n\n```predict\n{\"question\": \"Your push is rejected as non-fast-forward. What does that mean?\", \"options\": [\"The server is broken\", \"The remote branch has commits you don't have locally\"], \"answer\": 1, \"why\": \"Fetch and integrate them first, then push again.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Branches, merges and conflicts; Pull policy; Short-lived feature branches. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Branches, merges and conflicts**, **Pull policy** and **Short-lived feature branches**."
       },
       {
-        "heading": "Operational model",
-        "body": "Push asks a remote to update selected references with local objects, subject to authentication, fast-forward, protection, and server policy. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The rule: push updates one ref, only as a fast-forward",
+        "body": "```bash\nnpm test                                   # push only tested work.\ngit push -u origin feature/dark-mode       # create origin/feature/dark-mode and track it.\n# ... open a pull request on the hosting site ...\n\ngit push                                   # later: rejected (non-fast-forward).\ngit fetch origin\ngit log --oneline HEAD..origin/feature/dark-mode   # what a teammate added.\ngit pull --rebase                          # integrate per the project policy.\nnpm test\ngit push                                   # now a fast-forward.\n\ngit push --force-with-lease                # only for your own rewritten branch.\n```\n\n| Rejection | Meaning | Fix |\n|---|---|---|\n| non-fast-forward. | remote has commits you lack. | fetch, integrate, test, push. |\n| protected branch. | direct pushes to main blocked. | push a feature branch and open a review. |\n| authentication failed. | credentials missing or wrong. | fix login or SSH key setup. |\n\n```reveal\n{\"prompt\": \"Does git push send all your branches?\", \"answer\": \"No. It pushes the current branch to its upstream (with the default setting), or exactly the branches you name. Other local branches stay local.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Force options, refspecs, tags, protected branches, hooks, credentials, and concurrent updates can reject or dangerously overwrite remote history. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Push uploads all local branches and files, and force push is the normal fix whenever the server rejects an update."
+        "heading": "Force is not a fix",
+        "body": "```predict\n{\"question\": \"When is --force-with-lease reasonable?\", \"options\": [\"Whenever a push is rejected\", \"After rebasing your own branch that nobody else pushes to, when you've fetched and seen its state\"], \"answer\": 1, \"why\": \"The lease refuses if the server moved since your last fetch, protecting others' work.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Publish local refs only after reviewing destination, upstream and remote divergence.",
-      "Push a feature branch and safely resolve a rejected update without force-overwriting others."
+      "Push a tested feature branch with an upstream and open a review instead of pushing to main.",
+      "Resolve non-fast-forward rejections by fetching and integrating; use --force-with-lease only for your own rewritten branch."
     ],
     "excludes": [
-      "Force options, refspecs, tags, protected branches, hooks, credentials, and concurrent updates can reject or dangerously overwrite remote history."
+      "Pull request mechanics (collaboration module).",
+      "Configuring branch protection."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "git.remotes.push.example-a",
-      "title": "Push and non-fast-forward rejection: direct case",
+      "title": "Pushing the feature for review",
       "situation": "A feature branch is pushed to a same-named remote branch after tests, then used to open review without updating protected main directly.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A feature branch is pushed to a same-named remote branch after tests, then used to open review without updating protected main directly.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Verify the source and destination refs, review outgoing commits, respect protection, and use force-with-lease only under an explicit history-rewrite policy."
+        "**Pushed after tests:** npm test passes, then git push -u origin feature/dark-mode.",
+        "**Same-named remote branch:** origin/feature/dark-mode now exists and local feature tracks it.",
+        "**Open review without updating protected main directly:** the pull request targets main; main will change only after approval."
       ],
-      "result": "The case supports the declared outcome because Verify the source and destination refs, review outgoing commits, respect protection, and use force-with-lease only under an explicit history-rewrite policy."
+      "result": "The work is shared for review, and main stays protected."
     },
     {
       "id": "git.remotes.push.example-b",
-      "title": "Push and non-fast-forward rejection: boundary case",
-      "situation": "A rejected non-fast-forward push triggers fetch and history inspection rather than an immediate force push.",
+      "title": "The rejected push",
+      "situation": "A teammate pushed a fix to the shared feature branch. The learner's push is rejected as non-fast-forward.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A rejected non-fast-forward push triggers fetch and history inspection rather than an immediate force push.",
-        "Step 2 — Keep this boundary explicit: Force options, refspecs, tags, protected branches, hooks, credentials, and concurrent updates can reject or dangerously overwrite remote history.",
-        "Step 3 — Reject the documented misconception: Push uploads all local branches and files, and force push is the normal fix whenever the server rejects an update."
+        "git fetch, then HEAD..origin/feature shows the teammate's commit.",
+        "git pull --rebase replays the learner's commits on top; tests pass.",
+        "A plain git push now succeeds, keeping both people's work."
       ],
-      "result": "This case demonstrates the declared outcome: Push a feature branch and safely resolve a rejected update without force-overwriting others."
+      "result": "Both sets of commits survive, with no force push."
     }
   ],
   "misconceptions": [
     {
       "id": "git.remotes.push.misconception",
       "mistakenBelief": "Push uploads all local branches and files, and force push is the normal fix whenever the server rejects an update.",
-      "correction": "Verify the source and destination refs, review outgoing commits, respect protection, and use force-with-lease only under an explicit history-rewrite policy.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Push uploads all local branches and files, and force push is the normal fix whenever the server rejects an update."
+      "correction": "Push updates only the named refs, and only as fast-forwards by default. A rejection means the remote has work you lack; forcing would delete it.",
+      "diagnosticPrompt": "In the opening story, what would --force have deleted?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "Two libraries exchanging catalog updates can model Push and non-fast-forward rejection: each keeps an independent collection and synchronizes selected records deliberately.",
+    "example": "Pushing is like **adding pages to a shared binder**. You can only add on top of the latest page. If someone added a page since you last looked, you must read it and put yours after it. Forcing is **ripping out their page** to make yours fit.",
     "usefulFor": [
-      "Separating local history, remote observations, download, integration, and publication"
+      "remembering add on top",
+      "force = ripping pages"
     ],
     "limitations": [
-      "Git refspecs, authentication, ancestry checks, force updates, and object transfer have no exact library equivalent.",
-      "Force options, refspecs, tags, protected branches, hooks, credentials, and concurrent updates can reject or dangerously overwrite remote history."
+      "Binders don't have protected sections; repos do (main).",
+      "The lease is checking the binder hasn't changed before replacing your own pages."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A feature branch is pushed to a same-named remote branch after tests, then used to open review without updating protected main directly.",
-      "Push asks a remote to update selected references with local objects, subject to authentication, fast-forward, protection, and server policy.",
-      "Verify the source and destination refs, review outgoing commits, respect protection, and use force-with-lease only under an explicit history-rewrite policy."
+      "npm test; git push -u origin feature/dark-mode",
+      "teammate pushes; my push rejected",
+      "fetch; pull --rebase; test; push"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Push",
         "state": {
-          "evidence": "A feature branch is pushed to a same-named remote branch after tests, then used to open review without updating protected main directly."
+          "origin/feature/dark-mode": "created"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "A feature branch is pushed to a same-named remote branch after tests."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Rejected",
         "state": {
-          "model": "Push asks a remote to update selected references with local objects, subject to authentication, fast-forward, protection, and server policy."
+          "remote": "+1 teammate commit",
+          "reason": "non-fast-forward"
         },
-        "explanation": "Apply the declared Push and non-fast-forward rejection model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "The server refuses because it has commits the learner lacks."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Resolve",
         "state": {
-          "correction": "Verify the source and destination refs, review outgoing commits, respect protection, and use force-with-lease only under an explicit history-rewrite policy."
+          "history": "teammate + mine",
+          "force": "not used"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Push uploads all local branches and files, and force push is the normal fix whenever the server rejects an update."
+        "explanation": "Integrating and pushing again keeps everyone's work."
       }
     ],
-    "textAlternative": "Starting artifact: A feature branch is pushed to a same-named remote branch after tests, then used to open review without updating protected main directly. Step 1, Observe. State: evidence: A feature branch is pushed to a same-named remote branch after tests, then used to open review without updating protected main directly.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Push asks a remote to update selected references with local objects, subject to authentication, fast-forward, protection, and server policy.. Apply the declared Push and non-fast-forward rejection model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Verify the source and destination refs, review outgoing commits, respect protection, and use force-with-lease only under an explicit history-rewrite policy.. Compare the observation with the correction and reject the misconception: Push uploads all local branches and files, and force push is the normal fix whenever the server rejects an update."
+    "textAlternative": "Tracing a push and a rejection. Step 1, Push: origin/feature/dark-mode is created. A feature branch is pushed to a same-named remote branch after tests. Step 2, Rejected: remote is +1 teammate commit; reason is non-fast-forward. The server refuses because it has commits the learner lacks. Step 3, Resolve: history is teammate + mine; force is not used. Integrating and pushing again keeps everyone's work."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Push and non-fast-forward rejection: direct case”: state its starting evidence, apply the Push and non-fast-forward rejection rule, and give the observable result in three short lines.",
+      "prompt": "For \"Pushing the feature for review\", explain how a feature branch is pushed to a same-named remote branch after tests, then used to open review without updating protected main directly.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Test.",
+        "Push.",
+        "Review."
       ],
       "expectedEvidence": [
-        "Named example: Push and non-fast-forward rejection: direct case.",
-        "Starting evidence: A feature branch is pushed to a same-named remote branch after tests, then used to open review without updating protected main directly.",
-        "Core rule: Push asks a remote to update selected references with local objects, subject to authentication, fast-forward, protection, and server policy.",
-        "Observable result: The case supports the declared outcome because Verify the source and destination refs, review outgoing commits, respect protection, and use force-with-lease only under an explicit history-rewrite policy.",
-        "Boundary check: Verify the source and destination refs, review outgoing commits, respect protection, and use force-with-lease only under an explicit history-rewrite policy."
+        "Names the example \"Pushing the feature for review\": force push nearly deleted a teammate's work.",
+        "A feature branch is pushed to a same-named remote branch after tests.",
+        "It is used to open review without updating protected main directly.",
+        "The work is shared for review, and main stays protected."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A rejected non-fast-forward push triggers fetch and history inspection rather than an immediate force push.",
+      "prompt": "With two clones of a sandbox remote, cause a non-fast-forward rejection on a shared branch, then resolve it without force. Show git log --graph before and after.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Push from clone A first.",
+        "fetch + pull --rebase in clone B."
       ],
       "expectedEvidence": [
-        "Push asks a remote to update selected references with local objects, subject to authentication, fast-forward, protection, and server policy.",
-        "Force options, refspecs, tags, protected branches, hooks, credentials, and concurrent updates can reject or dangerously overwrite remote history."
+        "Rejection reproduced.",
+        "Both commits present at the end."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Push and non-fast-forward rejection, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "In a sandbox, rebase your own pushed feature branch, then show that --force-with-lease succeeds when nobody else pushed but refuses after a simulated teammate push. Explain why plain --force would be dangerous in the second case.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Push from a second clone to simulate a teammate.",
+        "Fetch changes the lease's expectation."
       ],
       "expectedEvidence": [
-        "Push a feature branch and safely resolve a rejected update without force-overwriting others.",
-        "Verify the source and destination refs, review outgoing commits, respect protection, and use force-with-lease only under an explicit history-rewrite policy."
+        "Both lease outcomes shown.",
+        "Danger of --force explained."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.remotes.push.misconception",
-      "explanation": "Verify the source and destination refs, review outgoing commits, respect protection, and use force-with-lease only under an explicit history-rewrite policy.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A rejected non-fast-forward push triggers fetch and history inspection rather than an immediate force push."
+      "explanation": "On any rejection, read the reason and ask: **what does the server have that I don't?** Fetch, look, integrate, test, push. Never reach for --force first.",
+      "retryPrompt": "Apply this to \"The rejected push\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to push a feature branch and safely resolve a rejected update without force-overwriting others. Keep this boundary in view: Force options, refspecs, tags, protected branches, hooks, credentials, and concurrent updates can reject or dangerously overwrite remote history.",
+    "summary": "To push a feature branch safely, test first, push to a same-named remote branch with an upstream, open a review instead of pushing to protected main, and resolve non-fast-forward rejections by fetching, integrating, re-testing and pushing again, reserving --force-with-lease for your own rewritten branch.",
     "retrievalPrompts": [
-      "Explain Push and non-fast-forward rejection without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Push uploads all local branches and files, and force push is the normal fix whenever the server rejects an update.",
-      "Apply the model to this case from memory: A rejected non-fast-forward push triggers fetch and history inspection rather than an immediate force push."
+      "What does non-fast-forward mean?",
+      "Does push send every branch?",
+      "How is --force-with-lease safer than --force?"
     ],
     "nextReviewPrompt": "Next: continue to “Actionable issues”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

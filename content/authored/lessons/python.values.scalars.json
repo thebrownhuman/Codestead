@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Python names bind to objects; core scalar values include arbitrary-precision integers, finite-precision floats, booleans, None, and immutable Unicode strings, each with distinct equality and truth rules.",
+    "summary": "Python's basic values each have quirks worth knowing. **int** can grow as big as you like. **float** is binary, so `0.1 + 0.2` isn't exactly `0.3` — use `Decimal` for money. **bool** is True/False. **None** means \"no value\" and is checked with `is None`, because 0, `\"\"` and `[]` are also falsey but they *are* values. **str** holds text.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A missing optional value is checked with is None, a money amount uses Decimal at the boundary, and a count remains int without assuming a fixed machine width. Your goal is to choose and operate on suitable scalar values while explaining precision and absence semantics. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A shop app adds ₹0.10 and ₹0.20 and gets `0.30000000000000004`. A discount of 0 is treated as \"no discount given\". Two classic bugs from two scalar quirks. A missing optional value is checked with is None, a money amount uses Decimal at the boundary, and a count remains int without assuming a fixed machine width. In this lesson you'll choose and operate on suitable scalar values while explaining precision and absence semantics.\n\n```predict\n{\"question\": \"What does `0.1 + 0.2 == 0.3` give in Python?\", \"options\": [\"True\", \"False\"], \"answer\": 1, \"why\": \"Floats are stored in binary, and 0.1 can't be represented exactly. The sum is `0.30000000000000004`.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Scripts, indentation and main guard; pf state expressions. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Scripts, indentation and main guard** and **Expressions and evaluation** (how expressions are evaluated)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Python names bind to objects; core scalar values include arbitrary-precision integers, finite-precision floats, booleans, None, and immutable Unicode strings, each with distinct equality and truth rules. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: pick the scalar for the job",
+        "body": "| Type | Example | Watch out |\n|---|---|---|\n| int. | `2**100`. | no overflow; it just grows. |\n| float. | `0.1 + 0.2`. | tiny binary rounding errors. |\n| Decimal. | `Decimal(\"0.10\")`. | exact decimal maths for money; build from strings. |\n| bool. | `True`. | actually a subclass of int (True == 1). |\n| None. | `None`. | the one \"no value\"; test with `is None`. |\n| str. | `\"café\"`. | text, not numbers: `\"2\" + \"2\"` is \"22\". |\n\n```reveal\n{\"prompt\": \"Why `Decimal(\\\"0.10\\\")` and not `Decimal(0.10)`?\", \"answer\": \"`0.10` is already a slightly-wrong float before Decimal sees it. The string keeps the exact decimal value.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "bool is an int subclass, float cannot exactly represent many decimals, NaN has unusual equality, None is a singleton absence marker, and truthiness does not mean semantic validity. The learner must reject this documented misconception: Python floats store decimal values exactly and any falsey value is equivalent to None."
+        "heading": "Absence vs falsey",
+        "body": "```predict\n{\"question\": \"`discount = 0`. What does `if not discount: print(\\\"no discount given\\\")` do?\", \"options\": [\"Prints it — wrongly, since 0 is a real discount\", \"Does nothing\"], \"answer\": 0, \"why\": \"0 is falsey, so `not discount` is True. If you mean \\\"missing\\\", test `if discount is None:`.\"}\n```\n\nFalsey values: `0`, `0.0`, `\"\"`, `[]`, `{}`, `None`, `False`. Only **one** of them means \"absent\"."
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use core immutable scalar values and distinguish type, value and truthiness.",
-      "Choose and operate on suitable scalar values while explaining precision and absence semantics."
+      "Choose int, float, Decimal, bool, None or str for a value.",
+      "Explain float precision and test absence with `is None`."
     ],
     "excludes": [
-      "bool is an int subclass, float cannot exactly represent many decimals, NaN has unusual equality, None is a singleton absence marker, and truthiness does not mean semantic validity."
+      "Complex numbers and fractions.",
+      "Text encoding (collections module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "python.values.scalars.example.direct",
-      "title": "Numbers, booleans, None and text: direct language case",
+      "title": "Counts, money and missing values",
       "situation": "A missing optional value is checked with is None, a money amount uses Decimal at the boundary, and a count remains int without assuming a fixed machine width.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A missing optional value is checked with is None, a money amount uses Decimal at the boundary, and a count remains int without assuming a fixed machine width.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions."
+        "**Missing optional value:** `coupon = None`, checked with `if coupon is None:` so a real 0 isn't mistaken for missing.",
+        "**Money:** the price text \"19.99\" becomes `Decimal(\"19.99\")` at the boundary, so sums stay exact.",
+        "**Count:** `visits` remains an int; Python ints have no fixed machine width, so they never overflow."
       ],
-      "result": "The example meets the atomic outcome because Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions."
+      "result": "Each value uses a suitable scalar: None for absence, Decimal for money, int for counts."
     },
     {
       "id": "python.values.scalars.example.boundary",
-      "title": "Numbers, booleans, None and text: boundary and transfer case",
-      "situation": "An empty string is false but valid input for one domain, so code checks the actual contract instead of rejecting every falsey value.",
+      "title": "The zero-quantity bug",
+      "situation": "`def label(qty): return \"missing\" if not qty else f\"{qty} items\"`. A real order has qty 0.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: An empty string is false but valid input for one domain, so code checks the actual contract instead of rejecting every falsey value.",
-        "Step 2 — Keep the language boundary explicit: bool is an int subclass, float cannot exactly represent many decimals, NaN has unusual equality, None is a singleton absence marker, and truthiness does not mean semantic validity.",
-        "Step 3 — Reject the tempting but incorrect rule: Python floats store decimal values exactly and any falsey value is equivalent to None."
+        "`not 0` is True, so label(0) returns \"missing\".",
+        "But 0 is a real quantity, not an absent one.",
+        "Fix: `\"missing\" if qty is None else f\"{qty} items\"` → label(0) gives \"0 items\"."
       ],
-      "result": "This case demonstrates the declared outcome: Choose and operate on suitable scalar values while explaining precision and absence semantics."
+      "result": "Using `is None` separates a real zero from a missing value."
     }
   ],
   "misconceptions": [
     {
       "id": "python.values.scalars.misconception",
-      "mistakenBelief": "Python floats store decimal values exactly and any falsey value is equivalent to None.",
-      "correction": "Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Python floats store decimal values exactly and any falsey value is equivalent to None."
+      "mistakenBelief": "Python floats store decimal values exactly, and any falsey value is equivalent to None.",
+      "correction": "Floats use binary fractions, so many decimals are approximated; use Decimal for exact money. Many values are falsey (0, \"\", []), but only None means absent, so check absence with `is None`.",
+      "diagnosticPrompt": "In \"The zero-quantity bug\", why was a real order labelled missing?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a labeled decision board whose current objects feed expressions, branches, patterns, and repeatable progress rules can introduce Numbers, booleans, None and text, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "example": "Floats are like **measuring with a ruler marked in 1/1024ths**: great for most things, but 0.1 lands between marks. Decimal is a ruler marked in exact tenths — ideal for money.",
     "usefulFor": [
-      "scalar semantics, comparisons, selection, and iteration"
+      "remembering floats approximate",
+      "choosing Decimal for exact cents"
     ],
     "limitations": [
-      "identity, truthiness, protocol dispatch, chained comparisons, and iterator behavior do not follow ordinary board-game rules",
-      "bool is an int subclass, float cannot exactly represent many decimals, NaN has unusual equality, None is a singleton absence marker, and truthiness does not mean semantic validity."
+      "Real rulers aren't this precise; floats have ~15–17 significant digits.",
+      "Decimal is slower than float, so science code usually sticks with float."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A missing optional value is checked with is None, a money amount uses Decimal at the boundary, and a count remains int without assuming a fixed machine width.",
-      "Python names bind to objects; core scalar values include arbitrary-precision integers, finite-precision floats, booleans, None, and immutable Unicode strings, each with distinct equality and truth rules.",
-      "Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions."
+      "coupon = None; price = Decimal('19.99'); visits = 2**70",
+      "coupon is None",
+      "price * 3"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Missing value",
         "state": {
-          "evidence": "A missing optional value is checked with is None, a money amount uses Decimal at the boundary, and a count remains int without assuming a fixed machine width."
+          "coupon": "None",
+          "coupon is None": "True"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "The missing optional value is checked with is None."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Money",
         "state": {
-          "rule": "Python names bind to objects; core scalar values include arbitrary-precision integers, finite-precision floats, booleans, None, and immutable Unicode strings, each with distinct equality and truth rules."
+          "price * 3": "Decimal('59.97')"
         },
-        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "The money amount uses Decimal, so the product is exact."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Big count",
         "state": {
-          "correction": "Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions."
+          "visits": "1180591620717411303424"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Python floats store decimal values exactly and any falsey value is equivalent to None."
+        "explanation": "The count remains an int and grows without a fixed machine width."
       }
     ],
-    "textAlternative": "Starting artifact: A missing optional value is checked with is None, a money amount uses Decimal at the boundary, and a count remains int without assuming a fixed machine width. Step 1, Observe. State: evidence: A missing optional value is checked with is None, a money amount uses Decimal at the boundary, and a count remains int without assuming a fixed machine width.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Python names bind to objects; core scalar values include arbitrary-precision integers, finite-precision floats, booleans, None, and immutable Unicode strings, each with distinct equality and truth rules.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions.. Compare the observation with the correction and explain why the misconception fails: Python floats store decimal values exactly and any falsey value is equivalent to None."
+    "textAlternative": "Choosing scalar types for absence, money and counts. Step 1, Missing value: coupon is None; coupon is None is True. The missing optional value is checked with is None. Step 2, Money: price * 3 is Decimal('59.97'). The money amount uses Decimal, so the product is exact. Step 3, Big count: visits is 1180591620717411303424. The count remains an int and grows without a fixed machine width."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Numbers, booleans, None and text: direct language case”: state its starting evidence, apply the Numbers, booleans, None and text rule, and give the observable result in three short lines.",
+      "prompt": "For \"Counts, money and missing values\", explain how a missing optional value is checked, why a money amount uses Decimal at the boundary, and why the count remains int.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Absence.",
+        "Money.",
+        "Count."
       ],
       "expectedEvidence": [
-        "Named example: Numbers, booleans, None and text: direct language case.",
-        "Starting evidence: A missing optional value is checked with is None, a money amount uses Decimal at the boundary, and a count remains int without assuming a fixed machine width.",
-        "Core rule: Python names bind to objects; core scalar values include arbitrary-precision integers, finite-precision floats, booleans, None, and immutable Unicode strings, each with distinct equality and truth rules.",
-        "Observable result: The example meets the atomic outcome because Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions.",
-        "Boundary check: Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions."
+        "Names the example \"Counts, money and missing values\": a missing optional value is checked with is None.",
+        "A money amount uses Decimal at the boundary so sums are exact.",
+        "The count remains int without assuming a fixed machine width.",
+        "0 would not be confused with a missing value."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: An empty string is false but valid input for one domain, so code checks the actual contract instead of rejecting every falsey value.",
+      "prompt": "Predict and then check in the REPL: `round(0.1 + 0.2, 2) == 0.3`, `Decimal(\"0.1\") + Decimal(\"0.2\")`, `bool(\"\")`, `None == 0`.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Rounding hides the error.",
+        "None equals only None."
       ],
       "expectedEvidence": [
-        "Python names bind to objects; core scalar values include arbitrary-precision integers, finite-precision floats, booleans, None, and immutable Unicode strings, each with distinct equality and truth rules.",
-        "bool is an int subclass, float cannot exactly represent many decimals, NaN has unusual equality, None is a singleton absence marker, and truthiness does not mean semantic validity."
+        "True; Decimal('0.3').",
+        "False; False."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Numbers, booleans, None and text, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Write `total_price(prices_text)` that takes a list of price strings like \"19.99\", returns an exact Decimal total, and returns None (not 0) when the list is empty. Test both cases.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Convert at the boundary.",
+        "Decide what absence means."
       ],
       "expectedEvidence": [
-        "Choose and operate on suitable scalar values while explaining precision and absence semantics.",
-        "Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions."
+        "Exact Decimal total for normal input.",
+        "Returns None for empty input, tested with `is None`."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "python.values.scalars.misconception",
-      "explanation": "Choose the scalar whose semantics match the domain, use is None for absence, and treat floating precision and truthiness as explicit contract decisions.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: An empty string is false but valid input for one domain, so code checks the actual contract instead of rejecting every falsey value."
+      "explanation": "For each value ask: **Is it counted, measured, money, yes/no, text, or possibly absent?** Map the answer to int, float, Decimal, bool, str or None.",
+      "retryPrompt": "Ask this for each value in \"The zero-quantity bug\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to choose and operate on suitable scalar values while explaining precision and absence semantics. Keep this boundary in view: bool is an int subclass, float cannot exactly represent many decimals, NaN has unusual equality, None is a singleton absence marker, and truthiness does not mean semantic validity.",
+    "summary": "To choose suitable scalar values, use int for counts, Decimal for money, float for measurements, bool for yes/no and str for text. Explain precision: floats approximate decimals. For absence semantics, check `is None`, because 0 and \"\" are real values.",
     "retrievalPrompts": [
-      "Explain Numbers, booleans, None and text using canonical Python: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Python floats store decimal values exactly and any falsey value is equivalent to None.",
-      "Predict this case from memory: An empty string is false but valid input for one domain, so code checks the actual contract instead of rejecting every falsey value."
+      "Why isn't `0.1 + 0.2 == 0.3`?",
+      "How do you check for a missing value?",
+      "Why build Decimal from a string?"
     ],
     "nextReviewPrompt": "Next: continue to “Operators and comparisons”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A maintainable CSS system separates tokens, base rules, layout primitives, components, utilities, and controlled overrides with documented cascade layers.",
+    "summary": "As stylesheets grow, conflicts come from **accidents**: which file loaded last, which selector happened to be longer. Organise styles so the winner is **predictable**: declare cascade layers in a fixed order — `@layer reset, base, components, utilities;` — keep selectors at a consistent low specificity inside each layer, and let later layers override earlier ones. `!important` everywhere is not a strategy; it's a sign the structure is missing.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: The project orders reset, base, components, and utilities in layers so overrides do not depend on import accidents. Your goal is to refactor a conflicting stylesheet into a predictable layered structure. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A project imports twelve CSS files. Buttons look right on the homepage but wrong on the blog, because the blog imports the files in a different order. Each fix adds another `!important`. The project orders reset, base, components and utilities in layers, so overrides do not depend on import accidents. In this lesson you'll refactor a conflicting stylesheet into a predictable layered structure.\n\n```predict\n{\"question\": \"Two pages import `buttons.css` and `blog.css` in opposite orders. With no layers, do buttons look the same on both?\", \"options\": [\"Yes\", \"Not necessarily — equal-specificity rules are decided by source order, which differs\"], \"answer\": 1, \"why\": \"Without layers, import order becomes part of your styling logic. Layers make the order explicit and stable.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Specificity and source order; html semantics; Custom properties and design tokens; Pseudo-classes and pseudo-elements. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Specificity and source order**, **Text and page semantics**, **Custom properties and design tokens**, and **Pseudo-classes and pseudo-elements**."
       },
       {
-        "heading": "Technology rule",
-        "body": "A maintainable CSS system separates tokens, base rules, layout primitives, components, utilities, and controlled overrides with documented cascade layers. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: layers declare who can override whom",
+        "body": "```css\n/* main.css — the order is declared once, up front */\n@layer reset, base, components, utilities;\n\n@import url(\"reset.css\") layer(reset);\n@import url(\"base.css\") layer(base);\n@import url(\"buttons.css\") layer(components);\n@import url(\"utilities.css\") layer(utilities);\n```\n\n| Layer | Contains | Selector style |\n|---|---|---|\n| reset. | normalise browser defaults. | element selectors. |\n| base. | typography, links, tokens. | element selectors. |\n| components. | `.card`, `.btn`, `.nav`. | single classes. |\n| utilities. | `.u-hidden`, `.u-mt-4`. | single classes; win by layer order. |\n\n```reveal\n{\"prompt\": \"Why can a utility class beat a component class of equal specificity regardless of file order?\", \"answer\": \"Because utilities is declared as a later layer. Layer order is checked before specificity and source order.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Naming alone cannot prevent leakage, excessive utility combinations obscure intent, and global resets can affect third-party content. This draft therefore rejects: Adding !important wherever a conflict appears is a scalable organization strategy."
+        "heading": "Retire the !importants",
+        "body": "```predict\n{\"question\": \"After adding layers, what should happen to the old `!important` flags?\", \"options\": [\"Keep them just in case\", \"Remove them and let layer order handle overrides\"], \"answer\": 1, \"why\": \"!important reverses layer order and reintroduces surprises. Remove it except for rare cases like a user-facing utility that must always win.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Separate reset/base, layout, component and utility concerns with documented layering and naming.",
-      "Refactor a conflicting stylesheet into a predictable layered structure."
+      "Organise styles into ordered cascade layers with consistent selector specificity.",
+      "Refactor away import-order dependencies and unnecessary !important."
     ],
     "excludes": [
-      "Naming alone cannot prevent leakage, excessive utility combinations obscure intent, and global resets can affect third-party content."
+      "CSS-in-JS and CSS modules.",
+      "Naming methodologies in depth (BEM etc.)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "css.system.organization.example-a",
-      "title": "Stylesheet organization: concrete case",
+      "title": "Four layers in a fixed order",
       "situation": "The project orders reset, base, components, and utilities in layers so overrides do not depend on import accidents.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: The project orders reset, base, components, and utilities in layers so overrides do not depend on import accidents.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair."
+        "**Declare order once:** `@layer reset, base, components, utilities;` at the top of main.css.",
+        "**Assign files:** each import goes into its layer; component rules become single classes.",
+        "**Test:** swap the import order on the blog page; the buttons still render identically, and 14 `!important` flags are removed."
       ],
-      "result": "The result follows because Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair."
+      "result": "Overrides follow the declared layer order, so the site looks the same whatever the import order."
     },
     {
       "id": "css.system.organization.example-b",
-      "title": "Stylesheet organization: boundary case",
-      "situation": "Naming alone cannot prevent leakage, excessive utility combinations obscure intent, and global resets can affect third-party content.",
+      "title": "The utility that couldn't win",
+      "situation": "A `.u-hidden { display: none; }` utility fails to hide `.card`, because `.card { display: grid; }` loads later with equal specificity.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Naming alone cannot prevent leakage, excessive utility combinations obscure intent, and global resets can affect third-party content.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Adding !important wherever a conflict appears is a scalable organization strategy."
+        "Without layers, source order decides a specificity tie.",
+        "The developer is tempted to add `!important` to the utility.",
+        "Fix: put utilities in the last layer; `.u-hidden` now wins by layer order with no !important."
       ],
-      "result": "The boundary requires this correction: Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair."
+      "result": "The utility reliably hides the card."
     }
   ],
   "misconceptions": [
     {
       "id": "css.system.organization.misconception",
-      "mistakenBelief": "Adding !important wherever a conflict appears is a scalable organization strategy.",
-      "correction": "Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: Adding !important wherever a conflict appears is a scalable organization strategy."
+      "mistakenBelief": "Adding !important wherever a conflict appears is a scalable organisation strategy.",
+      "correction": "Each !important escalates the conflict and reverses layer precedence, making future overrides harder. Ordered cascade layers plus consistent specificity make winners predictable without it.",
+      "diagnosticPrompt": "In \"The utility that couldn't win\", how did layers remove the need for !important?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Stylesheet organization, where rules size, place, and paint existing content.",
+    "example": "Layers are like **floors in a building with a fixed rule**: higher floors can see over lower ones. Without floors, everyone stands on boxes of different heights (specificity) and shouts (!important) to be seen.",
     "usefulFor": [
-      "Building a first mental model for Stylesheet organization before using exact platform terms"
+      "remembering later layers win",
+      "seeing !important as shouting"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "Naming alone cannot prevent leakage, excessive utility combinations obscure intent, and global resets can affect third-party content."
+      "Buildings don't get reordered by import; stylesheets can — layers fix that.",
+      "Utilities on the top floor are meant to win."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "The project orders reset, base, components, and utilities in layers so overrides do not depend on import accidents.",
-      "A maintainable CSS system separates tokens, base rules, layout primitives, components, utilities, and controlled overrides with documented cascade layers.",
-      "Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair."
+      "@layer reset, base, components, utilities;",
+      ".card { display: grid } in components",
+      ".u-hidden { display: none } in utilities"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Declare order",
         "state": {
-          "evidence": "The project orders reset, base, components, and utilities in layers so overrides do not depend on import accidents."
+          "order": "reset < base < components < utilities"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The project orders reset, base, components, and utilities in layers."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Conflict",
         "state": {
-          "rule": "A maintainable CSS system separates tokens, base rules, layout primitives, components, utilities, and controlled overrides with documented cascade layers."
+          ".card": "grid",
+          ".u-hidden": "none",
+          "specificity": "tie"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Two single-class rules conflict on display."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Resolve",
         "state": {
-          "correction": "Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair."
+          "winner": ".u-hidden (utilities layer)"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Adding !important wherever a conflict appears is a scalable organization strategy."
+        "explanation": "Overrides do not depend on import accidents; the later layer wins."
       }
     ],
-    "textAlternative": "Starting artifact: The project orders reset, base, components, and utilities in layers so overrides do not depend on import accidents. Step 1, Artifact. State: evidence: The project orders reset, base, components, and utilities in layers so overrides do not depend on import accidents.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A maintainable CSS system separates tokens, base rules, layout primitives, components, utilities, and controlled overrides with documented cascade layers.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair.. Check the result against the boundary and reject this misconception: Adding !important wherever a conflict appears is a scalable organization strategy."
+    "textAlternative": "Resolving a conflict with layers. Step 1, Declare order: order is reset < base < components < utilities. The project orders reset, base, components, and utilities in layers. Step 2, Conflict: .card is grid; .u-hidden is none; specificity is tie. Two single-class rules conflict on display. Step 3, Resolve: winner is .u-hidden (utilities layer). Overrides do not depend on import accidents; the later layer wins."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Stylesheet organization: concrete case”: state its starting evidence, apply the Stylesheet organization rule, and give the observable result in three short lines.",
+      "prompt": "For \"Four layers in a fixed order\", explain how the project orders reset, base, components, and utilities in layers so overrides do not depend on import accidents.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Order.",
+        "Assignment.",
+        "Result."
       ],
       "expectedEvidence": [
-        "Named example: Stylesheet organization: concrete case.",
-        "Starting evidence: The project orders reset, base, components, and utilities in layers so overrides do not depend on import accidents.",
-        "Core rule: A maintainable CSS system separates tokens, base rules, layout primitives, components, utilities, and controlled overrides with documented cascade layers.",
-        "Observable result: The result follows because Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair.",
-        "Boundary check: Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair."
+        "Names the example \"Four layers in a fixed order\": the project orders reset, base, components, and utilities in layers.",
+        "Each file is imported into its layer.",
+        "Overrides do not depend on import accidents.",
+        "Unneeded !important flags are removed."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Naming alone cannot prevent leakage, excessive utility combinations obscure intent, and global resets can affect third-party content.",
+      "prompt": "Sort these rules into layers: `*, *::before { box-sizing: border-box }`, `a { color: var(--link) }`, `.btn { … }`, `.u-text-center { text-align: center }`.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Reset, base, components, utilities.",
+        "One each."
       ],
       "expectedEvidence": [
-        "A maintainable CSS system separates tokens, base rules, layout primitives, components, utilities, and controlled overrides with documented cascade layers.",
-        "Naming alone cannot prevent leakage, excessive utility combinations obscure intent, and global resets can affect third-party content."
+        "box-sizing → reset; a → base.",
+        ".btn → components; .u-text-center → utilities."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Stylesheet organization and explain why the misconception fails.",
+      "prompt": "Take a stylesheet with at least five !important flags. Introduce layers, move rules, remove the flags, and prove with screenshots that nothing visually changed.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Declare the order first.",
+        "Remove one !important at a time."
       ],
       "expectedEvidence": [
-        "Refactor a conflicting stylesheet into a predictable layered structure.",
-        "Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair."
+        "Layered stylesheet with no unnecessary !important.",
+        "Before/after screenshots match."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.system.organization.misconception",
-      "explanation": "Define ownership and cascade layers, keep specificity low, and reserve important rules for explicit policy rather than conflict repair.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'cascade layers' and state the decisive evidence."
+      "explanation": "For each conflict ask: **Which layer should win by design?** Put each rule in that layer at single-class specificity. If you still reach for !important, the layer assignment is wrong.",
+      "retryPrompt": "Apply this to \"The utility that couldn't win\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to refactor a conflicting stylesheet into a predictable layered structure. Keep this boundary in view: Naming alone cannot prevent leakage, excessive utility combinations obscure intent, and global resets can affect third-party content.",
+    "summary": "To refactor a conflicting stylesheet into a predictable layered structure, declare the layer order once (reset, base, components, utilities), import files into layers, keep specificity flat within them, and remove !important flags that layers make unnecessary.",
     "retrievalPrompts": [
-      "Explain Stylesheet organization using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: Adding !important wherever a conflict appears is a scalable organization strategy.",
-      "Apply checkpoint 'cascade layers' to a new artifact."
+      "Why does import order cause surprises without layers?",
+      "Which layer should utilities go in?",
+      "Why is !important not a scalable fix?"
     ],
     "nextReviewPrompt": "Next: continue to “Content, padding, border and margin”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

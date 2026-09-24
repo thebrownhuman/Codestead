@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Python lists are mutable sequences, tuples are immutable sequence values often used for fixed records, and slicing creates a shallow sequence result with normalized bounds.",
+    "summary": "A **list** is an editable sequence: append, remove, sort in place. A **tuple** is a fixed sequence: you can't add or replace its items, which makes it great for returning small groups like `(x, y)`. **Slicing** (`values[1:3]`, `values[:]`) builds a **new outer list** — but it's a shallow copy, so nested objects inside are still shared.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A list stores editable readings, a tuple returns a fixed coordinate pair, and values[:] creates a shallow outer copy before a local reorder. Your goal is to implement sequence transformations while distinguishing mutation, copying and rebinding. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A weather app stores today's temperature readings (they change as new ones arrive), returns the station's map position (which never changes), and needs to show readings sorted without scrambling the originals. Three jobs, three tools. A list stores editable readings, a tuple returns a fixed coordinate pair, and values[:] creates a shallow outer copy before a local reorder. In this lesson you'll implement sequence transformations while distinguishing mutation, copying and rebinding.\n\n```predict\n{\"question\": \"What happens with `point = (3, 4)` then `point[0] = 5`?\", \"options\": [\"point becomes (5, 4)\", \"TypeError: tuples can't be changed\"], \"answer\": 1, \"why\": \"Tuples are immutable containers: their slots can't be reassigned. Build a new tuple instead: `point = (5, point[1])`.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: for, while and loop control; pf data selection. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **for, while and loop control** and **Data-structure choice** (choosing a structure by its operations)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Python lists are mutable sequences, tuples are immutable sequence values often used for fixed records, and slicing creates a shallow sequence result with normalized bounds. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The distinction: mutate, copy or rebind",
+        "body": "```python\nreadings = [21, 19, 24]\nreadings.append(22)        # mutate: same list, now 4 items\nordered = readings[:]      # copy: new outer list\nordered.sort()             # mutate the copy only\nreadings = readings[1:]    # rebind: name points to a new list\n```\n\n| Slice | Result from `[21, 19, 24, 22]` |\n|---|---|\n| `r[1:3]`. | [19, 24]. |\n| `r[:2]`. | [21, 19]. |\n| `r[-1]`. | 22 (single item). |\n| `r[::-1]`. | [22, 24, 19, 21]. |\n\n```reveal\n{\"prompt\": \"Does `sorted(readings)` change `readings`?\", \"answer\": \"No — `sorted()` returns a **new** list. `readings.sort()` sorts in place and returns None.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "A tuple can contain mutable objects, slice copies retain nested aliases, negative indices wrap within bounds, repeated-list construction can duplicate one inner reference, and large slices allocate. The learner must reject this documented misconception: Tuple contents are deeply immutable and slicing a nested list recursively copies every contained value."
+        "heading": "Shallow means one level",
+        "body": "```predict\n{\"question\": \"`grid = [[1, 2], [3, 4]]; copy = grid[:]; copy[0].append(9)`. What's `grid[0]`?\", \"options\": [\"[1, 2]\", \"[1, 2, 9]\"], \"answer\": 1, \"why\": \"The slice copied the **outer** list only. Both lists still hold the same inner lists, so appending through one is visible through the other.\"}\n```\n\nSame with tuples: `t = ([1], 2)` can't swap its slots, but the list inside it can still be mutated."
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use mutable sequences, immutable records and bounded slicing operations.",
-      "Implement sequence transformations while distinguishing mutation, copying and rebinding."
+      "Use lists for editable sequences and tuples for fixed groups.",
+      "Slice, copy and sort while telling mutation, copying and rebinding apart."
     ],
     "excludes": [
-      "A tuple can contain mutable objects, slice copies retain nested aliases, negative indices wrap within bounds, repeated-list construction can duplicate one inner reference, and large slices allocate."
+      "Deep copies of nested structures (aliasing lesson).",
+      "Arrays and NumPy."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "python.collections.list-tuple.example.direct",
-      "title": "Lists, tuples and slicing: direct language case",
+      "title": "Readings, a coordinate and a safe reorder",
       "situation": "A list stores editable readings, a tuple returns a fixed coordinate pair, and values[:] creates a shallow outer copy before a local reorder.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A list stores editable readings, a tuple returns a fixed coordinate pair, and values[:] creates a shallow outer copy before a local reorder.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: List mutation and tuple immutability apply to the outer sequence; slices are shallow copies, so nested mutable objects may remain shared."
+        "**List for editable readings:** `readings = [21, 19, 24]`; `readings.append(22)` mutates it to four items.",
+        "**Tuple for a fixed coordinate pair:** `def station(): return (12.97, 77.59)`; callers unpack `lat, lon = station()`.",
+        "**Copy before a local reorder:** `shown = readings[:]; shown.sort()` gives [19, 21, 22, 24] while readings stays [21, 19, 24, 22]."
       ],
-      "result": "The example meets the atomic outcome because List mutation and tuple immutability apply to the outer sequence; slices are shallow copies, so nested mutable objects may remain shared."
+      "result": "The readings stay in arrival order, the coordinate pair can't be changed, and the display shows a sorted copy."
     },
     {
       "id": "python.collections.list-tuple.example.boundary",
-      "title": "Lists, tuples and slicing: boundary and transfer case",
-      "situation": "A matrix is built with a comprehension instead of [[0] * cols] * rows so each row is a distinct list.",
+      "title": "The sort that scrambled history",
+      "situation": "`def top3(values): values.sort(reverse=True); return values[:3]` is called with a user's score history.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A matrix is built with a comprehension instead of [[0] * cols] * rows so each row is a distinct list.",
-        "Step 2 — Keep the language boundary explicit: A tuple can contain mutable objects, slice copies retain nested aliases, negative indices wrap within bounds, repeated-list construction can duplicate one inner reference, and large slices allocate.",
-        "Step 3 — Reject the tempting but incorrect rule: Tuple contents are deeply immutable and slicing a nested list recursively copies every contained value."
+        "`values.sort()` mutates the caller's list in place — the history is now reordered.",
+        "The caller later shows \"your scores in order played\", which is now wrong.",
+        "Fix: `return sorted(values, reverse=True)[:3]` — build a new list and leave the input untouched."
       ],
-      "result": "This case demonstrates the declared outcome: Implement sequence transformations while distinguishing mutation, copying and rebinding."
+      "result": "top3 returns the best three without mutating the caller's score history."
     }
   ],
   "misconceptions": [
     {
       "id": "python.collections.list-tuple.misconception",
-      "mistakenBelief": "Tuple contents are deeply immutable and slicing a nested list recursively copies every contained value.",
-      "correction": "List mutation and tuple immutability apply to the outer sequence; slices are shallow copies, so nested mutable objects may remain shared.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Tuple contents are deeply immutable and slicing a nested list recursively copies every contained value."
+      "mistakenBelief": "Tuple contents are deeply immutable, and slicing a nested list recursively copies every contained value.",
+      "correction": "A tuple only fixes which objects sit in its slots; a mutable object inside can still change. Slicing copies just the outer list; nested objects are shared between the original and the copy.",
+      "diagnosticPrompt": "In the \"Shallow means one level\" predict, why did grid change?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a flexible storeroom with ordered shelves, fixed labels, unique membership, lookup indexes, and shared nested containers can introduce Lists, tuples and slicing, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "example": "A list is a **whiteboard list** you can erase and rewrite. A tuple is a **printed label** — fixed. A slice is a **photocopy of the page**: new paper, but if the page lists locker numbers, both copies still point at the same lockers.",
     "usefulFor": [
-      "lists, tuples, dictionaries, sets, aliasing, and text processing"
+      "remembering list = editable, tuple = fixed",
+      "seeing why shallow copies share nested things"
     ],
     "limitations": [
-      "hashability, shallow copying, Unicode normalization, and object identity require Python's exact data model",
-      "A tuple can contain mutable objects, slice copies retain nested aliases, negative indices wrap within bounds, repeated-list construction can duplicate one inner reference, and large slices allocate."
+      "A printed label can't contain a changing object, but a tuple can.",
+      "Copies in Python are instant; photocopies take time."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A list stores editable readings, a tuple returns a fixed coordinate pair, and values[:] creates a shallow outer copy before a local reorder.",
-      "Python lists are mutable sequences, tuples are immutable sequence values often used for fixed records, and slicing creates a shallow sequence result with normalized bounds.",
-      "List mutation and tuple immutability apply to the outer sequence; slices are shallow copies, so nested mutable objects may remain shared."
+      "readings = [21, 19, 24]; readings.append(22)",
+      "shown = readings[:]; shown.sort()",
+      "lat, lon = (12.97, 77.59)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Mutate list",
         "state": {
-          "evidence": "A list stores editable readings, a tuple returns a fixed coordinate pair, and values[:] creates a shallow outer copy before a local reorder."
+          "readings": "[21, 19, 24, 22]"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "Appending mutates the list of editable readings in place."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Copy then reorder",
         "state": {
-          "rule": "Python lists are mutable sequences, tuples are immutable sequence values often used for fixed records, and slicing creates a shallow sequence result with normalized bounds."
+          "shown": "[19, 21, 22, 24]",
+          "readings": "[21, 19, 24, 22]"
         },
-        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "The slice creates a shallow outer copy, so the local reorder leaves readings alone."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Fixed pair",
         "state": {
-          "correction": "List mutation and tuple immutability apply to the outer sequence; slices are shallow copies, so nested mutable objects may remain shared."
+          "lat": "12.97",
+          "lon": "77.59"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Tuple contents are deeply immutable and slicing a nested list recursively copies every contained value."
+        "explanation": "The tuple returns a fixed coordinate pair that callers unpack."
       }
     ],
-    "textAlternative": "Starting artifact: A list stores editable readings, a tuple returns a fixed coordinate pair, and values[:] creates a shallow outer copy before a local reorder. Step 1, Observe. State: evidence: A list stores editable readings, a tuple returns a fixed coordinate pair, and values[:] creates a shallow outer copy before a local reorder.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Python lists are mutable sequences, tuples are immutable sequence values often used for fixed records, and slicing creates a shallow sequence result with normalized bounds.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: List mutation and tuple immutability apply to the outer sequence; slices are shallow copies, so nested mutable objects may remain shared.. Compare the observation with the correction and explain why the misconception fails: Tuple contents are deeply immutable and slicing a nested list recursively copies every contained value."
+    "textAlternative": "Lists, a tuple and a sorted copy. Step 1, Mutate list: readings is [21, 19, 24, 22]. Appending mutates the list of editable readings in place. Step 2, Copy then reorder: shown is [19, 21, 22, 24]; readings is [21, 19, 24, 22]. The slice creates a shallow outer copy, so the local reorder leaves readings alone. Step 3, Fixed pair: lat is 12.97; lon is 77.59. The tuple returns a fixed coordinate pair that callers unpack."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Lists, tuples and slicing: direct language case”: state its starting evidence, apply the Lists, tuples and slicing rule, and give the observable result in three short lines.",
+      "prompt": "For \"Readings, a coordinate and a safe reorder\", explain why a list stores editable readings, why a tuple returns a fixed coordinate pair, and what values[:] does before a local reorder.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "List.",
+        "Tuple.",
+        "Slice copy."
       ],
       "expectedEvidence": [
-        "Named example: Lists, tuples and slicing: direct language case.",
-        "Starting evidence: A list stores editable readings, a tuple returns a fixed coordinate pair, and values[:] creates a shallow outer copy before a local reorder.",
-        "Core rule: Python lists are mutable sequences, tuples are immutable sequence values often used for fixed records, and slicing creates a shallow sequence result with normalized bounds.",
-        "Observable result: The example meets the atomic outcome because List mutation and tuple immutability apply to the outer sequence; slices are shallow copies, so nested mutable objects may remain shared.",
-        "Boundary check: List mutation and tuple immutability apply to the outer sequence; slices are shallow copies, so nested mutable objects may remain shared."
+        "Names the example \"Readings, a coordinate and a safe reorder\": a list stores editable readings.",
+        "A tuple returns a fixed coordinate pair that can't be reassigned.",
+        "values[:] creates a shallow outer copy before a local reorder.",
+        "The original readings keep their order."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A matrix is built with a comprehension instead of [[0] * cols] * rows so each row is a distinct list.",
+      "prompt": "Given `names = [\"Zoe\", \"Amit\", \"Lee\"]`, produce a sorted copy without changing names, the last two names with a slice, and a tuple `(first, last)` of the first and last names.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "sorted() or [:] then sort.",
+        "Negative indexes help."
       ],
       "expectedEvidence": [
-        "Python lists are mutable sequences, tuples are immutable sequence values often used for fixed records, and slicing creates a shallow sequence result with normalized bounds.",
-        "A tuple can contain mutable objects, slice copies retain nested aliases, negative indices wrap within bounds, repeated-list construction can duplicate one inner reference, and large slices allocate."
+        "sorted(names) gives ['Amit', 'Lee', 'Zoe'] and names is unchanged.",
+        "names[-2:] is ['Amit', 'Lee']; the tuple is ('Zoe', 'Lee')."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Lists, tuples and slicing, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Write `rotate(items, k)` that returns a new list rotated left by k (e.g. `[1,2,3,4]`, 1 → `[2,3,4,1]`) using slices, without mutating the input. Test k = 0, k = len and an empty list.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "items[k:] + items[:k].",
+        "Use k % len for big k."
       ],
       "expectedEvidence": [
-        "Implement sequence transformations while distinguishing mutation, copying and rebinding.",
-        "List mutation and tuple immutability apply to the outer sequence; slices are shallow copies, so nested mutable objects may remain shared."
+        "Correct rotation via slices that returns a new list.",
+        "Tests for edge cases pass and the input is unchanged."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "python.collections.list-tuple.misconception",
-      "explanation": "List mutation and tuple immutability apply to the outer sequence; slices are shallow copies, so nested mutable objects may remain shared.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A matrix is built with a comprehension instead of [[0] * cols] * rows so each row is a distinct list."
+      "explanation": "For every line touching a sequence, label it **mutate** (changes the object), **copy** (makes a new one) or **rebind** (moves a name). Then check which names see the change.",
+      "retryPrompt": "Label each line in \"The sort that scrambled history\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement sequence transformations while distinguishing mutation, copying and rebinding. Keep this boundary in view: A tuple can contain mutable objects, slice copies retain nested aliases, negative indices wrap within bounds, repeated-list construction can duplicate one inner reference, and large slices allocate.",
+    "summary": "To implement sequence transformations, use lists for editable data and tuples for fixed groups, and distinguish mutation (append, sort), copying (slices, sorted) and rebinding (`x = ...`). Slices are shallow: nested objects stay shared.",
     "retrievalPrompts": [
-      "Explain Lists, tuples and slicing using canonical Python: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Tuple contents are deeply immutable and slicing a nested list recursively copies every contained value.",
-      "Predict this case from memory: A matrix is built with a comprehension instead of [[0] * cols] * rows so each row is a distinct list."
+      "Why can't you assign to `point[0]` on a tuple?",
+      "What's the difference between `sort()` and `sorted()`?",
+      "Why is `grid[:]` a shallow copy?"
     ],
     "nextReviewPrompt": "Next: continue to “Dictionaries and sets”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

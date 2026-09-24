@@ -33,38 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A two-dimensional array models rows and columns, and traversal order determines coordinates, cache behavior, and execution count.",
+    "summary": "A **2D array** (matrix or grid) has **rows** and **columns**: `grid[r][c]` is row r, column c. With R rows and C columns there are **R × C cells**, so visiting every cell with two nested loops costs **O(R × C)**, not O(R + C). **Row-major** traversal (outer loop rows, inner loop columns) matches how C, C++ and NumPy store rows in memory, which is usually faster. Most bugs are **dimension** bugs: mixing up rows and columns, or assuming the grid is square. Check `0 <= r < R` and `0 <= c < C` before touching a neighbour.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A row-major traversal visits grid[r][c] for each column before advancing to the next row. Your goal is to implement and test a matrix or grid transformation with correct dimensions and bounds. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "An exam hall has 4 rows of 6 seats. A seat-checker program prints seat labels but skips seats and then crashes with an index error, because it loops `for r in range(6)` over rows. A row-major traversal visits grid[r][c] for each column before advancing to the next row. In this lesson you'll implement and test a matrix or grid transformation with correct dimensions and bounds.\n\n```predict\n{\"question\": \"A grid has R = 4 rows and C = 6 columns. How many cells does a full nested traversal visit?\", \"options\": [\"10 (4 + 6)\", \"24 (4 × 6)\"], \"answer\": 1, \"why\": \"Each of the 4 rows has 6 cells: 4 × 6 = 24. Nested loops multiply.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Readiness, algorithms and analysis; Array representation and operations; pf control nested. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Readiness, algorithms and analysis** module, **Array representation and operations**, and **Nested control and tables** (loops inside loops)."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "A two-dimensional array models rows and columns, and traversal order determines coordinates, cache behavior, and execution count. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The model: rows first, bounds always",
+        "body": "```python\ndef seat_labels(R, C):\n    grid = [[None] * C for _ in range(R)]    # R rows, each with its own C cells.\n    for r in range(R):                         # rows: outer loop.\n        for c in range(C):                     # columns: inner loop (row-major).\n            grid[r][c] = f\"{chr(ord('A') + r)}{c + 1}\"\n    return grid\n\ndef transpose(grid):\n    R, C = len(grid), len(grid[0])\n    result = [[None] * R for _ in range(C)]    # C rows, R columns.\n    for r in range(R):\n        for c in range(C):\n            result[c][r] = grid[r][c]\n    return result\n\ndef neighbours(grid, r, c):\n    R, C = len(grid), len(grid[0])\n    for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1)):\n        nr, nc = r + dr, c + dc\n        if 0 <= nr < R and 0 <= nc < C:        # bounds check.\n            yield grid[nr][nc]\n```\n\n| Question | Answer for R × C |\n|---|---|\n| cells. | R × C. |\n| full traversal. | O(R × C). |\n| transpose shape. | C × R. |\n| last cell. | grid[R - 1][C - 1]. |\n\n```reveal\n{\"prompt\": \"Why not write `grid = [[None] * C] * R` in Python?\", \"answer\": \"That makes R references to the same row, so writing one cell changes it in every row. Build each row separately.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Rows can be jagged in some languages, C multidimensional types encode stride, and empty dimensions need explicit handling. The draft therefore rejects: Two nested loops over r rows and c columns always cost O(r+c)."
+        "heading": "Not always square",
+        "body": "```predict\n{\"question\": \"transpose of a 4 × 6 grid. What shape is the result?\", \"options\": [\"4 × 6\", \"6 × 4\"], \"answer\": 1, \"why\": \"Rows become columns. Code that assumes R == C breaks on this grid.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Traverse rectangular and ragged grids by row, column, neighborhood, diagonal and boundary.",
-      "Implement and test a matrix or grid transformation with correct dimensions and bounds.",
-      "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead."
+      "Traverse grids row-major with correct R × C bounds.",
+      "Implement and test transformations like transpose and neighbour lookups."
     ],
     "excludes": [
-      "Rows can be jagged in some languages, C multidimensional types encode stride, and empty dimensions need explicit handling."
+      "Sparse matrix formats.",
+      "Matrix multiplication algorithms beyond the basics."
     ]
   },
   "outcomes": [
@@ -73,142 +69,136 @@
   "examples": [
     {
       "id": "dsa.arrays.two-dimensional.example-a",
-      "title": "Two-dimensional arrays and matrices: language-neutral trace",
+      "title": "Reading a seating grid row by row",
       "situation": "A row-major traversal visits grid[r][c] for each column before advancing to the next row.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: A row-major traversal visits grid[r][c] for each column before advancing to the next row.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Visiting every cell costs O(r*c); preserve row lengths and language-specific stride or jagged rules."
+        "**Dimensions:** R = 4 rows (A-D) and C = 6 seats; the outer loop uses range(R), not range(6).",
+        "**Row-major traversal:** for r = 0 the inner loop visits A1 to A6, then r = 1 visits B1 to B6.",
+        "**Test:** a test will check grid[0][0] == \"A1\", grid[3][5] == \"D6\" and that 24 labels exist."
       ],
-      "result": "The conceptual result follows because Visiting every cell costs O(r*c); preserve row lengths and language-specific stride or jagged rules."
+      "result": "Every one of the 24 seats gets a label in order, and nothing goes out of range."
     },
     {
       "id": "dsa.arrays.two-dimensional.example-b",
-      "title": "Two-dimensional arrays and matrices: implementation transfer",
-      "situation": "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead.",
+      "title": "The rotated puzzle that crashed",
+      "situation": "A puzzle rotates a 3 × 5 board with code written for square boards, and it raises IndexError on the first row.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead.",
-        "Step 3 — Retest this boundary in the selected implementation: Rows can be jagged in some languages, C multidimensional types encode stride, and empty dimensions need explicit handling."
+        "The code created a result the same shape as the input: 3 × 5.",
+        "A rotation or transpose of R × C must be C × R.",
+        "Fix the result shape and add a non-square test."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Boards of any shape rotate correctly, and the non-square test protects it."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.arrays.two-dimensional.misconception",
       "mistakenBelief": "Two nested loops over r rows and c columns always cost O(r+c).",
-      "correction": "Visiting every cell costs O(r*c); preserve row lengths and language-specific stride or jagged rules.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Two nested loops over r rows and c columns always cost O(r+c)."
+      "correction": "The inner loop runs C times for each of the R rows, so the body runs R × C times. Nested loops multiply; only consecutive loops add.",
+      "diagnosticPrompt": "In the opening predict, how many cells did the traversal visit?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Two-dimensional arrays and matrices, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "A 2D array is like **reading a book**: finish one line left to right (the columns), then move down to the next line (the row). The number of words is lines × words per line, not lines + words.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering row-major = reading order",
+      "cells = rows × columns"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Rows can be jagged in some languages, C multidimensional types encode stride, and empty dimensions need explicit handling."
+      "Books have fixed widths; grids can be ragged in some languages.",
+      "Rotating the page swaps lines and columns: C × R."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A row-major traversal visits grid[r][c] for each column before advancing to the next row.",
-      "A two-dimensional array models rows and columns, and traversal order determines coordinates, cache behavior, and execution count.",
-      "Visiting every cell costs O(r*c); preserve row lengths and language-specific stride or jagged rules.",
-      "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead."
+      "R = 4, C = 6",
+      "r = 0: c = 0..5",
+      "r = 1: c = 0..5"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Setup",
         "state": {
-          "scenario": "A row-major traversal visits grid[r][c] for each column before advancing to the next row."
+          "R": "4",
+          "C": "6",
+          "cells": "24"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The grid has four rows of six seats."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Row A",
         "state": {
-          "invariant": "A two-dimensional array models rows and columns, and traversal order determines coordinates, cache behavior, and execution count."
+          "visited": "A1, A2, A3, A4, A5, A6"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "A row-major traversal visits grid[r][c] for each column first."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Row B",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "visited": "B1 ... B6",
+          "count so far": "12"
         },
-        "explanation": "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Visiting every cell costs O(r*c); preserve row lengths and language-specific stride or jagged rules."
-        },
-        "explanation": "Verify the result and reject this misconception: Two nested loops over r rows and c columns always cost O(r+c)."
+        "explanation": "Only then does it advance to the next row."
       }
     ],
-    "textAlternative": "Starting artifact: A row-major traversal visits grid[r][c] for each column before advancing to the next row. Step 1, Specification. State: scenario: A row-major traversal visits grid[r][c] for each column before advancing to the next row.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: A two-dimensional array models rows and columns, and traversal order determines coordinates, cache behavior, and execution count.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead. Step 4, Conclusion. State: correction: Visiting every cell costs O(r*c); preserve row lengths and language-specific stride or jagged rules.. Verify the result and reject this misconception: Two nested loops over r rows and c columns always cost O(r+c)."
+    "textAlternative": "Tracing a row-major traversal. Step 1, Setup: R is 4; C is 6; cells is 24. The grid has four rows of six seats. Step 2, Row A: visited is A1, A2, A3, A4, A5, A6. A row-major traversal visits grid[r][c] for each column first. Step 3, Row B: visited is B1 ... B6; count so far is 12. Only then does it advance to the next row."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Two-dimensional arrays and matrices: language-neutral trace”: state its starting evidence, apply the Two-dimensional arrays and matrices rule, and give the observable result in three short lines.",
+      "prompt": "For \"Reading a seating grid row by row\", explain how a row-major traversal visits grid[r][c] for each column before advancing to the next row.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Dimensions.",
+        "Traversal.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Two-dimensional arrays and matrices: language-neutral trace.",
-        "Starting evidence: A row-major traversal visits grid[r][c] for each column before advancing to the next row.",
-        "Core rule: A two-dimensional array models rows and columns, and traversal order determines coordinates, cache behavior, and execution count.",
-        "Observable result: The conceptual result follows because Visiting every cell costs O(r*c); preserve row lengths and language-specific stride or jagged rules.",
-        "Boundary check: Visiting every cell costs O(r*c); preserve row lengths and language-specific stride or jagged rules."
+        "Names the example \"Reading a seating grid row by row\": the grid has 4 rows and 6 columns.",
+        "A row-major traversal visits grid[r][c] for each column first.",
+        "It then advances to the next row.",
+        "Every one of the 24 seats gets a label in order."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: A two-dimensional array models rows and columns, and traversal order determines coordinates, cache behavior, and execution count.",
+      "prompt": "Write `row_sums(grid)` and `column_sums(grid)` for any R × C grid. State the cost of each and test a 2 × 3 grid.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Outer loop choice differs.",
+        "Result lengths R and C."
       ],
       "expectedEvidence": [
-        "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead.",
-        "Rows can be jagged in some languages, C multidimensional types encode stride, and empty dimensions need explicit handling."
+        "row_sums length R, column_sums length C.",
+        "Both O(R × C)."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Two-dimensional arrays and matrices case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Implement `count_islands_neighbours(grid)` that returns, for each land cell ('#'), how many of its 4 neighbours are land, using a bounds-checked neighbour helper. Test corners, edges and a 1 × N grid.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Bounds check every neighbour.",
+        "Non-square tests."
       ],
       "expectedEvidence": [
-        "Implement and test a matrix or grid transformation with correct dimensions and bounds.",
-        "Visiting every cell costs O(r*c); preserve row lengths and language-specific stride or jagged rules."
+        "Correct counts at edges and corners.",
+        "No IndexError on any shape."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.arrays.two-dimensional.misconception",
-      "explanation": "Visiting every cell costs O(r*c); preserve row lengths and language-specific stride or jagged rules.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'O(r*c)', then state one implementation-specific risk in the selected language."
+      "explanation": "Write **R = ?, C = ?** at the top of your code. Outer loop over R, inner over C. Before every neighbour access, check **0 <= r < R and 0 <= c < C**. Always test a non-square grid.",
+      "retryPrompt": "Apply this to \"The rotated puzzle that crashed\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test a matrix or grid transformation with correct dimensions and bounds. Keep this boundary in view: Rows can be jagged in some languages, C multidimensional types encode stride, and empty dimensions need explicit handling.",
+    "summary": "To implement and test a grid transformation, keep R rows and C columns straight, traverse row-major with the outer loop over rows, remember a full traversal costs O(R × C), give transposes and rotations a C × R shape, bounds-check neighbours, and test non-square grids.",
     "retrievalPrompts": [
-      "State the Two-dimensional arrays and matrices invariant and complexity without code.",
-      "Why is this claim false: Two nested loops over r rows and c columns always cost O(r+c).",
-      "Map checkpoint 'O(r*c)' to C, C++, Java, and Python."
+      "How many cells does an R × C grid have?",
+      "What does row-major order mean?",
+      "What shape is the transpose of R × C?"
     ],
     "nextReviewPrompt": "Next: continue to “String traversal and matching basics”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

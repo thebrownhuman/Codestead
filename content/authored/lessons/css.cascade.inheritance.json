@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Some computed properties inherit from the parent by default, while others use their initial value unless explicitly inherited.",
+    "summary": "Some properties **inherit**: if an element has no value of its own, it takes its parent's computed value. Text-related ones mostly do (`color`, `font-family`, `line-height`); box-related ones mostly don't (`margin`, `padding`, `border`, `width`), falling back to their **initial** value instead. You can force either with `inherit` or `initial`, and `unset` picks whichever is natural. Relative values like `em` are turned into absolute **computed** values before they're passed down.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Setting color on an article reaches ordinary descendant text, but margin does not automatically propagate. Your goal is to trace a property's specified and computed value through an element tree. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You set `article { color: #333; margin: 2rem; }`. Every paragraph inside turns dark grey — but none of them get a 2rem margin. Why does one property travel down the tree and the other doesn't? Setting color on an article reaches ordinary descendant text, but margin does not automatically propagate. In this lesson you'll trace a property's specified and computed value through an element tree.\n\n```predict\n{\"question\": \"`article { border: 1px solid red; }`. Do the paragraphs inside get red borders?\", \"options\": [\"Yes, everything inside inherits it\", \"No — border doesn't inherit\"], \"answer\": 1, \"why\": \"Box properties like border and margin aren't inherited, otherwise every nested element would get its own border.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: html document syntax; Specificity and source order; html document dom. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Elements, attributes and nesting**, **Specificity and source order**, and **Document tree and DOM concept** — inheritance follows the DOM tree from parent to child."
       },
       {
-        "heading": "Technology rule",
-        "body": "Some computed properties inherit from the parent by default, while others use their initial value unless explicitly inherited. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: missing value → parent's computed value (if inherited)",
+        "body": "```css\narticle { color: #333; font-size: 20px; margin: 2rem; }\narticle p { font-size: 0.8em; }\n```\n\n| Property on `<p>` | Specified | Computed |\n|---|---|---|\n| color. | none → inherits. | #333. |\n| font-size. | 0.8em. | 16px (0.8 × 20px). |\n| margin. | none → not inherited. | initial (0) plus browser default for p. |\n\nThe child inherits **16px**, not \"0.8em\" — grandchildren get the resolved number.\n\n```reveal\n{\"prompt\": \"How do you make a link use its parent's colour instead of the browser's blue?\", \"answer\": \"`a { color: inherit; }` — the keyword forces inheritance for that property.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Inheritance differs from the cascade, custom properties inherit by default, and form controls can have user-agent styles. This draft therefore rejects: Every CSS property applied to a parent automatically applies to all descendants."
+        "heading": "The keywords",
+        "body": "```predict\n{\"question\": \"`button { font: inherit; }` does what?\", \"options\": [\"Resets the font to the browser default\", \"Makes the button use the surrounding text's font\"], \"answer\": 1, \"why\": \"Form controls don't inherit fonts by default; `font: inherit` makes them match the page. `initial` would reset to the spec's initial value instead.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Distinguish inherited, initial, unset and computed behavior including custom properties.",
-      "Trace a property's specified and computed value through an element tree."
+      "Predict which properties inherit and trace computed values down the tree.",
+      "Use inherit, initial and unset deliberately."
     ],
     "excludes": [
-      "Inheritance differs from the cascade, custom properties inherit by default, and form controls can have user-agent styles."
+      "Custom properties' inheritance (systems module).",
+      "The revert and revert-layer keywords in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "css.cascade.inheritance.example-a",
-      "title": "Inheritance, initial and computed values: concrete case",
+      "title": "Color flows down, margin doesn't",
       "situation": "Setting color on an article reaches ordinary descendant text, but margin does not automatically propagate.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: Setting color on an article reaches ordinary descendant text, but margin does not automatically propagate.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Check each property's inheritance behavior; inheritable text properties differ from non-inherited box and layout properties."
+        "**Color:** `article { color: #333 }`; each p has no color of its own, so it inherits #333.",
+        "**Margin:** `margin: 2rem` applies to the article's box only; margin does not inherit, so each p keeps its own default margin.",
+        "**Check:** DevTools Computed pane will show color #333 \"inherited from article\" and no inherited margin."
       ],
-      "result": "The result follows because Check each property's inheritance behavior; inheritable text properties differ from non-inherited box and layout properties."
+      "result": "All descendant text is dark grey, while only the article itself has the 2rem margin."
     },
     {
       "id": "css.cascade.inheritance.example-b",
-      "title": "Inheritance, initial and computed values: boundary case",
-      "situation": "Inheritance differs from the cascade, custom properties inherit by default, and form controls can have user-agent styles.",
+      "title": "The shrinking nested list",
+      "situation": "`li { font-size: 0.9em; }` with lists nested three deep — the innermost text becomes tiny.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Inheritance differs from the cascade, custom properties inherit by default, and form controls can have user-agent styles.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Every CSS property applied to a parent automatically applies to all descendants."
+        "Each li's 0.9em is computed from its parent's already-computed size.",
+        "16px → 14.4px → 12.96px → 11.66px as nesting deepens.",
+        "Fix: use `0.9rem` (relative to the root, not the parent) so every level computes to 14.4px."
       ],
-      "result": "The boundary requires this correction: Check each property's inheritance behavior; inheritable text properties differ from non-inherited box and layout properties."
+      "result": "Nested list items all compute to the same readable size."
     }
   ],
   "misconceptions": [
     {
       "id": "css.cascade.inheritance.misconception",
       "mistakenBelief": "Every CSS property applied to a parent automatically applies to all descendants.",
-      "correction": "Check each property's inheritance behavior; inheritable text properties differ from non-inherited box and layout properties.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: Every CSS property applied to a parent automatically applies to all descendants."
+      "correction": "Only inherited properties (mostly text-related, like color and font) pass down; box properties like margin, padding, border and width don't, and use their initial value unless set. Children inherit the parent's computed value.",
+      "diagnosticPrompt": "In \"Color flows down, margin doesn't\", which property reached the paragraphs?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Inheritance, initial and computed values, where rules size, place, and paint existing content.",
+    "example": "Inheritance is like **family traits**: children inherit eye colour (color, font) from parents automatically, but not their house or car (margin, border). And they inherit the actual colour, not the instructions for mixing it (computed values).",
     "usefulFor": [
-      "Building a first mental model for Inheritance, initial and computed values before using exact platform terms"
+      "remembering text traits pass down, box traits don't",
+      "computed values are passed, not formulas"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "Inheritance differs from the cascade, custom properties inherit by default, and form controls can have user-agent styles."
+      "Families can't choose traits; CSS can force them with inherit.",
+      "Some families 'reset' traits — like initial."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Setting color on an article reaches ordinary descendant text, but margin does not automatically propagate.",
-      "Some computed properties inherit from the parent by default, while others use their initial value unless explicitly inherited.",
-      "Check each property's inheritance behavior; inheritable text properties differ from non-inherited box and layout properties."
+      "article { color: #333; font-size: 20px; margin: 2rem }",
+      "article p { font-size: 0.8em }",
+      "p computed values"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Color",
         "state": {
-          "evidence": "Setting color on an article reaches ordinary descendant text, but margin does not automatically propagate."
+          "p specified": "none",
+          "p computed": "#333 (inherited)"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "Setting color on an article reaches ordinary descendant text."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Font size",
         "state": {
-          "rule": "Some computed properties inherit from the parent by default, while others use their initial value unless explicitly inherited."
+          "specified": "0.8em",
+          "computed": "16px"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The relative value is computed from the parent's 20px before being passed on."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Margin",
         "state": {
-          "correction": "Check each property's inheritance behavior; inheritable text properties differ from non-inherited box and layout properties."
+          "p margin": "not inherited from article"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Every CSS property applied to a parent automatically applies to all descendants."
+        "explanation": "Margin does not automatically propagate to descendants."
       }
     ],
-    "textAlternative": "Starting artifact: Setting color on an article reaches ordinary descendant text, but margin does not automatically propagate. Step 1, Artifact. State: evidence: Setting color on an article reaches ordinary descendant text, but margin does not automatically propagate.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Some computed properties inherit from the parent by default, while others use their initial value unless explicitly inherited.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Check each property's inheritance behavior; inheritable text properties differ from non-inherited box and layout properties.. Check the result against the boundary and reject this misconception: Every CSS property applied to a parent automatically applies to all descendants."
+    "textAlternative": "Tracing specified and computed values. Step 1, Color: p specified is none; p computed is #333 (inherited). Setting color on an article reaches ordinary descendant text. Step 2, Font size: specified is 0.8em; computed is 16px. The relative value is computed from the parent's 20px before being passed on. Step 3, Margin: p margin is not inherited from article. Margin does not automatically propagate to descendants."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Inheritance, initial and computed values: concrete case”: state its starting evidence, apply the Inheritance, initial and computed values rule, and give the observable result in three short lines.",
+      "prompt": "For \"Color flows down, margin doesn't\", explain why setting color on an article reaches ordinary descendant text, but margin does not automatically propagate, and what DevTools shows.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Color.",
+        "Margin.",
+        "DevTools."
       ],
       "expectedEvidence": [
-        "Named example: Inheritance, initial and computed values: concrete case.",
-        "Starting evidence: Setting color on an article reaches ordinary descendant text, but margin does not automatically propagate.",
-        "Core rule: Some computed properties inherit from the parent by default, while others use their initial value unless explicitly inherited.",
-        "Observable result: The result follows because Check each property's inheritance behavior; inheritable text properties differ from non-inherited box and layout properties.",
-        "Boundary check: Check each property's inheritance behavior; inheritable text properties differ from non-inherited box and layout properties."
+        "Names the example \"Color flows down, margin doesn't\": setting color on an article reaches ordinary descendant text.",
+        "Color is an inherited property.",
+        "Margin does not automatically propagate.",
+        "DevTools shows color inherited from article."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Inheritance differs from the cascade, custom properties inherit by default, and form controls can have user-agent styles.",
+      "prompt": "`body { font-family: Georgia; line-height: 1.5; padding: 1rem; }`. Which of these do headings, links and inputs inside the body get?",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Which are inherited?",
+        "Form controls are special."
       ],
       "expectedEvidence": [
-        "Some computed properties inherit from the parent by default, while others use their initial value unless explicitly inherited.",
-        "Inheritance differs from the cascade, custom properties inherit by default, and form controls can have user-agent styles."
+        "Headings and links inherit font-family and line-height; nobody inherits padding.",
+        "Inputs don't inherit font-family unless you set font: inherit."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Inheritance, initial and computed values and explain why the misconception fails.",
+      "prompt": "Build a three-level nested structure, set 5 properties on the top element, and predict each descendant's computed value. Check every prediction in DevTools' Computed pane.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Mix inherited and non-inherited.",
+        "Use em somewhere."
       ],
       "expectedEvidence": [
-        "Trace a property's specified and computed value through an element tree.",
-        "Check each property's inheritance behavior; inheritable text properties differ from non-inherited box and layout properties."
+        "Written predictions for each level.",
+        "DevTools confirmation with explanations for any mismatch."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.cascade.inheritance.misconception",
-      "explanation": "Check each property's inheritance behavior; inheritable text properties differ from non-inherited box and layout properties.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'inheritance behavior' and state the decisive evidence."
+      "explanation": "For a property on a child, ask: **Is it set on the child? If not, does this property inherit? If yes → parent's computed value; if no → initial value.**",
+      "retryPrompt": "Walk this for \"The shrinking nested list\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to trace a property's specified and computed value through an element tree. Keep this boundary in view: Inheritance differs from the cascade, custom properties inherit by default, and form controls can have user-agent styles.",
+    "summary": "To trace a property's specified and computed value through an element tree, check whether the element sets it; if not, inherited properties take the parent's computed value and non-inherited ones use their initial value. Use inherit, initial and unset to override the default behaviour.",
     "retrievalPrompts": [
-      "Explain Inheritance, initial and computed values using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: Every CSS property applied to a parent automatically applies to all descendants.",
-      "Apply checkpoint 'inheritance behavior' to a new artifact."
+      "Does margin inherit?",
+      "What does a child inherit: 0.8em or the computed pixels?",
+      "What does `color: inherit` do?"
     ],
     "nextReviewPrompt": "Next: continue to “Type, class, attribute and combinator selectors”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

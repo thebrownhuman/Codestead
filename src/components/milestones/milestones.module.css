@@ -1,4 +1,4 @@
-.page { display: grid; min-width: 0; gap: 24px; padding-bottom: 56px; }
+.page { display: grid; min-width: 0; gap: 24px; }
 .hero { display: flex; align-items: flex-end; justify-content: space-between; min-width: 0; gap: 24px; }
 .hero > div { min-width: 0; }
 .eyebrow { color: var(--brand); font-size: .75rem; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }

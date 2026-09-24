@@ -38,33 +38,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Retrieval-augmented generation indexes versioned source chunks, retrieves candidates for a query, supplies bounded passages to generation, and evaluates retrieval relevance plus answer grounding as separate stages.",
+    "summary": "**Retrieval-augmented generation** (RAG) gives a model relevant documents at question time. First, split sources into **chunks** and store each with metadata: **document, version and location**. Turn chunks and the question into **embeddings** (vectors where similar meanings sit close), and **retrieve** the top few nearest chunks. Then ask the model to answer **using only those passages and cite them**. RAG reduces made-up answers but **doesn't prevent** them: retrieval can fetch the wrong or outdated passage, and the model can still ignore or misread it. So evaluate **two stages separately**: did retrieval find the right passage (**retrieval relevance**), and is every claim in the answer supported by a cited passage (**grounding**)?",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A small corpus returns top passages with document/version/locator metadata, and the answer must cite only claims supported by those exact passages. Your goal is to build or simulate a small RAG pipeline and evaluate retrieval and answer grounding separately. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner builds a policy chatbot with RAG and assumes hallucinations are solved. A user asks about refunds; retrieval fetches last year's policy, and the model blends it with an invented detail. Nobody notices because the answer has a citation. A small corpus returns top passages with document/version/locator metadata, and the answer must cite only claims supported by those exact passages. In this lesson you'll build or simulate a small RAG pipeline and evaluate retrieval and answer grounding separately.\n\n```predict\n{\"question\": \"An answer includes a citation to a retrieved passage. Is every claim in it supported?\", \"options\": [\"Yes, it's cited\", \"Not necessarily: check each claim against the exact passage\"], \"answer\": 1, \"why\": \"Evaluate grounding claim by claim.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Convolution, sequence and attention roles; Natural-language processing; Dimensionality reduction; Prompts and constrained outputs; dsa heaps priority queue. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Convolution, sequence and attention roles**, **Natural-language processing**, **Dimensionality reduction**, **Prompts and constrained outputs** and **Priority queue applications** (top-k selection)."
       },
       {
-        "heading": "Bounded operational model",
-        "body": "Retrieval-augmented generation indexes versioned source chunks, retrieves candidates for a query, supplies bounded passages to generation, and evaluates retrieval relevance plus answer grounding as separate stages. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+        "heading": "The model: retrieve with metadata, then check grounding",
+        "body": "```python\nimport heapq, math\n\nchunks = [  # (text, doc, version, locator, toy embedding)\n    (\"Refunds within 30 days.\", \"policy\", \"v3\", \"s2\", [0.9, 0.1]),\n    (\"Refunds within 14 days.\", \"policy\", \"v2\", \"s2\", [0.85, 0.15]),\n    (\"Shipping takes 5 days.\", \"policy\", \"v3\", \"s4\", [0.1, 0.9]),\n]\n\ndef cos(a, b):\n    return sum(x * y for x, y in zip(a, b)) / (math.hypot(*a) * math.hypot(*b))\n\nquery = [1.0, 0.0]                                         # \"how long for refunds?\"\ncurrent = [c for c in chunks if c[2] == \"v3\"]             # only the current version.\ntop = heapq.nlargest(1, current, key=lambda c: cos(query, c[4]))\nfor text, doc, ver, loc, _ in top:\n    print(f\"{text} [{doc} {ver} {loc}]\")                  # retrieval with metadata.\n\nanswer_claims = [\"Refunds within 30 days.\", \"Refunds include shipping costs.\"]\nsupported = {t for t, *_ in top}\nprint([(c, c in supported) for c in answer_claims])       # second claim unsupported.\n```\n\n```reveal\n{\"prompt\": \"Why filter by version before retrieving?\", \"answer\": \"Old versions can be very similar in meaning, so they score highly. Without a version filter, the model may cite an outdated policy.\"}\n```"
       },
       {
-        "heading": "Failure boundary and non-claim",
-        "body": "Embeddings encode similarity not truth, chunking loses context, relevant passages can be missed, retrieved text can be stale or malicious, context limits apply, and generation can ignore or distort evidence. The learner must reject this overclaim: RAG prevents hallucination because embeddings retrieve true facts and the model must follow whatever appears in retrieved context."
+        "heading": "Two stages, two tests",
+        "body": "```predict\n{\"question\": \"The answer is wrong. How do you know whether retrieval or generation failed?\", \"options\": [\"You can't tell\", \"Check retrieval relevance and answer grounding separately\"], \"answer\": 1, \"why\": \"Separate metrics point to the broken stage.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Retrieve relevant versioned passages, preserve provenance and distinguish retrieval failure from generation failure.",
-      "Build or simulate a small RAG pipeline and evaluate retrieval and answer grounding separately."
+      "Chunk, embed and retrieve passages with version and locator metadata.",
+      "Evaluate retrieval relevance and answer grounding separately, claim by claim."
     ],
     "excludes": [
-      "Embeddings encode similarity not truth, chunking loses context, relevant passages can be missed, retrieved text can be stale or malicious, context limits apply, and generation can ignore or distort evidence."
+      "Vector database products.",
+      "Embedding model training."
     ]
   },
   "outcomes": [
@@ -73,133 +74,133 @@
   "examples": [
     {
       "id": "ai.generative.embeddings-rag.example.direct",
-      "title": "Embeddings and retrieval augmentation: bounded direct case",
+      "title": "Answering only from retrieved, cited passages",
       "situation": "A small corpus returns top passages with document/version/locator metadata, and the answer must cite only claims supported by those exact passages.",
       "walkthrough": [
-        "Step 1 — Observe the exact data, state, metric, or tool behavior: A small corpus returns top passages with document/version/locator metadata, and the answer must cite only claims supported by those exact passages.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the claim boundary with: Treat retrieval and generation as fallible, keep source provenance and authorization, resist instructions inside content, and score retrieval coverage separately from grounded answering."
+        "**A small corpus returns top passages with document/version/locator metadata:** \"Refunds within 30 days. [policy v3 s2]\".",
+        "**The answer must cite only claims supported:** the 30-day claim matches the passage.",
+        "**By those exact passages:** we check each claim, and \"include shipping costs\" is flagged as unsupported."
       ],
-      "result": "This example supports only the atomic outcome because Treat retrieval and generation as fallible, keep source provenance and authorization, resist instructions inside content, and score retrieval coverage separately from grounded answering."
+      "result": "Unsupported claims are caught before users see them."
     },
     {
       "id": "ai.generative.embeddings-rag.example.stress",
-      "title": "Embeddings and retrieval augmentation: stress and transfer case",
-      "situation": "The correct document is absent from top-k, so the failure is recorded as retrieval miss rather than blamed solely on generation.",
+      "title": "The outdated refund policy",
+      "situation": "A RAG bot cited last year's 14-day refund policy because it was semantically close to the question.",
       "walkthrough": [
-        "Step 1 — Name the changed population, input, assumption, or failure: The correct document is absent from top-k, so the failure is recorded as retrieval miss rather than blamed solely on generation.",
-        "Step 2 — Keep the non-claim visible: Embeddings encode similarity not truth, chunking loses context, relevant passages can be missed, retrieved text can be stale or malicious, context limits apply, and generation can ignore or distort evidence.",
-        "Step 3 — Reject the tempting overclaim: RAG prevents hallucination because embeddings retrieve true facts and the model must follow whatever appears in retrieved context."
+        "Retrieval ignored document versions.",
+        "Filter to current versions before ranking.",
+        "Add retrieval tests with known correct passages."
       ],
-      "result": "This case demonstrates the declared outcome: Build or simulate a small RAG pipeline and evaluate retrieval and answer grounding separately."
+      "result": "The bot cites the current policy and retrieval errors are measurable."
     }
   ],
   "misconceptions": [
     {
       "id": "ai.generative.embeddings-rag.misconception",
       "mistakenBelief": "RAG prevents hallucination because embeddings retrieve true facts and the model must follow whatever appears in retrieved context.",
-      "correction": "Treat retrieval and generation as fallible, keep source provenance and authorization, resist instructions inside content, and score retrieval coverage separately from grounded answering.",
-      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: RAG prevents hallucination because embeddings retrieve true facts and the model must follow whatever appears in retrieved context."
+      "correction": "Retrieval can fetch wrong or outdated passages, and models can add unsupported claims. Evaluate retrieval and grounding separately.",
+      "diagnosticPrompt": "In the opening predict, why doesn't a citation guarantee support?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a bounded document desk that predicts tokens, validates structured drafts, retrieves cited passages, and exposes only authorized tools can introduce Embeddings and retrieval augmentation only after its canonical technical definition and evidence boundary are stated.",
+    "example": "RAG is like **an open-book exam**. Having the textbook helps, but you might open the **wrong edition** (outdated version) or **add details from memory** that aren't on the page. A careful marker checks two things: **did you find the right page**, and **is every sentence you wrote actually on it?**",
     "usefulFor": [
-      "language-model context, output validation, RAG stages, and API/tool security"
+      "remembering open book, right page, every sentence on it",
+      "wrong edition"
     ],
     "limitations": [
-      "generation, retrieval, prompting, and provider trust remain fallible and cannot receive secrets or autonomous authority",
-      "Embeddings encode similarity not truth, chunking loses context, relevant passages can be missed, retrieved text can be stale or malicious, context limits apply, and generation can ignore or distort evidence."
+      "Embeddings are the index that finds pages by meaning.",
+      "Citations are page numbers, which can still be wrong."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A small corpus returns top passages with document/version/locator metadata, and the answer must cite only claims supported by those exact passages.",
-      "Retrieval-augmented generation indexes versioned source chunks, retrieves candidates for a query, supplies bounded passages to generation, and evaluates retrieval relevance plus answer grounding as separate stages.",
-      "Treat retrieval and generation as fallible, keep source provenance and authorization, resist instructions inside content, and score retrieval coverage separately from grounded answering."
+      "filter to current version",
+      "retrieve top passage",
+      "check claims"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Filter",
         "state": {
-          "boundedEvidence": "A small corpus returns top passages with document/version/locator metadata, and the answer must cite only claims supported by those exact passages."
+          "kept": "v3 chunks"
         },
-        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+        "explanation": "Retrieval considers only current versions with metadata."
       },
       {
         "step": 2,
-        "focus": "Model",
+        "focus": "Retrieve",
         "state": {
-          "operationalRule": "Retrieval-augmented generation indexes versioned source chunks, retrieves candidates for a query, supplies bounded passages to generation, and evaluates retrieval relevance plus answer grounding as separate stages."
+          "top": "Refunds within 30 days. [policy v3 s2]"
         },
-        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+        "explanation": "The corpus returns top passages with document/version/locator metadata."
       },
       {
         "step": 3,
-        "focus": "Limit",
+        "focus": "Ground",
         "state": {
-          "correction": "Treat retrieval and generation as fallible, keep source provenance and authorization, resist instructions inside content, and score retrieval coverage separately from grounded answering."
+          "claim 2": "unsupported"
         },
-        "explanation": "State what the evidence does not establish and reject the misconception: RAG prevents hallucination because embeddings retrieve true facts and the model must follow whatever appears in retrieved context."
+        "explanation": "The answer must cite only claims supported by those exact passages."
       }
     ],
-    "textAlternative": "Starting artifact: A small corpus returns top passages with document/version/locator metadata, and the answer must cite only claims supported by those exact passages. Step 1, Observe. State: boundedEvidence: A small corpus returns top passages with document/version/locator metadata, and the answer must cite only claims supported by those exact passages.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Retrieval-augmented generation indexes versioned source chunks, retrieves candidates for a query, supplies bounded passages to generation, and evaluates retrieval relevance plus answer grounding as separate stages.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Treat retrieval and generation as fallible, keep source provenance and authorization, resist instructions inside content, and score retrieval coverage separately from grounded answering.. State what the evidence does not establish and reject the misconception: RAG prevents hallucination because embeddings retrieve true facts and the model must follow whatever appears in retrieved context."
+    "textAlternative": "Tracing a RAG pipeline. Step 1, Filter: kept is v3 chunks. Retrieval considers only current versions with metadata. Step 2, Retrieve: top is Refunds within 30 days. [policy v3 s2]. The corpus returns top passages with document/version/locator metadata. Step 3, Ground: claim 2 is unsupported. The answer must cite only claims supported by those exact passages."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Embeddings and retrieval augmentation: bounded direct case”: state its starting evidence, apply the Embeddings and retrieval augmentation rule, and give the observable result in three short lines.",
+      "prompt": "For \"Answering only from retrieved, cited passages\", explain how a small corpus returns top passages with document/version/locator metadata, and the answer must cite only claims supported by those exact passages.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Retrieve.",
+        "Cite.",
+        "Check."
       ],
       "expectedEvidence": [
-        "Named example: Embeddings and retrieval augmentation: bounded direct case.",
-        "Starting evidence: A small corpus returns top passages with document/version/locator metadata, and the answer must cite only claims supported by those exact passages.",
-        "Core rule: Retrieval-augmented generation indexes versioned source chunks, retrieves candidates for a query, supplies bounded passages to generation, and evaluates retrieval relevance plus answer grounding as separate stages.",
-        "Observable result: This example supports only the atomic outcome because Treat retrieval and generation as fallible, keep source provenance and authorization, resist instructions inside content, and score retrieval coverage separately from grounded answering.",
-        "Boundary check: Treat retrieval and generation as fallible, keep source provenance and authorization, resist instructions inside content, and score retrieval coverage separately from grounded answering."
+        "Names the example \"Answering only from retrieved, cited passages\": an outdated policy was cited.",
+        "A small corpus returns top passages with document/version/locator metadata.",
+        "The answer must cite only claims supported by those exact passages.",
+        "Unsupported claims are caught before users see them."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed case: The correct document is absent from top-k, so the failure is recorded as retrieval miss rather than blamed solely on generation.",
+      "prompt": "Add three more chunks and five questions with known correct passages. Measure retrieval hit rate at top-1 and top-2.",
       "scaffold": [
-        "Identify which assumption, population, input, or objective changed.",
-        "Preserve provenance and the declared failure boundary."
+        "Label the correct chunk per question.",
+        "Report both rates."
       ],
       "expectedEvidence": [
-        "Retrieval-augmented generation indexes versioned source chunks, retrieves candidates for a query, supplies bounded passages to generation, and evaluates retrieval relevance plus answer grounding as separate stages.",
-        "Embeddings encode similarity not truth, chunking loses context, relevant passages can be missed, retrieved text can be stale or malicious, context limits apply, and generation can ignore or distort evidence."
+        "Hit rates reported.",
+        "Failures inspected."
       ]
     },
     "farTransfer": {
-      "prompt": "Design a neutral-context example or evaluation for Embeddings and retrieval augmentation and list the evidence that would support and falsify its bounded claim.",
+      "prompt": "Simulate a RAG pipeline over a small document set with two versions. Build a 10-question evaluation measuring retrieval relevance and per-claim grounding of provided answers, and report which stage causes most errors.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+        "Mock answers with some unsupported claims.",
+        "Score claims individually."
       ],
       "expectedEvidence": [
-        "Build or simulate a small RAG pipeline and evaluate retrieval and answer grounding separately.",
-        "Treat retrieval and generation as fallible, keep source provenance and authorization, resist instructions inside content, and score retrieval coverage separately from grounded answering."
+        "Two metrics reported.",
+        "Main failure stage identified."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "ai.generative.embeddings-rag.misconception",
-      "explanation": "Treat retrieval and generation as fallible, keep source provenance and authorization, resist instructions inside content, and score retrieval coverage separately from grounded answering.",
-      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: The correct document is absent from top-k, so the failure is recorded as retrieval miss rather than blamed solely on generation."
+      "explanation": "When a RAG answer is wrong, ask: **was the right passage retrieved?** Then: **is each claim supported by a cited passage?** Fix the stage that failed.",
+      "retryPrompt": "Apply this to \"The outdated refund policy\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to build or simulate a small RAG pipeline and evaluate retrieval and answer grounding separately. Keep this boundary in view: Embeddings encode similarity not truth, chunking loses context, relevant passages can be missed, retrieved text can be stale or malicious, context limits apply, and generation can ignore or distort evidence.",
+    "summary": "To build or simulate a small RAG pipeline and evaluate retrieval and answer grounding separately, chunk sources with document, version and locator metadata, retrieve top passages by embedding similarity, require citations, and check retrieval relevance and every answer claim independently.",
     "retrievalPrompts": [
-      "Explain Embeddings and retrieval augmentation with one technical mechanism, one evidence requirement, and one non-claim.",
-      "Why is this overclaim invalid: RAG prevents hallucination because embeddings retrieve true facts and the model must follow whatever appears in retrieved context.",
-      "Apply the boundary to: The correct document is absent from top-k, so the failure is recorded as retrieval miss rather than blamed solely on generation."
+      "What metadata should chunks carry?",
+      "Does RAG prevent hallucination?",
+      "What two stages should be evaluated?"
     ],
     "nextReviewPrompt": "Next: continue to “API, tool and prompt-injection boundaries”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

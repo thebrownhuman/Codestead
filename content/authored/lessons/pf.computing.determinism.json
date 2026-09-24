@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A deterministic computation produces the same observable result when its defined instructions, input, initial state, and relevant environment are the same.",
+    "summary": "A computation is **deterministic** when the same instructions, the same input, the same starting state and the same environment always give the same result. Change any of those — a different input, a random number, the current time — and the output may change too.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A pure arithmetic routine receives the same two integers twice in the same defined runtime and produces the same sum both times. Your goal is to explain why two runs may agree or differ using input, state and environment. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Why does a calculator always say 2 + 3 = 5, but a dice-rolling app gives you something new every tap? Both are programs running on the same kind of hardware. The difference is what goes *into* them. In this lesson you'll learn why `add(2, 3)` always returns 5, and how to spot which ingredients — input, state, environment — a program's result depends on — the skill behind reproducing and fixing bugs.\n\n```predict\n{\"question\": \"`def add(a, b): return a + b` — you call `add(2, 3)` a thousand times. How many different answers?\", \"options\": [\"One: always 5\", \"It varies a little each run\"], \"answer\": 0, \"why\": \"Same instructions, same inputs, no hidden state → **deterministic**. You get 5 every time.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Source-to-execution models. If one is unfamiliar, revisit it before continuing."
+        "body": "You should already know **Source-to-execution models** — how source code becomes something the processor runs. Now we ask: when you run it again, do you get the same answer?"
       },
       {
-        "heading": "Operational model",
-        "body": "A deterministic computation produces the same observable result when its defined instructions, input, initial state, and relevant environment are the same. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The rule: four ingredients decide the result",
+        "body": "Result = instructions + input + starting state + environment.\n\n| Ingredient | Example that changes output |\n|---|---|\n| Instructions | You edit the code |\n| Input | The user types a different name |\n| State | A counter that was 3 is now 4 |\n| Environment | The clock, a random seed, a file on disk |\n\n```python\nimport random\nprint(random.randint(1, 6))  # environment: random source\n```\n\n```reveal\n{\"prompt\": \"How could you make the dice example print the same number every run?\", \"answer\": \"Fix the environment: `random.seed(42)` before calling `randint`. Same seed → same sequence of \\\"random\\\" numbers. That's how games and tests reproduce bugs.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Time, randomness, concurrency schedules, network responses, uninitialized data, undefined behavior, and external files can change relevant state or environment between runs. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: The same source file must always produce identical output, regardless of input, state, environment, or undefined behavior."
+        "heading": "Hidden state is the sneaky one",
+        "body": "```python\ncount = 0\ndef visit():\n    global count\n    count += 1\n    return count\n```\n\n```predict\n{\"question\": \"You call `visit()` twice with no arguments. What are the two results?\", \"options\": [\"1 and 1\", \"1 and 2\"], \"answer\": 1, \"why\": \"The input is the same (nothing), but the **state** `count` changed between calls. Same code + same input ≠ same result when state differs.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Understand that execution follows defined instructions over changing state, subject to inputs and environment.",
-      "Explain why two runs may agree or differ using input, state and environment."
+      "List the ingredients that determine a program's result.",
+      "Explain why a program gives a different output on a second run."
     ],
     "excludes": [
-      "Time, randomness, concurrency schedules, network responses, uninitialized data, undefined behavior, and external files can change relevant state or environment between runs."
+      "Parallel programs and race conditions.",
+      "Undefined behaviour in C (covered in the C course)."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "pf.computing.determinism.example-a",
-      "title": "Instructions, state and determinism: direct case",
-      "situation": "A pure arithmetic routine receives the same two integers twice in the same defined runtime and produces the same sum both times.",
+      "title": "Adding the same numbers twice",
+      "situation": "```python\ndef add(a, b):\n    return a + b\nprint(add(2, 3))\nprint(add(2, 3))\n```",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A pure arithmetic routine receives the same two integers twice in the same defined runtime and produces the same sum both times.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Agreement is expected only after holding all relevant inputs and defined state constant; differing observations should be traced to a changed input, state, environment, or invalid assumption."
+        "**Instructions:** identical both times — the same `add` function.",
+        "**Input + state:** both calls pass 2 and 3, and `add` reads no outside state.",
+        "**Environment:** nothing random or time-based is used, so the result can't differ."
       ],
-      "result": "The case supports the declared outcome because Agreement is expected only after holding all relevant inputs and defined state constant; differing observations should be traced to a changed input, state, environment, or invalid assumption."
+      "result": "It prints `5` and `5`. Same ingredients, same result — deterministic."
     },
     {
       "id": "pf.computing.determinism.example-b",
-      "title": "Instructions, state and determinism: boundary case",
-      "situation": "A greeting program includes the current clock time, so identical source and typed name can still yield different output on two runs.",
+      "title": "The greeting that changes with the clock",
+      "situation": "```python\nfrom datetime import datetime\nhour = datetime.now().hour\nprint(\"Good morning\" if hour < 12 else \"Good afternoon\")\n```",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A greeting program includes the current clock time, so identical source and typed name can still yield different output on two runs.",
-        "Step 2 — Keep this boundary explicit: Time, randomness, concurrency schedules, network responses, uninitialized data, undefined behavior, and external files can change relevant state or environment between runs.",
-        "Step 3 — Reject the documented misconception: The same source file must always produce identical output, regardless of input, state, environment, or undefined behavior."
+        "**Instructions:** unchanged between runs.",
+        "**Environment:** `datetime.now()` reads the system clock, which is different each time you run it.",
+        "**Compare:** at 9:00 it prints one greeting, at 15:00 another — the code isn't broken, an ingredient changed."
       ],
-      "result": "This case demonstrates the declared outcome: Explain why two runs may agree or differ using input, state and environment."
+      "result": "Output depends on when you run it. To test it reliably, pass `hour` in as input instead."
     }
   ],
   "misconceptions": [
     {
       "id": "pf.computing.determinism.misconception",
-      "mistakenBelief": "The same source file must always produce identical output, regardless of input, state, environment, or undefined behavior.",
-      "correction": "Agreement is expected only after holding all relevant inputs and defined state constant; differing observations should be traced to a changed input, state, environment, or invalid assumption.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: The same source file must always produce identical output, regardless of input, state, environment, or undefined behavior."
+      "mistakenBelief": "The same source file must always produce identical output, no matter the input, state or environment.",
+      "correction": "Same code only guarantees the same result when the input, starting state and relevant environment (clock, randomness, files) are also the same. Change any of them and the output can legitimately change.",
+      "diagnosticPrompt": "In \"The greeting that changes with the clock\", which ingredient changed between runs?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A workshop can model Instructions, state and determinism: instructions direct workers, the workbench holds active materials, and shelves preserve supplies between jobs.",
+    "example": "A **recipe** gives the same cake only if you also use the same ingredients, the same oven and the same starting kitchen. Swap sugar for salt or bake at a different temperature and the \"same recipe\" gives a different cake.",
     "usefulFor": [
-      "Separating active execution, temporary state, persistent material, and coordinating roles"
+      "remembering that code alone doesn't fix the result",
+      "thinking about hidden ingredients like the clock"
     ],
     "limitations": [
-      "Computer components follow formal interfaces and timing rules that a human workshop does not reproduce.",
-      "Time, randomness, concurrency schedules, network responses, uninitialized data, undefined behavior, and external files can change relevant state or environment between runs."
+      "Computers are far more exact than kitchens: with truly identical ingredients a deterministic program gives bit-for-bit the same answer.",
+      "Some \"random\" numbers in programs are actually predictable once you know the seed."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A pure arithmetic routine receives the same two integers twice in the same defined runtime and produces the same sum both times.",
-      "A deterministic computation produces the same observable result when its defined instructions, input, initial state, and relevant environment are the same.",
-      "Agreement is expected only after holding all relevant inputs and defined state constant; differing observations should be traced to a changed input, state, environment, or invalid assumption."
+      "count = 0",
+      "visit()  # call 1",
+      "visit()  # call 2"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Initial state",
         "state": {
-          "evidence": "A pure arithmetic routine receives the same two integers twice in the same defined runtime and produces the same sum both times."
+          "count": "0"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "Before any call, the global variable count starts at zero."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "First call",
         "state": {
-          "model": "A deterministic computation produces the same observable result when its defined instructions, input, initial state, and relevant environment are the same."
+          "count": "1",
+          "returned": "1"
         },
-        "explanation": "Apply the declared Instructions, state and determinism model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "visit adds one to count and returns the new value, which is 1."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Second call",
         "state": {
-          "correction": "Agreement is expected only after holding all relevant inputs and defined state constant; differing observations should be traced to a changed input, state, environment, or invalid assumption."
+          "count": "2",
+          "returned": "2"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: The same source file must always produce identical output, regardless of input, state, environment, or undefined behavior."
+        "explanation": "Same code and same (empty) input, but count started at 1, so visit returns 2."
       }
     ],
-    "textAlternative": "Starting artifact: A pure arithmetic routine receives the same two integers twice in the same defined runtime and produces the same sum both times. Step 1, Observe. State: evidence: A pure arithmetic routine receives the same two integers twice in the same defined runtime and produces the same sum both times.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A deterministic computation produces the same observable result when its defined instructions, input, initial state, and relevant environment are the same.. Apply the declared Instructions, state and determinism model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Agreement is expected only after holding all relevant inputs and defined state constant; differing observations should be traced to a changed input, state, environment, or invalid assumption.. Compare the observation with the correction and reject the misconception: The same source file must always produce identical output, regardless of input, state, environment, or undefined behavior."
+    "textAlternative": "Calling a function that depends on hidden state. Step 1, Initial state: count is 0. Before any call, the global variable count starts at zero. Step 2, First call: count is 1; returned is 1. visit adds one to count and returns the new value, which is 1. Step 3, Second call: count is 2; returned is 2. Same code and same (empty) input, but count started at 1, so visit returns 2."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Instructions, state and determinism: direct case”: state its starting evidence, apply the Instructions, state and determinism rule, and give the observable result in three short lines.",
+      "prompt": "Look at \"Adding the same numbers twice\". In three lines, name its instructions, its inputs and state, and explain why both prints match.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Line 1: instructions.",
+        "Line 2: input and state.",
+        "Line 3: why the output can't change."
       ],
       "expectedEvidence": [
-        "Named example: Instructions, state and determinism: direct case.",
-        "Starting evidence: A pure arithmetic routine receives the same two integers twice in the same defined runtime and produces the same sum both times.",
-        "Core rule: A deterministic computation produces the same observable result when its defined instructions, input, initial state, and relevant environment are the same.",
-        "Observable result: The case supports the declared outcome because Agreement is expected only after holding all relevant inputs and defined state constant; differing observations should be traced to a changed input, state, environment, or invalid assumption.",
-        "Boundary check: Agreement is expected only after holding all relevant inputs and defined state constant; differing observations should be traced to a changed input, state, environment, or invalid assumption."
+        "Names the example \"Adding the same numbers twice\": print(add(2, 3)) runs twice, and add does return a + b both times.",
+        "The instructions are identical both calls.",
+        "The inputs 2 and 3 are the same and no outside state is read.",
+        "No random or time environment, so it prints 5 and 5 — the same result, deterministic."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A greeting program includes the current clock time, so identical source and typed name can still yield different output on two runs.",
+      "prompt": "A to-do app shows \"3 tasks\" today and \"4 tasks\" tomorrow without any code change. Which ingredient most likely changed? Is the app broken?",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Code unchanged — look at the other three.",
+        "Where are tasks kept?"
       ],
       "expectedEvidence": [
-        "A deterministic computation produces the same observable result when its defined instructions, input, initial state, and relevant environment are the same.",
-        "Time, randomness, concurrency schedules, network responses, uninitialized data, undefined behavior, and external files can change relevant state or environment between runs."
+        "State changed: a task was added to the stored list.",
+        "Not broken — a different starting state gives a different correct result."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Instructions, state and determinism, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Write a tiny function that is **not** deterministic, then change it so that it is (e.g. by passing the changing value in as a parameter).",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Use randomness, the clock, or a global counter.",
+        "Show both versions."
       ],
       "expectedEvidence": [
-        "Explain why two runs may agree or differ using input, state and environment.",
-        "Agreement is expected only after holding all relevant inputs and defined state constant; differing observations should be traced to a changed input, state, environment, or invalid assumption."
+        "First version reads a changing environment or state.",
+        "Second version takes that value as input, so the same inputs give the same result."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "pf.computing.determinism.misconception",
-      "explanation": "Agreement is expected only after holding all relevant inputs and defined state constant; differing observations should be traced to a changed input, state, environment, or invalid assumption.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A greeting program includes the current clock time, so identical source and typed name can still yield different output on two runs."
+      "explanation": "When outputs differ between runs, list the four ingredients and ask which one changed. It's almost never \"the computer is random\" — it's usually input, state or environment.",
+      "retryPrompt": "Revisit \"The greeting that changes with the clock\" and rewrite it so `hour` is a parameter — then it's deterministic for tests."
     }
   ],
   "recap": {
-    "summary": "You should now be able to explain why two runs may agree or differ using input, state and environment. Keep this boundary in view: Time, randomness, concurrency schedules, network responses, uninitialized data, undefined behavior, and external files can change relevant state or environment between runs.",
+    "summary": "Result = instructions + input + state + environment. Keep all four the same and a deterministic program gives the same answer every time. Randomness, clocks, files and global counters are common hidden ingredients — pass them in as inputs to make code predictable and testable.",
     "retrievalPrompts": [
-      "Explain Instructions, state and determinism without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: The same source file must always produce identical output, regardless of input, state, environment, or undefined behavior.",
-      "Apply the model to this case from memory: A greeting program includes the current clock time, so identical source and typed name can still yield different output on two runs."
+      "Name the four ingredients of a program's result.",
+      "Why can `visit()` return different values with no arguments?",
+      "How does `random.seed` help reproduce a bug?"
     ],
     "nextReviewPrompt": "Next: continue to “Inputs, outputs and constraints”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

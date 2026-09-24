@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "JavaScript operators can perform explicit or implicit conversion according to operator-specific abstract operations.",
+    "summary": "JavaScript **coerces** (auto-converts) values in some operations. `+` with a string **joins** text: `\"12\" + 3` is `\"123\"`. Other maths operators convert to numbers: `\"12\" - 3` is `9`. `==` converts before comparing (`0 == \"\"` is true); `===` compares without converting. Falsy values are `false, 0, -0, 0n, \"\", null, undefined, NaN`. Convert **explicitly** with `Number()`, `String()`, `Boolean()` and compare with `===`.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Number('12') explicitly produces 12 while '12' + 3 concatenates to '123'. Your goal is to predict and repair equality, concatenation and truthiness defects. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A cart adds a quantity from an input box to 3 — and shows 123 instead of 15. Input values are always strings, and `+` with a string means \"join\". Number('12') explicitly produces 12, while '12' + 3 concatenates to '123'. In this lesson you'll predict and repair equality, concatenation and truthiness defects.\n\n```predict\n{\"question\": \"`\\\"12\\\" + 3` and `\\\"12\\\" - 3` — results?\", \"options\": [\"15 and 9\", \"\\\"123\\\" and 9\"], \"answer\": 1, \"why\": \"+ with a string concatenates. - has no string meaning, so it converts both to numbers.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Scripts and console; pf state expressions; Primitive values and typeof. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Scripts and console**, **Expressions and evaluation**, and **Primitive values and typeof**."
       },
       {
-        "heading": "Technology rule",
-        "body": "JavaScript operators can perform explicit or implicit conversion according to operator-specific abstract operations. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The rule: convert on purpose, compare strictly",
+        "body": "```js\nconst qty = document.querySelector(\"#qty\").value;   // always a string, e.g. \"12\"\nconst total = Number(qty) + 3;                       // 15\n\nNumber(\"12\")      // 12\nNumber(\"\")        // 0   (careful!)\nNumber(\"abc\")     // NaN\nString(15)        // \"15\"\nBoolean(\"0\")      // true — non-empty string\n\n0 == \"\"           // true  (coerced)\n0 === \"\"          // false (different types)\nnull == undefined // true; null === undefined // false\n```\n\n| Falsy values | Everything else is truthy, including |\n|---|---|\n| false, 0, -0, 0n, \"\", null, undefined, NaN. | \"0\", \"false\", [], {}. |\n\n```reveal\n{\"prompt\": \"Is `if (items)` a good check for an empty array?\", \"answer\": \"No — `[]` is truthy. Use `if (items.length === 0)`.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Equality, addition, truthiness, property keys, and relational comparison use different coercion paths. This draft therefore rejects: The plus operator always performs numeric addition when one operand is a number."
+        "heading": "Truthiness traps",
+        "body": "```predict\n{\"question\": \"`const discount = 0; const shown = discount || 10;` What's shown?\", \"options\": [\"0\", \"10 — 0 is falsy, so || picks the fallback\"], \"answer\": 1, \"why\": \"Use `??` (nullish coalescing) when 0 or \\\"\\\" are valid values: `discount ?? 10` keeps 0.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Prefer explicit conversion and strict equality while understanding common coercion rules.",
-      "Predict and repair equality, concatenation and truthiness defects."
+      "Predict + concatenation, numeric coercion, == vs === and truthiness.",
+      "Repair defects with explicit conversion, ===, and ?? for defaults."
     ],
     "excludes": [
-      "Equality, addition, truthiness, property keys, and relational comparison use different coercion paths."
+      "Object-to-primitive conversion details.",
+      "Number precision (next lesson)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "javascript.values.coercion.example-a",
-      "title": "Equality, truthiness and coercion: concrete case",
+      "title": "Why the total became 123",
       "situation": "Number('12') explicitly produces 12 while '12' + 3 concatenates to '123'.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: Number('12') explicitly produces 12 while '12' + 3 concatenates to '123'.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: String participation can make + concatenate; convert inputs explicitly before arithmetic."
+        "**Input is text:** `input.value` is the string \"12\".",
+        "**Bug:** `\"12\" + 3` concatenates to \"123\" — the cart shows 123.",
+        "**Repair:** `Number(input.value) + 3` explicitly produces 12 + 3 = 15; validate with `Number.isNaN` for bad input."
       ],
-      "result": "The result follows because String participation can make + concatenate; convert inputs explicitly before arithmetic."
+      "result": "The total reads 15, and non-numeric input is caught instead of silently joining text."
     },
     {
       "id": "javascript.values.coercion.example-b",
-      "title": "Equality, truthiness and coercion: boundary case",
-      "situation": "Equality, addition, truthiness, property keys, and relational comparison use different coercion paths.",
+      "title": "The zero discount that vanished",
+      "situation": "`const pct = settings.discount || 10;` A shop sets its discount to 0 for a no-sale week; customers still get 10% off.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Equality, addition, truthiness, property keys, and relational comparison use different coercion paths.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: The plus operator always performs numeric addition when one operand is a number."
+        "0 is falsy, so || falls back to 10.",
+        "The shop's deliberate 0 is lost.",
+        "Fix: `settings.discount ?? 10` — only null or undefined trigger the fallback."
       ],
-      "result": "The boundary requires this correction: String participation can make + concatenate; convert inputs explicitly before arithmetic."
+      "result": "A 0% discount stays 0%, and missing settings still default to 10."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.values.coercion.misconception",
       "mistakenBelief": "The plus operator always performs numeric addition when one operand is a number.",
-      "correction": "String participation can make + concatenate; convert inputs explicitly before arithmetic.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: The plus operator always performs numeric addition when one operand is a number."
+      "correction": "If either operand is a string, + concatenates. Only when both are numbers (after conversion rules) does it add. Convert strings explicitly with Number() before adding.",
+      "diagnosticPrompt": "In \"Why the total became 123\", which operand made + concatenate?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Equality, truthiness and coercion, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "Coercion is like a **cashier guessing what you meant**: hand over \"12\" (a note with writing) and 3 coins, and with + they staple the note to the coins (\"123\"). Say explicitly \"this note means twelve\" (Number) and they add properly.",
     "usefulFor": [
-      "Building a first mental model for Equality, truthiness and coercion before using exact platform terms"
+      "remembering + with text joins",
+      "converting explicitly"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Equality, addition, truthiness, property keys, and relational comparison use different coercion paths."
+      "Cashiers learn; JavaScript's rules never change.",
+      "=== is a cashier who refuses to guess at all."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Number('12') explicitly produces 12 while '12' + 3 concatenates to '123'.",
-      "JavaScript operators can perform explicit or implicit conversion according to operator-specific abstract operations.",
-      "String participation can make + concatenate; convert inputs explicitly before arithmetic."
+      "const qty = input.value  // '12'",
+      "qty + 3",
+      "Number(qty) + 3"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Read input",
         "state": {
-          "evidence": "Number('12') explicitly produces 12 while '12' + 3 concatenates to '123'."
+          "qty": "'12'",
+          "typeof": "string"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "Values read from input boxes are always strings."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Bug",
         "state": {
-          "rule": "JavaScript operators can perform explicit or implicit conversion according to operator-specific abstract operations."
+          "'12' + 3": "'123'"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The string makes the plus operator concatenate to '123'."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Repair",
         "state": {
-          "correction": "String participation can make + concatenate; convert inputs explicitly before arithmetic."
+          "Number('12') + 3": "15"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: The plus operator always performs numeric addition when one operand is a number."
+        "explanation": "Number('12') explicitly produces 12, so the addition gives 15."
       }
     ],
-    "textAlternative": "Starting artifact: Number('12') explicitly produces 12 while '12' + 3 concatenates to '123'. Step 1, Artifact. State: evidence: Number('12') explicitly produces 12 while '12' + 3 concatenates to '123'.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: JavaScript operators can perform explicit or implicit conversion according to operator-specific abstract operations.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: String participation can make + concatenate; convert inputs explicitly before arithmetic.. Check the result against the boundary and reject this misconception: The plus operator always performs numeric addition when one operand is a number."
+    "textAlternative": "Fixing accidental concatenation. Step 1, Read input: qty is '12'; typeof is string. Values read from input boxes are always strings. Step 2, Bug: '12' + 3 is '123'. The string makes the plus operator concatenate to '123'. Step 3, Repair: Number('12') + 3 is 15. Number('12') explicitly produces 12, so the addition gives 15."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Equality, truthiness and coercion: concrete case”: state its starting evidence, apply the Equality, truthiness and coercion rule, and give the observable result in three short lines.",
+      "prompt": "For \"Why the total became 123\", explain why Number('12') explicitly produces 12 while '12' + 3 concatenates to '123', and how you'd guard bad input.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Concatenation.",
+        "Conversion.",
+        "Guard."
       ],
       "expectedEvidence": [
-        "Named example: Equality, truthiness and coercion: concrete case.",
-        "Starting evidence: Number('12') explicitly produces 12 while '12' + 3 concatenates to '123'.",
-        "Core rule: JavaScript operators can perform explicit or implicit conversion according to operator-specific abstract operations.",
-        "Observable result: The result follows because String participation can make + concatenate; convert inputs explicitly before arithmetic.",
-        "Boundary check: String participation can make + concatenate; convert inputs explicitly before arithmetic."
+        "Names the example \"Why the total became 123\": '12' + 3 concatenates to '123'.",
+        "Number('12') explicitly produces 12.",
+        "12 + 3 gives 15.",
+        "Number.isNaN catches non-numeric input."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Equality, addition, truthiness, property keys, and relational comparison use different coercion paths.",
+      "prompt": "Predict: `\"5\" * \"2\"`, `\"5\" + \"2\"`, `[] == false`, `null ?? \"x\"`, `0 || \"x\"`, `0 ?? \"x\"`.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "* converts, + joins with strings.",
+        "?? vs ||."
       ],
       "expectedEvidence": [
-        "JavaScript operators can perform explicit or implicit conversion according to operator-specific abstract operations.",
-        "Equality, addition, truthiness, property keys, and relational comparison use different coercion paths."
+        "10, \"52\", true.",
+        "\"x\", \"x\", 0."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Equality, truthiness and coercion and explain why the misconception fails.",
+      "prompt": "Write `parseQuantity(text)` that returns a positive integer or null for invalid input (empty, \"abc\", \"-2\", \"2.5\"). Test each case and use === everywhere.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Number() then Number.isInteger.",
+        "Empty string becomes 0 — handle it."
       ],
       "expectedEvidence": [
-        "Predict and repair equality, concatenation and truthiness defects.",
-        "String participation can make + concatenate; convert inputs explicitly before arithmetic."
+        "Correct results for valid and invalid inputs.",
+        "Tests for each listed case."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.values.coercion.misconception",
-      "explanation": "String participation can make + concatenate; convert inputs explicitly before arithmetic.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'convert inputs explicitly' and state the decisive evidence."
+      "explanation": "For any expression mixing types, ask: **Is either side a string with +? Am I using ==? Am I using || where 0 or \"\" is valid?** Replace with Number(), ===, and ??.",
+      "retryPrompt": "Apply this to \"The zero discount that vanished\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to predict and repair equality, concatenation and truthiness defects. Keep this boundary in view: Equality, addition, truthiness, property keys, and relational comparison use different coercion paths.",
+    "summary": "To predict and repair equality, concatenation and truthiness defects, remember + with a string joins, other maths operators convert to numbers, == coerces while === doesn't, and falsy values include 0 and \"\". Convert explicitly, compare with ===, and use ?? for defaults.",
     "retrievalPrompts": [
-      "Explain Equality, truthiness and coercion using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: The plus operator always performs numeric addition when one operand is a number.",
-      "Apply checkpoint 'convert inputs explicitly' to a new artifact."
+      "What is \"12\" + 3?",
+      "Why prefer === over ==?",
+      "When should you use ?? instead of ||?"
     ],
     "nextReviewPrompt": "Next: continue to “Numbers, NaN and precision”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

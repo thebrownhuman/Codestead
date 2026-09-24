@@ -43,33 +43,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A collaborative project defines contribution setup, issue and branch flow, review ownership, required checks, release practice, communication norms, and a safe escalation path.",
+    "summary": "This capstone ties the course together. A **collaborative repository** needs more than Git access. It needs **written agreements**: a **CONTRIBUTING** guide with setup steps, how issues are claimed, branch naming, the PR template, **who reviews what** (CODEOWNERS), which **checks are required**, how releases are **tagged**, how to report **security** issues privately (SECURITY.md), and how people communicate. You'll deliver one change end to end: scoped issue, branch, commits, PR, review, green required checks, integration and a tag, all traceable. The goal is a project where a newcomer can contribute without asking anyone how things work.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A new contributor follows documented setup, claims a scoped issue, opens a focused branch and PR, responds to review, and sees the exact checks required for merge. Your goal is to deliver and explain a tagged collaborative change from scoped issue through passing reviewed integration. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A new contributor gets access to a repository with no README setup section, no issue labels and no idea which checks matter. They spend two days guessing, then open a 40-file PR that nobody knows how to review. A new contributor follows documented setup, claims a scoped issue, opens a focused branch and PR, responds to review, and sees the exact checks required for merge. In this lesson you'll deliver and explain a tagged collaborative change from scoped issue through passing reviewed integration.\n\n```predict\n{\"question\": \"A team gives everyone write access to the repo. Is collaboration now predictable?\", \"options\": [\"Yes, everyone can contribute\", \"No: without documented flow, review ownership and required checks, everyone guesses\"], \"answer\": 1, \"why\": \"Access lets people push; agreements make the results predictable and safe.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Issues, pull requests and review; Debugging and quality automation; Continuous integration pipeline; Secret prevention and response; Restore, revert, reset and reflog. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Issues, pull requests and review**, **Debugging and quality automation**, **Continuous integration pipeline**, **Secret prevention and response** and **Restore, revert, reset and reflog**."
       },
       {
-        "heading": "Operational model",
-        "body": "A collaborative project defines contribution setup, issue and branch flow, review ownership, required checks, release practice, communication norms, and a safe escalation path. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The model: a documented path from issue to tag",
+        "body": "```text\nrepo/\n  README.md             setup: clone, npm ci, npm test, npm start.\n  CONTRIBUTING.md       claim an issue, branch naming, commit style, PR checklist.\n  .github/\n    CODEOWNERS          src/payments/ @payments-team  (required reviewers).\n    pull_request_template.md   why, what, tests, risk.\n    workflows/ci.yml    lint, test, build (required on main).\n  SECURITY.md           report vulnerabilities privately, never in public issues.\n  .env.example          placeholders only.\n```\n\n```bash\ngit fetch && git switch -c fix/57-trailing-comma origin/main\n# commits... npm test\ngit push -u origin fix/57-trailing-comma   # PR: \"closes #57\", template filled.\n# review -> fix-up commits -> re-review -> required checks green -> squash merge.\ngit switch main && git pull --ff-only\ngit tag -a v1.3.1 -m \"Fix trailing-comma parsing (#57)\" && git push origin v1.3.1\n```\n\n```reveal\n{\"prompt\": \"What's the \\\"safe escalation path\\\"?\", \"answer\": \"A documented way to raise problems: who to ask when blocked, how to report a security issue privately, and what to do if main breaks (for example, revert first, then investigate).\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "One workflow does not fit every team, documentation can drift, and social permission, security response, licensing, and technical enforcement are separate concerns. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Installing Git and granting repository access is enough to make collaboration predictable and safe."
+        "heading": "Traceability check",
+        "body": "```predict\n{\"question\": \"Given tag v1.3.1, can you find the issue that motivated it?\", \"options\": [\"Only by asking around\", \"Yes: tag -> squash commit mentioning #PR -> PR linking closes #57 -> issue\"], \"answer\": 1, \"why\": \"Every link in the chain was written down on purpose.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Integrate issue, branch, commits, review, build, tests, CI, security and release evidence.",
-      "Deliver and explain a tagged collaborative change from scoped issue through passing reviewed integration."
+      "Document setup, issue flow, branching, review ownership, required checks, releases and escalation.",
+      "Deliver one traceable change from scoped issue to reviewed, tested, tagged integration."
     ],
     "excludes": [
-      "One workflow does not fit every team, documentation can drift, and social permission, security response, licensing, and technical enforcement are separate concerns."
+      "Large-scale governance and multi-repo release trains.",
+      "Community moderation policies."
     ]
   },
   "outcomes": [
@@ -78,133 +79,136 @@
   "examples": [
     {
       "id": "git.project.collaboration.example-a",
-      "title": "Collaborative repository capstone: direct case",
+      "title": "A new contributor's first merged change",
       "situation": "A new contributor follows documented setup, claims a scoped issue, opens a focused branch and PR, responds to review, and sees the exact checks required for merge.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A new contributor follows documented setup, claims a scoped issue, opens a focused branch and PR, responds to review, and sees the exact checks required for merge.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Make responsibilities, lifecycle, evidence, permissions, communication, and exceptions explicit, then test the contributor path and update it when practice changes."
+        "**Follows documented setup and claims a scoped issue:** README steps work on a clean clone; they comment on #57 and get assigned.",
+        "**Opens a focused branch and PR, responds to review:** fix/57-trailing-comma, template filled, one blocker fixed in a follow-up commit.",
+        "**Sees the exact checks required for merge:** lint, test and build are required; after merge the maintainer will tag v1.3.1."
       ],
-      "result": "The case supports the declared outcome because Make responsibilities, lifecycle, evidence, permissions, communication, and exceptions explicit, then test the contributor path and update it when practice changes."
+      "result": "The newcomer's first change lands in a day, fully traceable from issue to tag."
     },
     {
       "id": "git.project.collaboration.example-b",
-      "title": "Collaborative repository capstone: boundary case",
-      "situation": "A security-sensitive report uses a private disclosure channel rather than a public issue while ordinary defects remain transparent.",
+      "title": "The broken main at 5 pm",
+      "situation": "A merge breaks main just before the end of the day. Nobody knows who should act.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A security-sensitive report uses a private disclosure channel rather than a public issue while ordinary defects remain transparent.",
-        "Step 2 — Keep this boundary explicit: One workflow does not fit every team, documentation can drift, and social permission, security response, licensing, and technical enforcement are separate concerns.",
-        "Step 3 — Reject the documented misconception: Installing Git and granting repository access is enough to make collaboration predictable and safe."
+        "CONTRIBUTING says: revert first, then investigate.",
+        "The on-call maintainer opens a revert PR; required checks pass; it merges.",
+        "An issue records the cause and the follow-up fix."
       ],
-      "result": "This case demonstrates the declared outcome: Deliver and explain a tagged collaborative change from scoped issue through passing reviewed integration."
+      "result": "Main is green again in minutes, with a clear record of what happened."
     }
   ],
   "misconceptions": [
     {
       "id": "git.project.collaboration.misconception",
       "mistakenBelief": "Installing Git and granting repository access is enough to make collaboration predictable and safe.",
-      "correction": "Make responsibilities, lifecycle, evidence, permissions, communication, and exceptions explicit, then test the contributor path and update it when practice changes.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Installing Git and granting repository access is enough to make collaboration predictable and safe."
+      "correction": "Predictable collaboration needs documented setup, issue and branch flow, review ownership, required checks, release practice and escalation paths. Tools alone don't create agreements.",
+      "diagnosticPrompt": "In the opening story, why did the newcomer spend two days guessing?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A secured checkpoint system can model Collaborative repository capstone: each revision is inspected, credentials are restricted, incidents revoke access, and recovery preserves known-good state.",
+    "example": "A collaborative repo is like **a shared community kitchen**. Having a key (access) isn't enough. You need the posted rules: how to book a slot (claim an issue), where things go (branches), who checks hygiene (review), the inspection before serving (required checks), and who to call if something catches fire (escalation).",
     "usefulFor": [
-      "Connecting pipeline evidence, secret response, reversible change, and collaborative policy"
+      "remembering posted rules",
+      "escalation = who to call"
     ],
     "limitations": [
-      "CI isolation, credential propagation, Git reachability, and distributed copies require technical controls beyond checkpoint paperwork.",
-      "One workflow does not fit every team, documentation can drift, and social permission, security response, licensing, and technical enforcement are separate concerns."
+      "Kitchens rarely keep full records; repos can trace everything.",
+      "New cooks learn fastest from written rules."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A new contributor follows documented setup, claims a scoped issue, opens a focused branch and PR, responds to review, and sees the exact checks required for merge.",
-      "A collaborative project defines contribution setup, issue and branch flow, review ownership, required checks, release practice, communication norms, and a safe escalation path.",
-      "Make responsibilities, lifecycle, evidence, permissions, communication, and exceptions explicit, then test the contributor path and update it when practice changes."
+      "README setup; claim #57",
+      "branch, commits, PR with template",
+      "review, required checks, merge, tag"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Start",
         "state": {
-          "evidence": "A new contributor follows documented setup, claims a scoped issue, opens a focused branch and PR, responds to review, and sees the exact checks required for merge."
+          "setup": "works from clean clone",
+          "issue": "#57 assigned"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "A new contributor follows documented setup and claims a scoped issue."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Propose",
         "state": {
-          "model": "A collaborative project defines contribution setup, issue and branch flow, review ownership, required checks, release practice, communication norms, and a safe escalation path."
+          "branch": "fix/57-trailing-comma",
+          "PR": "closes #57"
         },
-        "explanation": "Apply the declared Collaborative repository capstone model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "They open a focused branch and PR, and respond to review."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Integrate",
         "state": {
-          "correction": "Make responsibilities, lifecycle, evidence, permissions, communication, and exceptions explicit, then test the contributor path and update it when practice changes."
+          "required checks": "green",
+          "tag": "v1.3.1"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Installing Git and granting repository access is enough to make collaboration predictable and safe."
+        "explanation": "They see the exact checks required for merge, and the release is tagged."
       }
     ],
-    "textAlternative": "Starting artifact: A new contributor follows documented setup, claims a scoped issue, opens a focused branch and PR, responds to review, and sees the exact checks required for merge. Step 1, Observe. State: evidence: A new contributor follows documented setup, claims a scoped issue, opens a focused branch and PR, responds to review, and sees the exact checks required for merge.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A collaborative project defines contribution setup, issue and branch flow, review ownership, required checks, release practice, communication norms, and a safe escalation path.. Apply the declared Collaborative repository capstone model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Make responsibilities, lifecycle, evidence, permissions, communication, and exceptions explicit, then test the contributor path and update it when practice changes.. Compare the observation with the correction and reject the misconception: Installing Git and granting repository access is enough to make collaboration predictable and safe."
+    "textAlternative": "Tracing a full collaborative change. Step 1, Start: setup is works from clean clone; issue is #57 assigned. A new contributor follows documented setup and claims a scoped issue. Step 2, Propose: branch is fix/57-trailing-comma; PR is closes #57. They open a focused branch and PR, and respond to review. Step 3, Integrate: required checks is green; tag is v1.3.1. They see the exact checks required for merge, and the release is tagged."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Collaborative repository capstone: direct case”: state its starting evidence, apply the Collaborative repository capstone rule, and give the observable result in three short lines.",
+      "prompt": "For \"A new contributor's first merged change\", explain how a new contributor follows documented setup, claims a scoped issue, opens a focused branch and PR, responds to review, and sees the exact checks required for merge.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Start.",
+        "Propose.",
+        "Integrate."
       ],
       "expectedEvidence": [
-        "Named example: Collaborative repository capstone: direct case.",
-        "Starting evidence: A new contributor follows documented setup, claims a scoped issue, opens a focused branch and PR, responds to review, and sees the exact checks required for merge.",
-        "Core rule: A collaborative project defines contribution setup, issue and branch flow, review ownership, required checks, release practice, communication norms, and a safe escalation path.",
-        "Observable result: The case supports the declared outcome because Make responsibilities, lifecycle, evidence, permissions, communication, and exceptions explicit, then test the contributor path and update it when practice changes.",
-        "Boundary check: Make responsibilities, lifecycle, evidence, permissions, communication, and exceptions explicit, then test the contributor path and update it when practice changes."
+        "Names the example \"A new contributor's first merged change\": a newcomer once guessed for two days.",
+        "A new contributor follows documented setup, claims a scoped issue, and opens a focused branch and PR.",
+        "They respond to review and see the exact checks required for merge.",
+        "The first change lands fully traceable from issue to tag."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A security-sensitive report uses a private disclosure channel rather than a public issue while ordinary defects remain transparent.",
+      "prompt": "For a sandbox repository, write README setup steps, a CONTRIBUTING guide, a PR template and a SECURITY note. Ask a partner to follow them from a clean clone and record every question they had to ask.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Test setup yourself on a clean clone first.",
+        "Keep each document short."
       ],
       "expectedEvidence": [
-        "A collaborative project defines contribution setup, issue and branch flow, review ownership, required checks, release practice, communication norms, and a safe escalation path.",
-        "One workflow does not fit every team, documentation can drift, and social permission, security response, licensing, and technical enforcement are separate concerns."
+        "Partner succeeds with few questions.",
+        "Every question answered in the docs afterwards."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Collaborative repository capstone, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "With a partner, deliver one change end to end in a sandbox: scoped issue, branch, commits, PR from template, review with at least one blocker, required CI checks, squash merge and annotated tag. Then write a short report tracing the tag back to the issue.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Use branch protection with required checks.",
+        "Link every step explicitly."
       ],
       "expectedEvidence": [
-        "Deliver and explain a tagged collaborative change from scoped issue through passing reviewed integration.",
-        "Make responsibilities, lifecycle, evidence, permissions, communication, and exceptions explicit, then test the contributor path and update it when practice changes."
+        "Tag traces to the issue.",
+        "All required checks passed on the merged head."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.project.collaboration.misconception",
-      "explanation": "Make responsibilities, lifecycle, evidence, permissions, communication, and exceptions explicit, then test the contributor path and update it when practice changes.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A security-sensitive report uses a private disclosure channel rather than a public issue while ordinary defects remain transparent."
+      "explanation": "Test your project's collaboration docs like code: **a newcomer, a clean clone, and only the written instructions.** Every question they ask is a missing line.",
+      "retryPrompt": "Apply this to \"The broken main at 5 pm\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to deliver and explain a tagged collaborative change from scoped issue through passing reviewed integration. Keep this boundary in view: One workflow does not fit every team, documentation can drift, and social permission, security response, licensing, and technical enforcement are separate concerns.",
+    "summary": "To deliver a tagged collaborative change, document setup, issue and branch flow, review ownership, required checks, releases and escalation, then take one scoped issue through a focused branch, reviewed PR, passing required checks, integration and an annotated tag, keeping every link traceable.",
     "retrievalPrompts": [
-      "Explain Collaborative repository capstone without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Installing Git and granting repository access is enough to make collaboration predictable and safe.",
-      "Apply the model to this case from memory: A security-sensitive report uses a private disclosure channel rather than a public issue while ordinary defects remain transparent."
+      "What belongs in CONTRIBUTING?",
+      "Why isn't access enough?",
+      "How do you trace a tag back to its issue?"
     ],
     "nextReviewPrompt": "Next: use this skill in the module checkpoint and one independent practice attempt. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

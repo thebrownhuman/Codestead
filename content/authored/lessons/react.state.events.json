@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "React event handlers respond to user actions and are the primary place to calculate state updates and invoke action-side effects.",
+    "summary": "An event handler is a function you **pass** to React: `onClick={save}`. React calls it later, when the event happens. Writing `onClick={save()}` **calls** save immediately during render and passes its return value instead. When a handler needs arguments, wrap it: `onClick={() => remove(lesson.id)}`. Handlers are where you **compute state updates** and run **actions** like saving or navigating. Use real buttons and form submit so mouse, touch and keyboard all work; don't put onClick on a div.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: onClick={save} passes the function while onClick={save()} would execute during render. Your goal is to implement keyboard- and pointer-compatible interactions with correct handler arguments. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A lesson editor's Save button sends a request every time the page renders, and clicking it does nothing. The code reads `<button onClick={save()}>Save</button>`. onClick={save} passes the function while onClick={save()} would execute during render. In this lesson you'll implement keyboard- and pointer-compatible interactions with correct handler arguments.\n\n```predict\n{\"question\": \"`<button onClick={remove(lesson.id)}>Delete</button>` in a list of 5 lessons. What happens on first render?\", \"options\": [\"Nothing until clicked\", \"remove runs 5 times immediately, once per row\"], \"answer\": 1, \"why\": \"The parentheses call it during render. Write `onClick={() => remove(lesson.id)}`.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Props and composition; javascript events model; useState and snapshots. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Props and composition** module, **Event propagation and delegation** (events and default actions), and **useState and snapshots**, since handlers usually set state."
       },
       {
-        "heading": "Technology rule",
-        "body": "React event handlers respond to user actions and are the primary place to calculate state updates and invoke action-side effects. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The rule: pass a function, don't call it",
+        "body": "```jsx\nimport { useState } from \"react\";\n\nexport function LessonEditor({ lessons, onSave, onDelete }) {\n  const [title, setTitle] = useState(\"\");\n\n  function handleSubmit(event) {\n    event.preventDefault();                 // we save ourselves; no page reload.\n    if (!title.trim()) return;\n    onSave(title.trim());\n    setTitle(\"\");\n  }\n\n  return (\n    <form onSubmit={handleSubmit}>          {/* Enter and click both submit. */}\n      <label>\n        Title\n        <input value={title} onChange={(e) => setTitle(e.target.value)} />\n      </label>\n      <button type=\"submit\">Save</button>\n      <ul>\n        {lessons.map((l) => (\n          <li key={l.id}>\n            {l.title}{\" \"}\n            <button type=\"button\" onClick={() => onDelete(l.id)}>Delete {l.title}</button>\n          </li>\n        ))}\n      </ul>\n    </form>\n  );\n}\n```\n\n| Write | Meaning |\n|---|---|\n| `onClick={save}`. | call save later, with the event. |\n| `onClick={save()}`. | call save now; wrong. |\n| `onClick={() => remove(id)}`. | call remove later with id. |\n| `onSubmit` on form. | handles click and Enter. |\n\n```reveal\n{\"prompt\": \"Why `type=\\\"button\\\"` on the Delete buttons?\", \"answer\": \"Buttons inside a form default to type submit. Without it, Delete would also submit the form.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Handlers must be passed rather than called during render, async handlers capture snapshots, and propagation follows DOM semantics. This draft therefore rejects: Event handler props should call the function immediately so React knows what to do later."
+        "heading": "Keyboard too",
+        "body": "```predict\n{\"question\": \"A `<div onClick={open}>Open</div>` works with a mouse. Keyboard users?\", \"options\": [\"Can press Enter on it\", \"Can't even Tab to it; use a button\"], \"answer\": 1, \"why\": \"Native buttons are focusable and respond to Enter and Space for free.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Pass handlers rather than calling them during render and preserve native element semantics.",
-      "Implement keyboard- and pointer-compatible interactions with correct handler arguments."
+      "Pass handlers correctly, including with arguments.",
+      "Use buttons and form submit so pointer and keyboard both work."
     ],
     "excludes": [
-      "Handlers must be passed rather than called during render, async handlers capture snapshots, and propagation follows DOM semantics."
+      "Synthetic event internals.",
+      "Global keyboard shortcuts."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "react.state.events.example-a",
-      "title": "Event handlers: concrete case",
+      "title": "The save that ran on every render",
       "situation": "onClick={save} passes the function while onClick={save()} would execute during render.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: onClick={save} passes the function while onClick={save()} would execute during render.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Pass a function to an event prop; invoking it during render performs the action at the wrong time."
+        "**Bug:** `onClick={save()}` ran save while rendering, so a request went out every render and the click did nothing.",
+        "**Pass the function:** `onClick={save}` hands React the function to call later.",
+        "**Check:** a test will render the editor, assert no save calls, then click Save and assert exactly one."
       ],
-      "result": "The result follows because Pass a function to an event prop; invoking it during render performs the action at the wrong time."
+      "result": "No requests go out while rendering, and each click saves once."
     },
     {
       "id": "react.state.events.example-b",
-      "title": "Event handlers: boundary case",
-      "situation": "Handlers must be passed rather than called during render, async handlers capture snapshots, and propagation follows DOM semantics.",
+      "title": "The delete buttons that fired together",
+      "situation": "A list renders `<button onClick={onDelete(l.id)}>` for each row, and opening the page deletes every lesson.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Handlers must be passed rather than called during render, async handlers capture snapshots, and propagation follows DOM semantics.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Event handler props should call the function immediately so React knows what to do later."
+        "onDelete(l.id) ran during render for each row.",
+        "The fix needs a function that calls onDelete later with the id.",
+        "Write `onClick={() => onDelete(l.id)}` and give each button a name like \"Delete Loops\"."
       ],
-      "result": "The boundary requires this correction: Pass a function to an event prop; invoking it during render performs the action at the wrong time."
+      "result": "Lessons are deleted only when their own button is pressed."
     }
   ],
   "misconceptions": [
     {
       "id": "react.state.events.misconception",
       "mistakenBelief": "Event handler props should call the function immediately so React knows what to do later.",
-      "correction": "Pass a function to an event prop; invoking it during render performs the action at the wrong time.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Event handler props should call the function immediately so React knows what to do later."
+      "correction": "React needs the function itself, to call when the event happens. Adding parentheses runs it during render. Pass the name, or an arrow that calls it with arguments.",
+      "diagnosticPrompt": "In \"The save that ran on every render\", when did save run?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Event handlers, where inputs and state produce a UI description.",
+    "example": "Passing a handler is like **giving someone your phone number** to call when the parcel arrives. Writing `save()` is like **calling them yourself right now**, before the parcel exists. An arrow with an argument is a note: \"call this number and mention order 42\".",
     "usefulFor": [
-      "Building a first mental model for Event handlers before using exact platform terms"
+      "remembering pass, don't call",
+      "arrow = note with details"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Handlers must be passed rather than called during render, async handlers capture snapshots, and propagation follows DOM semantics."
+      "Phones don't re-render; components do, and each render passes a fresh arrow.",
+      "A div with onClick is a doorbell with no button for some visitors."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "onClick={save} passes the function while onClick={save()} would execute during render.",
-      "React event handlers respond to user actions and are the primary place to calculate state updates and invoke action-side effects.",
-      "Pass a function to an event prop; invoking it during render performs the action at the wrong time."
+      "render: onClick={save}",
+      "no calls during render",
+      "learner clicks Save"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Render",
         "state": {
-          "evidence": "onClick={save} passes the function while onClick={save()} would execute during render."
+          "onClick prop": "function save",
+          "save calls": "0"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "onClick={save} passes the function without running it."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Wait",
         "state": {
-          "rule": "React event handlers respond to user actions and are the primary place to calculate state updates and invoke action-side effects."
+          "requests sent": "0"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "Unlike onClick={save()}, nothing would execute during render."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Click",
         "state": {
-          "correction": "Pass a function to an event prop; invoking it during render performs the action at the wrong time."
+          "save calls": "1",
+          "request": "sent once"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Event handler props should call the function immediately so React knows what to do later."
+        "explanation": "React calls the handler when the learner clicks Save."
       }
     ],
-    "textAlternative": "Starting artifact: onClick={save} passes the function while onClick={save()} would execute during render. Step 1, Artifact. State: evidence: onClick={save} passes the function while onClick={save()} would execute during render.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: React event handlers respond to user actions and are the primary place to calculate state updates and invoke action-side effects.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Pass a function to an event prop; invoking it during render performs the action at the wrong time.. Check the result against the boundary and reject this misconception: Event handler props should call the function immediately so React knows what to do later."
+    "textAlternative": "Tracing a correctly passed handler. Step 1, Render: onClick prop is function save; save calls is 0. onClick={save} passes the function without running it. Step 2, Wait: requests sent is 0. Unlike onClick={save()}, nothing would execute during render. Step 3, Click: save calls is 1; request is sent once. React calls the handler when the learner clicks Save."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Event handlers: concrete case”: state its starting evidence, apply the Event handlers rule, and give the observable result in three short lines.",
+      "prompt": "For \"The save that ran on every render\", explain why onClick={save} passes the function while onClick={save()} would execute during render.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Bug.",
+        "Fix.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Event handlers: concrete case.",
-        "Starting evidence: onClick={save} passes the function while onClick={save()} would execute during render.",
-        "Core rule: React event handlers respond to user actions and are the primary place to calculate state updates and invoke action-side effects.",
-        "Observable result: The result follows because Pass a function to an event prop; invoking it during render performs the action at the wrong time.",
-        "Boundary check: Pass a function to an event prop; invoking it during render performs the action at the wrong time."
+        "Names the example \"The save that ran on every render\": onClick={save} passes the function.",
+        "onClick={{save()}} would execute during render.",
+        "A test checks no calls before clicking.",
+        "Each click saves once, and no requests go out while rendering."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Handlers must be passed rather than called during render, async handlers capture snapshots, and propagation follows DOM semantics.",
+      "prompt": "Add +1 and -1 buttons for a quantity, each calling `change(delta)`. Make sure Enter and Space work and nothing runs during render.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Arrows with arguments.",
+        "Native buttons."
       ],
       "expectedEvidence": [
-        "React event handlers respond to user actions and are the primary place to calculate state updates and invoke action-side effects.",
-        "Handlers must be passed rather than called during render, async handlers capture snapshots, and propagation follows DOM semantics."
+        "`onClick={() => change(1)}`.",
+        "No calls on render."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Event handlers and explain why the misconception fails.",
+      "prompt": "Build a small star rating that works with mouse, touch and keyboard (radio inputs or buttons). Test pointer clicks and keyboard selection, and check no handler runs during render.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Use native controls.",
+        "user.keyboard in tests."
       ],
       "expectedEvidence": [
-        "Implement keyboard- and pointer-compatible interactions with correct handler arguments.",
-        "Pass a function to an event prop; invoking it during render performs the action at the wrong time."
+        "Works with every input method.",
+        "Tests for both pointer and keyboard."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.state.events.misconception",
-      "explanation": "Pass a function to an event prop; invoking it during render performs the action at the wrong time.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'Pass a function' and state the decisive evidence."
+      "explanation": "Look at every `on...={}`: **is there `()` right after a function name?** If yes, it runs during render. Pass the name, or wrap it in an arrow. And check the element is a real button, link or form control.",
+      "retryPrompt": "Apply this to \"The delete buttons that fired together\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement keyboard- and pointer-compatible interactions with correct handler arguments. Keep this boundary in view: Handlers must be passed rather than called during render, async handlers capture snapshots, and propagation follows DOM semantics.",
+    "summary": "To implement keyboard- and pointer-compatible interactions, pass handler functions like onClick={save}, wrap calls needing arguments in arrows, compute state updates and actions inside handlers, and use native buttons and form submit so mouse, touch and keyboard all work.",
     "retrievalPrompts": [
-      "Explain Event handlers using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: Event handler props should call the function immediately so React knows what to do later.",
-      "Apply checkpoint 'Pass a function' to a new artifact."
+      "What's wrong with onClick={save()}?",
+      "How do you pass an id to a handler?",
+      "Why prefer a button over a clickable div?"
     ],
     "nextReviewPrompt": "Next: continue to “Minimal and normalized state”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

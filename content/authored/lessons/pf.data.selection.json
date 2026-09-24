@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Data-structure choice follows required operations and invariants: order, duplicates, positional access, key lookup, insertion, removal, traversal, and memory constraints.",
+    "summary": "Pick a data structure by the **operations you need**: keep order? allow duplicates? get item by position? look up by key? insert or remove often? A list, set, map or record each makes some of these easy and others awkward. A good choice comes with a reason and an honest trade-off.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A playback queue needs stable order and duplicate songs, so a sequence fits better than a set that removes duplicates. Your goal is to defend a data-structure choice and identify a reasonable alternative's trade-off. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You're building a music player. The playback queue needs stable order and duplicate songs — someone might queue their favourite track three times. A set would silently remove the duplicates and forget the order, so a sequence fits better. In this lesson you'll defend a data-structure choice from the required operations, and identify a reasonable alternative's trade-off instead of reaching for a list every time.\n\n```predict\n{\"question\": \"A queue must play \\\"Rise\\\", \\\"Glow\\\", \\\"Rise\\\" in that order. Which structure keeps all three?\", \"options\": [\"A set\", \"A list\"], \"answer\": 1, \"why\": \"A set keeps each song once and has no reliable order. A list keeps order **and** duplicates.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Iteration; Values and types; Records and entities; Sets and maps. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Iteration**, **Values and types**, **Records and entities**, and **Sets and maps**. This lesson puts them side by side."
       },
       {
-        "heading": "Operational model",
-        "body": "Data-structure choice follows required operations and invariants: order, duplicates, positional access, key lookup, insertion, removal, traversal, and memory constraints. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The model: match the structure to the required operations",
+        "body": "| Required operation | List | Set | Map (dict) |\n|---|---|---|---|\n| Keep insertion order. | yes. | no. | yes (Python). |\n| Allow duplicates. | yes. | no. | values yes, keys no. |\n| Get by position. | fast. | no. | no. |\n| \"Is X present?\" | slow for big lists. | fast. | fast (by key). |\n| Value for a key. | awkward. | no. | fast. |\n\nList your operations first, then read across the table.\n\n```reveal\n{\"prompt\": \"Every structure has a cost. What's the list's cost for \\\"is this username taken?\\\" with a million users?\", \"answer\": \"`name in users_list` checks items one by one — up to a million comparisons. A set answers in about one step.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Big-O labels alone omit constant costs, scale, mutation patterns, library guarantees, concurrency, persistence, and readability for the actual workload. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: One structure, such as a list, is always best because it can represent every small dataset somehow."
+        "heading": "Defend the choice and name the trade-off",
+        "body": "A good answer has three parts: **operations needed**, **structure chosen**, **what you gave up**.\n\n```predict\n{\"question\": \"For \\\"usernames already taken\\\", you choose a set. What's the honest trade-off?\", \"options\": [\"You lose ordering (e.g. signup order)\", \"Lookups become slower\"], \"answer\": 0, \"why\": \"Sets make membership fast but don't keep order. If you ever need signup order, you'd keep a list too, or a map from name to signup time.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Compare data structures using order, duplicates, lookup, update and traversal needs.",
-      "Defend a data-structure choice and identify a reasonable alternative's trade-off."
+      "Choose a structure from required operations: order, duplicates, position, key lookup, insertion, removal.",
+      "State a reasonable alternative and its trade-off."
     ],
     "excludes": [
-      "Big-O labels alone omit constant costs, scale, mutation patterns, library guarantees, concurrency, persistence, and readability for the actual workload."
+      "Big-O analysis in detail (DSA course).",
+      "Trees, heaps and graphs."
     ]
   },
   "outcomes": [
@@ -63,133 +64,134 @@
   "examples": [
     {
       "id": "pf.data.selection.example-a",
-      "title": "Data-structure choice: direct case",
+      "title": "The playback queue",
       "situation": "A playback queue needs stable order and duplicate songs, so a sequence fits better than a set that removes duplicates.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A playback queue needs stable order and duplicate songs, so a sequence fits better than a set that removes duplicates.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: List the dominant operations and invariants first, compare at least one alternative, and choose the simplest structure whose guarantees match those needs."
+        "**Operations:** play in order, allow the same song twice, add to the end, remove from the front.",
+        "**Choice:** a sequence (list) keeps stable order and duplicate songs.",
+        "**Alternative:** a set would be fast for \"is it queued?\" but removes duplicates and loses order — wrong for playback."
       ],
-      "result": "The case supports the declared outcome because List the dominant operations and invariants first, compare at least one alternative, and choose the simplest structure whose guarantees match those needs."
+      "result": "A list fits the playback queue; the set alternative fails the order and duplicate requirements."
     },
     {
       "id": "pf.data.selection.example-b",
-      "title": "Data-structure choice: boundary case",
-      "situation": "A permission check needs unique role membership, while a profile lookup needs a map from user id to profile record.",
+      "title": "Stock levels by product code",
+      "situation": "A shop needs to look up how many units remain for a product code, and update it after each sale.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A permission check needs unique role membership, while a profile lookup needs a map from user id to profile record.",
-        "Step 2 — Keep this boundary explicit: Big-O labels alone omit constant costs, scale, mutation patterns, library guarantees, concurrency, persistence, and readability for the actual workload.",
-        "Step 3 — Reject the documented misconception: One structure, such as a list, is always best because it can represent every small dataset somehow."
+        "**Operations:** find by product code key, update the number stored for it.",
+        "**Choice:** a map from code to count gives fast key lookup and update.",
+        "**Trade-off vs list:** a list of (code, count) pairs works but needs a search every time."
       ],
-      "result": "This case demonstrates the declared outcome: Defend a data-structure choice and identify a reasonable alternative's trade-off."
+      "result": "A map is the defended choice; a list is a workable alternative with slower lookups."
     }
   ],
   "misconceptions": [
     {
       "id": "pf.data.selection.misconception",
-      "mistakenBelief": "One structure, such as a list, is always best because it can represent every small dataset somehow.",
-      "correction": "List the dominant operations and invariants first, compare at least one alternative, and choose the simplest structure whose guarantees match those needs.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: One structure, such as a list, is always best because it can represent every small dataset somehow."
+      "mistakenBelief": "One structure, such as a list, is always best, because it can represent every small dataset somehow.",
+      "correction": "A list can hold anything, but the right structure depends on the operations and rules you need — uniqueness, key lookup, order, duplicates. Using a list everywhere makes some operations slow or lets invalid data like duplicates slip in.",
+      "diagnosticPrompt": "In \"Stock levels by product code\", what would go wrong using only a list?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "An organized storeroom can model Data-structure choice: shelves preserve order, labeled bins group fields, membership lists avoid duplicates, and indexes locate values.",
+    "example": "Choosing a structure is like choosing **storage at home**: a bookshelf keeps order, a labelled drawer set finds things by label, a key ring holds each key once. You *could* throw everything in one box, but finding things gets painful.",
     "usefulFor": [
-      "Comparing organization by order, name, membership, lookup, and update needs"
+      "remembering that the task decides the container",
+      "seeing that every option has a cost"
     ],
     "limitations": [
-      "Physical storage hides concrete complexity, equality, hashing, mutation, allocation, and concurrency guarantees.",
-      "Big-O labels alone omit constant costs, scale, mutation patterns, library guarantees, concurrency, persistence, and readability for the actual workload."
+      "Home storage is about space; code structures are also about speed of each operation.",
+      "In code you can switch structures cheaply early on — harder once data is saved."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A playback queue needs stable order and duplicate songs, so a sequence fits better than a set that removes duplicates.",
-      "Data-structure choice follows required operations and invariants: order, duplicates, positional access, key lookup, insertion, removal, traversal, and memory constraints.",
-      "List the dominant operations and invariants first, compare at least one alternative, and choose the simplest structure whose guarantees match those needs."
+      "queue = []",
+      "queue.append('Rise'); queue.append('Glow'); queue.append('Rise')",
+      "queue.pop(0)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Empty queue",
         "state": {
-          "evidence": "A playback queue needs stable order and duplicate songs, so a sequence fits better than a set that removes duplicates."
+          "queue": "[]"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "The playback queue starts as an empty sequence."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Add three songs",
         "state": {
-          "model": "Data-structure choice follows required operations and invariants: order, duplicates, positional access, key lookup, insertion, removal, traversal, and memory constraints."
+          "queue": "['Rise', 'Glow', 'Rise']"
         },
-        "explanation": "Apply the declared Data-structure choice model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "The list keeps stable order and the duplicate song Rise."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Play next",
         "state": {
-          "correction": "List the dominant operations and invariants first, compare at least one alternative, and choose the simplest structure whose guarantees match those needs."
+          "playing": "Rise",
+          "queue": "['Glow', 'Rise']"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: One structure, such as a list, is always best because it can represent every small dataset somehow."
+        "explanation": "Removing from the front plays songs in the order they were queued."
       }
     ],
-    "textAlternative": "Starting artifact: A playback queue needs stable order and duplicate songs, so a sequence fits better than a set that removes duplicates. Step 1, Observe. State: evidence: A playback queue needs stable order and duplicate songs, so a sequence fits better than a set that removes duplicates.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Data-structure choice follows required operations and invariants: order, duplicates, positional access, key lookup, insertion, removal, traversal, and memory constraints.. Apply the declared Data-structure choice model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: List the dominant operations and invariants first, compare at least one alternative, and choose the simplest structure whose guarantees match those needs.. Compare the observation with the correction and reject the misconception: One structure, such as a list, is always best because it can represent every small dataset somehow."
+    "textAlternative": "A list used as a playback queue. Step 1, Empty queue: queue is []. The playback queue starts as an empty sequence. Step 2, Add three songs: queue is ['Rise', 'Glow', 'Rise']. The list keeps stable order and the duplicate song Rise. Step 3, Play next: playing is Rise; queue is ['Glow', 'Rise']. Removing from the front plays songs in the order they were queued."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Data-structure choice: direct case”: state its starting evidence, apply the Data-structure choice rule, and give the observable result in three short lines.",
+      "prompt": "For \"The playback queue\", defend the choice of a sequence: name the operations it needs, why stable order and duplicate songs rule out a set, and one trade-off.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Operations.",
+        "Why not a set.",
+        "One trade-off."
       ],
       "expectedEvidence": [
-        "Named example: Data-structure choice: direct case.",
-        "Starting evidence: A playback queue needs stable order and duplicate songs, so a sequence fits better than a set that removes duplicates.",
-        "Core rule: Data-structure choice follows required operations and invariants: order, duplicates, positional access, key lookup, insertion, removal, traversal, and memory constraints.",
-        "Observable result: The case supports the declared outcome because List the dominant operations and invariants first, compare at least one alternative, and choose the simplest structure whose guarantees match those needs.",
-        "Boundary check: List the dominant operations and invariants first, compare at least one alternative, and choose the simplest structure whose guarantees match those needs."
+        "Names the example \"The playback queue\": needs stable order and duplicate songs.",
+        "A sequence fits because it keeps order and duplicates.",
+        "A set removes duplicates, so it fails the playback queue.",
+        "Trade-off: checking whether a song is queued is slower in a list."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A permission check needs unique role membership, while a profile lookup needs a map from user id to profile record.",
+      "prompt": "A classroom app must record which students attended today (no repeats) and quickly answer \"was Priya here?\". Choose a structure, name the operations, and give one trade-off.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Uniqueness + membership.",
+        "What do you lose?"
       ],
       "expectedEvidence": [
-        "Data-structure choice follows required operations and invariants: order, duplicates, positional access, key lookup, insertion, removal, traversal, and memory constraints.",
-        "Big-O labels alone omit constant costs, scale, mutation patterns, library guarantees, concurrency, persistence, and readability for the actual workload."
+        "Chooses a set for unique fast membership checks.",
+        "Trade-off: no arrival order kept."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Data-structure choice, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Design the data for a to-do app with: ordered tasks, a lookup of task by id, and a set of tags. Justify each structure and name one alternative you rejected.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Maybe a list of ids plus a map id → task record.",
+        "Tags as a set."
       ],
       "expectedEvidence": [
-        "Defend a data-structure choice and identify a reasonable alternative's trade-off.",
-        "List the dominant operations and invariants first, compare at least one alternative, and choose the simplest structure whose guarantees match those needs."
+        "A justified combination of list, map and set.",
+        "At least one rejected alternative with its trade-off."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "pf.data.selection.misconception",
-      "explanation": "List the dominant operations and invariants first, compare at least one alternative, and choose the simplest structure whose guarantees match those needs.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A permission check needs unique role membership, while a profile lookup needs a map from user id to profile record."
+      "explanation": "Before choosing, write the operations as questions: \"in order?\", \"repeats?\", \"by position?\", \"by key?\", \"is X present?\". Then match them to the table.",
+      "retryPrompt": "Do this for \"Stock levels by product code\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to defend a data-structure choice and identify a reasonable alternative's trade-off. Keep this boundary in view: Big-O labels alone omit constant costs, scale, mutation patterns, library guarantees, concurrency, persistence, and readability for the actual workload.",
+    "summary": "To defend a data-structure choice, list the required operations first, pick the structure that makes them easy, and state the trade-off of a reasonable alternative. Order and duplicates → list; unique membership → set; lookup by key → map.",
     "retrievalPrompts": [
-      "Explain Data-structure choice without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: One structure, such as a list, is always best because it can represent every small dataset somehow.",
-      "Apply the model to this case from memory: A permission check needs unique role membership, while a profile lookup needs a map from user id to profile record."
+      "Why is a list right for a playback queue?",
+      "When is a set the better choice?",
+      "What three parts make a good defence?"
     ],
     "nextReviewPrompt": "Next: continue to “Files, folders and paths”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

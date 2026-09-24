@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A call evaluates arguments, binds resulting values to parameters in a new call frame, executes local statements, and returns control and an optional result to the caller.",
+    "summary": "Every call gets its **own fresh frame**: a private notebook where parameters are bound to the argument values. The body runs in that frame, `return` hands one value back, and the frame is thrown away. The caller's variables are never renamed or replaced.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Calling area(3, 4) binds width to 3 and height to 4 in a new frame, computes 12, returns 12, and removes that frame. Your goal is to trace nested function calls using separate call frames. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "You write `width = 10`, then call `area(3, 4)`, whose parameters are also called `width` and `height`. After the call, is your `width` still 10, or did it become 3? Many beginners guess 3. In this lesson you'll watch what really happens: the call opens a new frame, binds width 3 and height 4 inside it, returns 12, and leaves your own variables untouched.\n\n```predict\n{\"code\": \"def area(width, height):\\n    return width * height\\n\\nwidth = 10\\nresult = area(3, 4)\\nprint(width)\", \"question\": \"What does this print?\", \"options\": [\"10\", \"3\"], \"answer\": 0, \"why\": \"The call's `width` lives in the call's own frame. The caller's `width` stays 10.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Iteration; Decomposition; Functions as contracts; Variables and assignment. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Iteration**, **Decomposition**, **Functions as contracts** (inputs, returned result, effects) and **Variables and assignment** (a name bound to a value). Here we zoom in on what happens during one call."
       },
       {
-        "heading": "Operational model",
-        "body": "A call evaluates arguments, binds resulting values to parameters in a new call frame, executes local statements, and returns control and an optional result to the caller. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The mental model: a fresh frame per call",
+        "body": "When Python runs `area(3, 4)`:\n\n1. It evaluates the arguments: `3` and `4`.\n2. It opens a **new frame** for this call.\n3. It binds the parameters in that frame: `width = 3`, `height = 4`.\n4. It runs the body. `return width * height` hands back `12`.\n5. The frame is discarded, and `12` replaces the call expression.\n\n| Frame | Names inside |\n|---|---|\n| caller (global) | `width = 10`, `result = 12`. |\n| `area` call | `width = 3`, `height = 4` (gone after return). |\n\n```reveal\n{\"prompt\": \"If you call `area(5, 2)` right after, does it remember the old 3 and 4?\", \"answer\": \"No. Each call gets a brand-new frame, bound only to its own arguments: `width = 5`, `height = 2`. It returns 10.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Argument evaluation order, pass-by-value details, reference sharing, default arguments, recursion, exceptions, and asynchronous calls vary by language and function. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Parameters permanently replace the caller's variable names, so a function has no separate local frame."
+        "heading": "Return ends the call",
+        "body": "```predict\n{\"code\": \"def check(n):\\n    if n > 5:\\n        return \\\"big\\\"\\n    return \\\"small\\\"\", \"question\": \"What does `check(7)` return?\", \"options\": [\"\\\"big\\\"\", \"\\\"small\\\"\"], \"answer\": 0, \"why\": \"`return` stops the call immediately. The second `return` never runs.\"}\n```\n\nNo `return` at all? The call hands back `None`."
       }
     ]
   },
   "scope": {
     "includes": [
-      "Trace argument binding, local execution and returned results.",
-      "Trace nested function calls using separate call frames."
+      "Trace a call: evaluate arguments, bind parameters in a new frame, run the body, return a value.",
+      "Explain why parameters don't change the caller's variables."
     ],
     "excludes": [
-      "Argument evaluation order, pass-by-value details, reference sharing, default arguments, recursion, exceptions, and asynchronous calls vary by language and function."
+      "Scope rules for reading outer names (next lesson).",
+      "Passing mutable lists that the function changes."
     ]
   },
   "outcomes": [
@@ -63,133 +64,137 @@
   "examples": [
     {
       "id": "pf.abstraction.calls.example-a",
-      "title": "Calls, parameters and returns: direct case",
-      "situation": "Calling area(3, 4) binds width to 3 and height to 4 in a new frame, computes 12, returns 12, and removes that frame.",
+      "title": "Calling area(3, 4)",
+      "situation": "`area(3, 4)` binds width 3 and height 4 in a new frame, runs `return width * height`, and returns 12 to the caller.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: Calling area(3, 4) binds width to 3 and height to 4 in a new frame, computes 12, returns 12, and removes that frame.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Trace caller and callee frames separately: arguments produce values, parameters are local bindings, and only declared returned values or effects cross the boundary."
+        "**Arguments:** Python evaluates `3` and `4` first.",
+        "**New frame:** it binds `width = 3` and `height = 4` inside the call's own frame.",
+        "**Return:** the body computes `3 * 4` and returns `12`; the frame disappears."
       ],
-      "result": "The case supports the declared outcome because Trace caller and callee frames separately: arguments produce values, parameters are local bindings, and only declared returned values or effects cross the boundary."
+      "result": "`area(3, 4)` returns 12, and any `width` the caller had is unchanged."
     },
     {
       "id": "pf.abstraction.calls.example-b",
-      "title": "Calls, parameters and returns: boundary case",
-      "situation": "An outer total call pauses while an inner discount call computes its result, then resumes with that returned value in the outer frame.",
+      "title": "The doubling that didn't stick",
+      "situation": "```python\ndef double(n):\n    n = n * 2\n\nscore = 5\ndouble(score)\nprint(score)\n```",
       "walkthrough": [
-        "Step 1 — Identify the changed context: An outer total call pauses while an inner discount call computes its result, then resumes with that returned value in the outer frame.",
-        "Step 2 — Keep this boundary explicit: Argument evaluation order, pass-by-value details, reference sharing, default arguments, recursion, exceptions, and asynchronous calls vary by language and function.",
-        "Step 3 — Reject the documented misconception: Parameters permanently replace the caller's variable names, so a function has no separate local frame."
+        "The call binds `n = 5` in a new frame.",
+        "`n = n * 2` changes only the frame's `n` to 10.",
+        "The frame is thrown away, nothing is returned, and `score` is still 5. Fix: `return n * 2` and write `score = double(score)`."
       ],
-      "result": "This case demonstrates the declared outcome: Trace nested function calls using separate call frames."
+      "result": "It prints 5. To keep the result, return it and assign it in the caller."
     }
   ],
   "misconceptions": [
     {
       "id": "pf.abstraction.calls.misconception",
-      "mistakenBelief": "Parameters permanently replace the caller's variable names, so a function has no separate local frame.",
-      "correction": "Trace caller and callee frames separately: arguments produce values, parameters are local bindings, and only declared returned values or effects cross the boundary.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Parameters permanently replace the caller's variable names, so a function has no separate local frame."
+      "mistakenBelief": "When you call a function, its parameters permanently replace the caller's variables with the same names; there is no separate frame.",
+      "correction": "Each call creates a separate frame. Parameters are new names bound to the argument values inside that frame, and they vanish when the call returns. The caller's variables keep their values unless the caller assigns the returned value.",
+      "diagnosticPrompt": "In \"The doubling that didn't stick\", why is score still 5?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A service counter can model Calls, parameters and returns: it advertises accepted requests and results while its internal work remains behind a named interface.",
+    "example": "A call is like handing a **photocopy** of your numbers to a helper in another room. They scribble on their copy, then shout back one answer. Your original page is never touched.",
     "usefulFor": [
-      "Separating contracts, local work, calls, returned results, and repeated service use"
+      "seeing why the caller's variables don't change",
+      "remembering that only the returned value comes back"
     ],
     "limitations": [
-      "A service counter does not capture language-specific frames, reference semantics, closures, or recursion limits.",
-      "Argument evaluation order, pass-by-value details, reference sharing, default arguments, recursion, exceptions, and asynchronous calls vary by language and function."
+      "Lists and other mutable objects are shared, not copied — a helper can change them (covered later).",
+      "A frame is created and destroyed in microseconds; there's no real room."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Calling area(3, 4) binds width to 3 and height to 4 in a new frame, computes 12, returns 12, and removes that frame.",
-      "A call evaluates arguments, binds resulting values to parameters in a new call frame, executes local statements, and returns control and an optional result to the caller.",
-      "Trace caller and callee frames separately: arguments produce values, parameters are local bindings, and only declared returned values or effects cross the boundary."
+      "def area(width, height): return width * height",
+      "width = 10",
+      "result = area(3, 4)",
+      "print(width, result)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Caller state",
         "state": {
-          "evidence": "Calling area(3, 4) binds width to 3 and height to 4 in a new frame, computes 12, returns 12, and removes that frame."
+          "width (caller)": "10"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "Before the call, the caller frame holds width equal to 10."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "New frame",
         "state": {
-          "model": "A call evaluates arguments, binds resulting values to parameters in a new call frame, executes local statements, and returns control and an optional result to the caller."
+          "width (call)": "3",
+          "height (call)": "4"
         },
-        "explanation": "Apply the declared Calls, parameters and returns model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "The call opens a new frame and binds width 3 and height 4 inside it."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Return 12",
         "state": {
-          "correction": "Trace caller and callee frames separately: arguments produce values, parameters are local bindings, and only declared returned values or effects cross the boundary."
+          "returned": "12",
+          "result": "12",
+          "width (caller)": "10"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Parameters permanently replace the caller's variable names, so a function has no separate local frame."
+        "explanation": "The call returns 12, its frame disappears, and the caller width is still 10."
       }
     ],
-    "textAlternative": "Starting artifact: Calling area(3, 4) binds width to 3 and height to 4 in a new frame, computes 12, returns 12, and removes that frame. Step 1, Observe. State: evidence: Calling area(3, 4) binds width to 3 and height to 4 in a new frame, computes 12, returns 12, and removes that frame.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: A call evaluates arguments, binds resulting values to parameters in a new call frame, executes local statements, and returns control and an optional result to the caller.. Apply the declared Calls, parameters and returns model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Trace caller and callee frames separately: arguments produce values, parameters are local bindings, and only declared returned values or effects cross the boundary.. Compare the observation with the correction and reject the misconception: Parameters permanently replace the caller's variable names, so a function has no separate local frame."
+    "textAlternative": "Frames during a call to area. Step 1, Caller state: width (caller) is 10. Before the call, the caller frame holds width equal to 10. Step 2, New frame: width (call) is 3; height (call) is 4. The call opens a new frame and binds width 3 and height 4 inside it. Step 3, Return 12: returned is 12; result is 12; width (caller) is 10. The call returns 12, its frame disappears, and the caller width is still 10."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Calls, parameters and returns: direct case”: state its starting evidence, apply the Calls, parameters and returns rule, and give the observable result in three short lines.",
+      "prompt": "For \"Calling area(3, 4)\", explain in three lines how the call binds width 3 and height 4 in a new frame, what it returns, and what happens to the frame.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Line 1: arguments evaluated.",
+        "Line 2: parameters bound in a new frame.",
+        "Line 3: the returned value and the frame afterwards."
       ],
       "expectedEvidence": [
-        "Named example: Calls, parameters and returns: direct case.",
-        "Starting evidence: Calling area(3, 4) binds width to 3 and height to 4 in a new frame, computes 12, returns 12, and removes that frame.",
-        "Core rule: A call evaluates arguments, binds resulting values to parameters in a new call frame, executes local statements, and returns control and an optional result to the caller.",
-        "Observable result: The case supports the declared outcome because Trace caller and callee frames separately: arguments produce values, parameters are local bindings, and only declared returned values or effects cross the boundary.",
-        "Boundary check: Trace caller and callee frames separately: arguments produce values, parameters are local bindings, and only declared returned values or effects cross the boundary."
+        "Names the example \"Calling area(3, 4)\": arguments 3 and 4 are evaluated.",
+        "A new frame binds width 3 and height 4.",
+        "The call returns 12 to the caller.",
+        "The frame is discarded, so the caller's own names are unchanged."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: An outer total call pauses while an inner discount call computes its result, then resumes with that returned value in the outer frame.",
+      "prompt": "Trace `greet(\"Mia\")` where `def greet(name): return \"Hi \" + name`, while the caller also has `name = \"Sam\"`. What's returned, and what is the caller's `name` afterwards?",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Which frame does each `name` live in?",
+        "What does return hand back?"
       ],
       "expectedEvidence": [
-        "A call evaluates arguments, binds resulting values to parameters in a new call frame, executes local statements, and returns control and an optional result to the caller.",
-        "Argument evaluation order, pass-by-value details, reference sharing, default arguments, recursion, exceptions, and asynchronous calls vary by language and function."
+        "Returns \"Hi Mia\".",
+        "The caller's name is still \"Sam\" because the parameter lived in the call's own frame."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Calls, parameters and returns, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Write `add_tax(price, rate)` that returns the price with tax. Call it twice with different values and draw both frames, showing that the second call doesn't remember the first.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "One frame per call.",
+        "Use the returned value in the caller."
       ],
       "expectedEvidence": [
-        "Trace nested function calls using separate call frames.",
-        "Trace caller and callee frames separately: arguments produce values, parameters are local bindings, and only declared returned values or effects cross the boundary."
+        "Correct function that returns, not prints.",
+        "Two separate frames drawn with their own bindings, and the caller storing each result."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "pf.abstraction.calls.misconception",
-      "explanation": "Trace caller and callee frames separately: arguments produce values, parameters are local bindings, and only declared returned values or effects cross the boundary.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: An outer total call pauses while an inner discount call computes its result, then resumes with that returned value in the outer frame."
+      "explanation": "Draw two boxes: **caller** and **call**. Put arguments into the call box under the parameter names. When it returns, cross out the call box and write the returned value where the call was.",
+      "retryPrompt": "Draw the two boxes for \"The doubling that didn't stick\", then for the fixed version."
     }
   ],
   "recap": {
-    "summary": "You should now be able to trace nested function calls using separate call frames. Keep this boundary in view: Argument evaluation order, pass-by-value details, reference sharing, default arguments, recursion, exceptions, and asynchronous calls vary by language and function.",
+    "summary": "To trace function calls, give each call its own separate frame. A call evaluates arguments, opens a fresh frame, binds parameters there, runs the body, and returns one value (or None). The frame then disappears. Parameters never overwrite the caller's variables; to keep a result, return it and assign it.",
     "retrievalPrompts": [
-      "Explain Calls, parameters and returns without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Parameters permanently replace the caller's variable names, so a function has no separate local frame.",
-      "Apply the model to this case from memory: An outer total call pauses while an inner discount call computes its result, then resumes with that returned value in the outer frame."
+      "What gets bound in the new frame for `area(3, 4)`?",
+      "Why doesn't `double(score)` change score?",
+      "What does a function return if it has no return statement?"
     ],
     "nextReviewPrompt": "Next: continue to “Local scope”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

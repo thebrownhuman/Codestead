@@ -38,33 +38,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "The preprocessor performs token-based inclusion, conditional compilation, and macro replacement before C translation, without type checking or ordinary function evaluation.",
+    "summary": "The preprocessor runs **before** the compiler and works on **text tokens**, not values or types. `#include` pastes a file in. `#if`, `#ifdef` and `#ifndef` keep or drop code (include guards, platform switches, debug logging). `#define` creates macros: object-like (`#define MAX_USERS 100`) or function-like (`#define SQUARE(x) ((x) * (x))`). Function-like macros are **text substitution**: each use of `x` pastes the argument again, so `SQUARE(i++)` increments i **twice** (undefined behaviour). Wrap parameters and the whole body in parentheses, and prefer `static inline` functions or `enum`/`const` constants when you can: they're type-checked and evaluate arguments once.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A function-like SQUARE macro is rejected for i++ because multiple argument substitution would modify i more than once. Your goal is to replace unsafe macro patterns and explain preprocessing results. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner uses `#define SQUARE(x) x * x`. `SQUARE(2 + 3)` gives 11 instead of 25. After adding parentheses, `SQUARE(i++)` modifies i twice and the results change between compilers. A function-like SQUARE macro is rejected for i++ because multiple argument substitution would modify i more than once. In this lesson you'll replace unsafe macro patterns and explain preprocessing results.\n\n```predict\n{\"question\": \"With `#define SQUARE(x) x * x`, what is SQUARE(2 + 3)?\", \"options\": [\"25\", \"11: it expands to 2 + 3 * 2 + 3\"], \"answer\": 1, \"why\": \"Macros substitute text; precedence applies afterwards.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Failure-safe cleanup; Scope, linkage and storage duration; Header interfaces and include guards; Preprocess, compile, assemble and link. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Failure-safe cleanup**, **Scope, linkage and storage duration**, **Header interfaces and include guards** and **Preprocess, compile, assemble and link**."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "The preprocessor performs token-based inclusion, conditional compilation, and macro replacement before C translation, without type checking or ordinary function evaluation. This rule is applied to concrete C source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The model: token substitution before compilation",
+        "body": "```c\n#define MAX_USERS 100                  /* object-like macro. */\n#define SQUARE_BAD(x) x * x\n#define SQUARE(x) ((x) * (x))          /* parenthesised, but still evaluates x twice. */\n\nstatic inline int square(int x) {      /* preferred: typed, evaluates once. */\n    return x * x;\n}\n\n#ifdef DEBUG\n#define LOG(msg) fprintf(stderr, \"%s:%d %s\\n\", __FILE__, __LINE__, msg)\n#else\n#define LOG(msg) ((void)0)\n#endif\n\n/* SQUARE_BAD(2 + 3)  ->  2 + 3 * 2 + 3        = 11.   */\n/* SQUARE(2 + 3)      ->  ((2 + 3) * (2 + 3))  = 25.   */\n/* SQUARE(i++)        ->  ((i++) * (i++))      = UB.   */\n/* square(i++)        ->  i incremented once, result defined. */\n```\n\n```bash\ngcc -E main.c | tail -20     # see exactly what the compiler receives.\ngcc -DDEBUG main.c           # define DEBUG from the command line.\n```\n\n```reveal\n{\"prompt\": \"When is a macro still the right tool?\", \"answer\": \"Include guards, conditional compilation, and things functions can't do, like capturing __FILE__ and __LINE__ at the call site for logging.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "Macro arguments can be evaluated multiple times, precedence can change without parentheses, names can collide, and conditional paths can rot when rarely built. Therefore the draft explicitly rejects this beginner failure model: A function-like macro behaves exactly like an inline function and evaluates each argument once."
+        "heading": "Constants",
+        "body": "```predict\n{\"question\": \"Which gives a type-checked, debugger-visible constant for array sizes of related items?\", \"options\": [\"#define COUNT 10\", \"enum { COUNT = 10 }; (or a static const for non-integers)\"], \"answer\": 1, \"why\": \"enum constants are real integer constants the compiler and debugger know about.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use conditional compilation and simple macros while avoiding multiple evaluation and hidden control flow.",
-      "Replace unsafe macro patterns and explain preprocessing results."
+      "Explain includes, conditional compilation and macro expansion, and inspect them with gcc -E.",
+      "Parenthesise macros, avoid side-effect arguments, and prefer inline functions and enum or const constants."
     ],
     "excludes": [
-      "Macro arguments can be evaluated multiple times, precedence can change without parentheses, names can collide, and conditional paths can rot when rarely built."
+      "Token pasting (##) and stringising (#) in depth.",
+      "Variadic macros."
     ]
   },
   "outcomes": [
@@ -73,133 +74,135 @@
   "examples": [
     {
       "id": "c.modular.preprocessor.example-a",
-      "title": "Preprocessor and macros: defined case",
+      "title": "SQUARE(i++)",
       "situation": "A function-like SQUARE macro is rejected for i++ because multiple argument substitution would modify i more than once.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A function-like SQUARE macro is rejected for i++ because multiple argument substitution would modify i more than once.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Macros are token replacement; parenthesize carefully, avoid side-effecting arguments, and prefer typed functions or constants when possible."
+        "**A function-like SQUARE macro:** #define SQUARE(x) ((x) * (x)).",
+        "**Multiple argument substitution:** gcc -E shows SQUARE(i++) becomes ((i++) * (i++)).",
+        "**Would modify i more than once:** that's undefined behaviour, so the macro is replaced by static inline int square(int x), which will increment i once."
       ],
-      "result": "The defined result follows because Macros are token replacement; parenthesize carefully, avoid side-effecting arguments, and prefer typed functions or constants when possible."
+      "result": "The result is defined and the same on every compiler."
     },
     {
       "id": "c.modular.preprocessor.example-b",
-      "title": "Preprocessor and macros: boundary case",
-      "situation": "A small constant uses an enum or const object when type and scope matter instead of a global textual macro.",
+      "title": "The debug log left in",
+      "situation": "A learner scatters printf debugging lines and forgets to remove them before release.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A small constant uses an enum or const object when type and scope matter instead of a global textual macro.",
-        "Step 2 — Keep this standard boundary visible: Macro arguments can be evaluated multiple times, precedence can change without parentheses, names can collide, and conditional paths can rot when rarely built.",
-        "Step 3 — Reject the tempting rule: A function-like macro behaves exactly like an inline function and evaluates each argument once."
+        "Wrap them in a LOG macro controlled by #ifdef DEBUG.",
+        "Release builds expand LOG to ((void)0), costing nothing.",
+        "Debug builds (gcc -DDEBUG) print file and line automatically."
       ],
-      "result": "This case demonstrates the declared outcome: Replace unsafe macro patterns and explain preprocessing results."
+      "result": "Debugging output appears only when wanted, with no code edits."
     }
   ],
   "misconceptions": [
     {
       "id": "c.modular.preprocessor.misconception",
       "mistakenBelief": "A function-like macro behaves exactly like an inline function and evaluates each argument once.",
-      "correction": "Macros are token replacement; parenthesize carefully, avoid side-effecting arguments, and prefer typed functions or constants when possible.",
-      "diagnosticPrompt": "Using concrete C rules, explain why this belief fails: A function-like macro behaves exactly like an inline function and evaluates each argument once."
+      "correction": "Macros paste argument text wherever the parameter appears, with no type checking. Arguments may be evaluated several times, and precedence can change the meaning.",
+      "diagnosticPrompt": "In the opening story, why did SQUARE(2 + 3) give 11?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A manually managed workshop can model Preprocessor and macros: every tool, address, buffer, and acquired resource has an explicit valid range and owner.",
+    "example": "The preprocessor is like **find-and-replace in a word processor, run before anyone reads the text**. It doesn't understand sentences; it swaps characters. Replace \"x\" with \"i++\" everywhere it appears in a template, and you get i++ as many times as x appeared.",
     "usefulFor": [
-      "Making low-level state, bounds, representation, ownership, and cleanup responsibilities concrete"
+      "remembering blind find-and-replace",
+      "gcc -E = see the replaced text"
     ],
     "limitations": [
-      "C abstract-machine rules, undefined behavior, pointer provenance, translation, and implementation variation are stricter than a physical workshop analogy.",
-      "Macro arguments can be evaluated multiple times, precedence can change without parentheses, names can collide, and conditional paths can rot when rarely built."
+      "Word processors ask before replacing; the preprocessor never does.",
+      "Conditional compilation is deleting whole paragraphs before printing."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A function-like SQUARE macro is rejected for i++ because multiple argument substitution would modify i more than once.",
-      "The preprocessor performs token-based inclusion, conditional compilation, and macro replacement before C translation, without type checking or ordinary function evaluation.",
-      "Macros are token replacement; parenthesize carefully, avoid side-effecting arguments, and prefer typed functions or constants when possible."
+      "SQUARE(i++) with i = 3",
+      "gcc -E expansion",
+      "replace with square(i++)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Write",
         "state": {
-          "evidence": "A function-like SQUARE macro is rejected for i++ because multiple argument substitution would modify i more than once."
+          "call": "SQUARE(i++)",
+          "i": "3"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "A function-like SQUARE macro is used with a side-effect argument."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Expand",
         "state": {
-          "rule": "The preprocessor performs token-based inclusion, conditional compilation, and macro replacement before C translation, without type checking or ordinary function evaluation."
+          "text": "((i++) * (i++))"
         },
-        "explanation": "Apply the declared C rule without importing behavior from another language or one familiar compiler."
+        "explanation": "Multiple argument substitution would modify i more than once, which is undefined."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Replace",
         "state": {
-          "conclusion": "Macros are token replacement; parenthesize carefully, avoid side-effecting arguments, and prefer typed functions or constants when possible."
+          "square(i++)": "9",
+          "i": "4"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: A function-like macro behaves exactly like an inline function and evaluates each argument once."
+        "explanation": "The static inline function evaluates its argument exactly once."
       }
     ],
-    "textAlternative": "Starting artifact: A function-like SQUARE macro is rejected for i++ because multiple argument substitution would modify i more than once. Step 1, Source and state. State: evidence: A function-like SQUARE macro is rejected for i++ because multiple argument substitution would modify i more than once.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: The preprocessor performs token-based inclusion, conditional compilation, and macro replacement before C translation, without type checking or ordinary function evaluation.. Apply the declared C rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Macros are token replacement; parenthesize carefully, avoid side-effecting arguments, and prefer typed functions or constants when possible.. Check the conclusion against the boundary and reject this misconception: A function-like macro behaves exactly like an inline function and evaluates each argument once."
+    "textAlternative": "Tracing macro expansion. Step 1, Write: call is SQUARE(i++); i is 3. A function-like SQUARE macro is used with a side-effect argument. Step 2, Expand: text is ((i++) * (i++)). Multiple argument substitution would modify i more than once, which is undefined. Step 3, Replace: square(i++) is 9; i is 4. The static inline function evaluates its argument exactly once."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Preprocessor and macros: defined case”: state its starting evidence, apply the Preprocessor and macros rule, and give the observable result in three short lines.",
+      "prompt": "For \"SQUARE(i++)\", explain why a function-like SQUARE macro is rejected for i++ because multiple argument substitution would modify i more than once.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Write.",
+        "Expand.",
+        "Replace."
       ],
       "expectedEvidence": [
-        "Named example: Preprocessor and macros: defined case.",
-        "Starting evidence: A function-like SQUARE macro is rejected for i++ because multiple argument substitution would modify i more than once.",
-        "Core rule: The preprocessor performs token-based inclusion, conditional compilation, and macro replacement before C translation, without type checking or ordinary function evaluation.",
-        "Observable result: The defined result follows because Macros are token replacement; parenthesize carefully, avoid side-effecting arguments, and prefer typed functions or constants when possible.",
-        "Boundary check: Macros are token replacement; parenthesize carefully, avoid side-effecting arguments, and prefer typed functions or constants when possible."
+        "Names the example \"SQUARE(i++)\": results changed between compilers.",
+        "A function-like SQUARE macro is rejected for i++.",
+        "Multiple argument substitution would modify i more than once.",
+        "The result is defined on every compiler."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same C rule to this related boundary case: A small constant uses an enum or const object when type and scope matter instead of a global textual macro.",
+      "prompt": "Predict the expansion of each, then check with gcc -E: #define DOUBLE(x) x + x used as 3 * DOUBLE(2); #define MAX(a, b) ((a) > (b) ? (a) : (b)) used as MAX(i++, j). Fix each.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "Precedence and repeated evaluation.",
+        "Replace MAX with an inline function."
       ],
       "expectedEvidence": [
-        "The preprocessor performs token-based inclusion, conditional compilation, and macro replacement before C translation, without type checking or ordinary function evaluation.",
-        "Macro arguments can be evaluated multiple times, precedence can change without parentheses, names can collide, and conditional paths can rot when rarely built."
+        "Expansions predicted.",
+        "Safe replacements written."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new C example for Preprocessor and macros, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Audit a small codebase's macros: classify each as constant, include guard, conditional, logging or function-like. Replace constants with enum or const and function-like macros with static inline functions where possible, keeping behaviour identical under tests.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "Keep macros that need __FILE__/__LINE__.",
+        "Run tests before and after."
       ],
       "expectedEvidence": [
-        "Replace unsafe macro patterns and explain preprocessing results.",
-        "Macros are token replacement; parenthesize carefully, avoid side-effecting arguments, and prefer typed functions or constants when possible."
+        "Audit table.",
+        "Tests still pass."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "c.modular.preprocessor.misconception",
-      "explanation": "Macros are token replacement; parenthesize carefully, avoid side-effecting arguments, and prefer typed functions or constants when possible.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'token replacement' and state the decisive evidence: A small constant uses an enum or const object when type and scope matter instead of a global textual macro."
+      "explanation": "For every function-like macro ask: **is every parameter and the whole body parenthesised, and could any argument have side effects?** If a function would work, use one.",
+      "retryPrompt": "Apply this to \"The debug log left in\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to replace unsafe macro patterns and explain preprocessing results. Keep this boundary in view: Macro arguments can be evaluated multiple times, precedence can change without parentheses, names can collide, and conditional paths can rot when rarely built.",
+    "summary": "To replace unsafe macros, remember the preprocessor substitutes tokens before compilation without types, inspect results with gcc -E, parenthesise macro parameters and bodies, never pass side-effect arguments, and prefer static inline functions and enum or const constants, keeping macros for guards, conditional compilation and call-site logging.",
     "retrievalPrompts": [
-      "Explain Preprocessor and macros using a concrete C rule rather than the optional analogy.",
-      "Why is this claim incorrect: A function-like macro behaves exactly like an inline function and evaluates each argument once.",
-      "Apply the checkpoint 'token replacement' to the boundary case from memory."
+      "Why did SQUARE(2 + 3) give 11?",
+      "Why is SQUARE(i++) undefined?",
+      "What should replace function-like macros?"
     ],
     "nextReviewPrompt": "Next: continue to “Multi-file builds”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -43,3 +43,5 @@ __pycache__/
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+graphify-out/
+.local-dev/

@@ -48,38 +48,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "DSA implementation begins only after the learner can express functions, collections, recursion, tests, and complexity in one chosen language.",
+    "summary": "Data structures and algorithms are ideas, but you practise them **in a real language**: C, C++, Java or Python. Before you start, check that in **your chosen language** you can comfortably: write and call **functions** with parameters and return values; use an **array or list** with safe indexing (first, last, out of range); write **loops** and **recursion**; run a small **test**; and say roughly how many steps a loop takes. If any of these is shaky, fix that first. Otherwise a language bug will look like an algorithm bug and you'll lose hours.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A learner traces an array algorithm correctly but first demonstrates safe indexing and functions in C++ before coding it. Your goal is to pass an implementation diagnostic or receive a targeted prerequisite remediation map. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner traces a \"find the largest value\" algorithm perfectly on paper. Then they write it in C++, read `a[n]` instead of `a[n - 1]`, get a random number back, and decide the algorithm must be wrong. A learner traces an array algorithm correctly but first demonstrates safe indexing and functions in C++ before coding it. In this lesson you'll pass an implementation diagnostic or receive a targeted prerequisite remediation map.\n\n```predict\n{\"question\": \"An array has n = 5 elements. In C, C++, Java and Python, which index is the last element?\", \"options\": [\"5\", \"4, which is n - 1\"], \"answer\": 1, \"why\": \"Indexes start at 0, so the last valid index is n - 1. Reading index n is out of range.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: pf problem pseudocode; pf tools debug test; pf abstraction recursion. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Pseudocode** (writing steps before code), **Debugging and testing loop** (running and checking small programs), and **Recursion concept** (a function calling itself with a smaller problem)."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "DSA implementation begins only after the learner can express functions, collections, recursion, tests, and complexity in one chosen language. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The readiness model: five skills in one language",
+        "body": "```python\n# A five-minute diagnostic. Write each in your chosen language, then run it.\n\ndef last_item(values):              # 1. functions and safe indexing.\n    if len(values) == 0:\n        return None\n    return values[len(values) - 1]\n\ndef total(values):                  # 2. loops over a collection.\n    result = 0\n    for v in values:\n        result += v\n    return result\n\ndef count_down(n):                  # 3. recursion with a base case.\n    if n == 0:\n        return [0]\n    return [n] + count_down(n - 1)\n\n# 4. tests.\nassert last_item([3, 8, 5]) == 5\nassert last_item([]) is None\nassert total([1, 2, 3]) == 6\nassert count_down(2) == [2, 1, 0]\n# 5. complexity: total() does one step per item, so about n steps.\n```\n\n| Skill | If shaky, review |\n|---|---|\n| functions, return values. | your language's functions lesson. |\n| safe indexing, empty input. | arrays or lists lesson. |\n| loops. | iteration lesson. |\n| recursion. | pf abstraction recursion. |\n| tests and step counting. | pf tools debug test. |\n\n```reveal\n{\"prompt\": \"Does it matter which language you pick?\", \"answer\": \"The ideas are the same. Pick one you can already write functions and loops in; switching later is a separate, smaller skill.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Concept knowledge can transfer, but syntax, libraries, ownership, equality, and error behavior must be retested after a language switch. The draft therefore rejects: Knowing DSA concepts removes the need for implementation-language prerequisites."
+        "heading": "Read your result",
+        "body": "```predict\n{\"question\": \"Your recursion test crashes with \\\"maximum recursion depth exceeded\\\". What's the remediation?\", \"options\": [\"Skip recursion; DSA doesn't need it\", \"Review base cases in the recursion lesson, then retry the diagnostic\"], \"answer\": 1, \"why\": \"Trees, sorting and backtracking rely on recursion, so it's worth fixing first.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Demonstrate functions, sequences, recursion, testing and debugging in the selected language before DSA implementation.",
-      "Pass an implementation diagnostic or receive a targeted prerequisite remediation map.",
-      "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
+      "Check functions, safe indexing, loops, recursion, tests and step counting in one language.",
+      "Turn failures into a targeted review plan before starting DSA."
     ],
     "excludes": [
-      "Concept knowledge can transfer, but syntax, libraries, ownership, equality, and error behavior must be retested after a language switch."
+      "Teaching a whole language from scratch.",
+      "Advanced language features like templates or generics."
     ]
   },
   "outcomes": [
@@ -88,142 +84,136 @@
   "examples": [
     {
       "id": "dsa.entry.language-readiness.example-a",
-      "title": "Selected-language readiness: language-neutral trace",
+      "title": "Ready to code the array algorithm?",
       "situation": "A learner traces an array algorithm correctly but first demonstrates safe indexing and functions in C++ before coding it.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: A learner traces an array algorithm correctly but first demonstrates safe indexing and functions in C++ before coding it.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Keep conceptual mastery, but verify language-specific implementation readiness before coding assessed DSA solutions."
+        "**Diagnose:** the learner writes last_item and total in C++ and runs tests, including an empty array.",
+        "**Find the gap:** the test for last_item fails because the code reads a[n]; the fix is a[n - 1] with an empty check.",
+        "**Then code the algorithm:** with safe indexing checked, the learner will write the maximum algorithm and test it."
       ],
-      "result": "The conceptual result follows because Keep conceptual mastery, but verify language-specific implementation readiness before coding assessed DSA solutions."
+      "result": "The learner separates language bugs from algorithm mistakes, and the maximum algorithm works on the first real run."
     },
     {
       "id": "dsa.entry.language-readiness.example-b",
-      "title": "Selected-language readiness: implementation transfer",
-      "situation": "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics.",
+      "title": "The remediation map",
+      "situation": "A learner passes functions, loops and tests but fails recursion and step counting on the diagnostic.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics.",
-        "Step 3 — Retest this boundary in the selected implementation: Concept knowledge can transfer, but syntax, libraries, ownership, equality, and error behavior must be retested after a language switch."
+        "Mark the two failed skills on the readiness table.",
+        "Link each to its review lesson: pf abstraction recursion, and pf tools debug test for counting steps.",
+        "Retake just those two diagnostic items after reviewing."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "The learner reviews only what's missing and starts DSA a day later with confidence."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.entry.language-readiness.misconception",
       "mistakenBelief": "Knowing DSA concepts removes the need for implementation-language prerequisites.",
-      "correction": "Keep conceptual mastery, but verify language-specific implementation readiness before coding assessed DSA solutions.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Knowing DSA concepts removes the need for implementation-language prerequisites."
+      "correction": "Understanding an algorithm on paper doesn't prevent off-by-one indexing, missing returns or broken recursion in code. Checking language skills first keeps those bugs from being mistaken for algorithm errors.",
+      "diagnosticPrompt": "In \"Ready to code the array algorithm?\", what caused the wrong answer?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Selected-language readiness, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Starting DSA is like **learning recipes** after you know how to hold a knife and use the oven. The recipe (algorithm) can be perfect, but if you can't control the heat (the language), the cake still burns, and you'll wrongly blame the recipe.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering tools before recipes",
+      "diagnostic = a quick kitchen check"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Concept knowledge can transfer, but syntax, libraries, ownership, equality, and error behavior must be retested after a language switch."
+      "Kitchens are forgiving; compilers are exact.",
+      "You don't need every kitchen gadget, only the basics."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A learner traces an array algorithm correctly but first demonstrates safe indexing and functions in C++ before coding it.",
-      "DSA implementation begins only after the learner can express functions, collections, recursion, tests, and complexity in one chosen language.",
-      "Keep conceptual mastery, but verify language-specific implementation readiness before coding assessed DSA solutions.",
-      "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
+      "write last_item and total",
+      "run the tests",
+      "read the results table"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Write",
         "state": {
-          "scenario": "A learner traces an array algorithm correctly but first demonstrates safe indexing and functions in C++ before coding it."
+          "language": "C++",
+          "functions": "last_item, total"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The learner demonstrates functions and indexing in the chosen language."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Run",
         "state": {
-          "invariant": "DSA implementation begins only after the learner can express functions, collections, recursion, tests, and complexity in one chosen language."
+          "last_item([3,8,5])": "garbage value",
+          "total([1,2,3])": "6"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "The indexing test fails while the loop test passes."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Plan",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "fix": "use a[n - 1] and handle empty",
+          "then": "code the maximum algorithm"
         },
-        "explanation": "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Keep conceptual mastery, but verify language-specific implementation readiness before coding assessed DSA solutions."
-        },
-        "explanation": "Verify the result and reject this misconception: Knowing DSA concepts removes the need for implementation-language prerequisites."
+        "explanation": "Safe indexing is demonstrated before coding the array algorithm."
       }
     ],
-    "textAlternative": "Starting artifact: A learner traces an array algorithm correctly but first demonstrates safe indexing and functions in C++ before coding it. Step 1, Specification. State: scenario: A learner traces an array algorithm correctly but first demonstrates safe indexing and functions in C++ before coding it.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: DSA implementation begins only after the learner can express functions, collections, recursion, tests, and complexity in one chosen language.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics. Step 4, Conclusion. State: correction: Keep conceptual mastery, but verify language-specific implementation readiness before coding assessed DSA solutions.. Verify the result and reject this misconception: Knowing DSA concepts removes the need for implementation-language prerequisites."
+    "textAlternative": "Running the readiness diagnostic. Step 1, Write: language is C++; functions is last_item, total. The learner demonstrates functions and indexing in the chosen language. Step 2, Run: last_item([3,8,5]) is garbage value; total([1,2,3]) is 6. The indexing test fails while the loop test passes. Step 3, Plan: fix is use a[n - 1] and handle empty; then is code the maximum algorithm. Safe indexing is demonstrated before coding the array algorithm."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Selected-language readiness: language-neutral trace”: state its starting evidence, apply the Selected-language readiness rule, and give the observable result in three short lines.",
+      "prompt": "For \"Ready to code the array algorithm?\", explain why a learner who traces an array algorithm correctly first demonstrates safe indexing and functions in C++ before coding it.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Diagnose.",
+        "Gap.",
+        "Algorithm."
       ],
       "expectedEvidence": [
-        "Named example: Selected-language readiness: language-neutral trace.",
-        "Starting evidence: A learner traces an array algorithm correctly but first demonstrates safe indexing and functions in C++ before coding it.",
-        "Core rule: DSA implementation begins only after the learner can express functions, collections, recursion, tests, and complexity in one chosen language.",
-        "Observable result: The conceptual result follows because Keep conceptual mastery, but verify language-specific implementation readiness before coding assessed DSA solutions.",
-        "Boundary check: Keep conceptual mastery, but verify language-specific implementation readiness before coding assessed DSA solutions."
+        "Names the example \"Ready to code the array algorithm?\": the learner traces an array algorithm correctly.",
+        "They first demonstrate safe indexing and functions in C++.",
+        "The a[n] bug is found and fixed as a language issue.",
+        "The maximum algorithm works on the first real run."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: DSA implementation begins only after the learner can express functions, collections, recursion, tests, and complexity in one chosen language.",
+      "prompt": "Write the five diagnostic functions in your chosen language, including an empty-input test for each that takes a collection. Record pass or fail for each skill.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Test empty and one-item inputs.",
+        "Count loop steps in a comment."
       ],
       "expectedEvidence": [
-        "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics.",
-        "Concept knowledge can transfer, but syntax, libraries, ownership, equality, and error behavior must be retested after a language switch."
+        "Five skills marked pass or fail.",
+        "Any fail linked to a review lesson."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Selected-language readiness case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Pick a language, pass the diagnostic, then implement `index_of_max(values)` with tests for empty, one item, ties and negative numbers, and state its step count.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Decide what empty returns.",
+        "Ties: first or last index?"
       ],
       "expectedEvidence": [
-        "Pass an implementation diagnostic or receive a targeted prerequisite remediation map.",
-        "Keep conceptual mastery, but verify language-specific implementation readiness before coding assessed DSA solutions."
+        "All tests pass.",
+        "Step count: about n."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.entry.language-readiness.misconception",
-      "explanation": "Keep conceptual mastery, but verify language-specific implementation readiness before coding assessed DSA solutions.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'implementation readiness', then state one implementation-specific risk in the selected language."
+      "explanation": "If you're stuck in code, ask: **Is this an algorithm mistake or a language mistake?** Check indexes, returns, base cases and types first with a tiny test.",
+      "retryPrompt": "Apply this to \"The remediation map\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to pass an implementation diagnostic or receive a targeted prerequisite remediation map. Keep this boundary in view: Concept knowledge can transfer, but syntax, libraries, ownership, equality, and error behavior must be retested after a language switch.",
+    "summary": "To pass the implementation diagnostic, show in one chosen language that you can write functions, index arrays safely including empty input, loop, recurse with a base case, run tests and count steps. Any failure becomes a targeted remediation map of lessons to review before starting DSA.",
     "retrievalPrompts": [
-      "State the Selected-language readiness invariant and complexity without code.",
-      "Why is this claim false: Knowing DSA concepts removes the need for implementation-language prerequisites.",
-      "Map checkpoint 'implementation readiness' to C, C++, Java, and Python."
+      "What is the last valid index of an n-element array?",
+      "Which five skills does the diagnostic check?",
+      "Why fix language gaps before algorithms?"
     ],
     "nextReviewPrompt": "Next: continue to “Algorithm specification and invariants”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

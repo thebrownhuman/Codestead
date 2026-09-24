@@ -841,7 +841,7 @@ psql_query "insert into audit_event (action, resource_type, resource_id, reason,
   exit 1
 }
 
-readonly expected_policy_identities="nvidia_nim:credential_validation:meta/llama-3.1-8b-instruct,nvidia_nim:tutor:meta/llama-3.1-8b-instruct"
+readonly expected_policy_identities="nvidia_nim:credential_validation:mistralai/mistral-nemotron,nvidia_nim:tutor:openai/gpt-oss-20b"
 readonly expected_achievement_identities="first-independent-skill,mastery-95,project-evidence,retained-one-week,review-rhythm-8"
 readonly expected_course_identities="ai,c,cpp,css,dsa,git-tooling,html,java,javascript,programming-foundations,python,react"
 readonly expected_curriculum_artifacts=964

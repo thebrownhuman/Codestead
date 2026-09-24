@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Computer vision maps sensed pixel arrays through representations to tasks such as classification, detection, or segmentation; labels and evaluation are conditional on capture conditions and decision policy.",
+    "summary": "**Computer vision** turns grids of pixel values into decisions: **classification** (what's in the image?), **detection** (where are the objects, with boxes?) and **segmentation** (which pixels belong to what?). A model only knows the **conditions it was trained and tested under**: camera, lighting, angle, background, distance. Change those and performance can drop sharply. Models also learn **shortcuts**: a model that \"detects\" cows may really be detecting green grass. So evaluate **by condition** (camera, lighting, angle, product type, object size) and prioritise the **errors that matter** (missing a critical defect) over headline accuracy. Labels also depend on capture: a blurry photo may not show a defect a label claims.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A defect detector is tested by camera, lighting, angle, product type, and defect size, with missed-critical-defect rate prioritized over headline accuracy. Your goal is to design an evaluation plan that includes lighting, viewpoint and subgroup conditions. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner's factory defect detector scores 98% on test images taken by one camera in daytime. On the night shift, with different lighting and a replaced camera, it misses most cracks, and the headline number never showed it. A defect detector is tested by camera, lighting, angle, product type, and defect size, with missed-critical-defect rate prioritized over headline accuracy. In this lesson you'll design an evaluation plan that includes lighting, viewpoint and subgroup conditions.\n\n```predict\n{\"question\": \"A vision model scores 98% on test photos from one camera. Will it hold up with a new camera and night lighting?\", \"options\": [\"Yes, 98% is reliable\", \"Unknown: capture conditions changed, so test them explicitly\"], \"answer\": 1, \"why\": \"Vision performance is conditional on capture conditions.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Neural networks and learned representations; Knowledge representation and uncertainty; Convolution, sequence and attention roles; Sampling, labels and data quality. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Neural networks and learned representations**, **Knowledge representation and uncertainty**, **Convolution, sequence and attention roles** and **Sampling, labels and data quality**."
       },
       {
-        "heading": "Bounded operational model",
-        "body": "Computer vision maps sensed pixel arrays through representations to tasks such as classification, detection, or segmentation; labels and evaluation are conditional on capture conditions and decision policy. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+        "heading": "The model: performance per capture condition",
+        "body": "```python\n# (camera, lighting, defect_size, critical, detected)\nresults = [\n    (\"cam1\", \"day\", \"large\", True, True), (\"cam1\", \"day\", \"small\", True, True),\n    (\"cam1\", \"night\", \"small\", True, False), (\"cam2\", \"night\", \"large\", True, True),\n    (\"cam2\", \"night\", \"small\", True, False), (\"cam2\", \"day\", \"small\", False, True),\n]\n\ndef miss_rate(rows):                      # share of critical defects missed.\n    crit = [r for r in rows if r[3]]\n    return round(sum(not r[4] for r in crit) / len(crit), 2) if crit else None\n\n# Report one slice per condition.\nfor key, idx in ((\"lighting\", 1), (\"defect_size\", 2), (\"camera\", 0)):\n    for value in sorted({r[idx] for r in results}):\n        rows = [r for r in results if r[idx] == value]\n        print(key, value, \"critical miss rate:\", miss_rate(rows))\n```\n\n| Condition | Why test it |\n|---|---|\n| camera. | sensors differ in colour and noise. |\n| lighting. | shadows hide or fake defects. |\n| angle and distance. | shapes and sizes change. |\n| subgroup (product type). | defects look different per product. |\n\n```reveal\n{\"prompt\": \"How can you catch shortcut learning?\", \"answer\": \"Test images where the usual background or context is missing or swapped, and inspect which regions the model relies on. If performance collapses, it learned the context, not the object.\"}\n```"
       },
       {
-        "heading": "Failure boundary and non-claim",
-        "body": "Pixels omit physical context, lighting/viewpoint/sensor changes shift data, labels can be subjective, aggregate accuracy hides slices, adversarial or accidental artifacts can dominate, and perception is not causal understanding. The learner must reject this overclaim: High test accuracy proves a vision model recognizes the intended object features and will remain reliable under ordinary camera changes."
+        "heading": "What matters most",
+        "body": "```predict\n{\"question\": \"A factory cares most about critical cracks. Which headline metric should lead the report?\", \"options\": [\"Overall accuracy\", \"Missed-critical-defect rate, by condition\"], \"answer\": 1, \"why\": \"Report the error that costs most first.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Relate pixels, features, detection, classification and segmentation to sensing conditions and label policy.",
-      "Design an evaluation plan that includes lighting, viewpoint and subgroup conditions."
+      "Distinguish classification, detection and segmentation tasks.",
+      "Design evaluations by camera, lighting, viewpoint and subgroup, prioritising costly errors."
     ],
     "excludes": [
-      "Pixels omit physical context, lighting/viewpoint/sensor changes shift data, labels can be subjective, aggregate accuracy hides slices, adversarial or accidental artifacts can dominate, and perception is not causal understanding."
+      "Training convolutional networks in depth.",
+      "3-D vision."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "ai.applications.vision.example.direct",
-      "title": "Computer vision and perception: bounded direct case",
+      "title": "A defect detector tested by condition",
       "situation": "A defect detector is tested by camera, lighting, angle, product type, and defect size, with missed-critical-defect rate prioritized over headline accuracy.",
       "walkthrough": [
-        "Step 1 — Observe the exact data, state, metric, or tool behavior: A defect detector is tested by camera, lighting, angle, product type, and defect size, with missed-critical-defect rate prioritized over headline accuracy.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the claim boundary with: Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception."
+        "**Tested by camera, lighting, angle, product type, and defect size:** results are grouped by each condition.",
+        "**Missed-critical-defect rate:** night lighting misses 2 of 3 critical defects.",
+        "**Prioritized over headline accuracy:** we compute miss rates per condition and report them first."
       ],
-      "result": "This example supports only the atomic outcome because Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception."
+      "result": "The night-shift weakness is found before it lets cracks through."
     },
     {
       "id": "ai.applications.vision.example.stress",
-      "title": "Computer vision and perception: stress and transfer case",
-      "situation": "A model keys on a background marker correlated with class in training, so occlusion and changed-background tests expose shortcut learning.",
+      "title": "The night-shift misses",
+      "situation": "A detector with 98% daytime accuracy missed most cracks on the night shift with a replaced camera.",
       "walkthrough": [
-        "Step 1 — Name the changed population, input, assumption, or failure: A model keys on a background marker correlated with class in training, so occlusion and changed-background tests expose shortcut learning.",
-        "Step 2 — Keep the non-claim visible: Pixels omit physical context, lighting/viewpoint/sensor changes shift data, labels can be subjective, aggregate accuracy hides slices, adversarial or accidental artifacts can dominate, and perception is not causal understanding.",
-        "Step 3 — Reject the tempting overclaim: High test accuracy proves a vision model recognizes the intended object features and will remain reliable under ordinary camera changes."
+        "The test set had only one camera and daylight.",
+        "Collect and label night and cam2 images as separate slices.",
+        "Set a maximum critical miss rate per condition before deployment."
       ],
-      "result": "This case demonstrates the declared outcome: Design an evaluation plan that includes lighting, viewpoint and subgroup conditions."
+      "result": "Every shift and camera meets the safety requirement."
     }
   ],
   "misconceptions": [
     {
       "id": "ai.applications.vision.misconception",
       "mistakenBelief": "High test accuracy proves a vision model recognizes the intended object features and will remain reliable under ordinary camera changes.",
-      "correction": "Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception.",
-      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: High test accuracy proves a vision model recognizes the intended object features and will remain reliable under ordinary camera changes."
+      "correction": "Vision models can rely on shortcuts and are sensitive to capture conditions, so each condition must be tested.",
+      "diagnosticPrompt": "In \"The night-shift misses\", which conditions weren't tested?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a sensing-and-decision pipeline that names modality inputs, task outputs, affected populations, operating conditions, and fallback paths can introduce Computer vision and perception only after its canonical technical definition and evidence boundary are stated.",
+    "example": "A vision model is like **a security guard trained only on the day shift**. They know what normal looks like in sunlight from their usual chair. Move them to night with a new torch and a different chair, and they miss things. You'd **test them in every shift, light and position** before trusting them alone.",
     "usefulFor": [
-      "NLP, vision, robotics, and multimodal evaluation"
+      "remembering test every shift and light",
+      "shortcuts = recognising the room, not the intruder"
     ],
     "limitations": [
-      "more modalities or fluent outputs do not establish understanding, truth, physical safety, or universal coverage",
-      "Pixels omit physical context, lighting/viewpoint/sensor changes shift data, labels can be subjective, aggregate accuracy hides slices, adversarial or accidental artifacts can dominate, and perception is not causal understanding."
+      "Segmentation is outlining exactly where the intruder is.",
+      "Critical misses matter more than false alarms here."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A defect detector is tested by camera, lighting, angle, product type, and defect size, with missed-critical-defect rate prioritized over headline accuracy.",
-      "Computer vision maps sensed pixel arrays through representations to tasks such as classification, detection, or segmentation; labels and evaluation are conditional on capture conditions and decision policy.",
-      "Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception."
+      "group by lighting",
+      "group by defect size",
+      "group by camera"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Lighting",
         "state": {
-          "boundedEvidence": "A defect detector is tested by camera, lighting, angle, product type, and defect size, with missed-critical-defect rate prioritized over headline accuracy."
+          "day": "0.0",
+          "night": "0.67"
         },
-        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+        "explanation": "The defect detector is tested by lighting condition."
       },
       {
         "step": 2,
-        "focus": "Model",
+        "focus": "Size",
         "state": {
-          "operationalRule": "Computer vision maps sensed pixel arrays through representations to tasks such as classification, detection, or segmentation; labels and evaluation are conditional on capture conditions and decision policy."
+          "large": "0.0",
+          "small": "0.67"
         },
-        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+        "explanation": "Defect size slices reveal small cracks are missed more."
       },
       {
         "step": 3,
-        "focus": "Limit",
+        "focus": "Camera",
         "state": {
-          "correction": "Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception."
+          "cam1": "0.33",
+          "cam2": "0.5"
         },
-        "explanation": "State what the evidence does not establish and reject the misconception: High test accuracy proves a vision model recognizes the intended object features and will remain reliable under ordinary camera changes."
+        "explanation": "Missed-critical-defect rate per camera is prioritized over headline accuracy."
       }
     ],
-    "textAlternative": "Starting artifact: A defect detector is tested by camera, lighting, angle, product type, and defect size, with missed-critical-defect rate prioritized over headline accuracy. Step 1, Observe. State: boundedEvidence: A defect detector is tested by camera, lighting, angle, product type, and defect size, with missed-critical-defect rate prioritized over headline accuracy.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Computer vision maps sensed pixel arrays through representations to tasks such as classification, detection, or segmentation; labels and evaluation are conditional on capture conditions and decision policy.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception.. State what the evidence does not establish and reject the misconception: High test accuracy proves a vision model recognizes the intended object features and will remain reliable under ordinary camera changes."
+    "textAlternative": "Tracing a condition-based vision evaluation. Step 1, Lighting: day is 0.0; night is 0.67. The defect detector is tested by lighting condition. Step 2, Size: large is 0.0; small is 0.67. Defect size slices reveal small cracks are missed more. Step 3, Camera: cam1 is 0.33; cam2 is 0.5. Missed-critical-defect rate per camera is prioritized over headline accuracy."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Computer vision and perception: bounded direct case”: state its starting evidence, apply the Computer vision and perception rule, and give the observable result in three short lines.",
+      "prompt": "For \"A defect detector tested by condition\", explain how a defect detector is tested by camera, lighting, angle, product type, and defect size, with missed-critical-defect rate prioritized over headline accuracy.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Conditions.",
+        "Costly errors.",
+        "Report."
       ],
       "expectedEvidence": [
-        "Named example: Computer vision and perception: bounded direct case.",
-        "Starting evidence: A defect detector is tested by camera, lighting, angle, product type, and defect size, with missed-critical-defect rate prioritized over headline accuracy.",
-        "Core rule: Computer vision maps sensed pixel arrays through representations to tasks such as classification, detection, or segmentation; labels and evaluation are conditional on capture conditions and decision policy.",
-        "Observable result: This example supports only the atomic outcome because Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception.",
-        "Boundary check: Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception."
+        "Names the example \"A defect detector tested by condition\": night-shift cracks were missed.",
+        "A defect detector is tested by camera, lighting, angle, product type, and defect size.",
+        "Missed-critical-defect rate is prioritized over headline accuracy.",
+        "The night-shift weakness is found before it lets cracks through."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed case: A model keys on a background marker correlated with class in training, so occlusion and changed-background tests expose shortcut learning.",
+      "prompt": "Add an angle field to the results and compute critical miss rate by angle. Identify the worst combined condition.",
       "scaffold": [
-        "Identify which assumption, population, input, or objective changed.",
-        "Preserve provenance and the declared failure boundary."
+        "Add a few rows.",
+        "Group by two fields at once."
       ],
       "expectedEvidence": [
-        "Computer vision maps sensed pixel arrays through representations to tasks such as classification, detection, or segmentation; labels and evaluation are conditional on capture conditions and decision policy.",
-        "Pixels omit physical context, lighting/viewpoint/sensor changes shift data, labels can be subjective, aggregate accuracy hides slices, adversarial or accidental artifacts can dominate, and perception is not causal understanding."
+        "Angle slice reported.",
+        "Worst condition named."
       ]
     },
     "farTransfer": {
-      "prompt": "Design a neutral-context example or evaluation for Computer vision and perception and list the evidence that would support and falsify its bounded claim.",
+      "prompt": "Write an evaluation plan for a vision task you know: list capture conditions, subgroups, the costliest error, a per-condition threshold, and how many labelled images each slice needs.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+        "Include a shortcut test.",
+        "State acceptance thresholds."
       ],
       "expectedEvidence": [
-        "Design an evaluation plan that includes lighting, viewpoint and subgroup conditions.",
-        "Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception."
+        "Plan complete.",
+        "Thresholds justified."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "ai.applications.vision.misconception",
-      "explanation": "Evaluate sensing conditions, shortcuts, subgroup and rare-case slices, calibration, and operational failure costs; pixel prediction does not prove intended perception.",
-      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A model keys on a background marker correlated with class in training, so occlusion and changed-background tests expose shortcut learning."
+      "explanation": "Before trusting a vision score, list **every capture condition and subgroup in deployment**, test each one, and lead with the **costliest error**.",
+      "retryPrompt": "Apply this to \"The night-shift misses\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to design an evaluation plan that includes lighting, viewpoint and subgroup conditions. Keep this boundary in view: Pixels omit physical context, lighting/viewpoint/sensor changes shift data, labels can be subjective, aggregate accuracy hides slices, adversarial or accidental artifacts can dominate, and perception is not causal understanding.",
+    "summary": "To design an evaluation plan that includes lighting, viewpoint and subgroup conditions, name the vision task, slice results by camera, lighting, angle, product type and object size, test for shortcut learning, and report the costliest error rate before headline accuracy.",
     "retrievalPrompts": [
-      "Explain Computer vision and perception with one technical mechanism, one evidence requirement, and one non-claim.",
-      "Why is this overclaim invalid: High test accuracy proves a vision model recognizes the intended object features and will remain reliable under ordinary camera changes.",
-      "Apply the boundary to: A model keys on a background marker correlated with class in training, so occlusion and changed-background tests expose shortcut learning."
+      "Why does capture condition matter?",
+      "What is shortcut learning?",
+      "Which metric should lead a defect report?"
     ],
     "nextReviewPrompt": "Next: continue to “Robotics and embodied agents”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A small site needs consistent document structure, navigation, titles, landmarks, valid links, accessible media and forms, and a repeatable review checklist.",
+    "summary": "The final project is a small **multi-page site** built from everything in this course: valid, semantic pages; clear titles, headings and links; accessible images, media, tables and forms; a working HTML baseline. Checking each page alone isn't enough — you must test the **whole site** as users travel through it: every navigation path from where it's actually deployed, keyboard flow on each page template, and a written list of **non-goals** (what's deliberately out of scope).",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A portfolio site tests every navigation path from its deployment subdirectory and audits keyboard flow on each template. Your goal is to deliver and explain a validated, keyboard-reviewed multi-page HTML site with documented non-goals. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Your portfolio's five pages each pass the validator. You upload it to `username.github.io/portfolio/` — and every nav link 404s, because they all start with `/`. Each page was fine; the site wasn't. A portfolio site tests every navigation path from its deployment subdirectory and audits keyboard flow on each template. In this lesson you'll deliver and explain a validated, keyboard-reviewed multi-page HTML site with documented non-goals.\n\n```predict\n{\"question\": \"Every page validates on its own. Are the site's journeys therefore correct?\", \"options\": [\"Yes\", \"No — links between pages, deployment paths and keyboard flow must be tested across the site\"], \"answer\": 1, \"why\": \"Validation checks each document's syntax, not whether links resolve from the real deployment folder or whether journeys make sense.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Metadata and accessibility audit; Images and media; Data tables; Forms and native controls; Progressive baseline; Audio, video, tracks and embeds; Captions and context; Native constraints and error semantics. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Metadata and accessibility audit**, **Images and media**, **Data tables** and **Forms and native controls** modules, plus **Progressive baseline**, **Audio, video, tracks and embeds**, **Captions and context** and **Native constraints and error semantics**."
       },
       {
-        "heading": "Technology rule",
-        "body": "A small site needs consistent document structure, navigation, titles, landmarks, valid links, accessible media and forms, and a repeatable review checklist. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: per-page quality + whole-site journeys",
+        "body": "| Check | Pass when |\n|---|---|\n| every page validates. | 0 errors in the Nu checker. |\n| unique titles and one h1 each. | tabs and headings identify each page. |\n| links from the deployed URL. | every nav path works under /portfolio/, not just locally. |\n| keyboard flow per template. | skip link, visible focus, logical order, no traps. |\n| images, media, tables, forms. | alt, captions, headers, labels, errors all present. |\n| baseline without CSS/JS. | core journeys still work. |\n| README. | how to run it, what was tested, and non-goals. |\n\n```reveal\n{\"prompt\": \"Why use relative links (or a base path) for a site in a subfolder?\", \"answer\": \"Root-relative links like `/about/` point to the domain root, skipping /portfolio/. Relative links like `about/` or `../about/` resolve inside the subfolder.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Page-by-page success can hide cross-page inconsistency, broken deployment paths, duplicate ids, stale content, or missing error states. This draft therefore rejects: If each page validates alone, the complete site's navigation and user journeys are automatically correct."
+        "heading": "Name your non-goals",
+        "body": "```predict\n{\"question\": \"Which README line is a useful non-goal?\", \"options\": [\"\\\"Everything is perfect.\\\"\", \"\\\"Not in scope: dark mode, a CMS, and support for Internet Explorer.\\\"\"], \"answer\": 1, \"why\": \"Non-goals set honest expectations and show deliberate choices, not missing work.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Integrate document structure, navigation, media, data and forms into one coherent artifact.",
-      "Deliver and explain a validated, keyboard-reviewed multi-page HTML site with documented non-goals."
+      "Build and deliver a validated multi-page site with accessible content.",
+      "Test navigation from the real deployment path, audit keyboard flow per template, and document non-goals."
     ],
     "excludes": [
-      "Page-by-page success can hide cross-page inconsistency, broken deployment paths, duplicate ids, stale content, or missing error states."
+      "CSS design (CSS course).",
+      "JavaScript features and build tools."
     ]
   },
   "outcomes": [
@@ -68,133 +69,137 @@
   "examples": [
     {
       "id": "html.project.site.example-a",
-      "title": "Semantic multi-page site: concrete case",
+      "title": "Shipping a portfolio from a subfolder",
       "situation": "A portfolio site tests every navigation path from its deployment subdirectory and audits keyboard flow on each template.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A portfolio site tests every navigation path from its deployment subdirectory and audits keyboard flow on each template.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Verify the complete deployed site, including cross-page navigation, paths, consistency, content, and task flows."
+        "**Deployment subdirectory:** the site lives at `/portfolio/`; root-relative links are changed to relative ones, then every navigation path is clicked from the deployed URL.",
+        "**Keyboard flow on each template:** home, project page and contact form are checked for skip link, focus order and visible focus.",
+        "**Document:** the README records the validator result, the tested paths, and the non-goals (no dark mode, no CMS)."
       ],
-      "result": "The result follows because Verify the complete deployed site, including cross-page navigation, paths, consistency, content, and task flows."
+      "result": "Every page validates, every link works from the real deployment path, and keyboard users can complete each journey."
     },
     {
       "id": "html.project.site.example-b",
-      "title": "Semantic multi-page site: boundary case",
-      "situation": "Page-by-page success can hide cross-page inconsistency, broken deployment paths, duplicate ids, stale content, or missing error states.",
+      "title": "The contact form that went nowhere",
+      "situation": "A portfolio's contact form has `action=\"/send\"`, but the static host has no server. Submissions silently fail.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Page-by-page success can hide cross-page inconsistency, broken deployment paths, duplicate ids, stale content, or missing error states.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: If each page validates alone, the complete site's navigation and user journeys are automatically correct."
+        "The page validated, but the journey \"contact me\" was never tested end to end.",
+        "Static hosting can't process POST requests.",
+        "Fix: use a mailto link or a form service, test it from the deployed site, and document the choice."
       ],
-      "result": "The boundary requires this correction: Verify the complete deployed site, including cross-page navigation, paths, consistency, content, and task flows."
+      "result": "The contact journey works in production, and the README explains how."
     }
   ],
   "misconceptions": [
     {
       "id": "html.project.site.misconception",
       "mistakenBelief": "If each page validates alone, the complete site's navigation and user journeys are automatically correct.",
-      "correction": "Verify the complete deployed site, including cross-page navigation, paths, consistency, content, and task flows.",
-      "diagnosticPrompt": "Use a concrete HTML: Semantic and Accessible Web Documents artifact to explain why this belief fails: If each page validates alone, the complete site's navigation and user journeys are automatically correct."
+      "correction": "Validation checks each document's syntax; it can't confirm links resolve from the deployment path, forms reach a working endpoint, or keyboard journeys work across pages. Test the site as a whole where it's deployed.",
+      "diagnosticPrompt": "In \"Shipping a portfolio from a subfolder\", why did every nav link fail?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled document outline can model Semantic multi-page site, with structure carrying meaning before decoration.",
+    "example": "Shipping a site is like **opening a small hotel**: each room can be spotless (valid pages), but guests also need signs between rooms that work, a reception desk that answers (forms), and a clear list of services you don't offer (non-goals).",
     "usefulFor": [
-      "Building a first mental model for Semantic multi-page site before using exact platform terms"
+      "remembering whole-journey testing",
+      "seeing non-goals as honest service lists"
     ],
     "limitations": [
-      "Documents cannot model parser recovery, browser APIs, or interactive semantics exactly.",
-      "Page-by-page success can hide cross-page inconsistency, broken deployment paths, duplicate ids, stale content, or missing error states."
+      "Hotels don't move buildings; sites move between local and deployed paths.",
+      "Guests can ask staff; users only have your links."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A portfolio site tests every navigation path from its deployment subdirectory and audits keyboard flow on each template.",
-      "A small site needs consistent document structure, navigation, titles, landmarks, valid links, accessible media and forms, and a repeatable review checklist.",
-      "Verify the complete deployed site, including cross-page navigation, paths, consistency, content, and task flows."
+      "deploy to /portfolio/",
+      "click every nav link from the deployed URL",
+      "keyboard-audit each template"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Deploy",
         "state": {
-          "evidence": "A portfolio site tests every navigation path from its deployment subdirectory and audits keyboard flow on each template."
+          "base": "/portfolio/",
+          "links": "root-relative → 404"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "Testing from the deployment subdirectory exposes broken root-relative links."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Fix and retest paths",
         "state": {
-          "rule": "A small site needs consistent document structure, navigation, titles, landmarks, valid links, accessible media and forms, and a repeatable review checklist."
+          "links": "relative",
+          "every navigation path": "works"
         },
-        "explanation": "Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The portfolio site tests every navigation path from its deployment subdirectory."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Keyboard audit",
         "state": {
-          "correction": "Verify the complete deployed site, including cross-page navigation, paths, consistency, content, and task flows."
+          "templates": "home, project, contact",
+          "skip link": "works",
+          "traps": "none"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: If each page validates alone, the complete site's navigation and user journeys are automatically correct."
+        "explanation": "It audits keyboard flow on each template before delivery."
       }
     ],
-    "textAlternative": "Starting artifact: A portfolio site tests every navigation path from its deployment subdirectory and audits keyboard flow on each template. Step 1, Artifact. State: evidence: A portfolio site tests every navigation path from its deployment subdirectory and audits keyboard flow on each template.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A small site needs consistent document structure, navigation, titles, landmarks, valid links, accessible media and forms, and a repeatable review checklist.. Apply the declared HTML: Semantic and Accessible Web Documents rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Verify the complete deployed site, including cross-page navigation, paths, consistency, content, and task flows.. Check the result against the boundary and reject this misconception: If each page validates alone, the complete site's navigation and user journeys are automatically correct."
+    "textAlternative": "Final checks for a multi-page site. Step 1, Deploy: base is /portfolio/; links is root-relative → 404. Testing from the deployment subdirectory exposes broken root-relative links. Step 2, Fix and retest paths: links is relative; every navigation path is works. The portfolio site tests every navigation path from its deployment subdirectory. Step 3, Keyboard audit: templates is home, project, contact; skip link is works; traps is none. It audits keyboard flow on each template before delivery."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Semantic multi-page site: concrete case”: state its starting evidence, apply the Semantic multi-page site rule, and give the observable result in three short lines.",
+      "prompt": "For \"Shipping a portfolio from a subfolder\", explain how the portfolio site tests every navigation path from its deployment subdirectory and audits keyboard flow on each template, and what goes in the README.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Paths.",
+        "Keyboard.",
+        "README."
       ],
       "expectedEvidence": [
-        "Named example: Semantic multi-page site: concrete case.",
-        "Starting evidence: A portfolio site tests every navigation path from its deployment subdirectory and audits keyboard flow on each template.",
-        "Core rule: A small site needs consistent document structure, navigation, titles, landmarks, valid links, accessible media and forms, and a repeatable review checklist.",
-        "Observable result: The result follows because Verify the complete deployed site, including cross-page navigation, paths, consistency, content, and task flows.",
-        "Boundary check: Verify the complete deployed site, including cross-page navigation, paths, consistency, content, and task flows."
+        "Names the example \"Shipping a portfolio from a subfolder\": the portfolio site tests every navigation path from its deployment subdirectory.",
+        "It audits keyboard flow on each template.",
+        "The README records validation, tested paths and non-goals.",
+        "Every link works from the real deployment path."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Page-by-page success can hide cross-page inconsistency, broken deployment paths, duplicate ids, stale content, or missing error states.",
+      "prompt": "List the checks you'd run before sharing a 4-page club website hosted at `example.org/chess-club/`.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Think per page and across pages.",
+        "Deployment path!"
       ],
       "expectedEvidence": [
-        "A small site needs consistent document structure, navigation, titles, landmarks, valid links, accessible media and forms, and a repeatable review checklist.",
-        "Page-by-page success can hide cross-page inconsistency, broken deployment paths, duplicate ids, stale content, or missing error states."
+        "Validation, titles, h1s, alt, labels on each page.",
+        "Links tested from /chess-club/, keyboard flow, baseline without CSS/JS, README with non-goals."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new HTML: Semantic and Accessible Web Documents example for Semantic multi-page site and explain why the misconception fails.",
+      "prompt": "Build and deploy your own 4–6 page semantic site. Complete the checklist, record each result, fix every finding, and write a README with non-goals.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Test from the live URL.",
+        "One keyboard pass per template."
       ],
       "expectedEvidence": [
-        "Deliver and explain a validated, keyboard-reviewed multi-page HTML site with documented non-goals.",
-        "Verify the complete deployed site, including cross-page navigation, paths, consistency, content, and task flows."
+        "Deployed site passing every checklist item.",
+        "README documenting checks, results and non-goals."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "html.project.site.misconception",
-      "explanation": "Verify the complete deployed site, including cross-page navigation, paths, consistency, content, and task flows.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'complete deployed site' and state the decisive evidence."
+      "explanation": "Test like a visitor, not the author: open the **deployed** URL, follow each journey (home → project → contact) with mouse, then keyboard only, then with CSS and JS off. Log every failure.",
+      "retryPrompt": "Test \"The contact form that went nowhere\" this way."
     }
   ],
   "recap": {
-    "summary": "You should now be able to deliver and explain a validated, keyboard-reviewed multi-page HTML site with documented non-goals. Keep this boundary in view: Page-by-page success can hide cross-page inconsistency, broken deployment paths, duplicate ids, stale content, or missing error states.",
+    "summary": "To deliver and explain a validated, keyboard-reviewed multi-page HTML site, validate every page, test every navigation path and form from the real deployment location, audit keyboard flow on each template, check the no-CSS/no-JS baseline, and document results and non-goals in a README.",
     "retrievalPrompts": [
-      "Explain Semantic multi-page site using exact HTML: Semantic and Accessible Web Documents terms.",
-      "Why is this claim incorrect: If each page validates alone, the complete site's navigation and user journeys are automatically correct.",
-      "Apply checkpoint 'complete deployed site' to a new artifact."
+      "Why isn't per-page validation enough?",
+      "Why test from the deployment path?",
+      "What are non-goals for?"
     ],
     "nextReviewPrompt": "Next: use this skill in the module checkpoint and one independent practice attempt. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

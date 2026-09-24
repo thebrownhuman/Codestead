@@ -28,38 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Connected components partition undirected reachability, while cycle detection tracks parent or active recursion state according to graph direction.",
+    "summary": "Two questions come up constantly. **Components**: in an undirected graph, which vertices can reach each other? Run BFS or DFS from each unvisited vertex; each run finds one **connected component**. **Cycles** need different rules by direction. **Undirected**: during DFS, an edge to an already-visited vertex that **isn't the parent you came from** means a cycle. **Directed**: track vertex state as **unvisited, active** (on the current recursion path) and **done**. An edge to an **active** vertex (a **back edge**) proves a cycle; an edge to a **done** vertex doesn't, since that's just another route to finished territory.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Directed DFS finds a back edge to an active recursion-stack vertex as cycle evidence. Your goal is to implement and test component counting and one appropriate cycle detector. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A course planner must reject a set of prerequisites where Arrays requires Loops, Loops requires Functions, and Functions requires Arrays: nobody could ever start. A simple check that flags \"any edge to a visited vertex\" also rejects perfectly valid plans where two lessons share a prerequisite. Directed DFS finds a back edge to an active recursion-stack vertex as cycle evidence. In this lesson you'll implement and test component counting and one appropriate cycle detector.\n\n```predict\n{\"question\": \"Directed edges A → C and B → C. DFS visits A, then C (done), then B, which sees C already visited. Cycle?\", \"options\": [\"Yes, C was visited before\", \"No: C is finished, not on the current path; two routes to C isn't a cycle\"], \"answer\": 1, \"why\": \"In directed graphs, only an edge to a vertex that's still active proves a cycle.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Stacks, queues and deques; Hash tables, sets and maps; Breadth-first and depth-first search. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Stacks, queues and deques** module, the **Hash tables, sets and maps** module, and **Breadth-first and depth-first search**."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Connected components partition undirected reachability, while cycle detection tracks parent or active recursion state according to graph direction. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The distinction: active path vs merely visited",
+        "body": "```python\nUNVISITED, ACTIVE, DONE = 0, 1, 2\n\ndef has_directed_cycle(adj):             # O(V + E).\n    state = {v: UNVISITED for v in adj}\n    def dfs(u):\n        state[u] = ACTIVE                   # u is on the current path.\n        for v in adj[u]:\n            if state[v] == ACTIVE:          # back edge: cycle.\n                return True\n            if state[v] == UNVISITED and dfs(v):\n                return True\n        state[u] = DONE                     # leaving the path.\n        return False\n    return any(state[v] == UNVISITED and dfs(v) for v in adj)\n\ndef has_undirected_cycle(adj):\n    seen = set()\n    def dfs(u, parent):\n        seen.add(u)\n        for v in adj[u]:\n            if v == parent:\n                continue                   # the edge we arrived on.\n            if v in seen or dfs(v, u):\n                return True\n        return False\n    return any(v not in seen and dfs(v, None) for v in adj)\n```\n\n| Graph | Cycle evidence during DFS |\n|---|---|\n| undirected. | a visited neighbour that isn't the parent. |\n| directed. | a neighbour in the ACTIVE state (back edge). |\n\n```reveal\n{\"prompt\": \"Does the undirected version handle parallel edges?\", \"answer\": \"Not quite: two edges between the same pair form a cycle, but skipping the parent by vertex hides it. Track the edge id you arrived on if parallel edges are allowed.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Directed and undirected cycle rules differ, and self-loops or parallel edges need declared handling. The draft therefore rejects: Any edge to an already visited vertex proves a cycle in every DFS."
+        "heading": "Components",
+        "body": "```predict\n{\"question\": \"An undirected graph has 7 vertices and DFS must be started 3 times to visit them all. How many components?\", \"options\": [\"7\", \"3\"], \"answer\": 1, \"why\": \"Each fresh start discovers one component.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Apply traversal state to connected components and directed or undirected cycle detection.",
-      "Implement and test component counting and one appropriate cycle detector.",
-      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      "Count connected components by restarting BFS/DFS from unvisited vertices.",
+      "Detect cycles with the rule that matches the graph's direction, and test both."
     ],
     "excludes": [
-      "Directed and undirected cycle rules differ, and self-loops or parallel edges need declared handling."
+      "Strongly connected components (Tarjan, Kosaraju).",
+      "Finding all cycles."
     ]
   },
   "outcomes": [
@@ -68,142 +64,134 @@
   "examples": [
     {
       "id": "dsa.graphs.components-cycles.example-a",
-      "title": "Components and cycle detection: language-neutral trace",
+      "title": "A prerequisite loop in the course plan",
       "situation": "Directed DFS finds a back edge to an active recursion-stack vertex as cycle evidence.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: Directed DFS finds a back edge to an active recursion-stack vertex as cycle evidence.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Cycle detection must distinguish the parent or completed vertices; only the direction-appropriate state proves a cycle."
+        "**States:** DFS marks Arrays active, then Loops active, then Functions active.",
+        "**Back edge:** Functions → Arrays reaches a vertex that is still active on the recursion stack, so a cycle exists.",
+        "**Test:** has_directed_cycle will be True for this plan and False for a plan where two lessons share a prerequisite."
       ],
-      "result": "The conceptual result follows because Cycle detection must distinguish the parent or completed vertices; only the direction-appropriate state proves a cycle."
+      "result": "The planner rejects impossible prerequisite loops and accepts valid shared prerequisites."
     },
     {
       "id": "dsa.graphs.components-cycles.example-b",
-      "title": "Components and cycle detection: implementation transfer",
-      "situation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
+      "title": "Counting study islands",
+      "situation": "An undirected study-buddy graph should report how many separate groups exist, including learners with no buddies.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
-        "Step 3 — Retest this boundary in the selected implementation: Directed and undirected cycle rules differ, and self-loops or parallel edges need declared handling."
+        "Loop over every learner; if unvisited, start a DFS and add 1.",
+        "Isolated learners count as their own component.",
+        "Test: edges (0-1), (1-2), (3-4) with 6 learners give 3 components."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "The report shows the true number of separate study groups."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.graphs.components-cycles.misconception",
       "mistakenBelief": "Any edge to an already visited vertex proves a cycle in every DFS.",
-      "correction": "Cycle detection must distinguish the parent or completed vertices; only the direction-appropriate state proves a cycle.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Any edge to an already visited vertex proves a cycle in every DFS."
+      "correction": "In a directed graph, an edge to a finished vertex just means two routes reach it; only an edge to a vertex still active on the current DFS path proves a cycle. In an undirected graph, the edge back to your parent doesn't count.",
+      "diagnosticPrompt": "In the opening predict, why wasn't C evidence of a cycle?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Components and cycle detection, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Directed cycle detection is like **following a trail of breadcrumbs through a maze**: breadcrumbs on your current path are active. If you reach a spot with your **own current breadcrumbs**, you've walked in a circle. Reaching a spot you fully explored earlier (crumbs swept up) just means two ways lead there.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering active path, not just visited",
+      "components = separate mazes"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Directed and undirected cycle rules differ, and self-loops or parallel edges need declared handling."
+      "Mazes are usually two-way; direction changes the rule.",
+      "In an undirected maze, the passage you just came through doesn't count."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Directed DFS finds a back edge to an active recursion-stack vertex as cycle evidence.",
-      "Connected components partition undirected reachability, while cycle detection tracks parent or active recursion state according to graph direction.",
-      "Cycle detection must distinguish the parent or completed vertices; only the direction-appropriate state proves a cycle.",
-      "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
+      "Arrays → Loops → Functions → Arrays",
+      "DFS from Arrays",
+      "check each edge"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Descend",
         "state": {
-          "scenario": "Directed DFS finds a back edge to an active recursion-stack vertex as cycle evidence."
+          "active": "Arrays, Loops, Functions"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "Each vertex becomes active as DFS enters it."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Back edge",
         "state": {
-          "invariant": "Connected components partition undirected reachability, while cycle detection tracks parent or active recursion state according to graph direction."
+          "edge": "Functions → Arrays",
+          "Arrays state": "ACTIVE"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "Directed DFS finds a back edge to an active recursion-stack vertex."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Result",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "cycle": "True"
         },
-        "explanation": "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Cycle detection must distinguish the parent or completed vertices; only the direction-appropriate state proves a cycle."
-        },
-        "explanation": "Verify the result and reject this misconception: Any edge to an already visited vertex proves a cycle in every DFS."
+        "explanation": "The back edge is cycle evidence, so the plan is rejected."
       }
     ],
-    "textAlternative": "Starting artifact: Directed DFS finds a back edge to an active recursion-stack vertex as cycle evidence. Step 1, Specification. State: scenario: Directed DFS finds a back edge to an active recursion-stack vertex as cycle evidence.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Connected components partition undirected reachability, while cycle detection tracks parent or active recursion state according to graph direction.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target. Step 4, Conclusion. State: correction: Cycle detection must distinguish the parent or completed vertices; only the direction-appropriate state proves a cycle.. Verify the result and reject this misconception: Any edge to an already visited vertex proves a cycle in every DFS."
+    "textAlternative": "Tracing directed cycle detection. Step 1, Descend: active is Arrays, Loops, Functions. Each vertex becomes active as DFS enters it. Step 2, Back edge: edge is Functions → Arrays; Arrays state is ACTIVE. Directed DFS finds a back edge to an active recursion-stack vertex. Step 3, Result: cycle is True. The back edge is cycle evidence, so the plan is rejected."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Components and cycle detection: language-neutral trace”: state its starting evidence, apply the Components and cycle detection rule, and give the observable result in three short lines.",
+      "prompt": "For \"A prerequisite loop in the course plan\", explain how directed DFS finds a back edge to an active recursion-stack vertex as cycle evidence.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "States.",
+        "Back edge.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Components and cycle detection: language-neutral trace.",
-        "Starting evidence: Directed DFS finds a back edge to an active recursion-stack vertex as cycle evidence.",
-        "Core rule: Connected components partition undirected reachability, while cycle detection tracks parent or active recursion state according to graph direction.",
-        "Observable result: The conceptual result follows because Cycle detection must distinguish the parent or completed vertices; only the direction-appropriate state proves a cycle.",
-        "Boundary check: Cycle detection must distinguish the parent or completed vertices; only the direction-appropriate state proves a cycle."
+        "Names the example \"A prerequisite loop in the course plan\": three lessons require each other in a loop.",
+        "Directed DFS finds a back edge.",
+        "The edge goes to an active recursion-stack vertex, which is cycle evidence.",
+        "The planner rejects impossible prerequisite loops."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Connected components partition undirected reachability, while cycle detection tracks parent or active recursion state according to graph direction.",
+      "prompt": "Trace has_undirected_cycle on edges (0-1), (1-2), (2-0) and on the tree (0-1), (1-2). Show where the cycle is detected in the first.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Skip the parent edge.",
+        "A visited non-parent means a cycle."
       ],
       "expectedEvidence": [
-        "In C, represent adjacency and disjoint sets with explicit buffers and ownership; C++ uses vector-based lists and standard priority structures; Java uses typed collections and careful object equality; Python uses list/dict/set and heapq, with the same graph or partition invariant and complexity target.",
-        "Directed and undirected cycle rules differ, and self-loops or parallel edges need declared handling."
+        "First: at 2 seeing 0 (not parent): cycle.",
+        "Second: no cycle."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Components and cycle detection case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Build a validator for course plans that returns either \"valid\" or one example cycle as a list of lessons. Test valid DAGs, shared prerequisites, a self-loop and a long cycle.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Keep the current path in a list.",
+        "Slice the path from the repeated vertex."
       ],
       "expectedEvidence": [
-        "Implement and test component counting and one appropriate cycle detector.",
-        "Cycle detection must distinguish the parent or completed vertices; only the direction-appropriate state proves a cycle."
+        "Cycles reported as lesson lists.",
+        "Shared prerequisites accepted."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.graphs.components-cycles.misconception",
-      "explanation": "Cycle detection must distinguish the parent or completed vertices; only the direction-appropriate state proves a cycle.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'direction-appropriate state', then state one implementation-specific risk in the selected language."
+      "explanation": "Before detecting cycles ask: **directed or undirected?** Directed: track ACTIVE vs DONE. Undirected: ignore the parent edge. For components: **restart from every unvisited vertex and count.**",
+      "retryPrompt": "Apply this to \"Counting study islands\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test component counting and one appropriate cycle detector. Keep this boundary in view: Directed and undirected cycle rules differ, and self-loops or parallel edges need declared handling.",
+    "summary": "To implement component counting and cycle detection, restart BFS or DFS from each unvisited vertex to count undirected components, detect undirected cycles by a visited neighbour that isn't the parent, and detect directed cycles by a back edge to a vertex still active on the DFS path, not merely visited.",
     "retrievalPrompts": [
-      "State the Components and cycle detection invariant and complexity without code.",
-      "Why is this claim false: Any edge to an already visited vertex proves a cycle in every DFS.",
-      "Map checkpoint 'direction-appropriate state' to C, C++, Java, and Python."
+      "How do you count connected components?",
+      "What proves a cycle in a directed DFS?",
+      "Why ignore the parent edge in undirected graphs?"
     ],
     "nextReviewPrompt": "Next: continue to “Topological ordering”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

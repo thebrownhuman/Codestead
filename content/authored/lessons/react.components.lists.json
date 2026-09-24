@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "React list keys identify sibling items across renders so reconciliation preserves the intended component and DOM state.",
+    "summary": "Render a list with `items.map(item => <Row key={item.id} ... />)`. The **key** tells React which item each row belongs to across renders. When the list is sorted, filtered or has items inserted, React matches old and new rows **by key**, so each row keeps its own DOM and state, like typed text or focus. Use a **stable, unique id from the data**. The array **index** is only safe when the list never reorders, inserts or deletes; otherwise state sticks to the position instead of the item. Keys must be unique among siblings, not globally.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A todo list uses stable todo.id while sorting, insertion, and deletion preserve each row's input state. Your goal is to render and update a reorderable list while explaining key-based reconciliation. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Each to-do row has a small notes input. A learner types \"buy milk\" into the note for \"Shopping\", then sorts the list by date. The note text stays in the first row, which is now \"Homework\". The list used `key={index}`. A todo list uses stable todo.id while sorting, insertion, and deletion preserve each row's input state. In this lesson you'll render and update a reorderable list while explaining key-based reconciliation.\n\n```predict\n{\"question\": \"Rows use `key={index}`. You insert a new to-do at the top. Whose typed note does the new first row show?\", \"options\": [\"Nobody's: it's new\", \"The old first row's note, because key 0 still matches position 0\"], \"answer\": 1, \"why\": \"With index keys, React matches by position, so state stays with the slot, not the to-do.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Declarative UI and re-rendering; html semantics; JSX expressions and attributes; javascript collections methods. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Declarative UI and re-rendering**, **Text and page semantics** (ul and li), **JSX expressions and attributes**, and **Array transformation methods** such as map, filter and toSorted."
       },
       {
-        "heading": "Technology rule",
-        "body": "React list keys identify sibling items across renders so reconciliation preserves the intended component and DOM state. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: keys match items across renders",
+        "body": "```jsx\nimport { useState } from \"react\";\n\nfunction TodoRow({ todo }) {\n  const [note, setNote] = useState(\"\");          // state lives in each row.\n  return (\n    <li>\n      <span>{todo.title}</span>\n      <label>\n        Note for {todo.title}\n        <input value={note} onChange={(e) => setNote(e.target.value)} />\n      </label>\n    </li>\n  );\n}\n\nexport function TodoList({ todos, sortBy }) {\n  const shown = todos.toSorted((a, b) => a[sortBy].localeCompare(b[sortBy]));\n  return (\n    <ul>\n      {shown.map((todo) => (\n        <TodoRow key={todo.id} todo={todo} />   // stable id from the data.\n      ))}\n    </ul>\n  );\n}\n```\n\n| Key choice | Safe when |\n|---|---|\n| `todo.id` from data. | always (preferred). |\n| index. | list is static: never sorted, filtered, inserted into or deleted from. |\n| `Math.random()`. | never: a new key every render remounts every row. |\n\n```reveal\n{\"prompt\": \"What if the data has no id?\", \"answer\": \"Create one when the item is created (for example with `crypto.randomUUID()`) and store it with the item, not during render.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Keys need only be unique among siblings, indexes fail for reordered editable lists, and keys are not passed as props. This draft therefore rejects: Array index is always the best key because it is unique during one render."
+        "heading": "Missing keys",
+        "body": "```predict\n{\"question\": \"You forget the key. What happens?\", \"options\": [\"Crash\", \"A console warning, and React falls back to matching by index\"], \"answer\": 1, \"why\": \"The warning is a hint that reorders will misbehave.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Render collections with stable identity keys rather than positions that change with data.",
-      "Render and update a reorderable list while explaining key-based reconciliation."
+      "Render lists with map and stable keys.",
+      "Explain how keys preserve row state through sort, insert and delete."
     ],
     "excludes": [
-      "Keys need only be unique among siblings, indexes fail for reordered editable lists, and keys are not passed as props."
+      "Virtualised long lists.",
+      "Drag-and-drop libraries."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "react.components.lists.example-a",
-      "title": "Lists and stable keys: concrete case",
+      "title": "The to-do notes that swapped rows",
       "situation": "A todo list uses stable todo.id while sorting, insertion, and deletion preserve each row's input state.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A todo list uses stable todo.id while sorting, insertion, and deletion preserve each row's input state.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Use stable data identity as key when items can reorder, insert, or delete; positional indexes can attach state to the wrong item."
+        "**Bug:** with key={index}, sorting moved titles but left each typed note at its old position.",
+        "**Stable todo.id:** switching to `key={todo.id}` lets React move each TodoRow, with its note state, to the new position.",
+        "**Test:** type in Shopping's note, sort by date, and a test will find \"buy milk\" in the input labelled \"Note for Shopping\"."
       ],
-      "result": "The result follows because Use stable data identity as key when items can reorder, insert, or delete; positional indexes can attach state to the wrong item."
+      "result": "Each note stays with its own to-do through sorting, inserting and deleting."
     },
     {
       "id": "react.components.lists.example-b",
-      "title": "Lists and stable keys: boundary case",
-      "situation": "Keys need only be unique among siblings, indexes fail for reordered editable lists, and keys are not passed as props.",
+      "title": "Every row re-mounted",
+      "situation": "A developer silences the key warning with `key={Math.random()}`. Now every keystroke anywhere makes all inputs lose focus.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Keys need only be unique among siblings, indexes fail for reordered editable lists, and keys are not passed as props.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Array index is always the best key because it is unique during one render."
+        "Each render generated new keys for every row.",
+        "React saw all old rows as gone and created new ones, losing focus and state.",
+        "Fix: use the item's stable id."
       ],
-      "result": "The boundary requires this correction: Use stable data identity as key when items can reorder, insert, or delete; positional indexes can attach state to the wrong item."
+      "result": "Typing keeps focus, and rows are only created or removed when items really are."
     }
   ],
   "misconceptions": [
     {
       "id": "react.components.lists.misconception",
       "mistakenBelief": "Array index is always the best key because it is unique during one render.",
-      "correction": "Use stable data identity as key when items can reorder, insert, or delete; positional indexes can attach state to the wrong item.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Array index is always the best key because it is unique during one render."
+      "correction": "Keys must also be stable across renders. An index describes a position, so when items are reordered, inserted or removed, state follows the position instead of the item. Use a stable id from the data.",
+      "diagnosticPrompt": "In \"The to-do notes that swapped rows\", where did the typed note end up after sorting?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Lists and stable keys, where inputs and state produce a UI description.",
+    "example": "Keys are like **name tags on people in a queue**. If people shuffle and you track them by name tag, each keeps their own bag (state). If you track them by position (\"person 1\", \"person 2\"), the bags stay in place and end up with whoever steps into that spot.",
     "usefulFor": [
-      "Building a first mental model for Lists and stable keys before using exact platform terms"
+      "remembering stable identity",
+      "index = position in the queue"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Keys need only be unique among siblings, indexes fail for reordered editable lists, and keys are not passed as props."
+      "People notice lost bags; React silently hands state to the wrong row.",
+      "Random keys = new name tags every minute: nobody is recognised."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A todo list uses stable todo.id while sorting, insertion, and deletion preserve each row's input state.",
-      "React list keys identify sibling items across renders so reconciliation preserves the intended component and DOM state.",
-      "Use stable data identity as key when items can reorder, insert, or delete; positional indexes can attach state to the wrong item."
+      "render: [Shopping(id 7), Homework(id 3)]",
+      "type 'buy milk' in Shopping's note",
+      "sort: [Homework(3), Shopping(7)]"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "First render",
         "state": {
-          "evidence": "A todo list uses stable todo.id while sorting, insertion, and deletion preserve each row's input state."
+          "row key 7": "Shopping, note ''",
+          "row key 3": "Homework, note ''"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "Each row is created with a stable todo.id key."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Type",
         "state": {
-          "rule": "React list keys identify sibling items across renders so reconciliation preserves the intended component and DOM state."
+          "row key 7 note": "buy milk"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The typed text is state inside the Shopping row."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Sort",
         "state": {
-          "correction": "Use stable data identity as key when items can reorder, insert, or delete; positional indexes can attach state to the wrong item."
+          "position 1": "key 3, note ''",
+          "position 2": "key 7, note 'buy milk'"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Array index is always the best key because it is unique during one render."
+        "explanation": "Sorting preserves each row's input state because keys match items."
       }
     ],
-    "textAlternative": "Starting artifact: A todo list uses stable todo.id while sorting, insertion, and deletion preserve each row's input state. Step 1, Artifact. State: evidence: A todo list uses stable todo.id while sorting, insertion, and deletion preserve each row's input state.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: React list keys identify sibling items across renders so reconciliation preserves the intended component and DOM state.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use stable data identity as key when items can reorder, insert, or delete; positional indexes can attach state to the wrong item.. Check the result against the boundary and reject this misconception: Array index is always the best key because it is unique during one render."
+    "textAlternative": "Reconciling a sorted list by key. Step 1, First render: row key 7 is Shopping, note ''; row key 3 is Homework, note ''. Each row is created with a stable todo.id key. Step 2, Type: row key 7 note is buy milk. The typed text is state inside the Shopping row. Step 3, Sort: position 1 is key 3, note ''; position 2 is key 7, note 'buy milk'. Sorting preserves each row's input state because keys match items."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Lists and stable keys: concrete case”: state its starting evidence, apply the Lists and stable keys rule, and give the observable result in three short lines.",
+      "prompt": "For \"The to-do notes that swapped rows\", explain how a todo list uses stable todo.id while sorting, insertion, and deletion preserve each row's input state.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Index bug.",
+        "Stable id.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Lists and stable keys: concrete case.",
-        "Starting evidence: A todo list uses stable todo.id while sorting, insertion, and deletion preserve each row's input state.",
-        "Core rule: React list keys identify sibling items across renders so reconciliation preserves the intended component and DOM state.",
-        "Observable result: The result follows because Use stable data identity as key when items can reorder, insert, or delete; positional indexes can attach state to the wrong item.",
-        "Boundary check: Use stable data identity as key when items can reorder, insert, or delete; positional indexes can attach state to the wrong item."
+        "Names the example \"The to-do notes that swapped rows\": index keys moved state to the wrong row.",
+        "The todo list uses stable todo.id keys.",
+        "Sorting, insertion, and deletion preserve each row's input state.",
+        "Each note stays with its own to-do."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Keys need only be unique among siblings, indexes fail for reordered editable lists, and keys are not passed as props.",
+      "prompt": "Render `lessons` as an ordered list of links using `lesson.slug` as the key, and add a Remove button. Explain why slug is a good key.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "map inside ol.",
+        "Unique among siblings."
       ],
       "expectedEvidence": [
-        "React list keys identify sibling items across renders so reconciliation preserves the intended component and DOM state.",
-        "Keys need only be unique among siblings, indexes fail for reordered editable lists, and keys are not passed as props."
+        "`<li key={lesson.slug}>`.",
+        "Removing one keeps the others' state."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Lists and stable keys and explain why the misconception fails.",
+      "prompt": "Build a reorderable list (move up/down buttons) where each row has an editable input. Write tests that type in a row, move it, and assert the text moved with it; then show the failure with index keys.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Stable ids stored with items.",
+        "Query inputs by label."
       ],
       "expectedEvidence": [
-        "Render and update a reorderable list while explaining key-based reconciliation.",
-        "Use stable data identity as key when items can reorder, insert, or delete; positional indexes can attach state to the wrong item."
+        "Passing test with id keys.",
+        "A demonstrated failure with index keys."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.components.lists.misconception",
-      "explanation": "Use stable data identity as key when items can reorder, insert, or delete; positional indexes can attach state to the wrong item.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'stable data identity' and state the decisive evidence."
+      "explanation": "For every map ask: **If this list is sorted, filtered or edited, does each key still point to the same item?** If not, use a stable id from the data.",
+      "retryPrompt": "Apply this to \"Every row re-mounted\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to render and update a reorderable list while explaining key-based reconciliation. Keep this boundary in view: Keys need only be unique among siblings, indexes fail for reordered editable lists, and keys are not passed as props.",
+    "summary": "To render and update a reorderable list, map items to elements with a key that is unique among siblings and stable across renders, such as the item's id. React reconciles rows by key, so each row keeps its own state through sorting, insertion and deletion; index and random keys break that.",
     "retrievalPrompts": [
-      "Explain Lists and stable keys using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: Array index is always the best key because it is unique during one render.",
-      "Apply checkpoint 'stable data identity' to a new artifact."
+      "What does a key tell React?",
+      "When is index an acceptable key?",
+      "Why is Math.random() a bad key?"
     ],
     "nextReviewPrompt": "Next: continue to “Props and one-way data flow”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

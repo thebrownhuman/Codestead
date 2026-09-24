@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Clone creates a local repository, copies reachable objects and remote configuration, creates remote-tracking references, and checks out an initial working branch.",
+    "summary": "`git clone <url>` makes a **complete, independent copy** of a repository on your machine. It downloads every commit reachable from the remote's branches, records the source under the name **origin**, creates **remote-tracking refs** like `origin/main` (a read-only bookmark of where main was on the server when you last talked to it), and checks out a local **main** that tracks it. After that, your copy is **yours**: edits and commits stay local until you push, and changes on the server don't appear until you fetch.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Cloning a public repository creates local origin configuration and an origin/main tracking reference while local changes remain entirely local. Your goal is to clone a sandbox repository and explain each local and remote-tracking ref. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner clones a class repository and edits README.md, then panics that they've just changed the teacher's project for everyone. They haven't. Cloning a public repository creates local origin configuration and an origin/main tracking reference while local changes remain entirely local. In this lesson you'll clone a sandbox repository and explain each local and remote-tracking ref.\n\n```predict\n{\"question\": \"After cloning, you commit a change locally. Does the remote repository change?\", \"options\": [\"Yes, clone keeps them in sync\", \"No: nothing leaves your machine until you push\"], \"answer\": 1, \"why\": \"A clone is a separate repository that knows where it came from.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Branches, merges and conflicts; Branches as movable refs. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Branches, merges and conflicts** and **Branches as movable refs** (branches are names for commits)."
       },
       {
-        "heading": "Operational model",
-        "body": "Clone creates a local repository, copies reachable objects and remote configuration, creates remote-tracking references, and checks out an initial working branch. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The model: local branches, remote-tracking refs, origin",
+        "body": "```bash\ngit clone https://github.com/example/practice.git\ncd practice\ngit remote -v                  # origin  https://github.com/example/practice.git (fetch/push).\ngit branch -vv                 # * main 1a2b3c4 [origin/main] Initial commit.\ngit branch -r                  # origin/HEAD -> origin/main, origin/main, origin/docs.\ngit log --oneline --decorate -1   # (HEAD -> main, origin/main, origin/HEAD).\n```\n\n| Name | What it is | Moves when |\n|---|---|---|\n| `main`. | your local branch. | you commit, merge or pull. |\n| `origin/main`. | your record of the server's main. | you fetch (or pull). |\n| `origin`. | a saved URL nickname. | you change it with git remote. |\n\n```reveal\n{\"prompt\": \"Where is origin/docs checked out?\", \"answer\": \"Nowhere yet. It's only a remote-tracking ref. `git switch docs` creates a local docs branch that tracks origin/docs.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Authentication, partial or shallow clone, submodules, large files, default-branch choice, and server permissions can change what is fetched or checked out. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Clone creates a live shared folder where local edits immediately alter the remote repository."
+        "heading": "Your copy is independent",
+        "body": "```predict\n{\"question\": \"A classmate pushes to the server after you cloned. Does your origin/main show their commit?\", \"options\": [\"Yes, immediately\", \"Not until you run git fetch\"], \"answer\": 1, \"why\": \"Remote-tracking refs only update when you talk to the server.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Create a local repository from a remote and inspect names, URLs and default branches.",
-      "Clone a sandbox repository and explain each local and remote-tracking ref."
+      "Clone a repository and inspect origin, local branches and remote-tracking refs.",
+      "Explain that local commits and edits stay local until pushed."
     ],
     "excludes": [
-      "Authentication, partial or shallow clone, submodules, large files, default-branch choice, and server permissions can change what is fetched or checked out."
+      "Authentication and SSH keys setup.",
+      "Forks (collaboration module)."
     ]
   },
   "outcomes": [
@@ -68,133 +69,138 @@
   "examples": [
     {
       "id": "git.remotes.clone.example-a",
-      "title": "Clone and remote configuration: direct case",
+      "title": "Cloning the practice repo",
       "situation": "Cloning a public repository creates local origin configuration and an origin/main tracking reference while local changes remain entirely local.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: Cloning a public repository creates local origin configuration and an origin/main tracking reference while local changes remain entirely local.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: A clone is an independent local repository initialized from remote data; later fetch and push operations synchronize selected references explicitly."
+        "**Creates local origin configuration:** git remote -v shows origin pointing at the clone URL.",
+        "**An origin/main tracking reference:** git branch -vv shows local main tracking origin/main.",
+        "**Local changes remain entirely local:** editing README and committing moves only main; git status will say \"ahead of origin/main by 1\"."
       ],
-      "result": "The case supports the declared outcome because A clone is an independent local repository initialized from remote data; later fetch and push operations synchronize selected references explicitly."
+      "result": "The learner understands their edits are private until pushed, and relaxes."
     },
     {
       "id": "git.remotes.clone.example-b",
-      "title": "Clone and remote configuration: boundary case",
-      "situation": "A shallow clone contains limited ancestry, so a history query cannot assume every older commit is available locally.",
+      "title": "The missing branch",
+      "situation": "After cloning, a learner runs git branch and sees only main, but the website shows a docs branch too.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A shallow clone contains limited ancestry, so a history query cannot assume every older commit is available locally.",
-        "Step 2 — Keep this boundary explicit: Authentication, partial or shallow clone, submodules, large files, default-branch choice, and server permissions can change what is fetched or checked out.",
-        "Step 3 — Reject the documented misconception: Clone creates a live shared folder where local edits immediately alter the remote repository."
+        "git branch lists local branches only.",
+        "git branch -r shows origin/docs as a remote-tracking ref.",
+        "git switch docs creates a local docs tracking origin/docs."
       ],
-      "result": "This case demonstrates the declared outcome: Clone a sandbox repository and explain each local and remote-tracking ref."
+      "result": "The learner can work on docs, knowing the difference between local and remote-tracking refs."
     }
   ],
   "misconceptions": [
     {
       "id": "git.remotes.clone.misconception",
       "mistakenBelief": "Clone creates a live shared folder where local edits immediately alter the remote repository.",
-      "correction": "A clone is an independent local repository initialized from remote data; later fetch and push operations synchronize selected references explicitly.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Clone creates a live shared folder where local edits immediately alter the remote repository."
+      "correction": "Clone makes an independent repository. Local edits and commits change nothing remotely until pushed, and remote changes arrive only when you fetch.",
+      "diagnosticPrompt": "In the opening predict, what did a local commit change on the server?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "Two libraries exchanging catalog updates can model Clone and remote configuration: each keeps an independent collection and synchronizes selected records deliberately.",
+    "example": "Cloning is like **photocopying a shared notebook and taking it home**. You can scribble in your copy freely. A sticky note says where the original lives (origin), and another records what the original's last page looked like when you copied it (origin/main).",
     "usefulFor": [
-      "Separating local history, remote observations, download, integration, and publication"
+      "remembering your own copy",
+      "origin/main = last-seen note"
     ],
     "limitations": [
-      "Git refspecs, authentication, ancestry checks, force updates, and object transfer have no exact library equivalent.",
-      "Authentication, partial or shallow clone, submodules, large files, default-branch choice, and server permissions can change what is fetched or checked out."
+      "Photocopies can't sync; Git can, with fetch and push.",
+      "The last-seen note gets stale until you check again."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Cloning a public repository creates local origin configuration and an origin/main tracking reference while local changes remain entirely local.",
-      "Clone creates a local repository, copies reachable objects and remote configuration, creates remote-tracking references, and checks out an initial working branch.",
-      "A clone is an independent local repository initialized from remote data; later fetch and push operations synchronize selected references explicitly."
+      "git clone <url>",
+      "git branch -vv; git branch -r",
+      "edit + commit"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Clone",
         "state": {
-          "evidence": "Cloning a public repository creates local origin configuration and an origin/main tracking reference while local changes remain entirely local."
+          "origin": "<url>",
+          "main": "1a2b3c4",
+          "origin/main": "1a2b3c4"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "Cloning creates local origin configuration and a tracking reference."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Inspect",
         "state": {
-          "model": "Clone creates a local repository, copies reachable objects and remote configuration, creates remote-tracking references, and checks out an initial working branch."
+          "local": "main",
+          "remote-tracking": "origin/main, origin/docs"
         },
-        "explanation": "Apply the declared Clone and remote configuration model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "Local branches and remote-tracking refs are listed separately."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Commit",
         "state": {
-          "correction": "A clone is an independent local repository initialized from remote data; later fetch and push operations synchronize selected references explicitly."
+          "main": "5d6e7f8",
+          "origin/main": "1a2b3c4",
+          "server": "unchanged"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Clone creates a live shared folder where local edits immediately alter the remote repository."
+        "explanation": "Local changes remain entirely local until pushed."
       }
     ],
-    "textAlternative": "Starting artifact: Cloning a public repository creates local origin configuration and an origin/main tracking reference while local changes remain entirely local. Step 1, Observe. State: evidence: Cloning a public repository creates local origin configuration and an origin/main tracking reference while local changes remain entirely local.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Clone creates a local repository, copies reachable objects and remote configuration, creates remote-tracking references, and checks out an initial working branch.. Apply the declared Clone and remote configuration model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: A clone is an independent local repository initialized from remote data; later fetch and push operations synchronize selected references explicitly.. Compare the observation with the correction and reject the misconception: Clone creates a live shared folder where local edits immediately alter the remote repository."
+    "textAlternative": "Tracing a clone. Step 1, Clone: origin is <url>; main is 1a2b3c4; origin/main is 1a2b3c4. Cloning creates local origin configuration and a tracking reference. Step 2, Inspect: local is main; remote-tracking is origin/main, origin/docs. Local branches and remote-tracking refs are listed separately. Step 3, Commit: main is 5d6e7f8; origin/main is 1a2b3c4; server is unchanged. Local changes remain entirely local until pushed."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Clone and remote configuration: direct case”: state its starting evidence, apply the Clone and remote configuration rule, and give the observable result in three short lines.",
+      "prompt": "For \"Cloning the practice repo\", explain how cloning a public repository creates local origin configuration and an origin/main tracking reference while local changes remain entirely local.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Clone.",
+        "Inspect.",
+        "Commit."
       ],
       "expectedEvidence": [
-        "Named example: Clone and remote configuration: direct case.",
-        "Starting evidence: Cloning a public repository creates local origin configuration and an origin/main tracking reference while local changes remain entirely local.",
-        "Core rule: Clone creates a local repository, copies reachable objects and remote configuration, creates remote-tracking references, and checks out an initial working branch.",
-        "Observable result: The case supports the declared outcome because A clone is an independent local repository initialized from remote data; later fetch and push operations synchronize selected references explicitly.",
-        "Boundary check: A clone is an independent local repository initialized from remote data; later fetch and push operations synchronize selected references explicitly."
+        "Names the example \"Cloning the practice repo\": the learner feared editing the teacher's repo.",
+        "Cloning a public repository creates local origin configuration and an origin/main tracking reference.",
+        "Local changes remain entirely local.",
+        "The learner understands their edits are private until pushed."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A shallow clone contains limited ancestry, so a history query cannot assume every older commit is available locally.",
+      "prompt": "Clone any small public repository. Run git remote -v, git branch -vv and git branch -r, and write one sentence explaining each ref listed.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "origin/HEAD names the default branch.",
+        "Local vs remote-tracking."
       ],
       "expectedEvidence": [
-        "Clone creates a local repository, copies reachable objects and remote configuration, creates remote-tracking references, and checks out an initial working branch.",
-        "Authentication, partial or shallow clone, submodules, large files, default-branch choice, and server permissions can change what is fetched or checked out."
+        "Every ref explained.",
+        "origin identified as a URL nickname."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Clone and remote configuration, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Create a bare repository as a sandbox remote, clone it twice into two folders, commit in one clone, and show with git log --all --decorate that the other clone's origin/main doesn't change until it fetches.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "git init --bare sandbox.git.",
+        "Push from clone A, fetch in clone B."
       ],
       "expectedEvidence": [
-        "Clone a sandbox repository and explain each local and remote-tracking ref.",
-        "A clone is an independent local repository initialized from remote data; later fetch and push operations synchronize selected references explicitly."
+        "Before and after fetch shown.",
+        "Refs explained at each step."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.remotes.clone.misconception",
-      "explanation": "A clone is an independent local repository initialized from remote data; later fetch and push operations synchronize selected references explicitly.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A shallow clone contains limited ancestry, so a history query cannot assume every older commit is available locally."
+      "explanation": "For every name in git branch -a, ask: **is it local (I move it) or remote-tracking (fetch moves it)?** And remember **nothing leaves until push**.",
+      "retryPrompt": "Apply this to \"The missing branch\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to clone a sandbox repository and explain each local and remote-tracking ref. Keep this boundary in view: Authentication, partial or shallow clone, submodules, large files, default-branch choice, and server permissions can change what is fetched or checked out.",
+    "summary": "To clone and explain each ref, remember clone makes an independent repository with origin saved as the source URL, remote-tracking refs like origin/main recording the server's branches at last contact, and a checked-out local main tracking it, with all local changes staying local until pushed.",
     "retrievalPrompts": [
-      "Explain Clone and remote configuration without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Clone creates a live shared folder where local edits immediately alter the remote repository.",
-      "Apply the model to this case from memory: A shallow clone contains limited ancestry, so a history query cannot assume every older commit is available locally."
+      "What is origin?",
+      "What is origin/main?",
+      "Does a local commit change the remote?"
     ],
     "nextReviewPrompt": "Next: continue to “Fetch and compare”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

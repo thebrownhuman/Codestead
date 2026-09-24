@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A Promise represents eventual fulfillment or rejection, and then creates a new promise whose result follows its handler.",
+    "summary": "A **Promise** is a placeholder for a result that isn't ready yet. It starts **pending**, then settles once: **fulfilled** with a value or **rejected** with an error. `.then(handler)` returns a **new** promise that settles with whatever the handler returns, or **rejects if the handler throws**. So a chain passes values down step by step, and a single `.catch` at the end receives a failure from any earlier step. Always **return** the inner promise from a handler, or the chain won't wait for it.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A parse step thrown inside then rejects the next promise and is handled by a terminal catch. Your goal is to trace and implement a promise chain with correctly propagated failures. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A settings loader reads saved JSON text, parses it, then applies the theme. One day the saved text is corrupted and the page shows nothing, with no error message. Where did the failure go? A parse step thrown inside then rejects the next promise and is handled by a terminal catch. In this lesson you'll trace and implement a promise chain with correctly propagated failures.\n\n```predict\n{\"question\": \"`const p1 = Promise.resolve(1); const p2 = p1.then((n) => n + 1);` Is `p1 === p2`?\", \"options\": [\"true, then returns the same promise\", \"false, then returns a new promise that fulfils with 2\"], \"answer\": 1, \"why\": \"Each then creates a new promise. p1 still holds 1; p2 settles with the handler's result.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Call stack and event loop model; Closures and lifetime. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Call stack and event loop model** (handlers run later as microtasks) and **Closures and lifetime**, because handlers use variables from the surrounding code."
       },
       {
-        "heading": "Technology rule",
-        "body": "A Promise represents eventual fulfillment or rejection, and then creates a new promise whose result follows its handler. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: each then makes the next promise",
+        "body": "```js\nfunction loadSettings(readText) {\n  return readText(\"settings\")                 // promise of text.\n    .then((text) => JSON.parse(text))          // throws on bad JSON, rejects the next promise.\n    .then((settings) => {\n      applyTheme(settings.theme);\n      return settings;                         // passed down the chain.\n    })\n    .catch((error) => {\n      showMessage(\"Settings were reset because they couldn't be read.\");\n      return { theme: \"light\" };               // recover with a default.\n    });\n}\n```\n\n| Inside a then handler | Next promise |\n|---|---|\n| return a value. | fulfils with that value. |\n| return a promise. | waits for it, then follows it. |\n| throw an error. | rejects with that error. |\n| forget to return. | fulfils with undefined immediately. |\n\n| After catch | Effect |\n|---|---|\n| catch returns a value. | chain recovers and continues fulfilled. |\n| catch throws. | chain stays rejected. |\n\n```reveal\n{\"prompt\": \"Why did the corrupted settings show no error before the fix?\", \"answer\": \"The chain had no catch, so the rejection was unhandled. The browser only logs \\\"Uncaught (in promise)\\\" in the console.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Errors can become unhandled, executors run synchronously, and Promise.all fails fast while work may continue. This draft therefore rejects: then mutates and returns the same Promise object."
+        "heading": "Return, don't just call",
+        "body": "```predict\n{\"question\": \"`.then(() => { saveToServer(data); }).then(() => showSaved())` Does showSaved wait for the save?\", \"options\": [\"Yes\", \"No: the handler didn't return the save promise\"], \"answer\": 1, \"why\": \"Write `.then(() => saveToServer(data))` so the chain waits for it.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Represent eventual completion and compose fulfillment, rejection and cleanup without floating promises.",
-      "Trace and implement a promise chain with correctly propagated failures."
+      "Trace how values and errors flow through then and catch.",
+      "Implement a chain that returns inner promises and ends with catch."
     ],
     "excludes": [
-      "Errors can become unhandled, executors run synchronously, and Promise.all fails fast while work may continue."
+      "async/await syntax (next lesson).",
+      "Writing promise libraries or thenables."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "javascript.async.promises.example-a",
-      "title": "Promises and chains: concrete case",
+      "title": "The parse error that reached catch",
       "situation": "A parse step thrown inside then rejects the next promise and is handled by a terminal catch.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A parse step thrown inside then rejects the next promise and is handled by a terminal catch.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: then returns a new promise, enabling transformation and error propagation through a chain."
+        "**Parse step:** `.then((text) => JSON.parse(text))` throws SyntaxError on the corrupted text.",
+        "**Rejects the next promise:** the applyTheme step is skipped because its promise is rejected.",
+        "**Terminal catch:** `.catch` will show a friendly message and return the light-theme default."
       ],
-      "result": "The result follows because then returns a new promise, enabling transformation and error propagation through a chain."
+      "result": "Corrupted settings no longer fail silently: the learner sees a message and the page loads with the default theme."
     },
     {
       "id": "javascript.async.promises.example-b",
-      "title": "Promises and chains: boundary case",
-      "situation": "Errors can become unhandled, executors run synchronously, and Promise.all fails fast while work may continue.",
+      "title": "The spinner that stopped too soon",
+      "situation": "A save button hides its spinner in the second then, but the spinner vanishes before the server has finished saving.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Errors can become unhandled, executors run synchronously, and Promise.all fails fast while work may continue.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: then mutates and returns the same Promise object."
+        "The first handler called `saveToServer(data)` without returning it.",
+        "The next then ran immediately with undefined.",
+        "Fix: `.then(() => saveToServer(data))` so the chain waits for the save promise."
       ],
-      "result": "The boundary requires this correction: then returns a new promise, enabling transformation and error propagation through a chain."
+      "result": "The spinner stays until the server confirms the save."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.async.promises.misconception",
       "mistakenBelief": "then mutates and returns the same Promise object.",
-      "correction": "then returns a new promise, enabling transformation and error propagation through a chain.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: then mutates and returns the same Promise object."
+      "correction": "A promise settles once and never changes. then creates and returns a new promise whose result depends on the handler: its returned value, returned promise, or thrown error.",
+      "diagnosticPrompt": "In the opening predict, what value does p1 still hold?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Promises and chains, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "A promise chain is like a **relay race**: each runner (then handler) receives the baton (value), does their leg, and passes a new baton on. If a runner falls (throws), the remaining runners are skipped and the race official at the finish line (catch) handles it.",
     "usefulFor": [
-      "Building a first mental model for Promises and chains before using exact platform terms"
+      "remembering values flow down",
+      "throw skips to catch"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Errors can become unhandled, executors run synchronously, and Promise.all fails fast while work may continue."
+      "Relay runners run immediately; handlers wait for the previous promise.",
+      "A runner who forgets to hand over the baton = forgetting to return."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A parse step thrown inside then rejects the next promise and is handled by a terminal catch.",
-      "A Promise represents eventual fulfillment or rejection, and then creates a new promise whose result follows its handler.",
-      "then returns a new promise, enabling transformation and error propagation through a chain."
+      "readText('settings') fulfils with '{bad'",
+      ".then(JSON.parse)",
+      ".then(applyTheme) / .catch(...)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Read",
         "state": {
-          "evidence": "A parse step thrown inside then rejects the next promise and is handled by a terminal catch."
+          "p1": "fulfilled: '{bad'"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The read step fulfils with the corrupted text."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Parse",
         "state": {
-          "rule": "A Promise represents eventual fulfillment or rejection, and then creates a new promise whose result follows its handler."
+          "p2": "rejected: SyntaxError"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The parse step throws inside then, which rejects the next promise."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Recover",
         "state": {
-          "correction": "then returns a new promise, enabling transformation and error propagation through a chain."
+          "applyTheme": "skipped",
+          "catch result": "{ theme: 'light' }"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: then mutates and returns the same Promise object."
+        "explanation": "The terminal catch handles the error and recovers with a default."
       }
     ],
-    "textAlternative": "Starting artifact: A parse step thrown inside then rejects the next promise and is handled by a terminal catch. Step 1, Artifact. State: evidence: A parse step thrown inside then rejects the next promise and is handled by a terminal catch.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: A Promise represents eventual fulfillment or rejection, and then creates a new promise whose result follows its handler.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: then returns a new promise, enabling transformation and error propagation through a chain.. Check the result against the boundary and reject this misconception: then mutates and returns the same Promise object."
+    "textAlternative": "Tracing an error through a chain. Step 1, Read: p1 is fulfilled: '{bad'. The read step fulfils with the corrupted text. Step 2, Parse: p2 is rejected: SyntaxError. The parse step throws inside then, which rejects the next promise. Step 3, Recover: applyTheme is skipped; catch result is { theme: 'light' }. The terminal catch handles the error and recovers with a default."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Promises and chains: concrete case”: state its starting evidence, apply the Promises and chains rule, and give the observable result in three short lines.",
+      "prompt": "For \"The parse error that reached catch\", explain how a parse step thrown inside then rejects the next promise and is handled by a terminal catch.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Parse throws.",
+        "Skip.",
+        "Catch."
       ],
       "expectedEvidence": [
-        "Named example: Promises and chains: concrete case.",
-        "Starting evidence: A parse step thrown inside then rejects the next promise and is handled by a terminal catch.",
-        "Core rule: A Promise represents eventual fulfillment or rejection, and then creates a new promise whose result follows its handler.",
-        "Observable result: The result follows because then returns a new promise, enabling transformation and error propagation through a chain.",
-        "Boundary check: then returns a new promise, enabling transformation and error propagation through a chain."
+        "Names the example \"The parse error that reached catch\": the parse step throws inside then.",
+        "The next promise is rejected and applyTheme is skipped.",
+        "The terminal catch shows a message.",
+        "The page loads with the default theme."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Errors can become unhandled, executors run synchronously, and Promise.all fails fast while work may continue.",
+      "prompt": "Write `getUserName(fetchUser)` where fetchUser returns a promise of a user object. Chain a then that returns `user.name.trim()`, and a catch that returns \"Guest\".",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Return from each handler.",
+        "One catch at the end."
       ],
       "expectedEvidence": [
-        "A Promise represents eventual fulfillment or rejection, and then creates a new promise whose result follows its handler.",
-        "Errors can become unhandled, executors run synchronously, and Promise.all fails fast while work may continue."
+        "A missing name throws inside then and becomes \"Guest\".",
+        "Valid users give their trimmed name."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Promises and chains and explain why the misconception fails.",
+      "prompt": "Build a three-step chain (load, validate, save) with fake promise functions. Write tests where each step fails in turn and assert which later steps were skipped and what catch received.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Use Promise.reject in fakes.",
+        "Record calls in an array."
       ],
       "expectedEvidence": [
-        "Trace and implement a promise chain with correctly propagated failures.",
-        "then returns a new promise, enabling transformation and error propagation through a chain."
+        "Tests for all three failure points.",
+        "The chain always returns its promise."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.async.promises.misconception",
-      "explanation": "then returns a new promise, enabling transformation and error propagation through a chain.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'new promise' and state the decisive evidence."
+      "explanation": "For each handler ask: **what does it return, a value, a promise, or does it throw?** That decides the next promise. Then check the chain ends with catch.",
+      "retryPrompt": "Apply this to \"The spinner that stopped too soon\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to trace and implement a promise chain with correctly propagated failures. Keep this boundary in view: Errors can become unhandled, executors run synchronously, and Promise.all fails fast while work may continue.",
+    "summary": "To trace and implement a promise chain, remember each then returns a new promise that fulfils with the handler's value, follows a returned promise, or rejects if the handler throws. Return inner promises so the chain waits, and end with a catch so failures from any step are propagated and handled.",
     "retrievalPrompts": [
-      "Explain Promises and chains using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: then mutates and returns the same Promise object.",
-      "Apply checkpoint 'new promise' to a new artifact."
+      "Does then return the same promise?",
+      "What happens when a then handler throws?",
+      "Why must a handler return the inner promise?"
     ],
     "nextReviewPrompt": "Next: continue to “async and await”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

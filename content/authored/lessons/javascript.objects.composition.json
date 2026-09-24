@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Object composition combines focused functions or components through explicit interfaces instead of deep inheritance chains.",
+    "summary": "**Composition** builds an object from smaller parts that are **passed in** (a logger, a storage adapter) instead of inherited from a base class. Each part has a small, explicit interface, such as `log(message)` or `save(key, value)`. **Inheritance** (`extends`) fits a true \"is a kind of\" relationship with a stable shared contract. Choose composition when behaviours mix and match, need swapping in tests, or would force a deep chain of base classes.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A logger and storage adapter are passed into a service rather than inherited from one base class. Your goal is to review and refactor an object design using justified composition or inheritance. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A ProgressService extends LoggingBase, which extends StorageBase. Now a test wants the service without real browser storage, and a second service needs storage but a different logger. The chain fights you. A logger and storage adapter are passed into a service rather than inherited from one base class. In this lesson you'll review and refactor an object design using justified composition or inheritance.\n\n```predict\n{\"question\": \"A service needs logging and saving. What's easier to test?\", \"options\": [\"class Service extends StorageBase (which extends LoggerBase)\", \"new Service({ logger, storage }) with fakes passed in during tests\"], \"answer\": 1, \"why\": \"Passed-in parts can be swapped for fakes. Inherited parts are welded into the class.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Object records and property access; Function declarations, expressions and arrows; Classes and private state. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Object records and property access**, **Function declarations, expressions and arrows**, and **Classes and private state**, including constructors and methods."
       },
       {
-        "heading": "Technology rule",
-        "body": "Object composition combines focused functions or components through explicit interfaces instead of deep inheritance chains. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The distinction: has-a parts vs is-a parents",
+        "body": "```js\nclass ProgressService {\n  #logger; #storage;\n  constructor({ logger, storage }) {      // parts passed in.\n    this.#logger = logger;\n    this.#storage = storage;\n  }\n  complete(lessonId) {\n    this.#storage.save(`done:${lessonId}`, true);\n    this.#logger.log(`completed ${lessonId}`);\n  }\n}\n\n// In the app.\nconst service = new ProgressService({\n  logger: console,\n  storage: { save: (k, v) => localStorage.setItem(k, JSON.stringify(v)) },\n});\n\n// In a test: fakes with the same small interface.\nconst saved = [];\nconst testService = new ProgressService({\n  logger: { log() {} },\n  storage: { save: (k, v) => saved.push([k, v]) },\n});\n```\n\n| Question | Lean to |\n|---|---|\n| Is it truly a kind of the parent, forever? | inheritance. |\n| Does it just need a helper's ability? | composition. |\n| Will tests or other apps swap the part? | composition. |\n| Would the chain go 3+ levels deep? | composition. |\n\n```reveal\n{\"prompt\": \"Is inheritance ever right?\", \"answer\": \"Yes, for a stable is-a contract, such as a custom `ValidationError extends Error`. It keeps instanceof checks and the stack trace.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Shared mutable state and ad-hoc mixins can still create coupling or name collisions. This draft therefore rejects: Inheritance is required whenever two objects share any behavior."
+        "heading": "Spot the forced inheritance",
+        "body": "```predict\n{\"question\": \"`class Lesson extends Logger` so lessons can log. Good design?\", \"options\": [\"Yes, now lessons can log\", \"No: a lesson isn't a kind of logger; pass a logger in\"], \"answer\": 1, \"why\": \"Sharing one ability doesn't make an is-a relationship.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Prefer composed functions or collaborators and use extends only for substitutable behavior.",
-      "Review and refactor an object design using justified composition or inheritance."
+      "Refactor inherited helpers into passed-in parts with small interfaces.",
+      "Justify when inheritance still fits."
     ],
     "excludes": [
-      "Shared mutable state and ad-hoc mixins can still create coupling or name collisions."
+      "Mixins and multiple inheritance patterns.",
+      "Dependency-injection frameworks."
     ]
   },
   "outcomes": [
@@ -68,133 +69,135 @@
   "examples": [
     {
       "id": "javascript.objects.composition.example-a",
-      "title": "Composition and inheritance: concrete case",
-      "situation": "A logger and storage adapter are passed into a service rather than inherited from one base class.",
+      "title": "Pass the helpers in",
+      "situation": "A logger and storage adapter are passed into a ProgressService rather than inherited from one base class.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A logger and storage adapter are passed into a service rather than inherited from one base class.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Prefer composition for has-a collaboration and inject narrow capabilities instead of inheriting solely for reuse."
+        "**Before:** ProgressService extends LoggingBase extends StorageBase, so a test can't avoid real storage.",
+        "**Refactor:** the constructor takes `{ logger, storage }` and calls only `log` and `save`.",
+        "**Test:** a test will pass a fake storage that pushes into an array and check `saved` contains [\"done:7\", true]."
       ],
-      "result": "The result follows because Prefer composition for has-a collaboration and inject narrow capabilities instead of inheriting solely for reuse."
+      "result": "The service works with real parts in the app and fake parts in tests, with no base-class chain."
     },
     {
       "id": "javascript.objects.composition.example-b",
-      "title": "Composition and inheritance: boundary case",
-      "situation": "Shared mutable state and ad-hoc mixins can still create coupling or name collisions.",
+      "title": "The error class that should inherit",
+      "situation": "A form library throws plain objects `{ message: \"bad email\" }`, and callers can't use instanceof or see a stack trace.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Shared mutable state and ad-hoc mixins can still create coupling or name collisions.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Inheritance is required whenever two objects share any behavior."
+        "A validation error really is a kind of Error.",
+        "Write `class ValidationError extends Error { constructor(field, msg) { super(msg); this.field = field; } }`.",
+        "Callers check `err instanceof ValidationError` and still get the stack trace."
       ],
-      "result": "The boundary requires this correction: Prefer composition for has-a collaboration and inject narrow capabilities instead of inheriting solely for reuse."
+      "result": "Callers can tell validation errors apart and debug them with a full stack trace."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.objects.composition.misconception",
       "mistakenBelief": "Inheritance is required whenever two objects share any behavior.",
-      "correction": "Prefer composition for has-a collaboration and inject narrow capabilities instead of inheriting solely for reuse.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: Inheritance is required whenever two objects share any behavior."
+      "correction": "Sharing behaviour can be done by passing in a helper object with a small interface. Inheritance is for a genuine, stable is-a relationship; using it just to share code creates rigid chains that are hard to test.",
+      "diagnosticPrompt": "In \"Pass the helpers in\", what made the inherited design hard to test?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Composition and inheritance, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "Composition is like a **camera with swappable lenses**: the body works with any lens that fits the mount (the interface). Inheritance is like a lens **welded** to the body: fine if you'll never change it, painful if you will.",
     "usefulFor": [
-      "Building a first mental model for Composition and inheritance before using exact platform terms"
+      "remembering swap vs weld",
+      "interface = the lens mount"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Shared mutable state and ad-hoc mixins can still create coupling or name collisions."
+      "Lenses don't call back into the camera; parts may.",
+      "Some things really are one piece, like an Error subclass."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A logger and storage adapter are passed into a service rather than inherited from one base class.",
-      "Object composition combines focused functions or components through explicit interfaces instead of deep inheritance chains.",
-      "Prefer composition for has-a collaboration and inject narrow capabilities instead of inheriting solely for reuse."
+      "new ProgressService({ logger, storage })",
+      "service.complete(7)",
+      "inspect fakes"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Build",
         "state": {
-          "evidence": "A logger and storage adapter are passed into a service rather than inherited from one base class."
+          "#logger": "fake",
+          "#storage": "fake"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The constructor stores the parts that were passed in."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Run",
         "state": {
-          "rule": "Object composition combines focused functions or components through explicit interfaces instead of deep inheritance chains."
+          "save called": "done:7, true",
+          "log called": "completed 7"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "complete uses only the small save and log interfaces."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Check",
         "state": {
-          "correction": "Prefer composition for has-a collaboration and inject narrow capabilities instead of inheriting solely for reuse."
+          "saved": "[['done:7', true]]"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Inheritance is required whenever two objects share any behavior."
+        "explanation": "The test reads the fake storage to confirm the behaviour."
       }
     ],
-    "textAlternative": "Starting artifact: A logger and storage adapter are passed into a service rather than inherited from one base class. Step 1, Artifact. State: evidence: A logger and storage adapter are passed into a service rather than inherited from one base class.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Object composition combines focused functions or components through explicit interfaces instead of deep inheritance chains.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Prefer composition for has-a collaboration and inject narrow capabilities instead of inheriting solely for reuse.. Check the result against the boundary and reject this misconception: Inheritance is required whenever two objects share any behavior."
+    "textAlternative": "Running a composed service with fakes. Step 1, Build: #logger is fake; #storage is fake. The constructor stores the parts that were passed in. Step 2, Run: save called is done:7, true; log called is completed 7. complete uses only the small save and log interfaces. Step 3, Check: saved is [['done:7', true]]. The test reads the fake storage to confirm the behaviour."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Composition and inheritance: concrete case”: state its starting evidence, apply the Composition and inheritance rule, and give the observable result in three short lines.",
+      "prompt": "For \"Pass the helpers in\", explain why a logger and storage adapter are passed into a service rather than inherited from one base class.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Before.",
+        "Refactor.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Composition and inheritance: concrete case.",
-        "Starting evidence: A logger and storage adapter are passed into a service rather than inherited from one base class.",
-        "Core rule: Object composition combines focused functions or components through explicit interfaces instead of deep inheritance chains.",
-        "Observable result: The result follows because Prefer composition for has-a collaboration and inject narrow capabilities instead of inheriting solely for reuse.",
-        "Boundary check: Prefer composition for has-a collaboration and inject narrow capabilities instead of inheriting solely for reuse."
+        "Names the example \"Pass the helpers in\": the parts are passed into the service.",
+        "The service calls only log and save.",
+        "Tests pass fakes with the same interface.",
+        "No base-class chain is needed."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Shared mutable state and ad-hoc mixins can still create coupling or name collisions.",
+      "prompt": "Refactor `class Notifier extends EmailSender` into a Notifier that receives a `sender` with `send(to, text)`. Write a test using a fake sender.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Small interface.",
+        "Store the part privately."
       ],
       "expectedEvidence": [
-        "Object composition combines focused functions or components through explicit interfaces instead of deep inheritance chains.",
-        "Shared mutable state and ad-hoc mixins can still create coupling or name collisions."
+        "Notifier constructor takes { sender }.",
+        "Test asserts the fake received the message."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Composition and inheritance and explain why the misconception fails.",
+      "prompt": "Review a small design of your own (or the sample) with at least one extends. For each, write one sentence justifying it as is-a, or refactor to composition, and add a test proving swappability.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Ask: is it a kind of the parent?",
+        "Can a test swap the part?"
       ],
       "expectedEvidence": [
-        "Review and refactor an object design using justified composition or inheritance.",
-        "Prefer composition for has-a collaboration and inject narrow capabilities instead of inheriting solely for reuse."
+        "A justified decision per class.",
+        "At least one test with a fake part."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.objects.composition.misconception",
-      "explanation": "Prefer composition for has-a collaboration and inject narrow capabilities instead of inheriting solely for reuse.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'has-a collaboration' and state the decisive evidence."
+      "explanation": "For each extends, say aloud: \"A ___ **is a kind of** ___.\" If it sounds wrong, pass the helper in instead.",
+      "retryPrompt": "Apply this to \"The error class that should inherit\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to review and refactor an object design using justified composition or inheritance. Keep this boundary in view: Shared mutable state and ad-hoc mixins can still create coupling or name collisions.",
+    "summary": "To review and refactor an object design using justified composition or inheritance, pass helper parts in through small interfaces when you only need their abilities or want to swap them in tests, and keep extends for a genuine, stable is-a relationship like an Error subclass.",
     "retrievalPrompts": [
-      "Explain Composition and inheritance using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: Inheritance is required whenever two objects share any behavior.",
-      "Apply checkpoint 'has-a collaboration' to a new artifact."
+      "When does inheritance fit?",
+      "Why are passed-in parts easier to test?",
+      "What is the interface a part must provide?"
     ],
     "nextReviewPrompt": "Next: continue to “Lexical scope and temporal dead zone”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

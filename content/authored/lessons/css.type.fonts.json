@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Font-family lists provide ordered fallbacks, web fonts need loading strategy, and font metrics affect wrapping, layout shift, and readability.",
+    "summary": "A **font stack** lists fonts in order of preference: `font-family: \"Inter\", system-ui, sans-serif;`. The browser uses the first one available. Web fonts load over the network, so for a moment they **aren't** available — `font-display: swap` shows text in a fallback immediately, then swaps. Pick fallbacks with similar proportions to limit layout jumps, and consider **self-hosting** fonts so visitors' browsers don't contact third-party font servers.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A system fallback renders immediately while the chosen web font loads with compatible metrics. Your goal is to configure a font stack and explain fallback, loading and privacy trade-offs. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "On a slow connection, your landing page shows blank space where the headline should be for three seconds — the custom font is still downloading. When it finally arrives, the whole page jumps. A system fallback renders immediately while the chosen web font loads with compatible metrics. In this lesson you'll configure a font stack and explain fallback, loading and privacy trade-offs.\n\n```predict\n{\"question\": \"You declare `font-family: \\\"Inter\\\";` with no fallback and the font fails to load. What does the text use?\", \"options\": [\"Inter anyway\", \"The browser's default font (often Times)\"], \"answer\": 1, \"why\": \"Without a fallback in the stack, the browser uses its default. Always end with a generic family like sans-serif.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Lengths, percentages and viewport units; html semantics text. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Lengths, percentages and viewport units** and **Paragraph and inline meaning** — fonts style the text elements you mark up."
       },
       {
-        "heading": "Technology rule",
-        "body": "Font-family lists provide ordered fallbacks, web fonts need loading strategy, and font metrics affect wrapping, layout shift, and readability. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: stack, load, swap",
+        "body": "```css\n@font-face {\n  font-family: \"Inter\";\n  src: url(\"/fonts/inter-var.woff2\") format(\"woff2\");  /* self-hosted */\n  font-weight: 100 900;\n  font-display: swap;          /* show fallback text immediately */\n}\n\nbody {\n  font-family: \"Inter\", system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif;\n}\n```\n\n| Piece | Job |\n|---|---|\n| stack order. | first available font wins. |\n| generic last (`sans-serif`). | always-available safety net. |\n| `font-display: swap`. | no invisible text while loading. |\n| similar-metric fallback. | smaller jump when the font swaps. |\n| self-hosting. | no third-party requests revealing visitors' IPs. |\n\n```reveal\n{\"prompt\": \"How can you shrink the layout jump when fonts swap?\", \"answer\": \"Pick a fallback with similar width and height, or tune it with `size-adjust` and `ascent-override` in a fallback @font-face.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "A downloaded font can fail, synthetic styles differ, variable axes need ranges, and icon fonts can expose incorrect text. This draft therefore rejects: Declaring one custom font guarantees it loads before any text is displayed."
+        "heading": "Performance and privacy",
+        "body": "```predict\n{\"question\": \"Loading fonts from a third-party font CDN on every page means…\", \"options\": [\"Nothing changes for privacy\", \"Each visitor's browser contacts that company, sharing their IP address\"], \"answer\": 1, \"why\": \"Self-hosting avoids that request, and often loads faster too. Load only the weights and styles you actually use.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Define resilient font stacks and load web fonts without unreadable fallback assumptions.",
-      "Configure a font stack and explain fallback, loading and privacy trade-offs."
+      "Write font stacks with generic fallbacks and @font-face with font-display.",
+      "Explain loading, layout-shift and privacy trade-offs of web fonts."
     ],
     "excludes": [
-      "A downloaded font can fail, synthetic styles differ, variable axes need ranges, and icon fonts can expose incorrect text."
+      "Variable font axes in depth.",
+      "Icon fonts."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "css.type.fonts.example-a",
-      "title": "Font families and loading: concrete case",
+      "title": "Text shows before the web font arrives",
       "situation": "A system fallback renders immediately while the chosen web font loads with compatible metrics.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A system fallback renders immediately while the chosen web font loads with compatible metrics.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Provide appropriate fallback fonts and a measured font-display strategy because web-font loading can fail or arrive late."
+        "**Stack:** `\"Inter\", system-ui, …, sans-serif` — the system fallback is available instantly.",
+        "**Load:** `font-display: swap` means the browser will render text in the fallback while inter-var.woff2 downloads.",
+        "**Compatible metrics:** system-ui has similar proportions, so when Inter swaps in, lines barely shift."
       ],
-      "result": "The result follows because Provide appropriate fallback fonts and a measured font-display strategy because web-font loading can fail or arrive late."
+      "result": "Text is readable from the first moment, and the swap causes only a small shift."
     },
     {
       "id": "css.type.fonts.example-b",
-      "title": "Font families and loading: boundary case",
-      "situation": "A downloaded font can fail, synthetic styles differ, variable axes need ranges, and icon fonts can expose incorrect text.",
+      "title": "Seven font files for one page",
+      "situation": "A page loads regular, italic, medium, semibold, bold, black and light weights of one font plus a second display font — 600 KB of fonts.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: A downloaded font can fail, synthetic styles differ, variable axes need ranges, and icon fonts can expose incorrect text.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Declaring one custom font guarantees it loads before any text is displayed."
+        "Most weights appear only once or not at all.",
+        "Every file delays the final text rendering on slow networks.",
+        "Fix: keep two weights (or one variable font), drop the unused display font, and self-host WOFF2."
       ],
-      "result": "The boundary requires this correction: Provide appropriate fallback fonts and a measured font-display strategy because web-font loading can fail or arrive late."
+      "result": "Font downloads drop to about 60 KB with no visible loss."
     }
   ],
   "misconceptions": [
     {
       "id": "css.type.fonts.misconception",
       "mistakenBelief": "Declaring one custom font guarantees it loads before any text is displayed.",
-      "correction": "Provide appropriate fallback fonts and a measured font-display strategy because web-font loading can fail or arrive late.",
-      "diagnosticPrompt": "Use a concrete CSS: Responsive and Accessible Styling artifact to explain why this belief fails: Declaring one custom font guarantees it loads before any text is displayed."
+      "correction": "Web fonts download separately and may be slow or fail. Provide a fallback stack ending in a generic family, and use font-display to decide whether text shows in a fallback while the font loads.",
+      "diagnosticPrompt": "In the opening predict, what did the text use when Inter failed?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A layered stage design can model Font families and loading, where rules size, place, and paint existing content.",
+    "example": "A font stack is like **ordering food with backups**: \"the special if it's ready, otherwise the usual, otherwise anything vegetarian\". font-display: swap means you start eating the usual while the special is cooking.",
     "usefulFor": [
-      "Building a first mental model for Font families and loading before using exact platform terms"
+      "remembering fallback order",
+      "seeing swap as not waiting hungry"
     ],
     "limitations": [
-      "Physical layers do not reproduce cascade algorithms, intrinsic sizing, writing modes, or user preferences.",
-      "A downloaded font can fail, synthetic styles differ, variable axes need ranges, and icon fonts can expose incorrect text."
+      "Food doesn't cause layout shift; font swaps can.",
+      "Ordering from another restaurant (a font CDN) tells them you're here."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A system fallback renders immediately while the chosen web font loads with compatible metrics.",
-      "Font-family lists provide ordered fallbacks, web fonts need loading strategy, and font metrics affect wrapping, layout shift, and readability.",
-      "Provide appropriate fallback fonts and a measured font-display strategy because web-font loading can fail or arrive late."
+      "@font-face { font-family: Inter; font-display: swap }",
+      "body { font-family: 'Inter', system-ui, sans-serif }",
+      "page load on slow network"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "First paint",
         "state": {
-          "evidence": "A system fallback renders immediately while the chosen web font loads with compatible metrics."
+          "font used": "system-ui"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "A system fallback renders immediately on the first paint."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Loading",
         "state": {
-          "rule": "Font-family lists provide ordered fallbacks, web fonts need loading strategy, and font metrics affect wrapping, layout shift, and readability."
+          "inter-var.woff2": "downloading"
         },
-        "explanation": "Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The chosen web font loads in the background."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Swap",
         "state": {
-          "correction": "Provide appropriate fallback fonts and a measured font-display strategy because web-font loading can fail or arrive late."
+          "font used": "Inter",
+          "layout shift": "small"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Declaring one custom font guarantees it loads before any text is displayed."
+        "explanation": "It swaps in with compatible metrics, so text barely moves."
       }
     ],
-    "textAlternative": "Starting artifact: A system fallback renders immediately while the chosen web font loads with compatible metrics. Step 1, Artifact. State: evidence: A system fallback renders immediately while the chosen web font loads with compatible metrics.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Font-family lists provide ordered fallbacks, web fonts need loading strategy, and font metrics affect wrapping, layout shift, and readability.. Apply the declared CSS: Responsive and Accessible Styling rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Provide appropriate fallback fonts and a measured font-display strategy because web-font loading can fail or arrive late.. Check the result against the boundary and reject this misconception: Declaring one custom font guarantees it loads before any text is displayed."
+    "textAlternative": "Loading a web font with a fallback. Step 1, First paint: font used is system-ui. A system fallback renders immediately on the first paint. Step 2, Loading: inter-var.woff2 is downloading. The chosen web font loads in the background. Step 3, Swap: font used is Inter; layout shift is small. It swaps in with compatible metrics, so text barely moves."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Font families and loading: concrete case”: state its starting evidence, apply the Font families and loading rule, and give the observable result in three short lines.",
+      "prompt": "For \"Text shows before the web font arrives\", explain how a system fallback renders immediately while the chosen web font loads with compatible metrics.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Stack.",
+        "Loading.",
+        "Metrics."
       ],
       "expectedEvidence": [
-        "Named example: Font families and loading: concrete case.",
-        "Starting evidence: A system fallback renders immediately while the chosen web font loads with compatible metrics.",
-        "Core rule: Font-family lists provide ordered fallbacks, web fonts need loading strategy, and font metrics affect wrapping, layout shift, and readability.",
-        "Observable result: The result follows because Provide appropriate fallback fonts and a measured font-display strategy because web-font loading can fail or arrive late.",
-        "Boundary check: Provide appropriate fallback fonts and a measured font-display strategy because web-font loading can fail or arrive late."
+        "Names the example \"Text shows before the web font arrives\": a system fallback renders immediately.",
+        "font-display: swap shows text while the web font loads.",
+        "Compatible metrics keep the swap shift small.",
+        "Text is readable from the first moment."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: A downloaded font can fail, synthetic styles differ, variable axes need ranges, and icon fonts can expose incorrect text.",
+      "prompt": "Write a font stack for code blocks that prefers \"JetBrains Mono\", falls back to common system monospace fonts, and ends with a generic family.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Generic: monospace.",
+        "Quote names with spaces."
       ],
       "expectedEvidence": [
-        "Font-family lists provide ordered fallbacks, web fonts need loading strategy, and font metrics affect wrapping, layout shift, and readability.",
-        "A downloaded font can fail, synthetic styles differ, variable axes need ranges, and icon fonts can expose incorrect text."
+        "`\"JetBrains Mono\", ui-monospace, Menlo, Consolas, monospace`.",
+        "Ends with the monospace generic family."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CSS: Responsive and Accessible Styling example for Font families and loading and explain why the misconception fails.",
+      "prompt": "Measure a page's font loading in DevTools (Network, throttled). Reduce weights, self-host WOFF2, add font-display: swap, and compare load time and layout shift.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Use Slow 4G throttling.",
+        "Check CLS in Lighthouse."
       ],
       "expectedEvidence": [
-        "Configure a font stack and explain fallback, loading and privacy trade-offs.",
-        "Provide appropriate fallback fonts and a measured font-display strategy because web-font loading can fail or arrive late."
+        "Measured before/after font bytes and timing.",
+        "Improved or unchanged layout shift with swap."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "css.type.fonts.misconception",
-      "explanation": "Provide appropriate fallback fonts and a measured font-display strategy because web-font loading can fail or arrive late.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'fallback fonts' and state the decisive evidence."
+      "explanation": "Checklist: **stack ends in a generic family? font-display set? only used weights loaded? fallback with similar proportions? self-hosted if privacy matters?**",
+      "retryPrompt": "Run it on \"Seven font files for one page\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to configure a font stack and explain fallback, loading and privacy trade-offs. Keep this boundary in view: A downloaded font can fail, synthetic styles differ, variable axes need ranges, and icon fonts can expose incorrect text.",
+    "summary": "To configure a font stack, list preferred fonts with system fallbacks and a generic family, load web fonts with @font-face and font-display: swap so text shows immediately, choose compatible-metric fallbacks, load only needed weights, and weigh third-party loading against privacy.",
     "retrievalPrompts": [
-      "Explain Font families and loading using exact CSS: Responsive and Accessible Styling terms.",
-      "Why is this claim incorrect: Declaring one custom font guarantees it loads before any text is displayed.",
-      "Apply checkpoint 'fallback fonts' to a new artifact."
+      "Why end a stack with a generic family?",
+      "What does font-display: swap do?",
+      "What privacy issue do font CDNs raise?"
     ],
     "nextReviewPrompt": "Next: continue to “Readable text metrics”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

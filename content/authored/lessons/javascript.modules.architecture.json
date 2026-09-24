@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Module architecture groups cohesive responsibilities, keeps dependency direction clear, and isolates browser, network, and storage boundaries.",
+    "summary": "Good module architecture has three habits. **Cohesion**: each module does one kind of job (domain rules, storage, view). **Dependency direction**: arrows point from the edges (UI, browser APIs, network) toward the core domain logic, never back, so there are no cycles. **Boundaries**: code that touches `localStorage`, `fetch` or the DOM lives in thin adapter modules; the domain receives them through a small interface, a **port**, instead of reaching for globals.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A domain module accepts a storage port instead of importing localStorage throughout business logic. Your goal is to design and implement a module graph without circular feature dependencies or hidden globals. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Progress rules (\"a lesson counts as done after its quiz passes\") are spread across twelve files, and each one calls `localStorage` directly. Tests need a fake browser, and moving to a server means editing all twelve. A domain module accepts a storage port instead of importing localStorage throughout business logic. In this lesson you'll design and implement a module graph without circular feature dependencies or hidden globals.\n\n```predict\n{\"question\": \"Splitting one tangled file into ten files that all import each other: lower coupling?\", \"options\": [\"Yes, more modules means less coupling\", \"No: the dependencies are just as tangled, now across files\"], \"answer\": 1, \"why\": \"Coupling depends on dependency direction and interface size, not the number of files.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Control flow and functions; Module loading baseline; Imports, exports and module graph; Composition and inheritance. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Control flow and functions** module, **Module loading baseline**, **Imports, exports and module graph**, and **Composition and inheritance** (passing parts in)."
       },
       {
-        "heading": "Technology rule",
-        "body": "Module architecture groups cohesive responsibilities, keeps dependency direction clear, and isolates browser, network, and storage boundaries. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: arrows point inward to the domain",
+        "body": "```js\n// progress-domain.js: pure rules, no browser globals.\nexport function createProgress(storage) {        // storage port: { load(), save(data) }.\n  return {\n    complete(lessonId, quizPassed) {\n      if (!quizPassed) return false;\n      const data = storage.load() ?? { done: [] };\n      if (!data.done.includes(lessonId)) data.done.push(lessonId);\n      storage.save(data);\n      return true;\n    },\n  };\n}\n\n// local-storage-adapter.js: the only file that knows localStorage.\nexport const localStore = {\n  load: () => JSON.parse(localStorage.getItem(\"progress\") ?? \"null\"),\n  save: (d) => localStorage.setItem(\"progress\", JSON.stringify(d)),\n};\n\n// main.js: wires the edges to the core.\nimport { createProgress } from \"./progress-domain.js\";\nimport { localStore } from \"./local-storage-adapter.js\";\nexport const progress = createProgress(localStore);\n```\n\n| Layer | May import | Must not import |\n|---|---|---|\n| domain. | other domain modules. | DOM, storage, fetch, view. |\n| adapters. | browser APIs. | view. |\n| view / main. | domain, adapters. | nothing imports view back. |\n\n```reveal\n{\"prompt\": \"How does a test use the domain now?\", \"answer\": \"Pass a fake port: `createProgress({ load: () => null, save: (d) => saved.push(d) })`. No browser is needed.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Tiny files can create cycles, barrel exports can hide coupling, and shared mutable singletons undermine tests. This draft therefore rejects: More modules always mean lower coupling regardless of dependency direction."
+        "heading": "Spot the wrong arrow",
+        "body": "```predict\n{\"question\": \"progress-domain.js imports `showToast` from view.js to announce completion. Problem?\", \"options\": [\"No problem\", \"Yes: the domain now depends on the view; return a result and let the view show the toast\"], \"answer\": 1, \"why\": \"Domain returns facts; outer layers decide how to display them.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Separate domain logic, browser adapters and presentation so core behavior is directly testable.",
-      "Design and implement a module graph without circular feature dependencies or hidden globals."
+      "Design a module graph with inward dependency direction.",
+      "Isolate storage, network and DOM behind small ports and adapters."
     ],
     "excludes": [
-      "Tiny files can create cycles, barrel exports can hide coupling, and shared mutable singletons undermine tests."
+      "Monorepo tooling and package boundaries.",
+      "Formal clean-architecture terminology."
     ]
   },
   "outcomes": [
@@ -63,133 +64,135 @@
   "examples": [
     {
       "id": "javascript.modules.architecture.example-a",
-      "title": "Dependency boundaries: concrete case",
+      "title": "A storage port for the progress domain",
       "situation": "A domain module accepts a storage port instead of importing localStorage throughout business logic.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A domain module accepts a storage port instead of importing localStorage throughout business logic.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Choose cohesive module boundaries and enforce dependency direction; file count alone does not reduce coupling."
+        "**Port:** createProgress(storage) needs only `load()` and `save(data)`.",
+        "**Adapter:** local-storage-adapter.js is the single file that calls localStorage.",
+        "**Test:** a test will build the domain with a fake port and check that complete(7, true) saves { done: [7] }."
       ],
-      "result": "The result follows because Choose cohesive module boundaries and enforce dependency direction; file count alone does not reduce coupling."
+      "result": "Progress rules run in tests without a browser, and switching to server storage changes one adapter file."
     },
     {
       "id": "javascript.modules.architecture.example-b",
-      "title": "Dependency boundaries: boundary case",
-      "situation": "Tiny files can create cycles, barrel exports can hide coupling, and shared mutable singletons undermine tests.",
+      "title": "The cycle between cart and view",
+      "situation": "cart.js imports render from cart-view.js, and cart-view.js imports cart.js to read items. Loading sometimes fails with a before-initialization error.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Tiny files can create cycles, barrel exports can hide coupling, and shared mutable singletons undermine tests.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: More modules always mean lower coupling regardless of dependency direction."
+        "The graph has a cycle: domain and view import each other.",
+        "Remove the domain's import of the view; cart.js exports state and functions only.",
+        "cart-view.js imports cart.js and re-renders after each call, so arrows point one way."
       ],
-      "result": "The boundary requires this correction: Choose cohesive module boundaries and enforce dependency direction; file count alone does not reduce coupling."
+      "result": "The modules load in a clear order and cart logic is testable without the view."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.modules.architecture.misconception",
       "mistakenBelief": "More modules always mean lower coupling regardless of dependency direction.",
-      "correction": "Choose cohesive module boundaries and enforce dependency direction; file count alone does not reduce coupling.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: More modules always mean lower coupling regardless of dependency direction."
+      "correction": "Coupling is about how modules depend on each other. Many small files with tangled or circular imports are still tightly coupled; clear inward direction and small interfaces are what lower it.",
+      "diagnosticPrompt": "In the opening predict, why didn't ten files help?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Dependency boundaries, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "An app's modules are like a **restaurant**: the kitchen (domain) cooks by its recipes and asks for ingredients through a hatch (the port). Suppliers (adapters) fill the hatch. Waiters (view) carry dishes out. The kitchen never runs to the market or the dining room itself.",
     "usefulFor": [
-      "Building a first mental model for Dependency boundaries before using exact platform terms"
+      "remembering inward direction",
+      "port = the hatch"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Tiny files can create cycles, barrel exports can hide coupling, and shared mutable singletons undermine tests."
+      "Restaurants have staff; modules have no judgement.",
+      "Swapping suppliers doesn't change recipes, just like swapping adapters."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A domain module accepts a storage port instead of importing localStorage throughout business logic.",
-      "Module architecture groups cohesive responsibilities, keeps dependency direction clear, and isolates browser, network, and storage boundaries.",
-      "Choose cohesive module boundaries and enforce dependency direction; file count alone does not reduce coupling."
+      "createProgress(fakePort)",
+      "complete(7, true)",
+      "fakePort.saved"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Wire",
         "state": {
-          "evidence": "A domain module accepts a storage port instead of importing localStorage throughout business logic."
+          "domain": "uses fake port",
+          "localStorage": "untouched"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The domain module accepts a storage port instead of a global."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Run",
         "state": {
-          "rule": "Module architecture groups cohesive responsibilities, keeps dependency direction clear, and isolates browser, network, and storage boundaries."
+          "load()": "null",
+          "data.done": "[7]"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The domain applies its rule and asks the port to save."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Check",
         "state": {
-          "correction": "Choose cohesive module boundaries and enforce dependency direction; file count alone does not reduce coupling."
+          "saved": "[{ done: [7] }]"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: More modules always mean lower coupling regardless of dependency direction."
+        "explanation": "The test reads the fake port to verify the business logic."
       }
     ],
-    "textAlternative": "Starting artifact: A domain module accepts a storage port instead of importing localStorage throughout business logic. Step 1, Artifact. State: evidence: A domain module accepts a storage port instead of importing localStorage throughout business logic.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Module architecture groups cohesive responsibilities, keeps dependency direction clear, and isolates browser, network, and storage boundaries.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Choose cohesive module boundaries and enforce dependency direction; file count alone does not reduce coupling.. Check the result against the boundary and reject this misconception: More modules always mean lower coupling regardless of dependency direction."
+    "textAlternative": "Running domain logic through a port. Step 1, Wire: domain is uses fake port; localStorage is untouched. The domain module accepts a storage port instead of a global. Step 2, Run: load() is null; data.done is [7]. The domain applies its rule and asks the port to save. Step 3, Check: saved is [{ done: [7] }]. The test reads the fake port to verify the business logic."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Dependency boundaries: concrete case”: state its starting evidence, apply the Dependency boundaries rule, and give the observable result in three short lines.",
+      "prompt": "For \"A storage port for the progress domain\", explain why a domain module accepts a storage port instead of importing localStorage throughout business logic.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Port.",
+        "Adapter.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Dependency boundaries: concrete case.",
-        "Starting evidence: A domain module accepts a storage port instead of importing localStorage throughout business logic.",
-        "Core rule: Module architecture groups cohesive responsibilities, keeps dependency direction clear, and isolates browser, network, and storage boundaries.",
-        "Observable result: The result follows because Choose cohesive module boundaries and enforce dependency direction; file count alone does not reduce coupling.",
-        "Boundary check: Choose cohesive module boundaries and enforce dependency direction; file count alone does not reduce coupling."
+        "Names the example \"A storage port for the progress domain\": the domain module accepts a storage port.",
+        "Only the adapter file touches localStorage.",
+        "Tests pass a fake port.",
+        "Changing storage means changing one adapter."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Tiny files can create cycles, barrel exports can hide coupling, and shared mutable singletons undermine tests.",
+      "prompt": "A quiz module calls `fetch(\"/api/questions\")` inside its scoring code. Redesign it with a `questionSource` port and a fetch adapter, and write the import lines.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Domain gets the port as a parameter.",
+        "Adapter owns fetch."
       ],
       "expectedEvidence": [
-        "Module architecture groups cohesive responsibilities, keeps dependency direction clear, and isolates browser, network, and storage boundaries.",
-        "Tiny files can create cycles, barrel exports can hide coupling, and shared mutable singletons undermine tests."
+        "Scoring code has no fetch.",
+        "main.js wires the fetch adapter to the domain."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Dependency boundaries and explain why the misconception fails.",
+      "prompt": "Draw the module graph for a small notes app (domain, storage adapter, view, main). Implement it with no cycles and no browser globals in the domain, and test the domain with fakes.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Arrows inward.",
+        "One adapter per boundary."
       ],
       "expectedEvidence": [
-        "Design and implement a module graph without circular feature dependencies or hidden globals.",
-        "Choose cohesive module boundaries and enforce dependency direction; file count alone does not reduce coupling."
+        "An acyclic graph that matches the code.",
+        "Domain tests that run without a DOM."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.modules.architecture.misconception",
-      "explanation": "Choose cohesive module boundaries and enforce dependency direction; file count alone does not reduce coupling.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'dependency direction' and state the decisive evidence."
+      "explanation": "For each import, draw an arrow. **Does any arrow point from the domain outward to view, storage or network?** Replace it with a port parameter. **Is there a loop?** Move the shared piece down.",
+      "retryPrompt": "Apply this to \"The cycle between cart and view\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to design and implement a module graph without circular feature dependencies or hidden globals. Keep this boundary in view: Tiny files can create cycles, barrel exports can hide coupling, and shared mutable singletons undermine tests.",
+    "summary": "To design and implement a module graph without circular feature dependencies or hidden globals, group cohesive responsibilities, point dependencies inward toward the domain, and isolate browser, storage and network code in adapters passed in through small ports.",
     "retrievalPrompts": [
-      "Explain Dependency boundaries using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: More modules always mean lower coupling regardless of dependency direction.",
-      "Apply checkpoint 'dependency direction' to a new artifact."
+      "Do more modules automatically lower coupling?",
+      "Which layer may call localStorage?",
+      "How do you test domain logic without a browser?"
     ],
     "nextReviewPrompt": "Next: continue to “Query and update DOM”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

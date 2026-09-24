@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "An effect may return cleanup that reverses its subscription, timer, request, or connection before rerun and unmount.",
+    "summary": "An effect can **return a cleanup function** that undoes its setup: remove the listener, clear the timer, close the connection, abort the request. React runs cleanup **before the effect runs again** (when dependencies change) and when the component **unmounts**. Setup and cleanup should be **symmetric**: whatever you add, remove the same thing, and for listeners that means **the same function reference**. For fetches, cleanup should abort or ignore the old request so a slow, outdated response can't overwrite newer data. StrictMode runs setup, cleanup, setup once in development to check this.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A resize listener is removed with the exact same function reference when the effect cleans up. Your goal is to implement and test setup-cleanup symmetry and latest-request behavior. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A lesson layout tracks the window width with `window.addEventListener(\"resize\", () => setWidth(window.innerWidth))`. After opening a few lessons, resizing becomes sluggish: dozens of listeners are still attached, some to components that no longer exist. A resize listener is removed with the exact same function reference when the effect cleans up. In this lesson you'll implement and test setup-cleanup symmetry and latest-request behavior.\n\n```predict\n{\"question\": \"Setup: `addEventListener(\\\"resize\\\", () => update())`. Cleanup: `removeEventListener(\\\"resize\\\", () => update())`. Is the listener removed?\", \"options\": [\"Yes\", \"No: the two arrows are different functions, so nothing matches\"], \"answer\": 1, \"why\": \"Store the handler in a variable and pass that same reference to both calls.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: State and events; javascript async network; Dependencies and reactive values; javascript async cancellation. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **State and events** module, the **Promises, async work and HTTP** module, **Dependencies and reactive values**, and **Cancellation, timeout and stale results** (AbortController)."
       },
       {
-        "heading": "Technology rule",
-        "body": "An effect may return cleanup that reverses its subscription, timer, request, or connection before rerun and unmount. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: every setup has a matching cleanup",
+        "body": "```jsx\nimport { useEffect, useState } from \"react\";\n\nexport function useWindowWidth() {\n  const [width, setWidth] = useState(() => window.innerWidth);\n  useEffect(() => {\n    function onResize() { setWidth(window.innerWidth); }   // one reference.\n    window.addEventListener(\"resize\", onResize);\n    return () => window.removeEventListener(\"resize\", onResize);   // same reference.\n  }, []);\n  return width;\n}\n\nexport function LessonDetails({ lessonId }) {\n  const [lesson, setLesson] = useState(null);\n  useEffect(() => {\n    const controller = new AbortController();\n    fetch(`/api/lessons/${lessonId}`, { signal: controller.signal })\n      .then((r) => r.json())\n      .then(setLesson)\n      .catch((e) => { if (e.name !== \"AbortError\") setLesson({ error: true }); });\n    return () => controller.abort();          // the old request can't win.\n  }, [lessonId]);\n  return lesson ? <h2>{lesson.title}</h2> : <p>Loading...</p>;\n}\n```\n\n| Setup | Cleanup |\n|---|---|\n| addEventListener(fn). | removeEventListener(same fn). |\n| setInterval. | clearInterval(id). |\n| connect(). | disconnect(). |\n| fetch with signal. | controller.abort(). |\n\n```reveal\n{\"prompt\": \"When exactly does cleanup run?\", \"answer\": \"Before the next setup when dependencies change, and once when the component unmounts. Not only when the app closes.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Cleanup must correspond to the same setup, async races need abort or ignore logic, and development can setup-cleanup-setup. This draft therefore rejects: Cleanup runs only when the whole application closes, not before an effect reruns."
+        "heading": "StrictMode's check",
+        "body": "```predict\n{\"question\": \"In development, a new component's effect logs \\\"setup\\\", \\\"cleanup\\\", \\\"setup\\\". Bug?\", \"options\": [\"Yes, React is broken\", \"No: StrictMode mounts twice to prove cleanup undoes setup\"], \"answer\": 1, \"why\": \"If the app behaves the same after that sequence, setup and cleanup are symmetric.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Undo subscriptions and ignore or abort obsolete asynchronous results across rerenders and unmounts.",
-      "Implement and test setup-cleanup symmetry and latest-request behavior."
+      "Return cleanup that exactly reverses listeners, timers, connections and requests.",
+      "Prevent outdated responses from overwriting newer data."
     ],
     "excludes": [
-      "Cleanup must correspond to the same setup, async races need abort or ignore logic, and development can setup-cleanup-setup."
+      "Data-fetching libraries.",
+      "Suspense for data."
     ]
   },
   "outcomes": [
@@ -63,133 +64,134 @@
   "examples": [
     {
       "id": "react.effects.cleanup.example-a",
-      "title": "Cleanup and race prevention: concrete case",
+      "title": "The resize listener that piled up",
       "situation": "A resize listener is removed with the exact same function reference when the effect cleans up.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A resize listener is removed with the exact same function reference when the effect cleans up.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: React cleans up before a changed effect reruns and on unmount; write setup and cleanup as a reversible pair."
+        "**Bug:** the effect added an arrow listener and returned no cleanup, so each mount left one behind.",
+        "**Same function reference:** onResize is defined once in the effect, added in setup and removed in cleanup.",
+        "**Test:** a test will mount and unmount the component, then fire a resize event and assert setWidth isn't called for the unmounted one."
       ],
-      "result": "The result follows because React cleans up before a changed effect reruns and on unmount; write setup and cleanup as a reversible pair."
+      "result": "Only mounted components listen to resize, and resizing stays smooth however many lessons are opened."
     },
     {
       "id": "react.effects.cleanup.example-b",
-      "title": "Cleanup and race prevention: boundary case",
-      "situation": "Cleanup must correspond to the same setup, async races need abort or ignore logic, and development can setup-cleanup-setup.",
+      "title": "The lesson title that flickered back",
+      "situation": "Clicking lesson 1 then quickly lesson 2 sometimes shows lesson 2, then switches to lesson 1's title when its slow response arrives.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Cleanup must correspond to the same setup, async races need abort or ignore logic, and development can setup-cleanup-setup.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: Cleanup runs only when the whole application closes, not before an effect reruns."
+        "Both fetches were running; the older one finished last.",
+        "Nothing stopped the outdated response from calling setLesson.",
+        "Fix: create an AbortController per run and abort it in cleanup, ignoring AbortError."
       ],
-      "result": "The boundary requires this correction: React cleans up before a changed effect reruns and on unmount; write setup and cleanup as a reversible pair."
+      "result": "The page always shows the most recently chosen lesson."
     }
   ],
   "misconceptions": [
     {
       "id": "react.effects.cleanup.misconception",
       "mistakenBelief": "Cleanup runs only when the whole application closes, not before an effect reruns.",
-      "correction": "React cleans up before a changed effect reruns and on unmount; write setup and cleanup as a reversible pair.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: Cleanup runs only when the whole application closes, not before an effect reruns."
+      "correction": "React runs cleanup before every re-run of the effect (when dependencies change) and when the component unmounts. That's what keeps one listener, one connection and one current request.",
+      "diagnosticPrompt": "In \"The lesson title that flickered back\", when should the first request have been aborted?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model Cleanup and race prevention, where inputs and state produce a UI description.",
+    "example": "Setup and cleanup are like **checking into and out of a hotel room**. Before moving to a new room (a dependency change) or leaving the hotel (unmount), you check out: return the key you were given, not a copy you made (same reference).",
     "usefulFor": [
-      "Building a first mental model for Cleanup and race prevention before using exact platform terms"
+      "remembering symmetric setup and cleanup",
+      "same key = same function reference"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Cleanup must correspond to the same setup, async races need abort or ignore logic, and development can setup-cleanup-setup."
+      "Hotels charge for forgotten checkouts; apps pay with leaks and slow pages.",
+      "StrictMode is a practice check-in and check-out on day one."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A resize listener is removed with the exact same function reference when the effect cleans up.",
-      "An effect may return cleanup that reverses its subscription, timer, request, or connection before rerun and unmount.",
-      "React cleans up before a changed effect reruns and on unmount; write setup and cleanup as a reversible pair."
+      "mount: add onResize",
+      "lessonId unchanged; unmount",
+      "resize event fires"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Setup",
         "state": {
-          "evidence": "A resize listener is removed with the exact same function reference when the effect cleans up."
+          "listeners": "1 (onResize)"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The effect adds the resize listener."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Cleanup",
         "state": {
-          "rule": "An effect may return cleanup that reverses its subscription, timer, request, or connection before rerun and unmount."
+          "removed": "onResize",
+          "listeners": "0"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "The resize listener is removed with the exact same function reference."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "After",
         "state": {
-          "correction": "React cleans up before a changed effect reruns and on unmount; write setup and cleanup as a reversible pair."
+          "setWidth calls": "0"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: Cleanup runs only when the whole application closes, not before an effect reruns."
+        "explanation": "Events after unmount reach nothing, so no leak remains."
       }
     ],
-    "textAlternative": "Starting artifact: A resize listener is removed with the exact same function reference when the effect cleans up. Step 1, Artifact. State: evidence: A resize listener is removed with the exact same function reference when the effect cleans up.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: An effect may return cleanup that reverses its subscription, timer, request, or connection before rerun and unmount.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: React cleans up before a changed effect reruns and on unmount; write setup and cleanup as a reversible pair.. Check the result against the boundary and reject this misconception: Cleanup runs only when the whole application closes, not before an effect reruns."
+    "textAlternative": "Tracing setup and cleanup. Step 1, Setup: listeners is 1 (onResize). The effect adds the resize listener. Step 2, Cleanup: removed is onResize; listeners is 0. The resize listener is removed with the exact same function reference. Step 3, After: setWidth calls is 0. Events after unmount reach nothing, so no leak remains."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Cleanup and race prevention: concrete case”: state its starting evidence, apply the Cleanup and race prevention rule, and give the observable result in three short lines.",
+      "prompt": "For \"The resize listener that piled up\", explain how a resize listener is removed with the exact same function reference when the effect cleans up.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Bug.",
+        "Same reference.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: Cleanup and race prevention: concrete case.",
-        "Starting evidence: A resize listener is removed with the exact same function reference when the effect cleans up.",
-        "Core rule: An effect may return cleanup that reverses its subscription, timer, request, or connection before rerun and unmount.",
-        "Observable result: The result follows because React cleans up before a changed effect reruns and on unmount; write setup and cleanup as a reversible pair.",
-        "Boundary check: React cleans up before a changed effect reruns and on unmount; write setup and cleanup as a reversible pair."
+        "Names the example \"The resize listener that piled up\": listeners were never removed.",
+        "The resize listener is removed with the exact same function reference.",
+        "Cleanup runs when the effect cleans up at unmount.",
+        "Only mounted components listen to resize."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Cleanup must correspond to the same setup, async races need abort or ignore logic, and development can setup-cleanup-setup.",
+      "prompt": "Write `useInterval(callback, ms)` that sets an interval and clears it in cleanup, re-creating it when ms changes. Test that unmounting stops the callback.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Store the id.",
+        "Dependencies: [ms]."
       ],
       "expectedEvidence": [
-        "An effect may return cleanup that reverses its subscription, timer, request, or connection before rerun and unmount.",
-        "Cleanup must correspond to the same setup, async races need abort or ignore logic, and development can setup-cleanup-setup."
+        "clearInterval in cleanup.",
+        "No calls after unmount (use fake timers)."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for Cleanup and race prevention and explain why the misconception fails.",
+      "prompt": "Build a lesson search that fetches on each query change with abort in cleanup. Write a test with controlled fake responses that resolve out of order, and prove only the latest results render.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "AbortController per effect run.",
+        "Ignore AbortError."
       ],
       "expectedEvidence": [
-        "Implement and test setup-cleanup symmetry and latest-request behavior.",
-        "React cleans up before a changed effect reruns and on unmount; write setup and cleanup as a reversible pair."
+        "Latest-request-wins test passes.",
+        "No state updates after unmount."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.effects.cleanup.misconception",
-      "explanation": "React cleans up before a changed effect reruns and on unmount; write setup and cleanup as a reversible pair.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'reversible pair' and state the decisive evidence."
+      "explanation": "For each effect, write two columns: **what setup adds** and **what cleanup removes**. Every line on the left needs a matching line on the right, with the same reference or id.",
+      "retryPrompt": "Apply this to \"The lesson title that flickered back\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and test setup-cleanup symmetry and latest-request behavior. Keep this boundary in view: Cleanup must correspond to the same setup, async races need abort or ignore logic, and development can setup-cleanup-setup.",
+    "summary": "To implement setup-cleanup symmetry and latest-request behavior, return a cleanup from each effect that removes the same listener reference, clears timers, closes connections and aborts requests. React runs it before each re-run and on unmount, so outdated work can't leak or overwrite newer data.",
     "retrievalPrompts": [
-      "Explain Cleanup and race prevention using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: Cleanup runs only when the whole application closes, not before an effect reruns.",
-      "Apply checkpoint 'reversible pair' to a new artifact."
+      "When does React run an effect's cleanup?",
+      "Why must removeEventListener get the same function?",
+      "How do you stop an old fetch overwriting new data?"
     ],
     "nextReviewPrompt": "Next: continue to “Refs and imperative escape hatches”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

@@ -48,38 +48,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Switching DSA language retains conceptual evidence but requires diagnostic checks for syntax, standard structures, ownership, testing, and complexity expression.",
+    "summary": "When you switch your DSA practice to a new language, your **concept knowledge carries over**: you still know why BFS uses a queue and why it's O(V + E). What doesn't carry over automatically is **implementation skill** in the new language. A short diagnostic checks five things there: **syntax** for functions and loops, the **standard structures** (queue, map, set, priority queue), **equality and ownership** rules, **testing** tools, and how you **express complexity** with those structures. Pass it and continue; miss something and you get a targeted review list instead of relearning DSA.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A learner explains BFS correctly but retests Java Queue usage and equality before continuing Java submissions. Your goal is to complete equivalent implementation, test and debug tasks or receive a targeted remediation path. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner explains BFS perfectly and has solved dozens of graph problems in Python. On the first Java submission, the queue is a `Stack`, vertex objects are compared with `==`, and the code won't compile because of a missing generic type. A learner explains BFS correctly but retests Java Queue usage and equality before continuing Java submissions. In this lesson you'll complete equivalent implementation, test and debug tasks or receive a targeted remediation path.\n\n```predict\n{\"question\": \"The learner aced BFS in Python. Does that prove they can implement it correctly in Java?\", \"options\": [\"Yes, the algorithm is the same\", \"No: Java's queue types, equality and syntax need to be checked separately\"], \"answer\": 1, \"why\": \"Concept evidence transfers; implementation evidence has to be earned again in each language.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Greedy, backtracking and dynamic programming; Directed and weighted graph algorithms; Sequence and range problem patterns; Language representation map; Selected-language readiness. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Greedy, backtracking and dynamic programming** module, the **Directed and weighted graph algorithms** module, the **Sequence and range problem patterns** module, **Language representation map**, and **Selected-language readiness**."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Switching DSA language retains conceptual evidence but requires diagnostic checks for syntax, standard structures, ownership, testing, and complexity expression. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The model: keep the concept, re-check the implementation",
+        "body": "```java\nimport java.util.*;\n\nclass Bfs {\n    // Diagnostic task: BFS distances in Java.\n    static Map<String, Integer> distances(Map<String, List<String>> adj, String start) {\n        Map<String, Integer> dist = new HashMap<>();\n        Deque<String> queue = new ArrayDeque<>();     // a queue, not a Stack.\n        dist.put(start, 0);\n        queue.add(start);\n        while (!queue.isEmpty()) {\n            String u = queue.poll();                 // from the front.\n            for (String v : adj.getOrDefault(u, List.of())) {\n                if (!dist.containsKey(v)) {          // String equality via equals/hashCode.\n                    dist.put(v, dist.get(u) + 1);\n                    queue.add(v);\n                }\n            }\n        }\n        return dist;\n    }\n}\n```\n\n| Diagnostic check | What to show | If it fails, review |\n|---|---|---|\n| syntax. | compile and run a function with loops. | the language's basics. |\n| standard structures. | right queue, map, set, heap. | Language representation map. |\n| equality and ownership. | keys compared by value; no leaks. | the language's equality and memory rules. |\n| testing. | unit tests run and fail usefully. | the language's test tool. |\n| complexity. | state costs of the chosen structures. | Time, space and asymptotic growth. |\n\n```reveal\n{\"prompt\": \"Why ArrayDeque instead of LinkedList or Stack?\", \"answer\": \"Stack is last-in first-out, which would turn BFS into a DFS-like order. ArrayDeque gives O(1) queue operations; LinkedList works too but is usually slower.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Failure in one implementation facet does not erase concept mastery but does block unverified language-specific mastery. The draft therefore rejects: Concept mastery automatically proves implementation mastery in every supported language."
+        "heading": "Read the result",
+        "body": "```predict\n{\"question\": \"The learner passes syntax, structures and tests but fails equality (a custom Vertex class without equals/hashCode). What's next?\", \"options\": [\"Redo the whole DSA course in Java\", \"Review Java equality and hashing, then retake that one check\"], \"answer\": 1, \"why\": \"A diagnostic points to the specific gap, not the whole course.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Retest implementation prerequisites after a switch while preserving independent conceptual evidence.",
-      "Complete equivalent implementation, test and debug tasks or receive a targeted remediation path.",
-      "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence."
+      "Complete equivalent implementation, test and debug tasks in the new language.",
+      "Turn failed checks into a targeted remediation path."
     ],
     "excludes": [
-      "Failure in one implementation facet does not erase concept mastery but does block unverified language-specific mastery."
+      "Learning a new language from scratch.",
+      "Language-specific performance tuning."
     ]
   },
   "outcomes": [
@@ -88,142 +84,137 @@
   "examples": [
     {
       "id": "dsa.transfer.switch-diagnostic.example-a",
-      "title": "Language-switch diagnostic: language-neutral trace",
+      "title": "BFS in Python, then in Java",
       "situation": "A learner explains BFS correctly but retests Java Queue usage and equality before continuing Java submissions.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: A learner explains BFS correctly but retests Java Queue usage and equality before continuing Java submissions.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Retain concept mastery while separately retesting the new language's implementation facets."
+        "**Concept carries over:** the learner explains BFS layers and O(V + E) correctly.",
+        "**Retest Java Queue usage and equality:** the diagnostic catches Stack used as a queue and == on vertex objects; the fixed version uses ArrayDeque and value equality.",
+        "**Test before continuing:** the learner will run the same shared BFS test cases in Java and they all pass."
       ],
-      "result": "The conceptual result follows because Retain concept mastery while separately retesting the new language's implementation facets."
+      "result": "The learner continues with Java submissions confidently, with language gaps closed first."
     },
     {
       "id": "dsa.transfer.switch-diagnostic.example-b",
-      "title": "Language-switch diagnostic: implementation transfer",
-      "situation": "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence.",
+      "title": "Switching to C for a systems course",
+      "situation": "A learner moving from Java to C must implement a queue for BFS without a garbage collector.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence.",
-        "Step 3 — Retest this boundary in the selected implementation: Failure in one implementation facet does not erase concept mastery but does block unverified language-specific mastery."
+        "The diagnostic adds ownership tasks: allocate, grow and free a circular buffer.",
+        "A leak check (e.g. valgrind or AddressSanitizer) runs with the tests.",
+        "Failing it leads to the C memory lessons, then a retest of just that task."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "The learner's C BFS passes the shared tests with no leaks or invalid reads."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.transfer.switch-diagnostic.misconception",
       "mistakenBelief": "Concept mastery automatically proves implementation mastery in every supported language.",
-      "correction": "Retain concept mastery while separately retesting the new language's implementation facets.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Concept mastery automatically proves implementation mastery in every supported language."
+      "correction": "Knowing an algorithm doesn't guarantee using a new language's structures, equality, memory rules and tests correctly. Each language needs its own implementation evidence, checked by a diagnostic.",
+      "diagnosticPrompt": "In \"BFS in Python, then in Java\", which Java-specific mistakes appeared?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Language-switch diagnostic, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Switching languages is like **a qualified driver renting a car in another country**: you still know how to drive (the concepts), but you check which side of the road, where the controls are and what the road signs mean (library types, equality, ownership) before a long trip.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering skills carry, details don't",
+      "diagnostic = the quick check before driving"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Failure in one implementation facet does not erase concept mastery but does block unverified language-specific mastery."
+      "Drivers adapt in minutes; some language rules take practice.",
+      "A failed check means learning one rule, not relearning to drive."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A learner explains BFS correctly but retests Java Queue usage and equality before continuing Java submissions.",
-      "Switching DSA language retains conceptual evidence but requires diagnostic checks for syntax, standard structures, ownership, testing, and complexity expression.",
-      "Retain concept mastery while separately retesting the new language's implementation facets.",
-      "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence."
+      "Python BFS: concept passed",
+      "Java diagnostic",
+      "remediation or continue"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Concept",
         "state": {
-          "scenario": "A learner explains BFS correctly but retests Java Queue usage and equality before continuing Java submissions."
+          "BFS explanation": "correct",
+          "complexity": "O(V + E)"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "Conceptual evidence carries over from Python."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Java checks",
         "state": {
-          "invariant": "Switching DSA language retains conceptual evidence but requires diagnostic checks for syntax, standard structures, ownership, testing, and complexity expression."
+          "queue": "Stack → fail",
+          "equality": "== on objects → fail"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "The learner retests Java Queue usage and equality before continuing Java submissions."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Fix and retest",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "queue": "ArrayDeque",
+          "equality": "equals/hashCode",
+          "shared tests": "pass"
         },
-        "explanation": "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Retain concept mastery while separately retesting the new language's implementation facets."
-        },
-        "explanation": "Verify the result and reject this misconception: Concept mastery automatically proves implementation mastery in every supported language."
+        "explanation": "Targeted fixes let the learner continue in Java."
       }
     ],
-    "textAlternative": "Starting artifact: A learner explains BFS correctly but retests Java Queue usage and equality before continuing Java submissions. Step 1, Specification. State: scenario: A learner explains BFS correctly but retests Java Queue usage and equality before continuing Java submissions.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Switching DSA language retains conceptual evidence but requires diagnostic checks for syntax, standard structures, ownership, testing, and complexity expression.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence. Step 4, Conclusion. State: correction: Retain concept mastery while separately retesting the new language's implementation facets.. Verify the result and reject this misconception: Concept mastery automatically proves implementation mastery in every supported language."
+    "textAlternative": "Tracing a language-switch diagnostic. Step 1, Concept: BFS explanation is correct; complexity is O(V + E). Conceptual evidence carries over from Python. Step 2, Java checks: queue is Stack → fail; equality is == on objects → fail. The learner retests Java Queue usage and equality before continuing Java submissions. Step 3, Fix and retest: queue is ArrayDeque; equality is equals/hashCode; shared tests is pass. Targeted fixes let the learner continue in Java."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Language-switch diagnostic: language-neutral trace”: state its starting evidence, apply the Language-switch diagnostic rule, and give the observable result in three short lines.",
+      "prompt": "For \"BFS in Python, then in Java\", explain why a learner who explains BFS correctly still retests Java Queue usage and equality before continuing Java submissions.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Concept.",
+        "Java checks.",
+        "Continue."
       ],
       "expectedEvidence": [
-        "Named example: Language-switch diagnostic: language-neutral trace.",
-        "Starting evidence: A learner explains BFS correctly but retests Java Queue usage and equality before continuing Java submissions.",
-        "Core rule: Switching DSA language retains conceptual evidence but requires diagnostic checks for syntax, standard structures, ownership, testing, and complexity expression.",
-        "Observable result: The conceptual result follows because Retain concept mastery while separately retesting the new language's implementation facets.",
-        "Boundary check: Retain concept mastery while separately retesting the new language's implementation facets."
+        "Names the example \"BFS in Python, then in Java\": BFS was mastered in Python.",
+        "A learner explains BFS correctly.",
+        "They still retest Java Queue usage and equality before continuing Java submissions.",
+        "The learner continues with Java submissions confidently."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Switching DSA language retains conceptual evidence but requires diagnostic checks for syntax, standard structures, ownership, testing, and complexity expression.",
+      "prompt": "For your target language, list the exact types you'd use for BFS, Dijkstra and a frequency count, and one equality or ownership rule that could break each.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Use the language map.",
+        "Think about keys."
       ],
       "expectedEvidence": [
-        "Concept evidence is shared across C, C++, Java, and Python, but C pointer/lifetime safety, C++ iterator/ownership rules, Java generics/equality, and Python mutability/hashability are separate implementation facets that require evidence.",
-        "Failure in one implementation facet does not erase concept mastery but does block unverified language-specific mastery."
+        "Three correct type choices.",
+        "One risk per task."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Language-switch diagnostic case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Take three solutions you wrote in one language (a stack problem, a hash-map problem, a graph problem) and re-implement them in another. Run shared tests, note every bug you hit, and classify each as syntax, structure, equality, ownership or testing.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Shared JSON test cases.",
+        "Keep a bug log."
       ],
       "expectedEvidence": [
-        "Complete equivalent implementation, test and debug tasks or receive a targeted remediation path.",
-        "Retain concept mastery while separately retesting the new language's implementation facets."
+        "All three pass in the new language.",
+        "A classified bug log that shows your remediation areas."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.transfer.switch-diagnostic.misconception",
-      "explanation": "Retain concept mastery while separately retesting the new language's implementation facets.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'separately retesting', then state one implementation-specific risk in the selected language."
+      "explanation": "After switching, run the five checks: **syntax, structures, equality/ownership, testing, complexity.** Fix only what fails, then retest that check.",
+      "retryPrompt": "Apply this to \"Switching to C for a systems course\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to complete equivalent implementation, test and debug tasks or receive a targeted remediation path. Keep this boundary in view: Failure in one implementation facet does not erase concept mastery but does block unverified language-specific mastery.",
+    "summary": "To complete a language-switch diagnostic, keep your conceptual understanding but re-prove implementation in the new language: syntax, the right standard structures, equality and ownership rules, tests and complexity statements; pass to continue, or follow a targeted remediation path for the specific check that failed.",
     "retrievalPrompts": [
-      "State the Language-switch diagnostic invariant and complexity without code.",
-      "Why is this claim false: Concept mastery automatically proves implementation mastery in every supported language.",
-      "Map checkpoint 'separately retesting' to C, C++, Java, and Python."
+      "What transfers when you switch language?",
+      "What must be checked again?",
+      "What happens when one check fails?"
     ],
     "nextReviewPrompt": "Next: continue to “Adversarial and property tests”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

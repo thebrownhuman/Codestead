@@ -28,34 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "An algorithm is a finite method for solving a class of problems; source code expresses such a method in a programming language; a program is the complete executable software artifact and its required context.",
+    "summary": "An **algorithm** is the idea — a clear, finite recipe for solving a whole kind of problem. **Source code** is that recipe written in a programming language. A **program** is the complete thing a computer can actually run, including everything the code needs around it.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A class has the scores 62, 91, and 74, and the required output is the largest score. Your goal is to classify concrete artifacts as an algorithm, source code, a running program, an input, or an output and justify the classification. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Your teacher hands you three test scores — 62, 91, 74 — and asks for the highest. You'd just *see* it's 91. But what if there were 10,000 scores? You'd need a method: \"remember the first one, then keep whichever is bigger as you go.\" That method is an algorithm. By the end of this lesson you'll know exactly how an algorithm, source code, and a runnable program differ — words every programmer uses daily.\n\n```predict\n{\"question\": \"Which of these is an *algorithm*?\", \"options\": [\"The file max.py\", \"\\\"Keep the biggest number seen so far\\\"\", \"The app icon on your desktop\"], \"answer\": 1, \"why\": \"An algorithm is the **method**, independent of any language or file. `max.py` would be *source code* that expresses it, and the app is a *program*.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "This skill has no declared earlier lesson. The course assumes: Basic reading and arithmetic; Ability to use a keyboard and web browser. You can continue when those ideas feel familiar."
+        "body": "No earlier lesson needed! The course assumes **Basic reading and arithmetic** and **Ability to use a keyboard and web browser**. If you can read this and add two numbers, you're ready. 🙂"
       },
       {
-        "heading": "Three related objects",
-        "body": "The algorithm describes what steps solve the problem without depending on one particular spelling. Source code is text written under a language's syntax and meaning rules. A program is what runs: translated or interpreted instructions together with the data and environment they require."
+        "heading": "The mental model: recipe → written recipe → finished dish",
+        "body": "Think of three layers:\n\n| Layer | What it is | Example |\n|---|---|---|\n| Algorithm | The method, in any words | \"Keep the biggest so far\" |\n| Source code | The method written in a language | `best = max(scores)` |\n| Program | Everything needed to run it | `python top.py` plus Python installed |\n\nThe same algorithm can be written in Python, Java or C — different source code, same idea.\n\n```reveal\n{\"prompt\": \"Could two totally different-looking source files contain the *same* algorithm?\", \"answer\": \"Yes! A Python loop and a C loop that both \\\"keep the biggest so far\\\" share one algorithm. The algorithm is the idea; the code is just one way to write it down.\"}\n```"
       },
       {
-        "heading": "Why the distinction matters",
-        "body": "One algorithm can be expressed in several languages, and one source file can be only one part of a larger program. When a result is wrong, naming the layer helps: the algorithm may be flawed, the source may mistranslate it, or the running program may receive unexpected input or environment state."
+        "heading": "From code to something you can run",
+        "body": "Here's the top-score algorithm as Python source code:\n\n```python\nscores = [62, 91, 74]\nbest = scores[0]\nfor s in scores:\n    if s > best:\n        best = s\nprint(best)\n```\n\nOn its own this is just text. It becomes a **program** when there's a Python interpreter to run it, the file is saved, and you launch it.\n\n```predict\n{\"question\": \"You copy only the line `best = s` into a new file and run it. What happens?\", \"options\": [\"It prints 91\", \"It fails — `s` and `best` were never defined\"], \"answer\": 1, \"why\": \"A fragment of source code isn't a complete program. It depends on earlier lines (`scores`, the loop) that aren't there, so Python stops with a `NameError`.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Classifying algorithms, source code, programs, inputs, and outputs",
-      "Relating one algorithm to multiple possible source-code expressions"
+      "Tell apart an algorithm, source code, and a runnable program.",
+      "Explain why a code fragment is not automatically a complete program."
     ],
     "excludes": [
-      "Compiler internals and machine-code formats",
-      "Formal mathematical proofs of algorithm correctness"
+      "How compilers and interpreters work inside — that's the next lessons.",
+      "Measuring how fast an algorithm is."
     ]
   },
   "outcomes": [
@@ -64,157 +64,137 @@
   "examples": [
     {
       "id": "program-example-largest",
-      "title": "Finding the largest score",
-      "situation": "A class has the scores 62, 91, and 74, and the required output is the largest score.",
+      "title": "Finding the top score",
+      "situation": "Scores: `62, 91, 74`. We want the highest one, and we want a method that still works for 10,000 scores.",
       "walkthrough": [
-        "Step 1 — The algorithm keeps a current largest value and compares each remaining score with it.",
-        "Step 2 — Python or Java source code can express those same comparisons using different syntax.",
-        "Step 3 — When that source is executed with the three scores as input, the program produces 91 as output."
+        "**Algorithm:** start with the first score as `best`, look at each score, and replace `best` whenever you find a bigger one.",
+        "**Source code:** write that method in Python — `best = scores[0]`, then a `for` loop with `if s > best: best = s`.",
+        "**Program:** save it as `top.py`, have Python installed, run `python top.py`. Now the computer can actually do it."
       ],
-      "result": "The comparison method is the algorithm, the language text is source code, and the executing artifact that prints 91 is the program."
+      "result": "The program prints `91` — and the same algorithm works for any list of scores."
     },
     {
       "id": "program-example-route",
-      "title": "Choosing the shorter route",
-      "situation": "A navigation feature receives two route distances and must display the shorter one.",
+      "title": "The file that wouldn't run",
+      "situation": "A friend emails you just this:\n```python\nprint(total / count)\n```\nand says \"run my program\".",
       "walkthrough": [
-        "Step 1 — The reusable algorithm compares two distances and selects the smaller value.",
-        "Step 2 — The source contains a concrete conditional expression plus code for reading and displaying values.",
-        "Step 3 — The running program combines that source's behavior with a device, an operating environment, and the actual distance input."
+        "Check for an algorithm: there's no method here — nothing computes `total` or `count`.",
+        "Check the source: it refers to names that aren't defined anywhere in the file.",
+        "Check the program: running it gives `NameError: name 'total' is not defined`. It's a fragment, not a complete program."
       ],
-      "result": "The same comparison algorithm can appear in a phone app or command-line program without becoming the source code itself."
+      "result": "It fails immediately. To be a program it needs the lines that create `total` and `count`."
     }
   ],
   "misconceptions": [
     {
       "id": "program-misconception-file",
       "mistakenBelief": "Every source file is automatically a complete program that can run by itself.",
-      "correction": "A source file may be incomplete, may depend on other files or libraries, and may need translation before any program can execute.",
-      "diagnosticPrompt": "A file contains one helper function but no entry point or caller; is it source code, a complete runnable program, both, or neither, and why?"
-    },
-    {
-      "id": "program-misconception-algorithm-language",
-      "mistakenBelief": "Changing from Python syntax to Java syntax necessarily creates a different algorithm.",
-      "correction": "Different source expressions can implement the same ordered method, although implementation details can affect behavior or performance.",
-      "diagnosticPrompt": "Two snippets both scan every score and retain the greatest value; what evidence would show they implement the same algorithm?"
+      "correction": "A source file is only a runnable program when everything it needs is present — its definitions, any libraries, and the tool that runs it. Fragments and helper files often can't run alone.",
+      "diagnosticPrompt": "In \"The file that wouldn't run\", which missing piece stops it from being a complete program?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A recipe's method resembles an algorithm, the written recipe resembles source code, and a cook carrying it out with real ingredients resembles a running program.",
+    "example": "An algorithm is like a **cooking method** (\"brown the onions, then add tomatoes\"). Source code is that method written as a recipe card in a specific language. The program is the actual kitchen session: recipe, ingredients, stove and cook all together.",
     "usefulFor": [
-      "Separating a reusable procedure from one written representation and one execution"
+      "remembering that one method can be written many ways",
+      "seeing why a torn-off recipe line can't produce a meal"
     ],
     "limitations": [
-      "Computers follow formal language rules more literally than cooks follow recipes",
-      "A deployed program can contain many source files, libraries, generated assets, and environmental dependencies"
+      "Computers follow instructions exactly — a cook can improvise when a step is vague, a computer can't.",
+      "A real program may also need settings, libraries and an operating system, which a recipe card doesn't capture."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "INPUT scores = [62, 91, 74]",
-      "ALGORITHM scan values and retain the greatest",
-      "SOURCE one concrete language expression",
-      "PROGRAM execute with scores",
-      "OUTPUT 91"
+      "scores = [62, 91, 74]",
+      "best = scores[0]",
+      "for s in scores:",
+      "    if s > best: best = s",
+      "print(best)"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Problem",
+        "focus": "Start",
         "state": {
-          "input": "[62, 91, 74]",
-          "output": "unknown"
+          "best": "62"
         },
-        "explanation": "The problem first declares actual input and the observable result that is required."
+        "explanation": "`best` begins as the first score, 62."
       },
       {
         "step": 2,
-        "focus": "Algorithm",
+        "focus": "See 91",
         "state": {
-          "method": "scan and retain greatest",
-          "language": "none"
+          "s": "91",
+          "best": "91"
         },
-        "explanation": "The ordered solution method is described without committing to a programming-language spelling."
+        "explanation": "91 is bigger than 62, so `best` becomes 91."
       },
       {
         "step": 3,
-        "focus": "Source code",
+        "focus": "See 74",
         "state": {
-          "method": "scan and retain greatest",
-          "language": "chosen"
+          "s": "74",
+          "best": "91"
         },
-        "explanation": "Source code expresses the method using one language's syntax, types, and control structures."
-      },
-      {
-        "step": 4,
-        "focus": "Program execution",
-        "state": {
-          "input": "[62, 91, 74]",
-          "output": "91"
-        },
-        "explanation": "The program runs the expressed method in a real environment and produces the observable output 91."
+        "explanation": "74 is not bigger than 91, so `best` stays 91. The loop ends and `print` shows 91."
       }
     ],
-    "textAlternative": "Starting artifact: INPUT scores = [62, 91, 74] Step 1, Problem. State: input: [62, 91, 74]; output: unknown. The problem first declares actual input and the observable result that is required. Step 2, Algorithm. State: method: scan and retain greatest; language: none. The ordered solution method is described without committing to a programming-language spelling. Step 3, Source code. State: method: scan and retain greatest; language: chosen. Source code expresses the method using one language's syntax, types, and control structures. Step 4, Program execution. State: input: [62, 91, 74]; output: 91. The program runs the expressed method in a real environment and produces the observable output 91."
+    "textAlternative": "Code: scores is 62, 91, 74; best starts at the first score; the loop replaces best when s is bigger; then it prints best. Step 1, Start: best is 62. best begins as the first score, 62. Step 2, See 91: s is 91; best is 91. 91 is bigger than 62, so best becomes 91. Step 3, See 74: s is 74; best is 91. 74 is not bigger than 91, so best stays 91. The loop ends and print shows 91."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Finding the largest score”: state its starting evidence, apply the Program, source code, and algorithm rule, and give the observable result in three short lines.",
+      "prompt": "Look back at \"Finding the top score\". In three short lines, name its algorithm, its source code, and what makes it a runnable program.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Line 1: the method in plain words.",
+        "Line 2: one line of the Python code.",
+        "Line 3: what you need to actually run it."
       ],
       "expectedEvidence": [
-        "Named example: Finding the largest score.",
-        "Starting evidence: A class has the scores 62, 91, and 74, and the required output is the largest score.",
-        "Core rule: An algorithm is a finite method for solving a class of problems; source code expresses such a method in a programming language; a program is the complete executable software artifact and its required context.",
-        "Observable result: The comparison method is the algorithm, the language text is source code, and the executing artifact that prints 91 is the program.",
-        "Boundary check: A source file may be incomplete, may depend on other files or libraries, and may need translation before any program can execute."
+        "Names the example \"Finding the top score\": the highest of scores 62, 91, 74, using a method that still works for many scores.",
+        "Algorithm: keep the biggest score seen so far.",
+        "Source code: the Python loop with `if s > best: best = s`.",
+        "Program: the saved file run with Python installed; the program prints 91, and the same algorithm works for any list of scores."
       ]
     },
     "nearTransfer": {
-      "prompt": "Classify a pseudocode procedure, a Python file, a running Python process, keyboard text, and displayed text in a word-count scenario.",
+      "prompt": "Same algorithm, new problem: find the **lowest** temperature in `[18, 12, 25]`. What one change do you make to the method, and what's printed?",
       "scaffold": [
-        "Ask whether each artifact is a method, representation, execution, incoming data, or outgoing data"
+        "What does \"keep the biggest\" become?",
+        "Which comparison flips?"
       ],
       "expectedEvidence": [
-        "Each artifact receives one justified classification",
-        "The learner distinguishes the file from its executing process"
+        "Keep the smallest so far: change `>` to `<`.",
+        "Prints 12. The algorithm idea is the same shape; only the comparison changed."
       ]
     },
     "farTransfer": {
-      "prompt": "A spreadsheet formula and a web service both calculate loan interest. Explain what could be the shared algorithm and what counts as source and program in each environment.",
+      "prompt": "Describe an everyday algorithm you use (e.g. finding a contact, packing a bag). Write it as 3–4 clear steps, then say what would be needed to turn it into a runnable program.",
       "scaffold": [
-        "Ignore surface appearance and identify the ordered calculation",
-        "Name environment dependencies separately"
+        "Steps must be precise enough that someone else could follow them exactly.",
+        "Mention language, file and a tool to run it."
       ],
       "expectedEvidence": [
-        "The shared calculation is stated independently of either tool",
-        "The explanation recognizes two different implementations and execution environments"
+        "Gives a finite, unambiguous method with clear steps.",
+        "Explains that source code in a language plus a way to run it would be needed to make a program."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "program-misconception-file",
-      "explanation": "Classify by role, not filename: readable language text is source, while a runnable program needs a valid entry path and every required dependency.",
-      "retryPrompt": "Classify a library file containing reusable functions and explain what is still needed before its behavior can execute."
-    },
-    {
-      "misconceptionId": "program-misconception-algorithm-language",
-      "explanation": "Compare the sequence of decisions and state changes first; syntax is the expression layer, while those abstract operations identify the algorithm.",
-      "retryPrompt": "Describe one maximum-finding algorithm, then name two visibly different source-code forms that could implement it."
+      "explanation": "Try it: make a file with only `print(total)` and run it. It fails because the program is incomplete — the source never defines `total`. Add `total = 5` above it and it works. Same file type, now a complete program.",
+      "retryPrompt": "Now revisit \"The file that wouldn't run\" and write the two lines needed above `print(total / count)` to make it a complete program."
     }
   ],
   "recap": {
-    "summary": "You should now be able to classify concrete artifacts as an algorithm, source code, a running program, an input, or an output and justify the classification. Keep this boundary in view: Compiler internals and machine-code formats",
+    "summary": "Algorithm = the method. Source code = that method written in a language. Program = everything needed to actually run it. The same algorithm can be written many ways, and a code fragment isn't a program until nothing it needs is missing.",
     "retrievalPrompts": [
-      "Without using the recipe analogy, distinguish an algorithm from source code.",
-      "Why might one source file fail to be a complete runnable program?",
-      "Give one input and one output for a program that implements a maximum-finding algorithm."
+      "In your own words: what's the difference between an algorithm and source code?",
+      "Why can't every `.py` file run on its own?",
+      "Name one thing a program needs besides its source code."
     ],
     "nextReviewPrompt": "Next: continue to “Hardware and software roles”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

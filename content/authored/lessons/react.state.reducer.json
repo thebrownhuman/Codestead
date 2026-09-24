@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "useReducer centralizes related state transitions as pure actions from previous state to next state.",
+    "summary": "When several state values change together in many ways, collect the rules in one **reducer**: a pure function `(state, action) => nextState`. Components **dispatch** actions that say *what happened* (`{ type: \"answered\", choice: 2 }`), and the reducer decides *how state changes*. `const [state, dispatch] = useReducer(reducer, initial)`. Because it's pure, a reducer never fetches or touches the DOM; it can **reject** invalid transitions by returning the same state, and you can unit-test it without rendering anything.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A quiz reducer handles answer, next, reset, and finish while rejecting transitions after finish. Your goal is to refactor complex interdependent state into a tested reducer. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A quiz component has five useState calls: index, score, answers, finished, selected. Handlers update them in different combinations, and a learner who double-clicks after the last question can still change their score. A quiz reducer handles answer, next, reset, and finish while rejecting transitions after finish. In this lesson you'll refactor complex interdependent state into a tested reducer.\n\n```predict\n{\"question\": \"Where should the network request to load quiz questions go?\", \"options\": [\"Inside the reducer's \\\"load\\\" case\", \"In an event handler or effect, which then dispatches the result\"], \"answer\": 1, \"why\": \"Reducers must be pure. Fetch outside, then dispatch `{ type: \\\"loaded\\\", questions }`.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: State and events; html forms; Minimal and normalized state; javascript collections objects. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **State and events** module, **Forms and native controls**, **Minimal and normalized state**, and **Object records and property access**, since reducers build new objects with spread."
       },
       {
-        "heading": "Technology rule",
-        "body": "useReducer centralizes related state transitions as pure actions from previous state to next state. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: actions describe events, the reducer owns the rules",
+        "body": "```jsx\nexport const initial = { index: 0, answers: [], finished: false };\n\nexport function quizReducer(state, action) {\n  if (state.finished && action.type !== \"reset\") return state;   // reject after finish.\n  switch (action.type) {\n    case \"answered\":\n      return { ...state, answers: [...state.answers.slice(0, state.index), action.choice] };\n    case \"next\":\n      return { ...state, index: state.index + 1 };\n    case \"finished\":\n      return { ...state, finished: true };\n    case \"reset\":\n      return initial;\n    default:\n      throw new Error(`Unknown action: ${action.type}`);\n  }\n}\n\n// In the component.\nconst [quiz, dispatch] = useReducer(quizReducer, initial);\n<button type=\"button\" onClick={() => dispatch({ type: \"answered\", choice: 2 })}>B</button>\n```\n\n| Part | Job |\n|---|---|\n| action. | what happened, plus data. |\n| reducer. | pure rules: state + action to next state. |\n| dispatch. | send an action from a handler. |\n| same state returned. | transition rejected, no re-render. |\n\n```reveal\n{\"prompt\": \"Where does the score go?\", \"answer\": \"It's derived: count the answers that match the correct choices during render. No score state to keep in sync.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Reducers cannot perform effects, actions need clear events, and a reducer is unnecessary for one simple independent value. This draft therefore rejects: A reducer should fetch data directly when processing a load action."
+        "heading": "Test without rendering",
+        "body": "```predict\n{\"question\": \"How do you test that answers are locked after finishing?\", \"options\": [\"Render the quiz and click fast\", \"Call quizReducer(finishedState, { type: \\\"answered\\\", choice: 1 }) and expect the same object back\"], \"answer\": 1, \"why\": \"A reducer is a plain function, so tests are one line each.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Represent related state transitions as explicit actions and a pure reducer.",
-      "Refactor complex interdependent state into a tested reducer."
+      "Move interdependent state into a pure reducer with clear actions.",
+      "Reject invalid transitions and unit-test the reducer."
     ],
     "excludes": [
-      "Reducers cannot perform effects, actions need clear events, and a reducer is unnecessary for one simple independent value."
+      "Sharing reducers through context (next lesson).",
+      "Redux and other libraries."
     ]
   },
   "outcomes": [
@@ -63,133 +64,137 @@
   "examples": [
     {
       "id": "react.state.reducer.example-a",
-      "title": "useReducer: concrete case",
+      "title": "A quiz that can't be answered after it ends",
       "situation": "A quiz reducer handles answer, next, reset, and finish while rejecting transitions after finish.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: A quiz reducer handles answer, next, reset, and finish while rejecting transitions after finish.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Reducers stay pure; perform effects outside and dispatch actions representing their results."
+        "**Collect the rules:** five useState calls become one state object and quizReducer with answered, next, finished and reset.",
+        "**Reject transitions after finish:** the first line returns the same state for any action except reset.",
+        "**Test:** a unit test will dispatch answered on a finished state and expect the identical object, so the score can't change."
       ],
-      "result": "The result follows because Reducers stay pure; perform effects outside and dispatch actions representing their results."
+      "result": "Learners can't change answers after the quiz ends, and every rule lives in one tested function."
     },
     {
       "id": "react.state.reducer.example-b",
-      "title": "useReducer: boundary case",
-      "situation": "Reducers cannot perform effects, actions need clear events, and a reducer is unnecessary for one simple independent value.",
+      "title": "The reducer that fetched",
+      "situation": "A developer calls `fetch(\"/api/quiz\")` inside the reducer's load case. In StrictMode two requests go out, and tests fail without a network.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Reducers cannot perform effects, actions need clear events, and a reducer is unnecessary for one simple independent value.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: A reducer should fetch data directly when processing a load action."
+        "Reducers may run more than once and must be pure.",
+        "Fetch in an effect or handler instead.",
+        "When the data arrives, dispatch `{ type: \"loaded\", questions }` and let the reducer store it."
       ],
-      "result": "The boundary requires this correction: Reducers stay pure; perform effects outside and dispatch actions representing their results."
+      "result": "One request per load, and the reducer tests run with no network."
     }
   ],
   "misconceptions": [
     {
       "id": "react.state.reducer.misconception",
       "mistakenBelief": "A reducer should fetch data directly when processing a load action.",
-      "correction": "Reducers stay pure; perform effects outside and dispatch actions representing their results.",
-      "diagnosticPrompt": "Use a concrete React: Component-Based Browser Applications artifact to explain why this belief fails: A reducer should fetch data directly when processing a load action."
+      "correction": "Reducers must be pure: same state and action, same result, no side effects. Do the fetch outside, then dispatch an action carrying the result.",
+      "diagnosticPrompt": "In \"The reducer that fetched\", why were there two requests?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A state-driven component workshop can model useReducer, where inputs and state produce a UI description.",
+    "example": "A reducer is like **a referee with a rulebook**. Players shout what happened (\"goal!\"), and the referee checks the rules and updates the scoreboard. After the final whistle, the referee ignores new shouts. The referee never runs off to buy a new ball mid-match (no side effects).",
     "usefulFor": [
-      "Building a first mental model for useReducer before using exact platform terms"
+      "remembering actions vs rules",
+      "final whistle = reject after finish"
     ],
     "limitations": [
-      "A workshop does not reproduce reconciliation identity, hook ordering, concurrent rendering, effects, or browser accessibility APIs.",
-      "Reducers cannot perform effects, actions need clear events, and a reducer is unnecessary for one simple independent value."
+      "Referees can be argued with; reducers are deterministic.",
+      "Buying the ball is the handler's job before the match continues."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A quiz reducer handles answer, next, reset, and finish while rejecting transitions after finish.",
-      "useReducer centralizes related state transitions as pure actions from previous state to next state.",
-      "Reducers stay pure; perform effects outside and dispatch actions representing their results."
+      "state: finished = true, answers [1, 3]",
+      "dispatch({ type: 'answered', choice: 2 })",
+      "dispatch({ type: 'reset' })"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Finished",
         "state": {
-          "evidence": "A quiz reducer handles answer, next, reset, and finish while rejecting transitions after finish."
+          "finished": "true",
+          "answers": "[1, 3]"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The quiz reducer has already handled the finish action."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "Rejected",
         "state": {
-          "rule": "useReducer centralizes related state transitions as pure actions from previous state to next state."
+          "returned": "same state object",
+          "answers": "[1, 3]"
         },
-        "explanation": "Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "It rejects the answer transition after finish, so nothing changes."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "Reset",
         "state": {
-          "correction": "Reducers stay pure; perform effects outside and dispatch actions representing their results."
+          "index": "0",
+          "answers": "[]",
+          "finished": "false"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: A reducer should fetch data directly when processing a load action."
+        "explanation": "The reset action is allowed and returns the initial state."
       }
     ],
-    "textAlternative": "Starting artifact: A quiz reducer handles answer, next, reset, and finish while rejecting transitions after finish. Step 1, Artifact. State: evidence: A quiz reducer handles answer, next, reset, and finish while rejecting transitions after finish.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: useReducer centralizes related state transitions as pure actions from previous state to next state.. Apply the declared React: Component-Based Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Reducers stay pure; perform effects outside and dispatch actions representing their results.. Check the result against the boundary and reject this misconception: A reducer should fetch data directly when processing a load action."
+    "textAlternative": "Tracing reducer transitions. Step 1, Finished: finished is true; answers is [1, 3]. The quiz reducer has already handled the finish action. Step 2, Rejected: returned is same state object; answers is [1, 3]. It rejects the answer transition after finish, so nothing changes. Step 3, Reset: index is 0; answers is []; finished is false. The reset action is allowed and returns the initial state."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “useReducer: concrete case”: state its starting evidence, apply the useReducer rule, and give the observable result in three short lines.",
+      "prompt": "For \"A quiz that can't be answered after it ends\", explain how a quiz reducer handles answer, next, reset, and finish while rejecting transitions after finish.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Rules.",
+        "Rejection.",
+        "Test."
       ],
       "expectedEvidence": [
-        "Named example: useReducer: concrete case.",
-        "Starting evidence: A quiz reducer handles answer, next, reset, and finish while rejecting transitions after finish.",
-        "Core rule: useReducer centralizes related state transitions as pure actions from previous state to next state.",
-        "Observable result: The result follows because Reducers stay pure; perform effects outside and dispatch actions representing their results.",
-        "Boundary check: Reducers stay pure; perform effects outside and dispatch actions representing their results."
+        "Names the example \"A quiz that can't be answered after it ends\": one quiz reducer holds the rules.",
+        "It handles answer, next, reset, and finish.",
+        "It rejects transitions after finish by returning the same state.",
+        "Learners can't change answers after the quiz ends."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Reducers cannot perform effects, actions need clear events, and a reducer is unnecessary for one simple independent value.",
+      "prompt": "Write `cartReducer` with added, removed, quantityChanged (quantity ≥ 1 only) and cleared actions. Write three unit tests including a rejected quantity of 0.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "Return state unchanged when invalid.",
+        "Build new arrays."
       ],
       "expectedEvidence": [
-        "useReducer centralizes related state transitions as pure actions from previous state to next state.",
-        "Reducers cannot perform effects, actions need clear events, and a reducer is unnecessary for one simple independent value."
+        "Four actions handled.",
+        "A test showing quantity 0 is rejected."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new React: Component-Based Browser Applications example for useReducer and explain why the misconception fails.",
+      "prompt": "Refactor a multi-step sign-up form (step, values, errors, submitted) into a reducer. Test every transition, including going back, and forbid editing after submission.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "Action names as past-tense events.",
+        "Derive validity instead of storing it."
       ],
       "expectedEvidence": [
-        "Refactor complex interdependent state into a tested reducer.",
-        "Reducers stay pure; perform effects outside and dispatch actions representing their results."
+        "Reducer tests for each action.",
+        "Component uses only dispatch."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "react.state.reducer.misconception",
-      "explanation": "Reducers stay pure; perform effects outside and dispatch actions representing their results.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'Reducers stay pure' and state the decisive evidence."
+      "explanation": "If you see several setters called together in many handlers, list the **events** (actions). For each, write how state changes and which states refuse it. That list is your reducer.",
+      "retryPrompt": "Apply this to \"The reducer that fetched\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to refactor complex interdependent state into a tested reducer. Keep this boundary in view: Reducers cannot perform effects, actions need clear events, and a reducer is unnecessary for one simple independent value.",
+    "summary": "To refactor complex interdependent state into a tested reducer, name actions for what happened, put every transition rule in one pure reducer that returns new state or rejects invalid transitions, dispatch from handlers, keep fetches outside, and unit-test the reducer directly.",
     "retrievalPrompts": [
-      "Explain useReducer using exact React: Component-Based Browser Applications terms.",
-      "Why is this claim incorrect: A reducer should fetch data directly when processing a load action.",
-      "Apply checkpoint 'Reducers stay pure' to a new artifact."
+      "What does a reducer receive and return?",
+      "Where should side effects like fetch go?",
+      "How does a reducer reject an action?"
     ],
     "nextReviewPrompt": "Next: continue to “Reducer and context boundary”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

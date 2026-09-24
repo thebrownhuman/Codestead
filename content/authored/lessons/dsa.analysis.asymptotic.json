@@ -33,38 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Asymptotic analysis describes growth in operations or space as input size increases using upper, lower, and tight bounds.",
+    "summary": "**Big-O** describes how an algorithm's work **grows** as the input size n grows, ignoring constant factors and machine speed. Count the dominant steps: one pass over n items is **O(n)**; a loop inside a loop over n is **O(n²)**; halving the range each step is **O(log n)**. Loops **one after another add** (n + n = O(n)); loops **inside each other multiply** (n × n = O(n²)). Measure **space** the same way: extra memory beyond the input. O gives an upper bound, Ω a lower bound, and Θ a tight bound when both match.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Two nested full n loops yield quadratic work while two consecutive n loops remain linear. Your goal is to derive and compare time and auxiliary-space bounds for iterative and nested algorithms. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A class of 30 learners runs fine, but on a school of 30,000 the \"find duplicate names\" report takes minutes, while \"count names\" is instant. Both have two loops. The difference is how the loops are arranged. Two nested full n loops yield quadratic work while two consecutive n loops remain linear. In this lesson you'll derive and compare time and auxiliary-space bounds for iterative and nested algorithms.\n\n```predict\n{\"question\": \"Code A: `for i in range(n): ...` then `for j in range(n): ...`. Code B: `for i in range(n): for j in range(n): ...`. Which grows faster?\", \"options\": [\"They're the same\", \"B: n × n steps vs n + n\"], \"answer\": 1, \"why\": \"Consecutive loops add (2n, still O(n)); nested loops multiply (n², O(n²)).\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: pf problem pseudocode; pf tools debug test; Correctness and counterexamples; pf control nested. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Pseudocode**, **Debugging and testing loop**, **Correctness and counterexamples**, and **Nested control and tables** (loops inside loops)."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "Asymptotic analysis describes growth in operations or space as input size increases using upper, lower, and tight bounds. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The rule: add sequences, multiply nesting, keep the biggest term",
+        "body": "```python\ndef count_names(names):            # O(n) time, O(1) extra space.\n    count = 0\n    for _ in names:                  # n steps.\n        count += 1\n    return count\n\ndef has_duplicate_slow(names):     # O(n^2) time, O(1) extra space.\n    for i in range(len(names)):      # n steps...\n        for j in range(i + 1, len(names)):   # ...each up to n steps.\n            if names[i] == names[j]:\n                return True\n    return False\n\ndef has_duplicate_fast(names):     # O(n) expected time, O(n) extra space.\n    seen = set()\n    for name in names:\n        if name in seen:\n            return True\n        seen.add(name)\n    return False\n```\n\n| n | n (linear) | n² (quadratic) | log₂ n |\n|---|---|---|---|\n| 30. | 30. | 900. | about 5. |\n| 30,000. | 30,000. | 900,000,000. | about 15. |\n\n```reveal\n{\"prompt\": \"The inner loop starts at i + 1, so it's about n²/2 steps. Why still O(n²)?\", \"answer\": \"Big-O drops constant factors. n²/2 still grows like n²: doubling n makes the work about four times bigger.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Constants, input distribution, multiple parameters, amortization, and memory locality still matter for real constraints. The draft therefore rejects: Big-O gives the exact runtime in seconds for every machine and input."
+        "heading": "Time vs space",
+        "body": "```predict\n{\"question\": \"has_duplicate_fast is O(n) time. What does it cost in extra space?\", \"options\": [\"O(1)\", \"O(n): the set may hold every name\"], \"answer\": 1, \"why\": \"Faster time often costs memory. State both.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Count dominant operations and use O, Omega and Theta to compare growth independent of one machine.",
-      "Derive and compare time and auxiliary-space bounds for iterative and nested algorithms.",
-      "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
+      "Derive time bounds by adding sequential and multiplying nested loops.",
+      "State auxiliary space and compare algorithms with O, Ω and Θ."
     ],
     "excludes": [
-      "Constants, input distribution, multiple parameters, amortization, and memory locality still matter for real constraints."
+      "Amortised analysis in depth.",
+      "Solving recurrences (recursion module)."
     ]
   },
   "outcomes": [
@@ -73,142 +69,135 @@
   "examples": [
     {
       "id": "dsa.analysis.asymptotic.example-a",
-      "title": "Time, space and asymptotic growth: language-neutral trace",
+      "title": "Two loops: nested or one after another?",
       "situation": "Two nested full n loops yield quadratic work while two consecutive n loops remain linear.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: Two nested full n loops yield quadratic work while two consecutive n loops remain linear.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Big-O describes growth, not exact time; state the input measure, case, and relevant space separately."
+        "**Consecutive:** counting names then printing them is n + n = 2n steps, which is O(n).",
+        "**Nested:** comparing every pair is about n × n / 2 steps, which is O(n²); for 30,000 names that's roughly 450 million comparisons.",
+        "**Compare:** the set-based check will do about n steps using O(n) extra space."
       ],
-      "result": "The conceptual result follows because Big-O describes growth, not exact time; state the input measure, case, and relevant space separately."
+      "result": "The duplicate report switches to the O(n) version and finishes in well under a second for 30,000 learners."
     },
     {
       "id": "dsa.analysis.asymptotic.example-b",
-      "title": "Time, space and asymptotic growth: implementation transfer",
-      "situation": "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics.",
+      "title": "The search that seemed fast",
+      "situation": "A sorted list of 1,000,000 course ids is searched by checking each id in turn, and it's \"fast enough\" in testing with 100 ids.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics.",
-        "Step 3 — Retest this boundary in the selected implementation: Constants, input distribution, multiple parameters, amortization, and memory locality still matter for real constraints."
+        "Linear search is O(n): up to 1,000,000 checks per lookup.",
+        "Binary search halves the range each step: O(log n), about 20 checks.",
+        "With thousands of lookups per minute, the difference is huge."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Lookups use binary search and stay fast as the catalogue grows."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.analysis.asymptotic.misconception",
       "mistakenBelief": "Big-O gives the exact runtime in seconds for every machine and input.",
-      "correction": "Big-O describes growth, not exact time; state the input measure, case, and relevant space separately.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: Big-O gives the exact runtime in seconds for every machine and input."
+      "correction": "Big-O describes how work grows with n, ignoring constants and hardware. Two O(n) algorithms can differ in real speed; Big-O tells you which one will fall behind as n gets large.",
+      "diagnosticPrompt": "In the table, why is n² so much worse at 30,000 than at 30?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce Time, space and asymptotic growth, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Big-O is like **comparing ways to greet guests**. Shaking hands with each guest once is linear. Having every guest shake hands with every other guest is quadratic: fine at a dinner for 6, impossible at a stadium. How fast each handshake is (the machine) doesn't change that.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering growth, not seconds",
+      "nested = everyone meets everyone"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Constants, input distribution, multiple parameters, amortization, and memory locality still matter for real constraints."
+      "Handshakes take real time; Big-O ignores constant factors.",
+      "A guest list (the set) is extra space that saves handshakes."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Two nested full n loops yield quadratic work while two consecutive n loops remain linear.",
-      "Asymptotic analysis describes growth in operations or space as input size increases using upper, lower, and tight bounds.",
-      "Big-O describes growth, not exact time; state the input measure, case, and relevant space separately.",
-      "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
+      "n = 4 names",
+      "consecutive loops",
+      "nested loops"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Input",
         "state": {
-          "scenario": "Two nested full n loops yield quadratic work while two consecutive n loops remain linear."
+          "n": "4"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The report receives four learner names."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Consecutive",
         "state": {
-          "invariant": "Asymptotic analysis describes growth in operations or space as input size increases using upper, lower, and tight bounds."
+          "steps": "4 + 4 = 8",
+          "growth": "O(n)"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "Two consecutive n loops remain linear."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Nested",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "pair checks": "6 (about n²/2)",
+          "growth": "O(n²)"
         },
-        "explanation": "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Big-O describes growth, not exact time; state the input measure, case, and relevant space separately."
-        },
-        "explanation": "Verify the result and reject this misconception: Big-O gives the exact runtime in seconds for every machine and input."
+        "explanation": "Two nested full n loops yield quadratic work as n grows."
       }
     ],
-    "textAlternative": "Starting artifact: Two nested full n loops yield quadratic work while two consecutive n loops remain linear. Step 1, Specification. State: scenario: Two nested full n loops yield quadratic work while two consecutive n loops remain linear.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: Asymptotic analysis describes growth in operations or space as input size increases using upper, lower, and tight bounds.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics. Step 4, Conclusion. State: correction: Big-O describes growth, not exact time; state the input measure, case, and relevant space separately.. Verify the result and reject this misconception: Big-O gives the exact runtime in seconds for every machine and input."
+    "textAlternative": "Counting steps for two loop shapes. Step 1, Input: n is 4. The report receives four learner names. Step 2, Consecutive: steps is 4 + 4 = 8; growth is O(n). Two consecutive n loops remain linear. Step 3, Nested: pair checks is 6 (about n²/2); growth is O(n²). Two nested full n loops yield quadratic work as n grows."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Time, space and asymptotic growth: language-neutral trace”: state its starting evidence, apply the Time, space and asymptotic growth rule, and give the observable result in three short lines.",
+      "prompt": "For \"Two loops: nested or one after another?\", explain why two nested full n loops yield quadratic work while two consecutive n loops remain linear.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Consecutive.",
+        "Nested.",
+        "Compare."
       ],
       "expectedEvidence": [
-        "Named example: Time, space and asymptotic growth: language-neutral trace.",
-        "Starting evidence: Two nested full n loops yield quadratic work while two consecutive n loops remain linear.",
-        "Core rule: Asymptotic analysis describes growth in operations or space as input size increases using upper, lower, and tight bounds.",
-        "Observable result: The conceptual result follows because Big-O describes growth, not exact time; state the input measure, case, and relevant space separately.",
-        "Boundary check: Big-O describes growth, not exact time; state the input measure, case, and relevant space separately."
+        "Names the example \"Two loops: nested or one after another?\": the loops are arranged differently.",
+        "Two consecutive n loops remain linear, 2n steps.",
+        "Two nested full n loops yield quadratic work, about n² steps.",
+        "The duplicate report switches to the O(n) version."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: Asymptotic analysis describes growth in operations or space as input size increases using upper, lower, and tight bounds.",
+      "prompt": "Give time and extra-space bounds: (a) sum a list; (b) build a list of all pairs; (c) loop i from 1, doubling i until it reaches n.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Count the loop shape.",
+        "Pairs are stored."
       ],
       "expectedEvidence": [
-        "Express the specification, invariant, proof, and asymptotic bound independently first; then implement in C with explicit bounds/ownership, C++ with value and library guarantees, Java with typed collections/equality, or Python with dynamic objects and library semantics.",
-        "Constants, input distribution, multiple parameters, amortization, and memory locality still matter for real constraints."
+        "(a) O(n) time, O(1) space.",
+        "(b) O(n²) time and space; (c) O(log n) time, O(1) space."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different Time, space and asymptotic growth case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Implement two versions of \"do any two scores add to 100?\": nested loops and a set. State each one's time and space, then time both for n = 1,000 and 10,000 and explain the ratio.",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Predict before measuring.",
+        "Doubling test: how does time change?"
       ],
       "expectedEvidence": [
-        "Derive and compare time and auxiliary-space bounds for iterative and nested algorithms.",
-        "Big-O describes growth, not exact time; state the input measure, case, and relevant space separately."
+        "Correct bounds for both.",
+        "Measurements match quadratic vs linear growth."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.analysis.asymptotic.misconception",
-      "explanation": "Big-O describes growth, not exact time; state the input measure, case, and relevant space separately.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'growth, not exact time', then state one implementation-specific risk in the selected language."
+      "explanation": "Draw the loops as boxes. **Side by side: add. One inside another: multiply. Halving each step: log.** Keep the biggest term and drop constants. Then ask: what extra memory did I allocate?",
+      "retryPrompt": "Apply this to \"The search that seemed fast\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to derive and compare time and auxiliary-space bounds for iterative and nested algorithms. Keep this boundary in view: Constants, input distribution, multiple parameters, amortization, and memory locality still matter for real constraints.",
+    "summary": "To derive and compare time and auxiliary-space bounds, count the dominant steps as n grows: consecutive loops add and stay linear, nested loops multiply into quadratic work, halving gives logarithmic, constants are dropped, and extra memory like a set is reported as space.",
     "retrievalPrompts": [
-      "State the Time, space and asymptotic growth invariant and complexity without code.",
-      "Why is this claim false: Big-O gives the exact runtime in seconds for every machine and input.",
-      "Map checkpoint 'growth, not exact time' to C, C++, Java, and Python."
+      "What is the Big-O of two consecutive n loops?",
+      "What about nested n loops?",
+      "What does Big-O ignore?"
     ],
     "nextReviewPrompt": "Next: continue to “Array representation and operations”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

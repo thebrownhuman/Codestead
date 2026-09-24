@@ -1,0 +1,34 @@
+.markdown { display: grid; gap: .6em; min-width: 0; font-size: var(--text-sm,.875rem); line-height: 1.6; overflow-wrap: anywhere; }
+.markdown > * { margin: 0; }
+.markdown h3, .markdown h4 { margin-top: .4em; font-size: .95rem; letter-spacing: -.01em; }
+.markdown ul, .markdown ol { display: grid; gap: .3em; padding-left: 1.3em; }
+.markdown li > p { margin: 0; }
+.markdown strong { color: var(--ink); font-weight: 750; }
+.markdown a { color: var(--brand-strong); text-decoration: underline; text-underline-offset: 2px; }
+.markdown :not(pre) > code { padding: .1em .35em; border: 1px solid color-mix(in srgb,var(--line) 80%,transparent); border-radius: 6px; background: var(--surface-muted); font-family: var(--font-mono,ui-monospace,monospace); font-size: .86em; }
+.markdown blockquote { padding-left: .8em; border-left: 3px solid var(--line); color: var(--ink-soft); }
+.markdown table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.markdown th, .markdown td { padding: 5px 8px; border: 1px solid var(--line); text-align: left; }
+.markdown hr { width: 100%; border: 0; border-top: 1px solid var(--line); }
+
+.codeBlock { overflow: hidden; border: 1px solid color-mix(in srgb,var(--line) 85%,transparent); border-radius: 10px; background: color-mix(in srgb,var(--ink) 4%,var(--surface-solid)); }
+.codeHead { display: flex; align-items: center; justify-content: space-between; padding: 4px 6px 4px 12px; border-bottom: 1px solid color-mix(in srgb,var(--line) 70%,transparent); color: var(--ink-soft); font-size: .7rem; font-weight: 650; }
+.codeHead button { display: inline-flex; min-height: 28px; align-items: center; gap: 5px; padding: 3px 8px; border: 0; border-radius: 6px; color: var(--ink-soft); background: transparent; font: inherit; cursor: pointer; }
+.codeHead button:hover { color: var(--ink); background: color-mix(in srgb,var(--ink) 7%,transparent); }
+.codeBlock pre { margin: 0; padding: 10px 12px; overflow-x: auto; font-family: var(--font-mono,ui-monospace,monospace); font-size: .8rem; line-height: 1.55; white-space: pre; }
+.keyword { color: #a3399b; font-weight: 600; }
+.string { color: #2f7d32; }
+.number { color: #b55d00; }
+.comment { color: var(--ink-soft); font-style: italic; }
+.call { color: #1f5fbf; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-interface-theme="light"]):not([data-interface-theme="contrast"]) .keyword { color: #d59bf6; }
+  :root:not([data-interface-theme="light"]):not([data-interface-theme="contrast"]) .string { color: #9ad18b; }
+  :root:not([data-interface-theme="light"]):not([data-interface-theme="contrast"]) .number { color: #f0b36e; }
+  :root:not([data-interface-theme="light"]):not([data-interface-theme="contrast"]) .call { color: #7cb3ff; }
+}
+:root[data-interface-theme="dark"] .keyword { color: #d59bf6; }
+:root[data-interface-theme="dark"] .string { color: #9ad18b; }
+:root[data-interface-theme="dark"] .number { color: #f0b36e; }
+:root[data-interface-theme="dark"] .call { color: #7cb3ff; }

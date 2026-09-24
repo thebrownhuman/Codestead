@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A C++ function contract states accepted values and ownership, result and error behavior, side effects, complexity where relevant, and exception guarantees.",
+    "summary": "A function's **signature** says the types; its **contract** says everything else a caller needs: which inputs are **valid** (preconditions), what it **returns** and how it signals **failure**, what it **changes** (side effects), whether it **borrows or keeps** what you pass, and, where it matters, its **cost** and whether it can **throw**. Put as much as possible into types: `std::optional<User>` says \"might not find one\", `const Repo&` says \"borrows, won't modify\", `noexcept` says \"won't throw\". Write the rest in a short comment above the declaration, and **test** each promise.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A find_user function documents that it borrows the repository, returns optional<User>, performs no mutation, and can allocate while searching. Your goal is to design and implement cohesive functions with testable contracts. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner's `User find_user(Repo& repo, int id)` returns an empty User when nothing matches, sometimes modifies the repo's cache, and nobody knows whether it throws. Callers treat the empty User as real and crash later. A find_user function documents that it borrows the repository, returns optional<User>, performs no mutation, and can allocate while searching. In this lesson you'll design and implement cohesive functions with testable contracts.\n\n```predict\n{\"question\": \"`int divide(int a, int b)` compiles. Does its signature say what happens when b is 0?\", \"options\": [\"Yes\", \"No: the contract must state it (precondition, error value, or exception)\"], \"answer\": 1, \"why\": \"Types can't express every rule; the contract fills the gap.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Loops and range iteration; pf abstraction calls; pf abstraction functions; Fundamental types and initialization. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Loops and range iteration**, **Calls, parameters and returns**, **Functions as contracts** (inputs and outputs) and **Fundamental types and initialization**."
       },
       {
-        "heading": "Language rule and operational model",
-        "body": "A C++ function contract states accepted values and ownership, result and error behavior, side effects, complexity where relevant, and exception guarantees. This rule is applied to concrete C++ source and observable behavior, not treated as a vocabulary definition alone."
+        "heading": "The rule: types first, words for the rest",
+        "body": "```cpp\n#include <optional>\n#include <string>\n#include <vector>\n\nstruct User { int id; std::string name; };\nstruct Repo { std::vector<User> users; };\n\n// Contract:\n//   Borrows repo (read-only, not stored). No mutation.\n//   Returns the user with this id, or std::nullopt if none.\n//   O(n) in repo size. May throw std::bad_alloc when copying the result.\nstd::optional<User> find_user(const Repo& repo, int id) {\n    for (const auto& u : repo.users) {\n        if (u.id == id) return u;      // copy out.\n    }\n    return std::nullopt;               // explicit \"not found\".\n}\n\n// Precondition stated in the contract, checked in debug builds.\n// Requires: !scores.empty().\ndouble mean(const std::vector<int>& scores);\n```\n\n| Contract part | Expressed by |\n|---|---|\n| may be absent. | `std::optional<T>`. |\n| read-only borrow. | `const T&`. |\n| won't throw. | `noexcept`. |\n| preconditions, complexity. | comment + tests (and assert). |\n\n```reveal\n{\"prompt\": \"Why return optional<User> rather than a pointer?\", \"answer\": \"A pointer would have to point at something inside repo, which ties the result's validity to repo's lifetime. optional<User> is a self-contained copy that clearly may be empty.\"}\n```"
       },
       {
-        "heading": "Boundary and common failure",
-        "body": "A type signature cannot express every semantic precondition, noexcept is a termination promise rather than an error handler, and references do not encode ownership alone. Therefore the draft explicitly rejects this beginner failure model: If parameter and return types compile, all valid domain inputs and failure behavior are already defined by the signature."
+        "heading": "Cohesion",
+        "body": "```predict\n{\"question\": \"A function named save_user also sends a welcome email and updates statistics. Problem?\", \"options\": [\"No, it's convenient\", \"Yes: its contract is hard to state and test; split into focused functions\"], \"answer\": 1, \"why\": \"One clear job makes a contract short and testable.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Specify preconditions, outputs and effects and prefer return values for results.",
-      "Design and implement cohesive functions with testable contracts."
+      "State preconditions, results, failure behaviour, side effects, ownership and cost for functions.",
+      "Encode contract parts in types like optional, const references and noexcept, and test each promise."
     ],
     "excludes": [
-      "A type signature cannot express every semantic precondition, noexcept is a termination promise rather than an error handler, and references do not encode ownership alone."
+      "Exceptions in depth (resources module).",
+      "Formal contracts language features."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "cpp.functions.contracts.example-a",
-      "title": "Function contracts and return values: defined case",
+      "title": "find_user and its promises",
       "situation": "A find_user function documents that it borrows the repository, returns optional<User>, performs no mutation, and can allocate while searching.",
       "walkthrough": [
-        "Step 1 — Inspect the concrete source or state: A find_user function documents that it borrows the repository, returns optional<User>, performs no mutation, and can allocate while searching.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the conclusion: Document and test semantic preconditions, ownership, effects, errors, and guarantees in addition to the C++ type signature."
+        "**Borrows the repository, performs no mutation:** the parameter is const Repo&.",
+        "**Returns optional<User>:** callers must check has_value() before using the user.",
+        "**Can allocate while searching:** copying the found user may allocate; tests will cover found, missing and empty repos."
       ],
-      "result": "The defined result follows because Document and test semantic preconditions, ownership, effects, errors, and guarantees in addition to the C++ type signature."
+      "result": "Callers can't mistake \"not found\" for a real user."
     },
     {
       "id": "cpp.functions.contracts.example-b",
-      "title": "Function contracts and return values: boundary case",
-      "situation": "A swap operation states the no-throw guarantee needed by a container and tests that invariant-preserving behavior.",
+      "title": "The average of nothing",
+      "situation": "mean() divides by scores.size(). Called with an empty vector, it returns NaN, which spreads through a report.",
       "walkthrough": [
-        "Step 1 — Identify the changed source or state: A swap operation states the no-throw guarantee needed by a container and tests that invariant-preserving behavior.",
-        "Step 2 — Keep this standard boundary visible: A type signature cannot express every semantic precondition, noexcept is a termination promise rather than an error handler, and references do not encode ownership alone.",
-        "Step 3 — Reject the tempting rule: If parameter and return types compile, all valid domain inputs and failure behavior are already defined by the signature."
+        "State the precondition: requires at least one score.",
+        "Or change the contract: return std::optional<double>.",
+        "Add a test for the empty case either way."
       ],
-      "result": "This case demonstrates the declared outcome: Design and implement cohesive functions with testable contracts."
+      "result": "Empty input has a defined, documented outcome."
     }
   ],
   "misconceptions": [
     {
       "id": "cpp.functions.contracts.misconception",
       "mistakenBelief": "If parameter and return types compile, all valid domain inputs and failure behavior are already defined by the signature.",
-      "correction": "Document and test semantic preconditions, ownership, effects, errors, and guarantees in addition to the C++ type signature.",
-      "diagnosticPrompt": "Using concrete CPP rules, explain why this belief fails: If parameter and return types compile, all valid domain inputs and failure behavior are already defined by the signature."
+      "correction": "Types describe shapes, not rules like \"b must not be 0\" or \"returns nullopt when missing\". The contract must state them and tests must check them.",
+      "diagnosticPrompt": "In \"The average of nothing\", which rule did the signature not express?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A system of self-managing components can model Function contracts and return values: each component protects an invariant and owns resources through typed interfaces and lifetime.",
+    "example": "A contract is like **the terms on a rental agreement**. The form's fields (types) say \"name, date, car\". The terms say \"must be over 21, returns by 5 pm, fuel full, late fee if not\". Nobody should have to guess those by trying.",
     "usefulFor": [
-      "Connecting types, value semantics, invariants, generic interfaces, ownership, and deterministic cleanup"
+      "remembering fields vs terms",
+      "tests check the terms"
     ],
     "limitations": [
-      "C++ overload resolution, templates, value categories, object lifetime, and undefined behavior have no exact physical equivalent.",
-      "A type signature cannot express every semantic precondition, noexcept is a termination promise rather than an error handler, and references do not encode ownership alone."
+      "Rental terms are legal; code contracts are enforced by tests.",
+      "A function that does five jobs is a contract nobody can read."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A find_user function documents that it borrows the repository, returns optional<User>, performs no mutation, and can allocate while searching.",
-      "A C++ function contract states accepted values and ownership, result and error behavior, side effects, complexity where relevant, and exception guarantees.",
-      "Document and test semantic preconditions, ownership, effects, errors, and guarantees in addition to the C++ type signature."
+      "find_user(repo, 7) with id 7 present",
+      "find_user(repo, 99)",
+      "caller checks has_value()"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Source and state",
+        "focus": "Found",
         "state": {
-          "evidence": "A find_user function documents that it borrows the repository, returns optional<User>, performs no mutation, and can allocate while searching."
+          "result": "User{7, \"Asha\"}",
+          "repo": "unchanged"
         },
-        "explanation": "Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior."
+        "explanation": "The function borrows the repository and performs no mutation."
       },
       {
         "step": 2,
-        "focus": "Language rule",
+        "focus": "Missing",
         "state": {
-          "rule": "A C++ function contract states accepted values and ownership, result and error behavior, side effects, complexity where relevant, and exception guarantees."
+          "result": "nullopt"
         },
-        "explanation": "Apply the declared CPP rule without importing behavior from another language or one familiar compiler."
+        "explanation": "It returns optional<User>, so absence is explicit."
       },
       {
         "step": 3,
-        "focus": "Defined conclusion",
+        "focus": "Use",
         "state": {
-          "conclusion": "Document and test semantic preconditions, ownership, effects, errors, and guarantees in addition to the C++ type signature."
+          "branch": "not found message"
         },
-        "explanation": "Check the conclusion against the boundary and reject this misconception: If parameter and return types compile, all valid domain inputs and failure behavior are already defined by the signature."
+        "explanation": "The caller handles both outcomes the contract documents."
       }
     ],
-    "textAlternative": "Starting artifact: A find_user function documents that it borrows the repository, returns optional<User>, performs no mutation, and can allocate while searching. Step 1, Source and state. State: evidence: A find_user function documents that it borrows the repository, returns optional<User>, performs no mutation, and can allocate while searching.. Record the exact source form, input, object state, and applicable runtime or translation context before predicting behavior. Step 2, Language rule. State: rule: A C++ function contract states accepted values and ownership, result and error behavior, side effects, complexity where relevant, and exception guarantees.. Apply the declared CPP rule without importing behavior from another language or one familiar compiler. Step 3, Defined conclusion. State: conclusion: Document and test semantic preconditions, ownership, effects, errors, and guarantees in addition to the C++ type signature.. Check the conclusion against the boundary and reject this misconception: If parameter and return types compile, all valid domain inputs and failure behavior are already defined by the signature."
+    "textAlternative": "Tracing a documented contract. Step 1, Found: result is User{7, \"Asha\"}; repo is unchanged. The function borrows the repository and performs no mutation. Step 2, Missing: result is nullopt. It returns optional<User>, so absence is explicit. Step 3, Use: branch is not found message. The caller handles both outcomes the contract documents."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Function contracts and return values: defined case”: state its starting evidence, apply the Function contracts and return values rule, and give the observable result in three short lines.",
+      "prompt": "For \"find_user and its promises\", explain how a find_user function documents that it borrows the repository, returns optional<User>, performs no mutation, and can allocate while searching.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Borrow.",
+        "Result.",
+        "Effects."
       ],
       "expectedEvidence": [
-        "Named example: Function contracts and return values: defined case.",
-        "Starting evidence: A find_user function documents that it borrows the repository, returns optional<User>, performs no mutation, and can allocate while searching.",
-        "Core rule: A C++ function contract states accepted values and ownership, result and error behavior, side effects, complexity where relevant, and exception guarantees.",
-        "Observable result: The defined result follows because Document and test semantic preconditions, ownership, effects, errors, and guarantees in addition to the C++ type signature.",
-        "Boundary check: Document and test semantic preconditions, ownership, effects, errors, and guarantees in addition to the C++ type signature."
+        "Names the example \"find_user and its promises\": an empty User was mistaken for a real one.",
+        "A find_user function documents that it borrows the repository and returns optional<User>.",
+        "It performs no mutation and can allocate while searching.",
+        "Callers can't mistake not found for a real user."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same CPP rule to this related boundary case: A swap operation states the no-throw guarantee needed by a container and tests that invariant-preserving behavior.",
+      "prompt": "Write the contract and implementation of std::optional<int> parse_age(std::string_view text) accepting 0 to 130. Write tests for valid, boundary, negative, too large and non-numeric input.",
       "scaffold": [
-        "Identify which assumption changed.",
-        "Do not infer behavior beyond the declared boundary."
+        "State accepted range.",
+        "No side effects."
       ],
       "expectedEvidence": [
-        "A C++ function contract states accepted values and ownership, result and error behavior, side effects, complexity where relevant, and exception guarantees.",
-        "A type signature cannot express every semantic precondition, noexcept is a termination promise rather than an error handler, and references do not encode ownership alone."
+        "Contract comment written.",
+        "All tests pass."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new CPP example for Function contracts and return values, include a normal and boundary input, and explain why the misconception fails.",
+      "prompt": "Take a function that does three jobs, split it into cohesive functions, write each one's contract (inputs, result, failure, effects, cost), and write tests that check every stated promise.",
       "scaffold": [
-        "Use complete source or a complete traceable fragment.",
-        "Declare standard version and implementation assumptions."
+        "One job per function.",
+        "Test failure behaviour too."
       ],
       "expectedEvidence": [
-        "Design and implement cohesive functions with testable contracts.",
-        "Document and test semantic preconditions, ownership, effects, errors, and guarantees in addition to the C++ type signature."
+        "Three short contracts.",
+        "Tests map to contract lines."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "cpp.functions.contracts.misconception",
-      "explanation": "Document and test semantic preconditions, ownership, effects, errors, and guarantees in addition to the C++ type signature.",
-      "retryPrompt": "Re-evaluate this case using the exact checkpoint 'semantic preconditions' and state the decisive evidence: A swap operation states the no-throw guarantee needed by a container and tests that invariant-preserving behavior."
+      "explanation": "For every function write five answers: **valid inputs, result, failure, side effects, ownership.** Push each into a type if you can; test the rest.",
+      "retryPrompt": "Apply this to \"The average of nothing\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to design and implement cohesive functions with testable contracts. Keep this boundary in view: A type signature cannot express every semantic precondition, noexcept is a termination promise rather than an error handler, and references do not encode ownership alone.",
+    "summary": "To design testable functions, keep each to one job, state valid inputs, results, failure behaviour, side effects, ownership and relevant cost, express what you can with types like optional, const references and noexcept, document the rest, and write tests for every promise.",
     "retrievalPrompts": [
-      "Explain Function contracts and return values using a concrete CPP rule rather than the optional analogy.",
-      "Why is this claim incorrect: If parameter and return types compile, all valid domain inputs and failure behavior are already defined by the signature.",
-      "Apply the checkpoint 'semantic preconditions' to the boundary case from memory."
+      "What does a contract add beyond the signature?",
+      "How does optional express a contract?",
+      "Why keep functions cohesive?"
     ],
     "nextReviewPrompt": "Next: continue to “Value, reference and const-reference parameters”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

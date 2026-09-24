@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "A Python class defines behavior and shared class attributes, while each instance normally stores its own attributes; methods receive the instance explicitly as self and should preserve invariants.",
+    "summary": "A **class** is a blueprint; each **instance** is one object built from it, with its own attributes stored on `self`. Set per-object data in `__init__` (`self.value = 0`). Anything written directly in the class body is a **class attribute**, shared by every instance — fine for constants, dangerous for mutable things like lists. A good class also protects an **invariant**: a rule that's always true, like \"value is never negative\".",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A Counter initializes self.value per instance and exposes increment without storing the mutable count as one class attribute shared by every object. Your goal is to design and implement a class with clear invariants and no accidental shared mutable class state. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A game has several scoreboards, one per player. You write a class with `scores = []` in the class body. Player 1 scores, and player 2's board shows the same points! A Counter initializes self.value per instance and exposes increment, without storing the mutable count as one class attribute shared by every object. In this lesson you'll design and implement a class with clear invariants and no accidental shared mutable class state.\n\n```predict\n{\"code\": \"class Bag:\\n    items = []\\n\\na = Bag(); b = Bag()\\na.items.append(\\\"x\\\")\\nprint(b.items)\", \"question\": \"What does `b.items` print?\", \"options\": [\"[]\", \"[\\\"x\\\"]\"], \"answer\": 1, \"why\": \"`items = []` in the class body is **one** list shared by all instances. `a.items.append` mutated it for everyone.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Scope and closures; Modules and imports; Function contracts and returns; pf data records. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Scope and closures**, **Modules and imports**, **Function contracts and returns**, and **Records and entities** (grouping fields that describe one entity)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "A Python class defines behavior and shared class attributes, while each instance normally stores its own attributes; methods receive the instance explicitly as self and should preserve invariants. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The model: class blueprint, per-instance state, an invariant",
+        "body": "```python\nclass Counter:\n    STEP = 1                      # class attribute: shared constant\n\n    def __init__(self, start: int = 0):\n        if start < 0:\n            raise ValueError(\"start must be >= 0\")\n        self.value = start        # instance attribute: one per object\n\n    def increment(self) -> int:\n        self.value += self.STEP\n        return self.value\n```\n\n| Where it's defined | Belongs to | Safe for |\n|---|---|---|\n| class body. | the class (shared). | constants like STEP. |\n| `self.x = …` in `__init__`. | each instance. | per-object state. |\n\n**Invariant:** value is never negative — checked in `__init__`, and increment only adds.\n\n```reveal\n{\"prompt\": \"What is `self`?\", \"answer\": \"The instance the method was called on. `a.increment()` is really `Counter.increment(a)`, so `self` is `a`.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "Attribute access can invoke descriptors, class mutable values are shared, privacy is conventional, __slots__ changes storage rather than access control, and direct assignment can bypass ad-hoc validation. The learner must reject this documented misconception: An empty list declared in a class body becomes a separate list automatically for each new instance."
+        "heading": "Methods keep the rules",
+        "body": "```predict\n{\"question\": \"`c = Counter(); c.value = -5`. Is the invariant still protected?\", \"options\": [\"Yes, Python blocks it\", \"No — attributes are public; callers can break it\"], \"answer\": 1, \"why\": \"Python doesn't stop direct assignment. Convention: expose methods for changes, name internal attributes with `_value`, or use a property to validate.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Define instance state and methods while distinguishing class and instance attributes.",
-      "Design and implement a class with clear invariants and no accidental shared mutable class state."
+      "Write a class with __init__, instance attributes and methods.",
+      "State and protect an invariant; avoid shared mutable class attributes."
     ],
     "excludes": [
-      "Attribute access can invoke descriptors, class mutable values are shared, privacy is conventional, __slots__ changes storage rather than access control, and direct assignment can bypass ad-hoc validation."
+      "Data classes (next lesson).",
+      "Properties and descriptors in depth."
     ]
   },
   "outcomes": [
@@ -68,133 +69,136 @@
   "examples": [
     {
       "id": "python.objects.class.example.direct",
-      "title": "Classes, instances and attributes: direct language case",
+      "title": "A Counter that keeps its own count",
       "situation": "A Counter initializes self.value per instance and exposes increment without storing the mutable count as one class attribute shared by every object.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: A Counter initializes self.value per instance and exposes increment without storing the mutable count as one class attribute shared by every object.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Class attributes are shared through the class; create per-instance mutable state on self during initialization and preserve invariants through focused methods."
+        "**Initialize self.value per instance:** `__init__` sets `self.value = start`, so every object has its own count.",
+        "**Expose increment:** `increment()` adds STEP and returns the new value.",
+        "**Not a class attribute:** `a = Counter(); b = Counter(); a.increment(); a.increment(); b.increment()` → a.value 2, b.value 1."
       ],
-      "result": "The example meets the atomic outcome because Class attributes are shared through the class; create per-instance mutable state on self during initialization and preserve invariants through focused methods."
+      "result": "Each Counter keeps its own count; no mutable state is shared by every object."
     },
     {
       "id": "python.objects.class.example.boundary",
-      "title": "Classes, instances and attributes: boundary and transfer case",
-      "situation": "A class-level immutable unit label is shared intentionally, while each reading list is created inside __init__.",
+      "title": "The shared shopping basket",
+      "situation": "`class Basket: items = []` with `def add(self, item): self.items.append(item)`. Two customers' baskets show each other's items.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A class-level immutable unit label is shared intentionally, while each reading list is created inside __init__.",
-        "Step 2 — Keep the language boundary explicit: Attribute access can invoke descriptors, class mutable values are shared, privacy is conventional, __slots__ changes storage rather than access control, and direct assignment can bypass ad-hoc validation.",
-        "Step 3 — Reject the tempting but incorrect rule: An empty list declared in a class body becomes a separate list automatically for each new instance."
+        "`self.items` finds the class attribute because no instance attribute exists.",
+        "append mutates that one shared list.",
+        "Fix: `def __init__(self): self.items = []` gives each basket its own list."
       ],
-      "result": "This case demonstrates the declared outcome: Design and implement a class with clear invariants and no accidental shared mutable class state."
+      "result": "After the fix, each basket's items are independent."
     }
   ],
   "misconceptions": [
     {
       "id": "python.objects.class.misconception",
       "mistakenBelief": "An empty list declared in a class body becomes a separate list automatically for each new instance.",
-      "correction": "Class attributes are shared through the class; create per-instance mutable state on self during initialization and preserve invariants through focused methods.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: An empty list declared in a class body becomes a separate list automatically for each new instance."
+      "correction": "The class body runs once, creating one list stored on the class. Every instance that reads it shares that same list; per-instance lists must be created in __init__ with self.",
+      "diagnosticPrompt": "In \"The shared shopping basket\", why did both baskets see the same items?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a family of service records whose instance state, generated value methods, inheritance order, and protocols define observable behavior can introduce Classes, instances and attributes, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "example": "A class is a **cookie cutter**, instances are **cookies**. Sprinkles you put on one cookie (instance attributes) don't appear on others. But a jar of sprinkles kept on the cutter itself (a class attribute) is shared by every cookie that dips into it.",
     "usefulFor": [
-      "classes, data classes, composition, inheritance, and special methods"
+      "remembering instances are separate",
+      "seeing class attributes as shared"
     ],
     "limitations": [
-      "descriptor lookup, MRO, hashing, NotImplemented, and shallow frozen state do not map cleanly to physical records",
-      "Attribute access can invoke descriptors, class mutable values are shared, privacy is conventional, __slots__ changes storage rather than access control, and direct assignment can bypass ad-hoc validation."
+      "Cookies can't change after baking; instances can.",
+      "A cookie cutter doesn't check rules; a class can enforce invariants."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A Counter initializes self.value per instance and exposes increment without storing the mutable count as one class attribute shared by every object.",
-      "A Python class defines behavior and shared class attributes, while each instance normally stores its own attributes; methods receive the instance explicitly as self and should preserve invariants.",
-      "Class attributes are shared through the class; create per-instance mutable state on self during initialization and preserve invariants through focused methods."
+      "a = Counter(); b = Counter()",
+      "a.increment(); a.increment()",
+      "b.increment()"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Create two",
         "state": {
-          "evidence": "A Counter initializes self.value per instance and exposes increment without storing the mutable count as one class attribute shared by every object."
+          "a.value": "0",
+          "b.value": "0"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "The Counter initializes self.value per instance for both objects."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Increment a twice",
         "state": {
-          "rule": "A Python class defines behavior and shared class attributes, while each instance normally stores its own attributes; methods receive the instance explicitly as self and should preserve invariants."
+          "a.value": "2",
+          "b.value": "0"
         },
-        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "increment changes only a's own value attribute."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Increment b",
         "state": {
-          "correction": "Class attributes are shared through the class; create per-instance mutable state on self during initialization and preserve invariants through focused methods."
+          "a.value": "2",
+          "b.value": "1"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: An empty list declared in a class body becomes a separate list automatically for each new instance."
+        "explanation": "No mutable count is shared as a class attribute, so b is independent."
       }
     ],
-    "textAlternative": "Starting artifact: A Counter initializes self.value per instance and exposes increment without storing the mutable count as one class attribute shared by every object. Step 1, Observe. State: evidence: A Counter initializes self.value per instance and exposes increment without storing the mutable count as one class attribute shared by every object.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: A Python class defines behavior and shared class attributes, while each instance normally stores its own attributes; methods receive the instance explicitly as self and should preserve invariants.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Class attributes are shared through the class; create per-instance mutable state on self during initialization and preserve invariants through focused methods.. Compare the observation with the correction and explain why the misconception fails: An empty list declared in a class body becomes a separate list automatically for each new instance."
+    "textAlternative": "Two Counter instances with separate state. Step 1, Create two: a.value is 0; b.value is 0. The Counter initializes self.value per instance for both objects. Step 2, Increment a twice: a.value is 2; b.value is 0. increment changes only a's own value attribute. Step 3, Increment b: a.value is 2; b.value is 1. No mutable count is shared as a class attribute, so b is independent."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Classes, instances and attributes: direct language case”: state its starting evidence, apply the Classes, instances and attributes rule, and give the observable result in three short lines.",
+      "prompt": "For \"A Counter that keeps its own count\", explain how the Counter initializes self.value per instance, what increment does, and why the count isn't a class attribute shared by every object.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "__init__.",
+        "increment.",
+        "Shared vs per-instance."
       ],
       "expectedEvidence": [
-        "Named example: Classes, instances and attributes: direct language case.",
-        "Starting evidence: A Counter initializes self.value per instance and exposes increment without storing the mutable count as one class attribute shared by every object.",
-        "Core rule: A Python class defines behavior and shared class attributes, while each instance normally stores its own attributes; methods receive the instance explicitly as self and should preserve invariants.",
-        "Observable result: The example meets the atomic outcome because Class attributes are shared through the class; create per-instance mutable state on self during initialization and preserve invariants through focused methods.",
-        "Boundary check: Class attributes are shared through the class; create per-instance mutable state on self during initialization and preserve invariants through focused methods."
+        "Names the example \"A Counter that keeps its own count\": the Counter initializes self.value per instance.",
+        "increment adds one and returns the new value.",
+        "The mutable count is not a class attribute shared by every object.",
+        "a reaches 2 while b is 1."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A class-level immutable unit label is shared intentionally, while each reading list is created inside __init__.",
+      "prompt": "Write a `BankAccount` class with an owner, a balance starting at 0, `deposit(amount)` and `withdraw(amount)`. State the invariant and enforce it.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Invariant: balance >= 0.",
+        "Reject bad amounts with ValueError."
       ],
       "expectedEvidence": [
-        "A Python class defines behavior and shared class attributes, while each instance normally stores its own attributes; methods receive the instance explicitly as self and should preserve invariants.",
-        "Attribute access can invoke descriptors, class mutable values are shared, privacy is conventional, __slots__ changes storage rather than access control, and direct assignment can bypass ad-hoc validation."
+        "Correct per-instance attributes set in __init__.",
+        "withdraw raises ValueError instead of going negative; invariant stated."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Classes, instances and attributes, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Design a `Playlist` class with a name, a list of songs, `add`, `remove` and `duration`. Write tests proving two playlists don't share songs and that removing a missing song fails clearly.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Songs list in __init__.",
+        "Test independence explicitly."
       ],
       "expectedEvidence": [
-        "Design and implement a class with clear invariants and no accidental shared mutable class state.",
-        "Class attributes are shared through the class; create per-instance mutable state on self during initialization and preserve invariants through focused methods."
+        "Class with per-instance list and clear methods.",
+        "Tests for independence and the failure case."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "python.objects.class.misconception",
-      "explanation": "Class attributes are shared through the class; create per-instance mutable state on self during initialization and preserve invariants through focused methods.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A class-level immutable unit label is shared intentionally, while each reading list is created inside __init__."
+      "explanation": "For every attribute, ask: **Should every object have its own copy?** If yes, set it on `self` in `__init__`. Only immutable constants belong in the class body.",
+      "retryPrompt": "Apply this to \"The shared shopping basket\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to design and implement a class with clear invariants and no accidental shared mutable class state. Keep this boundary in view: Attribute access can invoke descriptors, class mutable values are shared, privacy is conventional, __slots__ changes storage rather than access control, and direct assignment can bypass ad-hoc validation.",
+    "summary": "To design and implement a class, put per-object state on self in __init__, use class attributes only for shared constants, and protect a clear invariant through methods and validation. Avoid accidental shared mutable class state like `items = []` in the class body.",
     "retrievalPrompts": [
-      "Explain Classes, instances and attributes using canonical Python: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: An empty list declared in a class body becomes a separate list automatically for each new instance.",
-      "Predict this case from memory: A class-level immutable unit label is shared intentionally, while each reading list is created inside __init__."
+      "Where should per-instance lists be created?",
+      "What is a class invariant?",
+      "What does self refer to?"
     ],
     "nextReviewPrompt": "Next: continue to “Data classes and value modeling”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

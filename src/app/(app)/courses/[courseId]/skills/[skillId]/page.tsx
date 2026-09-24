@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
 import { DsaLanguageRequired, LessonWorkspace } from "@/components/lesson/lesson-workspace";
+import { listPublishedCourseStages } from "@/lib/curriculum-publication/runtime";
 import {
   createContentRepository,
   toLearnerAssessmentBank,
@@ -18,6 +19,7 @@ export default async function SkillPage({ params }: { params: Promise<{ courseId
   const course = await repository.getCourse(courseId);
   const location = await repository.getSkillLocation(decodeURIComponent(skillId));
   if (!course || !location || location.course.id !== course.id) notFound();
+  const publishedStage = (await listPublishedCourseStages().catch(() => new Map<string, "beta" | "verified">())).get(course.id);
 
   let selectedDsaLanguage: DsaLanguage | undefined;
   if (course.id === "dsa") {
@@ -47,5 +49,5 @@ export default async function SkillPage({ params }: { params: Promise<{ courseId
   const index = allSkills.findIndex((skill) => skill.id === location.skill.id);
   const previous = allSkills[index - 1];
   const next = allSkills[index + 1];
-  return <LessonWorkspace blueprint={blueprint} authoredLesson={authoredLesson} assessmentBank={assessmentBank} skill={location.skill} courseTitle={course.title} moduleTitle={location.module.title} dsaRunnerLanguage={selectedDsaLanguage ? dsaRunnerLanguage(selectedDsaLanguage) : undefined} previousHref={previous ? `/courses/${course.id}/skills/${encodeURIComponent(previous.id)}` : undefined} nextHref={next ? `/courses/${course.id}/skills/${encodeURIComponent(next.id)}` : undefined} />;
+  return <LessonWorkspace blueprint={blueprint} authoredLesson={authoredLesson} assessmentBank={assessmentBank} skill={location.skill} courseTitle={course.title} moduleTitle={location.module.title} dsaRunnerLanguage={selectedDsaLanguage ? dsaRunnerLanguage(selectedDsaLanguage) : undefined} previousHref={previous ? `/courses/${course.id}/skills/${encodeURIComponent(previous.id)}` : undefined} nextHref={next ? `/courses/${course.id}/skills/${encodeURIComponent(next.id)}` : undefined} publishedStage={publishedStage} />;
 }

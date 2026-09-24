@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Classification produces labels or scores for categorical outcomes; thresholds convert scores to actions and must be chosen from prevalence, calibration, error costs, capacity, and group conditions rather than accuracy alone.",
+    "summary": "**Classification** predicts a category: fraud or not, spam or not. Most classifiers output a **score** (often read as a probability), and a **threshold** turns it into an action: flag if score is 0.7 or more. Choosing the threshold is a **business decision**: it depends on how rare the positive class is, what each error costs, how many cases staff can review, and whether scores are **calibrated** (does 0.7 really mean 70%?). With rare positives, **accuracy misleads**: if 1% of payments are fraud, \"never fraud\" is 99% accurate and useless. Use the **confusion matrix** (true/false positives and negatives), **precision** (of flagged cases, how many were real) and **recall** (of real cases, how many were flagged).",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A fraud model is compared with an always-negative baseline using precision, recall, confusion counts, review capacity, and threshold curves. Your goal is to train and evaluate a classifier under class imbalance and asymmetric error costs. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner's fraud model scores 99% accuracy, and they celebrate. Then they notice a model that always says \"not fraud\" also scores 99%, because only 1% of payments are fraud. Their model catches just 3 of 20 frauds at the default 0.5 threshold. A fraud model is compared with an always-negative baseline using precision, recall, confusion counts, review capacity, and threshold curves. In this lesson you'll train and evaluate a classifier under class imbalance and asymmetric error costs.\n\n```predict\n{\"question\": \"1% of payments are fraud. What accuracy does always predicting \\\"not fraud\\\" get?\", \"options\": [\"About 50%\", \"About 99%, while catching zero frauds\"], \"answer\": 1, \"why\": \"Accuracy hides failure on rare classes.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Data and experimental workflow; Conditional probability and Bayes rule; Train, validation, test and leakage. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Data and experimental workflow**, **Conditional probability and Bayes rule** and **Train, validation, test and leakage**."
       },
       {
-        "heading": "Bounded operational model",
-        "body": "Classification produces labels or scores for categorical outcomes; thresholds convert scores to actions and must be chosen from prevalence, calibration, error costs, capacity, and group conditions rather than accuracy alone. Any capability or quality claim remains limited to an explicit task, population, conditions, baseline, and recorded evidence."
+        "heading": "The model: scores, thresholds, and the right counts",
+        "body": "```python\n# (score from the model, true label) for 12 validation payments.\ndata = [(0.95, 1), (0.80, 1), (0.62, 0), (0.55, 1), (0.40, 0), (0.35, 1),\n        (0.30, 0), (0.20, 0), (0.15, 0), (0.10, 0), (0.05, 0), (0.02, 0)]\n\ndef evaluate(t):                                  # flag if score >= t.\n    tp = sum(s >= t and y for s, y in data)\n    fp = sum(s >= t and not y for s, y in data)\n    fn = sum(s < t and y for s, y in data)        # missed frauds.\n    precision = tp / (tp + fp) if tp + fp else 0\n    recall = tp / (tp + fn)\n    return dict(t=t, flagged=tp + fp, tp=tp, fp=fp, fn=fn,\n                precision=round(precision, 2), recall=round(recall, 2))\n\nfor t in (0.9, 0.5, 0.3):\n    print(evaluate(t))\n# t=0.9: 1 flagged, recall 0.25. t=0.3: 7 flagged, recall 1.0, precision 0.57.\nbaseline_acc = sum(y == 0 for _, y in data) / len(data)\nprint(\"always-negative accuracy:\", round(baseline_acc, 2))   # 0.67, recall 0\n```\n\nPrecision asks how many flagged cases were real. Recall asks how many real cases were caught.\n\n```reveal\n{\"prompt\": \"What does calibration mean?\", \"answer\": \"A calibrated model's 0.7 scores are right about 70% of the time. Without calibration, you can still rank by score, but you shouldn't read scores as probabilities.\"}\n```"
       },
       {
-        "heading": "Failure boundary and non-claim",
-        "body": "Scores may be uncalibrated, class imbalance makes accuracy misleading, one threshold creates trade-offs, labels can be noisy, and post-deployment prevalence changes predictive values. The learner must reject this overclaim: The class with the highest model score is a probability-certain answer, and accuracy is sufficient even for a rare positive class."
+        "heading": "Choosing the threshold",
+        "body": "```predict\n{\"question\": \"Reviewers can check 5 payments a day, and missing fraud is costly. Which threshold here?\", \"options\": [\"0.9, to be precise\", \"The lowest threshold that keeps flagged cases within capacity, such as 0.5\"], \"answer\": 1, \"why\": \"Thresholds come from costs and capacity, not the default 0.5.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Model categorical outcomes and distinguish class labels, scores and probability estimates.",
-      "Train and evaluate a classifier under class imbalance and asymmetric error costs."
+      "Evaluate classifiers with confusion counts, precision and recall against a baseline.",
+      "Choose thresholds from prevalence, costs, calibration and review capacity."
     ],
     "excludes": [
-      "Scores may be uncalibrated, class imbalance makes accuracy misleading, one threshold creates trade-offs, labels can be noisy, and post-deployment prevalence changes predictive values."
+      "ROC-AUC theory in depth.",
+      "Multiclass strategies."
     ]
   },
   "outcomes": [
@@ -68,133 +69,137 @@
   "examples": [
     {
       "id": "ai.supervised.classification.example.direct",
-      "title": "Classification and probabilities: bounded direct case",
+      "title": "A fraud model against always-negative",
       "situation": "A fraud model is compared with an always-negative baseline using precision, recall, confusion counts, review capacity, and threshold curves.",
       "walkthrough": [
-        "Step 1 — Observe the exact data, state, metric, or tool behavior: A fraud model is compared with an always-negative baseline using precision, recall, confusion counts, review capacity, and threshold curves.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the claim boundary with: Separate labels, scores, and calibrated probabilities; choose and monitor thresholds using prevalence, error costs, capacity, and slice-specific confusion evidence."
+        "**Compared with an always-negative baseline:** that baseline catches nothing despite decent accuracy.",
+        "**Using precision, recall, confusion counts:** at 0.5, we flag 4, with 3 true positives, precision 0.75 and recall 0.75.",
+        "**Review capacity, and threshold curves:** we compute counts at 0.9, 0.5 and 0.3 and pick what reviewers can handle."
       ],
-      "result": "This example supports only the atomic outcome because Separate labels, scores, and calibrated probabilities; choose and monitor thresholds using prevalence, error costs, capacity, and slice-specific confusion evidence."
+      "result": "The threshold is chosen for real costs and capacity, not by default."
     },
     {
       "id": "ai.supervised.classification.example.stress",
-      "title": "Classification and probabilities: stress and transfer case",
-      "situation": "A high AUC does not justify a production threshold until probability calibration and false-positive burden are checked on the deployment population.",
+      "title": "The celebrated 99%",
+      "situation": "A fraud model's 99% accuracy matched a model that never flags anything.",
       "walkthrough": [
-        "Step 1 — Name the changed population, input, assumption, or failure: A high AUC does not justify a production threshold until probability calibration and false-positive burden are checked on the deployment population.",
-        "Step 2 — Keep the non-claim visible: Scores may be uncalibrated, class imbalance makes accuracy misleading, one threshold creates trade-offs, labels can be noisy, and post-deployment prevalence changes predictive values.",
-        "Step 3 — Reject the tempting overclaim: The class with the highest model score is a probability-certain answer, and accuracy is sufficient even for a rare positive class."
+        "Accuracy was dominated by the 99% legitimate payments.",
+        "Report confusion counts, precision and recall instead.",
+        "Choose a threshold that raises recall within review capacity."
       ],
-      "result": "This case demonstrates the declared outcome: Train and evaluate a classifier under class imbalance and asymmetric error costs."
+      "result": "The team sees the model's real value on fraud."
     }
   ],
   "misconceptions": [
     {
       "id": "ai.supervised.classification.misconception",
       "mistakenBelief": "The class with the highest model score is a probability-certain answer, and accuracy is sufficient even for a rare positive class.",
-      "correction": "Separate labels, scores, and calibrated probabilities; choose and monitor thresholds using prevalence, error costs, capacity, and slice-specific confusion evidence.",
-      "diagnosticPrompt": "Identify the first unsupported inference in this belief and the evidence required to narrow it: The class with the highest model score is a probability-certain answer, and accuracy is sufficient even for a rare positive class."
+      "correction": "Scores need calibration to be read as probabilities, and rare classes need precision, recall and confusion counts, not accuracy alone.",
+      "diagnosticPrompt": "In the opening predict, why was 99% accuracy meaningless?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a measured prediction workshop that compares a simple baseline with several fitted rules on held-out outcomes can introduce Classification and probabilities only after its canonical technical definition and evidence boundary are stated.",
+    "example": "A classifier with a threshold is like **airport security with an adjustable metal detector**. Turn sensitivity up and you catch every knife (high recall) but also beep at belt buckles (more false positives), making queues long. Turn it down and queues move but some knives pass. The right setting depends on **how dangerous misses are and how many staff can do bag checks**.",
     "usefulFor": [
-      "regression, classification, model assumptions, and generalization"
+      "remembering sensitivity dial vs queue length",
+      "staff capacity sets the dial"
     ],
     "limitations": [
-      "prediction evidence does not establish causation, fairness, or unchanged performance after deployment",
-      "Scores may be uncalibrated, class imbalance makes accuracy misleading, one threshold creates trade-offs, labels can be noisy, and post-deployment prevalence changes predictive values."
+      "A detector that never beeps is 99% right on an ordinary day.",
+      "Calibration is whether a strong beep really means metal."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A fraud model is compared with an always-negative baseline using precision, recall, confusion counts, review capacity, and threshold curves.",
-      "Classification produces labels or scores for categorical outcomes; thresholds convert scores to actions and must be chosen from prevalence, calibration, error costs, capacity, and group conditions rather than accuracy alone.",
-      "Separate labels, scores, and calibrated probabilities; choose and monitor thresholds using prevalence, error costs, capacity, and slice-specific confusion evidence."
+      "evaluate at 0.9",
+      "evaluate at 0.5",
+      "evaluate at 0.3"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Strict",
         "state": {
-          "boundedEvidence": "A fraud model is compared with an always-negative baseline using precision, recall, confusion counts, review capacity, and threshold curves."
+          "flagged": "1",
+          "recall": "0.25"
         },
-        "explanation": "Record the actual input, state, assumption, metric, or output without adding a capability or causal claim."
+        "explanation": "A high threshold misses most fraud despite high precision."
       },
       {
         "step": 2,
-        "focus": "Model",
+        "focus": "Middle",
         "state": {
-          "operationalRule": "Classification produces labels or scores for categorical outcomes; thresholds convert scores to actions and must be chosen from prevalence, calibration, error costs, capacity, and group conditions rather than accuracy alone."
+          "flagged": "4",
+          "precision": "0.75",
+          "recall": "0.75"
         },
-        "explanation": "Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions."
+        "explanation": "Precision, recall and confusion counts show the trade-off."
       },
       {
         "step": 3,
-        "focus": "Limit",
+        "focus": "Loose",
         "state": {
-          "correction": "Separate labels, scores, and calibrated probabilities; choose and monitor thresholds using prevalence, error costs, capacity, and slice-specific confusion evidence."
+          "flagged": "7",
+          "recall": "1.0"
         },
-        "explanation": "State what the evidence does not establish and reject the misconception: The class with the highest model score is a probability-certain answer, and accuracy is sufficient even for a rare positive class."
+        "explanation": "Review capacity decides whether this many flags are workable."
       }
     ],
-    "textAlternative": "Starting artifact: A fraud model is compared with an always-negative baseline using precision, recall, confusion counts, review capacity, and threshold curves. Step 1, Observe. State: boundedEvidence: A fraud model is compared with an always-negative baseline using precision, recall, confusion counts, review capacity, and threshold curves.. Record the actual input, state, assumption, metric, or output without adding a capability or causal claim. Step 2, Model. State: operationalRule: Classification produces labels or scores for categorical outcomes; thresholds convert scores to actions and must be chosen from prevalence, calibration, error costs, capacity, and group conditions rather than accuracy alone.. Apply the declared technical model and retain its data, task, environment, stakeholder, and evaluation assumptions. Step 3, Limit. State: correction: Separate labels, scores, and calibrated probabilities; choose and monitor thresholds using prevalence, error costs, capacity, and slice-specific confusion evidence.. State what the evidence does not establish and reject the misconception: The class with the highest model score is a probability-certain answer, and accuracy is sufficient even for a rare positive class."
+    "textAlternative": "Tracing threshold choices. Step 1, Strict: flagged is 1; recall is 0.25. A high threshold misses most fraud despite high precision. Step 2, Middle: flagged is 4; precision is 0.75; recall is 0.75. Precision, recall and confusion counts show the trade-off. Step 3, Loose: flagged is 7; recall is 1.0. Review capacity decides whether this many flags are workable."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Classification and probabilities: bounded direct case”: state its starting evidence, apply the Classification and probabilities rule, and give the observable result in three short lines.",
+      "prompt": "For \"A fraud model against always-negative\", explain how a fraud model is compared with an always-negative baseline using precision, recall, confusion counts, review capacity, and threshold curves.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Baseline.",
+        "Counts.",
+        "Threshold."
       ],
       "expectedEvidence": [
-        "Named example: Classification and probabilities: bounded direct case.",
-        "Starting evidence: A fraud model is compared with an always-negative baseline using precision, recall, confusion counts, review capacity, and threshold curves.",
-        "Core rule: Classification produces labels or scores for categorical outcomes; thresholds convert scores to actions and must be chosen from prevalence, calibration, error costs, capacity, and group conditions rather than accuracy alone.",
-        "Observable result: This example supports only the atomic outcome because Separate labels, scores, and calibrated probabilities; choose and monitor thresholds using prevalence, error costs, capacity, and slice-specific confusion evidence.",
-        "Boundary check: Separate labels, scores, and calibrated probabilities; choose and monitor thresholds using prevalence, error costs, capacity, and slice-specific confusion evidence."
+        "Names the example \"A fraud model against always-negative\": 99% accuracy hid failure.",
+        "A fraud model is compared with an always-negative baseline using precision, recall and confusion counts.",
+        "Review capacity and threshold curves guide the choice.",
+        "The threshold is chosen for real costs and capacity, not by default."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed case: A high AUC does not justify a production threshold until probability calibration and false-positive burden are checked on the deployment population.",
+      "prompt": "Extend evaluate to compute cost = 100 x FN + 5 x FP and find the threshold with the lowest cost among 0.1 to 0.9.",
       "scaffold": [
-        "Identify which assumption, population, input, or objective changed.",
-        "Preserve provenance and the declared failure boundary."
+        "Loop in steps of 0.1.",
+        "Report the best threshold."
       ],
       "expectedEvidence": [
-        "Classification produces labels or scores for categorical outcomes; thresholds convert scores to actions and must be chosen from prevalence, calibration, error costs, capacity, and group conditions rather than accuracy alone.",
-        "Scores may be uncalibrated, class imbalance makes accuracy misleading, one threshold creates trade-offs, labels can be noisy, and post-deployment prevalence changes predictive values."
+        "Cost table produced.",
+        "Choice explained."
       ]
     },
     "farTransfer": {
-      "prompt": "Design a neutral-context example or evaluation for Classification and probabilities and list the evidence that would support and falsify its bounded claim.",
+      "prompt": "Train a simple logistic-style scorer on an imbalanced dataset, compare with an always-negative baseline, plot precision and recall across thresholds, and pick a threshold under a stated review capacity and cost ratio.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Include baseline, conditions, affected stakeholders, and a stop or fallback condition where relevant."
+        "Use validation data, not test.",
+        "Report confusion counts at the chosen threshold."
       ],
       "expectedEvidence": [
-        "Train and evaluate a classifier under class imbalance and asymmetric error costs.",
-        "Separate labels, scores, and calibrated probabilities; choose and monitor thresholds using prevalence, error costs, capacity, and slice-specific confusion evidence."
+        "Baseline beaten on recall.",
+        "Threshold justified."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "ai.supervised.classification.misconception",
-      "explanation": "Separate labels, scores, and calibrated probabilities; choose and monitor thresholds using prevalence, error costs, capacity, and slice-specific confusion evidence.",
-      "retryPrompt": "Re-evaluate the stress case, replace the overclaim with a bounded claim, and name missing evidence: A high AUC does not justify a production threshold until probability calibration and false-positive burden are checked on the deployment population."
+      "explanation": "For any classifier, report **confusion counts, precision and recall at the chosen threshold**, compare with **always-negative**, and justify the threshold with **costs and capacity**.",
+      "retryPrompt": "Apply this to \"The celebrated 99%\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to train and evaluate a classifier under class imbalance and asymmetric error costs. Keep this boundary in view: Scores may be uncalibrated, class imbalance makes accuracy misleading, one threshold creates trade-offs, labels can be noisy, and post-deployment prevalence changes predictive values.",
+    "summary": "To train and evaluate a classifier under class imbalance and asymmetric error costs, compare it with an always-negative baseline, report confusion counts, precision and recall, check calibration before reading scores as probabilities, and choose the threshold from costs and review capacity.",
     "retrievalPrompts": [
-      "Explain Classification and probabilities with one technical mechanism, one evidence requirement, and one non-claim.",
-      "Why is this overclaim invalid: The class with the highest model score is a probability-certain answer, and accuracy is sufficient even for a rare positive class.",
-      "Apply the boundary to: A high AUC does not justify a production threshold until probability calibration and false-positive burden are checked on the deployment population."
+      "Why is accuracy misleading for rare classes?",
+      "What do precision and recall measure?",
+      "What should decide the threshold?"
     ],
     "nextReviewPrompt": "Next: continue to “Linear, neighbor and tree models”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

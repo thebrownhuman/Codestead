@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Creating, copying, moving, renaming, and deleting files changes paths and content independently; each operation should name an exact source and destination and be verified afterward.",
+    "summary": "File commands each do one precise thing. `mkdir -p` creates folders; `touch` creates an empty file; `cp` **copies** (the original stays); `mv` **moves or renames** (the original is gone); `rm` **deletes**. Always name an **exact source and destination**, quote paths with spaces, and **verify afterwards** with `ls` or `git status`. Watch out: `mv a.txt notes/` puts a.txt inside notes if that folder exists, but **renames** it to a file called notes if it doesn't. In a Git repository, `git mv old new` moves a tracked file and stages the change, so Git reports a clean **rename** instead of a deleted file plus an unrelated new one.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A source file is moved with Git-aware tooling, then status confirms one rename rather than an accidental deletion plus unrelated new file. Your goal is to reorganize a disposable project tree and verify every resulting path. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner reorganises a project: `src/helpers.js` should become `src/utils/format.js`. They copy it with the file manager, delete the old one, and edit the copy. Git now shows one deleted file and one brand-new untracked file, and the reviewer can't see what actually changed. A source file is moved with Git-aware tooling, then status confirms one rename rather than an accidental deletion plus unrelated new file. In this lesson you'll reorganize a disposable project tree and verify every resulting path.\n\n```predict\n{\"question\": \"`cp report.md backup.md`. Afterwards, how many files exist?\", \"options\": [\"One: report.md became backup.md\", \"Two: cp leaves the original in place\"], \"answer\": 1, \"why\": \"Copy duplicates; move relocates. They're not interchangeable.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: pf tools files; List, read and search. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Files, folders and paths** and **List, read and search** (checking what exists before and after)."
       },
       {
-        "heading": "Operational model",
-        "body": "Creating, copying, moving, renaming, and deleting files changes paths and content independently; each operation should name an exact source and destination and be verified afterward. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The distinction: copy keeps, move relocates",
+        "body": "```bash\nmkdir -p src/utils                      # create folders (no error if they exist).\ngit mv src/helpers.js src/utils/format.js   # move a tracked file, staged as a rename.\ngit status\n#   renamed: src/helpers.js -> src/utils/format.js\n\ncp README.md README.backup.md           # copy: both files now exist.\nmv \"old notes.md\" \"notes/week 1.md\"    # move and rename; quotes for spaces.\nls src/utils notes                      # verify the destinations.\n```\n\n| Command | After it runs |\n|---|---|\n| `cp a b`. | a and b both exist. |\n| `mv a b`. | only b exists (a renamed or moved). |\n| `mv a dir/` (dir exists). | dir/a exists. |\n| `mv a dir` (dir missing). | a is renamed to a file named dir. |\n| `git mv a b`. | like mv, and the rename is staged. |\n\n```reveal\n{\"prompt\": \"Does plain mv also show as a rename in Git?\", \"answer\": \"Usually yes, once both sides are staged (git add -A), because Git detects renames by similar content. git mv just does the staging for you. Big edits in the same commit can hide the rename, so move first, commit, then edit.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Overwrites, recursive operations, links, permissions, case-only renames, and cross-filesystem moves have platform-specific behavior and can cause irreversible loss. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Move and copy are interchangeable because both make the file appear at the destination."
+        "heading": "The destination trap",
+        "body": "```predict\n{\"question\": \"`mv draft.md archive` where no folder called archive exists. Result?\", \"options\": [\"draft.md moves into a new archive folder\", \"draft.md is renamed to a file called archive\"], \"answer\": 1, \"why\": \"mv doesn't create folders. Create the folder first and use a trailing slash: mv draft.md archive/.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Manipulate files and directories with quoted literal paths and verify destinations.",
-      "Reorganize a disposable project tree and verify every resulting path."
+      "Create, copy, move, rename and delete files and folders with exact quoted paths.",
+      "Use git mv for tracked files and verify results with ls and git status."
     ],
     "excludes": [
-      "Overwrites, recursive operations, links, permissions, case-only renames, and cross-filesystem moves have platform-specific behavior and can cause irreversible loss."
+      "Safe deletion practices in depth (next lesson).",
+      "File permissions."
     ]
   },
   "outcomes": [
@@ -63,133 +64,134 @@
   "examples": [
     {
       "id": "git.shell.create-move.example-a",
-      "title": "Create, copy, move and rename: direct case",
+      "title": "Renaming a file without losing its history",
       "situation": "A source file is moved with Git-aware tooling, then status confirms one rename rather than an accidental deletion plus unrelated new file.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A source file is moved with Git-aware tooling, then status confirms one rename rather than an accidental deletion plus unrelated new file.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete."
+        "**Prepare the destination:** mkdir -p src/utils creates the target folder.",
+        "**Move with Git-aware tooling:** `git mv src/helpers.js src/utils/format.js` moves the file and stages the change.",
+        "**Status confirms one rename:** git status will show \"renamed: src/helpers.js -> src/utils/format.js\", not a deletion plus a new file; edits then follow in a separate commit."
       ],
-      "result": "The case supports the declared outcome because Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete."
+      "result": "The reviewer sees a clean rename followed by a small, readable edit."
     },
     {
       "id": "git.shell.create-move.example-b",
-      "title": "Create, copy, move and rename: boundary case",
-      "situation": "A new directory is created before copying a template, and the destination is inspected before any original is removed.",
+      "title": "The backup that wasn't",
+      "situation": "Before a risky edit, a learner runs `mv config.json config.backup.json` to \"make a backup\", then the app fails because config.json is gone.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: A new directory is created before copying a template, and the destination is inspected before any original is removed.",
-        "Step 2 — Keep this boundary explicit: Overwrites, recursive operations, links, permissions, case-only renames, and cross-filesystem moves have platform-specific behavior and can cause irreversible loss.",
-        "Step 3 — Reject the documented misconception: Move and copy are interchangeable because both make the file appear at the destination."
+        "mv relocated the only copy.",
+        "A backup needs cp config.json config.backup.json, which keeps the original.",
+        "Verify with ls that both files exist before editing."
       ],
-      "result": "This case demonstrates the declared outcome: Reorganize a disposable project tree and verify every resulting path."
+      "result": "The app keeps working, and a real backup sits alongside the original."
     }
   ],
   "misconceptions": [
     {
       "id": "git.shell.create-move.misconception",
       "mistakenBelief": "Move and copy are interchangeable because both make the file appear at the destination.",
-      "correction": "Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Move and copy are interchangeable because both make the file appear at the destination."
+      "correction": "Copy leaves the original where it was; move removes it from the source. Choosing the wrong one either loses the only copy or leaves stale duplicates behind.",
+      "diagnosticPrompt": "In \"The backup that wasn't\", what happened to config.json?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A labeled filing room can model Create, copy, move and rename: current location changes how relative directions resolve, and moving differs from copying a folder.",
+    "example": "Copying is **photocopying a letter**: you keep the original. Moving is **posting the letter to a new address**: it's no longer on your desk. Renaming is **changing the label on the envelope**. `git mv` is posting it **with a forwarding note** so Git knows where it went.",
     "usefulFor": [
-      "Reasoning about exact locations, inspection, file operations, and destructive scope"
+      "remembering copy keeps, move relocates",
+      "git mv = forwarding note"
     ],
     "limitations": [
-      "Shell expansion, permissions, links, filesystem rules, and command execution can behave unlike physical folders.",
-      "Overwrites, recursive operations, links, permissions, case-only renames, and cross-filesystem moves have platform-specific behavior and can cause irreversible loss."
+      "Letters don't overwrite each other; files at the destination can be replaced.",
+      "Posting to a missing address (folder) turns the letter into that address's name."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A source file is moved with Git-aware tooling, then status confirms one rename rather than an accidental deletion plus unrelated new file.",
-      "Creating, copying, moving, renaming, and deleting files changes paths and content independently; each operation should name an exact source and destination and be verified afterward.",
-      "Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete."
+      "mkdir -p src/utils",
+      "git mv src/helpers.js src/utils/format.js",
+      "git status"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Create",
         "state": {
-          "evidence": "A source file is moved with Git-aware tooling, then status confirms one rename rather than an accidental deletion plus unrelated new file."
+          "src/utils": "exists"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "The destination folder is created first."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Move",
         "state": {
-          "model": "Creating, copying, moving, renaming, and deleting files changes paths and content independently; each operation should name an exact source and destination and be verified afterward."
+          "src/helpers.js": "gone",
+          "src/utils/format.js": "present"
         },
-        "explanation": "Apply the declared Create, copy, move and rename model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "The source file is moved with Git-aware tooling."
       },
       {
         "step": 3,
         "focus": "Verify",
         "state": {
-          "correction": "Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete."
+          "git status": "renamed: helpers.js -> utils/format.js"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Move and copy are interchangeable because both make the file appear at the destination."
+        "explanation": "Status confirms one rename rather than a deletion plus an unrelated new file."
       }
     ],
-    "textAlternative": "Starting artifact: A source file is moved with Git-aware tooling, then status confirms one rename rather than an accidental deletion plus unrelated new file. Step 1, Observe. State: evidence: A source file is moved with Git-aware tooling, then status confirms one rename rather than an accidental deletion plus unrelated new file.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Creating, copying, moving, renaming, and deleting files changes paths and content independently; each operation should name an exact source and destination and be verified afterward.. Apply the declared Create, copy, move and rename model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete.. Compare the observation with the correction and reject the misconception: Move and copy are interchangeable because both make the file appear at the destination."
+    "textAlternative": "Tracing a Git-aware rename. Step 1, Create: src/utils is exists. The destination folder is created first. Step 2, Move: src/helpers.js is gone; src/utils/format.js is present. The source file is moved with Git-aware tooling. Step 3, Verify: git status is renamed: helpers.js -> utils/format.js. Status confirms one rename rather than a deletion plus an unrelated new file."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Create, copy, move and rename: direct case”: state its starting evidence, apply the Create, copy, move and rename rule, and give the observable result in three short lines.",
+      "prompt": "For \"Renaming a file without losing its history\", explain how a source file is moved with Git-aware tooling, then status confirms one rename rather than an accidental deletion plus unrelated new file.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Prepare.",
+        "Move.",
+        "Verify."
       ],
       "expectedEvidence": [
-        "Named example: Create, copy, move and rename: direct case.",
-        "Starting evidence: A source file is moved with Git-aware tooling, then status confirms one rename rather than an accidental deletion plus unrelated new file.",
-        "Core rule: Creating, copying, moving, renaming, and deleting files changes paths and content independently; each operation should name an exact source and destination and be verified afterward.",
-        "Observable result: The case supports the declared outcome because Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete.",
-        "Boundary check: Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete."
+        "Names the example \"Renaming a file without losing its history\": copy-and-delete confused the reviewer.",
+        "The source file is moved with Git-aware tooling.",
+        "Status confirms one rename rather than an accidental deletion plus unrelated new file.",
+        "The reviewer sees a clean rename followed by a small edit."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: A new directory is created before copying a template, and the destination is inspected before any original is removed.",
+      "prompt": "In a disposable folder, create docs/ and notes/, a file \"week 1.md\", copy it to docs/, then move the original into notes/ renamed to week-01.md. Verify every path with ls.",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Quote the spaced name.",
+        "cp first, then mv."
       ],
       "expectedEvidence": [
-        "Creating, copying, moving, renaming, and deleting files changes paths and content independently; each operation should name an exact source and destination and be verified afterward.",
-        "Overwrites, recursive operations, links, permissions, case-only renames, and cross-filesystem moves have platform-specific behavior and can cause irreversible loss."
+        "docs/week 1.md and notes/week-01.md exist.",
+        "No file left at the top level."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Create, copy, move and rename, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "In a disposable Git repo, reorganise three tracked files into new folders using git mv, commit, then make small edits in a second commit. Show git status and git log --stat for both commits.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Move and edit in separate commits.",
+        "Check renames in --stat."
       ],
       "expectedEvidence": [
-        "Reorganize a disposable project tree and verify every resulting path.",
-        "Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete."
+        "Renames recognised in the first commit.",
+        "Edits clearly visible in the second."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.shell.create-move.misconception",
-      "explanation": "Copy preserves the source while move changes its location; verify both endpoints and repository status before treating the operation as complete.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: A new directory is created before copying a template, and the destination is inspected before any original is removed."
+      "explanation": "For each file command say: **source, destination, and whether the source should still exist afterwards.** Then run ls or git status to confirm.",
+      "retryPrompt": "Apply this to \"The backup that wasn't\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to reorganize a disposable project tree and verify every resulting path. Keep this boundary in view: Overwrites, recursive operations, links, permissions, case-only renames, and cross-filesystem moves have platform-specific behavior and can cause irreversible loss.",
+    "summary": "To reorganize a project tree safely, create folders with mkdir -p, copy with cp when the original must stay, move or rename with mv (or git mv for tracked files so Git records a rename), quote paths with spaces, beware mv's rename-if-missing destination, and verify every path with ls and git status.",
     "retrievalPrompts": [
-      "Explain Create, copy, move and rename without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Move and copy are interchangeable because both make the file appear at the destination.",
-      "Apply the model to this case from memory: A new directory is created before copying a template, and the destination is inspected before any original is removed."
+      "What's the difference between cp and mv?",
+      "Why use git mv for tracked files?",
+      "What happens with mv file dir when dir doesn't exist?"
     ],
     "nextReviewPrompt": "Next: continue to “Command safety and help”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

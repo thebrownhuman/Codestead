@@ -130,8 +130,7 @@
 .menuButton:active,
 .profileButton:active,
 .profileDropdown a:active,
-.profileDropdown button:active,
-.mobileNav a:active {
+.profileDropdown button:active {
   transform: scale(0.975);
 }
 
@@ -677,9 +676,16 @@
 }
 
 .main {
-  width: min(1220px, calc(100% - 52px));
+  /* Owner preference: every page uses the full available width. */
+  width: calc(100% - 40px);
   margin-inline: auto;
-  padding: 36px 0 70px;
+  padding: 36px 0 20px; /* bottom matches the 20px side gutter */
+}
+
+/* Main is focused programmatically after navigation for screen readers; that must
+   not draw a visible ring around the whole page. */
+.main:focus {
+  outline: none;
 }
 
 .routeStage {
@@ -692,7 +698,6 @@
   animation: none;
 }
 
-.mobileNav,
 .scrim {
   display: none;
 }
@@ -707,6 +712,31 @@
   background: color-mix(in srgb, #09120d 82%, transparent);
   backdrop-filter: blur(12px);
 }
+
+/* The first status check usually finishes in tens of milliseconds: block input
+   without dimming the page, and only show a small chip. */
+.examLockCheckingLayer {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  align-items: end;
+  justify-items: center;
+  padding: 20px;
+}
+
+.examLockChecking {
+  margin: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  background: var(--surface-solid);
+  font-size: .75rem;
+  animation: exam-lock-checking-in 0s linear .4s both;
+}
+
+@keyframes exam-lock-checking-in { from { opacity: 0; } to { opacity: 1; } }
 
 .examLockDialog {
   display: grid;
@@ -808,11 +838,6 @@
     color: var(--ink);
     background: var(--surface-muted);
   }
-
-  .mobileNav a:hover {
-    color: var(--ink);
-    background: var(--surface-muted);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -891,71 +916,7 @@
 
   .main {
     width: calc(100% - 24px);
-    padding: 22px 0 calc(max(92px, 5.75rem) + env(safe-area-inset-bottom));
-  }
-
-  .mobileNav {
-    position: fixed;
-    z-index: 20;
-    right: 8px;
-    bottom: max(8px, env(safe-area-inset-bottom));
-    left: 8px;
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    padding: 6px;
-    border: 1px solid var(--line);
-    border-radius: 18px;
-    background: color-mix(in srgb, var(--surface-solid) 94%, transparent);
-    box-shadow: var(--shadow-small);
-    backdrop-filter: blur(20px);
-  }
-
-  .mobileNav a {
-    position: relative;
-    display: flex;
-    min-width: 0;
-    min-height: 56px;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 2px;
-    padding: 5px 2px;
-    border: 1px solid transparent;
-    border-radius: 11px;
-    color: var(--ink-soft);
-    font-size: var(--text-xs);
-    font-weight: 700;
-    transition:
-      color var(--motion-base) var(--ease-out),
-      background-color var(--motion-base) var(--ease-out),
-      border-color var(--motion-base) var(--ease-out),
-      transform var(--motion-fast) var(--ease-out);
-  }
-
-  .mobileNav a > svg {
-    transition: transform var(--motion-base) var(--ease-out);
-  }
-
-  .mobileNav a > span {
-    max-width: 100%;
-    overflow-wrap: anywhere;
-    line-height: 1.15;
-    text-align: center;
-  }
-
-  .mobileNav .mobileActive {
-    border-color: color-mix(in srgb, var(--signal-cyan) 18%, var(--line));
-    color: var(--brand-strong);
-    background: linear-gradient(
-      145deg,
-      color-mix(in srgb, var(--brand-soft) 80%, var(--surface-solid)),
-      color-mix(in srgb, var(--signal-cyan-soft) 54%, var(--surface-solid))
-    );
-  }
-
-  .mobileNav .mobileActive > svg {
-    color: var(--signal-cyan);
-    transform: translateY(-1px) scale(1.06);
+    padding: 22px 0 calc(24px + env(safe-area-inset-bottom));
   }
 
   :global(html[data-text-size="150"]) .sidebar,
@@ -966,34 +927,6 @@
   :global(html[data-text-size="150"]) .sidebarHeader,
   :global(html[data-text-size="200"]) .sidebarHeader {
     padding-inline: 0;
-  }
-
-  :global(html[data-text-size="150"]) .mobileNav {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  :global(html[data-text-size="150"]) .main {
-    padding-bottom: calc(160px + env(safe-area-inset-bottom));
-  }
-
-  :global(html[data-text-size="200"]) .mobileNav {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  :global(html[data-text-size="200"]) .main {
-    padding-bottom: calc(248px + env(safe-area-inset-bottom));
-  }
-}
-
-@media (max-width: 380px) {
-  .mobileNav {
-    right: 5px;
-    left: 5px;
-    padding: 4px;
-  }
-
-  .mobileNav a {
-    font-size: 0.68rem;
   }
 }
 
@@ -1006,7 +939,6 @@
   }
 
   .activeNav,
-  .mobileActive,
   .themeOptionActive {
     border-color: Highlight;
   }
@@ -1015,4 +947,241 @@
     background: Canvas;
     opacity: 0.72;
   }
+}
+
+.sidebarToggle {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink-soft);
+  background: transparent;
+  cursor: pointer;
+}
+
+.sidebarToggle:hover {
+  color: var(--brand-strong);
+  background: var(--brand-soft);
+}
+
+/* Collapsed sidebar: an icon rail that expands over the page on hover or keyboard
+   focus, like browser vertical tabs. Every row keeps the same height in both
+   states so nothing moves under the pointer. Narrow screens keep the drawer. */
+@media (min-width: 921px) {
+  .shellDrawer .contentColumn {
+    padding-left: 72px;
+  }
+
+  .shellDrawer .sidebar {
+    width: 72px;
+    padding-inline: 12px;
+    overflow-x: hidden;
+    white-space: nowrap;
+    transition: width var(--motion-base) var(--ease-out), box-shadow var(--motion-base) var(--ease-out);
+  }
+
+  .shellDrawer .sidebar:not(.railSuppressed):hover,
+  .shellDrawer .sidebar:not(.railSuppressed):has(:focus-visible),
+  .shellDrawer .sidebar.railMenuOpen {
+    width: 248px;
+    box-shadow: var(--shadow);
+  }
+
+  /* Icons sit at one fixed x position in both states (centred in the 48px rail),
+     so expanding only reveals labels to their right. */
+  .shellDrawer .sidebarHeader {
+    position: relative;
+    min-height: 40px;
+    padding-inline: 7px 0;
+  }
+
+  .shellDrawer .sideNav > a {
+    padding-inline: 14px 12px;
+  }
+
+  .shellDrawer .searchBox {
+    padding-inline: 15px 12px;
+  }
+
+  .shellDrawer .sidebarToggle {
+    position: absolute;
+    top: 2px;
+    right: 0;
+  }
+
+  .shellDrawer .sidebar:is(.railSuppressed, :not(:hover):not(:has(:focus-visible)):not(.railMenuOpen)) .sidebarToggle {
+    visibility: hidden;
+  }
+
+  /* Collapsed rows become centred 48px squares; labels are removed, not just
+     hidden, so no row is wider than the rail. */
+  .shellDrawer .sidebar:is(.railSuppressed, :not(:hover):not(:has(:focus-visible)):not(.railMenuOpen)) .searchBox,
+  .shellDrawer .sidebar:is(.railSuppressed, :not(:hover):not(:has(:focus-visible)):not(.railMenuOpen)) .sideNav a {
+    width: 48px;
+  }
+
+  .shellDrawer .sidebar:is(.railSuppressed, :not(:hover):not(:has(:focus-visible)):not(.railMenuOpen)) .searchBox span,
+  .shellDrawer .sidebar:is(.railSuppressed, :not(:hover):not(:has(:focus-visible)):not(.railMenuOpen)) .sideNav a span,
+  .shellDrawer .sidebar:is(.railSuppressed, :not(:hover):not(:has(:focus-visible)):not(.railMenuOpen)) .sideNav a i {
+    display: none;
+  }
+
+  /* The tip card keeps a fixed width so its text never re-wraps while the rail
+     animates (re-wrapping made it grow and shrink, which looked like a jump). */
+  .shellDrawer .sidebarFoot {
+    width: 216px;
+    flex: none;
+    transition: opacity var(--motion-base) var(--ease-out);
+  }
+
+  .shellDrawer .sidebar:is(.railSuppressed, :not(:hover):not(:has(:focus-visible)):not(.railMenuOpen)) .sidebarFoot {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  /* Rail shows only the logo mark; the wordmark is the icon's sibling span. */
+  .shellDrawer .sidebar:is(.railSuppressed, :not(:hover):not(:has(:focus-visible)):not(.railMenuOpen)) .sidebarHeader :global(.brand-mark) > span + span {
+    display: none;
+  }
+
+}
+
+/* The collapsible rail sets nowrap on the sidebar; the footer tip must still wrap. */
+.sidebarFoot { white-space: normal; }
+
+/* ---- Sidebar account + notifications (no top bar; owner preference) ---- */
+
+/* Notifications is a normal sidebar row. */
+.sidebarNotifications { position: static; }
+.sidebarNotificationButton {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: var(--control-min);
+  align-items: center;
+  gap: 11px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  color: var(--ink-soft);
+  background: transparent;
+  font: inherit;
+  font-size: 0.83rem;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--motion-base) var(--ease-out), background-color var(--motion-base) var(--ease-out);
+}
+.sidebarNotificationButton:hover,
+.sidebarNotificationButton[aria-expanded="true"] { color: var(--ink); background: var(--surface-muted); }
+.sidebarNotificationButton .notificationDot { top: 50%; right: 14px; left: auto; transform: translateY(-50%); }
+/* Panel opens beside the sidebar instead of under a top bar. */
+.sidebarNotifications .notificationPanel {
+  position: fixed;
+  top: auto;
+  right: auto;
+  bottom: 16px;
+  left: calc(var(--sidebar-open-width, 248px) + 10px);
+  max-height: calc(100dvh - 32px);
+}
+
+/* Account row pinned to the bottom of the sidebar; menu opens upward. */
+.sidebarAccount {
+  position: relative;
+  margin-top: auto;
+  padding-top: 12px;
+}
+.accountButton {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: var(--ink);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.accountButton:hover,
+.accountButton[aria-expanded="true"] { border-color: var(--line); background: var(--surface-muted); }
+.accountButton .avatar { flex: none; }
+.accountButton .profileCopy { flex: 1; min-width: 0; }
+.accountButton > svg { flex: none; color: var(--ink-soft); }
+.accountDropdown {
+  position: absolute;
+  z-index: 45;
+  right: 0;
+  bottom: calc(100% + 6px);
+  left: 0;
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-solid);
+  box-shadow: var(--shadow);
+  animation: menu-enter var(--motion-base) var(--ease-out) both;
+}
+.accountDropdown > button {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--ink-soft);
+  background: transparent;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+.accountDropdown > button:hover,
+.accountDropdown > button:focus-visible { color: var(--ink); background: var(--surface-muted); }
+.accountDropdown > button .themeCheck { margin-left: auto; color: var(--brand); }
+.accountDropdown .themeMenuHeading { padding: 6px 10px 4px; }
+.accountDivider { height: 1px; margin: 4px 6px; background: var(--line); }
+
+/* Collapsed rail: icons/avatar only. */
+@media (min-width: 921px) {
+  .shellDrawer .sidebar:is(.railSuppressed, :not(:hover):not(:has(:focus-visible)):not(.railMenuOpen)) .sidebarNotificationButton > span:not(.notificationDot),
+  .shellDrawer .sidebar:is(.railSuppressed, :not(:hover):not(:has(:focus-visible)):not(.railMenuOpen)) .accountButton .profileCopy,
+  .shellDrawer .sidebar:is(.railSuppressed, :not(:hover):not(:has(:focus-visible)):not(.railMenuOpen)) .accountButton > svg {
+    display: none;
+  }
+  .shellDrawer .sidebar:is(.railSuppressed, :not(:hover):not(:has(:focus-visible)):not(.railMenuOpen)) .sidebarNotificationButton,
+  .shellDrawer .sidebar:is(.railSuppressed, :not(:hover):not(:has(:focus-visible)):not(.railMenuOpen)) .accountButton {
+    width: 48px;
+  }
+  .shellDrawer .sidebarNotificationButton { padding-inline: 14px 12px; }
+  .shellDrawer .accountButton { padding-inline: 6px; }
+  .shellDrawer .sidebarNotifications .notificationPanel { left: calc(248px + 10px); }
+}
+
+/* Narrow screens: one floating button opens the drawer (no top bar). */
+@media (max-width: 920px) {
+  .menuButton {
+    position: fixed;
+    z-index: 24;
+    top: calc(10px + env(safe-area-inset-top));
+    left: 10px;
+    box-shadow: var(--shadow-small);
+  }
+  .main { padding-top: calc(64px + env(safe-area-inset-top)); }
+  .sidebarNotifications .notificationPanel { right: 12px; left: 12px; bottom: 12px; }
+}
+
+/* Lesson pages are edge-to-edge with their own sticky header: no page padding
+   above or below, on any screen size, so no strip shows above the header. */
+.main:has([data-lesson-workspace]) {
+  padding-block: 0;
 }

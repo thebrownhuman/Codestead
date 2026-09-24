@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Array methods such as map, filter, reduce, find, some, and every encode distinct transformation and query contracts.",
+    "summary": "Array methods let you describe **what** you want instead of managing loop counters. `filter` keeps items that pass a test; `map` transforms every item into a new one; `reduce` combines all items into one value; `find` returns the first match; `some`/`every` answer yes/no questions. Each returns a **new** value — so use `forEach` (or a loop) for side effects, and don't call `map` when you ignore its result.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: filter retains matching values and map transforms each retained value in a separate step. Your goal is to construct and explain a transformation pipeline and compare it with an explicit loop. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A course page must show the titles of published lessons in upper case. The loop version needs an empty array, an `if`, and a `push`. The pipeline version reads like the requirement. filter retains matching values, and map transforms each retained value in a separate step. In this lesson you'll construct and explain a transformation pipeline and compare it with an explicit loop.\n\n```predict\n{\"question\": \"`[1, 2, 3, 4].filter(n => n % 2 === 0).map(n => n * 10)` returns…\", \"options\": [\"[10, 20, 30, 40]\", \"[20, 40]\"], \"answer\": 1, \"why\": \"filter keeps 2 and 4; map turns them into 20 and 40.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Control flow and functions; pf data selection; Arrays and indexed data; Function declarations, expressions and arrows. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Control flow and functions** module, **Data-structure choice**, **Arrays and indexed data**, and **Function declarations, expressions and arrows**."
       },
       {
-        "heading": "Technology rule",
-        "body": "Array methods such as map, filter, reduce, find, some, and every encode distinct transformation and query contracts. Apply this rule to the actual markup, stylesheet, JavaScript, or component state rather than memorizing its name."
+        "heading": "The model: one job per step",
+        "body": "```js\nconst lessons = [\n  { title: \"Arrays\", published: true, minutes: 12 },\n  { title: \"Maps\", published: false, minutes: 9 },\n  { title: \"Loops\", published: true, minutes: 15 },\n];\n\nconst titles = lessons\n  .filter((l) => l.published)            // keep: Arrays, Loops\n  .map((l) => l.title.toUpperCase());    // [\"ARRAYS\", \"LOOPS\"]\n\nconst totalMinutes = lessons.reduce((sum, l) => sum + l.minutes, 0);  // 36\nconst firstDraft = lessons.find((l) => !l.published);                 // Maps\nconst anyLong = lessons.some((l) => l.minutes > 14);                  // true\n```\n\n| Method | Returns |\n|---|---|\n| `filter`. | new array of items that pass. |\n| `map`. | new array, same length, transformed. |\n| `reduce`. | one combined value (give an initial value!). |\n| `find`. | first match or undefined. |\n| `some` / `every`. | true/false. |\n| `forEach`. | undefined — for side effects only. |\n\n```reveal\n{\"prompt\": \"Why pass `0` as reduce's second argument?\", \"answer\": \"It's the starting total. Without it, reduce uses the first item (an object here) as the start — and throws on an empty array.\"}\n```"
       },
       {
-        "heading": "Boundary and browser reality",
-        "body": "Callbacks can have side effects, reduce needs a sound accumulator, and map does not flatten arbitrary nested arrays. This draft therefore rejects: map should be used for side effects when its returned array is ignored."
+        "heading": "Pipeline or loop?",
+        "body": "```predict\n{\"question\": \"`lessons.map(l => console.log(l.title));` — good use of map?\", \"options\": [\"Yes\", \"No — it builds an array of undefined that's thrown away; use forEach or for...of\"], \"answer\": 1, \"why\": \"map is for transforming into a new array. For side effects like logging, use forEach or a loop.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Use map, filter, find, some, every and reduce with callbacks whose effects are clear.",
-      "Construct and explain a transformation pipeline and compare it with an explicit loop."
+      "Build pipelines with filter, map, reduce, find, some and every.",
+      "Compare a pipeline with an explicit loop and avoid map for side effects."
     ],
     "excludes": [
-      "Callbacks can have side effects, reduce needs a sound accumulator, and map does not flatten arbitrary nested arrays."
+      "Performance tuning of large pipelines.",
+      "Iterator helpers and generators."
     ]
   },
   "outcomes": [
@@ -68,133 +69,133 @@
   "examples": [
     {
       "id": "javascript.collections.methods.example-a",
-      "title": "Array transformation methods: concrete case",
+      "title": "Filter, then map",
       "situation": "filter retains matching values and map transforms each retained value in a separate step.",
       "walkthrough": [
-        "Step 1 — Inspect the exact artifact and starting state: filter retains matching values and map transforms each retained value in a separate step.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Use map when its transformed result is needed; use iteration for deliberate side effects."
+        "**filter retains matching values:** `lessons.filter(l => l.published)` keeps Arrays and Loops.",
+        "**map transforms each retained value:** `.map(l => l.title.toUpperCase())` produces [\"ARRAYS\", \"LOOPS\"].",
+        "**Compare the loop:** `const out = []; for (const l of lessons) { if (l.published) out.push(l.title.toUpperCase()); }` will give the same result with more bookkeeping."
       ],
-      "result": "The result follows because Use map when its transformed result is needed; use iteration for deliberate side effects."
+      "result": "The pipeline returns [\"ARRAYS\", \"LOOPS\"] and reads like the requirement: published lessons, titles in capitals."
     },
     {
       "id": "javascript.collections.methods.example-b",
-      "title": "Array transformation methods: boundary case",
-      "situation": "Callbacks can have side effects, reduce needs a sound accumulator, and map does not flatten arbitrary nested arrays.",
+      "title": "The reduce without a start",
+      "situation": "`const total = carts.reduce((sum, c) => sum + c.price);` crashes when carts is empty and gives \"[object Object]20\"-style nonsense otherwise.",
       "walkthrough": [
-        "Step 1 — Start from the documented boundary: Callbacks can have side effects, reduce needs a sound accumulator, and map does not flatten arbitrary nested arrays.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Reject the misconception: map should be used for side effects when its returned array is ignored."
+        "Without an initial value, the first item (an object) becomes sum.",
+        "An empty array has no first item, so reduce throws TypeError.",
+        "Fix: `carts.reduce((sum, c) => sum + c.price, 0)`."
       ],
-      "result": "The boundary requires this correction: Use map when its transformed result is needed; use iteration for deliberate side effects."
+      "result": "Totals are correct numbers, and an empty cart totals 0."
     }
   ],
   "misconceptions": [
     {
       "id": "javascript.collections.methods.misconception",
       "mistakenBelief": "map should be used for side effects when its returned array is ignored.",
-      "correction": "Use map when its transformed result is needed; use iteration for deliberate side effects.",
-      "diagnosticPrompt": "Use a concrete JavaScript: Language and Browser Applications artifact to explain why this belief fails: map should be used for side effects when its returned array is ignored."
+      "correction": "map exists to build a new array from transformed values. When you only need side effects, use forEach or a for...of loop; ignoring map's result wastes work and misleads readers.",
+      "diagnosticPrompt": "In the \"Pipeline or loop?\" predict, what does the ignored map produce?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A coordinated event desk can model Array transformation methods, with values, tasks, callbacks, and external messages changing observable state.",
+    "example": "A pipeline is like a **factory line**: the first station removes faulty parts (filter), the next paints every remaining part (map), and the last packs them into one box (reduce). Each station has one clear job.",
     "usefulFor": [
-      "Building a first mental model for Array transformation methods before using exact platform terms"
+      "remembering one job per method",
+      "reading the line as a sentence"
     ],
     "limitations": [
-      "Human coordination does not reproduce coercion, lexical scope, microtasks, prototypes, or browser security boundaries.",
-      "Callbacks can have side effects, reduce needs a sound accumulator, and map does not flatten arbitrary nested arrays."
+      "Factory lines run in parallel; array methods run step by step.",
+      "forEach is like a station that inspects parts but produces nothing."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "filter retains matching values and map transforms each retained value in a separate step.",
-      "Array methods such as map, filter, reduce, find, some, and every encode distinct transformation and query contracts.",
-      "Use map when its transformed result is needed; use iteration for deliberate side effects."
+      "lessons (3 items)",
+      ".filter(l => l.published)",
+      ".map(l => l.title.toUpperCase())"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Artifact",
+        "focus": "Input",
         "state": {
-          "evidence": "filter retains matching values and map transforms each retained value in a separate step."
+          "lessons": "Arrays✓, Maps✗, Loops✓"
         },
-        "explanation": "Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior."
+        "explanation": "The pipeline starts from all three lessons."
       },
       {
         "step": 2,
-        "focus": "Platform rule",
+        "focus": "filter",
         "state": {
-          "rule": "Array methods such as map, filter, reduce, find, some, and every encode distinct transformation and query contracts."
+          "kept": "Arrays, Loops"
         },
-        "explanation": "Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state."
+        "explanation": "filter retains matching values — the published lessons."
       },
       {
         "step": 3,
-        "focus": "Observable result",
+        "focus": "map",
         "state": {
-          "correction": "Use map when its transformed result is needed; use iteration for deliberate side effects."
+          "result": "['ARRAYS', 'LOOPS']"
         },
-        "explanation": "Check the result against the boundary and reject this misconception: map should be used for side effects when its returned array is ignored."
+        "explanation": "map transforms each retained value in a separate step."
       }
     ],
-    "textAlternative": "Starting artifact: filter retains matching values and map transforms each retained value in a separate step. Step 1, Artifact. State: evidence: filter retains matching values and map transforms each retained value in a separate step.. Record the exact markup, style, value, state, URL, event, or DOM evidence before predicting behavior. Step 2, Platform rule. State: rule: Array methods such as map, filter, reduce, find, some, and every encode distinct transformation and query contracts.. Apply the declared JavaScript: Language and Browser Applications rule without assuming a different browser, framework, or interaction state. Step 3, Observable result. State: correction: Use map when its transformed result is needed; use iteration for deliberate side effects.. Check the result against the boundary and reject this misconception: map should be used for side effects when its returned array is ignored."
+    "textAlternative": "A filter-then-map pipeline. Step 1, Input: lessons is Arrays✓, Maps✗, Loops✓. The pipeline starts from all three lessons. Step 2, filter: kept is Arrays, Loops. filter retains matching values — the published lessons. Step 3, map: result is ['ARRAYS', 'LOOPS']. map transforms each retained value in a separate step."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Array transformation methods: concrete case”: state its starting evidence, apply the Array transformation methods rule, and give the observable result in three short lines.",
+      "prompt": "For \"Filter, then map\", explain how filter retains matching values and map transforms each retained value in a separate step, and compare it with the loop version.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "filter.",
+        "map.",
+        "Loop comparison."
       ],
       "expectedEvidence": [
-        "Named example: Array transformation methods: concrete case.",
-        "Starting evidence: filter retains matching values and map transforms each retained value in a separate step.",
-        "Core rule: Array methods such as map, filter, reduce, find, some, and every encode distinct transformation and query contracts.",
-        "Observable result: The result follows because Use map when its transformed result is needed; use iteration for deliberate side effects.",
-        "Boundary check: Use map when its transformed result is needed; use iteration for deliberate side effects."
+        "Names the example \"Filter, then map\": filter retains matching values.",
+        "map transforms each retained value in a separate step.",
+        "The pipeline returns [\"ARRAYS\", \"LOOPS\"].",
+        "The equivalent loop needs an empty array, an if and push."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this boundary: Callbacks can have side effects, reduce needs a sound accumulator, and map does not flatten arbitrary nested arrays.",
+      "prompt": "From `[{name: \"A\", price: 50}, {name: \"B\", price: 150}, {name: \"C\", price: 90}]`, get the total price of items under 100.",
       "scaffold": [
-        "Identify which condition changed.",
-        "Keep semantics and user impact visible."
+        "filter then reduce.",
+        "Initial value 0."
       ],
       "expectedEvidence": [
-        "Array methods such as map, filter, reduce, find, some, and every encode distinct transformation and query contracts.",
-        "Callbacks can have side effects, reduce needs a sound accumulator, and map does not flatten arbitrary nested arrays."
+        "`.filter(i => i.price < 100).reduce((s, i) => s + i.price, 0)`.",
+        "Result 140."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new JavaScript: Language and Browser Applications example for Array transformation methods and explain why the misconception fails.",
+      "prompt": "Rewrite three loops from a project as pipelines where it improves clarity, and keep one as a loop with a comment explaining why. Test that results are identical.",
       "scaffold": [
-        "Do not reuse the analogy.",
-        "Declare browser, input, state, and accessibility assumptions."
+        "One job per step.",
+        "Loops for side effects or early exit."
       ],
       "expectedEvidence": [
-        "Construct and explain a transformation pipeline and compare it with an explicit loop.",
-        "Use map when its transformed result is needed; use iteration for deliberate side effects."
+        "Clear pipelines with identical results.",
+        "A justified loop kept where it reads better."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "javascript.collections.methods.misconception",
-      "explanation": "Use map when its transformed result is needed; use iteration for deliberate side effects.",
-      "retryPrompt": "Re-evaluate the concrete case using checkpoint 'transformed result' and state the decisive evidence."
+      "explanation": "Say the requirement aloud: \"keep X, change each to Y, combine into Z\". Map each phrase to filter, map, reduce. If you need side effects or an early break, use a loop.",
+      "retryPrompt": "Apply this to \"The reduce without a start\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to construct and explain a transformation pipeline and compare it with an explicit loop. Keep this boundary in view: Callbacks can have side effects, reduce needs a sound accumulator, and map does not flatten arbitrary nested arrays.",
+    "summary": "To construct and explain a transformation pipeline, chain filter (keep), map (transform), reduce (combine, with an initial value), find, some and every — each returning a new value — and use forEach or a loop for side effects. Compare with an explicit loop and pick what reads more clearly.",
     "retrievalPrompts": [
-      "Explain Array transformation methods using exact JavaScript: Language and Browser Applications terms.",
-      "Why is this claim incorrect: map should be used for side effects when its returned array is ignored.",
-      "Apply checkpoint 'transformed result' to a new artifact."
+      "What does filter return?",
+      "Why give reduce an initial value?",
+      "When should you not use map?"
     ],
     "nextReviewPrompt": "Next: continue to “Object records and property access”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

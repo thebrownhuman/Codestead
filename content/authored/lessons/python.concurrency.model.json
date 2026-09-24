@@ -28,33 +28,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Concurrency allows tasks to make overlapping progress, parallelism performs work simultaneously, and the useful model depends on I/O waiting, CPU cost, latency, throughput, and shared-state constraints.",
+    "summary": "**Concurrency** means several tasks are *in progress* at once, taking turns — great when tasks mostly **wait** (network, disk): that's **I/O-bound** work. **Parallelism** means tasks literally run *at the same time* on different CPU cores — needed when tasks mostly **compute**: **CPU-bound** work. In standard CPython, threads don't speed up pure-Python CPU work because of the GIL; processes can. Always **measure** before choosing.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: Many independent network waits are classified as I/O-bound and can overlap, while one numerical loop is CPU-bound and measured before selecting processes. Your goal is to classify a workload and explain whether concurrency can improve responsiveness or throughput. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "Your script downloads 50 web pages one after another — 50 seconds, mostly waiting. Another script crunches numbers in a loop for 40 seconds, with no waiting at all. Would adding threads help both? No — they're different kinds of slow. Many independent network waits are classified as I/O-bound and can overlap, while one numerical loop is CPU-bound and is measured before selecting processes. In this lesson you'll classify a workload and explain whether concurrency can improve responsiveness or throughput.\n\n```predict\n{\"question\": \"A pure-Python number-crunching loop takes 40 s. You split it across 4 threads in standard CPython. Roughly how long now?\", \"options\": [\"About 10 s\", \"Still about 40 s (or slower)\"], \"answer\": 1, \"why\": \"The GIL lets only one thread run Python bytecode at a time, so CPU-bound pure-Python work doesn't speed up with threads. Processes can use multiple cores.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Typing, tests, logging and debugging; Generators and lazy pipelines; for, while and loop control; Function contracts and returns. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Typing, tests, logging and debugging**, **Generators and lazy pipelines**, **for, while and loop control**, and **Function contracts and returns**."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Concurrency allows tasks to make overlapping progress, parallelism performs work simultaneously, and the useful model depends on I/O waiting, CPU cost, latency, throughput, and shared-state constraints. This model is applied through the declared Python: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The distinction: I/O-bound overlaps, CPU-bound needs cores",
+        "body": "| Workload | Time spent | Helps | Tool |\n|---|---|---|---|\n| 50 page downloads. | waiting on network. | overlapping waits. | asyncio or threads. |\n| resize 1,000 images in Python. | computing. | more cores. | processes. |\n| UI stays responsive during a download. | waiting. | not blocking the UI. | concurrency. |\n\n**Concurrency** = juggling many tasks. **Parallelism** = several jugglers.\n\n```reveal\n{\"prompt\": \"How do you tell if a task is I/O-bound or CPU-bound?\", \"answer\": \"Measure. If CPU usage stays low while it runs, it's mostly waiting (I/O-bound). If one core sits at 100%, it's CPU-bound. `time.perf_counter()` and a profiler give the numbers.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "The GIL and implementation details affect Python threads but do not remove races, processes add serialization cost, async requires cooperative nonblocking code, and more workers can reduce performance. The learner must reject this documented misconception: Concurrency and parallelism mean the same thing, and adding threads always makes any Python workload faster."
+        "heading": "Measure first",
+        "body": "```predict\n{\"question\": \"Before adding any concurrency, what should you do?\", \"options\": [\"Rewrite everything with asyncio\", \"Time the current version and find where the time goes\"], \"answer\": 1, \"why\": \"Without a baseline you can't tell whether a change helped. Concurrency adds complexity and bugs; add it only where measurements show waiting or CPU bottlenecks.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Distinguish interleaved progress, simultaneous execution, I/O waiting and CPU-bound work.",
-      "Classify a workload and explain whether concurrency can improve responsiveness or throughput."
+      "Classify workloads as I/O-bound or CPU-bound and explain concurrency vs parallelism.",
+      "Measure before choosing, and predict whether concurrency helps responsiveness or throughput."
     ],
     "excludes": [
-      "The GIL and implementation details affect Python threads but do not remove races, processes add serialization cost, async requires cooperative nonblocking code, and more workers can reduce performance."
+      "Writing asyncio or thread code (next lessons).",
+      "Free-threaded Python builds in depth."
     ]
   },
   "outcomes": [
@@ -63,133 +64,136 @@
   "examples": [
     {
       "id": "python.concurrency.model.example.direct",
-      "title": "Concurrency versus parallelism: direct language case",
+      "title": "Waiting vs computing",
       "situation": "Many independent network waits are classified as I/O-bound and can overlap, while one numerical loop is CPU-bound and measured before selecting processes.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Python: Beginner to Intermediate state or tool result: Many independent network waits are classified as I/O-bound and can overlap, while one numerical loop is CPU-bound and measured before selecting processes.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Classify waiting versus computation and the desired latency or throughput; choose concurrency for overlapping progress and parallel resources only when simultaneous work offsets coordination cost."
+        "**Network waits:** 50 downloads each wait ~1 s; CPU stays near idle → I/O-bound, so the waits can overlap.",
+        "**Numerical loop:** measure with `time.perf_counter()`: 40 s with one core at 100% → CPU-bound.",
+        "**Select tools:** overlapped downloads finish in a few seconds; the loop is measured before selecting processes, which may cut it to ~11 s on 4 cores."
       ],
-      "result": "The example meets the atomic outcome because Classify waiting versus computation and the desired latency or throughput; choose concurrency for overlapping progress and parallel resources only when simultaneous work offsets coordination cost."
+      "result": "Each workload gets the tool that matches its bottleneck, backed by measurements."
     },
     {
       "id": "python.concurrency.model.example.boundary",
-      "title": "Concurrency versus parallelism: boundary and transfer case",
-      "situation": "A responsive UI moves blocking work away from its event loop even when total throughput does not increase.",
+      "title": "The threaded image resizer that didn't speed up",
+      "situation": "A developer adds 8 threads to a pure-Python image resizer. Runtime goes from 60 s to 63 s.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A responsive UI moves blocking work away from its event loop even when total throughput does not increase.",
-        "Step 2 — Keep the language boundary explicit: The GIL and implementation details affect Python threads but do not remove races, processes add serialization cost, async requires cooperative nonblocking code, and more workers can reduce performance.",
-        "Step 3 — Reject the tempting but incorrect rule: Concurrency and parallelism mean the same thing, and adding threads always makes any Python workload faster."
+        "Resizing in pure Python is CPU-bound.",
+        "The GIL lets only one thread run Python code at a time, so threads add overhead but no parallelism.",
+        "Fix: use a process pool (or a library that releases the GIL, like Pillow's C code) and measure again."
       ],
-      "result": "This case demonstrates the declared outcome: Classify a workload and explain whether concurrency can improve responsiveness or throughput."
+      "result": "With processes, the resizer uses several cores and the measured time drops."
     }
   ],
   "misconceptions": [
     {
       "id": "python.concurrency.model.misconception",
       "mistakenBelief": "Concurrency and parallelism mean the same thing, and adding threads always makes any Python workload faster.",
-      "correction": "Classify waiting versus computation and the desired latency or throughput; choose concurrency for overlapping progress and parallel resources only when simultaneous work offsets coordination cost.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: Concurrency and parallelism mean the same thing, and adding threads always makes any Python workload faster."
+      "correction": "Concurrency interleaves tasks and helps when they wait; parallelism runs them simultaneously on multiple cores and helps CPU-bound work. In standard CPython, threads don't parallelise pure-Python CPU work, so measure and pick the matching tool.",
+      "diagnosticPrompt": "In \"The threaded image resizer that didn't speed up\", why didn't threads help?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a coordination desk that overlaps waiting jobs, assigns CPU work to separate rooms, and protects complete shared transitions can introduce Concurrency versus parallelism, after the canonical Python: Beginner to Intermediate rule is stated first.",
+    "example": "Concurrency is **one chef** starting the rice, then chopping while it cooks — overlapping waiting. Parallelism is **four chefs** each chopping at once — more hands for heavy work. Hiring more chefs doesn't help if they share one knife (the GIL).",
     "usefulFor": [
-      "concurrency models, asyncio, threads, processes, cancellation, and safety"
+      "remembering waiting overlaps, computing needs hands",
+      "seeing the GIL as the shared knife"
     ],
     "limitations": [
-      "the event loop, GIL, serialization, atomicity, scheduling, and cancellation points must be reasoned about technically",
-      "The GIL and implementation details affect Python threads but do not remove races, processes add serialization cost, async requires cooperative nonblocking code, and more workers can reduce performance."
+      "Real chefs don't need to be measured; code does.",
+      "Processes are like separate kitchens — more hands, but sharing ingredients is harder."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "Many independent network waits are classified as I/O-bound and can overlap, while one numerical loop is CPU-bound and measured before selecting processes.",
-      "Concurrency allows tasks to make overlapping progress, parallelism performs work simultaneously, and the useful model depends on I/O waiting, CPU cost, latency, throughput, and shared-state constraints.",
-      "Classify waiting versus computation and the desired latency or throughput; choose concurrency for overlapping progress and parallel resources only when simultaneous work offsets coordination cost."
+      "measure: 50 downloads → 50 s, CPU ~2%",
+      "measure: numeric loop → 40 s, one core 100%",
+      "choose: overlap waits; processes for loop"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Classify downloads",
         "state": {
-          "evidence": "Many independent network waits are classified as I/O-bound and can overlap, while one numerical loop is CPU-bound and measured before selecting processes."
+          "CPU": "~2%",
+          "kind": "I/O-bound"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "Many independent network waits are classified as I/O-bound and can overlap."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Classify loop",
         "state": {
-          "rule": "Concurrency allows tasks to make overlapping progress, parallelism performs work simultaneously, and the useful model depends on I/O waiting, CPU cost, latency, throughput, and shared-state constraints."
+          "CPU": "100% one core",
+          "kind": "CPU-bound"
         },
-        "explanation": "Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "The numerical loop is CPU-bound, shown by measurement."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Select",
         "state": {
-          "correction": "Classify waiting versus computation and the desired latency or throughput; choose concurrency for overlapping progress and parallel resources only when simultaneous work offsets coordination cost."
+          "downloads": "~3 s overlapped",
+          "loop": "process pool, measured again"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: Concurrency and parallelism mean the same thing, and adding threads always makes any Python workload faster."
+        "explanation": "Tools are selected only after measuring each workload."
       }
     ],
-    "textAlternative": "Starting artifact: Many independent network waits are classified as I/O-bound and can overlap, while one numerical loop is CPU-bound and measured before selecting processes. Step 1, Observe. State: evidence: Many independent network waits are classified as I/O-bound and can overlap, while one numerical loop is CPU-bound and measured before selecting processes.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Concurrency allows tasks to make overlapping progress, parallelism performs work simultaneously, and the useful model depends on I/O waiting, CPU cost, latency, throughput, and shared-state constraints.. Apply the declared Python: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Classify waiting versus computation and the desired latency or throughput; choose concurrency for overlapping progress and parallel resources only when simultaneous work offsets coordination cost.. Compare the observation with the correction and explain why the misconception fails: Concurrency and parallelism mean the same thing, and adding threads always makes any Python workload faster."
+    "textAlternative": "Classifying two workloads. Step 1, Classify downloads: CPU is ~2%; kind is I/O-bound. Many independent network waits are classified as I/O-bound and can overlap. Step 2, Classify loop: CPU is 100% one core; kind is CPU-bound. The numerical loop is CPU-bound, shown by measurement. Step 3, Select: downloads is ~3 s overlapped; loop is process pool, measured again. Tools are selected only after measuring each workload."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Concurrency versus parallelism: direct language case”: state its starting evidence, apply the Concurrency versus parallelism rule, and give the observable result in three short lines.",
+      "prompt": "For \"Waiting vs computing\", classify the many independent network waits and the one numerical loop, and explain why the loop is measured before selecting processes.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Downloads.",
+        "Loop.",
+        "Measurement."
       ],
       "expectedEvidence": [
-        "Named example: Concurrency versus parallelism: direct language case.",
-        "Starting evidence: Many independent network waits are classified as I/O-bound and can overlap, while one numerical loop is CPU-bound and measured before selecting processes.",
-        "Core rule: Concurrency allows tasks to make overlapping progress, parallelism performs work simultaneously, and the useful model depends on I/O waiting, CPU cost, latency, throughput, and shared-state constraints.",
-        "Observable result: The example meets the atomic outcome because Classify waiting versus computation and the desired latency or throughput; choose concurrency for overlapping progress and parallel resources only when simultaneous work offsets coordination cost.",
-        "Boundary check: Classify waiting versus computation and the desired latency or throughput; choose concurrency for overlapping progress and parallel resources only when simultaneous work offsets coordination cost."
+        "Names the example \"Waiting vs computing\": many independent network waits are I/O-bound and can overlap.",
+        "The numerical loop is CPU-bound.",
+        "It is measured before selecting processes.",
+        "Each workload gets the tool matching its bottleneck."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A responsive UI moves blocking work away from its event loop even when total throughput does not increase.",
+      "prompt": "Classify each and name a suitable approach: (a) checking 200 URLs for status, (b) computing primes up to 10 million in Python, (c) keeping a GUI responsive while saving a file.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "Waiting or computing?",
+        "Responsiveness vs throughput."
       ],
       "expectedEvidence": [
-        "Concurrency allows tasks to make overlapping progress, parallelism performs work simultaneously, and the useful model depends on I/O waiting, CPU cost, latency, throughput, and shared-state constraints.",
-        "The GIL and implementation details affect Python threads but do not remove races, processes add serialization cost, async requires cooperative nonblocking code, and more workers can reduce performance."
+        "(a) I/O-bound → asyncio/threads. (b) CPU-bound → processes.",
+        "(c) I/O wait → run the save concurrently so the UI isn't blocked."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Python: Beginner to Intermediate example of Concurrency versus parallelism, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Take a slow script of yours. Measure it, decide whether it's I/O-bound or CPU-bound using CPU usage and timings, and write a one-paragraph recommendation with the expected gain.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Use perf_counter and a task manager.",
+        "State assumptions."
       ],
       "expectedEvidence": [
-        "Classify a workload and explain whether concurrency can improve responsiveness or throughput.",
-        "Classify waiting versus computation and the desired latency or throughput; choose concurrency for overlapping progress and parallel resources only when simultaneous work offsets coordination cost."
+        "Measured baseline with a correct classification.",
+        "A justified recommendation with an expected gain."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "python.concurrency.model.misconception",
-      "explanation": "Classify waiting versus computation and the desired latency or throughput; choose concurrency for overlapping progress and parallel resources only when simultaneous work offsets coordination cost.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A responsive UI moves blocking work away from its event loop even when total throughput does not increase."
+      "explanation": "Ask: **While it runs, is the CPU busy or idle?** Idle → waiting → concurrency. Busy → computing → parallelism (processes). Unsure → measure.",
+      "retryPrompt": "Apply this to \"The threaded image resizer that didn't speed up\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to classify a workload and explain whether concurrency can improve responsiveness or throughput. Keep this boundary in view: The GIL and implementation details affect Python threads but do not remove races, processes add serialization cost, async requires cooperative nonblocking code, and more workers can reduce performance.",
+    "summary": "To classify a workload, measure it: I/O-bound work waits and benefits from concurrency, improving responsiveness and throughput; CPU-bound work needs parallelism across cores, typically processes in CPython. Threads don't speed up pure-Python CPU work.",
     "retrievalPrompts": [
-      "Explain Concurrency versus parallelism using canonical Python: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: Concurrency and parallelism mean the same thing, and adding threads always makes any Python workload faster.",
-      "Predict this case from memory: A responsive UI moves blocking work away from its event loop even when total throughput does not increase."
+      "What's the difference between concurrency and parallelism?",
+      "Why don't threads speed up CPU-bound Python code?",
+      "What should you do before adding concurrency?"
     ],
     "nextReviewPrompt": "Next: continue to “asyncio coroutines and tasks”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

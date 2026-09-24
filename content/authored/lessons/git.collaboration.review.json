@@ -38,33 +38,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Code review evaluates correctness, security, maintainability, tests, requirements, and risk; actionable feedback identifies location, consequence, and a verifiable change or question.",
+    "summary": "Code review asks: **is this change correct, safe, tested, maintainable, and does it meet the issue's criteria?** Read the PR description first, then the tests, then the code. Good feedback is **actionable**: it names the **location**, the **consequence**, and a **specific change or question**. Label the weight of each comment so the author can prioritise: **blocker** (must fix before merge: bugs, security, missing tests), **suggestion** (optional improvement) and **question** (you need to understand something). Personal style preferences that a linter doesn't enforce shouldn't block a correct change. Be kind: review the code, not the person.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A reviewer points to an unchecked empty input, explains the resulting crash, and requests a focused boundary test rather than writing vague needs work feedback. Your goal is to submit prioritized review feedback and distinguish blocker, suggestion and question. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner reviews a classmate's PR and leaves one comment: \"needs work\". The author has no idea what to change and asks. Meanwhile a real crash on empty input goes unnoticed. A reviewer points to an unchecked empty input, explains the resulting crash, and requests a focused boundary test rather than writing vague needs work feedback. In this lesson you'll submit prioritized review feedback and distinguish blocker, suggestion and question.\n\n```predict\n{\"question\": \"Which comment can the author act on right away?\", \"options\": [\"\\\"This could be better.\\\"\", \"\\\"Line 14: items[0] crashes when items is empty. Can you guard it and add a test for []?\\\"\"], \"answer\": 1, \"why\": \"Location + consequence + concrete request.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Remotes and synchronization; Pull request narrative; Diffs and patch review. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **Remotes and synchronization**, **Pull request narrative** and **Diffs and patch review**."
       },
       {
-        "heading": "Operational model",
-        "body": "Code review evaluates correctness, security, maintainability, tests, requirements, and risk; actionable feedback identifies location, consequence, and a verifiable change or question. The learner should use this model to predict an observable result rather than merely repeat terminology."
+        "heading": "The rule: location, consequence, request, weight",
+        "body": "```text\n[blocker] src/cart.js:14\n  items[0].price throws TypeError when items is empty (empty cart page\n  crashes). Please return 0 for [] and add a test for the empty case.\n\n[suggestion] src/cart.js:20\n  Optional: reduce() with an initial value would remove the loop.\n\n[question] src/cart.js:31\n  Why round here rather than at display time? Is it for the tax rule?\n```\n\n| Check | Ask |\n|---|---|\n| requirements. | does it meet the issue's acceptance criteria? |\n| correctness. | edge cases: empty, zero, null, very large? |\n| security. | untrusted input, secrets, permissions? |\n| tests. | would a test fail if the fix were reverted? |\n| maintainability. | clear names, no duplicated logic? |\n\n```reveal\n{\"prompt\": \"Should you block a PR because you'd name a variable differently?\", \"answer\": \"No, unless it violates a project convention. Make it a suggestion. Blockers are for correctness, security, requirements and missing tests.\"}\n```"
       },
       {
-        "heading": "Boundary and failure point",
-        "body": "Review cannot prove absence of defects, style preferences should not masquerade as blockers, and approvals depend on reviewer expertise and current diff state. A correct explanation therefore includes the applicable assumptions and avoids this common mistake: Review quality is measured by the number of comments, and personal style differences should block a correct change."
+        "heading": "Quality over quantity",
+        "body": "```predict\n{\"question\": \"Review A has 25 comments about spacing. Review B has 2 comments, one finding a security bug. Which is better?\", \"options\": [\"A, it's more thorough\", \"B: it found the problem that matters; spacing is a formatter's job\"], \"answer\": 1, \"why\": \"Measure reviews by the risks they catch, not the comment count.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Review correctness, tests, security, readability and scope with specific respectful comments.",
-      "Submit prioritized review feedback and distinguish blocker, suggestion and question."
+      "Review for requirements, correctness, security, tests and maintainability.",
+      "Write actionable comments labelled blocker, suggestion or question."
     ],
     "excludes": [
-      "Review cannot prove absence of defects, style preferences should not masquerade as blockers, and approvals depend on reviewer expertise and current diff state."
+      "Review tooling configuration and CODEOWNERS.",
+      "Formatting rules (quality module)."
     ]
   },
   "outcomes": [
@@ -73,133 +74,135 @@
   "examples": [
     {
       "id": "git.collaboration.review.example-a",
-      "title": "Code review: direct case",
+      "title": "The unchecked empty input",
       "situation": "A reviewer points to an unchecked empty input, explains the resulting crash, and requests a focused boundary test rather than writing vague needs work feedback.",
       "walkthrough": [
-        "Step 1 — Observe the starting evidence: A reviewer points to an unchecked empty input, explains the resulting crash, and requests a focused boundary test rather than writing vague needs work feedback.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Check the result against this correction: Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language."
+        "**Points to an unchecked empty input:** \"[blocker] cart.js:14, items[0] with items = []\".",
+        "**Explains the resulting crash:** the empty cart page throws TypeError.",
+        "**Requests a focused boundary test:** \"return 0 for [] and add a test\", rather than vague needs work feedback; the author will fix it in one commit."
       ],
-      "result": "The case supports the declared outcome because Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language."
+      "result": "The crash is caught before merge, and the author knows exactly what to do."
     },
     {
       "id": "git.collaboration.review.example-b",
-      "title": "Code review: boundary case",
-      "situation": "After an update, the reviewer rechecks the changed commit range and verifies the earlier concern rather than assuming it remains fixed.",
+      "title": "The style war",
+      "situation": "A reviewer blocks a correct PR three times over brace placement and naming preferences not in the style guide.",
       "walkthrough": [
-        "Step 1 — Identify the changed context: After an update, the reviewer rechecks the changed commit range and verifies the earlier concern rather than assuming it remains fixed.",
-        "Step 2 — Keep this boundary explicit: Review cannot prove absence of defects, style preferences should not masquerade as blockers, and approvals depend on reviewer expertise and current diff state.",
-        "Step 3 — Reject the documented misconception: Review quality is measured by the number of comments, and personal style differences should block a correct change."
+        "Style preferences aren't blockers.",
+        "If the team cares, add a formatter or linter rule instead.",
+        "Approve the correct change and leave optional suggestions."
       ],
-      "result": "This case demonstrates the declared outcome: Submit prioritized review feedback and distinguish blocker, suggestion and question."
+      "result": "The fix ships, and style is settled once by tooling instead of in every review."
     }
   ],
   "misconceptions": [
     {
       "id": "git.collaboration.review.misconception",
       "mistakenBelief": "Review quality is measured by the number of comments, and personal style differences should block a correct change.",
-      "correction": "Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language.",
-      "diagnosticPrompt": "Using the direct and boundary scenarios, explain why this belief fails: Review quality is measured by the number of comments, and personal style differences should block a correct change."
+      "correction": "Good reviews catch correctness, security, requirement and test gaps with clear, prioritised comments. Style preferences belong to tooling or to optional suggestions.",
+      "diagnosticPrompt": "In \"Quality over quantity\", which review protected users?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "An editorial desk can model Code review: a request defines the change, a draft presents evidence, reviewers comment, and approved work enters the edition.",
+    "example": "Reviewing is like **a building inspection**. The inspector notes \"stairwell 2: missing handrail, fall risk, install before occupancy\" (blocker), \"consider brighter bulbs\" (suggestion), and \"what's this pipe for?\" (question). They don't fail the building over paint colour.",
     "usefulFor": [
-      "Connecting issues, bounded changes, actionable review, checks, and controlled integration"
+      "remembering location, risk, fix",
+      "paint colour isn't a blocker"
     ],
     "limitations": [
-      "Repository permissions, automated checks, security disclosure, and commit identity require explicit technical controls.",
-      "Review cannot prove absence of defects, style preferences should not masquerade as blockers, and approvals depend on reviewer expertise and current diff state."
+      "Inspectors follow codes; reviewers follow the project's standards.",
+      "Questions are welcome: they often reveal hidden problems."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A reviewer points to an unchecked empty input, explains the resulting crash, and requests a focused boundary test rather than writing vague needs work feedback.",
-      "Code review evaluates correctness, security, maintainability, tests, requirements, and risk; actionable feedback identifies location, consequence, and a verifiable change or question.",
-      "Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language."
+      "read PR description and tests",
+      "read code for edge cases",
+      "write labelled comments"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Context",
         "state": {
-          "evidence": "A reviewer points to an unchecked empty input, explains the resulting crash, and requests a focused boundary test rather than writing vague needs work feedback."
+          "issue": "#61 empty cart total",
+          "tests": "no empty case"
         },
-        "explanation": "Record the concrete starting evidence without yet assuming which rule or operation explains it."
+        "explanation": "The reviewer starts with the requirements and existing tests."
       },
       {
         "step": 2,
-        "focus": "Apply model",
+        "focus": "Find",
         "state": {
-          "model": "Code review evaluates correctness, security, maintainability, tests, requirements, and risk; actionable feedback identifies location, consequence, and a verifiable change or question."
+          "line 14": "items[0] on []"
         },
-        "explanation": "Apply the declared Code review model and preserve its inputs, state, ordering, and environment assumptions."
+        "explanation": "A reviewer points to an unchecked empty input and explains the crash."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Comment",
         "state": {
-          "correction": "Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language."
+          "blocker": "guard + boundary test",
+          "suggestion": "reduce()"
         },
-        "explanation": "Compare the observation with the correction and reject the misconception: Review quality is measured by the number of comments, and personal style differences should block a correct change."
+        "explanation": "They request a focused boundary test rather than vague feedback."
       }
     ],
-    "textAlternative": "Starting artifact: A reviewer points to an unchecked empty input, explains the resulting crash, and requests a focused boundary test rather than writing vague needs work feedback. Step 1, Observe. State: evidence: A reviewer points to an unchecked empty input, explains the resulting crash, and requests a focused boundary test rather than writing vague needs work feedback.. Record the concrete starting evidence without yet assuming which rule or operation explains it. Step 2, Apply model. State: model: Code review evaluates correctness, security, maintainability, tests, requirements, and risk; actionable feedback identifies location, consequence, and a verifiable change or question.. Apply the declared Code review model and preserve its inputs, state, ordering, and environment assumptions. Step 3, Verify. State: correction: Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language.. Compare the observation with the correction and reject the misconception: Review quality is measured by the number of comments, and personal style differences should block a correct change."
+    "textAlternative": "Tracing a prioritised review. Step 1, Context: issue is #61 empty cart total; tests is no empty case. The reviewer starts with the requirements and existing tests. Step 2, Find: line 14 is items[0] on []. A reviewer points to an unchecked empty input and explains the crash. Step 3, Comment: blocker is guard + boundary test; suggestion is reduce(). They request a focused boundary test rather than vague feedback."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Code review: direct case”: state its starting evidence, apply the Code review rule, and give the observable result in three short lines.",
+      "prompt": "For \"The unchecked empty input\", explain how a reviewer points to an unchecked empty input, explains the resulting crash, and requests a focused boundary test rather than writing vague needs work feedback.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Locate.",
+        "Consequence.",
+        "Request."
       ],
       "expectedEvidence": [
-        "Named example: Code review: direct case.",
-        "Starting evidence: A reviewer points to an unchecked empty input, explains the resulting crash, and requests a focused boundary test rather than writing vague needs work feedback.",
-        "Core rule: Code review evaluates correctness, security, maintainability, tests, requirements, and risk; actionable feedback identifies location, consequence, and a verifiable change or question.",
-        "Observable result: The case supports the declared outcome because Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language.",
-        "Boundary check: Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language."
+        "Names the example \"The unchecked empty input\": \"needs work\" helped nobody.",
+        "A reviewer points to an unchecked empty input and explains the resulting crash.",
+        "They request a focused boundary test rather than writing vague needs work feedback.",
+        "The crash is caught before merge."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same skill to this changed but related case: After an update, the reviewer rechecks the changed commit range and verifies the earlier concern rather than assuming it remains fixed.",
+      "prompt": "Rewrite these review comments to be actionable and labelled: \"meh\", \"why??\", \"this is wrong\", \"I'd do it differently\".",
       "scaffold": [
-        "Identify what changed from the first case.",
-        "Keep the declared boundary visible before deciding."
+        "Invent a plausible location and consequence.",
+        "Label each one."
       ],
       "expectedEvidence": [
-        "Code review evaluates correctness, security, maintainability, tests, requirements, and risk; actionable feedback identifies location, consequence, and a verifiable change or question.",
-        "Review cannot prove absence of defects, style preferences should not masquerade as blockers, and approvals depend on reviewer expertise and current diff state."
+        "Four actionable comments.",
+        "Correct labels chosen."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a new neutral-context example of Code review, predict its result, and explain why the documented misconception would fail there.",
+      "prompt": "Review a partner's small PR (or a provided diff). Produce at least one blocker, suggestion and question if warranted, each with location, consequence and request, then discuss with the author and record what changed.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare inputs, state, tool or environment assumptions before the prediction."
+        "Read tests before code.",
+        "Check edge cases and inputs."
       ],
       "expectedEvidence": [
-        "Submit prioritized review feedback and distinguish blocker, suggestion and question.",
-        "Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language."
+        "Prioritised, actionable comments.",
+        "Outcome of each comment recorded."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "git.collaboration.review.misconception",
-      "explanation": "Prioritize evidence-backed defects and risks, label optional suggestions, and verify resolutions against requirements and tests with respectful, specific language.",
-      "retryPrompt": "Re-evaluate this case after applying the correction, then state the decisive evidence: After an update, the reviewer rechecks the changed commit range and verifies the earlier concern rather than assuming it remains fixed."
+      "explanation": "For every comment ask: **where, so what, what should change, and how important is it?** If you can't say \"so what\", it's probably a preference.",
+      "retryPrompt": "Apply this to \"The style war\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to submit prioritized review feedback and distinguish blocker, suggestion and question. Keep this boundary in view: Review cannot prove absence of defects, style preferences should not masquerade as blockers, and approvals depend on reviewer expertise and current diff state.",
+    "summary": "To submit prioritised review feedback, read the description and tests first, check requirements, correctness, security and maintainability, and write comments that give location, consequence and a concrete request, labelled blocker, suggestion or question, without blocking on personal style.",
     "retrievalPrompts": [
-      "Explain Code review without using the optional analogy and include one observable consequence.",
-      "Why is this statement incorrect: Review quality is measured by the number of comments, and personal style differences should block a correct change.",
-      "Apply the model to this case from memory: After an update, the reviewer rechecks the changed commit range and verifies the earlier concern rather than assuming it remains fixed."
+      "What three parts make a comment actionable?",
+      "What deserves the blocker label?",
+      "Why shouldn't style preferences block?"
     ],
     "nextReviewPrompt": "Next: continue to “Review updates and integration”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

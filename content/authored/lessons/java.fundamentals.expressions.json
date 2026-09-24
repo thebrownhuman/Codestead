@@ -33,33 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "Java expressions follow operator grouping, short-circuit rules, numeric promotion, conversion, and evaluation order; assignment converts only after the right-hand expression is evaluated.",
+    "summary": "Java evaluates the right-hand side **first, using the operands' types**, and only then converts for the assignment. So `double avg = 5 / 2;` computes int division (2) and stores 2.0. Make one operand a double (`5.0 / 2` or `(double) total / count`) to get 2.5. **Numeric promotion**: byte, short and char become int in arithmetic; mixing int and long gives long; anything with double gives double. **Narrowing casts** like `(int) 3.9` or `(int) bigLong` silently cut values: check the range first or use `Math.toIntExact`. `&&` and `||` **short-circuit**, and operands are evaluated **left to right**.",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: The learner predicts that 5 / 2 is 2 before assignment to a double and changes one operand to double when 2.5 is the required result. Your goal is to trace mixed expressions and guard explicit narrowing or overflow-sensitive operations. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A learner computes an average rating with `double avg = total / count;` where both are ints, and the app always shows whole numbers. Later a cast `(int) bytesDownloaded` turns a 3 GB value negative. The learner predicts that 5 / 2 is 2 before assignment to a double and changes one operand to double when 2.5 is the required result. In this lesson you'll trace mixed expressions and guard explicit narrowing or overflow-sensitive operations.\n\n```predict\n{\"question\": \"`double avg = 5 / 2;` What is avg?\", \"options\": [\"2.5\", \"2.0: 5 / 2 is int division before the assignment converts it\"], \"answer\": 1, \"why\": \"The destination type doesn't change how the right side is computed.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: First source and main; pf state expressions; Primitive types and variables. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know **First source and main**, **Expressions and evaluation** and **Primitive types and variables** (ranges and overflow)."
       },
       {
-        "heading": "Language-specific operational model",
-        "body": "Java expressions follow operator grouping, short-circuit rules, numeric promotion, conversion, and evaluation order; assignment converts only after the right-hand expression is evaluated. This model is applied through the declared Java: Beginner to Intermediate behavior rather than a language-neutral slogan."
+        "heading": "The rule: right side first, in its own types",
+        "body": "```java\npublic class Ratings {\n    public static void main(String[] args) {\n        int total = 5, count = 2;\n        double wrong = total / count;             // 2.0: int division first.\n        double right = (double) total / count;    // 2.5: double division.\n\n        long bytes = 3_000_000_000L;\n        int bad = (int) bytes;                    // -1294967296: silent narrowing.\n        // int safe = Math.toIntExact(bytes);     // throws ArithmeticException instead.\n\n        String name = null;\n        boolean hasA = name != null && name.startsWith(\"A\");   // short-circuit: no NPE.\n\n        int x = 3;\n        int y = x++ + x;                          // left to right: 3 + 4 = 7, x is 4.\n        System.out.println(wrong + \" \" + right + \" \" + bad + \" \" + hasA + \" \" + y);\n    }\n}\n```\n\n| Expression | Type | Value |\n|---|---|---|\n| `5 / 2`. | int. | 2. |\n| `5.0 / 2`. | double. | 2.5. |\n| `5 % 2`. | int. | 1. |\n| `(int) 3.9`. | int. | 3 (truncates). |\n| `1_000_000 * 3000`. | int. | overflows! |\n\n```reveal\n{\"prompt\": \"Does a cast make narrowing safe?\", \"answer\": \"No. A cast only tells the compiler you accept the loss. The value is still truncated or wrapped. Check the range first, or use Math.toIntExact, which throws if it doesn't fit.\"}\n```"
       },
       {
-        "heading": "Boundary and failure model",
-        "body": "Integer division truncates, narrowing needs an explicit cast but can lose data, overflow wraps for integer arithmetic, and && or || skip a right operand conditionally. The learner must reject this documented misconception: The destination variable type controls every intermediate operation, and an explicit cast makes any narrowing conversion safe."
+        "heading": "Overflow before widening",
+        "body": "```predict\n{\"question\": \"`long ms = 30 * 24 * 60 * 60 * 1000;` Is ms correct?\", \"options\": [\"Yes, it's a long\", \"No: the multiplication overflows in int before being widened; write 30L * ...\"], \"answer\": 1, \"why\": \"Make the first operand long so every step is done in long.\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Evaluate arithmetic, relational, logical and conditional expressions including promotion and narrowing.",
-      "Trace mixed expressions and guard explicit narrowing or overflow-sensitive operations."
+      "Trace numeric promotion, integer division and evaluation order in mixed expressions.",
+      "Guard narrowing and overflow with range checks, Math.toIntExact or wider operand types."
     ],
     "excludes": [
-      "Integer division truncates, narrowing needs an explicit cast but can lose data, overflow wraps for integer arithmetic, and && or || skip a right operand conditionally."
+      "Bitwise operators in depth.",
+      "BigInteger and BigDecimal."
     ]
   },
   "outcomes": [
@@ -68,133 +69,134 @@
   "examples": [
     {
       "id": "java.fundamentals.expressions.example.direct",
-      "title": "Operators and conversions: direct language case",
+      "title": "Why 5 / 2 is 2",
       "situation": "The learner predicts that 5 / 2 is 2 before assignment to a double and changes one operand to double when 2.5 is the required result.",
       "walkthrough": [
-        "Step 1 — Observe the concrete Java: Beginner to Intermediate state or tool result: The learner predicts that 5 / 2 is 2 before assignment to a double and changes one operand to double when 2.5 is the required result.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the result with this correction: Trace operand promotion and each intermediate operation before the assignment conversion; a cast requests narrowing but does not prove the value fits."
+        "**The learner predicts that 5 / 2 is 2:** both operands are int, so the division is integer division.",
+        "**Before assignment to a double:** the result 2 becomes 2.0 only afterwards.",
+        "**Changes one operand to double when 2.5 is the required result:** (double) total / count will give 2.5."
       ],
-      "result": "The example meets the atomic outcome because Trace operand promotion and each intermediate operation before the assignment conversion; a cast requests narrowing but does not prove the value fits."
+      "result": "Averages now show their decimal part correctly, like 2.5."
     },
     {
       "id": "java.fundamentals.expressions.example.boundary",
-      "title": "Operators and conversions: boundary and transfer case",
-      "situation": "A bounds guard uses index >= 0 && index < values.length so the array access is evaluated only after both safety checks succeed.",
+      "title": "The month in milliseconds",
+      "situation": "`long monthMs = 30 * 24 * 60 * 60 * 1000;` gives -1702967296.",
       "walkthrough": [
-        "Step 1 — Name what changed from the direct case: A bounds guard uses index >= 0 && index < values.length so the array access is evaluated only after both safety checks succeed.",
-        "Step 2 — Keep the language boundary explicit: Integer division truncates, narrowing needs an explicit cast but can lose data, overflow wraps for integer arithmetic, and && or || skip a right operand conditionally.",
-        "Step 3 — Reject the tempting but incorrect rule: The destination variable type controls every intermediate operation, and an explicit cast makes any narrowing conversion safe."
+        "All literals are int, so the product overflows before widening to long.",
+        "Write 30L * 24 * 60 * 60 * 1000.",
+        "Now every multiplication happens in long: 2592000000."
       ],
-      "result": "This case demonstrates the declared outcome: Trace mixed expressions and guard explicit narrowing or overflow-sensitive operations."
+      "result": "The month duration is now the correct 2592000000 milliseconds."
     }
   ],
   "misconceptions": [
     {
       "id": "java.fundamentals.expressions.misconception",
       "mistakenBelief": "The destination variable type controls every intermediate operation, and an explicit cast makes any narrowing conversion safe.",
-      "correction": "Trace operand promotion and each intermediate operation before the assignment conversion; a cast requests narrowing but does not prove the value fits.",
-      "diagnosticPrompt": "Predict both examples and identify the first observable contradiction in this belief: The destination variable type controls every intermediate operation, and an explicit cast makes any narrowing conversion safe."
+      "correction": "Java computes the right side using its operands' types, then converts for assignment. Casts only permit narrowing; they don't prevent truncation or wrap-around.",
+      "diagnosticPrompt": "In the opening predict, why was avg 2.0?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "a control panel whose typed gauges, expressions, switches, and repeating cycles produce observable state can introduce Operators and conversions, after the canonical Java: Beginner to Intermediate rule is stated first.",
+    "example": "Evaluating an expression is like **cooking in whatever pot the ingredients arrive in**, then pouring into the serving dish. Serving in a big dish (double) doesn't help if you cooked in a small pot (int) and it already overflowed or lost its decimals. A cast is **forcing the food into a smaller dish**: whatever doesn't fit is lost.",
     "usefulFor": [
-      "tracing primitive values, operators, decisions, and loop progress"
+      "remembering cook in the operands' pot",
+      "cast = smaller dish, losses included"
     ],
     "limitations": [
-      "the panel does not model promotion, overflow, short-circuit evaluation, scope, or JVM representation exactly",
-      "Integer division truncates, narrowing needs an explicit cast but can lose data, overflow wraps for integer arithmetic, and && or || skip a right operand conditionally."
+      "Kitchens show spills; Java doesn't.",
+      "Starting with a big pot (30L) fixes overflow."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "The learner predicts that 5 / 2 is 2 before assignment to a double and changes one operand to double when 2.5 is the required result.",
-      "Java expressions follow operator grouping, short-circuit rules, numeric promotion, conversion, and evaluation order; assignment converts only after the right-hand expression is evaluated.",
-      "Trace operand promotion and each intermediate operation before the assignment conversion; a cast requests narrowing but does not prove the value fits."
+      "int total = 5, count = 2;",
+      "double wrong = total / count;",
+      "double right = (double) total / count;"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Observe",
+        "focus": "Operands",
         "state": {
-          "evidence": "The learner predicts that 5 / 2 is 2 before assignment to a double and changes one operand to double when 2.5 is the required result."
+          "total": "5 (int)",
+          "count": "2 (int)"
         },
-        "explanation": "Record the exact input, binding, state, tool phase, or runtime result before applying a rule."
+        "explanation": "Both operands are ints, so int arithmetic is used."
       },
       {
         "step": 2,
-        "focus": "Apply",
+        "focus": "Int division",
         "state": {
-          "rule": "Java expressions follow operator grouping, short-circuit rules, numeric promotion, conversion, and evaluation order; assignment converts only after the right-hand expression is evaluated."
+          "wrong": "2.0"
         },
-        "explanation": "Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible."
+        "explanation": "The learner predicts that 5 / 2 is 2 before assignment to a double."
       },
       {
         "step": 3,
-        "focus": "Verify",
+        "focus": "Fix",
         "state": {
-          "correction": "Trace operand promotion and each intermediate operation before the assignment conversion; a cast requests narrowing but does not prove the value fits."
+          "right": "2.5"
         },
-        "explanation": "Compare the observation with the correction and explain why the misconception fails: The destination variable type controls every intermediate operation, and an explicit cast makes any narrowing conversion safe."
+        "explanation": "Changing one operand to double gives 2.5, the required result."
       }
     ],
-    "textAlternative": "Starting artifact: The learner predicts that 5 / 2 is 2 before assignment to a double and changes one operand to double when 2.5 is the required result. Step 1, Observe. State: evidence: The learner predicts that 5 / 2 is 2 before assignment to a double and changes one operand to double when 2.5 is the required result.. Record the exact input, binding, state, tool phase, or runtime result before applying a rule. Step 2, Apply. State: rule: Java expressions follow operator grouping, short-circuit rules, numeric promotion, conversion, and evaluation order; assignment converts only after the right-hand expression is evaluated.. Apply the declared Java: Beginner to Intermediate model and keep its evaluation, type, state, ownership, environment, or lifecycle assumptions visible. Step 3, Verify. State: correction: Trace operand promotion and each intermediate operation before the assignment conversion; a cast requests narrowing but does not prove the value fits.. Compare the observation with the correction and explain why the misconception fails: The destination variable type controls every intermediate operation, and an explicit cast makes any narrowing conversion safe."
+    "textAlternative": "Tracing mixed-type division. Step 1, Operands: total is 5 (int); count is 2 (int). Both operands are ints, so int arithmetic is used. Step 2, Int division: wrong is 2.0. The learner predicts that 5 / 2 is 2 before assignment to a double. Step 3, Fix: right is 2.5. Changing one operand to double gives 2.5, the required result."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “Operators and conversions: direct language case”: state its starting evidence, apply the Operators and conversions rule, and give the observable result in three short lines.",
+      "prompt": "For \"Why 5 / 2 is 2\", explain how the learner predicts that 5 / 2 is 2 before assignment to a double and changes one operand to double when 2.5 is the required result.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Predict.",
+        "Convert.",
+        "Fix."
       ],
       "expectedEvidence": [
-        "Named example: Operators and conversions: direct language case.",
-        "Starting evidence: The learner predicts that 5 / 2 is 2 before assignment to a double and changes one operand to double when 2.5 is the required result.",
-        "Core rule: Java expressions follow operator grouping, short-circuit rules, numeric promotion, conversion, and evaluation order; assignment converts only after the right-hand expression is evaluated.",
-        "Observable result: The example meets the atomic outcome because Trace operand promotion and each intermediate operation before the assignment conversion; a cast requests narrowing but does not prove the value fits.",
-        "Boundary check: Trace operand promotion and each intermediate operation before the assignment conversion; a cast requests narrowing but does not prove the value fits."
+        "Names the example \"Why 5 / 2 is 2\": ratings showed whole numbers only.",
+        "The learner predicts that 5 / 2 is 2 before assignment to a double.",
+        "They change one operand to double when 2.5 is the required result.",
+        "Averages now show their decimal part correctly, like 2.5."
       ]
     },
     "nearTransfer": {
-      "prompt": "Apply the same atomic skill to this changed case: A bounds guard uses index >= 0 && index < values.length so the array access is evaluated only after both safety checks succeed.",
+      "prompt": "Predict, then check in JShell: 7 / 2, 7 / 2.0, -7 / 2, 7 % -2, (int) -3.9, (byte) 200, 'A' + 1.",
       "scaffold": [
-        "Identify the changed input, state, type, environment, or lifecycle condition.",
-        "Preserve the declared boundary before predicting."
+        "char + int is int.",
+        "(byte) 200 wraps."
       ],
       "expectedEvidence": [
-        "Java expressions follow operator grouping, short-circuit rules, numeric promotion, conversion, and evaluation order; assignment converts only after the right-hand expression is evaluated.",
-        "Integer division truncates, narrowing needs an explicit cast but can lose data, overflow wraps for integer arithmetic, and && or || skip a right operand conditionally."
+        "Seven predictions checked.",
+        "Each explained."
       ]
     },
     "farTransfer": {
-      "prompt": "Create a neutral-context Java: Beginner to Intermediate example of Operators and conversions, predict its output or failure, and explain why the documented misconception would fail.",
+      "prompt": "Write safeAverage(int[] values) returning double that avoids int overflow when summing large values and handles an empty array, plus toInt(long) using Math.toIntExact with a clear error. Test near the limits.",
       "scaffold": [
-        "Do not reuse the optional analogy.",
-        "Declare every relevant input and language/runtime assumption."
+        "Sum into a long.",
+        "Empty: return 0.0 or throw, and document it."
       ],
       "expectedEvidence": [
-        "Trace mixed expressions and guard explicit narrowing or overflow-sensitive operations.",
-        "Trace operand promotion and each intermediate operation before the assignment conversion; a cast requests narrowing but does not prove the value fits."
+        "Correct averages near limits.",
+        "Overflow reported, not wrapped."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "java.fundamentals.expressions.misconception",
-      "explanation": "Trace operand promotion and each intermediate operation before the assignment conversion; a cast requests narrowing but does not prove the value fits.",
-      "retryPrompt": "Re-evaluate the boundary case after applying the correction, then name the decisive source-aligned evidence: A bounds guard uses index >= 0 && index < values.length so the array access is evaluated only after both safety checks succeed."
+      "explanation": "For each expression: **write each operand's type, find the promoted type, compute in that type, then ask whether the result fits the destination.**",
+      "retryPrompt": "Apply this to \"The month in milliseconds\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to trace mixed expressions and guard explicit narrowing or overflow-sensitive operations. Keep this boundary in view: Integer division truncates, narrowing needs an explicit cast but can lose data, overflow wraps for integer arithmetic, and && or || skip a right operand conditionally.",
+    "summary": "To trace mixed expressions, evaluate the right side first in its operands' promoted types (so int division truncates and int products can overflow), convert only for the final assignment, widen an operand before overflow-sensitive arithmetic, and guard narrowing with range checks or Math.toIntExact instead of trusting casts.",
     "retrievalPrompts": [
-      "Explain Operators and conversions using canonical Java: Beginner to Intermediate terms and one observable consequence.",
-      "Why is this belief incorrect: The destination variable type controls every intermediate operation, and an explicit cast makes any narrowing conversion safe.",
-      "Predict this case from memory: A bounds guard uses index >= 0 && index < values.length so the array access is evaluated only after both safety checks succeed."
+      "Why does double avg = 5 / 2 give 2.0?",
+      "Does a cast make narrowing safe?",
+      "How do you avoid overflow in 30 * 24 * 60 * 60 * 1000?"
     ],
     "nextReviewPrompt": "Next: continue to “if and switch”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

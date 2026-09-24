@@ -33,38 +33,34 @@
     }
   ],
   "canonicalExplanation": {
-    "summary": "String algorithms operate on sequences of symbols, with indexing, equality, normalization, and encoding defined by the problem and language.",
+    "summary": "A string is a **sequence of symbols**, so many array ideas apply: index it, scan it with two pointers, compare pieces. But first the problem must say **what counts as equal**: are \"A\" and \"a\" the same? Do spaces and punctuation count? Then decide what a \"character\" is in your language: in C, a `char` is one byte and \"é\" in UTF-8 takes two; Java's `String.length()` counts UTF-16 units, so an emoji counts as 2; Python strings index by Unicode code point. **Normalise first, then run the algorithm**, and state its cost: scanning is O(n), a naive substring search is O(n × m).",
     "sections": [
       {
         "heading": "Start here",
-        "body": "Start with this case: A palindrome check defines whether punctuation and case are normalized before comparing mirrored symbols. Your goal is to implement and analyze a text-processing algorithm in the selected language. Work through the example one step at a time, then use the boundary to check your answer."
+        "body": "A word-game checks for palindromes. \"racecar\" passes, but \"Never odd or even\" fails because of capitals and spaces, and in the C version, \"été\" gives a wrong result because é is two bytes. A palindrome check defines whether punctuation and case are normalized before comparing mirrored symbols. In this lesson you'll implement and analyze a text-processing algorithm in the selected language.\n\n```predict\n{\"question\": \"In UTF-8, how many bytes does \\\"é\\\" take?\", \"options\": [\"1\", \"2\"], \"answer\": 1, \"why\": \"Characters outside plain ASCII take several bytes, so byte-by-byte code can split them.\"}\n```"
       },
       {
         "heading": "Before you begin",
-        "body": "Review these declared prerequisites first: Readiness, algorithms and analysis; Array representation and operations. If one is unfamiliar, revisit it before continuing."
+        "body": "You should know the **Readiness, algorithms and analysis** module and **Array representation and operations** (indexes, two ends, O(n) scans)."
       },
       {
-        "heading": "Shared concept and invariant",
-        "body": "String algorithms operate on sequences of symbols, with indexing, equality, normalization, and encoding defined by the problem and language. This claim is assessed independently from syntax so conceptual evidence can transfer."
+        "heading": "The rule: define equality, normalise, then compare",
+        "body": "```python\ndef normalise(text):\n    # Spec: ignore case and anything that isn't a letter or digit.\n    return [ch.casefold() for ch in text if ch.isalnum()]\n\ndef is_palindrome(text):\n    s = normalise(text)          # O(n) time, O(n) extra space.\n    i, j = 0, len(s) - 1\n    while i < j:                 # Invariant: s[:i] mirrors s[j+1:].\n        if s[i] != s[j]:\n            return False\n        i += 1\n        j -= 1\n    return True\n\nassert is_palindrome(\"Never odd or even\")\nassert is_palindrome(\"été\")\nassert not is_palindrome(\"codestead\")\nassert is_palindrome(\"\")      # empty counts as a palindrome by our spec.\n```\n\n| Language | What one index means |\n|---|---|\n| C / C++ `char`. | one byte; UTF-8 letters may span several. |\n| Java `String`. | one UTF-16 unit; emoji take two. |\n| Python `str`. | one Unicode code point. |\n\n```reveal\n{\"prompt\": \"Why casefold instead of lower?\", \"answer\": \"casefold handles more languages, for example German ß becomes ss, so comparisons ignore case more reliably.\"}\n```"
       },
       {
-        "heading": "C, C++, Java, and Python implementation map",
-        "body": "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead."
-      },
-      {
-        "heading": "Boundary and common failure",
-        "body": "Bytes, code points, grapheme clusters, case folding, and immutable representations are not interchangeable. The draft therefore rejects: One character always occupies one byte and one index in every language."
+        "heading": "Naive search cost",
+        "body": "```predict\n{\"question\": \"Searching for a pattern of length m in a text of length n by trying every start position. Worst-case cost?\", \"options\": [\"O(n + m)\", \"O(n × m)\"], \"answer\": 1, \"why\": \"Each of about n starts may compare up to m characters. Smarter algorithms like KMP reach O(n + m).\"}\n```"
       }
     ]
   },
   "scope": {
     "includes": [
-      "Process character sequences and implement naive substring, palindrome and frequency algorithms with encoding caveats labeled.",
-      "Implement and analyze a text-processing algorithm in the selected language.",
-      "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead."
+      "Define equality and normalise text before comparing.",
+      "Implement two-pointer and scanning string algorithms and state their cost in your language."
     ],
     "excludes": [
-      "Bytes, code points, grapheme clusters, case folding, and immutable representations are not interchangeable."
+      "KMP, Rabin-Karp and suffix structures in depth.",
+      "Full Unicode grapheme segmentation."
     ]
   },
   "outcomes": [
@@ -73,142 +69,136 @@
   "examples": [
     {
       "id": "dsa.strings.algorithms.example-a",
-      "title": "String traversal and matching basics: language-neutral trace",
+      "title": "Is \"Never odd or even\" a palindrome?",
       "situation": "A palindrome check defines whether punctuation and case are normalized before comparing mirrored symbols.",
       "walkthrough": [
-        "Step 1 — State the abstract input and invariant: A palindrome check defines whether punctuation and case are normalized before comparing mirrored symbols.",
-        "Step 2 — Use the core rule above to predict one observable result.",
-        "Step 3 — Verify the correction: Declare the text unit and normalization rules before indexing or comparing a string."
+        "**Define and normalise:** the spec ignores case, spaces and punctuation, so the text becomes \"neveroddoreven\".",
+        "**Compare mirrored symbols:** two pointers move inward, comparing s[i] with s[j].",
+        "**Test:** \"Never odd or even\" and \"été\" will return true; \"codestead\" returns false; the empty string returns true."
       ],
-      "result": "The conceptual result follows because Declare the text unit and normalization rules before indexing or comparing a string."
+      "result": "The game accepts real-world palindromes consistently, including accented letters."
     },
     {
       "id": "dsa.strings.algorithms.example-b",
-      "title": "String traversal and matching basics: implementation transfer",
-      "situation": "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead.",
+      "title": "The reverse that broke an emoji",
+      "situation": "A Java \"reverse your name\" feature reverses a String character by character, and an emoji in the name turns into two broken symbols.",
       "walkthrough": [
-        "Step 1 — Keep the same specification and invariant across all four languages.",
-        "Step 2 — Map storage, library, equality, bounds, ownership, and error rules using: In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead.",
-        "Step 3 — Retest this boundary in the selected implementation: Bytes, code points, grapheme clusters, case folding, and immutable representations are not interchangeable."
+        "The emoji is one visible symbol but two UTF-16 units in Java.",
+        "Reversing units splits the pair into invalid halves.",
+        "Fix: reverse by code points (`new StringBuilder(s).reverse()` keeps surrogate pairs together) and test with an emoji."
       ],
-      "result": "Concept mastery transfers, while implementation evidence remains language-specific."
+      "result": "Names with emoji reverse correctly and the test prevents regressions."
     }
   ],
   "misconceptions": [
     {
       "id": "dsa.strings.algorithms.misconception",
       "mistakenBelief": "One character always occupies one byte and one index in every language.",
-      "correction": "Declare the text unit and normalization rules before indexing or comparing a string.",
-      "diagnosticPrompt": "Use an invariant or counterexample to explain why this DSA belief fails: One character always occupies one byte and one index in every language."
+      "correction": "Encodings and languages differ: UTF-8 uses one to four bytes per character, Java indexes UTF-16 units, and Python indexes code points. Know what your language's index means before slicing or comparing.",
+      "diagnosticPrompt": "In the opening predict, how many bytes did é take?"
     }
   ],
   "analogy": {
     "optional": true,
-    "example": "A carefully labeled physical arrangement can introduce String traversal and matching basics, while the canonical invariant and operations remain the actual algorithmic model.",
+    "example": "Comparing strings is like **checking if two handwritten names match**: first agree the rules (do capitals matter? what about hyphens?), then compare letter by letter. And remember some \"letters\" are written with two pen strokes (bytes), so don't split them.",
     "usefulFor": [
-      "Introducing structure, order, connectivity, or state transition before formal notation"
+      "remembering rules first",
+      "multi-byte = two-stroke letters"
     ],
     "limitations": [
-      "A physical arrangement does not reproduce asymptotic cost, aliasing, numeric limits, recursion depth, or the four languages' implementation rules.",
-      "Bytes, code points, grapheme clusters, case folding, and immutable representations are not interchangeable."
+      "Handwriting is fuzzy; comparisons are exact after normalising.",
+      "Every language counts strokes differently."
     ],
     "canonicalExplanationStandsAlone": true
   },
   "trace": {
     "artifact": [
-      "A palindrome check defines whether punctuation and case are normalized before comparing mirrored symbols.",
-      "String algorithms operate on sequences of symbols, with indexing, equality, normalization, and encoding defined by the problem and language.",
-      "Declare the text unit and normalization rules before indexing or comparing a string.",
-      "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead."
+      "text = 'Never odd or even'",
+      "normalise",
+      "two pointers"
     ],
     "steps": [
       {
         "step": 1,
-        "focus": "Specification",
+        "focus": "Input",
         "state": {
-          "scenario": "A palindrome check defines whether punctuation and case are normalized before comparing mirrored symbols."
+          "length": "17 characters"
         },
-        "explanation": "Declare input, output, constraints, and starting abstract state without choosing language syntax."
+        "explanation": "The text includes capitals and spaces."
       },
       {
         "step": 2,
-        "focus": "Invariant and transition",
+        "focus": "Normalise",
         "state": {
-          "invariant": "String algorithms operate on sequences of symbols, with indexing, equality, normalization, and encoding defined by the problem and language."
+          "s": "neveroddoreven",
+          "length": "14"
         },
-        "explanation": "Apply one state transition and verify the invariant or proof obligation remains true."
+        "explanation": "Punctuation and case are normalized before comparing."
       },
       {
         "step": 3,
-        "focus": "Implementation facet",
+        "focus": "Compare",
         "state": {
-          "languages": "C, C++, Java, Python"
+          "pairs checked": "7",
+          "mismatches": "0",
+          "result": "True"
         },
-        "explanation": "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead."
-      },
-      {
-        "step": 4,
-        "focus": "Conclusion",
-        "state": {
-          "correction": "Declare the text unit and normalization rules before indexing or comparing a string."
-        },
-        "explanation": "Verify the result and reject this misconception: One character always occupies one byte and one index in every language."
+        "explanation": "Mirrored symbols match all the way to the middle."
       }
     ],
-    "textAlternative": "Starting artifact: A palindrome check defines whether punctuation and case are normalized before comparing mirrored symbols. Step 1, Specification. State: scenario: A palindrome check defines whether punctuation and case are normalized before comparing mirrored symbols.. Declare input, output, constraints, and starting abstract state without choosing language syntax. Step 2, Invariant and transition. State: invariant: String algorithms operate on sequences of symbols, with indexing, equality, normalization, and encoding defined by the problem and language.. Apply one state transition and verify the invariant or proof obligation remains true. Step 3, Implementation facet. State: languages: C, C++, Java, Python. In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead. Step 4, Conclusion. State: correction: Declare the text unit and normalization rules before indexing or comparing a string.. Verify the result and reject this misconception: One character always occupies one byte and one index in every language."
+    "textAlternative": "Tracing a normalised palindrome check. Step 1, Input: length is 17 characters. The text includes capitals and spaces. Step 2, Normalise: s is neveroddoreven; length is 14. Punctuation and case are normalized before comparing. Step 3, Compare: pairs checked is 7; mismatches is 0; result is True. Mirrored symbols match all the way to the middle."
   },
   "practice": {
     "faded": {
-      "prompt": "Quick check for “String traversal and matching basics: language-neutral trace”: state its starting evidence, apply the String traversal and matching basics rule, and give the observable result in three short lines.",
+      "prompt": "For \"Is \"Never odd or even\" a palindrome?\", explain how a palindrome check defines whether punctuation and case are normalized before comparing mirrored symbols.",
       "scaffold": [
-        "Line 1: name the starting evidence.",
-        "Line 2: state the part of the core rule that applies.",
-        "Line 3: give the result and reject the common mistake."
+        "Define.",
+        "Normalise.",
+        "Compare."
       ],
       "expectedEvidence": [
-        "Named example: String traversal and matching basics: language-neutral trace.",
-        "Starting evidence: A palindrome check defines whether punctuation and case are normalized before comparing mirrored symbols.",
-        "Core rule: String algorithms operate on sequences of symbols, with indexing, equality, normalization, and encoding defined by the problem and language.",
-        "Observable result: The conceptual result follows because Declare the text unit and normalization rules before indexing or comparing a string.",
-        "Boundary check: Declare the text unit and normalization rules before indexing or comparing a string."
+        "Names the example \"Is \"Never odd or even\" a palindrome?\": the check needs a rule for case and spaces.",
+        "Punctuation and case are normalized first.",
+        "Then mirrored symbols are compared with two pointers.",
+        "The game accepts real-world palindromes consistently."
       ]
     },
     "nearTransfer": {
-      "prompt": "Implement or trace the same concept in the learner's selected language while preserving: String algorithms operate on sequences of symbols, with indexing, equality, normalization, and encoding defined by the problem and language.",
+      "prompt": "Write `count_words(text)` where a word is a maximal run of letters, ignoring case for a frequency map. State its cost and test punctuation and multiple spaces.",
       "scaffold": [
-        "Keep the specification unchanged.",
-        "Name the selected language's implementation rules."
+        "Scan once, build words.",
+        "Dictionary counts."
       ],
       "expectedEvidence": [
-        "In C, carry pointer/array bounds and explicit storage; in C++, use span, array, string, or vector with invalidation rules; in Java, use arrays, String, and collection interfaces with checked indexes; in Python, use list and str while accounting for slicing, immutability, and object overhead.",
-        "Bytes, code points, grapheme clusters, case folding, and immutable representations are not interchangeable."
+        "O(n) time.",
+        "\"Hi, hi!\" gives {\"hi\": 2}."
       ]
     },
     "farTransfer": {
-      "prompt": "Solve a surface-different String traversal and matching basics case, justify correctness and complexity, then identify one C/C++/Java/Python implementation difference.",
+      "prompt": "Implement naive `find_all(text, pattern)` returning every start index. Test overlaps (\"aaaa\" with \"aa\"), empty pattern rules, and accented text in your language; measure it on a long text and state O(n × m).",
       "scaffold": [
-        "Do not use the analogy.",
-        "Separate concept evidence from language evidence."
+        "Decide what an empty pattern returns.",
+        "Overlapping matches count."
       ],
       "expectedEvidence": [
-        "Implement and analyze a text-processing algorithm in the selected language.",
-        "Declare the text unit and normalization rules before indexing or comparing a string."
+        "Correct indexes including overlaps.",
+        "Cost stated and observed."
       ]
     }
   },
   "remediation": [
     {
       "misconceptionId": "dsa.strings.algorithms.misconception",
-      "explanation": "Declare the text unit and normalization rules before indexing or comparing a string.",
-      "retryPrompt": "Re-evaluate the example using checkpoint 'text unit', then state one implementation-specific risk in the selected language."
+      "explanation": "Before comparing text, write the rule: **case? spaces? punctuation? accents?** Normalise to match it, then run the algorithm. Check what one index means in your language.",
+      "retryPrompt": "Apply this to \"The reverse that broke an emoji\"."
     }
   ],
   "recap": {
-    "summary": "You should now be able to implement and analyze a text-processing algorithm in the selected language. Keep this boundary in view: Bytes, code points, grapheme clusters, case folding, and immutable representations are not interchangeable.",
+    "summary": "To implement and analyze a text-processing algorithm, define what counts as equal, normalise the text to match, know whether your language indexes bytes, UTF-16 units or code points, then scan or use two pointers, stating costs such as O(n) for a palindrome check and O(n × m) for naive search.",
     "retrievalPrompts": [
-      "State the String traversal and matching basics invariant and complexity without code.",
-      "Why is this claim false: One character always occupies one byte and one index in every language.",
-      "Map checkpoint 'text unit' to C, C++, Java, and Python."
+      "Why normalise before comparing?",
+      "What does one index mean in your language's strings?",
+      "What's the cost of naive substring search?"
     ],
     "nextReviewPrompt": "Next: continue to “Prefix and difference representations”. Before moving on, answer one retrieval prompt without reopening the explanation."
   }

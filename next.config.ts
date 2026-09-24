@@ -26,6 +26,8 @@ const contentSecurityPolicy = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  // The floating dev badge covered the sidebar footer; errors still show as overlays.
+  devIndicators: false,
   ...(isolatedDistDir ? { distDir: isolatedDistDir } : {}),
   output: "standalone",
   poweredByHeader: false,
