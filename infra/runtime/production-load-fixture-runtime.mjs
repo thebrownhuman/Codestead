@@ -331,9 +331,14 @@ async function startProductionLoadDisposableTcpProxy(options) {
     pair.client.destroy();
     pair.upstream.destroy();
   };
+  const resetPair = (pair) => {
+    pair.client.resetAndDestroy();
+    pair.upstream.resetAndDestroy();
+  };
   const server = createTcpServer({ allowHalfOpen: true }, (client) => {
     if (closing || interrupted || pairs.size >= configuration.maximumConnections) {
-      client.destroy();
+      if (interrupted) client.resetAndDestroy();
+      else client.destroy();
       return;
     }
     const upstream = createConnection({
@@ -382,7 +387,7 @@ async function startProductionLoadDisposableTcpProxy(options) {
       if (closing) return Promise.reject(new Error("closed"));
       if (activeFault) return activeFault.promise;
       interrupted = true;
-      for (const pair of pairs) destroyPair(pair);
+      for (const pair of pairs) resetPair(pair);
       const fault2 = createFault(durationMs, signal, () => {
         interrupted = false;
         if (activeFault === fault2) activeFault = null;

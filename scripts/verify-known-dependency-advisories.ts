@@ -7,11 +7,12 @@ type ReleaseVersion = readonly [major: number, minor: number, patch: number];
 
 const EXPECTED_OVERRIDES = {
   esbuild: "0.25.12",
-  postcss: "8.5.19",
+  postcss: "8.5.28",
 } as const;
 
 const ESBUILD_PATCH_FLOOR: ReleaseVersion = [0, 25, 0];
-const POSTCSS_PATCH_FLOOR: ReleaseVersion = [8, 5, 10];
+// 8.5.23 closes GHSA-fxqj-rqcc-2cmp and GHSA-r28c-9q8g-f849 (source-map file reads).
+const POSTCSS_PATCH_FLOOR: ReleaseVersion = [8, 5, 23];
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -107,7 +108,7 @@ export function verifyKnownDependencyAdvisories(manifest: unknown, lock: unknown
     }
     if (packageKind === "postcss" && compareVersion(version, POSTCSS_PATCH_FLOOR) < 0) {
       errors.push(
-        `${packagePath}@${String(versionValue)} is affected by GHSA-qx2v-qp2m-jg93; require >=8.5.10.`,
+        `${packagePath}@${String(versionValue)} is affected by GHSA-qx2v-qp2m-jg93, GHSA-fxqj-rqcc-2cmp or GHSA-r28c-9q8g-f849; require >=8.5.23.`,
       );
     }
   }

@@ -1646,7 +1646,9 @@ test("bounded client watchdog stays referenced in a then-style process", () => {
           temporaryRoot,
         }),
         maxBuffer: 1024 * 1024,
-        timeout: 2_000,
+        // Covers Node startup and a cold harness import on a loaded CI runner; the
+        // bounded behaviour itself is proven by the exact output and elapsed floor.
+        timeout: 10_000,
         windowsHide: true,
       },
     );

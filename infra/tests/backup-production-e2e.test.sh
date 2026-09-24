@@ -961,13 +961,22 @@ EOF
   chmod 0600 "$compose_override"
 
   unset COMPOSE_FILE COMPOSE_PROJECT_NAME COMPOSE_PROFILES
+  # Compose diagnostics name files, fields and images, never secret values; keep
+  # their tail so a failing gate says why instead of only that it failed.
+  local compose_diagnostics="$tmp_root/compose-diagnostics.log"
   docker compose --project-directory "$repo_root" --env-file "$compose_env" \
     -f "$repo_root/compose.yaml" -f "$compose_override" config --quiet \
-    >/dev/null 2>&1 || fail "generated Compose contract is invalid"
+    >"$compose_diagnostics" 2>&1 || {
+      tail -n 20 -- "$compose_diagnostics" >&2
+      fail "generated Compose contract is invalid"
+    }
   docker compose --project-directory "$repo_root" --env-file "$compose_env" \
     -f "$repo_root/compose.yaml" -f "$compose_override" \
     create --no-build --pull never "${REQUIRED_SERVICES[@]}" \
-    >/dev/null 2>&1 || fail "required Compose containers were not created"
+    >"$compose_diagnostics" 2>&1 || {
+      tail -n 20 -- "$compose_diagnostics" >&2
+      fail "required Compose containers were not created"
+    }
 
   : >"$expected_images"
   chmod 0600 "$expected_images"

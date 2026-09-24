@@ -20,7 +20,10 @@ const RAW_MIME_LOG_CANARY =
 
 async function testDirectory() {
   const directory = join(tmpdir(), `codestead-worker-health-${crypto.randomUUID()}`);
-  await mkdir(directory, { recursive: true });
+  // Production requires a private 0700 health directory; chmod after mkdir so the
+  // process umask cannot widen it.
+  await mkdir(directory, { recursive: true, mode: 0o700 });
+  await chmod(directory, 0o700);
   createdDirectories.push(directory);
   return directory;
 }

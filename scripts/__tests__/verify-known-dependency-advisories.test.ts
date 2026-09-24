@@ -6,7 +6,7 @@ import { verifyKnownDependencyAdvisories } from "../verify-known-dependency-advi
 
 const secureManifest = {
   overrides: {
-    next: { postcss: "8.5.19" },
+    next: { postcss: "8.5.28" },
     "@esbuild-kit/core-utils": { esbuild: "0.25.12" },
   },
 };
@@ -19,8 +19,8 @@ describe("known dependency advisory verifier", () => {
         "": {},
         "node_modules/esbuild": { version: "0.25.12" },
         "node_modules/tsx/node_modules/esbuild": { version: "0.28.1" },
-        "node_modules/postcss": { version: "8.5.19" },
-        "node_modules/vite/node_modules/postcss": { version: "8.5.17" },
+        "node_modules/postcss": { version: "8.5.28" },
+        "node_modules/vite/node_modules/postcss": { version: "8.5.23" },
       },
     });
 
@@ -36,7 +36,7 @@ describe("known dependency advisory verifier", () => {
         "node_modules/@esbuild-kit/core-utils/node_modules/esbuild": {
           version: "0.18.20",
         },
-        "node_modules/postcss": { version: "8.5.19" },
+        "node_modules/postcss": { version: "8.5.28" },
         "node_modules/next/node_modules/postcss": { version: "8.4.31" },
       },
     });
@@ -56,7 +56,7 @@ describe("known dependency advisory verifier", () => {
         lockfileVersion: 3,
         packages: {
           "node_modules/esbuild": { version: "0.25.12" },
-          "node_modules/postcss": { version: "8.5.19" },
+          "node_modules/postcss": { version: "8.5.28" },
         },
       },
     );

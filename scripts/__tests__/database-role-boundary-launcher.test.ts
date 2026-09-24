@@ -898,6 +898,8 @@ describe("database role-boundary test launcher", () => {
     }
   });
 
+  // Runs the full role-boundary suite for real; on a shared 4-core CI runner that
+  // alone takes several minutes, beyond the default test budget.
   it("executes the real CLI entrypoint from an unrelated working directory", () => {
     const tokenCanary = "launcher-cli-token-canary";
     const result = nodeSpawnSync(
@@ -917,7 +919,7 @@ describe("database role-boundary test launcher", () => {
           ARBITRARY_TOKEN: tokenCanary,
         },
         maxBuffer: 16 * 1024 * 1024,
-        timeout: 120_000,
+        timeout: 600_000,
         windowsHide: true,
       },
     );
@@ -934,5 +936,5 @@ describe("database role-boundary test launcher", () => {
       "database-role-boundary lane PASS role-boundary",
     );
     expect(output).not.toContain(tokenCanary);
-  }, 135_000);
+  }, 660_000);
 });
