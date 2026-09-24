@@ -1,9 +1,7 @@
-import { chromium, type FullConfig } from "@playwright/test";
+import type { FullConfig } from "@playwright/test";
 
-// `next dev` compiles each route on its first request and then reloads the page it
-// served. Visiting every route the specs use before any test starts moves those
-// compile-and-reload cycles out of the tests, where they otherwise reset open
-// drawers, focus and axe scans on slower machines.
+// `next dev` compiles each route on its first request. Requesting every route the
+// specs use before any test starts keeps those compiles out of test timeouts.
 const WARM_ROUTES = [
   "/",
   "/admin/certificates",
@@ -31,32 +29,19 @@ const WARM_ROUTES = [
   "/tutor",
 ] as const;
 
-const QUIET_MS = 1_500;
 const ROUTE_LIMIT_MS = 120_000;
 
+// A plain request makes `next dev` compile the route's server and client entries,
+// so warming needs no browser; every Playwright project, whichever browser it
+// installed, can run it.
 export default async function globalSetup(config: FullConfig) {
   const baseURL = config.projects[0]?.use.baseURL;
   if (typeof baseURL !== "string") throw new Error("Playwright baseURL is required to warm routes.");
-  const browser = await chromium.launch();
-  try {
-    const page = await browser.newPage();
-    for (const route of WARM_ROUTES) {
-      let lastNavigation = Date.now();
-      const onNavigated = (frame: { parentFrame(): unknown }) => {
-        if (frame.parentFrame() === null) lastNavigation = Date.now();
-      };
-      page.on("framenavigated", onNavigated);
-      try {
-        await page.goto(new URL(route, baseURL).href, { waitUntil: "load", timeout: ROUTE_LIMIT_MS });
-        const deadline = Date.now() + ROUTE_LIMIT_MS;
-        while (Date.now() - lastNavigation < QUIET_MS && Date.now() < deadline) {
-          await page.waitForTimeout(250);
-        }
-      } finally {
-        page.off("framenavigated", onNavigated);
-      }
-    }
-  } finally {
-    await browser.close();
+  for (const route of WARM_ROUTES) {
+    const response = await fetch(new URL(route, baseURL), {
+      redirect: "manual",
+      signal: AbortSignal.timeout(ROUTE_LIMIT_MS),
+    });
+    await response.arrayBuffer();
   }
 }
