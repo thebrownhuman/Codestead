@@ -951,6 +951,7 @@ const setupNodeProjection = [
 const dockerSetupProjection = [
   "      - uses: docker/setup-docker-action@6d7cfa65f60a9dda7b46e5513fa982536f3c9877 # v5.3.0",
   "        with:",
+  "          set-host: true",
   "          daemon-config: |",
   "            {",
   '              "features": {',

@@ -21,6 +21,9 @@ const EVIDENCE_FILE = /^[a-z0-9][a-z0-9.-]*\.json$/;
 const SCANNER_ENVIRONMENT_ALLOWLIST = [
   "PATH", "Path", "PATHEXT", "SYSTEMROOT", "SystemRoot", "WINDIR", "COMSPEC",
   "TEMP", "TMP", "TMPDIR",
+  // Scanners read the image from the daemon that built it; the isolated HOME drops
+  // any Docker context, so the daemon socket must be passed explicitly.
+  "DOCKER_HOST",
 ];
 const SPDX_2_3_SCHEMA = JSON.parse(
   readFileSync(new URL("./schema/spdx-2.3.schema.json", import.meta.url), "utf8"),

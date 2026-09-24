@@ -12,6 +12,10 @@ services:
       - synchronous_commit=on
       - -c
       - full_page_writes=on
+      - -c
+      - unix_socket_directories=/run/learncoding-postgres
+      - -c
+      - unix_socket_permissions=0700
     volumes:
       - type: bind
         source: ${TOPOLOGY_POSTGRES_DIR:?Set TOPOLOGY_POSTGRES_DIR}

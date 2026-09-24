@@ -91,13 +91,14 @@ const repositoryRoot = path.resolve(
   "../..",
 );
 
+// Child environments deliberately omit NODE_ENV, which Next's types mark as required.
 function minimalLauncherEnvironment(): NodeJS.ProcessEnv {
-  return process.platform === "win32"
+  return (process.platform === "win32"
     ? {
       SYSTEMROOT:
         process.env.SYSTEMROOT ?? process.env.SystemRoot ?? "C:\\Windows",
     }
-    : {};
+    : {}) as NodeJS.ProcessEnv;
 }
 
 function topLevelTestNames(source: string): string[] {
@@ -632,7 +633,7 @@ describe("database role-boundary test launcher", () => {
         treeSupervised: true,
       }),
       createChildController,
-      environment: {},
+      environment: {} as NodeJS.ProcessEnv,
       spawn: spawn as NonNullable<LauncherDependencies["spawn"]>,
       deadlineMs: 5_000,
       heartbeatMs: 1_000,

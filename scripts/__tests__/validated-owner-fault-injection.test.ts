@@ -1796,7 +1796,7 @@ describe("validated disposable owner fault injection", () => {
         .flatMap((name) => (
           process.env[name] === undefined ? [] : [[name, process.env[name]]]
         )),
-    );
+    ) as NodeJS.ProcessEnv;
     const childSource = `
       void import(${JSON.stringify(helperModuleUrl)}).then(async (ownerFaultModule) => {
         try {
