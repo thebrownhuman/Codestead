@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-07-12T16:28:00.000Z",
-  "revalidatedAt": "2026-09-24T12:09:03.456Z",
+  "revalidatedAt": "2026-09-24T12:49:37.545Z",
   "scope": "Local deterministic validation of nightly backup status reporting through the dedicated least-privilege reporter and current PostgreSQL mail-authority chain on native disposable PostgreSQL 17; no Docker, host PostgreSQL service, real data, real credentials, or external email was used.",
   "status": "passed",
   "shellContract": {
@@ -105,7 +105,7 @@
   "sourceHashes": [
     {
       "path": "scripts/backup/common.sh",
-      "sha256": "85e415ad0c0a589e7113c29b746c2237ba1f4673f4499004bc71ac6d68ed3b25"
+      "sha256": "78d5dd6f317e2b54b468efa08a9eef39a310484f7274bb744e5e79b79eafa01c"
     },
     {
       "path": "scripts/backup/backup.sh",
@@ -121,7 +121,7 @@
     },
     {
       "path": "compose.yaml",
-      "sha256": "3c04a150e81723bbec0cb6f7e8ba5189694412b29323cbd2c43c40ba207cd7d2"
+      "sha256": "3693bebfabc7c50d73616ebd3c19c96809949649b8fc1a5e2fbb70315f63f7a5"
     },
     {
       "path": "drizzle/0065_backup_status_mail_authority.sql",
@@ -197,11 +197,11 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "b404888eda7305917e77bfe117264f7947229abf0fbb53d9b9ca6f0f510d3a51"
+      "sha256": "a1dc33472e36c1b357c210622024e50874bf00547295f4faacdd90073a7e3563"
     },
     {
       "path": "infra/tests/backup-ci-registration.test.mjs",
-      "sha256": "68ed2943cf67947e4ae057400730f1e539748981f70d31c2b3d744cee69c3e2f"
+      "sha256": "ea33a90d80d15ff4d1ee33f07ea4a5a5dc32964a2cbb8e95f4674aaddf6d88d0"
     }
   ],
   "supersededDigests": [
@@ -349,6 +349,26 @@
       "artifact": "scripts/verify-database-role-boundaries.mjs",
       "priorDigest": "0fd77e9fc8717b65bf36120210eac30ab108605fac85a65ab900e63ca196a7e4",
       "replacedAt": "2026-09-24T12:09:03.456Z"
+    },
+    {
+      "artifact": ".github/workflows/ci.yml",
+      "priorDigest": "b404888eda7305917e77bfe117264f7947229abf0fbb53d9b9ca6f0f510d3a51",
+      "replacedAt": "2026-09-24T12:49:37.545Z"
+    },
+    {
+      "artifact": "compose.yaml",
+      "priorDigest": "3c04a150e81723bbec0cb6f7e8ba5189694412b29323cbd2c43c40ba207cd7d2",
+      "replacedAt": "2026-09-24T12:49:37.545Z"
+    },
+    {
+      "artifact": "infra/tests/backup-ci-registration.test.mjs",
+      "priorDigest": "68ed2943cf67947e4ae057400730f1e539748981f70d31c2b3d744cee69c3e2f",
+      "replacedAt": "2026-09-24T12:49:37.545Z"
+    },
+    {
+      "artifact": "scripts/backup/common.sh",
+      "priorDigest": "85e415ad0c0a589e7113c29b746c2237ba1f4673f4499004bc71ac6d68ed3b25",
+      "replacedAt": "2026-09-24T12:49:37.545Z"
     }
   ],
   "limitations": [

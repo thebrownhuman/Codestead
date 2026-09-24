@@ -10,7 +10,7 @@ script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 readonly script_dir
 repo_root="$(cd -- "$script_dir/../.." && pwd -P)"
 readonly repo_root
-readonly postgres_image="postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394"
+readonly postgres_image="postgres:17-bookworm@sha256:4f736ae292687621d4dbe0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394"
 readonly node_image="node:22.23.3-alpine3.23@sha256:489418a947387da1c5b4c0c5749c963da56ecaac0ced1da74c67db60e42f2b3a"
 readonly suffix="$$-$RANDOM"
 readonly network="codestead-db-acceptance-$suffix"

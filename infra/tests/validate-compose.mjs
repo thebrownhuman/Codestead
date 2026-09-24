@@ -188,7 +188,7 @@ expect(
     "-c",
     "full_page_writes=on",
     "-c",
-    "unix_socket_directories=/run/learncoding-postgres",
+    "unix_socket_directories=/run/learncoding-postgres,/var/run/postgresql",
     "-c",
     "unix_socket_permissions=0700",
   ]),

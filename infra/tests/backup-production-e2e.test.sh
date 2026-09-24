@@ -851,6 +851,8 @@ ingress:
 EOF
   chmod 0440 "$config_root/cloudflared.yml"
 
+  # POSTGRES_UID/GID are the reviewed 999:999 identity of the pinned PostgreSQL
+  # image; production-topology.test.sh proves the image still matches it.
   cat >"$compose_env" <<EOF
 APP_NAME=Codestead Backup E2E
 APP_URL=https://backup-e2e.invalid
@@ -874,6 +876,8 @@ CLOUDFLARED_IMAGE=$cloudflared_digest
 CLAMAV_IMAGE=$operations_digest
 POSTGRES_DB=learncoding
 POSTGRES_USER=learncoding
+POSTGRES_UID=999
+POSTGRES_GID=999
 RUNNER_BASE_URL=http://127.0.0.1:4100
 GOOGLE_CLIENT_ID=
 BOOTSTRAP_ADMIN_EMAIL=

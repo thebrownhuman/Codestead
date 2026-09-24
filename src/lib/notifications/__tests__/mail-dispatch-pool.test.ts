@@ -72,7 +72,7 @@ describe("dedicated mail dispatch database resources", () => {
     expect(createPool).toHaveBeenCalledWith(
       expect.objectContaining({
         connectionString:
-          "postgresql://learncoding:learncoding@localhost:5432/learncoding",
+          "postgresql://learncoding:learncoding@127.0.0.1:5432/learncoding",
       }),
     );
   });

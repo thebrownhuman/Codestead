@@ -609,7 +609,7 @@ Gid:$POSTGRES_GID:$POSTGRES_GID:$POSTGRES_GID:$POSTGRES_GID"
     return 1
   }
   socket_setting="$(psql_query 'show unix_socket_directories;')"
-  [[ "$socket_setting" == /run/learncoding-postgres ]] || {
+  [[ "$socket_setting" == /run/learncoding-postgres,/var/run/postgresql ]] || {
     echo "PostgreSQL is not using the reviewed custom socket directory: $socket_setting" >&2
     return 1
   }

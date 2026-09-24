@@ -398,11 +398,14 @@ test("the shared writer targets exactly the worker-granted insert columns", () =
     /[$][{]row[.]idempotencyAuthorityVersion[}],[\s\S]*?'pending',[\s\S]*?pg_catalog[.]now[(][)]/u,
   );
   assert.match(outboxRuntime, /ON CONFLICT [(]idempotency_key[)] DO NOTHING/u);
-  assert.match(outboxRuntime, /await persistQueuedEmail[(]tx, row[)]/u);
+  // Both entry points go through the bounded account-authority retry, which only
+  // re-runs the single release-composed insert unit.
+  assert.match(outboxRuntime, /await persistWithAccountAuthority[(]tx, row[)]/u);
   assert.match(
     outboxRuntime,
-    /db[.]transaction[(][(]tx[)] => persistQueuedEmail[(]tx, row[)][)]/u,
+    /db[.]transaction[(][(]tx[)] => persistWithAccountAuthority[(]tx, row[)][)]/u,
   );
+  assert.match(outboxRuntime, /if [(]await persistQueuedEmail[(]tx, row[)][)] return;/u);
 });
 
 test("the live harness proves the shared worker writer after final ACL reconciliation", () => {

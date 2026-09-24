@@ -400,7 +400,8 @@ export function validateApplicationScanArtifacts({ identity, spdxText, vulnerabi
     report?.SchemaVersion !== 2
     || report.ArtifactType !== "container_image"
     || report.ArtifactName !== identity.reference
-    || report.Metadata?.ImageID !== identity.configDigest
+    // Docker's containerd image store reports the manifest digest as the image ID.
+    || ![identity.configDigest, identity.manifestDigest].includes(report.Metadata?.ImageID)
     || !Array.isArray(report.Metadata?.RepoDigests)
     || !report.Metadata.RepoDigests.includes(identity.reference)
     || !Array.isArray(report.Results)

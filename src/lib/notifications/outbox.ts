@@ -311,36 +311,25 @@ function queuedEmailInsert(row: ReturnType<typeof queuedEmail>) {
 async function persistQueuedEmail(
   tx: OutboxTransaction,
   row: ReturnType<typeof queuedEmail>,
-) {
-  const insert = () =>
-    tx.execute<InsertedEmailOutboxRelease>(queuedEmailInsert(row));
-  const replayExists = async () => {
-    const replay = await tx.execute<{ id: string }>(sql`
-      SELECT id::pg_catalog.text AS id
-        FROM public.email_outbox
-       WHERE idempotency_key = ${row.idempotencyKey}
-       LIMIT 1
-    `);
-    return replay.rows[0] !== undefined;
-  };
-  let release = (await insert()).rows[0];
-  if (!release && row.userId !== null) {
-    // The insert's try-lock loses to any concurrent holder of the account authority.
-    // A short bounded retry lets a concurrent enqueue for the same account finish
-    // (then this call replays or inserts), while a deletion, which holds the
-    // authority far longer, still fails closed promptly instead of blocking.
-    for (const delayMs of ACCOUNT_AUTHORITY_RETRY_DELAYS_MS) {
-      if (await replayExists()) return;
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-      release = (await insert()).rows[0];
-      if (release) break;
+): Promise<boolean> {
+  const inserted = await tx.execute<InsertedEmailOutboxRelease>(
+    queuedEmailInsert(row),
+  );
+  const release = inserted.rows[0];
+  if (!release) {
+    if (row.userId !== null) {
+      const replay = await tx.execute<{ id: string }>(sql`
+        SELECT id::pg_catalog.text AS id
+          FROM public.email_outbox
+         WHERE idempotency_key = ${row.idempotencyKey}
+         LIMIT 1
+      `);
+      // No row and no replay: the account authority was held elsewhere or the
+      // account is no longer eligible; persistWithAccountAuthority decides.
+      if (!replay.rows[0]) return false;
     }
-    if (!release) {
-      if (await replayExists()) return;
-      throw new Error("Account email authority is unavailable.");
-    }
+    return true;
   }
-  if (!release) return;
   const released = await tx.execute(sql<{
     outbox_id: string;
     operation_id: string;
@@ -359,6 +348,24 @@ async function persistQueuedEmail(
     outboxId: release.id,
     operationId: release.operation_id,
   });
+  return true;
+}
+
+// The insert's try-lock loses to any concurrent holder of the account authority.
+// Retrying the whole insert-and-release unit on a short bounded schedule lets a
+// concurrent enqueue for the same account finish (this call then replays or
+// inserts), while a deletion, which holds the authority far longer, still fails
+// closed within about three seconds instead of blocking.
+async function persistWithAccountAuthority(
+  tx: OutboxTransaction,
+  row: ReturnType<typeof queuedEmail>,
+) {
+  if (await persistQueuedEmail(tx, row)) return;
+  for (const delayMs of ACCOUNT_AUTHORITY_RETRY_DELAYS_MS) {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    if (await persistQueuedEmail(tx, row)) return;
+  }
+  throw new Error("Account email authority is unavailable.");
 }
 
 export async function enqueueEmailInTransaction(
@@ -367,7 +374,7 @@ export async function enqueueEmailInTransaction(
 ) {
   const row = queuedEmail(input);
   try {
-    await persistQueuedEmail(tx, row);
+    await persistWithAccountAuthority(tx, row);
   } catch (error) {
     throw normalizeOutboxPersistenceError(error);
   }
@@ -376,7 +383,7 @@ export async function enqueueEmailInTransaction(
 export async function enqueueEmail(input: EnqueueEmailInput) {
   const row = queuedEmail(input);
   try {
-    await db.transaction((tx) => persistQueuedEmail(tx, row));
+    await db.transaction((tx) => persistWithAccountAuthority(tx, row));
   } catch (error) {
     throw normalizeOutboxPersistenceError(error);
   }

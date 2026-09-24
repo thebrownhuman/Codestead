@@ -1896,8 +1896,11 @@ export function validateRuntimeReleaseGateEvidence({
   const requiredContracts = new Set(REQUIRED_RUNTIME_CONTRACTS);
   const passedContracts = new Set();
   for (const result of contract.results) {
+    // test-runtime-images.mjs records each contract's duration alongside its outcome.
+    const timed = hasExactKeys(result, ["name", "status", "durationMs"]);
     if (
-      !hasExactKeys(result, ["name", "status"])
+      !(hasExactKeys(result, ["name", "status"]) || timed)
+      || (timed && (!Number.isSafeInteger(result.durationMs) || result.durationMs < 0))
       || result.status !== "passed"
       || typeof result.name !== "string"
       || !requiredContracts.has(result.name)

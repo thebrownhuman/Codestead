@@ -9,7 +9,7 @@ import {
 } from "./mail-dispatch-runtime-policy";
 
 const DEVELOPMENT_DATABASE_URL =
-  "postgresql://learncoding:learncoding@localhost:5432/learncoding";
+  "postgresql://learncoding:learncoding@127.0.0.1:5432/learncoding";
 
 export type MailDispatchDatabase = NodePgDatabase<typeof schema>;
 

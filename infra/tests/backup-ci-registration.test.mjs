@@ -2151,8 +2151,8 @@ function runAdversarialSelfTests(document) {
     "actual PostgreSQL Docker downgrade reaches the canonical cross-guard",
     replaceExactly(
       document,
-      "docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
-      "docker pull postgres:16-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+      "docker pull postgres:17-bookworm@sha256:4f736ae292687621d4dbe0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+      "docker pull postgres:16-bookworm@sha256:4f736ae292687621d4dbe0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
     ),
     "canonical PostgreSQL CI cross-guard changed: the pinned Docker PostgreSQL 17 integration image must appear exactly once",
   );
@@ -2160,8 +2160,8 @@ function runAdversarialSelfTests(document) {
     "arbitrary PostgreSQL 16 Docker image reaches the canonical cross-guard",
     replaceExactly(
       document,
-      "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394\n",
-      "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394\n      - run: docker run --rm postgres:16-bookworm\n",
+      "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4dbe0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394\n",
+      "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4dbe0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394\n      - run: docker run --rm postgres:16-bookworm\n",
     ),
     "canonical PostgreSQL CI cross-guard changed: PostgreSQL 16 must not appear in the canonical CI matrix",
   );

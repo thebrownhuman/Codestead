@@ -25,7 +25,7 @@
 .roadmap::before,.roadmap::after { position: absolute; top: 10px; left: 15px; width: 3px; border-radius: 99px; content: ""; }
 .roadmap::before { bottom: 10px; background: var(--line); }
 .roadmap::after { height: var(--journey-progress,0%); max-height: calc(100% - 20px); background: linear-gradient(180deg,var(--signal-cyan),var(--signal-violet),var(--signal-amber)); transform-origin: top; animation: roadmap-fill var(--motion-slow) var(--ease-out) both; }
-.roadmapEmptySection { display: grid; min-width: 0; gap: 12px; }
+.roadmapEmptySection { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .awaitingTrackSummary { display: flex; align-items: center; justify-content: space-between; min-width: 0; gap: 16px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-muted); }
 .awaitingTrackSummary > div { display: grid; min-width: 0; gap: 3px; }
 .awaitingTrackSummary strong { font-size: .9375rem; }
