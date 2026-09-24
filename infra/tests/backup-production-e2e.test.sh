@@ -1814,11 +1814,15 @@ docker run --rm --pull never --network none --read-only --cap-drop ALL \
   ' >/dev/null \
   || fail "offline operations image cannot import the capability-gated bootstrap and verifier"
 
+# The toolbox is root with every capability dropped, but the ledgers and token are
+# 0600 files owned by the unprivileged runner user. DAC_OVERRIDE lets it use them;
+# it adds nothing beyond the Docker socket this container already holds.
 docker run --rm --name "$resource_prefix-toolbox" \
   --hostname "$resource_prefix-toolbox" \
   --label "$OWNER_LABEL_KEY=$run_id" \
   --label "$OWNER_PROJECT_LABEL_KEY=$ownership_project" \
   --network none --read-only --cap-drop ALL \
+  --cap-add DAC_OVERRIDE \
   --security-opt no-new-privileges --pids-limit 512 --memory 1g --cpus 2 \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=256m \
   --tmpfs /run/bpe:rw,noexec,nosuid,nodev,size=16m,mode=0700,uid=0,gid=0 \

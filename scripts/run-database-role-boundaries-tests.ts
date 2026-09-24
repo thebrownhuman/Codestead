@@ -2,6 +2,7 @@ import {
   spawn as nodeSpawn,
   type ChildProcess,
 } from "node:child_process";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -44,6 +45,7 @@ type LauncherDependencies = Readonly<{
   deadlineMs?: number;
   heartbeatMs?: number;
   terminationGraceMs?: number;
+  maxConcurrency?: number;
   log?: (message: string) => void;
   logError?: (message: string) => void;
 }>;
@@ -116,7 +118,7 @@ export const DATABASE_ROLE_BOUNDARY_TEST_LANES = Object.freeze([
     "bootstrap-missing-grants",
     bootstrapTest,
     "^missing direct grants render exact per-object SQL and converge$",
-    90_000,
+    240_000,
   ),
   lane(
     "bootstrap-core",
@@ -158,7 +160,7 @@ function runLane(
     log,
     logError,
     createChildController,
-  }: Required<LauncherDependencies>,
+  }: Required<Omit<LauncherDependencies, "maxConcurrency">>,
 ): Promise<number> {
   log(`database-role-boundary lane START ${testLane.id}`);
   return new Promise((resolve) => {
@@ -258,24 +260,41 @@ export async function runDatabaseRoleBoundaryTests(
   const sanitizedEnvironment = minimalNodeTestEnvironment(
     dependencies.environment ?? process.env,
   );
-  const options: Required<LauncherDependencies> = {
+  const { maxConcurrency: requestedConcurrency, ...launchDependencies } = dependencies;
+  // Every lane is CPU-bound and has a wall-clock deadline, so running more lanes
+  // than cores starves them into false timeouts on small CI runners.
+  const maxConcurrency = Math.max(
+    1,
+    Math.floor(requestedConcurrency ?? os.availableParallelism()),
+  );
+  const options: Required<Omit<LauncherDependencies, "maxConcurrency">> = {
     buildChildLaunch:
-      dependencies.buildChildLaunch ?? buildDisposableIntegrationChildLaunch,
-    createChildController: dependencies.createChildController
+      launchDependencies.buildChildLaunch ?? buildDisposableIntegrationChildLaunch,
+    createChildController: launchDependencies.createChildController
       ?? createDisposableIntegrationChildController,
     environment: sanitizedEnvironment,
-    spawn: dependencies.spawn ?? defaultSpawn,
-    deadlineMs: dependencies.deadlineMs ?? 60_000,
-    heartbeatMs: dependencies.heartbeatMs ?? 15_000,
-    terminationGraceMs: dependencies.terminationGraceMs ?? 5_000,
-    log: dependencies.log ?? console.log,
-    logError: dependencies.logError ?? console.error,
+    spawn: launchDependencies.spawn ?? defaultSpawn,
+    // Hang guard, not a speed target: the slowest lanes take ~40s alone on a fast
+    // desktop and 2-3x longer on shared CI runners.
+    deadlineMs: launchDependencies.deadlineMs ?? 180_000,
+    heartbeatMs: launchDependencies.heartbeatMs ?? 15_000,
+    terminationGraceMs: launchDependencies.terminationGraceMs ?? 5_000,
+    log: launchDependencies.log ?? console.log,
+    logError: launchDependencies.logError ?? console.error,
   };
-  const statuses = await Promise.all(
-    DATABASE_ROLE_BOUNDARY_TEST_LANES.map((testLane) =>
-      runLane(testLane, options),
-    ),
-  );
+  const statuses = new Array<number>(DATABASE_ROLE_BOUNDARY_TEST_LANES.length);
+  let nextLane = 0;
+  const worker = async () => {
+    while (nextLane < DATABASE_ROLE_BOUNDARY_TEST_LANES.length) {
+      const index = nextLane;
+      nextLane += 1;
+      statuses[index] = await runLane(DATABASE_ROLE_BOUNDARY_TEST_LANES[index], options);
+    }
+  };
+  await Promise.all(Array.from(
+    { length: Math.min(maxConcurrency, DATABASE_ROLE_BOUNDARY_TEST_LANES.length) },
+    worker,
+  ));
   return statuses.find((status) => status !== 0) ?? 0;
 }
 
