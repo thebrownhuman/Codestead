@@ -1075,6 +1075,11 @@ EOF
   [[ "$database_version" =~ ^postgres[[:space:]]+\(PostgreSQL\)[[:space:]]+17([.][0-9]+)? ]] \
     || fail "PostgreSQL major version is not 17"
 
+  # Role bootstrap/migration/verification scripts intentionally emit only a
+  # generic JSON event and error code on failure, never connection strings or
+  # role passwords, so their tail is safe to surface directly.
+  local role_bootstrap_diagnostics="$tmp_root/role-bootstrap-diagnostics.log"
+
   docker run --rm --pull never --name "$resource_prefix-source-role-bootstrap-pre" \
     --label "$OWNER_LABEL_KEY=$run_id" \
     --label "$OWNER_PROJECT_LABEL_KEY=$ownership_project" \
@@ -1091,7 +1096,10 @@ EOF
     --env DATABASE_OPS_URL_FILE=/run/secrets/database_ops_url \
     --env DATABASE_BACKUP_REPORTER_URL_FILE=/run/secrets/database_backup_reporter_url \
     "$operations_digest" node /app/scripts/bootstrap-database-roles.mjs \
-    >/dev/null 2>&1 || fail "source database initial role bootstrap failed"
+    >"$role_bootstrap_diagnostics" 2>&1 || {
+      tail -n 40 -- "$role_bootstrap_diagnostics" >&2
+      fail "source database initial role bootstrap failed"
+    }
 
   docker run --rm --pull never --name "$resource_prefix-source-migrate" \
     --label "$OWNER_LABEL_KEY=$run_id" \
@@ -1105,7 +1113,10 @@ EOF
     --env DATABASE_URL_FILE=/run/secrets/database_url \
     --env REQUIRE_POSTGRES_MAJOR=17 \
     "$operations_digest" node /app/scripts/migrate-production.mjs \
-    >/dev/null 2>&1 || fail "source database reviewed migration failed"
+    >"$role_bootstrap_diagnostics" 2>&1 || {
+      tail -n 40 -- "$role_bootstrap_diagnostics" >&2
+      fail "source database reviewed migration failed"
+    }
 
   if ! docker exec -i "$postgres_id" psql --username=learncoding \
     --dbname=learncoding --no-psqlrc --quiet --set=ON_ERROR_STOP=1 \
@@ -1137,7 +1148,10 @@ EOF
     --env DATABASE_OPS_URL_FILE=/run/secrets/database_ops_url \
     --env DATABASE_BACKUP_REPORTER_URL_FILE=/run/secrets/database_backup_reporter_url \
     "$operations_digest" node /app/scripts/bootstrap-database-roles.mjs \
-    >/dev/null 2>&1 || fail "source database complete role bootstrap failed"
+    >"$role_bootstrap_diagnostics" 2>&1 || {
+      tail -n 40 -- "$role_bootstrap_diagnostics" >&2
+      fail "source database complete role bootstrap failed"
+    }
 
   docker run --rm --pull never --name "$resource_prefix-source-role-boundary" \
     --label "$OWNER_LABEL_KEY=$run_id" \
@@ -1156,7 +1170,10 @@ EOF
     --env DATABASE_BACKUP_REPORTER_URL_FILE=/run/secrets/database_backup_reporter_url \
     "$operations_digest" node /app/scripts/verify-database-role-boundaries.mjs \
       --require-application-objects \
-    >/dev/null 2>&1 || fail "source database role boundary verification failed"
+    >"$role_bootstrap_diagnostics" 2>&1 || {
+      tail -n 40 -- "$role_bootstrap_diagnostics" >&2
+      fail "source database role boundary verification failed"
+    }
 
   mapfile -t migration_fixture_metadata < <(
     python3 - "$repo_root/drizzle/meta/_journal.json" "$repo_root/drizzle" <<'PY'
@@ -1479,7 +1496,10 @@ PY
     "$operations_digest" /bin/sh -ceu \
       'node --import tsx /app/scripts/verify-restored-backup.ts --remove-ledger-authority-before-bootstrap
        exec node /app/scripts/bootstrap-database-roles.mjs' \
-    >/dev/null 2>&1 || fail "restored database role bootstrap failed"
+    >"$role_bootstrap_diagnostics" 2>&1 || {
+      tail -n 40 -- "$role_bootstrap_diagnostics" >&2
+      fail "restored database role bootstrap failed"
+    }
 
   docker run --rm --pull never --name "$resource_prefix-restore-role-boundary" \
     --label "$OWNER_LABEL_KEY=$run_id" \
@@ -1498,7 +1518,10 @@ PY
     --env DATABASE_BACKUP_REPORTER_URL_FILE=/run/secrets/database_backup_reporter_url \
     "$operations_digest" node /app/scripts/verify-database-role-boundaries.mjs \
       --require-application-objects \
-    >/dev/null 2>&1 || fail "restored database role boundary verification failed"
+    >"$role_bootstrap_diagnostics" 2>&1 || {
+      tail -n 40 -- "$role_bootstrap_diagnostics" >&2
+      fail "restored database role boundary verification failed"
+    }
 
   docker run --rm --pull never --name "$resource_prefix-restore-ledger-authority-installer" \
     --label "$OWNER_LABEL_KEY=$run_id" \

@@ -545,7 +545,7 @@ function validateHarnessRestoreEntrypointContract(source) {
       "production E2E does not install the restore-only ledger authority",
     ],
     [
-      "node /app/scripts/verify-database-role-boundaries.mjs \\\n      --require-application-objects \\\n    >/dev/null 2>&1 || fail \"restored database role boundary verification failed\"",
+      "node /app/scripts/verify-database-role-boundaries.mjs \\\n      --require-application-objects \\\n    >\"$role_bootstrap_diagnostics\" 2>&1 || {\n      tail -n 40 -- \"$role_bootstrap_diagnostics\" >&2\n      fail \"restored database role boundary verification failed\"\n    }",
       "production E2E does not run the full database role boundary verifier",
     ],
     [
@@ -671,7 +671,7 @@ function validateHarnessReviewedRestoreFixtureContract(source) {
       "production E2E omits the complete post-migration role bootstrap",
     ],
     [
-      "node /app/scripts/verify-database-role-boundaries.mjs \\\n      --require-application-objects \\\n    >/dev/null 2>&1 || fail \"source database role boundary verification failed\"",
+      "node /app/scripts/verify-database-role-boundaries.mjs \\\n      --require-application-objects \\\n    >\"$role_bootstrap_diagnostics\" 2>&1 || {\n      tail -n 40 -- \"$role_bootstrap_diagnostics\" >&2\n      fail \"source database role boundary verification failed\"\n    }",
       "production E2E omits the full source application-object boundary verifier",
     ],
     [
@@ -704,7 +704,7 @@ function validateHarnessBoundaryVerifierCredentialContract(source) {
       "restored database role boundary verification failed",
     ],
   ]) {
-    const failureOffset = source.indexOf(`|| fail "${failure}"`);
+    const failureOffset = source.indexOf(`fail "${failure}"`);
     const blockStart = source.lastIndexOf("docker run", failureOffset);
     if (failureOffset < 0 || blockStart < 0 || blockStart >= failureOffset) {
       fail(`production E2E ${label} boundary verifier block is missing`);
