@@ -1,31 +1,41 @@
 version: 2
+# Monthly, one grouped PR per ecosystem. Security fixes still open right away as their own PRs.
 updates:
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       time: "03:30"
       timezone: Asia/Kolkata
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 1
+    groups:
+      app-dependencies:
+        applies-to: version-updates
+        patterns: ["*"]
     labels: [dependencies, security-review-required]
 
   - package-ecosystem: npm
     directory: /services/runner
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       time: "03:45"
       timezone: Asia/Kolkata
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 1
+    groups:
+      runner-dependencies:
+        applies-to: version-updates
+        patterns: ["*"]
     labels: [dependencies, runner, security-review-required]
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       time: "04:00"
       timezone: Asia/Kolkata
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 1
+    groups:
+      github-actions:
+        applies-to: version-updates
+        patterns: ["*"]
     labels: [dependencies, ci, security-review-required]
