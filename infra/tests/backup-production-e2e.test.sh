@@ -766,6 +766,12 @@ run_inner() {
     "$backup_root/state" "$stage_root" "$ephemeral_root" "$verify_root" \
     "$app_extract_root" "$restore_app_root" "$recovery_root"
   assert_ephemeral_runtime_clean "$ephemeral_root"
+  # PostgreSQL runs as the reviewed 999:999 image identity and needs to own its
+  # data directory and the per-run socket directory that replaces the host
+  # /run/learncoding-postgres bind mount (absent on a disposable runner).
+  install -d -m 0700 "$learn_data_root/postgres-socket"
+  chown 999:999 "$learn_data_root/postgres" "$learn_data_root/postgres-socket" \
+    || fail "PostgreSQL data and socket ownership could not be set"
   install -d -m 0755 "$lock_root"
   printf '%s\n' LEARNCODING_BACKUP_V1 >"$backup_root/.learncoding-backup-root"
   chmod 0600 "$backup_root/.learncoding-backup-root"
@@ -930,6 +936,12 @@ EOF
       printf '    labels:\n'
       printf '      "%s": "%s"\n' "$OWNER_LABEL_KEY" "$run_id"
       printf '      "%s": "%s"\n' "$OWNER_PROJECT_LABEL_KEY" "$ownership_project"
+      if [[ "$service" == postgres ]]; then
+        printf '    volumes:\n'
+        printf '      - type: bind\n'
+        printf '        source: "%s"\n' "$learn_data_root/postgres-socket"
+        printf '        target: /run/learncoding-postgres\n'
+      fi
     done
     printf 'networks:\n'
     for network_name in "${REQUIRED_NETWORKS[@]}"; do

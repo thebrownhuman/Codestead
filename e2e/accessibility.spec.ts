@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import { gotoSettled } from "./pages/settled-navigation";
 
 const pages = [
   ["sign in", "/login"],
@@ -10,7 +11,7 @@ const pages = [
 
 for (const [name, path] of pages) {
   test(`${name} has no automated WCAG A/AA violations`, async ({ page }) => {
-    await page.goto(path);
+    await gotoSettled(page, path);
     await expect(page.locator("body")).toBeVisible();
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
