@@ -2211,11 +2211,26 @@ async function verifyProfileLanding(page: Page, input: {
     const roadmapElement = document.querySelector<HTMLElement>('[data-roadmap-state="awaiting_publication"]');
     if (!roadmapElement) throw new Error("Roadmap state was not rendered.");
     const box = roadmapElement.getBoundingClientRect();
+    // Name the widest ancestors and descendants so an overflow failure is diagnosable.
+    const describe = (element: Element) => {
+      const rect = element.getBoundingClientRect();
+      const className = typeof element.className === "string" ? element.className.split(" ")[0] : "";
+      return `${element.tagName.toLowerCase()}.${className.slice(0, 48)}[${Math.round(rect.left)},${Math.round(rect.right)}]`;
+    };
+    const ancestors: string[] = [];
+    for (let node = roadmapElement.parentElement; node && node !== document.body; node = node.parentElement) {
+      if (node.getBoundingClientRect().right > root.clientWidth + 1) ancestors.push(describe(node));
+    }
+    const descendants = [...roadmapElement.querySelectorAll("*")]
+      .filter((element) => element.getBoundingClientRect().right > root.clientWidth + 1)
+      .slice(0, 6)
+      .map(describe);
     return {
       documentWidth: root.scrollWidth,
       viewportWidth: root.clientWidth,
       roadmapLeft: box.left,
       roadmapRight: box.right,
+      overflow: `ancestors=${ancestors.slice(0, 6).join(" ")} descendants=${descendants.join(" ")}`,
     };
   });
   assert(
@@ -2223,7 +2238,10 @@ async function verifyProfileLanding(page: Page, input: {
     `${input.profileName} document overflowed by ${geometry.documentWidth - geometry.viewportWidth}px.`,
   );
   assert(geometry.roadmapLeft >= -1, `${input.profileName} roadmap escaped the left viewport edge.`);
-  assert(geometry.roadmapRight <= geometry.viewportWidth + 1, `${input.profileName} roadmap escaped the right viewport edge.`);
+  assert(
+    geometry.roadmapRight <= geometry.viewportWidth + 1,
+    `${input.profileName} roadmap escaped the right viewport edge (right=${Math.round(geometry.roadmapRight)}, viewport=${geometry.viewportWidth}; ${geometry.overflow}).`,
+  );
 
   const controls = roadmap.locator("a[href], button:not(:disabled)");
   const controlCount = await controls.count();
