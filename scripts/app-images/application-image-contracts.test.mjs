@@ -68,7 +68,7 @@ test("CI runs and uploads the seven-image evidence as an independent fail-closed
   assert.match(job, /APP_IMAGE_TRIVY_CACHE_DIR/);
   assert.doesNotMatch(job, /APP_IMAGE_LOCAL_RISK_ACCEPTANCE|accept-unsigned-local-buildkit-provenance-v1/);
   assert.match(job, /setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514/);
-  assert.match(job, /version:\s*0\.69\.3/);
+  assert.match(job, /version:\s*v0\.69\.3/);
   assert.match(job, /Upload application image release evidence/);
   assert.match(job, /if:\s*always\(\)/);
   assert.match(job, /dist\/application-images\/\.application-security\.failed-/);

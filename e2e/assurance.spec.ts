@@ -100,7 +100,10 @@ test.describe("fail-closed learning and credential controls", () => {
     await page.route("**/api/credentials/credential-1", async (route) => {
       mutationCalls += 1;
       expect(route.request().method()).toBe("PATCH");
-      expect(JSON.parse(route.request().postData() ?? "{}")).toEqual({ action: "test" });
+      expect(JSON.parse(route.request().postData() ?? "{}")).toEqual({
+        action: "test",
+        requestId: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i),
+      });
       await route.fulfill({ contentType: "application/json", status: 200, body: JSON.stringify({ ok: true }) });
     });
 

@@ -105,8 +105,8 @@ test("cleanup proves fallback network, Compose resources, images, and workdir ar
 
 test("seed and bootstrap proof uses explicit unique identities and an exact replay snapshot", () => {
   assert.match(harness, /expected_policy_identities=/u);
-  assert.match(harness, /nvidia_nim:credential_validation:meta\/llama-3\.1-8b-instruct/u);
-  assert.match(harness, /nvidia_nim:tutor:meta\/llama-3\.1-8b-instruct/u);
+  assert.match(harness, /nvidia_nim:credential_validation:mistralai\/mistral-nemotron/u);
+  assert.match(harness, /nvidia_nim:tutor:openai\/gpt-oss-20b/u);
   assert.match(harness, /expected_achievement_identities=/u);
   for (const slug of [
     "first-independent-skill",
