@@ -225,27 +225,31 @@ try {
           (select pg_get_userbyid(relowner) from pg_class where relname='lesson' and relkind='r') table_owner,
           (select pg_get_userbyid(typowner) from pg_type where typname='lesson_state') type_owner
       `);
+        // Closed-world foundation never adopts unmanaged legacy objects.
         assert.deepEqual(ownership.rows[0], {
-          aggregate_owner: "learncoding_owner",
-          table_owner: "learncoding_owner",
-          type_owner: "learncoding_owner",
+          aggregate_owner: bootstrapUser,
+          table_owner: bootstrapUser,
+          type_owner: bootstrapUser,
         });
+        const legacyDefaultGrants = await client.query(`
+        select count(*)::integer remaining
+          from pg_default_acl default_acl
+          cross join lateral aclexplode(default_acl.defaclacl) entry
+         where entry.grantee = 'learncoding_app'::regrole`);
+        assert.equal(legacyDefaultGrants.rows[0]?.remaining, 0);
       },
     );
   });
 
   await scenario("restricted-roles-rls-and-future-grants", async () => {
     await withClient(legacyV1.databaseAppUrl, async (app) => {
-      assert.deepEqual(
-        (
-          await app.query(
-            "select value from public.tenant_record order by value",
-          )
-        ).rows,
-        [{ value: "app-visible" }],
+      await assert.rejects(
+        app.query("select value from public.tenant_record order by value"),
       );
-      await app.query(
-        "insert into public.tenant_record values ('learncoding_app', 'app-created')",
+      await assert.rejects(
+        app.query(
+          "insert into public.tenant_record values ('learncoding_app', 'app-created')",
+        ),
       );
       await assert.rejects(
         app.query(
@@ -268,10 +272,10 @@ try {
       await migrator.query("reset role");
     });
     await withClient(legacyV1.databaseAppUrl, async (app) => {
-      await app.query(
-        "insert into public.future_table default values returning id",
+      await assert.rejects(
+        app.query("insert into public.future_table default values returning id"),
       );
-      await app.query("select 'ready'::public.future_state");
+      await assert.rejects(app.query("select 'ready'::public.future_state"));
     });
   });
 

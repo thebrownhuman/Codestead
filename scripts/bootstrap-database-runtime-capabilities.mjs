@@ -1996,7 +1996,8 @@ function assertFoundationRepairableDefaultAcls(rows, postgresUser) {
         : grantee;
     if (
       !allowedGrantees.has(granteeName) ||
-      row.is_grantable !== false ||
+      // Grant options are repairable: establish revokes all default privileges with cascade.
+      typeof row.is_grantable !== "boolean" ||
       !DEFAULT_ACL_CLASSES[row.object_kind].privileges.includes(
         row.privilege_type,
       )
