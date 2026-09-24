@@ -166,6 +166,76 @@ describe("email outbox", () => {
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
+  it("retries a contended account-authority insert until the concurrent holder finishes", async () => {
+    const execute = vi
+      .fn()
+      .mockResolvedValueOnce({ rowCount: 0, rows: [] })
+      .mockResolvedValueOnce({ rowCount: 0, rows: [] })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [INSERTED_OUTBOX_RELEASE] })
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{
+          outbox_id: INSERTED_OUTBOX_RELEASE.id,
+          operation_id: INSERTED_OUTBOX_RELEASE.operation_id,
+        }],
+      });
+
+    await enqueueEmailInTransaction({ execute } as never, {
+      to: "learner@example.invalid",
+      template: "verify-email",
+      variables: { name: "Learner", url: "https://example.invalid/verify" },
+      userId: "learner-release-contended",
+      idempotencySeed: "verify-release-contended",
+    });
+
+    const statements = execute.mock.calls.map(([statement]) =>
+      renderStatement(statement).sql.replace(/\s+/gu, " ").trim().toLowerCase());
+    expect(statements).toHaveLength(4);
+    expect(statements[0]).toContain("insert into public.email_outbox");
+    expect(statements[1]).toContain("where idempotency_key =");
+    expect(statements[2]).toContain("insert into public.email_outbox");
+    expect(statements[3]).toContain("from public.release_email_outbox_delivery");
+  });
+
+  it("replays instead of inserting when the concurrent holder enqueued the same mail", async () => {
+    const execute = vi
+      .fn()
+      .mockResolvedValueOnce({ rowCount: 0, rows: [] })
+      .mockResolvedValueOnce({ rowCount: 0, rows: [] })
+      .mockResolvedValueOnce({ rowCount: 0, rows: [] })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: INSERTED_OUTBOX_RELEASE.id }] });
+
+    await enqueueEmailInTransaction({ execute } as never, {
+      to: "learner@example.invalid",
+      template: "verify-email",
+      variables: { name: "Learner", url: "https://example.invalid/verify" },
+      userId: "learner-release-replayed",
+      idempotencySeed: "verify-release-replayed",
+    });
+    expect(execute).toHaveBeenCalledTimes(4);
+  });
+
+  it("still fails closed after bounded retries when the account authority stays unavailable", async () => {
+    vi.useFakeTimers();
+    try {
+      const execute = vi.fn().mockResolvedValue({ rowCount: 0, rows: [] });
+      const attempt = enqueueEmailInTransaction({ execute } as never, {
+        to: "learner@example.invalid",
+        template: "verify-email",
+        variables: { name: "Learner", url: "https://example.invalid/verify" },
+        userId: "learner-release-deleted",
+        idempotencySeed: "verify-release-deleted",
+      });
+      const settled = expect(attempt).rejects.toThrow();
+      await vi.runAllTimersAsync();
+      await settled;
+      // insert, then 7 x (replay check + retry insert), then a final replay check
+      expect(execute).toHaveBeenCalledTimes(16);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("binds every account insert to a fresh canonical user-authority decision", async () => {
     await enqueueEmailInTransaction({ execute: mocks.execute } as never, {
       to: " Learner@Example.INVALID ",

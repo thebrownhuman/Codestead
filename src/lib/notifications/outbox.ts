@@ -155,6 +155,10 @@ function isDurableReplayConflict(error: unknown): boolean {
   }
 }
 
+// About 3s in total: longer than any enqueue transaction, well under the time a
+// deletion keeps the account authority.
+const ACCOUNT_AUTHORITY_RETRY_DELAYS_MS = [25, 50, 100, 200, 400, 800, 1_400] as const;
+
 function normalizeOutboxPersistenceError(error: unknown) {
   return isDurableReplayConflict(error)
     ? new EmailOutboxReplayConflictError()
@@ -308,24 +312,35 @@ async function persistQueuedEmail(
   tx: OutboxTransaction,
   row: ReturnType<typeof queuedEmail>,
 ) {
-  const inserted = await tx.execute<InsertedEmailOutboxRelease>(
-    queuedEmailInsert(row),
-  );
-  const release = inserted.rows[0];
-  if (!release) {
-    if (row.userId !== null) {
-      const replay = await tx.execute<{ id: string }>(sql`
-        SELECT id::pg_catalog.text AS id
-          FROM public.email_outbox
-         WHERE idempotency_key = ${row.idempotencyKey}
-         LIMIT 1
-      `);
-      if (!replay.rows[0]) {
-        throw new Error("Account email authority is unavailable.");
-      }
+  const insert = () =>
+    tx.execute<InsertedEmailOutboxRelease>(queuedEmailInsert(row));
+  const replayExists = async () => {
+    const replay = await tx.execute<{ id: string }>(sql`
+      SELECT id::pg_catalog.text AS id
+        FROM public.email_outbox
+       WHERE idempotency_key = ${row.idempotencyKey}
+       LIMIT 1
+    `);
+    return replay.rows[0] !== undefined;
+  };
+  let release = (await insert()).rows[0];
+  if (!release && row.userId !== null) {
+    // The insert's try-lock loses to any concurrent holder of the account authority.
+    // A short bounded retry lets a concurrent enqueue for the same account finish
+    // (then this call replays or inserts), while a deletion, which holds the
+    // authority far longer, still fails closed promptly instead of blocking.
+    for (const delayMs of ACCOUNT_AUTHORITY_RETRY_DELAYS_MS) {
+      if (await replayExists()) return;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      release = (await insert()).rows[0];
+      if (release) break;
     }
-    return;
+    if (!release) {
+      if (await replayExists()) return;
+      throw new Error("Account email authority is unavailable.");
+    }
   }
+  if (!release) return;
   const released = await tx.execute(sql<{
     outbox_id: string;
     operation_id: string;

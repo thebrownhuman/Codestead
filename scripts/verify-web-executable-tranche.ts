@@ -611,7 +611,7 @@ async function main(): Promise<void> {
   if (playwrightPackage.version !== expectedBrowser.playwrightVersion || esbuildPackage.version !== expectedBrowser.esbuildVersion) {
     throw new Error(`Locked authoring packages mismatch: playwright=${playwrightPackage.version}, esbuild=${esbuildPackage.version}.`);
   }
-  if (reactRouterPackage.version !== "8.0.1" || reactRouterPackage.engines?.node !== ">=22.22.0" ||
+  if (reactRouterPackage.version !== "8.4.0" || reactRouterPackage.engines?.node !== ">=22.22.0" ||
       testingReactPackage.version !== "16.3.2" || userEventPackage.version !== "14.6.1") {
     throw new Error(
       `Locked React project packages mismatch: router=${reactRouterPackage.version}, testing=${testingReactPackage.version}, userEvent=${userEventPackage.version}.`,

@@ -2043,7 +2043,14 @@ async function runSignOutPurge(input: {
     const url = new URL(response.url());
     return url.pathname === "/api/auth/sign-out" && response.request().method() === "POST";
   });
+  // Awaited through bounded() below; without this, its own timeout would crash the
+  // process first and hide whichever account-menu step actually failed.
+  signOutResponse.catch(() => undefined);
   const accountButton = page.locator('button[aria-haspopup="menu"][aria-controls="profile-menu"]');
+  // At 920px and below the sidebar (with the account menu) is a drawer opened from
+  // the floating navigation button, which is how a learner signs out there.
+  const openNavigation = page.getByRole("button", { name: "Open navigation" });
+  if (await openNavigation.isVisible()) await openNavigation.click();
   await accountButton.waitFor({ state: "visible" });
   assert(await accountButton.count() === 1, "Expected one accessible account-menu button.");
   await accountButton.click();

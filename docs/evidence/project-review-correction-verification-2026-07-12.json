@@ -1,7 +1,7 @@
 {
   "schemaVersion": 3,
   "generatedAt": "2026-07-12T17:45:00.000Z",
-  "revalidatedAt": "2026-07-28T13:27:44.340Z",
+  "revalidatedAt": "2026-09-24T12:09:03.456Z",
   "status": "passed",
   "scope": [
     "PRJ-005",
@@ -97,7 +97,7 @@
     "drizzle/0033_project_review_ledger_fencing.sql": "971731ba79ee91b9005315c79b26f82f726188cedad91b2dcc70e8fda21a23cb",
     "integration/project-review-correction.integration.test.ts": "d88ebd57b0051b1a33b1cc6fcb37d0dae776e9c8d0f980bb405acccb4644b112",
     "src/lib/data-lifecycle/export.ts": "e95fdfc268a2bc17742a1da6d21669dae5f4818ae6179c142b7a90f40434b3a4",
-    "src/lib/data-lifecycle/deletion.ts": "fad4507e9f96b03e695b2ea0335ffdf2ed353c8fc7dcd990a7c69f5f178a96b3"
+    "src/lib/data-lifecycle/deletion.ts": "86357867c19ae18c0ccd5c06c8e0dbc0d484c51f8e9755105dd71b09ca6973e5"
   },
   "supersededDigests": [
     {
@@ -129,6 +129,11 @@
       "artifact": "src/lib/data-lifecycle/deletion.ts",
       "priorDigest": "d9d6e9d333d71f4d14eca5699eb32e806cfad90ef08cc62283db2dfcd3c5aab5",
       "replacedAt": "2026-07-28T13:27:44.340Z"
+    },
+    {
+      "artifact": "src/lib/data-lifecycle/deletion.ts",
+      "priorDigest": "fad4507e9f96b03e695b2ea0335ffdf2ed353c8fc7dcd990a7c69f5f178a96b3",
+      "replacedAt": "2026-09-24T12:09:03.456Z"
     }
   ],
   "auditImpact": {

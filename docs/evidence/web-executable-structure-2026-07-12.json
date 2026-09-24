@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "generatedAt": "2026-09-23T18:30:53.618Z",
+  "generatedAt": "2026-09-24T10:55:42.879Z",
   "scope": "Launch-1 HTML, accessible/responsive CSS, JavaScript, and intermediate React authoring evidence",
   "status": "structure-only",
   "counts": {
@@ -46,7 +46,7 @@
     }
   },
   "environment": {
-    "packageLockHash": "sha256:34ed410a7f9a0809d2892e80e70e255d870e2acff6f00507d1993c738b263d39",
+    "packageLockHash": "sha256:01a55d4073bf6a1646f989d7883c5ebe738de40d4053bd42411ab295a30c4a33",
     "node": {
       "tag": "learncoding/runtime-javascript:local",
       "manifestDigest": "sha256:99859b70624bccfe2283cff85fa3f3971d3c1c15ce5a80c38aeeddbb496de97a",
@@ -75,7 +75,7 @@
       "esbuildVersion": "0.25.12"
     },
     "reactProject": {
-      "reactRouterVersion": "8.0.1",
+      "reactRouterVersion": "8.4.0",
       "reactRouterNodeEngine": ">=22.22.0",
       "testingLibraryReactVersion": "16.3.2",
       "testingLibraryUserEventVersion": "14.6.1",

@@ -55,8 +55,8 @@ const languages = [
   { id: "c", env: "C", expectedVersion: "14.2.0", tool: ["/usr/local/bin/gcc", "--version"] },
   { id: "cpp", env: "CPP", expectedVersion: "14.2.0", tool: ["/usr/local/bin/g++", "--version"] },
   { id: "java", env: "JAVA", expectedVersion: "21.0.12", tool: ["/opt/java/openjdk/bin/java", "-version"] },
-  { id: "python", env: "PYTHON", expectedVersion: "3.14.6", tool: ["/usr/local/bin/python3", "--version"] },
-  { id: "javascript", env: "JAVASCRIPT", expectedVersion: "22.23.1", tool: ["/usr/local/bin/node", "--version"] },
+  { id: "python", env: "PYTHON", expectedVersion: "3.14.7", tool: ["/usr/local/bin/python3", "--version"] },
+  { id: "javascript", env: "JAVASCRIPT", expectedVersion: "22.23.3", tool: ["/usr/local/bin/node", "--version"] },
 ];
 const localBuildIdentityPath = path.join(runnerRoot, "dist", "runtime-local-build-identities.json");
 let localBuildIdentities;

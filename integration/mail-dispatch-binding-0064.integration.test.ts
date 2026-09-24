@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import pg from "pg";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   captureMailDispatchApplicationOrigin,
@@ -332,6 +332,11 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
   }
 
   beforeAll(async () => {
+    // Gmail-adapter rows capture a transport configuration at the provider boundary.
+    // These tests never reach a provider, so inert placeholders stand in for OAuth.
+    vi.stubEnv("GMAIL_CLIENT_ID", "integration-placeholder-client-id");
+    vi.stubEnv("GMAIL_CLIENT_SECRET", "integration-placeholder-client-secret");
+    vi.stubEnv("GMAIL_REFRESH_TOKEN", "integration-placeholder-refresh-token");
     const identity = await application.query<{
       version: string;
       effective_role: string;
@@ -362,6 +367,7 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
   });
 
   afterAll(async () => {
+    vi.unstubAllEnvs();
     await Promise.all([
       worker.end(),
       application.end(),

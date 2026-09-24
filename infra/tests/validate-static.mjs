@@ -547,8 +547,8 @@ expect(
 
 expect(/@sha256:[0-9a-f]{64}/i.test(dockerfile), "Docker base image must be digest-pinned");
 expect(
-  /ARG NODE_IMAGE=node:22\.23\.1-alpine3\.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737/.test(dockerfile),
-  "application images must use the reviewed linux/amd64 Node 22.23.1 Alpine 3.23 digest",
+  /ARG NODE_IMAGE=node:22\.23\.3-alpine3\.23@sha256:489418a947387da1c5b4c0c5749c963da56ecaac0ced1da74c67db60e42f2b3a/.test(dockerfile),
+  "application images must use the reviewed linux/amd64 Node 22.23.3 Alpine 3.23 digest",
 );
 expect(/\.next\/standalone/.test(dockerfile), "runtime must copy Next standalone output");
 expect(/npm run build/.test(dockerfile), "container must use the verified application production build");
