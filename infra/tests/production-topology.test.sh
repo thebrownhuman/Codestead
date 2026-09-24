@@ -500,6 +500,7 @@ wait_for_query() {
 wait_for_database_admin_contenders() {
   local observation=""
   local lock_query='select pg_try_advisory_lock(hashtextextended($1, 0)) acquired'
+  local bootstrap_lock_query='select pg_catalog.pg_try_advisory_lock(pg_catalog.hashtextextended($1, 0)) acquired'
   local holder_identity='learncoding:codestead-topology-lock-holder'
   local bootstrap_identity='learncoding:codestead-topology-role-bootstrap'
   local migrate_identity='learncoding_migrator:codestead-topology-migrate'
@@ -521,7 +522,7 @@ wait_for_database_admin_contenders() {
         select 1 from pg_stat_activity activity
         where activity.datname = current_database()
           and activity.usename || ':' || activity.application_name = '$bootstrap_identity'
-          and activity.query = '$lock_query'
+          and activity.query = '$bootstrap_lock_query'
       ))::int::text || ':' ||
       (exists(
         select 1 from pg_stat_activity activity

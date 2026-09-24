@@ -22,6 +22,11 @@ const PRODUCTION_POSTGRES_MAJOR = 17;
 const TIMED_OUT_OPERATION_OUTCOME = Symbol(
   "timed-out-production-migration-outcome",
 );
+const INTERRUPTED_BEFORE_LOCK = Symbol("interrupted-before-migration-lock");
+const ADMIN_SHUTDOWN_SQLSTATE = "57P01";
+const INVALID_AUTHORIZATION_SQLSTATE = "28000";
+const DEFAULT_RETRY_DEADLINE_MS = 120_000;
+const DEFAULT_RETRY_BACKOFF_MS = 1_000;
 
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 const monotonicNow = () => performance.now();
@@ -500,6 +505,13 @@ export async function runProductionMigration(options) {
     sessionAmbiguous = error instanceof MigrationOperationTimeoutError;
     hasPrimaryFailure = true;
     primaryFailure = error;
+    if (!lockAcquired && error instanceof Error && typeof error.code === "string") {
+      try {
+        Object.defineProperty(error, INTERRUPTED_BEFORE_LOCK, { value: error.code });
+      } catch {
+        // Unmarked failures are never retried.
+      }
+    }
   }
 
   const cleanupDeadline = createMigrationDeadline(cleanupTimeoutMs);
@@ -628,6 +640,37 @@ export async function runProductionMigration(options) {
   }
 }
 
+function isRetryableBeforeLock(error, attempt) {
+  const code = error?.[INTERRUPTED_BEFORE_LOCK];
+  if (code === ADMIN_SHUTDOWN_SQLSTATE) return true;
+  // A concurrent role bootstrap fences login while it holds the shared lock.
+  return attempt > 1 && code === INVALID_AUTHORIZATION_SQLSTATE;
+}
+
+// Role bootstrap terminates every managed-role session once it wins the shared
+// administration lock; a migration still waiting on that lock has done nothing yet.
+export async function runProductionMigrationWithRetry(
+  createOptions,
+  {
+    deadlineMs = DEFAULT_RETRY_DEADLINE_MS,
+    backoffMs = DEFAULT_RETRY_BACKOFF_MS,
+    now = monotonicNow,
+    sleep = delay,
+  } = {},
+) {
+  const deadline = now() + deadlineMs;
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await runProductionMigration(createOptions());
+    } catch (error) {
+      if (!isRetryableBeforeLock(error, attempt) || now() + backoffMs >= deadline) {
+        throw error;
+      }
+      await sleep(backoffMs);
+    }
+  }
+}
+
 async function main() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error("DATABASE_URL is required");
@@ -635,10 +678,10 @@ async function main() {
     throw new ProductionPostgresVersionError();
   }
 
-  await runProductionMigration({
+  await runProductionMigrationWithRetry(() => ({
     connectionString,
     requiredPostgresMajor: PRODUCTION_POSTGRES_MAJOR,
-  });
+  }));
   console.info(JSON.stringify({ event: "database.migrated" }));
 }
 
