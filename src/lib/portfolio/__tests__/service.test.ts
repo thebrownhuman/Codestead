@@ -13,6 +13,7 @@ import {
   loadOwnPublicPortfolioSettings,
   loadPublicPortfolio,
   normalizePublicGithubRepositoryUrl,
+  PublicPortfolioError,
   updatePublicPortfolio,
 } from "../service";
 
@@ -38,7 +39,32 @@ function baseInput(overrides: Partial<Parameters<typeof updatePublicPortfolio>[0
   };
 }
 
-describe("normalizePublicGithubRepositoryUrl", () => {
+describe("public portfolio repository boundary", () => {
+  it.each([
+    ["https://github.com/learner/project", "https://github.com/learner/project"],
+    ["https://github.com/learner/project.git", "https://github.com/learner/project"],
+    ["https://GITHUB.com/org/repo-name", "https://github.com/org/repo-name"],
+  ])("accepts canonical public repository %s", (value, expected) => {
+    expect(normalizePublicGithubRepositoryUrl(value)).toBe(expected);
+  });
+
+  it.each([
+    "http://github.com/learner/project",
+    "https://github.com/learner/project/issues",
+    "https://github.com/learner/project?tab=readme",
+    "https://github.com/learner/project#readme",
+    "https://user:secret@github.com/learner/project",
+    "https://github.example/learner/project",
+    "https://github.com/learner",
+    "not a URL",
+  ])("rejects a non-canonical or non-public selection: %s", (value) => {
+    expect(() => normalizePublicGithubRepositoryUrl(value)).toThrowError(
+      expect.objectContaining<Partial<PublicPortfolioError>>({ code: "INVALID_SELECTION" }),
+    );
+  });
+});
+
+describe("normalizePublicGithubRepositoryUrl additional boundaries", () => {
   it("accepts a canonical owner/repo GitHub URL and strips a .git suffix", () => {
     expect(normalizePublicGithubRepositoryUrl("https://github.com/owner/repo.git")).toBe("https://github.com/owner/repo");
     expect(normalizePublicGithubRepositoryUrl("https://github.com/owner/repo")).toBe("https://github.com/owner/repo");
