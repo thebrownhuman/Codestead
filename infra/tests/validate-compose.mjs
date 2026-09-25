@@ -453,7 +453,7 @@ const expectedSecretSources = {
   "file-erasure-worker": ["database_worker_url"],
   lifecycle: ["database_ops_url"],
   "platform-seed": ["database_ops_url"],
-  "admin-bootstrap": ["better_auth_secret", "bootstrap_admin_password", "database_ops_url"],
+  "admin-bootstrap": ["better_auth_secret", "bootstrap_admin_password", "database_url"],
   cloudflared: ["cloudflare_tunnel_credentials"],
 };
 for (const [name, sources] of Object.entries(expectedSecretSources)) {

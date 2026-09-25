@@ -932,7 +932,8 @@ services:
       APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
       APP_NAME: ${APP_NAME:-Codestead}
     secrets:
-      - source: database_ops_url
+      # Account-mail enqueueing needs the app role's reviewed outbox writer.
+      - source: database_url
         target: database_url
       - better_auth_secret
       - bootstrap_admin_password
