@@ -10206,7 +10206,7 @@ export async function main() {
         "-l",
         logFile,
         "-o",
-        `-p ${port} -h 127.0.0.1 -c max_connections=30${socketOption}`,
+        `-p ${port} -h 127.0.0.1 -c max_connections=30 -c authentication_timeout=1s${socketOption}`,
         "-w",
         "start",
       ],

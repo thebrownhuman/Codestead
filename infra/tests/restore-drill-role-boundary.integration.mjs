@@ -723,7 +723,7 @@ export function buildPostgresStartArguments(state) {
     "--log",
     state.logFile,
     "--options",
-    `-h 127.0.0.1 -p ${state.port} -c unix_socket_directories=`,
+    `-h 127.0.0.1 -p ${state.port} -c authentication_timeout=1s -c unix_socket_directories=`,
     "--wait",
     "--timeout",
     "15",

@@ -446,6 +446,7 @@ export function buildPostgresServerOptions(
     `-p ${port}`,
     "-h 127.0.0.1",
     "-c max_connections=25",
+    "-c authentication_timeout=1s",
     "-c statement_timeout=30000",
     "-c lock_timeout=5000",
     "-c idle_in_transaction_session_timeout=30000",
