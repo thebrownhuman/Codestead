@@ -266,4 +266,166 @@ describe("learner persisted practice panel", () => {
     expect(screen.getByText(/Draft and AI-only questions remain excluded/i)).toBeInTheDocument();
     expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toMatchObject({ kind: "quiz" });
   });
+
+  it("shows the network-unavailable degraded reason when attempt creation throws", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new TypeError("offline"))));
+    const user = userEvent.setup();
+    render(<PracticePanel skillId="python.variables.assignment" />);
+    await user.click(screen.getByRole("button", { name: "Start practice" }));
+
+    expect(await screen.findByRole("heading", { name: "Practice is not available yet" })).toBeInTheDocument();
+    expect(screen.getByText(/could not reach the server/i)).toBeInTheDocument();
+  });
+
+  it("distinguishes activity_unsupported and publication_unavailable degraded reasons", async () => {
+    const fetch = vi.fn().mockImplementationOnce(() => jsonResponse({
+      state: "degraded", attempt: null, activity: null, idempotent: false, reason: "publication_unavailable",
+    }, 201));
+    vi.stubGlobal("fetch", fetch);
+    const user = userEvent.setup();
+    render(<PracticePanel skillId="python.variables.assignment" />);
+    await user.click(screen.getByRole("button", { name: "Start practice" }));
+
+    expect(await screen.findByText(/no active reviewed publication for your enrollment yet/i)).toBeInTheDocument();
+  });
+
+  it("keeps the attempt open and shows a server error when submission is rejected", async () => {
+    const fetch = vi.fn()
+      .mockImplementationOnce(() => jsonResponse(creation, 201))
+      .mockImplementationOnce(() => jsonResponse({ error: "Response revision already used." }, 409));
+    vi.stubGlobal("fetch", fetch);
+    const user = userEvent.setup();
+    render(<PracticePanel skillId="python.variables.assignment" />);
+    await user.click(screen.getByRole("button", { name: "Start practice" }));
+    await screen.findByRole("heading", { name: "Choose the assignment" });
+    await user.click(screen.getByLabelText("x = 4"));
+    await user.click(screen.getByRole("button", { name: "Check answer" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Response revision already used.");
+    expect(screen.getByRole("button", { name: "Check answer" })).toBeEnabled();
+  });
+
+  it("recovers from a network failure during submission", async () => {
+    const fetch = vi.fn()
+      .mockImplementationOnce(() => jsonResponse(creation, 201))
+      .mockImplementationOnce(() => Promise.reject(new TypeError("offline")));
+    vi.stubGlobal("fetch", fetch);
+    const user = userEvent.setup();
+    render(<PracticePanel skillId="python.variables.assignment" />);
+    await user.click(screen.getByRole("button", { name: "Start practice" }));
+    await screen.findByRole("heading", { name: "Choose the assignment" });
+    await user.click(screen.getByLabelText("x = 4"));
+    await user.click(screen.getByRole("button", { name: "Check answer" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/could not reach the server/i);
+  });
+
+  it("shows a server error and a network error for a failed help request", async () => {
+    const fetch = vi.fn()
+      .mockImplementationOnce(() => jsonResponse(creation, 201))
+      .mockImplementationOnce(() => jsonResponse({ error: "Help ledger is temporarily unavailable." }, 503))
+      .mockImplementationOnce(() => Promise.reject(new TypeError("offline")));
+    vi.stubGlobal("fetch", fetch);
+    const user = userEvent.setup();
+    render(<PracticePanel skillId="python.variables.assignment" />);
+    await user.click(screen.getByRole("button", { name: "Start practice" }));
+    await screen.findByRole("heading", { name: "Choose the assignment" });
+
+    await user.click(screen.getByRole("button", { name: "Show next help" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Help ledger is temporarily unavailable.");
+
+    await user.click(screen.getByRole("button", { name: "Show next help" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/help step could not reach the server/i);
+  });
+
+  it("marks help exhausted and hides the next-help control", async () => {
+    const fetch = vi.fn()
+      .mockImplementationOnce(() => jsonResponse(creation, 201))
+      .mockImplementationOnce(() => jsonResponse({ state: "exhausted" }));
+    vi.stubGlobal("fetch", fetch);
+    const user = userEvent.setup();
+    render(<PracticePanel skillId="python.variables.assignment" />);
+    await user.click(screen.getByRole("button", { name: "Start practice" }));
+    await screen.findByRole("heading", { name: "Choose the assignment" });
+    await user.click(screen.getByRole("button", { name: "Show next help" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/No more reviewed help steps/i);
+    expect(screen.queryByRole("button", { name: "Show next help" })).not.toBeInTheDocument();
+  });
+
+  it("supports a multi-select mcq and submits every checked option", async () => {
+    const multiCreation = {
+      ...creation,
+      activity: {
+        ...creation.activity,
+        specification: { ...creation.activity.specification, multiple: true },
+      },
+    };
+    const fetch = vi.fn()
+      .mockImplementationOnce(() => jsonResponse(multiCreation, 201))
+      .mockImplementationOnce(() => jsonResponse(graded({ correct: true })));
+    vi.stubGlobal("fetch", fetch);
+    const user = userEvent.setup();
+    render(<PracticePanel skillId="python.variables.assignment" />);
+    await user.click(screen.getByRole("button", { name: "Start practice" }));
+    await screen.findByRole("heading", { name: "Choose the assignment" });
+
+    await user.click(screen.getByLabelText("x = 4"));
+    await user.click(screen.getByLabelText("4 = x"));
+    await user.click(screen.getByRole("button", { name: "Check answer" }));
+
+    const body = JSON.parse(String(fetch.mock.calls[1]?.[1]?.body));
+    expect(body.answer).toEqual({ selectedOptionIds: ["a", "b"] });
+  });
+
+  it("supports a fill-gap practice question", async () => {
+    const gapCreation = {
+      ...creation,
+      activity: {
+        ...creation.activity,
+        specification: {
+          ...creation.activity.specification,
+          kind: "fill-gap",
+          options: [],
+          gaps: [{ id: "value", label: "Stored value" }],
+        },
+      },
+    };
+    const fetch = vi.fn()
+      .mockImplementationOnce(() => jsonResponse(gapCreation, 201))
+      .mockImplementationOnce(() => jsonResponse(graded({ correct: true })));
+    vi.stubGlobal("fetch", fetch);
+    const user = userEvent.setup();
+    render(<PracticePanel skillId="python.variables.assignment" />);
+    await user.click(screen.getByRole("button", { name: "Start practice" }));
+    await user.type(await screen.findByLabelText("Stored value"), "4");
+    await user.click(screen.getByRole("button", { name: "Check answer" }));
+
+    const body = JSON.parse(String(fetch.mock.calls[1]?.[1]?.body));
+    expect(body.answer).toEqual({ gaps: { value: "4" } });
+  });
+
+  it("supports a code-completion free-text question with spell-check disabled", async () => {
+    const codeCreation = {
+      ...creation,
+      activity: {
+        ...creation.activity,
+        specification: { ...creation.activity.specification, kind: "code-completion", options: [], gaps: [] },
+      },
+    };
+    const fetch = vi.fn()
+      .mockImplementationOnce(() => jsonResponse(codeCreation, 201))
+      .mockImplementationOnce(() => jsonResponse(graded({ correct: true })));
+    vi.stubGlobal("fetch", fetch);
+    const user = userEvent.setup();
+    render(<PracticePanel skillId="python.variables.assignment" />);
+    await user.click(screen.getByRole("button", { name: "Start practice" }));
+    const answer = await screen.findByRole("textbox", { name: "Your completed code" });
+    expect(answer).toHaveAttribute("spellcheck", "false");
+    await user.type(answer, "x = 4");
+    await user.click(screen.getByRole("button", { name: "Check answer" }));
+
+    const body = JSON.parse(String(fetch.mock.calls[1]?.[1]?.body));
+    expect(body.answer).toEqual({ value: "x = 4" });
+  });
 });
