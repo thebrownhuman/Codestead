@@ -7,6 +7,7 @@ exec >/dev/null 2>&1
 default_secrets_dir='/etc/learncoding/secrets'
 secrets_dir="${CODESTEAD_SECRETS_DIR:-$default_secrets_dir}"
 test_group="${CODESTEAD_SECRETS_TEST_GROUP:-}"
+node_bin="${CODESTEAD_SECRETS_NODE_BIN:-/usr/bin/node}"
 target_group='codestead-secrets'
 current_uid=''
 script_dir=''
@@ -60,7 +61,8 @@ cleanup() {
   unset backup_reporter_password
   unset name final staged created_finals secret_names success staging_dir lock_dir lock_candidate
   unset validator script_dir current_uid target_group test_group secrets_dir default_secrets_dir
-  unset CODESTEAD_SECRETS_DIR CODESTEAD_SECRETS_TEST_GROUP
+  unset node_bin
+  unset CODESTEAD_SECRETS_DIR CODESTEAD_SECRETS_TEST_GROUP CODESTEAD_SECRETS_NODE_BIN
   exit "$status"
 }
 
@@ -167,7 +169,7 @@ chmod 0440 "$staging_dir"/*
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 validator="$script_dir/validate-database-secrets.mjs"
-/usr/bin/node "$validator" \
+"$node_bin" "$validator" \
   learncoding learncoding \
   "$staging_dir/postgres_password" \
   "$staging_dir/database_bootstrap_url" \
