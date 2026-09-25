@@ -42,22 +42,21 @@ export class DatabaseRuntimeCapabilityPhaseError extends Error {
   }
 }
 
+// Orders by Unicode code point without allocating per comparison: the
+// bootstrap canonicalizes the full catalog inside an open transaction, so this
+// comparator must stay cheap enough to finish within the session timeouts.
 function compareCodePoints(left, right) {
-  const leftPoints = Array.from(left, (character) => character.codePointAt(0));
-  const rightPoints = Array.from(right, (character) =>
-    character.codePointAt(0),
-  );
-  const length = Math.min(leftPoints.length, rightPoints.length);
-  for (let index = 0; index < length; index += 1) {
-    if (leftPoints[index] !== rightPoints[index]) {
-      return leftPoints[index] < rightPoints[index] ? -1 : 1;
+  const length = Math.min(left.length, right.length);
+  let index = 0;
+  while (index < length) {
+    const leftPoint = left.codePointAt(index);
+    const rightPoint = right.codePointAt(index);
+    if (leftPoint !== rightPoint) {
+      return leftPoint < rightPoint ? -1 : 1;
     }
+    index += leftPoint > 0xffff ? 2 : 1;
   }
-  return leftPoints.length < rightPoints.length
-    ? -1
-    : leftPoints.length > rightPoints.length
-      ? 1
-      : 0;
+  return left.length < right.length ? -1 : left.length > right.length ? 1 : 0;
 }
 
 function domainFailure(message) {
@@ -149,9 +148,10 @@ function canonicalizeValue(value, parentKey = null) {
     if (parentKey === "values") {
       return canonical;
     }
-    return canonical.toSorted((left, right) =>
-      compareCodePoints(JSON.stringify(left), JSON.stringify(right)),
-    );
+    return canonical
+      .map((entry) => [JSON.stringify(entry), entry])
+      .toSorted(([left], [right]) => compareCodePoints(left, right))
+      .map(([, entry]) => entry);
   }
   if (value !== null && typeof value === "object") {
     return Object.fromEntries(
