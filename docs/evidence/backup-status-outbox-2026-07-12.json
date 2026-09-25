@@ -121,7 +121,7 @@
     },
     {
       "path": "compose.yaml",
-      "sha256": "748589f926300e90993891c3490874211cae791f343c879023363189a9df26f5"
+      "sha256": "dab44bafc0ce00b811f0cfd53edc33371dcca9468333632669b37313bc2e601a"
     },
     {
       "path": "drizzle/0065_backup_status_mail_authority.sql",
