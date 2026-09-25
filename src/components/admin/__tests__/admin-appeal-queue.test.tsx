@@ -157,4 +157,194 @@ describe("administrator appeal queue", () => {
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("six-digit"));
     expect(fetchMock).toHaveBeenCalledTimes(baseline);
   });
+
+  it("blocks locally when the reason is too short, and again when overturning without corrective action", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/appeals?")) return json({ appeals: [summary] });
+      if (url === `/api/admin/appeals/${appealId}`) return json({ detail: detail() });
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    const user = userEvent.setup();
+    render(<AdminAppealQueue initialAppealId={appealId} />);
+    await screen.findByText(/Evidence hash verified/i);
+
+    await user.type(screen.getByLabelText(/Current six-digit authenticator code/i), "123456");
+    await user.type(screen.getByLabelText("Recorded decision reason"), "too short");
+    await user.click(screen.getByRole("button", { name: /Record decision and notify learner/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("at least 20 characters");
+
+    await user.click(screen.getByRole("radio", { name: "overturned" }));
+    await user.clear(screen.getByLabelText("Recorded decision reason"));
+    await user.type(screen.getByLabelText("Recorded decision reason"), "The immutable evidence confirms an incorrect grade.");
+    await user.click(screen.getByRole("button", { name: /Record decision and notify learner/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("corrective action before overturning");
+  });
+
+  it("disables the decision control and explains why when the evidence hash is invalid", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/appeals?")) return json({ appeals: [summary] });
+      if (url === `/api/admin/appeals/${appealId}`) {
+        return json({ detail: { ...detail(), appeal: { ...detail().appeal, evidenceHashValid: false } } });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    render(<AdminAppealQueue initialAppealId={appealId} />);
+
+    expect(await screen.findByText(/Evidence hash does not match/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Record decision and notify learner/i })).toBeDisabled();
+    expect(screen.getByText(/failed verification/i)).toBeInTheDocument();
+  });
+
+  it("shows project-review specific evidence, a correction panel, and code submissions", async () => {
+    const projectDetail = {
+      ...detail(),
+      target: {
+        ...detail().target,
+        attemptId: null,
+        projectReviewId: "60000000-0000-4000-8000-000000000001",
+        projectId: "70000000-0000-4000-8000-000000000001",
+        projectTitle: "Weather dashboard",
+        reviewCommitSha: "a".repeat(40),
+        reviewAnalyzerVersion: "analyzer-v1",
+        reviewRubricVersion: "rubric-v1",
+        reviewProvenance: {},
+        reviewFindingsHash: "b".repeat(64),
+        reviewStatus: "completed",
+      },
+      projectCorrection: {
+        id: "80000000-0000-4000-8000-000000000001",
+        status: "completed",
+        revision: 1,
+        reason: "Deterministic re-analysis",
+        sourceFindingsHash: "c".repeat(64),
+        resultFindingsHash: "d".repeat(64),
+        evidence: {},
+        evidenceHash: "e".repeat(64),
+        evidenceHashValid: true,
+        projectionApplied: true,
+        attemptCount: 1,
+        lastErrorCode: null,
+        completedAt: "2026-07-12T00:05:00.000Z",
+        timeline: [],
+      },
+      codeSubmissions: [{
+        id: "90000000-0000-4000-8000-000000000001",
+        language: "python",
+        sourceCode: "print('hi')",
+        sourceTruncated: false,
+        sourceHash: "f".repeat(64),
+        runtimeImageDigest: "sha256:abc",
+        status: "accepted",
+        createdAt: "2026-07-12T00:00:00.000Z",
+      }],
+    };
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/appeals?")) return json({ appeals: [summary] });
+      if (url === `/api/admin/appeals/${appealId}`) return json({ detail: projectDetail });
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    render(<AdminAppealQueue initialAppealId={appealId} />);
+
+    expect(await screen.findByText("Weather dashboard")).toBeInTheDocument();
+    expect(screen.getByText("Corrective static re-analysis")).toBeInTheDocument();
+    expect(screen.getByText(/effective projection updated/i)).toBeInTheDocument();
+    expect(screen.getByText(/Source hash/i)).toBeInTheDocument();
+  });
+
+  it("shows a replay confirmation and a warning when the server returns one", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/appeals?")) return json({ appeals: [summary] });
+      if (url === "/api/security/fresh-mfa") return json({ ok: true });
+      if (url === `/api/admin/appeals/${appealId}/decision`) {
+        return json({
+          report: { decision: "upheld", replayed: true, correctionPending: false },
+          completionAuditRecorded: true,
+          warning: "A secondary notification channel is degraded.",
+        });
+      }
+      if (url === `/api/admin/appeals/${appealId}`) return json({ detail: detail() });
+      throw new Error(`Unexpected request: ${url} ${init?.method ?? "GET"}`);
+    }));
+    const user = userEvent.setup();
+    render(<AdminAppealQueue initialAppealId={appealId} />);
+    await screen.findByText(/Evidence hash verified/i);
+
+    await user.type(screen.getByLabelText(/Current six-digit authenticator code/i), "123456");
+    await user.type(screen.getByLabelText("Recorded decision reason"), "The evidence supports upholding this score.");
+    await user.click(screen.getByRole("button", { name: /Record decision and notify learner/i }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("safe replay");
+    expect(screen.getByRole("status")).toHaveTextContent("A secondary notification channel is degraded.");
+  });
+
+  it("shows the queue empty state, then loads a second appeal on click", async () => {
+    const secondId = "10000000-0000-4000-8000-000000000002";
+    const secondSummary = { ...summary, id: secondId, learnerName: "Beto Learner" };
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/appeals?")) return json({ appeals: [summary, secondSummary] });
+      if (url === `/api/admin/appeals/${appealId}`) return json({ detail: detail() });
+      if (url === `/api/admin/appeals/${secondId}`) return json({ detail: { ...detail(), appeal: { ...detail().appeal, id: secondId, learnerName: "Beto Learner" } } });
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    const user = userEvent.setup();
+    render(<AdminAppealQueue initialAppealId={null} />);
+
+    await screen.findByText("Asha Learner");
+    await user.click(screen.getByText("Beto Learner"));
+
+    await waitFor(() => expect(screen.getAllByText("Beto Learner").length).toBeGreaterThan(0));
+  });
+
+  it("shows an empty queue message when no appeals match", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/appeals?")) return json({ appeals: [] });
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    render(<AdminAppealQueue initialAppealId={null} />);
+
+    expect(await screen.findByText("No appeals match this queue.")).toBeInTheDocument();
+    expect(screen.getByText("Select an appeal")).toBeInTheDocument();
+  });
+
+  it("surfaces a load failure for the appeal queue", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/appeals?")) return json({ error: "Queue unavailable" }, { status: 503 });
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    render(<AdminAppealQueue initialAppealId={null} />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Queue unavailable");
+  });
+
+  it("surfaces a load failure for the appeal detail", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/appeals?")) return json({ appeals: [summary] });
+      if (url === `/api/admin/appeals/${appealId}`) return json({ error: "Evidence read failed" }, { status: 503 });
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    render(<AdminAppealQueue initialAppealId={appealId} />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Evidence read failed");
+  });
+
+  it("hides the decision panel and shows a bare message once an appeal is already decided", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/appeals?")) return json({ appeals: [summary] });
+      if (url === `/api/admin/appeals/${appealId}`) return json({ detail: detail("overturned") });
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    render(<AdminAppealQueue initialAppealId={appealId} />);
+
+    await screen.findByText(/Evidence hash verified/i);
+    expect(screen.queryByRole("button", { name: /Record decision and notify learner/i })).not.toBeInTheDocument();
+  });
 });
