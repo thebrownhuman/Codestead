@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "generatedAt": "2026-07-20T20:12:28.410Z",
+  "generatedAt": "2026-09-25T15:30:20.989Z",
   "scope": "Launch-1 HTML, accessible/responsive CSS, JavaScript, and intermediate React authoring evidence",
   "status": "verified",
   "counts": {
@@ -46,20 +46,20 @@
     }
   },
   "environment": {
-    "packageLockHash": "sha256:ccd762d523bfceca132b5efcfaa8cb4237ed35dfb10b573c01ae8ae7c1e49bed",
+    "packageLockHash": "sha256:2e5c5213629d287a1f02383fd88e40783804452bc3f6c12d82033fe891cf559c",
     "node": {
       "tag": "learncoding/runtime-javascript:local",
-      "manifestDigest": "sha256:99859b70624bccfe2283cff85fa3f3971d3c1c15ce5a80c38aeeddbb496de97a",
-      "configDigest": "sha256:509e49954c5a02303ba15a6344d90e06b2412b8c7fc25a36b03159175b90f7e8",
-      "immutableReference": "learncoding/runtime-javascript@sha256:99859b70624bccfe2283cff85fa3f3971d3c1c15ce5a80c38aeeddbb496de97a",
-      "tagDescriptorDigest": "sha256:99859b70624bccfe2283cff85fa3f3971d3c1c15ce5a80c38aeeddbb496de97a",
-      "tagImageId": "sha256:99859b70624bccfe2283cff85fa3f3971d3c1c15ce5a80c38aeeddbb496de97a",
-      "exactReferenceDescriptorDigest": "sha256:99859b70624bccfe2283cff85fa3f3971d3c1c15ce5a80c38aeeddbb496de97a",
-      "exactReferenceImageId": "sha256:99859b70624bccfe2283cff85fa3f3971d3c1c15ce5a80c38aeeddbb496de97a",
+      "manifestDigest": "sha256:4a33b5b91221378dfd948fa3ea4a108ac8c1ebdf17bd795d3306e6b57171b194",
+      "configDigest": "sha256:d62ff7ee57314440f6525bcdb67b95f610e8fa833c4a2d4480f1d7c5841748b3",
+      "immutableReference": "learncoding/runtime-javascript@sha256:4a33b5b91221378dfd948fa3ea4a108ac8c1ebdf17bd795d3306e6b57171b194",
+      "tagDescriptorDigest": "sha256:4a33b5b91221378dfd948fa3ea4a108ac8c1ebdf17bd795d3306e6b57171b194",
+      "tagImageId": "sha256:4a33b5b91221378dfd948fa3ea4a108ac8c1ebdf17bd795d3306e6b57171b194",
+      "exactReferenceDescriptorDigest": "sha256:4a33b5b91221378dfd948fa3ea4a108ac8c1ebdf17bd795d3306e6b57171b194",
+      "exactReferenceImageId": "sha256:4a33b5b91221378dfd948fa3ea4a108ac8c1ebdf17bd795d3306e6b57171b194",
       "independentlyValidated": true,
-      "expectedImageDigest": "sha256:99859b70624bccfe2283cff85fa3f3971d3c1c15ce5a80c38aeeddbb496de97a",
-      "expectedVersion": "v22.23.1",
-      "inspectedVersion": "v22.23.1",
+      "expectedImageDigest": "sha256:4a33b5b91221378dfd948fa3ea4a108ac8c1ebdf17bd795d3306e6b57171b194",
+      "expectedVersion": "v22.23.3",
+      "inspectedVersion": "v22.23.3",
       "versionMatches": true,
       "harness": {
         "protocolVersion": 1,
@@ -74,17 +74,17 @@
       "executableRevision": "1228",
       "expectedVersion": "149.0.7827.55",
       "actualVersion": "149.0.7827.55",
-      "executableHash": "sha256:b798f9e53a98d29eb7f36f8c409f905d3184780a04d2bcb56989067194784bd1",
+      "executableHash": "sha256:2d18db9d8608b052b6a552ee00ec1e830f93692e928b65ecc67d693bd33fe801",
       "executablePathRecorded": false,
       "playwrightVersion": "1.61.1",
       "esbuildVersion": "0.25.12"
     },
     "reactProject": {
-      "reactRouterVersion": "8.0.1",
+      "reactRouterVersion": "8.4.0",
       "reactRouterNodeEngine": ">=22.22.0",
       "testingLibraryReactVersion": "16.3.2",
       "testingLibraryUserEventVersion": "14.6.1",
-      "authoringHostNodeVersion": "v22.18.0",
+      "authoringHostNodeVersion": "v22.23.1",
       "productionNodeBaseline": "22.23.1",
       "productionNodeMeetsRouterEngine": true
     }

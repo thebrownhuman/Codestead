@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-07-13T10:09:18.577Z",
-  "revalidatedAt": "2026-09-25T12:50:51.955Z",
+  "revalidatedAt": "2026-09-25T15:33:00.000Z",
   "evidenceKind": "local-working-tree-release-gate-summary",
   "status": "passed-with-external-and-manual-gates-open",
   "repositoryGate": {
@@ -123,7 +123,7 @@
           },
           {
             "path": "docs/evidence/web-executable-runtime-2026-07-12.json",
-            "sha256": "946b41fd5c88fc71d555a6a31aa5c1a51d6afee6bdb76954df07783023ff29b1"
+            "sha256": "411c878eab31f871897b398364c592d5d4804c6d703661c5dce7ff042c9d8283"
           }
         ]
       }
