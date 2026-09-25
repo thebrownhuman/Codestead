@@ -23,6 +23,34 @@ import {
   serverClockOffsetMs,
 } from "./policy";
 
+function runnerItem(id: string, points: number, testId = `${id}-test`): ExamItem {
+  return {
+    id,
+    skillId: `skill-${id}`,
+    clusterId: `cluster-${id}`,
+    title: id,
+    prompt: id,
+    kind: "code",
+    points,
+    critical: false,
+    language: "python",
+    starterCode: "",
+    gradingEvidence: {
+      kind: "runner-tests",
+      bundleVersion: "bundle-1",
+      tests: [{
+        id: testId,
+        visibility: "HIDDEN",
+        category: "core",
+        stdin: "",
+        expectedStdout: "ok",
+        comparison: "TRIMMED",
+        critical: false,
+      }],
+    },
+  };
+}
+
 function deterministicEvidence(
   skillId: string,
   recordedAt: string,
@@ -487,6 +515,191 @@ describe("server-verified retake remediation", () => {
       remediationComplete: true,
       nowMs: Date.parse("2026-07-12T01:10:00.000Z"),
     })).toMatchObject({ eligible: true, reason: "eligible" });
+  });
+});
+
+describe("exam device gate rejects malformed or undersized claims", () => {
+  it("rejects a non-finite or non-positive viewport claim", () => {
+    expect(evaluateStartDevice({ viewportWidth: Number.NaN, viewportHeight: 800, userAgent: "Mozilla/5.0" }))
+      .toEqual({ allowed: false, reason: "invalid-claim" });
+    expect(evaluateStartDevice({ viewportWidth: 1024, viewportHeight: 0, userAgent: "Mozilla/5.0" }))
+      .toEqual({ allowed: false, reason: "invalid-claim" });
+    expect(evaluateStartDevice({ viewportWidth: 1024, viewportHeight: 800, userAgent: "x".repeat(1_001) }))
+      .toEqual({ allowed: false, reason: "invalid-claim" });
+  });
+
+  it("rejects a viewport narrower than the minimum exam width", () => {
+    expect(evaluateStartDevice({ viewportWidth: 600, viewportHeight: 800, userAgent: "Mozilla/5.0" }))
+      .toEqual({ allowed: false, reason: "viewport-too-small" });
+  });
+});
+
+describe("gradeExamSubmission pending and partial-credit branches", () => {
+  it("leaves an exact-answer item pending when it has no accepted answers configured", () => {
+    const brokenItem = { ...exactItem("q1", "yes", 100), gradingEvidence: { kind: "exact-answer" as const, acceptedAnswers: [], caseSensitive: false } };
+    const result = gradeExamSubmission({
+      form: form([brokenItem]),
+      answers: { q1: { text: "yes" } },
+      runnerResults: {},
+      finalizedAt: "2026-07-12T00:10:00.000Z",
+      finalizedBy: "learner-submit",
+    });
+    expect(result.gradingStatus).toBe("pending-review");
+    expect(result.pendingReviewItemIds).toEqual(["q1"]);
+  });
+
+  it("scores empty submitted source code as zero without invoking the runner", () => {
+    const result = gradeExamSubmission({
+      form: form([codeItem()]),
+      answers: { "code-1": { sourceCode: "   ", language: "python" } },
+      runnerResults: {},
+      finalizedAt: "2026-07-12T00:10:00.000Z",
+      finalizedBy: "learner-submit",
+    });
+    expect(result.outcome).toBe("NOT_PASSED");
+    expect(result.officialScorePercent).toBe(0);
+  });
+
+  it("marks an item pending and flags infrastructure failure when the runner result is missing", () => {
+    const result = gradeExamSubmission({
+      form: form([codeItem()]),
+      answers: { "code-1": { sourceCode: "print('ok')", language: "python" } },
+      runnerResults: {},
+      finalizedAt: "2026-07-12T00:10:00.000Z",
+      finalizedBy: "learner-submit",
+    });
+    expect(result.gradingStatus).toBe("pending-review");
+    expect(result.infrastructureFailure).toBe(true);
+  });
+
+  it("marks an item pending on an INFRASTRUCTURE_ERROR runner status", () => {
+    const result = gradeExamSubmission({
+      form: form([codeItem()]),
+      answers: { "code-1": { sourceCode: "print('ok')", language: "python" } },
+      runnerResults: {
+        "code-1": runnerResult({ status: "INFRASTRUCTURE_ERROR" }),
+      },
+      finalizedAt: "2026-07-12T00:10:00.000Z",
+      finalizedBy: "learner-submit",
+    });
+    expect(result.gradingStatus).toBe("pending-review");
+    expect(result.infrastructureFailure).toBe(true);
+  });
+
+  it("marks an item pending when the runner result is missing a test the evidence expects", () => {
+    const result = gradeExamSubmission({
+      form: form([codeItem()]),
+      answers: { "code-1": { sourceCode: "print('ok')", language: "python" } },
+      runnerResults: {
+        "code-1": runnerResult({ tests: [] }),
+      },
+      finalizedAt: "2026-07-12T00:10:00.000Z",
+      finalizedBy: "learner-submit",
+    });
+    expect(result.gradingStatus).toBe("pending-review");
+    expect(result.infrastructureFailure).toBe(true);
+  });
+
+  it("awards partial functional credit when only some non-critical tests pass", () => {
+    const item = runnerItem("q1", 100);
+    const result = gradeExamSubmission({
+      form: form([item]),
+      answers: { q1: { sourceCode: "print('nope')", language: "python" } },
+      runnerResults: {
+        q1: runnerResult({
+          tests: [{
+            id: "q1-test",
+            visibility: "HIDDEN",
+            category: "core",
+            status: "FAILED",
+            feedbackCode: "FAIL",
+            exitCode: 1,
+            wallTimeMs: 2,
+          }],
+          totals: { passed: 0, failed: 1, total: 1 },
+        }),
+      },
+      finalizedAt: "2026-07-12T00:10:00.000Z",
+      finalizedBy: "learner-submit",
+    });
+    expect(result.gradingStatus).toBe("graded");
+    expect(result.officialScorePercent).toBe(0);
+  });
+});
+
+describe("hasPersistedRemediationEvidence guard clauses", () => {
+  const examForm = form([exactItem("q1", "yes", 100)]);
+
+  it("trusts a client with no immutable form on file", () => {
+    expect(hasPersistedRemediationEvidence({
+      result: { ...failedResult(["cluster-q1"]) },
+      form: null,
+      evidenceRows: [],
+    })).toBe(true);
+  });
+
+  it("fails closed on an unparsable finalization timestamp", () => {
+    expect(hasPersistedRemediationEvidence({
+      result: { ...failedResult(["cluster-q1"]), finalizedAt: "not-a-date" },
+      form: examForm,
+      evidenceRows: [],
+    })).toBe(false);
+  });
+
+  it("re-establishes every skill on the form when no specific targets were identified", () => {
+    const result = failedResult([]);
+    expect(hasPersistedRemediationEvidence({
+      result,
+      form: examForm,
+      evidenceRows: [deterministicEvidence("skill-q1", "2026-07-12T00:11:00.000Z")],
+    })).toBe(true);
+  });
+});
+
+describe("computeRetakeEligibility outcome and cooldown branches", () => {
+  it("allows an immediate retake after an infrastructure failure", () => {
+    expect(computeRetakeEligibility({
+      result: { ...failedResult([]), infrastructureFailure: true },
+      durationMinutes: 10,
+      nowMs: Date.parse("2026-07-12T00:11:00.000Z"),
+      remediationComplete: false,
+    })).toMatchObject({ eligible: true, reason: "technical-incident" });
+  });
+
+  it("blocks a retake while grading is pending review", () => {
+    expect(computeRetakeEligibility({
+      result: { ...failedResult([]), gradingStatus: "pending-review", outcome: "PENDING_REVIEW" },
+      durationMinutes: 10,
+      nowMs: Date.parse("2026-07-12T00:11:00.000Z"),
+      remediationComplete: false,
+    })).toMatchObject({ eligible: false, reason: "pending-review" });
+  });
+
+  it("blocks a retake once mastery has already been awarded", () => {
+    expect(computeRetakeEligibility({
+      result: { ...failedResult([]), outcome: "MASTERED" },
+      durationMinutes: 10,
+      nowMs: Date.parse("2026-07-12T00:11:00.000Z"),
+      remediationComplete: false,
+    })).toMatchObject({ eligible: false, reason: "already-mastered" });
+  });
+
+  it("blocks a retake that failed and still needs remediation", () => {
+    expect(computeRetakeEligibility({
+      result: failedResult(["cluster-q1"]),
+      durationMinutes: 10,
+      nowMs: Date.parse("2026-07-12T00:11:00.000Z"),
+      remediationComplete: false,
+    })).toMatchObject({ eligible: false, reason: "remediation-required", requiresRemediation: true });
+  });
+
+  it("allows an eligible retake with no further cooldown pending", () => {
+    expect(computeRetakeEligibility({
+      result: failedResult([]),
+      durationMinutes: 10,
+      nowMs: Date.parse("2026-07-13T00:00:00.000Z"),
+      remediationComplete: true,
+    })).toMatchObject({ eligible: true, reason: "eligible", requiresRemediation: true });
   });
 });
 
