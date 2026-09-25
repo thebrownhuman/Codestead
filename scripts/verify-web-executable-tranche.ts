@@ -86,7 +86,7 @@ const root = process.cwd();
 const require = createRequire(import.meta.url);
 const courseIds = new Set<WebCourseId>(["html", "css", "javascript", "react"]);
 const nodeTag = "learncoding/runtime-javascript:local";
-const expectedNodeVersion = "v22.23.1";
+const expectedNodeVersion = "v22.23.3";
 const expectedBrowser = {
   playwrightVersion: "1.61.1",
   revision: "1228",
