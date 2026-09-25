@@ -2639,6 +2639,17 @@ export const DATABASE_BOOTSTRAP_POOL_POLICY = Object.freeze({
   idle_in_transaction_session_timeout: 5_000,
 });
 const DATABASE_BOOTSTRAP_UNSAFE_CLIENT_OUTCOMES = new WeakSet();
+const DATABASE_BOOTSTRAP_GUARDED_CLIENTS = new WeakSet();
+
+// pg emits 'error' on a checked-out client when the server ends its session
+// (for example idle_in_transaction_session_timeout). Without a listener Node
+// crashes the process; with one, the next query on the client rejects and the
+// bootstrap fails closed through its normal cleanup path.
+function guardDatabaseBootstrapClientErrors(client) {
+  if (DATABASE_BOOTSTRAP_GUARDED_CLIENTS.has(client)) return;
+  DATABASE_BOOTSTRAP_GUARDED_CLIENTS.add(client);
+  client.on("error", () => {});
+}
 const SESSION_DRAIN_POLL_MS = 50;
 const MAX_AUTHENTICATION_TIMEOUT_MS = 600_000;
 const AUTHENTICATION_FENCE_SAFETY_MARGIN_MS = 250;
@@ -3357,6 +3368,9 @@ export async function checkoutDatabaseBootstrapClient(
     .then((client) => {
       if (client === null || typeof client?.release !== "function") {
         throw new Error("database bootstrap checkout evidence is invalid");
+      }
+      if (typeof client.on === "function") {
+        guardDatabaseBootstrapClientErrors(client);
       }
       if (timedOut) {
         client.release(true);
