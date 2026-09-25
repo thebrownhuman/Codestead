@@ -1256,7 +1256,29 @@ PY
     bash "$repo_root/scripts/backup/backup.sh" >"$controller_log" 2>&1
   controller_status=$?
   set -e
-  [[ "$controller_status" -eq 0 ]] || fail "production backup controller failed"
+  if [[ "$controller_status" -ne 0 ]]; then
+    # Surface the controller's tail only after proving it holds none of the
+    # generated secrets checked below; otherwise keep the failure opaque.
+    local controller_log_clean=1
+    for secret_value in "$postgres_password" "$database_url" "$credential_master_key" \
+      "$role_app_password" "$role_migrator_password" "$role_worker_password" \
+      "$role_ops_password" "$role_backup_reporter_password" \
+      "$cloudflare_account" "$cloudflare_secret" "$cloudflare_tunnel" \
+      "$db_sentinel" "$app_sentinel"; do
+      grep -Fq -- "$secret_value" "$controller_log" && controller_log_clean=0
+    done
+    for secret_file in "$secrets_root"/*; do
+      while IFS= read -r secret_line || [[ -n "$secret_line" ]]; do
+        [[ -n "$secret_line" ]] || continue
+        grep -Fq -- "$secret_line" "$controller_log" && controller_log_clean=0
+      done <"$secret_file"
+    done
+    grep -Fq 'AGE-SECRET-KEY-' "$controller_log" && controller_log_clean=0
+    if [[ "$controller_log_clean" -eq 1 ]]; then
+      tail -n 40 -- "$controller_log" >&2
+    fi
+    fail "production backup controller failed"
+  fi
   for secret_value in "$postgres_password" "$database_url" "$credential_master_key" \
     "$role_app_password" "$role_migrator_password" "$role_worker_password" \
     "$role_ops_password" "$role_backup_reporter_password" \
