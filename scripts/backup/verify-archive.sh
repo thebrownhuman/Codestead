@@ -270,8 +270,12 @@ case "$format" in
       practice-runner-recovery-worker project-review-correction-worker
       regrade-worker reward-worker
     )
+    # Archives captured before these always-on services joined the backup
+    # inventory must stay restorable, so verification accepts but does not
+    # demand them; backup.sh requires them for every new capture.
     readonly -a optional_services=(
       clamav scan-worker lifecycle platform-seed admin-bootstrap
+      runner-egress-gateway file-erasure-worker
     )
     for service in "${image_order[@]}"; do
       known=0

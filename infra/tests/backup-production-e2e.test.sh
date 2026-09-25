@@ -9,7 +9,7 @@ readonly PRODUCTION_COMPOSE_PROJECT="learncoding"
 readonly -a REQUIRED_SERVICES=(
   app cloudflared exam-finalization-worker mail-worker migrate postgres
   practice-runner-recovery-worker project-review-correction-worker
-  regrade-worker reward-worker runner-egress-gateway
+  regrade-worker reward-worker runner-egress-gateway file-erasure-worker
 )
 readonly -a REQUIRED_NETWORKS=(
   frontend mail-egress runner-client runner-egress github-egress data scanner
