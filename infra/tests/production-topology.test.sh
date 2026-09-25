@@ -784,8 +784,12 @@ grep -F '"event":"database.roles_bootstrapped"' "$workdir/bootstrap-initial.log"
 ) &
 lock_holder_pid=$!
 wait_for_query t "select exists(select 1 from pg_stat_activity activity join pg_locks held_lock on held_lock.pid = activity.pid where activity.datname = current_database() and activity.usename = 'learncoding' and activity.application_name = 'codestead-topology-lock-holder' and held_lock.locktype = 'advisory' and held_lock.granted);"
+# The contended bootstrap runs the same exported bootstrap through a test
+# harness that names only the reviewed fail-closed drift outcome (exit 3).
 (
-  timeout 360 "${compose[@]}" --profile operations run --rm --env PGAPPNAME=codestead-topology-role-bootstrap --no-deps database-role-bootstrap \
+  timeout 360 "${compose[@]}" --profile operations run --rm --env PGAPPNAME=codestead-topology-role-bootstrap --no-deps \
+    --volume "$repo_root/infra/tests/fixtures/topology-contended-role-bootstrap.mjs:/opt/codestead-topology/contended-role-bootstrap.mjs:ro" \
+    database-role-bootstrap node /opt/codestead-topology/contended-role-bootstrap.mjs \
     >"$workdir/bootstrap-contended.log" 2>&1
 ) &
 bootstrap_pid=$!
@@ -805,10 +809,25 @@ if grep -F '"event":"database.roles_bootstrapped"' "$workdir/bootstrap-contended
   exit 1
 fi
 wait "$lock_holder_pid"
-wait "$bootstrap_pid"
+bootstrap_status=0
+wait "$bootstrap_pid" || bootstrap_status=$?
 wait "$migrate_pid"
-grep -F '"event":"database.roles_bootstrapped"' "$workdir/bootstrap-contended.log" >/dev/null
 grep -F '"event":"database.migrated"' "$workdir/migrate-one.log" >/dev/null
+if [[ "$bootstrap_status" -eq 0 ]]; then
+  grep -F '"event":"database.roles_bootstrapped"' "$workdir/bootstrap-contended.log" >/dev/null
+elif [[ "$bootstrap_status" -eq 3 ]]; then
+  # The migration won the released lock and changed the ledger while the
+  # bootstrap waited, so the bootstrap must have failed closed on exactly that
+  # drift. A rerun must then converge on the complete reviewed ledger.
+  grep -F '"event":"database.role_bootstrap_pre_lock_phase_drift"' "$workdir/bootstrap-contended.log" >/dev/null
+  timeout 360 "${compose[@]}" --profile operations run --rm --env PGAPPNAME=codestead-topology-role-bootstrap \
+    --env REQUIRE_COMPLETE_MIGRATION_LEDGER=true --no-deps database-role-bootstrap \
+    >"$workdir/bootstrap-after-drift.log" 2>&1
+  grep -F '"event":"database.roles_bootstrapped"' "$workdir/bootstrap-after-drift.log" >/dev/null
+else
+  echo "The contended role bootstrap failed for a reason other than reviewed pre-lock phase drift." >&2
+  exit 1
+fi
 
 migration_rows_before="$(psql_query 'select count(*) from drizzle.__drizzle_migrations;')"
 [[ "$migration_rows_before" =~ ^[1-9][0-9]*$ ]] || {
