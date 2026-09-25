@@ -9,6 +9,7 @@ import {
   DATA_CATEGORIES,
   ENROLLMENT_DISCLOSURES,
   ENROLLMENT_DISCLOSURE_VERSION,
+  getCurrentConsentsFrom,
   isConsentPurpose,
   isCurrentConsentAccepted,
   isWithdrawablePurpose,
@@ -99,6 +100,53 @@ describe("versioned privacy consent policy", () => {
       occurredAt,
     });
     expect(row.dataCategories).toEqual([...DATA_CATEGORIES.cohort_profile]);
+  });
+
+  it("keeps only the most recent row per purpose from an injected query database", async () => {
+    const rows = [
+      {
+        id: "row-latest",
+        purpose: "cohort_profile",
+        policyVersion: ENROLLMENT_DISCLOSURE_VERSION,
+        decision: "withdrawn",
+        dataCategories: ["public-alias"],
+        occurredAt: new Date("2026-07-12T00:00:00.000Z"),
+      },
+      {
+        id: "row-old",
+        purpose: "cohort_profile",
+        policyVersion: "old.v1",
+        decision: "accepted",
+        dataCategories: ["public-alias"],
+        occurredAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    ];
+    const orderBy = async () => rows;
+    const where = () => ({ orderBy });
+    const from = () => ({ where });
+    const selectDistinctOn = () => ({ from });
+    const database = { selectDistinctOn } as unknown as Parameters<typeof getCurrentConsentsFrom>[0];
+
+    const current = await getCurrentConsentsFrom(database, "learner-1");
+
+    expect(current.size).toBe(1);
+    expect(current.get("cohort_profile")).toMatchObject({ id: "row-latest", decision: "withdrawn" });
+  });
+
+  it("returns an empty map when the learner has no consent rows", async () => {
+    const orderBy = async () => [];
+    const where = () => ({ orderBy });
+    const from = () => ({ where });
+    const selectDistinctOn = () => ({ from });
+    const database = { selectDistinctOn } as unknown as Parameters<typeof getCurrentConsentsFrom>[0];
+
+    const current = await getCurrentConsentsFrom(database, "learner-1");
+
+    expect(current.size).toBe(0);
+  });
+
+  it("rejects values outside the required or optional purpose lists", () => {
+    expect(isConsentPurpose("not-a-purpose")).toBe(false);
   });
 
   it("gates every future external-AI and server-execution boundary", () => {
