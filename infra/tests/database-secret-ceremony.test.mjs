@@ -65,10 +65,7 @@ before(() => {
       ...process.env,
       ...(process.platform === "win32"
         ? {}
-        : {
-            CODESTEAD_SECRETS_DIR: bashPath(temporaryRoot),
-            CODESTEAD_SECRETS_NODE_BIN: process.execPath,
-          }),
+        : { CODESTEAD_SECRETS_DIR: bashPath(temporaryRoot) }),
     },
   });
   assert.equal(result.status, 0, result.stderr || result.stdout);
@@ -170,12 +167,7 @@ test("the ceremony is atomic, no-clobbering, concurrent-safe, and metadata-exact
   const result = spawnSync("bash", commandArguments, {
     cwd: root,
     encoding: "utf8",
-    env: {
-      ...process.env,
-      ...(process.platform === "win32"
-        ? {}
-        : { CODESTEAD_SECRETS_NODE_BIN: process.execPath }),
-    },
+    env: process.env,
   });
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(

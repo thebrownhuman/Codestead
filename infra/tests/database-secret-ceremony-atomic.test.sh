@@ -4,7 +4,6 @@ set -Eeuo pipefail
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 ceremony="$repo_root/infra/ops/create-database-secrets.sh"
 validator="$repo_root/infra/ops/validate-database-secrets.mjs"
-node_bin="${CODESTEAD_SECRETS_NODE_BIN:-/usr/bin/node}"
 sandbox="$(mktemp -d)"
 secret_names=(
   postgres_password
@@ -201,7 +200,7 @@ if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
     bash "$ceremony" >"$sandbox/root.out" 2>"$sandbox/root.err" ||
     fail 'contained root ceremony failed'
   assert_silent "$sandbox/root.out" "$sandbox/root.err"
-  sudo -n "$node_bin" "$validator" \
+  sudo -n /usr/bin/node "$validator" \
     learncoding learncoding \
     "$root_dir/postgres_password" \
     "$root_dir/database_bootstrap_url" \
