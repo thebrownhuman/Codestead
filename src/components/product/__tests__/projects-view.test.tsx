@@ -261,4 +261,112 @@ describe("learner project-review appeals", () => {
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Shape a project brief" })).not.toBeInTheDocument());
     expect(trigger).toHaveFocus();
   });
+
+  it("shows the server's rejection message when project creation fails", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (!init?.method) return new Response(JSON.stringify({ projects: [] }), { status: 200 });
+      return new Response(JSON.stringify({ error: "Title is already used for another brief." }), { status: 400 });
+    }));
+
+    render(<ProjectsView />);
+    fireEvent.click(await screen.findByRole("button", { name: "Create your first brief" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Project title" }), { target: { value: "Duplicate brief" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Problem to solve" }), { target: { value: "Help learners avoid duplicate project brief titles across a cohort." } });
+    fireEvent.click(screen.getByRole("button", { name: "Create PRD and milestones" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Title is already used for another brief.");
+  });
+
+  it("shows the server's rejection message when an appeal is refused", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/projects" && !init?.method) {
+        return new Response(JSON.stringify(projectPayload()), { status: 200 });
+      }
+      if (String(input) === `/api/projects/${projectId}/reviews/${reviewId}/appeal`) {
+        return new Response(JSON.stringify({ error: "An appeal already exists for this review." }), { status: 409 });
+      }
+      return new Response(JSON.stringify({ error: "Unexpected request" }), { status: 500 });
+    }));
+
+    render(<ProjectsView />);
+    fireEvent.click(await screen.findByRole("button", { name: /Appeal review/ }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Project review appeal reason" }), {
+      target: { value: "The finding points to a documented fake token used only by tests." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Submit appeal" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("An appeal already exists for this review.");
+  });
+
+  it("warns before discarding an unfinished appeal reason and restores focus when closed", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(projectPayload()), { status: 200 })));
+    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    render(<ProjectsView />);
+    const trigger = await screen.findByRole("button", { name: /Appeal review/ });
+    fireEvent.click(trigger);
+    fireEvent.change(screen.getByRole("textbox", { name: "Project review appeal reason" }), { target: { value: "Started typing a reason." } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Close appeal" }));
+    expect(confirm).toHaveBeenCalledWith("Discard this unfinished appeal reason?");
+    expect(screen.getByRole("dialog", { name: "Appeal stored review" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close appeal" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Appeal stored review" })).not.toBeInTheDocument());
+  });
+
+  it("shows the empty-reviews message when a project has no stored reviews", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      projects: [{ ...projectPayload().projects[0], effectiveReview: null, reviews: [] }],
+    }), { status: 200 })));
+
+    render(<ProjectsView />);
+
+    expect(await screen.findByText("No stored repository reviews yet.")).toBeInTheDocument();
+  });
+
+  it("shows a corrective re-analysis label when a review has an effective correction", async () => {
+    const payload = projectPayload();
+    const [project] = payload.projects;
+    const withCorrection = {
+      ...payload,
+      projects: [{
+        ...project!,
+        reviews: [{
+          ...project!.reviews[0]!,
+          correction: {
+            id: "30000000-0000-4000-8000-000000000001",
+            revision: 2,
+            status: "completed",
+            sourceCommitSha: commitSha,
+            sourceFindingsHash: "a".repeat(64),
+            resultFindingsHash: "b".repeat(64),
+            projectionApplied: true,
+            createdAt: "2026-07-12T10:00:00.000Z",
+            completedAt: "2026-07-12T10:05:00.000Z",
+          },
+        }],
+      }],
+    };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(withCorrection), { status: 200 })));
+
+    render(<ProjectsView />);
+
+    expect(await screen.findByText(/Correction v2: completed/)).toBeInTheDocument();
+    expect(screen.getByText(/effective/)).toBeInTheDocument();
+  });
+
+  it("opens the revision history dialog for a project", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/projects") return new Response(JSON.stringify(projectPayload()), { status: 200 });
+      if (url === "/api/files") return new Response(JSON.stringify({ files: [] }), { status: 200 });
+      if (url === `/api/projects/${projectId}/revisions`) return new Response(JSON.stringify({ revisions: [] }), { status: 200 });
+      return new Response(JSON.stringify({ error: "unexpected" }), { status: 500 });
+    }));
+
+    render(<ProjectsView />);
+    fireEvent.click(await screen.findByRole("button", { name: "Open revision history for Portfolio API" }));
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
 });
