@@ -233,7 +233,7 @@ export POSTGRES_DB=learncoding
 export POSTGRES_USER=learncoding
 export RUNNER_BASE_URL="http://192.168.122.12:4100"
 export BOOTSTRAP_ADMIN_EMAIL="topology-admin@example.invalid"
-export MAIL_ADAPTER=outbox
+export MAIL_ADAPTER=console
 export MAIL_FROM="Codestead topology <noreply@example.invalid>"
 # compose.yaml requires an explicit reviewed claimant pair (see release-production.sh).
 export MAIL_OUTBOX_PHASE=dual-write-v1
