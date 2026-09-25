@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-07-12T16:28:00.000Z",
-  "revalidatedAt": "2026-09-25T15:13:35.446Z",
+  "revalidatedAt": "2026-09-25T16:50:00.000Z",
   "scope": "Local deterministic validation of nightly backup status reporting through the dedicated least-privilege reporter and current PostgreSQL mail-authority chain on native disposable PostgreSQL 17; no Docker, host PostgreSQL service, real data, real credentials, or external email was used.",
   "status": "passed",
   "shellContract": {
@@ -149,7 +149,7 @@
     },
     {
       "path": "scripts/bootstrap-database-roles.mjs",
-      "sha256": "19c4b1a842a067bfb29027d0b441e19f734c64d4de8a449214c95d9f230616a3"
+      "sha256": "250ad0b89e58c13d5042eeb05c19e6b38f49dd9d747c9ae969d5b36d42897103"
     },
     {
       "path": "scripts/verify-database-role-boundaries.mjs",
@@ -197,11 +197,11 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "715bd498444d9ebb120abbb86859870ae3aa7b7a34ba9be544e0ab5312a46ba6"
+      "sha256": "15e2dacb98ec3bd544d5685268b48ae809447c3a2f0c83dfc64964fce5129f83"
     },
     {
       "path": "infra/tests/backup-ci-registration.test.mjs",
-      "sha256": "5411514a2aae47785991a8b210446f0308bf152ba4513ee7ac24ff937292171a"
+      "sha256": "14b57032f8fa307f04a1dbc423284fd8e0cea244056eddd8189c584c09425131"
     }
   ],
   "supersededDigests": [
@@ -379,6 +379,21 @@
       "artifact": "infra/tests/backup-ci-registration.test.mjs",
       "priorDigest": "ea33a90d80d15ff4d1ee33f07ea4a5a5dc32964a2cbb8e95f4674aaddf6d88d0",
       "replacedAt": "2026-09-24T13:33:01.983Z"
+    },
+    {
+      "artifact": ".github/workflows/ci.yml",
+      "priorDigest": "715bd498444d9ebb120abbb86859870ae3aa7b7a34ba9be544e0ab5312a46ba6",
+      "replacedAt": "2026-09-25T16:50:00.000Z"
+    },
+    {
+      "artifact": "infra/tests/backup-ci-registration.test.mjs",
+      "priorDigest": "5411514a2aae47785991a8b210446f0308bf152ba4513ee7ac24ff937292171a",
+      "replacedAt": "2026-09-25T16:50:00.000Z"
+    },
+    {
+      "artifact": "scripts/bootstrap-database-roles.mjs",
+      "priorDigest": "19c4b1a842a067bfb29027d0b441e19f734c64d4de8a449214c95d9f230616a3",
+      "replacedAt": "2026-09-25T16:50:00.000Z"
     }
   ],
   "limitations": [
