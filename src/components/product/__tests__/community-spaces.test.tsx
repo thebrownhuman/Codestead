@@ -318,4 +318,335 @@ describe("community spaces UI boundaries", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("change was saved");
     expect(title).toHaveValue("");
   });
+
+  it("edits and deletes an owned post, and replies to a post", async () => {
+    const user = userEvent.setup();
+    const ownedDiscussion = { ...discussion, posts: [{ ...discussion.posts[0]!, own: true }] };
+    const mutationBodies: Array<Record<string, unknown>> = [];
+    let readCount = 0;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/community/discussions" && init?.method === "POST") {
+        mutationBodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        return new Response(JSON.stringify({ result: { ok: true } }), { status: 200 });
+      }
+      if (url.startsWith("/api/community/discussions")) {
+        readCount += 1;
+        return new Response(JSON.stringify(ownedDiscussion), { status: 200 });
+      }
+      if (url === "/api/battles") return new Response(JSON.stringify(battles), { status: 200 });
+      return new Response(JSON.stringify({ error: "unexpected" }), { status: 500 });
+    }));
+
+    render(<CommunitySpaces people={[]} />);
+    await screen.findByRole("heading", { name: "Community spaces & coding battles" });
+
+    await user.click(screen.getByRole("button", { name: /Edit/i }));
+    const editTitleField = screen.getByDisplayValue("Why does assignment point left?");
+    await user.clear(editTitleField);
+    await user.type(editTitleField, "Updated title");
+    await user.click(screen.getByRole("button", { name: "Save edit" }));
+    await waitFor(() => expect(mutationBodies).toHaveLength(1));
+    expect(mutationBodies[0]).toMatchObject({ action: "edit", target: "post" });
+
+    await user.click(screen.getByRole("button", { name: /Reply/i }));
+    await user.type(screen.getByLabelText("Your reply"), "Thanks, that clears it up.");
+    await user.click(screen.getByRole("button", { name: "Post reply" }));
+    await waitFor(() => expect(mutationBodies).toHaveLength(2));
+    expect(mutationBodies[1]).toMatchObject({ action: "reply", postId });
+
+    await user.click(screen.getByRole("button", { name: /Delete/i }));
+    await waitFor(() => expect(mutationBodies).toHaveLength(3));
+    expect(mutationBodies[2]).toMatchObject({ action: "delete", target: "post", targetId: postId });
+    expect(readCount).toBeGreaterThan(1);
+  });
+
+  it("edits and deletes an owned reply", async () => {
+    const user = userEvent.setup();
+    const replyId = "cc000000-0000-4000-8000-000000000007";
+    const withReply = {
+      ...discussion,
+      posts: [{
+        ...discussion.posts[0]!,
+        replies: [{
+          id: replyId, body: "Original reply text.", rowVersion: 1,
+          createdAt: "2026-07-14T12:01:00.000Z", editedAt: null, authorAlias: "you", own: true,
+        }],
+      }],
+    };
+    const mutationBodies: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/community/discussions" && init?.method === "POST") {
+        mutationBodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        return new Response(JSON.stringify({ result: { ok: true } }), { status: 200 });
+      }
+      if (url.startsWith("/api/community/discussions")) return new Response(JSON.stringify(withReply), { status: 200 });
+      if (url === "/api/battles") return new Response(JSON.stringify(battles), { status: 200 });
+      return new Response(JSON.stringify({ error: "unexpected" }), { status: 500 });
+    }));
+
+    render(<CommunitySpaces people={[]} />);
+    await screen.findByText("Original reply text.");
+
+    await user.click(screen.getByRole("button", { name: /Edit/i, hidden: true }));
+    const replyEditField = screen.getByDisplayValue("Original reply text.");
+    await user.clear(replyEditField);
+    await user.type(replyEditField, "Updated reply.");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(mutationBodies).toHaveLength(1));
+    expect(mutationBodies[0]).toMatchObject({ action: "edit", target: "reply", targetId: replyId });
+
+    const deleteButtons = screen.getAllByRole("button", { name: /Delete/i });
+    await user.click(deleteButtons[deleteButtons.length - 1]!);
+    await waitFor(() => expect(mutationBodies).toHaveLength(2));
+    expect(mutationBodies[1]).toMatchObject({ action: "delete", target: "reply", targetId: replyId });
+  });
+
+  it("sends a post report without notifying the author", async () => {
+    const user = userEvent.setup();
+    const reportBodies: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/community/discussions" && init?.method === "POST") {
+        reportBodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        return new Response(JSON.stringify({ result: { ok: true } }), { status: 200 });
+      }
+      if (url.startsWith("/api/community/discussions")) return new Response(JSON.stringify(discussion), { status: 200 });
+      if (url === "/api/battles") return new Response(JSON.stringify(battles), { status: 200 });
+      return new Response(JSON.stringify({ error: "unexpected" }), { status: 500 });
+    }));
+
+    render(<CommunitySpaces people={[]} />);
+    await screen.findByRole("heading", { name: "Community spaces & coding battles" });
+    await user.click(screen.getByText("Report"));
+    await user.selectOptions(screen.getByLabelText("Reason"), "harassment");
+    await user.click(screen.getByRole("button", { name: "Send report" }));
+
+    expect(await screen.findByText(/Report sent privately/)).toBeInTheDocument();
+    expect(reportBodies[0]).toMatchObject({ action: "report", target: "post", targetId: postId, reason: "harassment" });
+  });
+
+  it("surfaces a report failure inline", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/community/discussions" && init?.method === "POST") {
+        return new Response(JSON.stringify({ error: "Report queue is full." }), { status: 503 });
+      }
+      if (url.startsWith("/api/community/discussions")) return new Response(JSON.stringify(discussion), { status: 200 });
+      if (url === "/api/battles") return new Response(JSON.stringify(battles), { status: 200 });
+      return new Response(JSON.stringify({ error: "unexpected" }), { status: 500 });
+    }));
+
+    render(<CommunitySpaces people={[]} />);
+    await screen.findByRole("heading", { name: "Community spaces & coding battles" });
+    await user.click(screen.getByText("Report"));
+    await user.click(screen.getByRole("button", { name: "Send report" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Report queue is full.");
+  });
+
+  it("adds a member to a private group the learner owns", async () => {
+    const user = userEvent.setup();
+    const memberBodies: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/community/discussions" && init?.method === "POST") {
+        memberBodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        return new Response(JSON.stringify({ result: { ok: true } }), { status: 200 });
+      }
+      if (url.startsWith("/api/community/discussions")) return new Response(JSON.stringify(discussion), { status: 200 });
+      if (url === "/api/battles") return new Response(JSON.stringify(battles), { status: 200 });
+      return new Response(JSON.stringify({ error: "unexpected" }), { status: 500 });
+    }));
+
+    render(<CommunitySpaces people={[{ publicId: "cc000000-0000-4000-8000-000000000005", alias: "learner-beta" }]} />);
+    await screen.findByRole("heading", { name: "Community spaces & coding battles" });
+    await user.click(screen.getByText("Add a learner"));
+    await user.selectOptions(screen.getByLabelText("Learner"), "cc000000-0000-4000-8000-000000000005");
+    await user.click(screen.getByRole("button", { name: "Add member" }));
+
+    await waitFor(() => expect(memberBodies).toHaveLength(1));
+    expect(memberBodies[0]).toMatchObject({
+      action: "add_member",
+      groupId,
+      learnerPublicId: "cc000000-0000-4000-8000-000000000005",
+    });
+  });
+
+  it("creates a battle and joins an open one", async () => {
+    const user = userEvent.setup();
+    const battleBodies: Array<Record<string, unknown>> = [];
+    const joinableBattle = { ...battle, canJoin: true, participant: false };
+    const joinableBattles = { ...battles, battles: [joinableBattle] };
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/battles" && init?.method === "POST") {
+        battleBodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        return new Response(JSON.stringify({ result: { id: battleId } }), { status: 201 });
+      }
+      if (url === `/api/battles/${battleId}` && init?.method === "POST") {
+        battleBodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        return new Response(JSON.stringify({ result: { ok: true } }), { status: 200 });
+      }
+      if (url.startsWith("/api/community/discussions")) return new Response(JSON.stringify(discussion), { status: 200 });
+      if (url === "/api/battles") return new Response(JSON.stringify(joinableBattles), { status: 200 });
+      if (url === `/api/battles/${battleId}`) {
+        return new Response(JSON.stringify({ battle: joinableBattle, resultsRevealed: false, results: [] }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ error: "unexpected" }), { status: 500 });
+    }));
+
+    render(<CommunitySpaces people={[]} />);
+    await screen.findByRole("heading", { name: "Community spaces & coding battles" });
+    await user.click(screen.getByRole("tab", { name: "Battles" }));
+
+    await user.click(screen.getByText("Create a battle"));
+    await user.selectOptions(screen.getByLabelText("Reviewed challenge"), "cc000000-0000-4000-8000-000000000004");
+    await user.click(screen.getByRole("button", { name: "Freeze reviewed challenge" }));
+    await waitFor(() => expect(battleBodies).toHaveLength(1));
+    expect(battleBodies[0]).toMatchObject({ scope: "invite" });
+
+    await user.click(screen.getByRole("button", { name: "Join" }));
+    await waitFor(() => expect(battleBodies).toHaveLength(2));
+    expect(battleBodies[1]).toMatchObject({ action: "join" });
+  });
+
+  it("submits a single-select battle answer and shows revealed results with points", async () => {
+    const user = userEvent.setup();
+    const submitBodies: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === `/api/battles/${battleId}` && init?.method === "POST") {
+        submitBodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        return new Response(JSON.stringify({ result: { ok: true } }), { status: 200 });
+      }
+      if (url.startsWith("/api/community/discussions")) return new Response(JSON.stringify(discussion), { status: 200 });
+      if (url === "/api/battles") return new Response(JSON.stringify(battles), { status: 200 });
+      if (url === `/api/battles/${battleId}`) {
+        return new Response(JSON.stringify({
+          battle,
+          resultsRevealed: true,
+          results: [{ rank: 1, alias: "learner-beta", score: 100, passed: true }],
+        }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ error: "unexpected" }), { status: 500 });
+    }));
+
+    render(<CommunitySpaces people={[]} />);
+    await screen.findByRole("heading", { name: "Community spaces & coding battles" });
+    await user.click(screen.getByRole("tab", { name: "Battles" }));
+    await user.click(screen.getByRole("button", { name: "View challenge" }));
+    await screen.findByText("Revealed results");
+    expect(screen.getByText(/#1 learner-beta/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("radio", { name: "score = 7" }));
+    await user.click(screen.getByRole("button", { name: "Submit once" }));
+
+    await waitFor(() => expect(submitBodies).toHaveLength(1));
+    expect(submitBodies[0]).toMatchObject({ action: "submit", answer: { value: "a" } });
+  });
+
+  it("submits a verified-attempt battle answer by attempt id", async () => {
+    const user = userEvent.setup();
+    const verifiedBattle = { ...battle, challengeKind: "verified_attempt" as const };
+    const verifiedBattles = { ...battles, battles: [verifiedBattle] };
+    const submitBodies: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === `/api/battles/${battleId}` && init?.method === "POST") {
+        submitBodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        return new Response(JSON.stringify({ result: { ok: true } }), { status: 200 });
+      }
+      if (url.startsWith("/api/community/discussions")) return new Response(JSON.stringify(discussion), { status: 200 });
+      if (url === "/api/battles") return new Response(JSON.stringify(verifiedBattles), { status: 200 });
+      if (url === `/api/battles/${battleId}`) {
+        return new Response(JSON.stringify({ battle: verifiedBattle, resultsRevealed: false, results: [] }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ error: "unexpected" }), { status: 500 });
+    }));
+
+    render(<CommunitySpaces people={[]} />);
+    await screen.findByRole("heading", { name: "Community spaces & coding battles" });
+    await user.click(screen.getByRole("tab", { name: "Battles" }));
+    await user.click(screen.getByRole("button", { name: "View challenge" }));
+    await screen.findByText("Results are sealed");
+    await user.type(screen.getByLabelText("Independently graded attempt ID"), "11111111-1111-4111-8111-111111111111");
+    await user.click(screen.getByRole("button", { name: "Submit once" }));
+
+    await waitFor(() => expect(submitBodies).toHaveLength(1));
+    expect(submitBodies[0]).toMatchObject({ action: "submit", attemptId: "11111111-1111-4111-8111-111111111111" });
+  });
+
+  it("restores hidden content and dismisses the report", async () => {
+    const user = userEvent.setup();
+    const adminDiscussion = { ...discussion, moderation: true };
+    const report = {
+      id: reportId, target: "post" as const, targetId: postId, reason: "spam",
+      details: null, status: "open", excerpt: "Please review this content.", createdAt: "2026-07-14T12:05:00.000Z",
+    };
+    const moderationBodies: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/admin/community/moderation" && init?.method === "POST") {
+        moderationBodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        return new Response(JSON.stringify({ result: { ok: true } }), { status: 200 });
+      }
+      if (url === "/api/admin/community/moderation") return new Response(JSON.stringify({ reports: [report] }), { status: 200 });
+      if (url.startsWith("/api/community/discussions")) return new Response(JSON.stringify(adminDiscussion), { status: 200 });
+      if (url === "/api/battles") return new Response(JSON.stringify(battles), { status: 200 });
+      return new Response(JSON.stringify({ error: "unexpected" }), { status: 500 });
+    }));
+
+    render(<CommunitySpaces people={[]} />);
+    await screen.findByText("Moderation queue");
+    await user.click(screen.getByRole("button", { name: "Dismiss report" }));
+
+    await waitFor(() => expect(moderationBodies).toHaveLength(1));
+    expect(moderationBodies[0]).toMatchObject({ action: "restore", reportId });
+    expect(await screen.findByText("Content restored and report dismissed.")).toBeInTheDocument();
+  });
+
+  it("appends older conversations fetched through the pagination cursor", async () => {
+    const user = userEvent.setup();
+    const olderPost = { ...discussion.posts[0]!, id: "cc000000-0000-4000-8000-000000000008", title: "Older question" };
+    let sawCursorRequest = false;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("/api/community/discussions")) {
+        if (url.includes("cursor=cursor-1")) {
+          sawCursorRequest = true;
+          return new Response(JSON.stringify({ ...discussion, posts: [olderPost], nextCursor: null }), { status: 200 });
+        }
+        return new Response(JSON.stringify({ ...discussion, nextCursor: "cursor-1" }), { status: 200 });
+      }
+      if (url === "/api/battles") return new Response(JSON.stringify(battles), { status: 200 });
+      return new Response(JSON.stringify({ error: "unexpected" }), { status: 500 });
+    }));
+
+    render(<CommunitySpaces people={[]} />);
+    await screen.findByRole("heading", { name: "Community spaces & coding battles" });
+    await user.click(await screen.findByRole("button", { name: "Load older conversations" }));
+
+    await waitFor(() => expect(screen.getByText("Older question")).toBeInTheDocument());
+    expect(screen.getByText("Why does assignment point left?")).toBeInTheDocument();
+    expect(sawCursorRequest).toBe(true);
+  });
+
+  it("shows the empty-groups prompt when no group has been created yet", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("/api/community/discussions")) {
+        return new Response(JSON.stringify({ ...discussion, groups: [], posts: [] }), { status: 200 });
+      }
+      if (url === "/api/battles") return new Response(JSON.stringify(battles), { status: 200 });
+      return new Response(JSON.stringify({ error: "unexpected" }), { status: 500 });
+    }));
+
+    render(<CommunitySpaces people={[]} />);
+    await screen.findByRole("heading", { name: "Community spaces & coding battles" });
+
+    expect(await screen.findByText("No groups yet.")).toBeInTheDocument();
+  });
 });
