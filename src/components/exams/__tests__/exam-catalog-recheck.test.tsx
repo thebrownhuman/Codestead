@@ -156,3 +156,140 @@ describe("exam catalog mastery recheck", () => {
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/exams/72000000-0000-4000-8000-000000000001"));
   });
 });
+
+function eligibleEntry() {
+  return {
+    ...entry(),
+    courseId: "javascript",
+    courseTitle: "JavaScript",
+    moduleId: "javascript.arrays",
+    moduleTitle: "Arrays",
+    readiness: "available",
+    activeSessionId: null,
+    latestResult: null,
+    retake: { eligible: true, reason: "first-attempt", nextEligibleAt: null, requiresRemediation: false },
+    masteryRecheck: null,
+  } as const;
+}
+
+function remediationEntry() {
+  return {
+    ...entry(),
+    moduleId: "python.classes",
+    moduleTitle: "Classes",
+    readiness: "remediation",
+    retake: { eligible: false, reason: "remediation-required", nextEligibleAt: null, requiresRemediation: true },
+    masteryRecheck: null,
+  } as const;
+}
+
+describe("exam catalog standard start flow", () => {
+  it("filters by course, shows restriction copy, and starts the plain exam endpoint", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/exams") return json({ exams: [eligibleEntry(), remediationEntry()] });
+      if (url === "/api/exams/start") {
+        const body = JSON.parse(String(init?.body)) as { moduleId: string };
+        expect(body.moduleId).toBe("javascript.arrays");
+        return json({ exam: { sessionId: "73000000-0000-4000-8000-000000000001" } }, 201);
+      }
+      return json({ error: "unexpected" }, 500);
+    }));
+    const actor = userEvent.setup();
+    render(<ExamCatalog />);
+
+    expect(await screen.findByText("Complete the assigned remediation. Verified learning evidence unlocks the retake automatically.")).toBeInTheDocument();
+
+    const courseSelect = screen.getByLabelText("Course") as HTMLSelectElement;
+    await actor.selectOptions(courseSelect, "javascript");
+    expect(screen.queryByText("Classes")).not.toBeInTheDocument();
+    expect(screen.getByText("Arrays")).toBeInTheDocument();
+
+    await actor.click(screen.getByRole("button", { name: /Review and start/i }));
+    const dialog = screen.getByRole("dialog", { name: "Arrays" });
+    const checks = within(dialog).getAllByRole("checkbox");
+    await actor.click(checks[0]!);
+    await actor.click(checks[1]!);
+    await actor.click(within(dialog).getByRole("button", { name: /Start exam now/i }));
+
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/exams/73000000-0000-4000-8000-000000000001"));
+  });
+
+  it("shows the empty state when no exam matches the selected course", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === "/api/exams") return json({ exams: [eligibleEntry()] });
+      return json({ error: "unexpected" }, 500);
+    }));
+    render(<ExamCatalog />);
+
+    await screen.findByText("Arrays");
+    fireEvent.change(screen.getByLabelText("Course"), { target: { value: "python" } });
+
+    expect(await screen.findByText("No module exams match this course.")).toBeInTheDocument();
+  });
+
+  it("surfaces a load failure from a non-ok catalog response", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === "/api/exams") return json({ error: "Catalog is temporarily unavailable." }, 503);
+      return json({ error: "unexpected" }, 500);
+    }));
+    render(<ExamCatalog />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Catalog is temporarily unavailable.");
+  });
+
+  it("redirects to an existing session when start fails but a session was already created", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/exams") return json({ exams: [eligibleEntry()] });
+      if (url === "/api/exams/start") return json({ error: "A form was already created.", sessionId: "74000000-0000-4000-8000-000000000001" }, 409);
+      return json({ error: "unexpected" }, 500);
+    }));
+    const actor = userEvent.setup();
+    render(<ExamCatalog />);
+
+    await actor.click(await screen.findByRole("button", { name: /Review and start/i }));
+    const dialog = screen.getByRole("dialog", { name: "Arrays" });
+    const checks = within(dialog).getAllByRole("checkbox");
+    await actor.click(checks[0]!);
+    await actor.click(checks[1]!);
+    await actor.click(within(dialog).getByRole("button", { name: /Start exam now/i }));
+
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/exams/74000000-0000-4000-8000-000000000001"));
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("A form was already created.");
+  });
+
+  it("recovers from a rejected start request and lets the learner retry", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/exams") return json({ exams: [eligibleEntry()] });
+      if (url === "/api/exams/start") throw new TypeError("synthetic network failure");
+      return json({ error: "unexpected" }, 500);
+    }));
+    const actor = userEvent.setup();
+    render(<ExamCatalog />);
+
+    await actor.click(await screen.findByRole("button", { name: /Review and start/i }));
+    const dialog = screen.getByRole("dialog", { name: "Arrays" });
+    const checks = within(dialog).getAllByRole("checkbox");
+    await actor.click(checks[0]!);
+    await actor.click(checks[1]!);
+    await actor.click(within(dialog).getByRole("button", { name: /Start exam now/i }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("synthetic network failure");
+    expect(within(dialog).getByRole("button", { name: /Start exam now/i })).toBeEnabled();
+  });
+
+  it("shows a resume link for an already-active session", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === "/api/exams") return json({
+        exams: [{ ...eligibleEntry(), activeSessionId: "75000000-0000-4000-8000-000000000001" }],
+      });
+      return json({ error: "unexpected" }, 500);
+    }));
+    render(<ExamCatalog />);
+
+    const resume = await screen.findByRole("link", { name: /Resume timed exam/i });
+    expect(resume).toHaveAttribute("href", "/exams/75000000-0000-4000-8000-000000000001");
+  });
+});
