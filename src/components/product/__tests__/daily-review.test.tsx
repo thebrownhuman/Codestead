@@ -275,4 +275,144 @@ describe("DailyReview", () => {
     expect(screen.getByText("4 of 5 correct. Every result is saved to your learning evidence.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /practice/i })).toHaveAttribute("href", "/courses/python/skills/skill-3");
   });
+
+  it("renders nothing when disabled", () => {
+    vi.stubGlobal("fetch", vi.fn());
+    const { container } = render(<DailyReview enabled={false} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("surfaces a load failure and retries", async () => {
+    const fetch = vi.fn()
+      .mockImplementationOnce(() => Promise.reject(new TypeError("offline")))
+      .mockImplementationOnce(() => json(ready()));
+    vi.stubGlobal("fetch", fetch);
+    const user = userEvent.setup();
+    render(<DailyReview />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("offline");
+    await user.click(screen.getByRole("button", { name: /retry/i }));
+    expect(await screen.findByText("Question 1 of 5")).toBeInTheDocument();
+  });
+
+  it("shows the not-yet feedback and remediation note for an incorrect answer", async () => {
+    const failedResult = {
+      ...gradedResult,
+      passed: false,
+      feedback: { ...gradedResult.feedback, correct: false, headline: "Not yet", why: "That does not store four in x." },
+    };
+    const fetch = vi.fn()
+      .mockImplementationOnce(() => json(ready()))
+      .mockImplementationOnce(() => json(failedResult));
+    vi.stubGlobal("fetch", fetch);
+    const user = userEvent.setup();
+    render(<DailyReview />);
+
+    await user.click(await screen.findByLabelText("x = 4"));
+    await user.click(screen.getByRole("button", { name: /check answer/i }));
+
+    expect(await screen.findByRole("heading", { name: "Not yet" })).toBeInTheDocument();
+    expect(screen.getByText(/stay visible in your targeted follow-up list/i)).toBeInTheDocument();
+  });
+
+  it("rejects an answer that could not be graded deterministically", async () => {
+    const fetch = vi.fn()
+      .mockImplementationOnce(() => json(ready()))
+      .mockImplementationOnce(() => json({ state: "pending_review" }));
+    vi.stubGlobal("fetch", fetch);
+    const user = userEvent.setup();
+    render(<DailyReview />);
+
+    await user.click(await screen.findByLabelText("x = 4"));
+    await user.click(screen.getByRole("button", { name: /check answer/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("could not be graded deterministically");
+  });
+
+  it("supports selecting and deselecting multiple mcq options", async () => {
+    const multiAttempt = {
+      ...attempt,
+      activity: {
+        ...attempt.activity,
+        specification: {
+          ...attempt.activity.specification,
+          multiple: true,
+          options: [{ id: "a", text: "x = 4" }, { id: "b", text: "y = 4" }],
+        },
+      },
+    };
+    const payload = ready();
+    payload.session.items = payload.session.items.map((entry, index) => index === 0 ? item(1, { attempt: multiAttempt }) : entry);
+    const fetch = vi.fn()
+      .mockImplementationOnce(() => json(payload))
+      .mockImplementationOnce(() => json(gradedResult));
+    vi.stubGlobal("fetch", fetch);
+    const user = userEvent.setup();
+    render(<DailyReview />);
+
+    await user.click(await screen.findByLabelText("x = 4"));
+    await user.click(screen.getByLabelText("y = 4"));
+    await user.click(screen.getByLabelText("x = 4"));
+    await user.click(screen.getByRole("button", { name: /check answer/i }));
+
+    expect(JSON.parse(String((fetch.mock.calls[1]?.[1] as RequestInit).body))).toMatchObject({
+      answer: { selectedOptionIds: ["b"] },
+    });
+  });
+
+  it("supports a free-text reviewed question", async () => {
+    const textAttempt = {
+      ...attempt,
+      activity: {
+        ...attempt.activity,
+        specification: {
+          ...attempt.activity.specification,
+          kind: "short-answer",
+          options: [],
+          gaps: [],
+        },
+      },
+    };
+    const payload = ready();
+    payload.session.items = payload.session.items.map((entry, index) => index === 0 ? item(1, { attempt: textAttempt }) : entry);
+    const fetch = vi.fn()
+      .mockImplementationOnce(() => json(payload))
+      .mockImplementationOnce(() => json(gradedResult));
+    vi.stubGlobal("fetch", fetch);
+    const user = userEvent.setup();
+    render(<DailyReview />);
+
+    await user.type(await screen.findByRole("textbox", { name: "Your answer" }), "x = 4");
+    await user.click(screen.getByRole("button", { name: /check answer/i }));
+
+    expect(JSON.parse(String((fetch.mock.calls[1]?.[1] as RequestInit).body))).toMatchObject({
+      answer: { value: "x = 4" },
+    });
+  });
+
+  it("surfaces a failure when the daily set cannot be prepared", async () => {
+    const fetch = vi.fn()
+      .mockImplementationOnce(() => json({ state: "not_started", localDate: "2026-07-13", timezone: "Asia/Kolkata", session: null }))
+      .mockImplementationOnce(() => json({ error: "The review service is temporarily unavailable." }, 503));
+    vi.stubGlobal("fetch", fetch);
+    const user = userEvent.setup();
+    render(<DailyReview />);
+
+    await user.click(await screen.findByRole("button", { name: /build today.?s review/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("The review service is temporarily unavailable.");
+  });
+
+  it("surfaces a failure when the reserved question can no longer be opened", async () => {
+    const reserved = ready();
+    reserved.session.items = reserved.session.items.map((entry, index) => index === 0 ? item(1, { attempt: null }) : entry);
+    const fetch = vi.fn()
+      .mockImplementationOnce(() => json(reserved))
+      .mockImplementationOnce(() => json({ state: "expired" }, 200));
+    vi.stubGlobal("fetch", fetch);
+    const user = userEvent.setup();
+    render(<DailyReview />);
+
+    await user.click(await screen.findByRole("button", { name: /open question/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("no longer available");
+  });
 });
