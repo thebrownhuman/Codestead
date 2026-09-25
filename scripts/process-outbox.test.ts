@@ -500,6 +500,7 @@ describe("mail worker production composition", () => {
     expect(mocks.poolEnd).toHaveBeenCalledOnce();
     const output = vi.mocked(console.error).mock.calls.flat().map(String).join("\n");
     expect(output).toContain('"event":"email.worker_failed"');
+    expect(output).toContain('"stage":"runtime_inspection"');
     expect(output).not.toContain(RECIPIENT_CANARY);
     expect(output).not.toContain(TOKEN_CANARY);
   });
