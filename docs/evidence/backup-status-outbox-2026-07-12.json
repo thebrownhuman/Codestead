@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-07-12T16:28:00.000Z",
-  "revalidatedAt": "2026-09-25T12:50:51.955Z",
+  "revalidatedAt": "2026-09-25T15:10:02.479Z",
   "scope": "Local deterministic validation of nightly backup status reporting through the dedicated least-privilege reporter and current PostgreSQL mail-authority chain on native disposable PostgreSQL 17; no Docker, host PostgreSQL service, real data, real credentials, or external email was used.",
   "status": "passed",
   "shellContract": {
@@ -109,7 +109,7 @@
     },
     {
       "path": "scripts/backup/backup.sh",
-      "sha256": "fe2888b4c33a472b42943f9d463a7ced75f4454cadffb8ef4fab80f22bd55d53"
+      "sha256": "2a16f8e1705ddd674f848ed1e40d98e2e41c3f13d82a876c617ccb1acc736f2c"
     },
     {
       "path": "scripts/backup/enqueue-backup-status.mjs",

@@ -134,7 +134,8 @@ services:
   mail-worker:
     pull_policy: never
     environment:
-      MAIL_ADAPTER: outbox
+      # The worker dispatches only through console or gmail.
+      MAIL_ADAPTER: console
       OUTBOX_POLL_SECONDS: "1"
     healthcheck: &worker-health
       interval: 3s
