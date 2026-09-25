@@ -1508,6 +1508,20 @@ function validatePredefinedPublicOwner(result) {
   });
 }
 
+// A pg client runs one query at a time; issuing them concurrently only queues
+// them inside pg (deprecated, removed in pg@9), so await each in order.
+async function queryInOrder(client, statements) {
+  const results = [];
+  for (const [sql, parameters] of statements) {
+    results.push(
+      parameters === undefined
+        ? await client.query(sql)
+        : await client.query(sql, parameters),
+    );
+  }
+  return results;
+}
+
 async function observeBootstrapDatabaseRuntimeCapabilityCatalogInternal(
   client,
   { postgresUser, postgresDatabase, policy },
@@ -1525,17 +1539,15 @@ async function observeBootstrapDatabaseRuntimeCapabilityCatalogInternal(
     fail("catalog-context");
   }
   const parameters = [MANAGED_ROLE_NAMES];
-  const observations = await Promise.all([
-    client.query(ROLES_SQL, parameters),
-    client.query(ROLE_SETTINGS_SQL, parameters),
-    client.query(MEMBERSHIPS_SQL, parameters),
-    client.query(EFFECTIVE_MEMBERSHIPS_SQL, parameters),
-    client.query(OBJECTS_SQL),
-    client.query(COLUMNS_SQL),
-    client.query(DEFAULT_ACLS_SQL),
-    ...(allowPredefinedPublicOwner
-      ? [client.query(PREDEFINED_PUBLIC_OWNER_SQL)]
-      : []),
+  const observations = await queryInOrder(client, [
+    [ROLES_SQL, parameters],
+    [ROLE_SETTINGS_SQL, parameters],
+    [MEMBERSHIPS_SQL, parameters],
+    [EFFECTIVE_MEMBERSHIPS_SQL, parameters],
+    [OBJECTS_SQL],
+    [COLUMNS_SQL],
+    [DEFAULT_ACLS_SQL],
+    ...(allowPredefinedPublicOwner ? [[PREDEFINED_PUBLIC_OWNER_SQL]] : []),
   ]);
   const [
     roles,
@@ -2055,13 +2067,13 @@ export async function verifyBootstrapDatabaseRuntimeCapabilityFoundation(
     effectiveMemberships,
     authority,
     defaultAcls,
-  ] = await Promise.all([
-    client.query(ROLES_SQL, parameters),
-    client.query(ROLE_SETTINGS_SQL, parameters),
-    client.query(MEMBERSHIPS_SQL, parameters),
-    client.query(EFFECTIVE_MEMBERSHIPS_SQL, parameters),
-    client.query(FOUNDATION_AUTHORITY_SQL),
-    client.query(DEFAULT_ACLS_SQL),
+  ] = await queryInOrder(client, [
+    [ROLES_SQL, parameters],
+    [ROLE_SETTINGS_SQL, parameters],
+    [MEMBERSHIPS_SQL, parameters],
+    [EFFECTIVE_MEMBERSHIPS_SQL, parameters],
+    [FOUNDATION_AUTHORITY_SQL],
+    [DEFAULT_ACLS_SQL],
   ]);
   const topology = normalizeFoundationRoleTopology({
     postgresUser,
