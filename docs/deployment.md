@@ -63,10 +63,13 @@ sudo groupadd --system --gid 2000 codestead-secrets
 sudo install -d -o root -g codestead-secrets -m 0750 /etc/learncoding/secrets
 sudo install -d -o root -g root -m 0750 /srv/learncoding
 sudo install -d -o root -g root -m 0700 /var/lib/learncoding /var/lib/learncoding/releases
-sudo install -d -o root -g root -m 0700 /srv/learncoding/postgres
+sudo install -d -o 999 -g 999 -m 0700 /srv/learncoding/postgres
+sudo install -d -o 999 -g 999 -m 0700 /run/learncoding-postgres
 sudo install -d -o 1000 -g 1000 -m 0750 /srv/learncoding/next-cache
 sudo install -d -o root -g root -m 0750 /srv/learncoding/app-data
 ```
+
+PostgreSQL runs as the pinned image's non-root user (UID/GID 999 for the reviewed Debian image) and never chowns its own storage, so both PostgreSQL directories must already be owned `999:999` with mode `0700`; the values must equal `POSTGRES_UID`/`POSTGRES_GID` in `compose.env`. `infra/ops/prepare-postgres-control-socket.sh` re-verifies this on every release and start and refuses a pre-existing directory with any other owner or mode. `/run` is cleared at boot; the same preparer recreates `/run/learncoding-postgres` with this ownership before the stack starts.
 
 Fetch only the exact commit that passed review and CI. Do not deploy a moving branch name, reuse a chat-pasted credential, or run the application from a user-owned clone. Replace the commit value below with the reviewed 40-hex value from GitHub; the validation rejects a branch, shortened SHA, or malformed value.
 
