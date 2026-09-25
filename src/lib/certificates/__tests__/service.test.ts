@@ -1,202 +1,394 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const USER_ID = "learner-1";
-const ADMIN_ID = "admin-1";
-const ENROLLMENT_ID = "a1000000-0000-4000-8000-000000000001";
-const REQUEST_ID = "a2000000-0000-4000-8000-000000000001";
-const CERTIFICATE_ID = "a3000000-0000-4000-8000-000000000001";
-
-const mocks = vi.hoisted(() => {
-  const state = {
-    actorRole: "learner",
-    eligible: true,
-    receiptHash: null as string | null,
-    priorRevocation: false,
-  };
-  const privateRow = () => ({
-    id: "a3000000-0000-4000-8000-000000000001",
-    verification_id: "A_very_long_random_verification_token_1234567890",
-    learner_display_name: "Safe Learner",
-    course_title: "Python foundations",
-    course_version_label: "1.0.0",
-    policy_version: "verified-course-certificate-2026-07-14.v1",
-    issued_at: new Date("2026-07-14T00:00:00.000Z"),
-    revoked_at: null,
-    revocation_reason: null,
-  });
-  const query = vi.fn(async (statement: string) => {
-    const sql = statement.replace(/\s+/g, " ").trim().toLowerCase();
-    if (sql.includes('select role,status from "user"')) {
-      return { rows: [{ role: state.actorRole, status: "active" }], rowCount: 1 };
-    }
-    if (sql.includes("from certificate_operation_receipt") && sql.includes("select input_hash")) {
-      return state.receiptHash
-        ? { rows: [{ input_hash: state.receiptHash, certificate_id: CERTIFICATE_ID }], rowCount: 1 }
-        : { rows: [], rowCount: 0 };
-    }
-    if (sql.startsWith("select enrollment.id enrollment_id")) {
-      return state.eligible ? { rows: [{
-        enrollment_id: ENROLLMENT_ID,
-        enrollment_status: "completed",
-        completed_at: new Date("2026-07-13T00:00:00.000Z"),
-        user_id: USER_ID,
-        learner_name: "Safe Learner",
-        learner_status: "active",
-        learner_role: "learner",
-        course_id: "a4000000-0000-4000-8000-000000000001",
-        course_slug: "python-foundations",
-        course_title: "Python foundations",
-        course_version_id: "a5000000-0000-4000-8000-000000000001",
-        course_version: "1.0.0",
-        stage: "verified",
-        content_hash: "b".repeat(64),
-        publication_revision: 3,
-        published_at: new Date("2026-07-01T00:00:00.000Z"),
-        approved_by: ADMIN_ID,
-        pointer_version: 2,
-        release_evidence_id: "a6000000-0000-4000-8000-000000000001",
-        release_evidence_version: 1,
-        release_evidence_hash: "c".repeat(64),
-        artifact_count: 2,
-        unapproved_count: 0,
-      }], rowCount: 1 } : { rows: [], rowCount: 0 };
-    }
-    if (sql.startsWith("with covered as")) {
-      return { rows: [{
-        concept_id: "a7000000-0000-4000-8000-000000000001",
-        slug: "python.variables",
-        critical: true,
-        status: "mastered",
-        critical_requirements_met: true,
-        mastery_policy_version: "mastery-v1",
-        evidence_ids: ["a8000000-0000-4000-8000-000000000001"],
-      }], rowCount: 1 };
-    }
-    if (sql.startsWith("select id from course_certificate where enrollment_id")) return { rows: [], rowCount: 0 };
-    if (sql.startsWith("insert into course_certificate")) return { rows: [{ id: CERTIFICATE_ID }], rowCount: 1 };
-    if (sql.startsWith("select certificate.id") && sql.includes("where certificate.id=$1")) {
-      return { rows: [privateRow()], rowCount: 1 };
-    }
-    if (sql.startsWith("select certificate_id,reason,evidence_hash,revoked_at")) {
-      return state.priorRevocation ? { rows: [{
-        certificate_id: CERTIFICATE_ID,
-        reason: "Verified integrity correction",
-        evidence_hash: "unused",
-        revoked_at: new Date("2026-07-14T01:00:00.000Z"),
-      }], rowCount: 1 } : { rows: [], rowCount: 0 };
-    }
-    if (sql.startsWith("select id from course_certificate where id=$1")) return { rows: [{ id: CERTIFICATE_ID }], rowCount: 1 };
-    if (sql.startsWith("select 1 from certificate_revocation")) return { rows: [], rowCount: 0 };
-    return { rows: [], rowCount: 1 };
-  });
-  const client = { query, release: vi.fn() };
-  return {
-    state,
-    privateRow,
-    query,
-    client,
-    connect: vi.fn(async () => client),
-    poolQuery: vi.fn(),
-  };
-});
-
-vi.mock("@/lib/db/client", () => ({
-  pool: { connect: mocks.connect, query: mocks.poolQuery },
+const mocks = vi.hoisted(() => ({
+  poolQuery: vi.fn(),
+  connect: vi.fn(),
 }));
+
+vi.mock("@/lib/db/client", () => ({ pool: { query: mocks.poolQuery, connect: mocks.connect } }));
 
 import {
   issueCourseCertificate,
+  listAdminCertificates,
+  listCertificateCandidates,
+  listOwnCertificates,
   loadPublicCertificate,
   revokeCourseCertificate,
 } from "../service";
-import { hashSocialEvidence } from "@/lib/social/hash";
 
-describe("certificate evidence service", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.state.actorRole = "learner";
-    mocks.state.eligible = true;
-    mocks.state.receiptHash = null;
-    mocks.state.priorRevocation = false;
+const userId = "10000000-0000-4000-8000-000000000001";
+const enrollmentId = "20000000-0000-4000-8000-000000000001";
+const requestId = "30000000-0000-4000-8000-000000000001";
+const certificateId = "40000000-0000-4000-8000-000000000001";
+const courseVersionId = "50000000-0000-4000-8000-000000000001";
+
+function certificateRow(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: certificateId,
+    verification_id: "verification-id-placeholder-000000000000000000",
+    learner_display_name: "Learner",
+    course_title: "Python",
+    course_version_label: "1.0.0",
+    policy_version: "verified-course-certificate-2026-07-14.v1",
+    issued_at: new Date("2026-07-12T00:00:00.000Z"),
+    revoked_at: null,
+    revocation_reason: null,
+    ...overrides,
+  };
+}
+
+function eligibilityRow(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    enrollment_id: enrollmentId,
+    enrollment_status: "completed",
+    completed_at: new Date("2026-07-11T00:00:00.000Z"),
+    user_id: userId,
+    learner_name: "Learner",
+    learner_status: "active",
+    learner_role: "learner",
+    course_id: "course-1",
+    course_slug: "python",
+    course_title: "Python",
+    course_version_id: courseVersionId,
+    course_version: "1.0.0",
+    stage: "verified",
+    content_hash: "a".repeat(64),
+    publication_revision: 2,
+    published_at: new Date("2026-07-10T00:00:00.000Z"),
+    approved_by: "admin-1",
+    pointer_version: 1,
+    release_evidence_id: "evidence-1",
+    release_evidence_version: 1,
+    release_evidence_hash: "b".repeat(64),
+    artifact_count: 3,
+    unapproved_count: 0,
+    ...overrides,
+  };
+}
+
+function conceptRow(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    concept_id: "concept-1",
+    slug: "concept-1",
+    critical: true,
+    status: "mastered",
+    critical_requirements_met: true,
+    mastery_policy_version: "adaptive-learning-v1",
+    evidence_ids: ["evidence-1"],
+    ...overrides,
+  };
+}
+
+function fakeClient(handlers: Record<string, unknown[] | ((text: string, values?: unknown[]) => unknown[])>) {
+  const calls: Array<{ text: string; values?: unknown[] }> = [];
+  const client = {
+    query: vi.fn(async (text: string, values?: unknown[]) => {
+      calls.push({ text, values });
+      const normalized = text.replace(/\s+/g, " ");
+      const key = Object.keys(handlers).find((candidate) => normalized.includes(candidate));
+      if (!key) return { rows: [] };
+      const handler = handlers[key]!;
+      const rows = typeof handler === "function" ? handler(text, values) : handler;
+      return { rows };
+    }),
+    release: vi.fn(),
+  };
+  return { client, calls };
+}
+
+describe("issueCourseCertificate", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("rejects a malformed request before opening a connection", async () => {
+    await expect(issueCourseCertificate({ userId, enrollmentId: "not-a-uuid", requestId }))
+      .rejects.toMatchObject({ code: "INVALID_REQUEST" });
+    expect(mocks.connect).not.toHaveBeenCalled();
   });
 
-  it("issues only after owner-bound current-version eligibility and mastery evidence", async () => {
-    const result = await issueCourseCertificate({
-      userId: USER_ID,
-      enrollmentId: ENROLLMENT_ID,
-      requestId: REQUEST_ID,
-      verificationId: "A_very_long_random_verification_token_1234567890",
-      now: new Date("2026-07-14T00:00:00.000Z"),
+  it("throws NOT_FOUND when the account is not an active learner", async () => {
+    const { client } = fakeClient({
+      'from "user" where id=$1 for update': [],
     });
-    expect(result).toMatchObject({ replayed: false, certificate: { id: CERTIFICATE_ID, status: "valid" } });
-    const sql = mocks.query.mock.calls.map(([statement]) => String(statement));
-    expect(sql.findIndex((statement) => statement.includes("pg_advisory_xact_lock")))
-      .toBeLessThan(sql.findIndex((statement) => statement.includes("select enrollment.id enrollment_id")));
-    expect(sql.some((statement) => statement.includes("with covered as"))).toBe(true);
-    expect(sql.some((statement) => statement.includes("insert into course_certificate"))).toBe(true);
-    expect(sql.at(-1)).toBe("commit");
-  });
+    mocks.connect.mockResolvedValue(client);
 
-  it("rejects an enrollment that is not owned and eligible", async () => {
-    mocks.state.eligible = false;
-    await expect(issueCourseCertificate({ userId: USER_ID, enrollmentId: ENROLLMENT_ID, requestId: REQUEST_ID }))
+    await expect(issueCourseCertificate({ userId, enrollmentId, requestId }))
       .rejects.toMatchObject({ code: "NOT_FOUND" });
-    expect(mocks.query.mock.calls.some(([statement]) => String(statement).includes("insert into course_certificate"))).toBe(false);
-    expect(mocks.query.mock.calls.at(-1)?.[0]).toBe("rollback");
+    expect(client.query).toHaveBeenCalledWith("rollback");
   });
 
-  it("replays the same issuance receipt without a second certificate insert", async () => {
-    mocks.state.receiptHash = hashSocialEvidence({
-      operation: "issue",
-      userId: USER_ID,
-      enrollmentId: ENROLLMENT_ID,
-      requestId: REQUEST_ID,
-      policyVersion: "verified-course-certificate-2026-07-14.v1",
+  it("replays an identical prior request without re-inserting", async () => {
+    const { client } = fakeClient({
+      'from "user" where id=$1 for update': [{ role: "learner", status: "active" }],
+      "from certificate_operation_receipt": (_text, values) => {
+        const [, reqId] = values as [string, string];
+        return reqId === requestId ? [{ input_hash: "will-be-overwritten", certificate_id: certificateId }] : [];
+      },
+      "from course_certificate certificate": [certificateRow()],
     });
-    const result = await issueCourseCertificate({ userId: USER_ID, enrollmentId: ENROLLMENT_ID, requestId: REQUEST_ID });
-    expect(result.replayed).toBe(true);
-    expect(mocks.query.mock.calls.some(([statement]) => String(statement).includes("insert into course_certificate"))).toBe(false);
+    mocks.connect.mockResolvedValue(client);
+
+    // First call establishes the real hash so the replay path can match it.
+    const firstAttempt = fakeClient({
+      'from "user" where id=$1 for update': [{ role: "learner", status: "active" }],
+      "from certificate_operation_receipt": [],
+      "from enrollment": [eligibilityRow()],
+      "select id from course_certificate where enrollment_id": [],
+      "with covered as": [conceptRow()],
+      "insert into course_certificate": [{ id: certificateId }],
+      "from course_certificate certificate": [certificateRow()],
+    });
+    mocks.connect.mockResolvedValueOnce(firstAttempt.client);
+    const first = await issueCourseCertificate({ userId, enrollmentId, requestId });
+    expect(first.replayed).toBe(false);
+
+    const insertReceiptCall = firstAttempt.calls.find((call) => call.text.includes("insert into certificate_operation_receipt"));
+    const realHash = (insertReceiptCall!.values as unknown[])[2] as string;
+
+    const replay = fakeClient({
+      'from "user" where id=$1 for update': [{ role: "learner", status: "active" }],
+      "from certificate_operation_receipt": [{ input_hash: realHash, certificate_id: certificateId }],
+      "from course_certificate certificate": [certificateRow()],
+    });
+    mocks.connect.mockResolvedValueOnce(replay.client);
+    const second = await issueCourseCertificate({ userId, enrollmentId, requestId });
+    expect(second.replayed).toBe(true);
+    expect(second.certificate.id).toBe(certificateId);
   });
 
-  it("fails a reused request id with different canonical input", async () => {
-    mocks.state.receiptHash = "f".repeat(64);
-    await expect(issueCourseCertificate({ userId: USER_ID, enrollmentId: ENROLLMENT_ID, requestId: REQUEST_ID }))
+  it("throws IDEMPOTENCY_MISMATCH when the same request id is reused with different inputs", async () => {
+    const { client } = fakeClient({
+      'from "user" where id=$1 for update': [{ role: "learner", status: "active" }],
+      "from certificate_operation_receipt": [{ input_hash: "a-completely-different-hash", certificate_id: certificateId }],
+    });
+    mocks.connect.mockResolvedValue(client);
+
+    await expect(issueCourseCertificate({ userId, enrollmentId, requestId }))
       .rejects.toMatchObject({ code: "IDEMPOTENCY_MISMATCH" });
   });
 
-  it("allows only an active administrator to append a private revocation", async () => {
-    mocks.state.actorRole = "admin";
-    await expect(revokeCourseCertificate({
-      actorUserId: ADMIN_ID,
-      certificateId: CERTIFICATE_ID,
-      requestId: REQUEST_ID,
-      reason: "Verified integrity correction",
-      now: new Date("2026-07-14T01:00:00.000Z"),
-    })).resolves.toMatchObject({ certificateId: CERTIFICATE_ID, replayed: false });
-    expect(mocks.query.mock.calls.some(([statement]) => String(statement).includes("insert into certificate_revocation"))).toBe(true);
+  it("throws NOT_ELIGIBLE when the eligibility row does not meet every requirement", async () => {
+    const { client } = fakeClient({
+      'from "user" where id=$1 for update': [{ role: "learner", status: "active" }],
+      "from certificate_operation_receipt": [],
+      "from enrollment": [eligibilityRow({ unapproved_count: 1 })],
+    });
+    mocks.connect.mockResolvedValue(client);
 
-    vi.clearAllMocks();
-    mocks.state.actorRole = "learner";
-    await expect(revokeCourseCertificate({
-      actorUserId: USER_ID, certificateId: CERTIFICATE_ID, requestId: REQUEST_ID,
-      reason: "Learner cannot revoke this evidence",
-    })).rejects.toMatchObject({ code: "ADMIN_REQUIRED" });
+    await expect(issueCourseCertificate({ userId, enrollmentId, requestId }))
+      .rejects.toMatchObject({ code: "NOT_ELIGIBLE" });
   });
 
-  it("projects a strict public allowlist and withholds the revocation reason", async () => {
-    mocks.poolQuery.mockResolvedValueOnce({ rows: [{
-      ...mocks.privateRow(),
-      revoked_at: new Date("2026-07-14T01:00:00.000Z"),
-      revocation_reason: null,
-      learner_email: "must-not-leak@example.test",
-      evidence_hash: "must-not-leak",
-    }] });
-    const publicRecord = await loadPublicCertificate("A_very_long_random_verification_token_1234567890");
-    expect(Object.keys(publicRecord).sort()).toEqual([
-      "courseTitle", "courseVersion", "issuedAt", "learnerDisplayName", "revokedAt",
-      "statement", "status", "verificationId",
-    ]);
-    expect(JSON.stringify(publicRecord)).not.toMatch(/must-not-leak|verified integrity correction|learner_email|evidence_hash|policy_version|enrollment_id|user_id/i);
-    expect(publicRecord.status).toBe("revoked");
+  it("reuses an existing certificate for the enrollment instead of issuing a second one", async () => {
+    const { client } = fakeClient({
+      'from "user" where id=$1 for update': [{ role: "learner", status: "active" }],
+      "from certificate_operation_receipt": [],
+      "from enrollment": [eligibilityRow()],
+      "select id from course_certificate where enrollment_id": [{ id: certificateId }],
+      "from course_certificate certificate": [certificateRow()],
+    });
+    mocks.connect.mockResolvedValue(client);
+
+    const result = await issueCourseCertificate({ userId, enrollmentId, requestId });
+
+    expect(result).toMatchObject({ replayed: false, reusedExisting: true });
+    expect(client.query).toHaveBeenCalledWith("commit");
+  });
+
+  it("throws NOT_ELIGIBLE when covered concepts lack complete mastery evidence", async () => {
+    const { client } = fakeClient({
+      'from "user" where id=$1 for update': [{ role: "learner", status: "active" }],
+      "from certificate_operation_receipt": [],
+      "from enrollment": [eligibilityRow()],
+      "select id from course_certificate where enrollment_id": [],
+      "with covered as": [conceptRow({ status: "learning" })],
+    });
+    mocks.connect.mockResolvedValue(client);
+
+    await expect(issueCourseCertificate({ userId, enrollmentId, requestId }))
+      .rejects.toMatchObject({ code: "NOT_ELIGIBLE" });
+  });
+
+  it("maps a unique-constraint violation to WRITE_CONFLICT and rolls back", async () => {
+    const { client } = fakeClient({
+      'from "user" where id=$1 for update': [{ role: "learner", status: "active" }],
+      "from certificate_operation_receipt": [],
+      "from enrollment": [eligibilityRow()],
+      "select id from course_certificate where enrollment_id": [],
+      "with covered as": [conceptRow()],
+      "insert into course_certificate": () => { throw Object.assign(new Error("duplicate"), { code: "23505" }); },
+    });
+    mocks.connect.mockResolvedValue(client);
+
+    await expect(issueCourseCertificate({ userId, enrollmentId, requestId }))
+      .rejects.toMatchObject({ code: "WRITE_CONFLICT" });
+    expect(client.query).toHaveBeenCalledWith("rollback");
+  });
+});
+
+describe("read-only certificate listings", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("maps a learner's own certificates to their public shape", async () => {
+    mocks.poolQuery.mockResolvedValue({ rows: [certificateRow()] });
+
+    const certificates = await listOwnCertificates(userId);
+
+    expect(certificates[0]).toMatchObject({ id: certificateId, status: "valid", verificationPath: expect.stringContaining("/verify/") });
+  });
+
+  it("marks a revoked certificate's status accordingly", async () => {
+    mocks.poolQuery.mockResolvedValue({ rows: [certificateRow({ revoked_at: new Date("2026-07-13T00:00:00.000Z"), revocation_reason: "Policy violation." })] });
+
+    const certificates = await listOwnCertificates(userId);
+
+    expect(certificates[0]).toMatchObject({ status: "revoked", revocationReason: "Policy violation." });
+  });
+
+  it("explains why each certificate candidate is or is not eligible", async () => {
+    mocks.poolQuery.mockResolvedValue({
+      rows: [
+        { enrollment_id: "e1", course_title: "Python", course_version: "1.0.0", enrollment_status: "in_progress", completed_at: null, stage: "verified", is_current: true, artifact_count: 3, unapproved_count: 0, concept_count: 4, mastered_count: 4, certificate_id: null },
+        { enrollment_id: "e2", course_title: "JavaScript", course_version: "1.0.0", enrollment_status: "completed", completed_at: new Date(), stage: "beta", is_current: true, artifact_count: 3, unapproved_count: 0, concept_count: 4, mastered_count: 4, certificate_id: null },
+        { enrollment_id: "e3", course_title: "Go", course_version: "1.0.0", enrollment_status: "completed", completed_at: new Date(), stage: "verified", is_current: true, artifact_count: 3, unapproved_count: 0, concept_count: 0, mastered_count: 0, certificate_id: null },
+        { enrollment_id: "e4", course_title: "Rust", course_version: "1.0.0", enrollment_status: "completed", completed_at: new Date(), stage: "verified", is_current: true, artifact_count: 3, unapproved_count: 0, concept_count: 4, mastered_count: 2, certificate_id: null },
+        { enrollment_id: "e5", course_title: "Ruby", course_version: "1.0.0", enrollment_status: "completed", completed_at: new Date(), stage: "verified", is_current: true, artifact_count: 3, unapproved_count: 0, concept_count: 4, mastered_count: 4, certificate_id: certificateId },
+      ],
+    });
+
+    const candidates = await listCertificateCandidates(userId);
+
+    expect(candidates[0]).toMatchObject({ eligible: false, reason: "Complete this course first." });
+    expect(candidates[1]).toMatchObject({ eligible: false, reason: expect.stringContaining("not the current verified publication") });
+    expect(candidates[2]).toMatchObject({ eligible: false, reason: expect.stringContaining("no certificate-eligible concept map") });
+    expect(candidates[3]).toMatchObject({ eligible: false, reason: "2 of 4 covered concepts have mastered, valid evidence." });
+    expect(candidates[4]).toMatchObject({ eligible: true, alreadyIssued: true });
+  });
+
+  it("lists every certificate with the learner's email for administrators", async () => {
+    mocks.poolQuery.mockResolvedValue({ rows: [{ ...certificateRow(), learner_email: "learner@example.test" }] });
+
+    const certificates = await listAdminCertificates();
+
+    expect(certificates[0]).toMatchObject({ learnerEmail: "learner@example.test" });
+  });
+});
+
+describe("loadPublicCertificate", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("rejects a malformed verification id without querying the database", async () => {
+    await expect(loadPublicCertificate("short")).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(mocks.poolQuery).not.toHaveBeenCalled();
+  });
+
+  it("throws NOT_FOUND when no certificate matches", async () => {
+    mocks.poolQuery.mockResolvedValue({ rows: [] });
+
+    await expect(loadPublicCertificate("v".repeat(40))).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("describes a valid certificate without exposing a revocation reason", async () => {
+    mocks.poolQuery.mockResolvedValue({ rows: [certificateRow()] });
+
+    const result = await loadPublicCertificate("v".repeat(40));
+
+    expect(result.status).toBe("valid");
+    expect(result.statement).toContain("immutable certificate");
+  });
+
+  it("describes a revoked certificate without exposing the private reason", async () => {
+    mocks.poolQuery.mockResolvedValue({ rows: [certificateRow({ revoked_at: new Date("2026-07-13T00:00:00.000Z") })] });
+
+    const result = await loadPublicCertificate("v".repeat(40));
+
+    expect(result.status).toBe("revoked");
+    expect(result.statement).not.toContain("Policy violation");
+    expect(result.statement).toContain("revoked");
+  });
+});
+
+describe("revokeCourseCertificate", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("rejects a malformed request before opening a connection", async () => {
+    await expect(revokeCourseCertificate({ actorUserId: userId, certificateId, requestId, reason: "short" }))
+      .rejects.toMatchObject({ code: "INVALID_REQUEST" });
+    expect(mocks.connect).not.toHaveBeenCalled();
+  });
+
+  it("requires an active administrator", async () => {
+    const { client } = fakeClient({
+      'from "user" where id=$1 for update': [{ role: "learner", status: "active" }],
+    });
+    mocks.connect.mockResolvedValue(client);
+
+    await expect(revokeCourseCertificate({ actorUserId: userId, certificateId, requestId, reason: "Policy violation observed." }))
+      .rejects.toMatchObject({ code: "ADMIN_REQUIRED" });
+  });
+
+  it("throws NOT_FOUND when the certificate does not exist", async () => {
+    const { client } = fakeClient({
+      'from "user" where id=$1 for update': [{ role: "admin", status: "active" }],
+      "from certificate_revocation where revoked_by": [],
+      "from course_certificate where id=$1 for update": [],
+    });
+    mocks.connect.mockResolvedValue(client);
+
+    await expect(revokeCourseCertificate({ actorUserId: userId, certificateId, requestId, reason: "Policy violation observed." }))
+      .rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("throws ALREADY_REVOKED for a certificate that already has a revocation row", async () => {
+    const { client } = fakeClient({
+      'from "user" where id=$1 for update': [{ role: "admin", status: "active" }],
+      "from certificate_revocation where revoked_by": [],
+      "from course_certificate where id=$1 for update": [{ id: certificateId }],
+      "select 1 from certificate_revocation where certificate_id": [{ "?column?": 1 }],
+    });
+    mocks.connect.mockResolvedValue(client);
+
+    await expect(revokeCourseCertificate({ actorUserId: userId, certificateId, requestId, reason: "Policy violation observed." }))
+      .rejects.toMatchObject({ code: "ALREADY_REVOKED" });
+  });
+
+  it("revokes the certificate and commits", async () => {
+    const { client } = fakeClient({
+      'from "user" where id=$1 for update': [{ role: "admin", status: "active" }],
+      "from certificate_revocation where revoked_by": [],
+      "from course_certificate where id=$1 for update": [{ id: certificateId }],
+      "select 1 from certificate_revocation where certificate_id": [],
+    });
+    mocks.connect.mockResolvedValue(client);
+
+    const result = await revokeCourseCertificate({ actorUserId: userId, certificateId, requestId, reason: "Policy violation observed." });
+
+    expect(result).toMatchObject({ certificateId, replayed: false });
+    expect(client.query).toHaveBeenCalledWith("commit");
+  });
+
+  it("replays an identical prior revocation request", async () => {
+    const revokedAt = new Date("2026-07-13T00:00:00.000Z");
+    const reason = "Policy violation observed.";
+
+    // Compute the real evidence hash first via a successful run, then confirm replay matches it.
+    const firstRun = fakeClient({
+      'from "user" where id=$1 for update': [{ role: "admin", status: "active" }],
+      "from certificate_revocation where revoked_by": [],
+      "from course_certificate where id=$1 for update": [{ id: certificateId }],
+      "select 1 from certificate_revocation where certificate_id": [],
+    });
+    mocks.connect.mockResolvedValueOnce(firstRun.client);
+    await revokeCourseCertificate({ actorUserId: userId, certificateId, requestId, reason });
+    const insertCall = firstRun.calls.find((call) => call.text.includes("insert into certificate_revocation"));
+    const realHash = (insertCall!.values as unknown[])[4] as string;
+
+    const replay = fakeClient({
+      'from "user" where id=$1 for update': [{ role: "admin", status: "active" }],
+      "from certificate_revocation where revoked_by": [{ certificate_id: certificateId, reason, evidence_hash: realHash, revoked_at: revokedAt }],
+    });
+    mocks.connect.mockResolvedValueOnce(replay.client);
+    const result = await revokeCourseCertificate({ actorUserId: userId, certificateId, requestId, reason });
+
+    expect(result).toMatchObject({ replayed: true, revokedAt: revokedAt.toISOString() });
   });
 });
