@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, LogIn } from "lucide-react";
+import { LogIn } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { PasswordInput } from "@/components/ui/password-input";
 import { authClient } from "@/lib/auth-client";
 import { openBrowserOutbox } from "@/lib/browser-durability/indexed-db";
 import {
@@ -17,7 +18,6 @@ type LoginGateState = "checking" | "cleaning" | "ready" | "session-error" | "cle
 
 export function LoginForm() {
   const router = useRouter();
-  const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
   const [gate, setGate] = useState<LoginGateState>("checking");
   const [error, setError] = useState<string | null>(null);
@@ -189,10 +189,7 @@ export function LoginForm() {
       </div>
       <div className={styles.field}>
         <div className={styles.formRow}><label htmlFor="password">Password</label><Link className={styles.link} href="/forgot-password">Forgot password?</Link></div>
-        <div className={styles.passwordWrap}>
-          <input id="password" name="password" type={visible ? "text" : "password"} autoComplete="current-password" required minLength={12} />
-          <button type="button" aria-label={visible ? "Hide password" : "Show password"} onClick={() => setVisible(!visible)}>{visible ? <EyeOff size={18} /> : <Eye size={18} />}</button>
-        </div>
+        <PasswordInput id="password" name="password" autoComplete="current-password" required minLength={12} />
       </div>
       <label className={styles.check}><input name="remember" type="checkbox" defaultChecked /> Keep me signed in on this device for 30 days</label>
       <button className={`button button-primary ${styles.submit}`} disabled={busy} type="submit"><LogIn size={18} /> {busy ? "Signing in…" : "Sign in"}</button>

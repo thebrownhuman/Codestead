@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { KeyRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { PasswordInput } from "@/components/ui/password-input";
 import styles from "./auth.module.css";
 
 export function ActivationForm() {
@@ -69,8 +70,8 @@ export function ActivationForm() {
       {error && <p className={styles.error} role="alert">{error}</p>}
       <p className={styles.notice}>Invitation for <strong>{email}</strong></p>
       <div className={styles.field}><label htmlFor="name">Display name</label><input id="name" name="name" autoComplete="name" required minLength={2} maxLength={80} /></div>
-      <div className={styles.field}><label htmlFor="password">Create password</label><input id="password" name="password" type="password" autoComplete="new-password" required minLength={12} maxLength={128} /><small>Use at least 12 characters. A passphrase is ideal.</small></div>
-      <div className={styles.field}><label htmlFor="confirm">Confirm password</label><input id="confirm" name="confirm" type="password" autoComplete="new-password" required minLength={12} /></div>
+      <div className={styles.field}><label htmlFor="password">Create password</label><PasswordInput id="password" name="password" autoComplete="new-password" required minLength={12} maxLength={128} /><small>Use at least 12 characters. A passphrase is ideal.</small></div>
+      <div className={styles.field}><label htmlFor="confirm">Confirm password</label><PasswordInput id="confirm" name="confirm" autoComplete="new-password" required minLength={12} /></div>
       <button className={`button button-primary ${styles.submit}`} disabled={busy} type="submit"><KeyRound size={18} /> {busy ? "Activating…" : "Activate account"}</button>
     </form>
   );

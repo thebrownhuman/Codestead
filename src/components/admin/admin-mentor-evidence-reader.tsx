@@ -8,6 +8,8 @@ import type {
   MentorEvidencePurpose,
 } from "@/lib/admin-mentor/contracts";
 
+import { PasswordInput } from "@/components/ui/password-input";
+
 import { requestAdminJson } from "./admin-utils";
 import styles from "./admin.module.css";
 
@@ -302,7 +304,7 @@ export function AdminMentorEvidenceReader({ learnerId }: { readonly learnerId: s
         <label>Evidence category<select aria-label="Mentor evidence category" value={category} onChange={(event) => changeScope(() => setCategory(event.target.value as MentorEvidenceCategory))}>{Object.entries(CATEGORY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         <label>Mentoring purpose<select aria-label="Mentor evidence purpose" value={purpose} onChange={(event) => changeScope(() => setPurpose(event.target.value as MentorEvidencePurpose))}>{Object.entries(PURPOSE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         <label>Specific reason<textarea aria-label="Mentor evidence reason" maxLength={500} minLength={20} onChange={(event) => changeScope(() => setReason(event.target.value))} value={reason} /></label>
-        <label>Current six-digit authenticator code<input aria-label="Mentor evidence authenticator code" autoComplete="one-time-code" inputMode="numeric" maxLength={6} onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))} type="password" value={totp} /></label>
+        <label>Current six-digit authenticator code<PasswordInput aria-label="Mentor evidence authenticator code" autoComplete="one-time-code" inputMode="numeric" maxLength={6} onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))} value={totp} /></label>
         <div className={styles.headActions}>
           <button className="button button-primary" disabled={busy} onClick={() => void readEvidence()} type="button"><Eye size={15} /> {busy ? "Reading…" : "Read and audit evidence"}</button>
           <button className="button button-secondary" disabled={!result} onClick={() => clearEvidence("Sensitive learner evidence cleared.")} type="button"><Trash2 size={15} /> Clear now</button>
@@ -334,12 +336,12 @@ export function AdminMentorEvidenceReader({ learnerId }: { readonly learnerId: s
           <p className={styles.safeNotice}><ShieldAlert size={14} /> Before attesting, stop and restart the dedicated runner VM, then use the runner journal procedure to confirm there is no active copy for {typeof selectedRecoveryItem?.remoteRunnerJobId === "string" ? <>remote job <code>{selectedRecoveryItem.remoteRunnerJobId}</code></> : <>idempotency/request key <code>{String(selectedRecoveryItem?.runnerRequestId ?? "unavailable")}</code></>}. The trusted application host deliberately has no Docker socket and cannot perform these operator steps.</p>
           {recoveryAttempt && <p className={styles.safeNotice}>A prior network attempt exists. Its request ID and exact audited reason are locked so a lost response can be retried safely.</p>}
           <label>Recovery reason<textarea aria-label="Practice recovery resolution reason" disabled={Boolean(recoveryAttempt)} maxLength={500} minLength={20} value={recoveryReason} onChange={(event) => setRecoveryReason(event.target.value)} /></label>
-          <label>Current six-digit authenticator code<input aria-label="Practice recovery authenticator code" autoComplete="one-time-code" inputMode="numeric" maxLength={6} type="password" value={recoveryTotp} onChange={(event) => setRecoveryTotp(event.target.value.replace(/\D/g, ""))} /></label>
+          <label>Current six-digit authenticator code<PasswordInput aria-label="Practice recovery authenticator code" autoComplete="one-time-code" inputMode="numeric" maxLength={6} value={recoveryTotp} onChange={(event) => setRecoveryTotp(event.target.value.replace(/\D/g, ""))} /></label>
           <label><input checked={runnerRestarted} disabled={Boolean(recoveryAttempt)} onChange={(event) => setRunnerRestarted(event.target.checked)} type="checkbox" /> I stopped and restarted the dedicated runner VM.</label>
           <label><input checked={journalReconciled} disabled={Boolean(recoveryAttempt)} onChange={(event) => setJournalReconciled(event.target.checked)} type="checkbox" /> I confirmed the durable journal has no active copy for the displayed remote job or idempotency key.</label>
           <div className={styles.headActions}><button className="button button-primary" disabled={busy} onClick={() => void resolveQuarantinedPracticeRun()} type="button">Resolve and audit</button><button className="button button-secondary" disabled={busy} onClick={() => setSelectedRecoveryJobId(null)} type="button">Cancel</button></div>
         </div>}
-        {result.evidence.page.hasMore && result.evidence.page.nextCursor && <div className={styles.appealDecisionForm}><label>Authenticator code for next audited page<input aria-label="Mentor evidence next-page authenticator code" autoComplete="one-time-code" inputMode="numeric" maxLength={6} onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))} type="password" value={totp} /></label><button className="button button-secondary" disabled={busy} onClick={() => void readEvidence(result.evidence.page.nextCursor!)} type="button">Read next audited page</button></div>}
+        {result.evidence.page.hasMore && result.evidence.page.nextCursor && <div className={styles.appealDecisionForm}><label>Authenticator code for next audited page<PasswordInput aria-label="Mentor evidence next-page authenticator code" autoComplete="one-time-code" inputMode="numeric" maxLength={6} onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))} value={totp} /></label><button className="button button-secondary" disabled={busy} onClick={() => void readEvidence(result.evidence.page.nextCursor!)} type="button">Read next audited page</button></div>}
       </section>}
     </article>
   );

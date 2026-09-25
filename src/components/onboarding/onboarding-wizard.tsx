@@ -16,6 +16,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 
 import { BrandMark } from "@/components/brand-mark";
+import { PasswordInput } from "@/components/ui/password-input";
 import { authClient } from "@/lib/auth-client";
 import styles from "./onboarding.module.css";
 
@@ -182,9 +183,9 @@ function ForcedPasswordChange({ onChanged }: { onChanged: () => void }) {
       <form className={styles.form} onSubmit={submit}>
         <h1>Choose your own password.</h1>
         <p>This account was created with a temporary password. Set a new one (at least 12 characters), then sign in again to continue setup.</p>
-        <label><span>Temporary password</span><input autoComplete="current-password" maxLength={128} minLength={12} name="currentPassword" required type="password" /></label>
-        <label><span>New password</span><input autoComplete="new-password" maxLength={128} minLength={12} name="newPassword" required type="password" /></label>
-        <label><span>Confirm new password</span><input autoComplete="new-password" maxLength={128} minLength={12} name="confirmPassword" required type="password" /></label>
+        <label><span>Temporary password</span><PasswordInput autoComplete="current-password" maxLength={128} minLength={12} name="currentPassword" required /></label>
+        <label><span>New password</span><PasswordInput autoComplete="new-password" maxLength={128} minLength={12} name="newPassword" required /></label>
+        <label><span>Confirm new password</span><PasswordInput autoComplete="new-password" maxLength={128} minLength={12} name="confirmPassword" required /></label>
         {error ? <p className={styles.error} role="alert">{error}</p> : null}
         <button className="button button-primary" disabled={busy} type="submit">{busy ? "Saving…" : "Save password"}</button>
       </form>
@@ -602,7 +603,7 @@ export function OnboardingWizard() {
               <span className={styles.eyebrow}><ShieldCheck size={15} /> Required for everyone</span>
               <h1>Protect your progress.</h1>
               <p>Use any TOTP authenticator. The QR is generated here in your browser; it is not sent to another service.</p>
-              {!totpUri ? <form className={styles.innerForm} onSubmit={beginMfa}><label><span>Current password <small>leave empty for Google-only accounts</small></span><input name="password" type="password" autoComplete="current-password" /></label><button className="button button-primary" disabled={busy} type="submit"><KeyRound size={17} /> {busy ? "Preparing…" : "Set up authenticator"}</button></form> : <form className={styles.innerForm} onSubmit={confirmMfa}><div className={styles.mfaGrid}><div className={styles.qr}>{qr ? <Image alt="Authenticator setup QR code" src={qr} width={220} height={220} unoptimized /> : <LoaderCircle className={styles.spin} />}</div><div><h2>Scan, then verify</h2><ol><li>Open your authenticator.</li><li>Scan this QR or enter the setup URI manually.</li><li>Enter the new six-digit code below.</li></ol><label><span>Verification code</span><input className={styles.otp} name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required /></label></div></div>{backupCodes.length > 0 && <details className={styles.backup}><summary>Save your recovery codes</summary><p>Store these offline. Each is single-use.</p><code>{backupCodes.join("\n")}</code></details>}<button className="button button-primary" disabled={busy} type="submit"><ShieldCheck size={17} /> {busy ? "Verifying…" : "Verify authenticator"}</button></form>}
+              {!totpUri ? <form className={styles.innerForm} onSubmit={beginMfa}><label><span>Current password <small>leave empty for Google-only accounts</small></span><PasswordInput name="password" autoComplete="current-password" /></label><button className="button button-primary" disabled={busy} type="submit"><KeyRound size={17} /> {busy ? "Preparing…" : "Set up authenticator"}</button></form> : <form className={styles.innerForm} onSubmit={confirmMfa}><div className={styles.mfaGrid}><div className={styles.qr}>{qr ? <Image alt="Authenticator setup QR code" src={qr} width={220} height={220} unoptimized /> : <LoaderCircle className={styles.spin} />}</div><div><h2>Scan, then verify</h2><ol><li>Open your authenticator.</li><li>Scan this QR or enter the setup URI manually.</li><li>Enter the new six-digit code below.</li></ol><label><span>Verification code</span><input className={styles.otp} name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required /></label></div></div>{backupCodes.length > 0 && <details className={styles.backup}><summary>Save your recovery codes</summary><p>Store these offline. Each is single-use.</p><code>{backupCodes.join("\n")}</code></details>}<button className="button button-primary" disabled={busy} type="submit"><ShieldCheck size={17} /> {busy ? "Verifying…" : "Verify authenticator"}</button></form>}
             </div>
           )}
 
@@ -613,7 +614,7 @@ export function OnboardingWizard() {
               <p>Your key is encrypted before storage and is only decrypted in memory for your provider request. Authored lessons, quizzes, exams, and progress still work if the provider is unavailable.</p>
               <div className={styles.providerCard}><span className={styles.nvidiaMark}>NV</span><span><strong>NVIDIA NIM</strong><small>Required primary tutor provider</small></span><a href="https://build.nvidia.com/" target="_blank" rel="noreferrer">Create a key <ExternalLink size={14} /></a></div>
               {!requirements.mfaFresh && <label key="nim-mfa-challenge"><span>Current authenticator code</span><input className={styles.otp} name="mfaCode" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required /><small>Credential changes require a recent authenticator check. This approval lasts five minutes.</small></label>}
-              <label key="nim-api-key"><span>NVIDIA API key</span><input name="key" type="password" autoComplete="off" placeholder="Paste once; only the last four will be shown later" required minLength={8} /><small>The app makes a tiny validation request. It never writes the key to logs.</small></label>
+              <label key="nim-api-key"><span>NVIDIA API key</span><PasswordInput name="key" autoComplete="off" placeholder="Paste once; only the last four will be shown later" required minLength={8} /><small>The app makes a tiny validation request. It never writes the key to logs.</small></label>
               <div className={styles.securityNote}><ShieldCheck size={20} /><span><strong>Protected by envelope encryption</strong><small>Full reveal later requires administrator MFA, a reason, an audit event, and a notification to you.</small></span></div>
               <button className="button button-primary" disabled={busy} type="submit">{busy ? "Encrypting and validating…" : "Connect NIM and start learning"}<ArrowRight size={17} /></button>
             </form>

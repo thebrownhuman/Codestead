@@ -16,6 +16,7 @@ import {
   type TextSizePreference,
 } from "@/lib/preferences/accessibility-preferences";
 import { ModalDialog } from "@/components/ui/modal-dialog";
+import { PasswordInput } from "@/components/ui/password-input";
 
 import styles from "./product-pages.module.css";
 import { DeviceSessionsPanel } from "./device-sessions-panel";
@@ -504,7 +505,7 @@ export function SettingsView({ initialTab = "ai" }: { initialTab?: SettingsTab }
                 <label>Provider<select name="provider"><option value="nvidia_nim">NVIDIA NIM</option><option value="openrouter">OpenRouter</option><option value="google">Google Gemini</option><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="deepseek">DeepSeek</option></select></label>
                 <label>Label<input name="label" placeholder="My personal key" required minLength={2} /></label>
               </>}
-              <label>{replaceTarget ? "New API key" : "API key"}<input name="secret" type="password" autoComplete="off" placeholder="Paste once" required minLength={8} /><small>Never paste a key you have already exposed publicly; rotate it first.</small></label>
+              <label>{replaceTarget ? "New API key" : "API key"}<PasswordInput name="secret" autoComplete="off" placeholder="Paste once" required minLength={8} /><small>Never paste a key you have already exposed publicly; rotate it first.</small></label>
               {!replaceTarget && <label><span><input name="providerConsent" required type="checkbox" /> I allow future tutor requests to send the disclosed bounded lesson context, relevant chat, preferences, and code I choose to discuss to this provider. Email, keys, hidden tests, and other learners are excluded.</span><small>This choice is versioned and can be withdrawn in privacy settings without deleting the stored encrypted key.</small></label>}
               {!replaceTarget && <label><span><input name="preferred" type="checkbox" /> Prefer this provider when healthy</span></label>}
               <button className="button button-primary" disabled={busy} type="submit">{busy ? "Encrypting and validating…" : replaceTarget ? "Replace encrypted key" : "Store encrypted key"}</button>

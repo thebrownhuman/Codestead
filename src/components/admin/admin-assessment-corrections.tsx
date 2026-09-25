@@ -3,6 +3,8 @@
 import { AlertTriangle, FileCheck2, Play, RefreshCw, ShieldCheck, Wrench } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { PasswordInput } from "@/components/ui/password-input";
+
 import { formatDateTime, humanize, requestAdminJson } from "./admin-utils";
 import styles from "./admin.module.css";
 import { StatusPill } from "./status-pill";
@@ -280,7 +282,7 @@ export function AdminAssessmentCorrections({ initialAppealId = "" }: { readonly 
           <label>Human review evidence reference<input aria-label="Human review evidence reference" value={evidenceRef} onChange={(event) => setEvidenceRef(event.target.value)} /></label>
           <label>Human review note<textarea aria-label="Human review note" maxLength={2000} minLength={20} value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} /></label>
           <label>Reviewed replacement test evidence JSON<textarea aria-label="Reviewed replacement test evidence JSON" spellCheck={false} rows={18} value={replacementJson} onChange={(event) => { setReplacementJson(event.target.value); requestRef.current = null; }} /><small>Use a new bundle version and the exact digest returned by the pinned runner image. Keep at least one hidden test when the faulty version had hidden coverage.</small></label>
-          <label>Current six-digit authenticator code<input aria-label="Correction authenticator code" autoComplete="one-time-code" inputMode="numeric" maxLength={6} type="password" value={totp} onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))} /></label>
+          <label>Current six-digit authenticator code<PasswordInput aria-label="Correction authenticator code" autoComplete="one-time-code" inputMode="numeric" maxLength={6} value={totp} onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))} /></label>
           <button className="button button-primary" disabled={busy} onClick={() => void createCorrection()} type="button"><ShieldCheck size={15} /> {busy ? "Recording…" : "Preview impact and record correction"}</button>
         </div>
       </article>
@@ -298,7 +300,7 @@ export function AdminAssessmentCorrections({ initialAppealId = "" }: { readonly 
               <p>Faulty bundle <code>{detail.correction.target.faultyBundleVersion}</code> → reviewed bundle <code>{detail.correction.replacement.bundleVersion}</code></p>
               <p className={styles.hashGood}><ShieldCheck size={14} /> Faulty evidence <code>{detail.correction.target.faultyEvidenceHash}</code></p>
               <p className={styles.hashGood}><ShieldCheck size={14} /> Replacement evidence <code>{detail.correction.replacement.evidenceHash}</code></p>
-              {detail.correction.status === "reviewed" && <div className={styles.appealDecisionForm}><label>Queue reason<textarea aria-label="Correction queue reason" minLength={20} maxLength={2000} value={queueReason} onChange={(event) => setQueueReason(event.target.value)} /></label><label>Current six-digit authenticator code<input aria-label="Queue correction authenticator code" autoComplete="one-time-code" inputMode="numeric" maxLength={6} type="password" value={totp} onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))} /></label><button className="button button-primary" disabled={busy} onClick={() => void queueCorrection()} type="button"><Play size={15} /> Queue all exact impacts</button></div>}
+              {detail.correction.status === "reviewed" && <div className={styles.appealDecisionForm}><label>Queue reason<textarea aria-label="Correction queue reason" minLength={20} maxLength={2000} value={queueReason} onChange={(event) => setQueueReason(event.target.value)} /></label><label>Current six-digit authenticator code<PasswordInput aria-label="Queue correction authenticator code" autoComplete="one-time-code" inputMode="numeric" maxLength={6} value={totp} onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))} /></label><button className="button button-primary" disabled={busy} onClick={() => void queueCorrection()} type="button"><Play size={15} /> Queue all exact impacts</button></div>}
             </article>
             <article className={styles.panel}>
               <div className={styles.panelHead}><div><FileCheck2 size={18} /><span><strong>Affected attempts</strong><small>Only hashes, learner label, status, and corrected outcome are exposed here</small></span></div></div>

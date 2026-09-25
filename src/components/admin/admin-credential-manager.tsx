@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { PasswordInput } from "@/components/ui/password-input";
+
 import { AdminApiError, credentialTail, humanize, requestAdminJson } from "./admin-utils";
 import styles from "./admin.module.css";
 import { EmptyState, StatusPill } from "./status-pill";
@@ -216,13 +218,12 @@ export function AdminCredentialManager({
           <div className={styles.credentialFields}>
             <label>
               Current six-digit authenticator code
-              <input
+              <PasswordInput
                 autoComplete="one-time-code"
                 inputMode="numeric"
                 maxLength={6}
                 onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))}
                 pattern="[0-9]{6}"
-                type="password"
                 value={totp}
               />
             </label>
@@ -238,13 +239,12 @@ export function AdminCredentialManager({
             </label>
             <label>
               Replacement credential (replace only)
-              <input
+              <PasswordInput
                 autoComplete="off"
                 maxLength={4_096}
                 minLength={8}
                 onChange={(event) => setReplacementSecret(event.target.value)}
                 spellCheck={false}
-                type="password"
                 value={replacementSecret}
               />
             </label>

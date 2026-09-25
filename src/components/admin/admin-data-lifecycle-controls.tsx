@@ -3,6 +3,7 @@
 import { Download, ShieldAlert, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { PasswordInput } from "@/components/ui/password-input";
 import styles from "./admin.module.css";
 
 type DeletionReport = {
@@ -128,13 +129,12 @@ export function AdminDataLifecycleControls({ learnerId }: { readonly learnerId: 
       <div className={styles.approveForm}>
         <label>
           Current six-digit authenticator code
-          <input
+          <PasswordInput
             autoComplete="one-time-code"
             inputMode="numeric"
             maxLength={6}
             onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))}
             pattern="[0-9]{6}"
-            type="password"
             value={totp}
           />
         </label>

@@ -3,6 +3,7 @@
 import { AlertTriangle, BookOpenCheck, CheckCircle2, FileSearch, RefreshCw, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { PasswordInput } from "@/components/ui/password-input";
 import { REVIEW_DIMENSIONS, type CurriculumReviewChecklist } from "@/lib/curriculum-publication/contracts";
 
 import { humanize, requestAdminJson } from "./admin-utils";
@@ -309,7 +310,7 @@ export function AdminCurriculumPublication({
     <header className={styles.pageHead}><div><span className={styles.eyebrow}>Human editorial control</span><h1>Course <span>review &amp; publication</span></h1><p>{reviewQueue.total} staged artifacts need review across {reviewQueue.courseCount} course versions. Approval remains a human, MFA-protected decision.</p></div><div className={styles.headActions}><button type="button" className="button button-secondary" onClick={() => void loadCurriculum()}><RefreshCw size={14} /> Refresh</button><button type="button" className="button button-primary" disabled={busy} onClick={() => void stage()}><BookOpenCheck size={14} /> Stage drafts</button></div></header>
     <p className={styles.safeNotice}><ShieldCheck size={14} /> AI-assisted files remain draft and exam-ineligible. Staging never approves, publishes, or rewrites them.</p>
     {error && <p className={styles.inlineError} role="alert">{error}</p>}{notice && <p className={styles.inlineSuccess} role="status">{notice}</p>}
-    <div className={styles.curriculumAuth} id="curriculum-auth"><label>Curriculum authenticator code<input aria-label="Curriculum authenticator code" inputMode="numeric" maxLength={6} type="password" value={totp} onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))} /></label><label>Recorded reason<textarea value={reason} maxLength={500} onChange={(event) => { setReason(event.target.value); requestRef.current = null; }} /></label></div>
+    <div className={styles.curriculumAuth} id="curriculum-auth"><label>Curriculum authenticator code<PasswordInput aria-label="Curriculum authenticator code" inputMode="numeric" maxLength={6} value={totp} onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))} /></label><label>Recorded reason<textarea value={reason} maxLength={500} onChange={(event) => { setReason(event.target.value); requestRef.current = null; }} /></label></div>
     <section className={styles.panel} aria-labelledby="editorial-review-queue-title">
       <div className={styles.panelHead}><div><FileSearch size={18} /><span><strong id="editorial-review-queue-title">Editorial review queue</strong><small>All staged artifacts without approval, across every active course version</small></span></div><span className="pill">{reviewQueue.total} outstanding across {reviewQueue.courseCount} courses</span></div>
       <div className={styles.curriculumQueueSummary}>{reviewQueue.statusCounts.map((item) => <span className="pill" key={item.status}>{item.count} {humanize(item.status)}</span>)}</div>

@@ -3,6 +3,8 @@
 import { FileSearch, RefreshCw, ShieldCheck, Wrench } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { PasswordInput } from "@/components/ui/password-input";
+
 import { formatDateTime, humanize, requestAdminJson } from "./admin-utils";
 import styles from "./admin.module.css";
 import { StatusPill } from "./status-pill";
@@ -202,7 +204,7 @@ export function AdminProjectReviewCorrections() {
       <form className={styles.appealDecisionForm} onSubmit={queueCorrection}>
         <label>Source review id<input onChange={(event) => { setSourceReviewId(event.target.value); requestRef.current = null; }} required type="text" value={sourceReviewId} /></label>
         <label>Correction reason<textarea maxLength={500} minLength={20} onChange={(event) => { setReason(event.target.value); requestRef.current = null; }} required value={reason} /></label>
-        <label>Current six-digit authenticator code<input autoComplete="one-time-code" inputMode="numeric" maxLength={6} onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))} type="password" value={totp} /></label>
+        <label>Current six-digit authenticator code<PasswordInput autoComplete="one-time-code" inputMode="numeric" maxLength={6} onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))} value={totp} /></label>
         <button className="button button-primary" disabled={busy} type="submit"><ShieldCheck size={15} /> Queue static correction</button>
       </form>
     </article>

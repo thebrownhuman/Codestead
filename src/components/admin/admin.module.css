@@ -256,7 +256,7 @@
 .appealDecisionForm label { display: grid; gap: 5px; }
 .appealDecisionForm fieldset label { display: flex; align-items: center; }
 .appealDecisionForm textarea { min-height: 86px; resize: vertical; }
-.appealDecisionForm textarea, .appealDecisionForm input[type="password"] { padding: 9px 10px; border: 1px solid var(--line); border-radius: 11px; color: var(--ink); background: var(--surface-solid); font-size: .63rem; }
+.appealDecisionForm textarea, .appealDecisionForm input[type="password"], .appealDecisionForm input[type="text"] { padding: 9px 10px; border: 1px solid var(--line); border-radius: 11px; color: var(--ink); background: var(--surface-solid); font-size: .63rem; }
 .appealDecisionForm button { justify-self: end; }
 .planWorkspace { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, .8fr); gap: 12px; margin-top: 12px; }
 .planItems, .planHistory, .planEditor, .planImpact { min-width: 0; padding: 13px; border: 1px solid var(--line); border-radius: 15px; background: var(--surface-muted); }
