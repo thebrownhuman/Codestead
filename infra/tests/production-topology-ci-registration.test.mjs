@@ -25,9 +25,22 @@ const job = workflow.match(
   /^  production-topology:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
 )?.[0] ?? "";
 
-assert.match(job, /^  production-topology:\n    runs-on: ubuntu-24\.04\n/mu);
-assert.doesNotMatch(job, /^    (?:needs|if):/mu, "topology gate must be independent");
-assert.match(job, /timeout-minutes: 45/u);
+assert.match(
+  job,
+  /^  production-topology:\n    runs-on: ubuntu-24\.04\n    timeout-minutes: 45\n    needs: changes\n    if: needs\.changes\.outputs\.topology == 'true'\n    env:\n/mu,
+);
+assert.deepEqual(
+  job.match(/^    (?:needs|if|continue-on-error):.*$/gmu),
+  ["    needs: changes", "    if: needs.changes.outputs.topology == 'true'"],
+  "topology gate may only depend on the reviewed path-scope job",
+);
+// The changes job must keep every non-pull-request event (main, nightly,
+// dispatch) running the topology gate unconditionally.
+assert.match(
+  workflow,
+  /^      topology: \$\{\{ github\.event_name != 'pull_request' \|\| steps\.filter\.outputs\['topology-paths'\] == 'true' \}\}$/mu,
+  "topology must always run outside pull requests",
+);
 assert.doesNotMatch(
   job,
   /^      RUNNER_ENVIRONMENT:/mu,

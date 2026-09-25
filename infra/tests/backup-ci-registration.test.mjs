@@ -927,6 +927,7 @@ const expectedApplicationRuns = [
   "docker build --pull=false --target regrade-worker --tag learncoding-regrade-worker:ci .",
 ];
 const reviewedJobNames = [
+  "changes",
   "application",
   "application-images",
   "production-topology",
@@ -1092,6 +1093,79 @@ const canonicalPostgresProjection = projectPostgresCiProjectionContract(
 );
 const reviewedJobContracts = new Map([
   [
+    "changes",
+    [
+      "    runs-on: ubuntu-24.04",
+      "    timeout-minutes: 5",
+      "    permissions:",
+      "      contents: read",
+      "      pull-requests: read",
+      "    outputs:",
+      "      browser: ${{ github.event_name != 'pull_request' || steps.filter.outputs['browser-paths'] == 'true' }}",
+      "      runner: ${{ github.event_name != 'pull_request' || steps.filter.outputs['runner-paths'] == 'true' }}",
+      "      curriculum: ${{ github.event_name != 'pull_request' || steps.filter.outputs['curriculum-paths'] == 'true' }}",
+      "      images: ${{ github.event_name != 'pull_request' || steps.filter.outputs['images-paths'] == 'true' }}",
+      "      backup: ${{ github.event_name != 'pull_request' || steps.filter.outputs['backup-paths'] == 'true' }}",
+      "      topology: ${{ github.event_name != 'pull_request' || steps.filter.outputs['topology-paths'] == 'true' }}",
+      "    steps:",
+      "      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3",
+      "        id: filter",
+      "        if: github.event_name == 'pull_request'",
+      "        with:",
+      "          filters: |",
+      "            browser-paths:",
+      "              - .github/workflows/ci.yml",
+      "              - package.json",
+      "              - package-lock.json",
+      "              - src/**",
+      "              - e2e/**",
+      "              - public/**",
+      "              - content/**",
+      "              - scripts/**",
+      "              - next.config.*",
+      "              - playwright.config.*",
+      "              - tsconfig.json",
+      "            runner-paths:",
+      "              - .github/workflows/ci.yml",
+      "              - services/runner/**",
+      "            curriculum-paths:",
+      "              - .github/workflows/ci.yml",
+      "              - package.json",
+      "              - package-lock.json",
+      "              - services/runner/**",
+      "              - content/**",
+      "              - scripts/**",
+      "              - src/lib/**",
+      "              - docs/evidence/**",
+      "            images-paths:",
+      "              - .github/workflows/ci.yml",
+      "              - package.json",
+      "              - package-lock.json",
+      "              - Dockerfile",
+      "              - .dockerignore",
+      "              - src/**",
+      "              - scripts/**",
+      "              - drizzle/**",
+      "              - content/**",
+      "              - public/**",
+      "              - infra/docker/**",
+      "              - next.config.*",
+      "            backup-paths:",
+      "              - .github/workflows/ci.yml",
+      "              - compose.yaml",
+      "              - scripts/backup/**",
+      "              - scripts/verify-restored-backup*",
+      "              - infra/**",
+      "            topology-paths:",
+      "              - .github/workflows/ci.yml",
+      "              - compose.yaml",
+      "              - Dockerfile",
+      "              - drizzle/**",
+      "              - scripts/**",
+      "              - infra/**",
+    ],
+  ],
+  [
     "application",
     [
       "    runs-on: ubuntu-24.04",
@@ -1107,6 +1181,8 @@ const reviewedJobContracts = new Map([
     [
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 90",
+      "    needs: changes",
+      "    if: needs.changes.outputs.images == 'true'",
       "    env:",
       "      APP_IMAGE_SOURCE_REPOSITORY: ${{ github.server_url }}/${{ github.repository }}",
       "      APP_IMAGE_SOURCE_REVISION: ${{ github.sha }}",
@@ -1133,6 +1209,8 @@ const reviewedJobContracts = new Map([
     [
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 45",
+      "    needs: changes",
+      "    if: needs.changes.outputs.topology == 'true'",
       "    env:",
       '      CODESTEAD_DISPOSABLE_DOCKER_DAEMON: "1"',
       '      CODESTEAD_TOPOLOGY_RESTART_DOCKER: "1"',
@@ -1155,6 +1233,8 @@ const reviewedJobContracts = new Map([
     [
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 60",
+      "    needs: changes",
+      "    if: needs.changes.outputs.backup == 'true'",
       "    steps:",
       ...checkoutProjection,
       ...setupNodeProjection,
@@ -1166,6 +1246,8 @@ const reviewedJobContracts = new Map([
     [
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 30",
+      "    needs: changes",
+      "    if: needs.changes.outputs.backup == 'true'",
       "    steps:",
       ...checkoutProjection,
       "      - run: bash infra/tests/install-reviewed-docker-engine.sh",
@@ -1177,6 +1259,8 @@ const reviewedJobContracts = new Map([
     [
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 35",
+      "    needs: changes",
+      "    if: needs.changes.outputs.runner == 'true'",
       "    env:",
       "      RUNTIME_LOCAL_RISK_ACCEPTANCE: accept-unsigned-local-buildkit-provenance-v1",
       "      RUNTIME_SOURCE_REPOSITORY: ${{ github.server_url }}/${{ github.repository }}",
@@ -1262,6 +1346,8 @@ const reviewedJobContracts = new Map([
     [
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 45",
+      "    needs: changes",
+      "    if: needs.changes.outputs.curriculum == 'true'",
       "    env:",
       "      RUNTIME_LOCAL_RISK_ACCEPTANCE: accept-unsigned-local-buildkit-provenance-v1",
       "      RUNTIME_SOURCE_REPOSITORY: ${{ github.server_url }}/${{ github.repository }}",
@@ -1321,6 +1407,8 @@ const reviewedJobContracts = new Map([
     [
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 30",
+      "    needs: changes",
+      "    if: needs.changes.outputs.browser == 'true'",
       "    steps:",
       ...checkoutProjection,
       ...setupNodeProjection,
@@ -1334,6 +1422,8 @@ const reviewedJobContracts = new Map([
     [
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 25",
+      "    needs: changes",
+      "    if: needs.changes.outputs.browser == 'true'",
       "    strategy:",
       "      fail-fast: false",
       "      matrix:",
@@ -1363,7 +1453,13 @@ const reviewedJobContracts = new Map([
 
 function canonicalJobBlocks(lines) {
   const topLevel = lines.filter((line) => /^[^\s#]/.test(line));
-  const expectedTopLevel = ["name: CI", "on:", "permissions:", "jobs:"];
+  const expectedTopLevel = [
+    "name: CI",
+    "on:",
+    "permissions:",
+    "concurrency:",
+    "jobs:",
+  ];
   if (topLevel.join("\n") !== expectedTopLevel.join("\n")) {
     fail("workflow top-level mapping is not the strict canonical contract");
   }
@@ -1467,9 +1563,17 @@ function requireCanonicalWorkflowPreamble(lines) {
     "name: CI",
     "on:",
     "  push:",
+    "    branches:",
+    "      - main",
     "  pull_request:",
+    "  workflow_dispatch:",
+    "  schedule:",
+    '    - cron: "23 2 * * *"',
     "permissions:",
     "  contents: read",
+    "concurrency:",
+    "  group: ci-${{ github.ref }}",
+    "  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}",
     "jobs:",
   ];
   const projection = lines
@@ -1914,8 +2018,28 @@ function runAdversarialSelfTests(document) {
     "manual-only workflow trigger",
     replaceExactly(
       document,
-      "on:\n  push:\n  pull_request:\n",
+      "on:\n  push:\n    branches:\n      - main\n  pull_request:\n  workflow_dispatch:\n",
       "on:\n  workflow_dispatch:\n",
+    ),
+  );
+  expectRejected(
+    "pushes to main no longer run every gate",
+    replaceExactly(
+      document,
+      "    branches:\n      - main\n",
+      "    branches:\n      - release\n",
+    ),
+  );
+  expectRejected(
+    "nightly full-suite schedule removed",
+    replaceExactly(document, '  schedule:\n    - cron: "23 2 * * *"\n', ""),
+  );
+  expectRejected(
+    "cancellable main-branch runs",
+    replaceExactly(
+      document,
+      "  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}\n",
+      "  cancel-in-progress: true\n",
     ),
   );
   expectRejected(
@@ -1928,7 +2052,11 @@ function runAdversarialSelfTests(document) {
   );
   expectRejected(
     "write-capable workflow permissions",
-    replaceExactly(document, "  contents: read\n", "  contents: write\n"),
+    replaceExactly(
+      document,
+      "permissions:\n  contents: read\n",
+      "permissions:\n  contents: write\n",
+    ),
   );
 
   const applicationImageCacheInitialization = [
@@ -2021,8 +2149,8 @@ function runAdversarialSelfTests(document) {
     "aliased production e2e steps",
     replaceExactly(
       document,
-      "  backup-production-e2e:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n    steps:\n",
-      "  backup-production-e2e:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n    steps: *production-steps\n",
+      "  backup-production-e2e:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n    needs: changes\n    if: needs.changes.outputs.backup == 'true'\n    steps:\n",
+      "  backup-production-e2e:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n    needs: changes\n    if: needs.changes.outputs.backup == 'true'\n    steps: *production-steps\n",
     ),
   );
   expectRejected(
@@ -2051,7 +2179,7 @@ function runAdversarialSelfTests(document) {
     "      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0";
   const productionCheckout = `${checkoutStep}\n        with:\n          persist-credentials: false`;
   const productionStepsAnchor =
-    "  backup-production-e2e:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n    steps:\n";
+    "  backup-production-e2e:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n    needs: changes\n    if: needs.changes.outputs.backup == 'true'\n    steps:\n";
   expectRejected(
     "missing production e2e run",
     replaceExactly(document, `${productionStep}\n`, ""),

@@ -2,12 +2,93 @@ name: CI
 
 on:
   push:
+    branches:
+      - main
   pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 2 * * *"
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
+  # Pull requests run each path-scoped gate only when its inputs change; pushes
+  # to main, the nightly schedule and manual dispatches always run every gate.
+  changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      browser: ${{ github.event_name != 'pull_request' || steps.filter.outputs['browser-paths'] == 'true' }}
+      runner: ${{ github.event_name != 'pull_request' || steps.filter.outputs['runner-paths'] == 'true' }}
+      curriculum: ${{ github.event_name != 'pull_request' || steps.filter.outputs['curriculum-paths'] == 'true' }}
+      images: ${{ github.event_name != 'pull_request' || steps.filter.outputs['images-paths'] == 'true' }}
+      backup: ${{ github.event_name != 'pull_request' || steps.filter.outputs['backup-paths'] == 'true' }}
+      topology: ${{ github.event_name != 'pull_request' || steps.filter.outputs['topology-paths'] == 'true' }}
+    steps:
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          filters: |
+            browser-paths:
+              - .github/workflows/ci.yml
+              - package.json
+              - package-lock.json
+              - src/**
+              - e2e/**
+              - public/**
+              - content/**
+              - scripts/**
+              - next.config.*
+              - playwright.config.*
+              - tsconfig.json
+            runner-paths:
+              - .github/workflows/ci.yml
+              - services/runner/**
+            curriculum-paths:
+              - .github/workflows/ci.yml
+              - package.json
+              - package-lock.json
+              - services/runner/**
+              - content/**
+              - scripts/**
+              - src/lib/**
+              - docs/evidence/**
+            images-paths:
+              - .github/workflows/ci.yml
+              - package.json
+              - package-lock.json
+              - Dockerfile
+              - .dockerignore
+              - src/**
+              - scripts/**
+              - drizzle/**
+              - content/**
+              - public/**
+              - infra/docker/**
+              - next.config.*
+            backup-paths:
+              - .github/workflows/ci.yml
+              - compose.yaml
+              - scripts/backup/**
+              - scripts/verify-restored-backup*
+              - infra/**
+            topology-paths:
+              - .github/workflows/ci.yml
+              - compose.yaml
+              - Dockerfile
+              - drizzle/**
+              - scripts/**
+              - infra/**
+
   application:
     runs-on: ubuntu-24.04
     timeout-minutes: 70
@@ -122,6 +203,8 @@ jobs:
   production-topology:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    needs: changes
+    if: needs.changes.outputs.topology == 'true'
     env:
       CODESTEAD_DISPOSABLE_DOCKER_DAEMON: "1"
       CODESTEAD_TOPOLOGY_RESTART_DOCKER: "1"
@@ -223,6 +306,8 @@ jobs:
   application-images:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    needs: changes
+    if: needs.changes.outputs.images == 'true'
     env:
       APP_IMAGE_SOURCE_REPOSITORY: ${{ github.server_url }}/${{ github.repository }}
       APP_IMAGE_SOURCE_REVISION: ${{ github.sha }}
@@ -278,6 +363,8 @@ jobs:
     # 60 minutes covers the complete unfiltered backup publication suite and adjacent gates.
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    needs: changes
+    if: needs.changes.outputs.backup == 'true'
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -314,6 +401,8 @@ jobs:
   backup-production-e2e:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    needs: changes
+    if: needs.changes.outputs.backup == 'true'
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -324,6 +413,8 @@ jobs:
   runner:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
+    needs: changes
+    if: needs.changes.outputs.runner == 'true'
     env:
       RUNTIME_LOCAL_RISK_ACCEPTANCE: accept-unsigned-local-buildkit-provenance-v1
       RUNTIME_SOURCE_REPOSITORY: ${{ github.server_url }}/${{ github.repository }}
@@ -462,6 +553,8 @@ jobs:
   curriculum-runtime:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    needs: changes
+    if: needs.changes.outputs.curriculum == 'true'
     env:
       RUNTIME_LOCAL_RISK_ACCEPTANCE: accept-unsigned-local-buildkit-provenance-v1
       RUNTIME_SOURCE_REPOSITORY: ${{ github.server_url }}/${{ github.repository }}
@@ -553,6 +646,8 @@ jobs:
   auth-browser:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    needs: changes
+    if: needs.changes.outputs.browser == 'true'
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -568,6 +663,8 @@ jobs:
   browser:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
+    needs: changes
+    if: needs.changes.outputs.browser == 'true'
     strategy:
       fail-fast: false
       matrix:
