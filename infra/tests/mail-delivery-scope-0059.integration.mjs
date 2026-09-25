@@ -590,6 +590,8 @@ async function main() {
     path.join(os.tmpdir(), "codestead-mail-0059-pg18-"),
   );
   const dataDirectory = path.join(temporaryRoot, "data");
+  const socketOption =
+    process.platform === "win32" ? "" : ` -k "${temporaryRoot}"`;
   const logFile = path.join(temporaryRoot, "postgres.log");
   const database = "mail_scope_0059";
   const port = await unusedLoopbackPort();
@@ -611,7 +613,7 @@ async function main() {
       "-l",
       logFile,
       "-o",
-      `-p ${port} -h 127.0.0.1 -c max_connections=20`,
+      `-p ${port} -h 127.0.0.1 -c max_connections=20${socketOption}`,
       "-w",
       "start",
     ], {
