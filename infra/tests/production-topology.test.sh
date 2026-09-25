@@ -477,6 +477,8 @@ cleanup() {
   exit "$status"
 }
 trap cleanup EXIT
+# Name only the failing line; command text may carry generated credentials.
+trap 'echo "production topology failed at line $LINENO" >&2' ERR
 
 psql_query() {
   timeout 30 "${compose[@]}" exec -T postgres \
