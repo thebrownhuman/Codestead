@@ -2329,7 +2329,7 @@ test("C bootstrap pool ownership unregisters exactly once after success or failu
     functionStart,
   );
   const bootstrapEnd = integrationHarness.indexOf(
-    "const client = createTrackedClient",
+    "function reportReplayAuthorityConstraintCatalog",
     bootstrapStart,
   );
   assert.ok(functionStart >= 0 && bootstrapStart > functionStart);
@@ -2464,48 +2464,12 @@ test("C live bootstrap rolls back post-hook ACL drift before commit", () => {
   );
 });
 
-test("C preserves catalog verification failure when client close also fails", () => {
-  assertPrimaryAndCleanupPreserved("catalog verification and close failed");
-
-  const functionStart = integrationHarness.indexOf(
-    "async function reconcileReviewedPrivileges",
-  );
-  const clientStart = integrationHarness.indexOf(
-    "const client = createTrackedClient",
-    functionStart,
-  );
-  const functionEnd = integrationHarness.indexOf(
-    "function reportReplayAuthorityConstraintCatalog",
-    clientStart,
-  );
-  assert.ok(functionStart >= 0 && clientStart > functionStart);
-  assert.ok(functionEnd > clientStart);
-  const catalogVerification = integrationHarness.slice(
-    clientStart,
-    functionEnd,
-  );
-  for (const contract of [
-    /let operationError/u,
-    /const cleanupFailures = \[\]/u,
-    /operationError = error/u,
-    /await runCleanupStep\(/u,
-    /closeClientWithin\(/u,
-    /throw preserveOperationAndCleanupFailures\(/u,
-  ]) {
-    assert.match(catalogVerification, contract);
-  }
-  assertOrdered(
-    catalogVerification,
-    [
-      "try {",
-      "verifyReviewedMailAuthorityCatalogContracts",
-      "} catch (error) {",
-      "operationError = error",
-      "} finally {",
-      "await runCleanupStep",
-      "throw preserveOperationAndCleanupFailures",
-    ],
-    "catalog verification primary/cleanup ordering",
+test("C leaves historical phase catalog contracts to the 0064 suite", () => {
+  // Partial-ledger phases run under the closed-world foundation phase, so the
+  // reviewed phase boundary is owned by test:mail-dispatch-binding-0064.
+  assert.doesNotMatch(
+    integrationHarness,
+    /verifyReviewedMailAuthorityCatalogContracts/u,
   );
 });
 
