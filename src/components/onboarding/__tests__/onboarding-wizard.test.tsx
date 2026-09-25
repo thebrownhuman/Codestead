@@ -135,6 +135,46 @@ describe("resumable disclosed onboarding", () => {
     expect(String(profile?.body?.requestId)).toMatch(/^[0-9a-f-]{36}$/i);
   });
 
+  it("never silently drops an unrecognized interest and shows rejected junk with a reason", async () => {
+    const calls: Array<{ url: string; body?: Record<string, unknown> }> = [];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : undefined;
+      calls.push({ url, body });
+      if (url === "/api/onboarding/status") return json(emptyStatus);
+      if (url === "/api/onboarding/interests/preview") {
+        return json({
+          interests: [
+            { label: "cars", suggestedCategory: "cars" },
+            { label: "cooking", suggestedCategory: "cooking" },
+            { label: "cats", suggestedCategory: "animals" },
+          ],
+          rejected: [{ label: "n/a", reason: "It doesn't describe an interest." }],
+        });
+      }
+      if (url === "/api/onboarding/profile") return json({ ok: true, disclosureVersion: "enrollment-disclosure-2026-07-12.v2" });
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    render(<OnboardingWizard />);
+
+    expect(await screen.findByRole("heading", { name: /Tell Codestead how you want to learn/i })).toBeInTheDocument();
+    await completeRequiredProfile(user, { hobbies: "cars, cooking, cats, n/a" });
+    await user.click(screen.getByRole("button", { name: /Save and secure account/i }));
+
+    expect(await screen.findByRole("heading", { name: /Did Codestead understand your interests/i })).toBeInTheDocument();
+    // Every real entry the learner typed is still here, including the
+    // unrecognized one — nothing is silently dropped from the list.
+    expect(screen.getByLabelText("Category for cars")).toBeInTheDocument();
+    expect(screen.getByLabelText("Category for cooking")).toBeInTheDocument();
+    expect(screen.getByLabelText("Category for cats")).toHaveValue("animals");
+    expect(screen.getByText(/Skipped:/)).toHaveTextContent('"n/a" (It doesn\'t describe an interest.)');
+
+    const preview = calls.find((call) => call.url === "/api/onboarding/interests/preview");
+    expect(preview?.body).toEqual({ labels: ["cars", "cooking", "cats", "n/a"] });
+  });
+
   it("resumes persisted profile values and current disclosure decisions", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => json({
       ...emptyStatus,

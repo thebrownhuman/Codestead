@@ -18,6 +18,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BrandMark } from "@/components/brand-mark";
 import { PasswordInput } from "@/components/ui/password-input";
 import { authClient } from "@/lib/auth-client";
+import { INTEREST_CATEGORIES, INTEREST_CATEGORY_EXAMPLES } from "@/lib/profile/interests";
 import styles from "./onboarding.module.css";
 
 const tracks = [
@@ -36,7 +37,11 @@ const tracks = [
 ] as const;
 
 const disclosureVersion = "enrollment-disclosure-2026-07-12.v2";
-const interestCategories = ["cooking", "cars", "games", "sports", "music", "art", "travel", "technology", "everyday-life"] as const;
+const interestCategories = INTEREST_CATEGORIES;
+const interestExampleChips = Object.values(INTEREST_CATEGORY_EXAMPLES).flat().slice(0, 8);
+function interestCategoryLabel(category: string) {
+  return category === "everyday-life" ? "Other" : category.replaceAll("-", " ");
+}
 
 type Requirements = { profileComplete: boolean; mfaEnabled: boolean; mfaFresh: boolean; nimActive: boolean };
 type ExistingProfile = {
@@ -211,6 +216,7 @@ export function OnboardingWizard() {
   const [profileDraft, setProfileDraft] = useState<ProfileDraft | null>(null);
   const [interestPreview, setInterestPreview] = useState<InterestPreview[]>([]);
   const [interestConfirmationOpen, setInterestConfirmationOpen] = useState(false);
+  const [rejectedInterests, setRejectedInterests] = useState<Array<{ label: string; reason: string }>>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -276,6 +282,7 @@ export function OnboardingWizard() {
       setProfileDraft(null);
       setInterestPreview([]);
       setInterestConfirmationOpen(false);
+      setRejectedInterests([]);
       setRequirements((current) => ({ ...current, profileComplete: true }));
       setStep(2);
     } catch {
@@ -336,16 +343,23 @@ export function OnboardingWizard() {
         setError(responseError(result, "Codestead could not categorize those interests."));
         return;
       }
+      const rejected = result.rejected ?? [];
       if (!Array.isArray(result.interests) || !result.interests.every((interest) =>
         isRecord(interest) && typeof interest.label === "string" &&
         typeof interest.suggestedCategory === "string" &&
-        interestCategories.includes(interest.suggestedCategory as (typeof interestCategories)[number]))) {
+        interestCategories.includes(interest.suggestedCategory as (typeof interestCategories)[number])) ||
+        !Array.isArray(rejected) || !rejected.every((entry) =>
+          isRecord(entry) && typeof entry.label === "string" && typeof entry.reason === "string")) {
         throw new Error("Malformed interest preview");
       }
       setProfileDraft(draft);
       setInterestPreview(result.interests.map((interest) => ({
         label: String(interest.label),
         category: String(interest.suggestedCategory),
+      })));
+      setRejectedInterests(rejected.map((entry) => ({
+        label: String(entry.label),
+        reason: String(entry.reason),
       })));
       setInterestConfirmationOpen(true);
     } catch {
@@ -536,7 +550,12 @@ export function OnboardingWizard() {
             <form className={styles.form} onSubmit={confirmInterests}>
               <span className={styles.eyebrow}><Sparkles size={15} /> Confirm personalization</span>
               <h1>Did Codestead understand your interests?</h1>
-              <p>Confirm or correct each category. These interests stay private by default and only shape optional analogies.</p>
+              <p>Confirm or correct each category. Anything we didn&apos;t recognize is kept under &quot;Other&quot; rather than dropped. These interests stay private by default and only shape optional analogies.</p>
+              {rejectedInterests.length > 0 && (
+                <p role="status">
+                  Skipped: {rejectedInterests.map((entry) => `"${entry.label}" (${entry.reason})`).join(", ")}
+                </p>
+              )}
               <div className={styles.interestConfirmList}>
                 {interestPreview.map((interest, index) => (
                   <label key={`${interest.label}-${index}`}>
@@ -546,7 +565,7 @@ export function OnboardingWizard() {
                       onChange={(event) => setInterestPreview((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, category: event.target.value } : item))}
                       value={interest.category}
                     >
-                      {interestCategories.map((category) => <option key={category} value={category}>{category.replaceAll("-", " ")}</option>)}
+                      {interestCategories.map((category) => <option key={category} value={category}>{interestCategoryLabel(category)}</option>)}
                     </select>
                   </label>
                 ))}
@@ -572,7 +591,7 @@ export function OnboardingWizard() {
                 <label><span>Weekly learning goal</span><select name="weeklyGoalMinutes" defaultValue={String(profileDraft?.weeklyGoalMinutes ?? existingProfile?.weeklyGoalMinutes ?? 180)}><option value="60">1 hour</option><option value="120">2 hours</option><option value="180">3 hours</option><option value="300">5 hours</option><option value="420">7 hours</option><option value="600">10 hours</option><option value="900">15 hours</option></select></label>
               </div>
               <div className={styles.twoColumns}>
-                <label><span>Interests or hobbies <small>comma separated</small></span><input defaultValue={profileDraft?.hobbyLabels.join(", ") ?? existingProfile?.analogyInterests.map((item) => item.label).join(", ") ?? ""} name="hobbies" placeholder="cooking, cars, cricket" /></label>
+                <label><span>Interests or hobbies <small>comma separated</small></span><input defaultValue={profileDraft?.hobbyLabels.join(", ") ?? existingProfile?.analogyInterests.map((item) => item.label).join(", ") ?? ""} name="hobbies" placeholder="cooking, cars, cricket" /><small>For example: {interestExampleChips.join(", ")}…</small></label>
                 <label><span>Analogy style</span><select name="analogyFrequency" defaultValue={profileDraft?.analogyFrequency ?? existingProfile?.analogyFrequency ?? "helpful"}><option value="neutral">Neutral explanations</option><option value="helpful">Analogies when helpful</option><option value="frequent">Frequent analogies</option></select></label>
               </div>
               <fieldset className={styles.disclosureFieldset}>

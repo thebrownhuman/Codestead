@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { requireAuth } from "@/lib/http/authz";
-import { inferInterestCategory } from "@/lib/profile/interests";
+import { inferInterestCategory, isRecognizedInterest, junkInterestReason } from "@/lib/profile/interests";
 
 const bodySchema = z.object({
-  labels: z.array(z.string().trim().min(2).max(50)).max(8),
+  labels: z.array(z.string().trim().min(1).max(50)).max(8),
 });
 
 export async function POST(request: NextRequest) {
@@ -18,13 +18,22 @@ export async function POST(request: NextRequest) {
       { status: 400, headers: { "Cache-Control": "private, no-store" } },
     );
   }
+  const interests: Array<{ label: string; suggestedCategory: string; recognized: boolean }> = [];
+  const rejected: Array<{ label: string; reason: string }> = [];
+  for (const label of body.data.labels) {
+    const reason = junkInterestReason(label);
+    if (reason) {
+      rejected.push({ label, reason });
+      continue;
+    }
+    interests.push({
+      label,
+      suggestedCategory: inferInterestCategory(label),
+      recognized: isRecognizedInterest(label),
+    });
+  }
   return NextResponse.json(
-    {
-      interests: body.data.labels.map((label) => ({
-        label,
-        suggestedCategory: inferInterestCategory(label),
-      })),
-    },
+    { interests, rejected },
     { headers: { "Cache-Control": "private, no-store" } },
   );
 }
