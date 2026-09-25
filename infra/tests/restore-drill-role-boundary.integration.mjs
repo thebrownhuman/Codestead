@@ -1142,7 +1142,9 @@ function actualRoleUrls(database, passwords, port) {
 }
 
 export function createBoundedRolePoolFactory(actualUrls) {
+  // The boundary verifier also authenticates the bootstrap identity.
   const keyByRole = Object.freeze({
+    [RESTORE_BOOTSTRAP_IDENTITY]: "bootstrap",
     learncoding_app: "app",
     learncoding_backup_reporter: "backupReporter",
     learncoding_migrator: "migrator",
