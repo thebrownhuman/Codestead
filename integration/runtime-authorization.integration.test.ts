@@ -283,12 +283,17 @@ describe("behavioral route authorization with two real owners", () => {
   it("returns 404 for another learner's credential and cannot disable or delete it", async () => {
     const context = { params: Promise.resolve({ id: CREDENTIAL_B }) };
     const disabled = await patchCredential(
-      request(`/api/credentials/${CREDENTIAL_B}`, "PATCH", { action: "disable" }),
+      request(`/api/credentials/${CREDENTIAL_B}`, "PATCH", {
+        action: "disable",
+        requestId: crypto.randomUUID(),
+      }),
       context,
     );
     expect(disabled.status).toBe(404);
     const removed = await deleteCredential(
-      request(`/api/credentials/${CREDENTIAL_B}`, "DELETE"),
+      request(`/api/credentials/${CREDENTIAL_B}`, "DELETE", {
+        requestId: crypto.randomUUID(),
+      }),
       context,
     );
     expect(removed.status).toBe(404);

@@ -110,7 +110,6 @@ async function main(): Promise<void> {
     testId: string;
     visibility: string;
     status: "passed" | "failed";
-    durationMs: number;
     sourceHash: string;
     failure?: string;
   }> = [];
@@ -120,7 +119,6 @@ async function main(): Promise<void> {
       const index = cursor++;
       if (index >= jobs.length) return;
       const { skillId, item, test } = jobs[index]!;
-      const started = Date.now();
       try {
         if (item.runtime.engine !== "isolated-runner") throw new Error("runtime changed after validation");
         if (!runtimeIdentity) throw new Error("Validated local runtime identity is missing for python.");
@@ -145,7 +143,6 @@ async function main(): Promise<void> {
           testId: test.id,
           visibility: test.visibility,
           status: "passed",
-          durationMs: Date.now() - started,
           sourceHash: sourceHash(item.answer.referenceSolution),
         });
       } catch (error) {
@@ -155,7 +152,6 @@ async function main(): Promise<void> {
           testId: test.id,
           visibility: test.visibility,
           status: "failed",
-          durationMs: Date.now() - started,
           sourceHash: sourceHash(item.answer.referenceSolution),
           failure: error instanceof Error ? error.message : String(error),
         });

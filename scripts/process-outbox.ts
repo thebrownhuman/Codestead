@@ -92,6 +92,8 @@ let drainDeadline: ReturnType<typeof setTimeout> | undefined;
 let applicationStopDeadline: ReturnType<typeof setTimeout> | undefined;
 let cleanupPromise: Promise<void> | undefined;
 let applicationDrainTimedOut = false;
+// Names the startup step that failed; fixed identifiers only, never values.
+let startupStage: string | undefined = "worker_mode";
 
 const terminationRuntime = Object.freeze({
   schedule(callback: () => void, timeoutMs: number) {
@@ -511,13 +513,18 @@ async function main() {
     maximum: 3_600,
   });
 
+  startupStage = "bootstrap_resources";
   resources = createMailDispatchBootstrapResources();
+  startupStage = "runtime_inspection";
   const inspection = await inspectMailDispatchRuntime(resources.pool);
   startupInspection = inspection;
+  startupStage = "application_origin";
   const applicationOrigin = captureMailDispatchApplicationOrigin(inspection);
   const applicationUrl = mailDispatchApplicationUrl(applicationOrigin);
+  startupStage = "mail_adapter";
   const adapter = configuredAdapter();
   const from = configuredFromAddress();
+  startupStage = "mail_transport";
   const transportConfiguration = captureMailTransportConfiguration(adapter);
   const store = new PostgresOutboxStore(
     resources.pool,
@@ -525,7 +532,9 @@ async function main() {
     applicationOrigin,
   );
   const preparedRuntimePlan = mailDispatchPreparedRuntimePlan(store);
+  startupStage = "hard_watchdog";
   watchdog = await startMailDispatchHardWatchdog();
+  startupStage = undefined;
 
   const once = process.argv.includes("--once");
   healthReporter = createWorkerHealthReporter({ worker: "mail-worker" });
@@ -586,6 +595,7 @@ main()
     console.error(JSON.stringify({
       event: "email.worker_failed",
       code: mailWorkerErrorCode(error),
+      ...(startupStage === undefined ? {} : { stage: startupStage }),
     }));
     process.exitCode = 1;
   })

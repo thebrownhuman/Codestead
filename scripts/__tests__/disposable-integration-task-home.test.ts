@@ -289,7 +289,8 @@ describe("disposable integration task home", () => {
     expect(rendered).not.toContain("malicious-executable-canary");
   });
 
-  it("grants only exact current-token and administrative SIDs", () => {
+  // The success path verifies the real pinned System32 executables before spawning.
+  it.skipIf(process.platform !== "win32")("grants only exact current-token and administrative SIDs", () => {
     vi.stubEnv("USERNAME", "ambient-username-canary");
     vi.stubEnv("USERDOMAIN", "ambient-domain-canary");
     vi.stubEnv("DATABASE_URL", "ambient-database-secret-canary");

@@ -214,7 +214,8 @@ describe("disposable PostgreSQL password-file Windows ACL", () => {
     expect(rendered).not.toContain("malicious-executable-canary");
   });
 
-  it("grants exact token and administrative SIDs for directory and file", () => {
+  // The success path verifies the real pinned System32 executables before spawning.
+  it.skipIf(process.platform !== "win32")("grants exact token and administrative SIDs for directory and file", () => {
     vi.stubEnv("USERNAME", "ambient-username-canary");
     vi.stubEnv("USERDOMAIN", "ambient-domain-canary");
     vi.stubEnv("DATABASE_URL", "ambient-database-secret-canary");

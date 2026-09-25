@@ -13,7 +13,7 @@
 | Advisory | Patched installed path | Decision and proof |
 | --- | --- | --- |
 | [`GHSA-67mh-4wv8-2f99`](https://github.com/advisories/GHSA-67mh-4wv8-2f99) (`esbuild <=0.24.2`) | `drizzle-kit@0.31.10 -> @esbuild-kit/esm-loader -> @esbuild-kit/core-utils -> esbuild@0.25.12` | A narrow override deduplicates the chain to patched `0.25.12`; the vulnerable `0.18.20` copy and its platform packages are absent from the lock. An isolated install-script rebuild, esbuild TypeScript transform, and `drizzle-kit --version` smoke test passed. |
-| [`GHSA-qx2v-qp2m-jg93`](https://github.com/advisories/GHSA-qx2v-qp2m-jg93) (`postcss <8.5.10`) | `next@16.2.10 -> postcss@8.5.19` | A narrow override deduplicates Next to patched `8.5.19`; the vulnerable `8.4.31` copy is absent from the lock. A regression probe confirmed the patched stringifier escapes a closing style tag. |
+| [`GHSA-qx2v-qp2m-jg93`](https://github.com/advisories/GHSA-qx2v-qp2m-jg93) (`postcss <8.5.10`) | `next@16.3.6 -> postcss@8.5.28` | A narrow override deduplicates Next to patched `8.5.28` (raised from `8.5.19` on 2026-09-24 for GHSA-fxqj-rqcc-2cmp and GHSA-r28c-9q8g-f849, fixed in `8.5.23`); the vulnerable `8.4.31` copy is absent from the lock. A regression probe confirmed the patched stringifier escapes a closing style tag. |
 
 The remediation does not use `npm audit fix --force`. The offline verifier rejects missing or drifted overrides, malformed package versions, and any locked esbuild or PostCSS copy in either affected range. Its unit suite also proves both former vulnerable nested paths fail closed.
 

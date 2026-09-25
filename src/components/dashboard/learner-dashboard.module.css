@@ -106,9 +106,9 @@
 .sectionTitle h2 { margin: 3px 0 0; font-size: 1.5rem; letter-spacing: -.035em; }
 .sectionTitle > a { display: flex; align-items: center; gap: 6px; color: var(--brand); font-size: .7rem; font-weight: 800; }
 .courseGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-.roadmapEmpty { display: grid; width: 100%; min-height: 156px; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 20px; padding: clamp(20px, 3vw, 28px); box-shadow: none; }
+.roadmapEmpty { display: grid; width: 100%; min-width: 0; min-height: 156px; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 20px; padding: clamp(20px, 3vw, 28px); box-shadow: none; }
 .roadmapEmptyIcon { display: grid; width: 48px; height: 48px; place-items: center; border-radius: 14px; color: var(--brand); background: var(--brand-soft); }
-.roadmapEmptyCopy { max-width: 65ch; }
+.roadmapEmptyCopy { min-width: 0; max-width: 65ch; overflow-wrap: anywhere; }
 .roadmapEmptyCopy h3 { margin: 0 0 6px; font-size: 1.05rem; letter-spacing: -.02em; }
 .roadmapEmptyCopy p { margin: 0; color: var(--ink-soft); font-size: 1rem; line-height: 1.6; }
 .roadmapEmptyAction { display: grid; justify-items: end; }

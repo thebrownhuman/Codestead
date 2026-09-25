@@ -84,6 +84,7 @@
 .formPanel {
   display: flex;
   min-height: 100vh;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 48px clamp(28px, 6vw, 100px);
@@ -97,7 +98,8 @@
 .formCard h2 { margin: 9px 0 8px; font-size: clamp(2rem, 3vw, 2.7rem); letter-spacing: -.045em; line-height: 1.05; }
 .description { margin: 0 0 28px; color: var(--ink-soft); }
 .mobileBrand { display: none; }
-.privacyLine { position: absolute; bottom: 22px; color: var(--ink-soft); font-size: .75rem; }
+/* In flow, not absolute: long forms (request access) must push it down instead of sitting under the submit button. */
+.privacyLine { width: min(470px, 100%); margin: 28px 0 0; color: var(--ink-soft); font-size: .75rem; }
 
 .form { display: grid; gap: 17px; }
 .field { display: grid; gap: 7px; }

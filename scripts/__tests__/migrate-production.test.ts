@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { acquireMigrationLock, runProductionMigration } from "../migrate-production.mjs";
+import {
+  acquireMigrationLock,
+  runProductionMigration,
+  runProductionMigrationWithRetry,
+} from "../migrate-production.mjs";
 
 vi.mock("../lib/reviewed-migration-ledger.mjs", () => ({
   verifyReviewedMigrationRepository: vi.fn(() => ({
@@ -1205,5 +1209,104 @@ describe("production migration", () => {
         ([sql]) => String(sql).includes("RESET ROLE"),
       ),
     ).toBe(false);
+  });
+});
+
+describe("runProductionMigrationWithRetry", () => {
+  function sqlError(code: string) {
+    return Object.assign(new Error(`sqlstate ${code}`), { code });
+  }
+
+  function attemptOptions(
+    lockOutcome: () => Promise<{ rows: Array<Record<string, unknown>> }>,
+    migrate = vi.fn(async () => undefined),
+  ) {
+    const base = roleAwareQuery();
+    const query = vi.fn(async (sql: string) =>
+      sql.includes("pg_try_advisory_lock") ? lockOutcome() : base(sql),
+    );
+    const client = { query, release: vi.fn() };
+    return {
+      migrate,
+      options: {
+        connectionString: "postgresql://learncoding_migrator:Fake@postgres/learncoding",
+        pool: { connect: vi.fn(async () => client), end: vi.fn(async () => undefined) },
+        drizzle: vi.fn(() => ({})),
+        migrate,
+        lockOptions: { pollMs: 1, sleep: async () => undefined },
+      },
+    };
+  }
+
+  it("retries when role bootstrap terminates the session before the lock is held", async () => {
+    const terminated = attemptOptions(async () => {
+      throw sqlError("57P01");
+    });
+    const fenced = {
+      ...attemptOptions(async () => ({ rows: [{ acquired: true }] })).options,
+      pool: {
+        connect: vi.fn(async () => {
+          throw sqlError("28000");
+        }),
+        end: vi.fn(async () => undefined),
+      },
+    };
+    const succeeding = attemptOptions(async () => ({ rows: [{ acquired: true }] }));
+    const attempts = [terminated.options, fenced, succeeding.options];
+    const sleep = vi.fn(async () => undefined);
+
+    await runProductionMigrationWithRetry(() => attempts.shift()!, { sleep, backoffMs: 1 });
+
+    expect(sleep).toHaveBeenCalledTimes(2);
+    expect(terminated.migrate).not.toHaveBeenCalled();
+    expect(succeeding.migrate).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not retry failures after the lock is held", async () => {
+    const migrate = vi.fn(async () => {
+      throw sqlError("57P01");
+    });
+    const attempt = attemptOptions(async () => ({ rows: [{ acquired: true }] }), migrate);
+    const createOptions = vi.fn(() => attempt.options);
+
+    await expect(
+      runProductionMigrationWithRetry(createOptions, { sleep: async () => undefined }),
+    ).rejects.toMatchObject({ code: "57P01" });
+    expect(createOptions).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not retry a first-attempt authorization failure", async () => {
+    const attempt = attemptOptions(async () => ({ rows: [{ acquired: true }] }));
+    attempt.options.pool.connect = vi.fn(async () => {
+      throw sqlError("28000");
+    });
+    const createOptions = vi.fn(() => attempt.options);
+
+    await expect(
+      runProductionMigrationWithRetry(createOptions, { sleep: async () => undefined }),
+    ).rejects.toMatchObject({ code: "28000" });
+    expect(createOptions).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops retrying at the deadline", async () => {
+    let clock = 0;
+    const createOptions = vi.fn(
+      () =>
+        attemptOptions(async () => {
+          throw sqlError("57P01");
+        }).options,
+    );
+
+    await expect(
+      runProductionMigrationWithRetry(createOptions, {
+        deadlineMs: 3_000,
+        backoffMs: 1_000,
+        now: () => clock,
+        sleep: async (ms: number) => {
+          clock += ms;
+        },
+      }),
+    ).rejects.toMatchObject({ code: "57P01" });
+    expect(createOptions).toHaveBeenCalledTimes(3);
   });
 });

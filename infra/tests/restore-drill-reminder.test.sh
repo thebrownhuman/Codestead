@@ -12,7 +12,7 @@ mkdir -m 0700 -p "$backup/state" "$backup/full" "$reports" "$work/live"
 printf '%s\n' LEARNCODING_BACKUP_V1 >"$backup/.learncoding-backup-root"
 chmod 0600 "$backup/.learncoding-backup-root"
 restore_operations_image=registry.example.test/codestead/operations@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-restore_postgres_image=postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394
+restore_postgres_image=postgres:17-bookworm@sha256:4f736ae292687621d4dbe0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394
 source_release_git_commit=0123456789abcdef0123456789abcdef01234567
 source_database_version='postgres (PostgreSQL) 17.6'
 migration_state_sha256=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb

@@ -65,3 +65,15 @@ export function acquireMigrationLock(
 export function runProductionMigration(
   options: ProductionMigrationOptions,
 ): Promise<void>;
+
+export interface ProductionMigrationRetryOptions {
+  deadlineMs?: number;
+  backoffMs?: number;
+  now?: () => number;
+  sleep?: (milliseconds: number) => Promise<void>;
+}
+
+export function runProductionMigrationWithRetry(
+  createOptions: () => ProductionMigrationOptions,
+  options?: ProductionMigrationRetryOptions,
+): Promise<void>;

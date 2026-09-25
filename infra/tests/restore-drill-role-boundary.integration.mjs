@@ -723,7 +723,7 @@ export function buildPostgresStartArguments(state) {
     "--log",
     state.logFile,
     "--options",
-    `-h 127.0.0.1 -p ${state.port} -c unix_socket_directories=`,
+    `-h 127.0.0.1 -p ${state.port} -c authentication_timeout=1s -c unix_socket_directories=`,
     "--wait",
     "--timeout",
     "15",
@@ -1142,7 +1142,9 @@ function actualRoleUrls(database, passwords, port) {
 }
 
 export function createBoundedRolePoolFactory(actualUrls) {
+  // The boundary verifier also authenticates the bootstrap identity.
   const keyByRole = Object.freeze({
+    [RESTORE_BOOTSTRAP_IDENTITY]: "bootstrap",
     learncoding_app: "app",
     learncoding_backup_reporter: "backupReporter",
     learncoding_migrator: "migrator",

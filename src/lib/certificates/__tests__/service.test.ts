@@ -12,6 +12,11 @@ const mocks = vi.hoisted(() => {
     eligible: true,
     receiptHash: null as string | null,
     priorRevocation: false,
+    existingCertificateForEnrollment: false,
+    conceptsMastered: true,
+    certificateForRevokeExists: true,
+    alreadyRevoked: false,
+    failNextInsertWith: null as string | null,
   };
   const privateRow = () => ({
     id: "a3000000-0000-4000-8000-000000000001",
@@ -66,14 +71,25 @@ const mocks = vi.hoisted(() => {
         concept_id: "a7000000-0000-4000-8000-000000000001",
         slug: "python.variables",
         critical: true,
-        status: "mastered",
-        critical_requirements_met: true,
+        status: state.conceptsMastered ? "mastered" : "learning",
+        critical_requirements_met: state.conceptsMastered,
         mastery_policy_version: "mastery-v1",
-        evidence_ids: ["a8000000-0000-4000-8000-000000000001"],
+        evidence_ids: state.conceptsMastered ? ["a8000000-0000-4000-8000-000000000001"] : [],
       }], rowCount: 1 };
     }
-    if (sql.startsWith("select id from course_certificate where enrollment_id")) return { rows: [], rowCount: 0 };
-    if (sql.startsWith("insert into course_certificate")) return { rows: [{ id: CERTIFICATE_ID }], rowCount: 1 };
+    if (sql.startsWith("select id from course_certificate where enrollment_id")) {
+      return state.existingCertificateForEnrollment
+        ? { rows: [{ id: CERTIFICATE_ID }], rowCount: 1 }
+        : { rows: [], rowCount: 0 };
+    }
+    if (sql.startsWith("insert into course_certificate")) {
+      if (state.failNextInsertWith) {
+        const code = state.failNextInsertWith;
+        state.failNextInsertWith = null;
+        throw Object.assign(new Error("simulated write failure"), { code });
+      }
+      return { rows: [{ id: CERTIFICATE_ID }], rowCount: 1 };
+    }
     if (sql.startsWith("select certificate.id") && sql.includes("where certificate.id=$1")) {
       return { rows: [privateRow()], rowCount: 1 };
     }
@@ -81,12 +97,22 @@ const mocks = vi.hoisted(() => {
       return state.priorRevocation ? { rows: [{
         certificate_id: CERTIFICATE_ID,
         reason: "Verified integrity correction",
-        evidence_hash: "unused",
+        evidence_hash: hashSocialEvidence({
+          certificateId: CERTIFICATE_ID,
+          requestId: REQUEST_ID,
+          reason: "Verified integrity correction",
+        }),
         revoked_at: new Date("2026-07-14T01:00:00.000Z"),
       }], rowCount: 1 } : { rows: [], rowCount: 0 };
     }
-    if (sql.startsWith("select id from course_certificate where id=$1")) return { rows: [{ id: CERTIFICATE_ID }], rowCount: 1 };
-    if (sql.startsWith("select 1 from certificate_revocation")) return { rows: [], rowCount: 0 };
+    if (sql.startsWith("select id from course_certificate where id=$1")) {
+      return state.certificateForRevokeExists
+        ? { rows: [{ id: CERTIFICATE_ID }], rowCount: 1 }
+        : { rows: [], rowCount: 0 };
+    }
+    if (sql.startsWith("select 1 from certificate_revocation")) {
+      return state.alreadyRevoked ? { rows: [{ "?column?": 1 }], rowCount: 1 } : { rows: [], rowCount: 0 };
+    }
     return { rows: [], rowCount: 1 };
   });
   const client = { query, release: vi.fn() };
@@ -106,6 +132,9 @@ vi.mock("@/lib/db/client", () => ({
 
 import {
   issueCourseCertificate,
+  listAdminCertificates,
+  listCertificateCandidates,
+  listOwnCertificates,
   loadPublicCertificate,
   revokeCourseCertificate,
 } from "../service";
@@ -118,6 +147,11 @@ describe("certificate evidence service", () => {
     mocks.state.eligible = true;
     mocks.state.receiptHash = null;
     mocks.state.priorRevocation = false;
+    mocks.state.existingCertificateForEnrollment = false;
+    mocks.state.conceptsMastered = true;
+    mocks.state.certificateForRevokeExists = true;
+    mocks.state.alreadyRevoked = false;
+    mocks.state.failNextInsertWith = null;
   });
 
   it("issues only after owner-bound current-version eligibility and mastery evidence", async () => {
@@ -198,5 +232,118 @@ describe("certificate evidence service", () => {
     ]);
     expect(JSON.stringify(publicRecord)).not.toMatch(/must-not-leak|verified integrity correction|learner_email|evidence_hash|policy_version|enrollment_id|user_id/i);
     expect(publicRecord.status).toBe("revoked");
+  });
+
+  it("rejects a malformed issue request before opening a connection", async () => {
+    await expect(issueCourseCertificate({ userId: USER_ID, enrollmentId: "not-a-uuid", requestId: REQUEST_ID }))
+      .rejects.toMatchObject({ code: "INVALID_REQUEST" });
+    expect(mocks.connect).not.toHaveBeenCalled();
+  });
+
+  it("rejects a malformed revoke request before opening a connection", async () => {
+    await expect(revokeCourseCertificate({ actorUserId: ADMIN_ID, certificateId: CERTIFICATE_ID, requestId: REQUEST_ID, reason: "short" }))
+      .rejects.toMatchObject({ code: "INVALID_REQUEST" });
+    expect(mocks.connect).not.toHaveBeenCalled();
+  });
+
+  it("reuses an existing certificate for the enrollment instead of issuing a second one", async () => {
+    mocks.state.existingCertificateForEnrollment = true;
+    const result = await issueCourseCertificate({ userId: USER_ID, enrollmentId: ENROLLMENT_ID, requestId: REQUEST_ID });
+
+    expect(result).toMatchObject({ replayed: false, reusedExisting: true, certificate: { id: CERTIFICATE_ID } });
+    expect(mocks.query.mock.calls.some(([statement]) => String(statement).includes("insert into course_certificate"))).toBe(false);
+    expect(mocks.query.mock.calls.at(-1)?.[0]).toBe("commit");
+  });
+
+  it("rejects issuance when a covered concept lacks complete mastery evidence", async () => {
+    mocks.state.conceptsMastered = false;
+    await expect(issueCourseCertificate({ userId: USER_ID, enrollmentId: ENROLLMENT_ID, requestId: REQUEST_ID }))
+      .rejects.toMatchObject({ code: "NOT_ELIGIBLE" });
+    expect(mocks.query.mock.calls.at(-1)?.[0]).toBe("rollback");
+  });
+
+  it("maps a unique-constraint violation on insert to WRITE_CONFLICT", async () => {
+    mocks.state.failNextInsertWith = "23505";
+    await expect(issueCourseCertificate({ userId: USER_ID, enrollmentId: ENROLLMENT_ID, requestId: REQUEST_ID }))
+      .rejects.toMatchObject({ code: "WRITE_CONFLICT" });
+  });
+
+  it("maps a check-constraint violation on insert to NOT_ELIGIBLE", async () => {
+    mocks.state.failNextInsertWith = "23514";
+    await expect(issueCourseCertificate({ userId: USER_ID, enrollmentId: ENROLLMENT_ID, requestId: REQUEST_ID }))
+      .rejects.toMatchObject({ code: "NOT_ELIGIBLE" });
+  });
+
+  it("rejects revocation of a certificate that does not exist", async () => {
+    mocks.state.actorRole = "admin";
+    mocks.state.certificateForRevokeExists = false;
+    await expect(revokeCourseCertificate({
+      actorUserId: ADMIN_ID, certificateId: CERTIFICATE_ID, requestId: REQUEST_ID,
+      reason: "Verified integrity correction",
+    })).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("rejects revoking a certificate that already has a revocation row", async () => {
+    mocks.state.actorRole = "admin";
+    mocks.state.alreadyRevoked = true;
+    await expect(revokeCourseCertificate({
+      actorUserId: ADMIN_ID, certificateId: CERTIFICATE_ID, requestId: REQUEST_ID,
+      reason: "Verified integrity correction",
+    })).rejects.toMatchObject({ code: "ALREADY_REVOKED" });
+  });
+
+  it("replays an identical prior revocation request without a second insert", async () => {
+    mocks.state.actorRole = "admin";
+    mocks.state.priorRevocation = true;
+    const result = await revokeCourseCertificate({
+      actorUserId: ADMIN_ID, certificateId: CERTIFICATE_ID, requestId: REQUEST_ID,
+      reason: "Verified integrity correction",
+    });
+    expect(result).toMatchObject({ certificateId: CERTIFICATE_ID, replayed: true });
+    expect(mocks.query.mock.calls.some(([statement]) => String(statement).includes("insert into certificate_revocation"))).toBe(false);
+  });
+
+  it("rejects a reused revocation request id bound to different inputs", async () => {
+    mocks.state.actorRole = "admin";
+    mocks.state.priorRevocation = true;
+    await expect(revokeCourseCertificate({
+      actorUserId: ADMIN_ID, certificateId: CERTIFICATE_ID, requestId: REQUEST_ID,
+      reason: "A completely different reason than before.",
+    })).rejects.toMatchObject({ code: "IDEMPOTENCY_MISMATCH" });
+  });
+
+  it("rejects a malformed verification id without querying the database", async () => {
+    await expect(loadPublicCertificate("short")).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(mocks.poolQuery).not.toHaveBeenCalled();
+  });
+
+  it("throws NOT_FOUND when no public certificate matches the verification id", async () => {
+    mocks.poolQuery.mockResolvedValueOnce({ rows: [] });
+    await expect(loadPublicCertificate("A_very_long_random_verification_token_1234567890"))
+      .rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("lists a learner's own certificates with a valid status when not revoked", async () => {
+    mocks.poolQuery.mockResolvedValueOnce({ rows: [mocks.privateRow()] });
+    const certificates = await listOwnCertificates(USER_ID);
+    expect(certificates[0]).toMatchObject({ id: CERTIFICATE_ID, status: "valid" });
+  });
+
+  it("lists every certificate for administrators including the learner email", async () => {
+    mocks.poolQuery.mockResolvedValueOnce({ rows: [{ ...mocks.privateRow(), learner_email: "learner@example.test" }] });
+    const certificates = await listAdminCertificates();
+    expect(certificates[0]).toMatchObject({ learnerEmail: "learner@example.test" });
+  });
+
+  it("explains why a certificate candidate is or is not eligible", async () => {
+    mocks.poolQuery.mockResolvedValueOnce({
+      rows: [
+        { enrollment_id: "e1", course_title: "Python", course_version: "1.0.0", enrollment_status: "completed", completed_at: new Date(), stage: "verified", is_current: true, artifact_count: 3, unapproved_count: 0, concept_count: 4, mastered_count: 4, certificate_id: null },
+        { enrollment_id: "e2", course_title: "JavaScript", course_version: "1.0.0", enrollment_status: "in_progress", completed_at: null, stage: "verified", is_current: true, artifact_count: 3, unapproved_count: 0, concept_count: 4, mastered_count: 4, certificate_id: null },
+      ],
+    });
+    const candidates = await listCertificateCandidates(USER_ID);
+    expect(candidates[0]).toMatchObject({ eligible: true, alreadyIssued: false });
+    expect(candidates[1]).toMatchObject({ eligible: false, reason: "Complete this course first." });
   });
 });

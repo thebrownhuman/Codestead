@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-07-12T16:28:00.000Z",
-  "revalidatedAt": "2026-07-28T13:27:44.340Z",
+  "revalidatedAt": "2026-09-25T16:50:00.000Z",
   "scope": "Local deterministic validation of nightly backup status reporting through the dedicated least-privilege reporter and current PostgreSQL mail-authority chain on native disposable PostgreSQL 17; no Docker, host PostgreSQL service, real data, real credentials, or external email was used.",
   "status": "passed",
   "shellContract": {
@@ -105,11 +105,11 @@
   "sourceHashes": [
     {
       "path": "scripts/backup/common.sh",
-      "sha256": "85e415ad0c0a589e7113c29b746c2237ba1f4673f4499004bc71ac6d68ed3b25"
+      "sha256": "78d5dd6f317e2b54b468efa08a9eef39a310484f7274bb744e5e79b79eafa01c"
     },
     {
       "path": "scripts/backup/backup.sh",
-      "sha256": "fe2888b4c33a472b42943f9d463a7ced75f4454cadffb8ef4fab80f22bd55d53"
+      "sha256": "2a16f8e1705ddd674f848ed1e40d98e2e41c3f13d82a876c617ccb1acc736f2c"
     },
     {
       "path": "scripts/backup/enqueue-backup-status.mjs",
@@ -121,7 +121,7 @@
     },
     {
       "path": "compose.yaml",
-      "sha256": "916d76f799f0a3a4c227c6f59c57fee53a933aea3ff67f89f2ccc26c19b8df58"
+      "sha256": "748589f926300e90993891c3490874211cae791f343c879023363189a9df26f5"
     },
     {
       "path": "drizzle/0065_backup_status_mail_authority.sql",
@@ -145,15 +145,15 @@
     },
     {
       "path": "scripts/migrate-production.mjs",
-      "sha256": "c78ce13741076478935c4945b671b25835d4e526c56ef258b6eaaf24cfaea801"
+      "sha256": "ac53361c85c4ee1341432a68924b133a9a33e93a3745edc650c956dd67b93046"
     },
     {
       "path": "scripts/bootstrap-database-roles.mjs",
-      "sha256": "92712e752c2d2f0ea751f3d287f42a714b012851eaffa8fa74373b1c62d2b59b"
+      "sha256": "250ad0b89e58c13d5042eeb05c19e6b38f49dd9d747c9ae969d5b36d42897103"
     },
     {
       "path": "scripts/verify-database-role-boundaries.mjs",
-      "sha256": "0fd77e9fc8717b65bf36120210eac30ab108605fac85a65ab900e63ca196a7e4"
+      "sha256": "a8f0736ee5eaef34a0c07637fd1ff46164e0c83fdf6c467e33969e1cd07d9662"
     },
     {
       "path": "scripts/verify-backup-status-mail-authority.mjs",
@@ -177,15 +177,15 @@
     },
     {
       "path": "infra/tests/backup-status-mail-authority-0065-registration.test.mjs",
-      "sha256": "6766d6f61fe488a6b0f523ec08049cfc18342ecec749071586b82844949112f2"
+      "sha256": "059afb859ab2d75f2e2242dfb7becfc4f49891b0147e1ee4d4024cee7d2d2745"
     },
     {
       "path": "scripts/__tests__/backup-reporter-role-contract.test.ts",
-      "sha256": "e4651ff8cdd9de0ef984dbbd5acefdb375149476342d5b424bc2b93b460336e7"
+      "sha256": "1011a93b7e0c8b07492d445870de1eea07f41ee153d755cd9653720b9cb75cca"
     },
     {
       "path": "scripts/run-integration-tests.ts",
-      "sha256": "b2b3c68f05df07538310843e37efdc31f9f4ca0c59cc373681de8a0700092937"
+      "sha256": "f56815db460902fb9da34f10730d29533602adcc7f30c28e9908a78eec851975"
     },
     {
       "path": "vitest.integration.config.ts",
@@ -197,11 +197,11 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "84d5c20ff0fb148a445406a9fc42c59b2b6ad07abfd1ec2cb63ed8a4e683ff4c"
+      "sha256": "15e2dacb98ec3bd544d5685268b48ae809447c3a2f0c83dfc64964fce5129f83"
     },
     {
       "path": "infra/tests/backup-ci-registration.test.mjs",
-      "sha256": "7618caca831df49bb974350dd7367c0986e85ec276d342cf08a326f83a09e3bd"
+      "sha256": "14b57032f8fa307f04a1dbc423284fd8e0cea244056eddd8189c584c09425131"
     }
   ],
   "supersededDigests": [
@@ -309,6 +309,91 @@
       "artifact": "integration/backup-status-outbox.integration.test.ts",
       "priorDigest": "82e3cee42f3f46f8f4d6a5af600a46be1f8ef213f9ddb292906326151d4692a1",
       "replacedAt": "2026-07-28T23:06:21.4800341+05:30"
+    },
+    {
+      "artifact": ".github/workflows/ci.yml",
+      "priorDigest": "84d5c20ff0fb148a445406a9fc42c59b2b6ad07abfd1ec2cb63ed8a4e683ff4c",
+      "replacedAt": "2026-09-24T12:09:03.456Z"
+    },
+    {
+      "artifact": "compose.yaml",
+      "priorDigest": "916d76f799f0a3a4c227c6f59c57fee53a933aea3ff67f89f2ccc26c19b8df58",
+      "replacedAt": "2026-09-24T12:09:03.456Z"
+    },
+    {
+      "artifact": "infra/tests/backup-ci-registration.test.mjs",
+      "priorDigest": "7618caca831df49bb974350dd7367c0986e85ec276d342cf08a326f83a09e3bd",
+      "replacedAt": "2026-09-24T12:09:03.456Z"
+    },
+    {
+      "artifact": "infra/tests/backup-status-mail-authority-0065-registration.test.mjs",
+      "priorDigest": "6766d6f61fe488a6b0f523ec08049cfc18342ecec749071586b82844949112f2",
+      "replacedAt": "2026-09-24T12:09:03.456Z"
+    },
+    {
+      "artifact": "scripts/__tests__/backup-reporter-role-contract.test.ts",
+      "priorDigest": "e4651ff8cdd9de0ef984dbbd5acefdb375149476342d5b424bc2b93b460336e7",
+      "replacedAt": "2026-09-24T12:09:03.456Z"
+    },
+    {
+      "artifact": "scripts/bootstrap-database-roles.mjs",
+      "priorDigest": "92712e752c2d2f0ea751f3d287f42a714b012851eaffa8fa74373b1c62d2b59b",
+      "replacedAt": "2026-09-24T12:09:03.456Z"
+    },
+    {
+      "artifact": "scripts/run-integration-tests.ts",
+      "priorDigest": "b2b3c68f05df07538310843e37efdc31f9f4ca0c59cc373681de8a0700092937",
+      "replacedAt": "2026-09-24T12:09:03.456Z"
+    },
+    {
+      "artifact": "scripts/verify-database-role-boundaries.mjs",
+      "priorDigest": "0fd77e9fc8717b65bf36120210eac30ab108605fac85a65ab900e63ca196a7e4",
+      "replacedAt": "2026-09-24T12:09:03.456Z"
+    },
+    {
+      "artifact": ".github/workflows/ci.yml",
+      "priorDigest": "b404888eda7305917e77bfe117264f7947229abf0fbb53d9b9ca6f0f510d3a51",
+      "replacedAt": "2026-09-24T12:49:37.545Z"
+    },
+    {
+      "artifact": "compose.yaml",
+      "priorDigest": "3c04a150e81723bbec0cb6f7e8ba5189694412b29323cbd2c43c40ba207cd7d2",
+      "replacedAt": "2026-09-24T12:49:37.545Z"
+    },
+    {
+      "artifact": "infra/tests/backup-ci-registration.test.mjs",
+      "priorDigest": "68ed2943cf67947e4ae057400730f1e539748981f70d31c2b3d744cee69c3e2f",
+      "replacedAt": "2026-09-24T12:49:37.545Z"
+    },
+    {
+      "artifact": "scripts/backup/common.sh",
+      "priorDigest": "85e415ad0c0a589e7113c29b746c2237ba1f4673f4499004bc71ac6d68ed3b25",
+      "replacedAt": "2026-09-24T12:49:37.545Z"
+    },
+    {
+      "artifact": ".github/workflows/ci.yml",
+      "priorDigest": "a1dc33472e36c1b357c210622024e50874bf00547295f4faacdd90073a7e3563",
+      "replacedAt": "2026-09-24T13:33:01.983Z"
+    },
+    {
+      "artifact": "infra/tests/backup-ci-registration.test.mjs",
+      "priorDigest": "ea33a90d80d15ff4d1ee33f07ea4a5a5dc32964a2cbb8e95f4674aaddf6d88d0",
+      "replacedAt": "2026-09-24T13:33:01.983Z"
+    },
+    {
+      "artifact": ".github/workflows/ci.yml",
+      "priorDigest": "715bd498444d9ebb120abbb86859870ae3aa7b7a34ba9be544e0ab5312a46ba6",
+      "replacedAt": "2026-09-25T16:50:00.000Z"
+    },
+    {
+      "artifact": "infra/tests/backup-ci-registration.test.mjs",
+      "priorDigest": "5411514a2aae47785991a8b210446f0308bf152ba4513ee7ac24ff937292171a",
+      "replacedAt": "2026-09-25T16:50:00.000Z"
+    },
+    {
+      "artifact": "scripts/bootstrap-database-roles.mjs",
+      "priorDigest": "19c4b1a842a067bfb29027d0b441e19f734c64d4de8a449214c95d9f230616a3",
+      "replacedAt": "2026-09-25T16:50:00.000Z"
     }
   ],
   "limitations": [

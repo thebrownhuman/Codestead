@@ -19,7 +19,7 @@ readonly MAX_CLAMAV_RESTART_EVENTS=32
 readonly -a REQUIRED_IMAGE_SERVICES=(
   app cloudflared exam-finalization-worker mail-worker migrate postgres
   practice-runner-recovery-worker project-review-correction-worker
-  regrade-worker reward-worker
+  regrade-worker reward-worker runner-egress-gateway file-erasure-worker
 )
 readonly -a OPTIONAL_CREATED_IMAGE_SERVICES=(
   clamav scan-worker lifecycle platform-seed admin-bootstrap

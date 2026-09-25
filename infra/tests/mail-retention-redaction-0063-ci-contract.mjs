@@ -16,7 +16,7 @@ export const postgresCiRuntimePolicy = Object.freeze({
   installCommand:
     "sudo apt-get install --yes --no-install-recommends postgresql-17 postgresql-18",
   dockerPg17Image:
-    "postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+    "postgres:17-bookworm@sha256:4f736ae292687621d4dbe0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
   dockerPg17IntegrationCommand:
     "CODESTEAD_DISPOSABLE_HOST=1 bash infra/tests/database-least-privilege-integration.sh",
   productionMajor: 17,

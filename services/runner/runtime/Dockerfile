@@ -16,6 +16,9 @@ RUN mkdir -p /out && cc -std=c17 -O2 -fstack-protector-strong -D_FORTIFY_SOURCE=
     -o /out/execute ./harness.c && chmod 0555 /out/execute
 
 FROM ${RUNTIME_IMAGE}
+# Reproducible layers: apk 3 logs wall-clock install times, and the JDK trust
+# store is regenerated with non-deterministic bytes; the sandbox has no network
+# egress, so both are removed below.
 ARG EXPECTED_LANGUAGE
 ARG EXPECTED_TOOL_VERSION
 ARG BASE_IMAGE_REFERENCE
@@ -36,7 +39,8 @@ RUN set -eu; \
         mkdir -p /opt/java; \
         ln -s /usr/lib/jvm/java-21-openjdk /opt/java/openjdk; \
         /opt/java/openjdk/bin/java -XshowSettings:properties -version 2>&1 \
-          | grep -F "java.version = ${EXPECTED_TOOL_VERSION}" >/dev/null \
+          | grep -F "java.version = ${EXPECTED_TOOL_VERSION}" >/dev/null; \
+        rm -f /etc/ssl/certs/java/cacerts /usr/lib/jvm/java-21-openjdk/lib/security/cacerts \
         ;; \
       python) \
         rm -rf /usr/local/lib/python3.14/ensurepip \
@@ -55,7 +59,7 @@ RUN set -eu; \
         ;; \
       *) exit 64 ;; \
     esac; \
-    rm -f /sbin/apk
+    rm -f /sbin/apk /var/log/apk.log
 LABEL org.opencontainers.image.title="Codestead ${EXPECTED_LANGUAGE} runtime" \
       org.opencontainers.image.description="Networkless, non-root learner-code runtime with fixed native harness" \
       org.opencontainers.image.vendor="Codestead" \

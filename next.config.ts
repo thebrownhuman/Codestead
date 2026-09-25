@@ -28,7 +28,12 @@ const contentSecurityPolicy = [
 const nextConfig: NextConfig = {
   // The floating dev badge covered the sidebar footer; errors still show as overlays.
   devIndicators: false,
-  ...(isolatedDistDir ? { distDir: isolatedDistDir } : {}),
+  ...(isolatedDistDir ? {
+    distDir: isolatedDistDir,
+    // The isolated E2E dev server keeps every compiled route alive. Disposing idle
+    // routes forces recompiles mid-suite, and those reload pages under test.
+    onDemandEntries: { maxInactiveAge: 24 * 60 * 60 * 1000, pagesBufferLength: 1_000 },
+  } : {}),
   output: "standalone",
   poweredByHeader: false,
   allowedDevOrigins: ["127.0.0.1"],
@@ -36,7 +41,10 @@ const nextConfig: NextConfig = {
     root: process.cwd()
   },
   experimental: {
-    typedEnv: typedEnvironmentEnabled
+    typedEnv: typedEnvironmentEnabled,
+    // Next's dev debug channel mistakes Playwright WebKit's fresh loads
+    // (responseStart=0) for a Safari cache restore and reloads every page once.
+    ...(isolatedDistDir ? { reactDebugChannel: false } : {}),
   },
   headers: async () => [
     {

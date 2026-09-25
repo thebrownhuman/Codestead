@@ -134,6 +134,21 @@ function envelope(
   };
 }
 
+function activeReview(dueAt: Date): StoredReview {
+  return {
+    id: "review-1",
+    userId: "learner-1",
+    enrollmentId: "30000000-0000-4000-8000-000000000001",
+    conceptId: "20000000-0000-4000-8000-000000000001",
+    skillId: "python.variables.assignment",
+    languageContext: "conceptual",
+    dueAt,
+    intervalDays: 3,
+    reason: "e30",
+    status: "scheduled",
+  };
+}
+
 const response = {
   itemKey: "main",
   responseRevision: 1,
@@ -195,6 +210,102 @@ describe("authored deterministic evaluator", () => {
       state: "unavailable",
       reason: "runner_not_complete",
     });
+    expect(validateRunnerEvaluation({ passed: true, score: Number.NaN })).toEqual({
+      state: "unavailable",
+      reason: "runner_not_complete",
+    });
+    expect(validateRunnerEvaluation({
+      passed: false,
+      score: 0.2,
+      misconceptionTags: ["assignment.equality", "Not_Valid!", 42],
+    })).toMatchObject({
+      state: "graded",
+      passed: false,
+      misconceptionTags: ["assignment.equality"],
+    });
+    expect(validateRunnerEvaluation({ passed: true, score: 1, misconceptionTags: ["ignored.tag"] }))
+      .toMatchObject({ misconceptionTags: [] });
+  });
+
+  it("marks the runner grader as not-yet-complete and rejects an unrecognized grader kind", () => {
+    expect(evaluateAuthoredActivity(activity({ grading: { kind: "runner" } }), { value: "x" }))
+      .toEqual({ state: "unavailable", reason: "runner_not_complete" });
+    expect(evaluateAuthoredActivity(activity({ grading: { kind: "essay" } }), { value: "x" }))
+      .toEqual({ state: "unavailable", reason: "unsupported_grader" });
+    expect(evaluateAuthoredActivity(activity({ grading: {} }), { value: "x" }))
+      .toEqual({ state: "unavailable", reason: "grader_not_configured" });
+  });
+
+  it("accepts a choice grader via correctOptionIds and rejects one with no accepted answers", () => {
+    expect(evaluateAuthoredActivity(
+      activity({ grading: { kind: "choice", correctOptionIds: ["b"] } }),
+      { value: "b" },
+    )).toMatchObject({ state: "graded", passed: true });
+    expect(evaluateAuthoredActivity(activity({ grading: { kind: "exact" } }), { value: "x" }))
+      .toEqual({ state: "unavailable", reason: "invalid_grader_specification" });
+  });
+
+  it("respects case-sensitive, untrimmed exact grading", () => {
+    expect(evaluateAuthoredActivity(
+      activity({ grading: { kind: "exact", acceptedAnswers: ["Answer"], caseSensitive: true, trim: false } }),
+      { value: " Answer " },
+    )).toMatchObject({ passed: false });
+    expect(evaluateAuthoredActivity(
+      activity({ grading: { kind: "exact", acceptedAnswers: ["Answer"], caseSensitive: true } }),
+      { value: "Answer" },
+    )).toMatchObject({ passed: true });
+  });
+
+  it("rejects a set grader with missing correctOptionIds or a non-array answer", () => {
+    expect(evaluateAuthoredActivity(activity({ grading: { kind: "set" } }), { selectedOptionIds: ["a"] }))
+      .toEqual({ state: "unavailable", reason: "invalid_grader_specification" });
+    expect(evaluateAuthoredActivity(
+      activity({ grading: { kind: "set", correctOptionIds: ["a"] } }),
+      { selectedOptionIds: "not-an-array" },
+    )).toEqual({ state: "unavailable", reason: "invalid_grader_specification" });
+  });
+
+  it("rejects a numeric grader with non-finite values or negative tolerance", () => {
+    expect(evaluateAuthoredActivity(
+      activity({ grading: { kind: "numeric", expected: "not-a-number", tolerance: 0 } }),
+      { value: 1 },
+    )).toEqual({ state: "unavailable", reason: "invalid_grader_specification" });
+    expect(evaluateAuthoredActivity(
+      activity({ grading: { kind: "numeric", expected: 1, tolerance: -1 } }),
+      { value: 1 },
+    )).toEqual({ state: "unavailable", reason: "invalid_grader_specification" });
+    expect(evaluateAuthoredActivity(
+      activity({ grading: { kind: "numeric", expected: 1 } }),
+      { value: "1" },
+    )).toMatchObject({ state: "graded", passed: true });
+  });
+
+  it("rejects a gaps grader with an empty gap answer set", () => {
+    expect(evaluateAuthoredActivity(
+      activity({ grading: { kind: "gaps", acceptedByGap: { a: ["1"] } } }),
+      { value: "no gaps object" },
+    )).toEqual({ state: "unavailable", reason: "invalid_grader_specification" });
+    expect(evaluateAuthoredActivity(
+      activity({ grading: { kind: "gaps", acceptedByGap: {} } }),
+      { gaps: { a: "1" } },
+    )).toEqual({ state: "unavailable", reason: "invalid_grader_specification" });
+  });
+});
+
+describe("evidence envelope decoding", () => {
+  it("rejects malformed JSON, wrong version, unsupported origin, and missing fields", () => {
+    const base = evidence("e1", envelope("E3", "v1"), NOW);
+    expect(decodeEvidenceEnvelope({ ...base, evidenceType: "not json" })).toBeNull();
+    expect(decodeEvidenceEnvelope({ ...base, evidenceType: JSON.stringify({ version: 2 }) })).toBeNull();
+    expect(decodeEvidenceEnvelope({
+      ...base,
+      evidenceType: JSON.stringify({ ...JSON.parse(base.evidenceType) as object, origin: "manual_override" }),
+    })).toBeNull();
+    expect(decodeEvidenceEnvelope({
+      ...base,
+      evidenceType: JSON.stringify({ ...JSON.parse(base.evidenceType) as object, evidenceLevel: "E9" }),
+    })).toBeNull();
+    expect(decodeEvidenceEnvelope({ ...base, validity: "revoked" })).toBeNull();
   });
 });
 
@@ -319,5 +430,100 @@ describe("mastery transition", () => {
       status: "scheduled",
     };
     expect(decodeReviewSchedule(review)).toMatchObject(schedule);
+  });
+
+  it("levels a code-type activity higher than a plain quiz question", () => {
+    const codeActivity: ActivityContext = { ...activity({ grading: { kind: "exact", acceptedAnswers: ["42"] } }), activityType: "code_exercise" };
+    const attemptContext: AttemptContext = { ...context({ grading: { kind: "exact", acceptedAnswers: ["42"] } }), activity: codeActivity };
+    const evaluation = evaluateAuthoredActivity(codeActivity, response.answer);
+    if (evaluation.state !== "graded") throw new Error("Expected a grade.");
+    const transition = buildMasteryTransition(
+      attemptContext,
+      { mastery: null, evidence: [], activeReview: null },
+      response,
+      evaluation,
+      NOW,
+    );
+    expect(transition.observation.evidenceLevel).toBe("E4");
+  });
+
+  it("levels a due mastery check higher than a fresh one", () => {
+    const attemptContext = context({ grading: { kind: "exact", acceptedAnswers: ["42"] } }, "mastery_check");
+    const evaluation = evaluateAuthoredActivity(attemptContext.activity, response.answer);
+    if (evaluation.state !== "graded") throw new Error("Expected a grade.");
+    const dueTransition = buildMasteryTransition(
+      attemptContext,
+      { mastery: mastery({ score: 0.5 }), evidence: [], activeReview: activeReview(new Date(NOW.getTime() - 1_000)) },
+      response,
+      evaluation,
+      NOW,
+    );
+    expect(dueTransition.observation.evidenceLevel).toBe("E6");
+  });
+
+  it("classifies a due-review outcome as failed, clean, or assisted", () => {
+    const attemptContext = context({ grading: { kind: "exact", acceptedAnswers: ["42"] } }, "practice");
+    const due = activeReview(new Date(NOW.getTime() - 1_000));
+    const passEvaluation = evaluateAuthoredActivity(attemptContext.activity, response.answer);
+    if (passEvaluation.state !== "graded") throw new Error("Expected a grade.");
+    const failEvaluation = evaluateAuthoredActivity(attemptContext.activity, { value: "wrong" });
+    if (failEvaluation.state !== "graded") throw new Error("Expected a grade.");
+
+    const failed = buildMasteryTransition(
+      attemptContext,
+      { mastery: mastery(), evidence: [], activeReview: due },
+      { ...response, answer: { value: "wrong" } },
+      failEvaluation,
+      NOW,
+    );
+    expect(failed.reviewOutcome).toBe("FAILED");
+
+    const clean = buildMasteryTransition(
+      attemptContext,
+      { mastery: mastery(), evidence: [], activeReview: due },
+      response,
+      passEvaluation,
+      NOW,
+    );
+    expect(clean.reviewOutcome).toBe("CLEAN");
+
+    const assisted = buildMasteryTransition(
+      attemptContext,
+      { mastery: mastery(), evidence: [], activeReview: due },
+      { ...response, assistanceLevel: "A2" },
+      passEvaluation,
+      NOW,
+    );
+    expect(assisted.reviewOutcome).toBe("ASSISTED");
+  });
+
+  it("maps every stored mastery status to its database status", () => {
+    const attemptContext = context({ grading: { kind: "exact", acceptedAnswers: ["42"] } }, "practice");
+    const evaluation = evaluateAuthoredActivity(attemptContext.activity, response.answer);
+    if (evaluation.state !== "graded") throw new Error("Expected a grade.");
+    for (const status of ["needs_review", "proficient", "practicing", "unseen"] as const) {
+      const transition = buildMasteryTransition(
+        attemptContext,
+        { mastery: mastery({ status }), evidence: [], activeReview: null },
+        response,
+        evaluation,
+        NOW,
+      );
+      expect(typeof transition.databaseStatus).toBe("string");
+    }
+  });
+
+  it("requests an initial review only once evidence reaches the E3 qualifying bar", () => {
+    const attemptContext = context({ grading: { kind: "exact", acceptedAnswers: ["42"] } }, "diagnostic");
+    const evaluation = evaluateAuthoredActivity(attemptContext.activity, response.answer);
+    if (evaluation.state !== "graded") throw new Error("Expected a grade.");
+    const transition = buildMasteryTransition(
+      attemptContext,
+      { mastery: null, evidence: [], activeReview: null },
+      response,
+      evaluation,
+      NOW,
+    );
+    expect(transition.createInitialReview).toBe(false);
   });
 });

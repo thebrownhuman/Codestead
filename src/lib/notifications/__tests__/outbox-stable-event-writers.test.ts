@@ -112,8 +112,10 @@ describe("production email stable-event writer inventory", () => {
 
     const centralOutbox = source("src/lib/notifications/outbox.ts");
     expect(centralOutbox).toContain(
-      "await db.transaction((tx) => persistQueuedEmail(tx, row))",
+      "await db.transaction((tx) => persistWithAccountAuthority(tx, row))",
     );
+    // The bounded authority retry only re-runs the release-composed unit.
+    expect(centralOutbox).toContain("if (await persistQueuedEmail(tx, row)) return;");
     expect(centralOutbox).not.toContain("db.execute(queuedEmailInsert");
   });
 

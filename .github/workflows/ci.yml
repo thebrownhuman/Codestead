@@ -19,6 +19,10 @@ jobs:
         with:
           node-version: 22.23.1
           cache: npm
+      # The database secret ceremony execs a fixed /usr/bin/node path (no PATH lookup,
+      # by design, for its root-run production invocation); point it at the toolcache
+      # node setup-node just installed, since this runner image ships no system node.
+      - run: sudo ln -sf "$(command -v node)" /usr/bin/node
       - run: npm ci
       - run: node infra/tests/backup-ci-registration.test.mjs
       - run: npm run test:github-runner-context:registration
@@ -238,6 +242,7 @@ jobs:
       - name: Set up Docker with containerd image store
         uses: docker/setup-docker-action@6d7cfa65f60a9dda7b46e5513fa982536f3c9877 # v5.3.0
         with:
+          set-host: true
           daemon-config: |
             {
               "features": {
@@ -249,7 +254,7 @@ jobs:
       - run: npm run app-images:inspect
       - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
         with:
-          version: 0.69.3
+          version: v0.69.3
       - run: trivy image --cache-dir "$APP_IMAGE_TRIVY_CACHE_DIR" --download-db-only
       - run: trivy image --cache-dir "$APP_IMAGE_TRIVY_CACHE_DIR" --download-java-db-only
       - run: npm run app-images:scan
@@ -313,6 +318,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+      - run: bash infra/tests/install-reviewed-docker-engine.sh
       - run: CODESTEAD_DISPOSABLE_HOST=1 bash infra/tests/backup-production-e2e.test.sh
 
   runner:
@@ -345,6 +351,7 @@ jobs:
       - name: Set up Docker with containerd image store
         uses: docker/setup-docker-action@6d7cfa65f60a9dda7b46e5513fa982536f3c9877 # v5.3.0
         with:
+          set-host: true
           daemon-config: |
             {
               "features": {
@@ -356,7 +363,7 @@ jobs:
       - run: npm run runtime:test
       - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
         with:
-          version: 0.69.3
+          version: v0.69.3
       - run: trivy image --cache-dir "$RUNTIME_TRIVY_CACHE_DIR" --download-db-only
       - run: trivy image --cache-dir "$RUNTIME_TRIVY_CACHE_DIR" --download-java-db-only
       - run: npm run runtime:scan
@@ -405,8 +412,8 @@ jobs:
       - run: npm run test:mail-retention-redaction-0068:roles
       - run: npm run test:mail-guarded-delivery-0069:roles
       - run: npm run test:integration
-      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394
-      - run: docker pull node:22.23.1-alpine3.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737
+      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4dbe0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394
+      - run: docker pull node:22.23.3-alpine3.23@sha256:489418a947387da1c5b4c0c5749c963da56ecaac0ced1da74c67db60e42f2b3a
       - run: CODESTEAD_DISPOSABLE_HOST=1 bash infra/tests/database-least-privilege-integration.sh
       - name: Install PostgreSQL 18 from the official PGDG repository
         run: |
@@ -477,6 +484,7 @@ jobs:
       - name: Set up Docker with containerd image store
         uses: docker/setup-docker-action@6d7cfa65f60a9dda7b46e5513fa982536f3c9877 # v5.3.0
         with:
+          set-host: true
           daemon-config: |
             {
               "features": {
@@ -491,7 +499,7 @@ jobs:
         working-directory: services/runner
       - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
         with:
-          version: 0.69.3
+          version: v0.69.3
       - run: trivy image --cache-dir "$RUNTIME_TRIVY_CACHE_DIR" --download-db-only
       - run: trivy image --cache-dir "$RUNTIME_TRIVY_CACHE_DIR" --download-java-db-only
       - run: npm run runtime:scan
@@ -501,10 +509,32 @@ jobs:
       - run: npm run curriculum:runtime-pins:check
       - run: npx playwright install --with-deps chromium
       - run: npm run dsa:parity:verify
+      - name: Regenerate DSA parity runtime evidence after a failed verification
+        run: npm run dsa:parity:evidence:apply
+        if: failure()
+      - name: Upload regenerated DSA parity runtime evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: failure()
+        with:
+          name: dsa-parity-evidence-regenerated
+          path: docs/evidence/dsa-parity-runtime-*.json
+          if-no-files-found: warn
+          retention-days: 14
       - run: npm run c-cpp:executable:verify
       - run: npm run java-python:executable:verify
       - run: npm run ai-code:executable:verify
       - run: npm run web:executable:verify
+      - name: Regenerate executable runtime evidence after a failed verification
+        run: npm run c-cpp:executable:evidence:apply || true; npm run java-python:executable:evidence:apply || true; npm run ai-code:executable:evidence:apply || true; npm run web:executable:evidence:apply || true
+        if: failure()
+      - name: Upload regenerated executable runtime evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: failure()
+        with:
+          name: executable-evidence-regenerated
+          path: docs/evidence/*-executable-runtime-*.json
+          if-no-files-found: warn
+          retention-days: 14
       - name: Upload curriculum runtime evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()

@@ -1812,7 +1812,7 @@ export async function main() {
 }
 
 export function resolveRestoreLedgerAuthorityIdentityEnvironment(
-  environment = process.env,
+  environment: Readonly<Record<string, string | undefined>> = process.env,
 ) {
   const databaseUrl = environment.DATABASE_BOOTSTRAP_URL;
   const expectedBootstrapUser = environment.POSTGRES_USER;
@@ -1830,7 +1830,7 @@ export function resolveRestoreLedgerAuthorityIdentityEnvironment(
 }
 
 export function resolveRestoreLedgerAuthorityEnvironment(
-  environment = process.env,
+  environment: Readonly<Record<string, string | undefined>> = process.env,
 ) {
   const resolved = resolveRestoreLedgerAuthorityIdentityEnvironment(
     environment,

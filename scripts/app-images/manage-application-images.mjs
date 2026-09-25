@@ -263,21 +263,41 @@ function verifySourceLabels(labels, context, target) {
   }
 }
 
+function exportedConfigDigest(reference, manifestDigest, targetName) {
+  const temporary = mkdtempSync(path.join(os.tmpdir(), "codestead-app-identity-"));
+  try {
+    const archive = path.join(temporary, "image.tar");
+    run("docker", ["image", "save", "--platform", "linux/amd64", "--output", archive, reference]);
+    const identity = readArchiveIdentity(archive);
+    if (identity.manifestDigest !== manifestDigest) {
+      fail(`Exported application archive does not match the tagged manifest for ${targetName}.`);
+    }
+    return identity.configDigest;
+  } finally {
+    rmSync(temporary, { recursive: true, force: true });
+  }
+}
+
 function resolveLocalIdentity(target, context) {
   const tag = imageTag(target, context);
   const tagged = inspectDockerImage(tag);
   const manifestDigest = tagged?.Descriptor?.digest;
-  const configDigest = tagged?.Id;
-  if (!OCI_DIGEST.test(manifestDigest ?? "") || !OCI_DIGEST.test(configDigest ?? "")) {
+  const dockerImageId = tagged?.Id;
+  if (!OCI_DIGEST.test(manifestDigest ?? "") || !OCI_DIGEST.test(dockerImageId ?? "")) {
     fail(`Application image ${target.target} has no exact manifest/config identity.`);
   }
+  // The containerd image store reports the manifest digest as the image ID, so the
+  // config identity must come from an exported OCI archive of that exact manifest.
+  const configDigest = dockerImageId === manifestDigest
+    ? exportedConfigDigest(tag, manifestDigest, target.target)
+    : dockerImageId;
   if (manifestDigest === configDigest) {
     fail(`Application image ${target.target} conflates manifest and config identities.`);
   }
   verifySourceLabels(tagged.Config?.Labels, context, target.target);
   const reference = `${repositoryWithoutTag(tag)}@${manifestDigest}`;
   const exact = inspectDockerImage(reference);
-  if (exact?.Descriptor?.digest !== manifestDigest || exact?.Id !== configDigest) {
+  if (exact?.Descriptor?.digest !== manifestDigest || exact?.Id !== dockerImageId) {
     fail(`Exact application reference changed for ${target.target}.`);
   }
   return {

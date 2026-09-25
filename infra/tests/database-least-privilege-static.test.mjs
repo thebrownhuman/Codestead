@@ -100,7 +100,7 @@ test("Compose mounts the exact database credential matrix", () => {
     "scan-worker": ["database_worker_url:database_url"],
     lifecycle: ["database_ops_url:database_url"],
     "platform-seed": ["database_ops_url:database_url"],
-    "admin-bootstrap": ["database_ops_url:database_url"],
+    "admin-bootstrap": ["database_url:database_url"],
     "backup-status-reporter": [
       "database_backup_reporter_url:database_backup_reporter_url",
     ],

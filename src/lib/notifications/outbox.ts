@@ -155,6 +155,10 @@ function isDurableReplayConflict(error: unknown): boolean {
   }
 }
 
+// About 3s in total: longer than any enqueue transaction, well under the time a
+// deletion keeps the account authority.
+const ACCOUNT_AUTHORITY_RETRY_DELAYS_MS = [25, 50, 100, 200, 400, 800, 1_400] as const;
+
 function normalizeOutboxPersistenceError(error: unknown) {
   return isDurableReplayConflict(error)
     ? new EmailOutboxReplayConflictError()
@@ -307,7 +311,7 @@ function queuedEmailInsert(row: ReturnType<typeof queuedEmail>) {
 async function persistQueuedEmail(
   tx: OutboxTransaction,
   row: ReturnType<typeof queuedEmail>,
-) {
+): Promise<boolean> {
   const inserted = await tx.execute<InsertedEmailOutboxRelease>(
     queuedEmailInsert(row),
   );
@@ -320,11 +324,11 @@ async function persistQueuedEmail(
          WHERE idempotency_key = ${row.idempotencyKey}
          LIMIT 1
       `);
-      if (!replay.rows[0]) {
-        throw new Error("Account email authority is unavailable.");
-      }
+      // No row and no replay: the account authority was held elsewhere or the
+      // account is no longer eligible; persistWithAccountAuthority decides.
+      if (!replay.rows[0]) return false;
     }
-    return;
+    return true;
   }
   const released = await tx.execute(sql<{
     outbox_id: string;
@@ -344,6 +348,24 @@ async function persistQueuedEmail(
     outboxId: release.id,
     operationId: release.operation_id,
   });
+  return true;
+}
+
+// The insert's try-lock loses to any concurrent holder of the account authority.
+// Retrying the whole insert-and-release unit on a short bounded schedule lets a
+// concurrent enqueue for the same account finish (this call then replays or
+// inserts), while a deletion, which holds the authority far longer, still fails
+// closed within about three seconds instead of blocking.
+async function persistWithAccountAuthority(
+  tx: OutboxTransaction,
+  row: ReturnType<typeof queuedEmail>,
+) {
+  if (await persistQueuedEmail(tx, row)) return;
+  for (const delayMs of ACCOUNT_AUTHORITY_RETRY_DELAYS_MS) {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    if (await persistQueuedEmail(tx, row)) return;
+  }
+  throw new Error("Account email authority is unavailable.");
 }
 
 export async function enqueueEmailInTransaction(
@@ -352,7 +374,7 @@ export async function enqueueEmailInTransaction(
 ) {
   const row = queuedEmail(input);
   try {
-    await persistQueuedEmail(tx, row);
+    await persistWithAccountAuthority(tx, row);
   } catch (error) {
     throw normalizeOutboxPersistenceError(error);
   }
@@ -361,7 +383,7 @@ export async function enqueueEmailInTransaction(
 export async function enqueueEmail(input: EnqueueEmailInput) {
   const row = queuedEmail(input);
   try {
-    await db.transaction((tx) => persistQueuedEmail(tx, row));
+    await db.transaction((tx) => persistWithAccountAuthority(tx, row));
   } catch (error) {
     throw normalizeOutboxPersistenceError(error);
   }

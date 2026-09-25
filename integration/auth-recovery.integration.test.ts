@@ -43,7 +43,8 @@ import { validatedDisposableOwnerDatabaseTarget } from
 import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
 import { withValidatedOwnerFaultInjection } from "./support/with-validated-owner-fault-injection";
 
-const ADMIN_ID = "auth-recovery-admin";
+// Real accounts get randomUUID() ids (src/lib/auth.ts); system mail audiences require one.
+const ADMIN_ID = "a4000000-0000-4000-8000-00000000ad01";
 const ADMIN_SESSION_ID = "auth-recovery-admin-session";
 const LEARNER_A = "auth-recovery-learner-a";
 const LEARNER_A_SESSION = "auth-recovery-session-a";

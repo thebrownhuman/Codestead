@@ -56,6 +56,7 @@ type LauncherDependencies = Readonly<{
   deadlineMs?: number;
   heartbeatMs?: number;
   terminationGraceMs?: number;
+  maxConcurrency?: number;
   log?: (message: string) => void;
   logError?: (message: string) => void;
 }>;
@@ -90,13 +91,14 @@ const repositoryRoot = path.resolve(
   "../..",
 );
 
+// Child environments deliberately omit NODE_ENV, which Next's types mark as required.
 function minimalLauncherEnvironment(): NodeJS.ProcessEnv {
-  return process.platform === "win32"
+  return (process.platform === "win32"
     ? {
       SYSTEMROOT:
         process.env.SYSTEMROOT ?? process.env.SystemRoot ?? "C:\\Windows",
     }
-    : {};
+    : {}) as NodeJS.ProcessEnv;
 }
 
 function topLevelTestNames(source: string): string[] {
@@ -412,7 +414,7 @@ describe("database role-boundary test launcher", () => {
       ),
     ).toEqual([
       expect.objectContaining({
-        deadlineMs: 90_000,
+        deadlineMs: 240_000,
         id: "bootstrap-missing-grants",
       }),
     ]);
@@ -545,6 +547,7 @@ describe("database role-boundary test launcher", () => {
     const log = vi.fn();
     const logError = vi.fn();
     const result = launcher.runDatabaseRoleBoundaryTests({
+      maxConcurrency: 10,
       buildChildLaunch,
       createChildController,
       environment,
@@ -613,6 +616,44 @@ describe("database role-boundary test launcher", () => {
       .toHaveLength(10);
   });
 
+  it("never runs more lanes than the concurrency limit and still runs every lane", async () => {
+    const launcher = await loadLauncher();
+    expect(launcher).not.toBeNull();
+    if (!launcher) return;
+
+    const { children, createChildController, spawn } = fakeSpawnHarness();
+    const log = vi.fn();
+    const result = launcher.runDatabaseRoleBoundaryTests({
+      maxConcurrency: 3,
+      buildChildLaunch: (input) => ({
+        args: input.args,
+        command: input.command,
+        detached: false,
+        environment: input.environment,
+        treeSupervised: true,
+      }),
+      createChildController,
+      environment: {} as NodeJS.ProcessEnv,
+      spawn: spawn as NonNullable<LauncherDependencies["spawn"]>,
+      deadlineMs: 5_000,
+      heartbeatMs: 1_000,
+      log,
+      logError: vi.fn(),
+    });
+
+    expect(spawn).toHaveBeenCalledTimes(3);
+    for (let finished = 0; finished < 10; finished += 1) {
+      await vi.waitFor(() => expect(children[finished]).toBeDefined());
+      const running = children.length - finished;
+      expect(running).toBeLessThanOrEqual(3);
+      completeChildren([children[finished] as FakeChild], [0]);
+    }
+    await expect(result).resolves.toBe(0);
+    expect(spawn).toHaveBeenCalledTimes(10);
+    expect(log.mock.calls.filter(([message]) => String(message).includes(" PASS ")))
+      .toHaveLength(10);
+  });
+
   it("fails closed without spawning when supervised launch construction fails", async () => {
     const launcher = await loadLauncher();
     expect(launcher).not.toBeNull();
@@ -621,6 +662,7 @@ describe("database role-boundary test launcher", () => {
     const harness = fakeSpawnHarness();
     const logError = vi.fn();
     await expect(launcher.runDatabaseRoleBoundaryTests({
+      maxConcurrency: 10,
       buildChildLaunch: () => {
         throw new Error("supervisor-secret-canary");
       },
@@ -646,6 +688,7 @@ describe("database role-boundary test launcher", () => {
 
     const { children, createChildController, spawn } = fakeSpawnHarness();
     const result = launcher.runDatabaseRoleBoundaryTests({
+      maxConcurrency: 10,
       createChildController,
       environment: minimalLauncherEnvironment(),
       spawn: spawn as NonNullable<LauncherDependencies["spawn"]>,
@@ -660,6 +703,7 @@ describe("database role-boundary test launcher", () => {
 
     const nullHarness = fakeSpawnHarness();
     const nullResult = launcher.runDatabaseRoleBoundaryTests({
+      maxConcurrency: 10,
       createChildController: nullHarness.createChildController,
       environment: minimalLauncherEnvironment(),
       spawn: nullHarness.spawn as NonNullable<
@@ -697,6 +741,7 @@ describe("database role-boundary test launcher", () => {
     const logError = vi.fn();
     const spawnErrorControllers = fakeSpawnHarness();
     const result = launcher.runDatabaseRoleBoundaryTests({
+      maxConcurrency: 10,
       createChildController: spawnErrorControllers.createChildController,
       environment: minimalLauncherEnvironment(),
       spawn: spawn as NonNullable<LauncherDependencies["spawn"]>,
@@ -715,6 +760,7 @@ describe("database role-boundary test launcher", () => {
     const childErrorHarness = fakeSpawnHarness();
     const childErrorLog = vi.fn();
     const childErrorResult = launcher.runDatabaseRoleBoundaryTests({
+      maxConcurrency: 10,
       createChildController: childErrorHarness.createChildController,
       environment: minimalLauncherEnvironment(),
       spawn: childErrorHarness.spawn as NonNullable<
@@ -758,6 +804,7 @@ describe("database role-boundary test launcher", () => {
       const log = vi.fn();
       const logError = vi.fn();
       const result = launcher.runDatabaseRoleBoundaryTests({
+        maxConcurrency: 10,
         createChildController,
         environment: minimalLauncherEnvironment(),
         spawn: spawn as NonNullable<LauncherDependencies["spawn"]>,
@@ -816,6 +863,7 @@ describe("database role-boundary test launcher", () => {
       );
       const rejectedLog = vi.fn();
       const rejectedResult = launcher.runDatabaseRoleBoundaryTests({
+        maxConcurrency: 10,
         createChildController: rejected.createChildController,
         environment: minimalLauncherEnvironment(),
         spawn: rejected.spawn as NonNullable<LauncherDependencies["spawn"]>,
@@ -850,6 +898,8 @@ describe("database role-boundary test launcher", () => {
     }
   });
 
+  // Runs the full role-boundary suite for real; on a shared 4-core CI runner that
+  // alone takes several minutes, beyond the default test budget.
   it("executes the real CLI entrypoint from an unrelated working directory", () => {
     const tokenCanary = "launcher-cli-token-canary";
     const result = nodeSpawnSync(
@@ -869,7 +919,7 @@ describe("database role-boundary test launcher", () => {
           ARBITRARY_TOKEN: tokenCanary,
         },
         maxBuffer: 16 * 1024 * 1024,
-        timeout: 120_000,
+        timeout: 600_000,
         windowsHide: true,
       },
     );
@@ -886,5 +936,5 @@ describe("database role-boundary test launcher", () => {
       "database-role-boundary lane PASS role-boundary",
     );
     expect(output).not.toContain(tokenCanary);
-  }, 135_000);
+  }, 660_000);
 });

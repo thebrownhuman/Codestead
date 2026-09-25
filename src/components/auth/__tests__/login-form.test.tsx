@@ -210,4 +210,88 @@ describe("login session resume guard", () => {
     expect(email).toHaveValue("learner@example.test");
     expect(password).toHaveValue("a-secure-password");
   });
+
+  it("shows a non-duplicate sign-in error message from the server", async () => {
+    mocks.signInEmail.mockResolvedValue({
+      data: null,
+      error: { code: "INVALID_CREDENTIALS", message: "That email or password is incorrect." },
+    });
+    const user = userEvent.setup();
+    render(<LoginForm />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled());
+
+    await user.type(screen.getByLabelText("Email address"), "learner@example.test");
+    await user.type(screen.getByLabelText("Password"), "a-secure-password");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("That email or password is incorrect.");
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it("redirects to the two-factor challenge when sign-in requires it", async () => {
+    mocks.signInEmail.mockResolvedValue({
+      data: { twoFactorRedirect: true },
+      error: null,
+    });
+    const user = userEvent.setup();
+    render(<LoginForm />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled());
+
+    await user.type(screen.getByLabelText("Email address"), "learner@example.test");
+    await user.type(screen.getByLabelText("Password"), "a-secure-password");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/two-factor"));
+    expect(mocks.push).not.toHaveBeenCalledWith("/onboarding");
+  });
+
+  it("sends a freshly signed-in learner to onboarding", async () => {
+    const user = userEvent.setup();
+    render(<LoginForm />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled());
+
+    await user.type(screen.getByLabelText("Email address"), "learner@example.test");
+    await user.type(screen.getByLabelText("Password"), "a-secure-password");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/onboarding"));
+    expect(mocks.refresh).toHaveBeenCalledOnce();
+  });
+
+  it("toggles the password field between hidden and visible", async () => {
+    const user = userEvent.setup();
+    render(<LoginForm />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled());
+
+    const password = screen.getByLabelText("Password");
+    expect(password).toHaveAttribute("type", "password");
+    await user.click(screen.getByRole("button", { name: "Show password" }));
+    expect(password).toHaveAttribute("type", "text");
+    await user.click(screen.getByRole("button", { name: "Hide password" }));
+    expect(password).toHaveAttribute("type", "password");
+  });
+
+  it("signs in with Google and surfaces a returned error", async () => {
+    mocks.signInSocial.mockResolvedValue({ error: { message: "Google sign-in was declined." } });
+    const user = userEvent.setup();
+    render(<LoginForm />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled());
+
+    await user.click(screen.getByRole("button", { name: /Continue with Google/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Google sign-in was declined.");
+    expect(mocks.signInSocial).toHaveBeenCalledWith({ provider: "google", callbackURL: "/two-factor" });
+  });
+
+  it("recovers when the Google sign-in request rejects", async () => {
+    mocks.signInSocial.mockRejectedValueOnce(new TypeError("synthetic network failure"));
+    const user = userEvent.setup();
+    render(<LoginForm />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled());
+
+    await user.click(screen.getByRole("button", { name: /Continue with Google/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Google sign-in is temporarily unavailable");
+    expect(screen.getByRole("button", { name: /Continue with Google/i })).toBeEnabled();
+  });
 });

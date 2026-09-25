@@ -64,7 +64,6 @@ interface CaseResult {
   readonly visibility: string;
   readonly category: string;
   readonly status: "passed" | "failed";
-  readonly durationMs: number;
   readonly sourceHash: string;
   readonly failure?: string;
 }
@@ -359,7 +358,6 @@ async function main(): Promise<void> {
       const index = next++;
       if (index >= jobs.length) return;
       const { item, test } = jobs[index]!;
-      const started = Date.now();
       try {
         const runtimeIdentity = runtimeIdentities[languageOf(item)];
         if (!runtimeIdentity) throw new Error("Validated local runtime identity is missing for " + languageOf(item) + ".");
@@ -379,7 +377,6 @@ async function main(): Promise<void> {
           visibility: test.visibility,
           category: test.category,
           status: "passed",
-          durationMs: Date.now() - started,
           sourceHash: hash(item.answer.referenceSolution),
         });
       } catch (error) {
@@ -391,7 +388,6 @@ async function main(): Promise<void> {
           visibility: test.visibility,
           category: test.category,
           status: "failed",
-          durationMs: Date.now() - started,
           sourceHash: hash(item.answer.referenceSolution),
           failure: error instanceof Error ? error.message : String(error),
         });

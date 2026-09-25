@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-07-12T17:42:00+05:30",
-  "revalidatedAt": "2026-07-28T13:27:44.340Z",
+  "revalidatedAt": "2026-09-25T12:50:51.955Z",
   "requirements": [
     "SES-004",
     "DAT-003"
@@ -145,7 +145,7 @@
     "src/lib/drafts/use-synced-draft.ts": "5ce6d04576e3c6b7d9046f3a88caae38b5497418ca8a992e2cf66c104c1ab93c",
     "src/lib/drafts/logout.ts": "c7515692d430c9024dafaa2ba8784fcaa12d1cc8ee437ffb949eaf54135a208c",
     "src/app/api/drafts/route.ts": "f2624118a0ca8fe8d52da7241371a12a34b98bb68f82b6a8729cf0d11adc68ba",
-    "src/components/lesson/lesson-workspace.tsx": "a793afd7ddfae26fb9d2637e9317d9e82a8cb0df46184426fc686a10752b90ce",
+    "src/components/lesson/lesson-workspace.tsx": "6e657ffd958bfed113f6f49a9f2f0b5af97f285421ea0fd95f14db814410bce9",
     "integration/learner-drafts.integration.test.ts": "10c060a3992d80b603fbf3472981f65925c5d0b539021e931a7ddfc8ddc89da2"
   },
   "supersededDigests": [

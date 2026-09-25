@@ -465,4 +465,87 @@ describe("resumable disclosed onboarding", () => {
     expect(screen.getByRole("button", { name: /Connect NIM and start learning/i })).toBeEnabled();
     expect(mocks.push).not.toHaveBeenCalled();
   });
+
+  it("redirects to login when the status check reports the session is unauthenticated", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 401 })));
+    render(<OnboardingWizard />);
+
+    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/login"));
+    expect(await screen.findByText(/Returning to sign in/i)).toBeInTheDocument();
+  });
+
+  it("requires a temporary-password change before onboarding, then returns to login", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => json({ code: "PASSWORD_CHANGE_REQUIRED" }, { status: 403 })));
+    render(<OnboardingWizard />);
+
+    expect(await screen.findByRole("heading", { name: "Choose your own password." })).toBeInTheDocument();
+  });
+
+  it("validates that the new password differs from the temporary one and that confirmation matches", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/onboarding/status") return json({ code: "PASSWORD_CHANGE_REQUIRED" }, { status: 403 });
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    const user = userEvent.setup();
+    render(<OnboardingWizard />);
+    await screen.findByRole("heading", { name: "Choose your own password." });
+
+    await user.type(screen.getByLabelText("Temporary password"), "temporary-password-1");
+    await user.type(screen.getByLabelText("New password"), "brand-new-password-1");
+    await user.type(screen.getByLabelText("Confirm new password"), "different-confirmation-1");
+    await user.click(screen.getByRole("button", { name: "Save password" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("do not match");
+
+    await user.clear(screen.getByLabelText("Confirm new password"));
+    await user.type(screen.getByLabelText("Confirm new password"), "temporary-password-1");
+    await user.clear(screen.getByLabelText("New password"));
+    await user.type(screen.getByLabelText("New password"), "temporary-password-1");
+    await user.click(screen.getByRole("button", { name: "Save password" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("different from the temporary one");
+  });
+
+  it("shows a rate-limit message, then returns to login after a successful password change", async () => {
+    let attempts = 0;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/onboarding/status") return json({ code: "PASSWORD_CHANGE_REQUIRED" }, { status: 403 });
+      if (url === "/api/security/forced-password-change") {
+        attempts += 1;
+        return attempts === 1 ? new Response(null, { status: 429 }) : new Response(null, { status: 200 });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    const user = userEvent.setup();
+    render(<OnboardingWizard />);
+    await screen.findByRole("heading", { name: "Choose your own password." });
+
+    await user.type(screen.getByLabelText("Temporary password"), "temporary-password-1");
+    await user.type(screen.getByLabelText("New password"), "brand-new-password-1");
+    await user.type(screen.getByLabelText("Confirm new password"), "brand-new-password-1");
+    await user.click(screen.getByRole("button", { name: "Save password" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Too many attempts");
+
+    await user.click(screen.getByRole("button", { name: "Save password" }));
+    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/login"));
+  });
+
+  it("recovers from a network failure while changing the temporary password", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/onboarding/status") return json({ code: "PASSWORD_CHANGE_REQUIRED" }, { status: 403 });
+      if (url === "/api/security/forced-password-change") throw new TypeError("offline");
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    const user = userEvent.setup();
+    render(<OnboardingWizard />);
+    await screen.findByRole("heading", { name: "Choose your own password." });
+
+    await user.type(screen.getByLabelText("Temporary password"), "temporary-password-1");
+    await user.type(screen.getByLabelText("New password"), "brand-new-password-1");
+    await user.type(screen.getByLabelText("Confirm new password"), "brand-new-password-1");
+    await user.click(screen.getByRole("button", { name: "Save password" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/could not be completed.*check your connection/i);
+  });
 });

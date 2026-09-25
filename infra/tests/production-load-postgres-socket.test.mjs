@@ -27,7 +27,7 @@ test("PostgreSQL exposes no host port and adds only the fixed root-restricted Un
     postgres.command.slice(-4),
     [
       "-c",
-      "unix_socket_directories=/run/learncoding-postgres",
+      "unix_socket_directories=/run/learncoding-postgres,/var/run/postgresql",
       "-c",
       "unix_socket_permissions=0700",
     ],

@@ -452,7 +452,7 @@ test("native startup is TCP-only, logged, and bounded to the private data root",
   const options = args[args.indexOf("--options") + 1];
   assert.equal(
     options,
-    `-h 127.0.0.1 -p ${state.port} -c unix_socket_directories=`,
+    `-h 127.0.0.1 -p ${state.port} -c authentication_timeout=1s -c unix_socket_directories=`,
   );
   assert.doesNotMatch(options, /private restore/u);
   assert.doesNotMatch(options, /(?:^|\s)-k(?:\s|$)/u);
@@ -1646,7 +1646,9 @@ test("bounded client watchdog stays referenced in a then-style process", () => {
           temporaryRoot,
         }),
         maxBuffer: 1024 * 1024,
-        timeout: 2_000,
+        // Covers Node startup and a cold harness import on a loaded CI runner; the
+        // bounded behaviour itself is proven by the exact output and elapsed floor.
+        timeout: 10_000,
         windowsHide: true,
       },
     );

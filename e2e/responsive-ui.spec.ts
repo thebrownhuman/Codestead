@@ -1,4 +1,13 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
+
+async function waitForAnimations(locator: Locator) {
+  // Patch's window springs open from the bubble; measure the settled layout, not a mid-animation frame.
+  await expect.poll(() => locator.evaluate((element) =>
+    element.getAnimations({ subtree: true }).filter((animation) =>
+      animation.playState === "running" && animation.effect?.getComputedTiming().iterations !== Infinity,
+    ).length,
+  )).toBe(0);
+}
 
 async function expectNoDocumentOverflow(page: Page) {
   await expect.poll(() => page.evaluate(() =>
@@ -92,12 +101,13 @@ test.describe("responsive UI regressions", () => {
   test("mentor cockpit keeps its composer reachable in a short phone viewport", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 480 });
     await page.goto("/courses/python/skills/python.toolchain.repl");
-    await page.getByRole("button", { name: /Ask Codestead/i }).click();
+    await page.getByRole("button", { name: /^Open Patch/ }).click();
 
-    const dialog = page.getByRole("dialog", { name: "Codestead mentor" });
-    const composer = page.getByRole("textbox", { name: "Message Codestead" });
+    const dialog = page.getByRole("dialog", { name: "Patch" });
+    const composer = page.getByRole("textbox", { name: "Message Patch" });
     await expect(dialog).toBeVisible();
     await expect(composer).toBeVisible();
+    await waitForAnimations(dialog);
     const geometry = await dialog.evaluate((element) => {
       const input = element.querySelector("textarea");
       if (!input) throw new Error("Mentor composer is missing.");
@@ -118,15 +128,17 @@ test.describe("responsive UI regressions", () => {
     await expectNoDocumentOverflow(page);
   });
 
-  test("mentor cockpit keeps its close control and composer visible in phone landscape", async ({ page }) => {
+  test("mentor cockpit keeps its minimize control and composer visible in phone landscape", async ({ page }) => {
     await page.setViewportSize({ width: 667, height: 375 });
     await page.goto("/courses/python/skills/python.toolchain.repl");
-    await page.getByRole("button", { name: /Ask Codestead/i }).click();
+    await page.getByRole("button", { name: /^Open Patch/ }).click();
     await page.waitForTimeout(500);
 
-    const dialog = page.getByRole("dialog", { name: "Codestead mentor" });
+    const dialog = page.getByRole("dialog", { name: "Patch" });
+    await expect(dialog).toBeVisible();
+    await waitForAnimations(dialog);
     const geometry = await dialog.evaluate((element) => {
-      const close = element.querySelector<HTMLButtonElement>('button[aria-label="Close tutor"]');
+      const close = element.querySelector<HTMLButtonElement>('button[aria-label="Minimize tutor"]');
       const input = element.querySelector("textarea");
       if (!close || !input) throw new Error("Mentor cockpit controls are missing.");
       const dialogBox = element.getBoundingClientRect();
@@ -152,9 +164,12 @@ test.describe("responsive UI regressions", () => {
   test("mentor composer keeps a visible focus ring in forced colors", async ({ page }) => {
     await page.emulateMedia({ forcedColors: "active" });
     await page.goto("/courses/python/skills/python.toolchain.repl");
-    await page.getByRole("button", { name: /Ask Codestead/i }).click();
-    const composer = page.getByRole("textbox", { name: "Message Codestead" });
+    await page.getByRole("button", { name: /^Open Patch/ }).click();
+    const composer = page.getByRole("textbox", { name: "Message Patch" });
+    // The composer stays disabled until the lesson page registers its lesson with Patch.
+    await expect(composer).toBeEnabled();
     await composer.focus();
+    await expect(composer).toBeFocused();
 
     const focusStyle = await composer.evaluate((element) => {
       const wrapper = element.closest("form");

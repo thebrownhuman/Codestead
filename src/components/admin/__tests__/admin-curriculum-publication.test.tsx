@@ -1,7 +1,10 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { REVIEW_DIMENSIONS } from "@/lib/curriculum-publication/contracts";
+
+import { humanize } from "../admin-utils";
 import { AdminCurriculumPublication } from "../admin-curriculum-publication";
 
 function json(body: unknown) {
@@ -216,5 +219,220 @@ describe("administrator curriculum editorial queue", () => {
       expect(screen.getByRole("checkbox", { name: "lesson.javascript.variables.v1" })).toBeInTheDocument();
       expect(screen.queryByRole("checkbox", { name: "lesson.python.variables.v1" })).not.toBeInTheDocument();
     });
+  });
+
+  it("runs the publication lifecycle: stage, gate, owner review, publish, evidence, retire, and rollback", async () => {
+    const versionDraft = "20000000-0000-4000-8000-000000000003";
+    const versionCurrent = "20000000-0000-4000-8000-000000000004";
+    const versionPrior = "20000000-0000-4000-8000-000000000005";
+    const artifactDraft = "10000000-0000-4000-8000-000000000003";
+    const draftItem = { ...queueItems[0]!, id: artifactDraft, courseVersionId: versionDraft, reviewStatus: "unreviewed" };
+    const lifecycleCandidates = [
+      { id: versionDraft, courseId: "course-lifecycle", courseSlug: "lifecycle", title: "Lifecycle", version: "0.1.0", stage: "draft", publicationRevision: 1, contentHash: "d".repeat(64), artifactCount: 1, aiAssistedCount: 0, approvedCount: 0, unreviewedCount: 1, evidenceVersion: null, pointerVersion: null, isCurrent: false },
+      { id: versionCurrent, courseId: "course-lifecycle", courseSlug: "lifecycle", title: "Lifecycle", version: "0.2.0", stage: "beta", publicationRevision: 2, contentHash: "e".repeat(64), artifactCount: 1, aiAssistedCount: 0, approvedCount: 1, unreviewedCount: 0, evidenceVersion: 1, pointerVersion: 4, isCurrent: true },
+      { id: versionPrior, courseId: "course-lifecycle", courseSlug: "lifecycle", title: "Lifecycle", version: "0.0.9", stage: "verified", publicationRevision: 1, contentHash: "f".repeat(64), artifactCount: 1, aiAssistedCount: 0, approvedCount: 1, unreviewedCount: 0, evidenceVersion: 1, pointerVersion: 3, isCurrent: false },
+    ];
+    let queue = { total: 1, courseCount: 1, statusCounts: [{ status: "unreviewed", count: 1 }], courseCounts: [{ courseVersionId: versionDraft, courseSlug: "lifecycle", courseTitle: "Lifecycle", courseVersion: "0.1.0", count: 1 }], items: [draftItem] };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      if (url === "/api/admin/curriculum") return json({ candidates: lifecycleCandidates, reviewQueue: queue });
+      if (url === `/api/admin/curriculum/versions/${versionDraft}/artifacts`) return json({ artifacts: [artifactFor(draftItem)] });
+      if (url === `/api/admin/curriculum/versions/${versionCurrent}/artifacts`) return json({ artifacts: [] });
+      if (url === `/api/admin/curriculum/versions/${versionPrior}/artifacts`) return json({ artifacts: [] });
+      if (url === `/api/admin/curriculum/versions/${versionDraft}/owner-review`) {
+        if (method === "POST") {
+          queue = { ...queue, total: 0, statusCounts: [], items: [] };
+          return json({ updated: 1, reviewedArtifactIds: [artifactDraft] });
+        }
+        return json({ reviewedArtifactIds: [] });
+      }
+      if (url === `/api/admin/curriculum/versions/${versionCurrent}/owner-review`) return json({ reviewedArtifactIds: [] });
+      if (url === `/api/admin/curriculum/versions/${versionPrior}/owner-review`) return json({ reviewedArtifactIds: [] });
+      if (url === `/api/admin/curriculum/artifacts/${artifactDraft}`) return json({ detail: detailFor(draftItem) });
+      if (url === "/api/admin/curriculum/stage" && method === "POST") return json({ ok: true });
+      if (url === `/api/admin/curriculum/versions/${versionDraft}/gate?target=verified`) {
+        return json({ gate: { allowed: true, issues: [], reportHash: "hash-ok" } });
+      }
+      if (url === `/api/admin/curriculum/versions/${versionDraft}/publish` && method === "POST") return json({ ok: true });
+      if (url === `/api/admin/curriculum/versions/${versionDraft}/evidence` && method === "POST") return json({ ok: true });
+      if (url === `/api/admin/curriculum/versions/${versionDraft}/retire` && method === "POST") return json({ ok: true });
+      if (url === `/api/admin/curriculum/courses/course-lifecycle/rollback` && method === "POST") return json({ ok: true });
+      throw new Error(`Unexpected request: ${method} ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<AdminCurriculumPublication />);
+
+    await screen.findByText("Editorial review queue");
+    await user.click(screen.getByRole("button", { name: /Stage drafts/i }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      "/api/admin/curriculum/stage",
+      expect.objectContaining({ method: "POST" }),
+    ));
+
+    await user.click(screen.getByRole("button", { name: /Mark all reviewed/i }));
+    await waitFor(() => expect(screen.getByText("Marked 1 as reviewed.")).toBeInTheDocument());
+
+    await user.selectOptions(screen.getByLabelText("Publication target"), "verified");
+    await user.click(screen.getByRole("button", { name: "Run gate" }));
+    await waitFor(() => expect(screen.getByText("Gate passed")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: /Publish verified/i }));
+    await waitFor(() => expect(screen.getByText(/Published verified/)).toBeInTheDocument());
+
+    fireEvent.change(screen.getByPlaceholderText('{"schemaVersion":1,...}'), { target: { value: '{"schemaVersion":1}' } });
+    await user.click(screen.getByRole("button", { name: "Append release evidence" }));
+    await waitFor(() => expect(screen.getByText(/Signed release evidence appended/)).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "Retire version" }));
+    await waitFor(() => expect(screen.getByText(/retired; its immutable history/)).toBeInTheDocument());
+
+    const currentCard = screen.getByRole("button", { name: /Lifecycle v0\.2\.0/i });
+    await user.click(currentCard);
+    await user.selectOptions(screen.getByLabelText("Publication target"), "beta");
+    expect(await screen.findByText(/Already published as beta/)).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("Rollback target"), versionPrior);
+    await user.click(screen.getByRole("button", { name: "Rollback pointer" }));
+    await waitFor(() => expect(screen.getByText(/Catalog pointer rolled back/)).toBeInTheDocument());
+  });
+
+  it("blocks release evidence with invalid JSON without sending a request", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/admin/curriculum") return json({
+        candidates: [candidates[0]],
+        reviewQueue: { total: 0, courseCount: 0, statusCounts: [], courseCounts: [], items: [] },
+      });
+      if (url === `/api/admin/curriculum/versions/${versionOne}/artifacts`) return json({ artifacts: [] });
+      if (url === `/api/admin/curriculum/versions/${versionOne}/owner-review`) return json({ reviewedArtifactIds: [] });
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<AdminCurriculumPublication />);
+    await screen.findByText("Editorial review queue");
+
+    fireEvent.change(screen.getByPlaceholderText('{"schemaVersion":1,...}'), { target: { value: "{not json" } });
+    await user.click(screen.getByRole("button", { name: "Append release evidence" }));
+
+    expect(await screen.findByText("Release evidence must be valid JSON.")).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining("/evidence"),
+      expect.anything(),
+    );
+  });
+
+  it("surfaces the fresh-MFA prompt and a generic failure message", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      if (url === "/api/admin/curriculum") return json({
+        candidates: [candidates[0]],
+        reviewQueue: { total: 0, courseCount: 0, statusCounts: [], courseCounts: [], items: [] },
+      });
+      if (url === `/api/admin/curriculum/versions/${versionOne}/artifacts`) return json({ artifacts: [] });
+      if (url === `/api/admin/curriculum/versions/${versionOne}/owner-review`) return json({ reviewedArtifactIds: [] });
+      if (url === "/api/admin/curriculum/stage" && method === "POST") {
+        return new Response(JSON.stringify({ error: "FRESH_MFA_REQUIRED" }), { status: 401, headers: { "content-type": "application/json" } });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const user = userEvent.setup();
+
+    render(<AdminCurriculumPublication />);
+    await screen.findByText("Editorial review queue");
+
+    await user.click(screen.getByRole("button", { name: /Stage drafts/i }));
+
+    expect(await screen.findByText(/Enter your six-digit authenticator code once/)).toBeInTheDocument();
+    expect(scrollIntoView).toHaveBeenCalled();
+  });
+
+  it("rejects a malformed authenticator code before sending the request", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/admin/curriculum") return json({
+        candidates: [candidates[0]],
+        reviewQueue: { total: 0, courseCount: 0, statusCounts: [], courseCounts: [], items: [] },
+      });
+      if (url === `/api/admin/curriculum/versions/${versionOne}/artifacts`) return json({ artifacts: [] });
+      if (url === `/api/admin/curriculum/versions/${versionOne}/owner-review`) return json({ reviewedArtifactIds: [] });
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<AdminCurriculumPublication />);
+    await screen.findByText("Editorial review queue");
+
+    await user.type(screen.getByLabelText("Curriculum authenticator code"), "12ab");
+    await user.click(screen.getByRole("button", { name: /Stage drafts/i }));
+
+    expect(await screen.findByText("Enter the current six-digit authenticator code.")).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalledWith("/api/admin/curriculum/stage", expect.anything());
+  });
+
+  it("submits the detailed seven-dimension review when the checklist is enabled", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      if (url === "/api/admin/curriculum") return json({
+        candidates,
+        reviewQueue: {
+          total: 1,
+          courseCount: 1,
+          statusCounts: [{ status: "unreviewed", count: 1 }],
+          courseCounts: [{ courseVersionId: versionOne, courseSlug: "python", courseTitle: "Python", courseVersion: "0.1.0", count: 1 }],
+          items: [queueItems[0]!],
+        },
+      });
+      if (url === `/api/admin/curriculum/versions/${versionOne}/artifacts`) return json({ artifacts: [artifactFor(queueItems[0]!)] });
+      if (url === `/api/admin/curriculum/versions/${versionTwo}/artifacts`) return json({ artifacts: [] });
+      if (url === `/api/admin/curriculum/versions/${versionOne}/owner-review`) return json({ reviewedArtifactIds: [] });
+      if (url === `/api/admin/curriculum/versions/${versionTwo}/owner-review`) return json({ reviewedArtifactIds: [] });
+      if (url === `/api/admin/curriculum/artifacts/${artifactOne}`) return json({ detail: detailFor(queueItems[0]!) });
+      if (url === `/api/admin/curriculum/artifacts/${artifactOne}/review` && method === "POST") return json({ ok: true });
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<AdminCurriculumPublication detailedReviewChecklist />);
+
+    await screen.findByText("Editorial review queue");
+    await screen.findByText("Seven-dimension human checklist");
+    for (const name of REVIEW_DIMENSIONS) {
+      await user.click(screen.getByRole("checkbox", { name: humanize(name) }));
+      await user.type(screen.getByLabelText(`${name} evidence reference`), "See commit abc123.");
+      await user.type(screen.getByLabelText(`${name} review note`), "Reviewed carefully in detail.");
+    }
+    await user.click(screen.getByRole("checkbox", { name: "lesson.python.variables.v1" }));
+    await user.selectOptions(screen.getByLabelText("Decision"), "approved");
+    await user.click(screen.getByRole("button", { name: "Append review" }));
+
+    await waitFor(() => expect(screen.getByText("Human review evidence appended without rewriting content.")).toBeInTheDocument());
+  });
+
+  it("shows the empty state when there are no staged candidates", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/admin/curriculum") return json({
+        candidates: [],
+        reviewQueue: { total: 0, courseCount: 0, statusCounts: [], courseCounts: [], items: [] },
+      });
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<AdminCurriculumPublication />);
+
+    expect(await screen.findByText("No staged candidates.")).toBeInTheDocument();
   });
 });

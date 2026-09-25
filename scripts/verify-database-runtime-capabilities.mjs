@@ -756,12 +756,12 @@ const VERIFIER_OBJECTS_SQL = `
            'routine',
            namespace_row.nspname::text || '.' ||
              routine.proname::text || '(' ||
-             pg_catalog.pg_get_function_identity_arguments(routine.oid) ||
+             pg_catalog.replace(pg_catalog.oidvectortypes(routine.proargtypes), ', ', ',') ||
              ')',
            namespace_row.nspname::text,
            routine.proname::text,
            routine.proname::text || '(' ||
-             pg_catalog.pg_get_function_identity_arguments(routine.oid) ||
+             pg_catalog.replace(pg_catalog.oidvectortypes(routine.proargtypes), ', ', ',') ||
              ')',
            routine.prokind::text,
            routine.oid,
@@ -870,7 +870,8 @@ const VERIFIER_COLUMNS_SQL = `
       on grantee_role.oid = acl_item.grantee
    where relation.relkind in ('r', 'p', 'v', 'm', 'f')
      and attribute.attnum > 0
-   order by relation_identity collate "C",
+   order by (namespace_row.nspname::text || '.' ||
+              relation.relname::text) collate "C",
             attribute.attnum,
             acl_item.ordinality nulls first
    /* verifier_database_runtime_capability_columns */`;

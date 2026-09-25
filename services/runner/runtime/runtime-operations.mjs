@@ -21,6 +21,9 @@ const EVIDENCE_FILE = /^[a-z0-9][a-z0-9.-]*\.json$/;
 const SCANNER_ENVIRONMENT_ALLOWLIST = [
   "PATH", "Path", "PATHEXT", "SYSTEMROOT", "SystemRoot", "WINDIR", "COMSPEC",
   "TEMP", "TMP", "TMPDIR",
+  // Scanners read the image from the daemon that built it; the isolated HOME drops
+  // any Docker context, so the daemon socket must be passed explicitly.
+  "DOCKER_HOST",
 ];
 const SPDX_2_3_SCHEMA = JSON.parse(
   readFileSync(new URL("./schema/spdx-2.3.schema.json", import.meta.url), "utf8"),
@@ -1111,6 +1114,7 @@ const REQUIRED_SCANNER_CONTROLS = new Set([
 ]);
 const REQUIRED_TRIVY_DATABASES = new Set(["trivy-db", "trivy-java-db"]);
 const REQUIRED_TRIVY_VERSION = "0.69.3";
+const TRIVY_JAVA_DB_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 const REQUIRED_TRIVY_DATABASE_VERSIONS = Object.freeze({
   "trivy-db": 2,
   "trivy-java-db": 1,
@@ -1153,12 +1157,18 @@ function parseTrivyDatabaseMetadata(text, generatedAt, name, validatedAt = gener
   const updated = Date.parse(updatedAt);
   const downloaded = Date.parse(downloadedAt);
   const next = Date.parse(nextUpdate);
+  // Aqua republishes the Java DB less often than its NextUpdate promises, so the
+  // published artifact is routinely past NextUpdate. Bound its age directly instead;
+  // the main vulnerability DB keeps the strict NextUpdate rule.
+  const stale = name === "trivy-java-db"
+    ? validated - updated > TRIVY_JAVA_DB_MAX_AGE_MS
+    : next <= validated;
   if (
     validated < generated - 300_000
     || updated > generated + 300_000
     || downloaded > generated + 300_000
     || downloaded < updated
-    || next <= validated
+    || stale
   ) {
     throw new Error(`${name} database evidence is expired, stale, or from the future.`);
   }
@@ -1886,8 +1896,11 @@ export function validateRuntimeReleaseGateEvidence({
   const requiredContracts = new Set(REQUIRED_RUNTIME_CONTRACTS);
   const passedContracts = new Set();
   for (const result of contract.results) {
+    // test-runtime-images.mjs records each contract's duration alongside its outcome.
+    const timed = hasExactKeys(result, ["name", "status", "durationMs"]);
     if (
-      !hasExactKeys(result, ["name", "status"])
+      !(hasExactKeys(result, ["name", "status"]) || timed)
+      || (timed && (!Number.isSafeInteger(result.durationMs) || result.durationMs < 0))
       || result.status !== "passed"
       || typeof result.name !== "string"
       || !requiredContracts.has(result.name)

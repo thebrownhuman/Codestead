@@ -12,6 +12,10 @@ services:
       - synchronous_commit=on
       - -c
       - full_page_writes=on
+      - -c
+      - unix_socket_directories=/run/learncoding-postgres,/var/run/postgresql
+      - -c
+      - unix_socket_permissions=0700
     volumes:
       - type: bind
         source: ${TOPOLOGY_POSTGRES_DIR:?Set TOPOLOGY_POSTGRES_DIR}
@@ -130,7 +134,8 @@ services:
   mail-worker:
     pull_policy: never
     environment:
-      MAIL_ADAPTER: outbox
+      # The worker dispatches only through console or gmail.
+      MAIL_ADAPTER: console
       OUTBOX_POLL_SECONDS: "1"
     healthcheck: &worker-health
       interval: 3s

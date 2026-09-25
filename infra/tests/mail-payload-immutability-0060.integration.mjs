@@ -250,7 +250,7 @@ async function runLiveRoleBootstrap(port, database) {
     databaseWorkerUrl: roleUrl("learncoding_worker", "w".repeat(48)),
     databaseOpsUrl: roleUrl("learncoding_ops", "o".repeat(48)),
     databaseBackupReporterUrl:
-      roleUrl("learncoding_backup_reporter", "b".repeat(48)),
+      roleUrl("learncoding_backup_reporter", "r".repeat(48)),
     lockTimeoutMs: 5_000,
     cleanupTimeoutMs: 5_000,
     pool,
@@ -1174,6 +1174,8 @@ async function main() {
     path.join(os.tmpdir(), "codestead-mail-0060-pg18-"),
   );
   const dataDirectory = path.join(temporaryRoot, "data");
+  const socketOption =
+    process.platform === "win32" ? "" : ` -k "${temporaryRoot}"`;
   const logFile = path.join(temporaryRoot, "postgres.log");
   const database = "mail_payload_0060";
   const port = await unusedLoopbackPort();
@@ -1197,7 +1199,7 @@ async function main() {
         "-l",
         logFile,
         "-o",
-        `-p ${port} -h 127.0.0.1 -c max_connections=20`,
+        `-p ${port} -h 127.0.0.1 -c max_connections=20 -c authentication_timeout=1s${socketOption}`,
         "-w",
         "start",
       ],

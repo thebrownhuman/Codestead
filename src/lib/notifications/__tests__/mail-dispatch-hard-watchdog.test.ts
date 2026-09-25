@@ -254,9 +254,12 @@ describe("mail dispatch external hard watchdog", () => {
         exitMode: "native",
       });
 
+      // With the arm ack dropped, the already-armed watchdog's kill wins the race
+      // against the parent's own ack timeout. Windows reports that kill as exit 1.
+      const killedByWatchdog = fault === "DROP_ARM_ACK" && process.platform !== "win32";
       expect(result).toEqual({
-        code: 1,
-        signal: null,
+        code: killedByWatchdog ? null : 1,
+        signal: killedByWatchdog ? "SIGKILL" : null,
         stdout: "",
         stderr: "",
       });

@@ -111,9 +111,10 @@ test.describe("authored learning UI", () => {
     await expect(page.getByRole("tab", { name: "Lesson" })).toBeVisible();
     await expect(page.getByRole("region", { name: "Sources and review status" })).toContainText("py-tutorial");
     await page.getByRole("tab", { name: "Visualize" }).click();
-    await expect(page.getByText("Step 1: Observe")).toBeVisible();
+    // Step labels come from each lesson's authored trace, so assert the stepping, not one lesson's wording.
+    await expect(page.getByText(/^Step 1: /)).toBeVisible();
     await page.getByRole("button", { name: "Next visualizer step" }).click();
-    await expect(page.getByText("Step 2: Apply")).toBeVisible();
+    await expect(page.getByText(/^Step 2: /)).toBeVisible();
   });
 
   test("lesson quest keeps hints distinct from deterministic correctness", async ({ page }, testInfo) => {

@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { loadCohortLeaderboards } from "../leaderboard-service";
+const mocks = vi.hoisted(() => ({
+  connect: vi.fn(),
+}));
+
+vi.mock("@/lib/db/client", () => ({ pool: { connect: mocks.connect } }));
+
+import { computeAndPersistLeaderboardScore, loadCohortLeaderboards } from "../leaderboard-service";
 
 const NOW = new Date("2026-07-12T12:00:00.000Z");
 
@@ -122,6 +128,142 @@ function fakeLeaderboardPool(ownerCount: number) {
     advanceEvidence: () => { evidenceGeneration += 1; },
   };
 }
+
+type SoloSnapshot = {
+  id: string;
+  revision: number;
+  total_points: number;
+  components: Record<string, number>;
+  evidence: Record<string, unknown>;
+  evidence_hash: string;
+  computed_at: Date;
+};
+
+function fakeSoloClient(options: { userExists?: boolean; meaningfulDayKeys?: string[] } = {}) {
+  const userExists = options.userExists ?? true;
+  const dayKeys = options.meaningfulDayKeys ?? ["2026-07-07"];
+  const snapshots: SoloSnapshot[] = [];
+  const released = { count: 0 };
+  let rolledBack = false;
+  const query = vi.fn(async (statementInput: string, values: unknown[] = []) => {
+    const statement = statementInput.replace(/\s+/g, " ").trim().toLowerCase();
+    if (["begin", "commit"].includes(statement)) return { rows: [], rowCount: 0 };
+    if (statement === "rollback") {
+      rolledBack = true;
+      return { rows: [], rowCount: 0 };
+    }
+    if (statement.includes("pg_advisory_xact_lock")) return { rows: [], rowCount: 0 };
+    if (statement.startsWith('select id from "user"')) {
+      return userExists ? { rows: [{ id: values[0] }], rowCount: 1 } : { rows: [], rowCount: 0 };
+    }
+    if (statement.includes("from learning_session_event")) {
+      return { rows: dayKeys.map((day_key) => ({ day_key })), rowCount: dayKeys.length };
+    }
+    if (statement.includes("from mastery_evidence")) return { rows: [], rowCount: 0 };
+    if (statement.includes("from project_review pr")) return { rows: [], rowCount: 0 };
+    if (statement.includes("from review_schedule rs")) return { rows: [], rowCount: 0 };
+    if (statement.includes("from attempt a")) return { rows: [], rowCount: 0 };
+    if (statement.startsWith("select id,revision,total_points")) {
+      const [latest] = [...snapshots].sort((left, right) => right.revision - left.revision);
+      return { rows: latest ? [latest] : [], rowCount: latest ? 1 : 0 };
+    }
+    if (statement.startsWith("insert into leaderboard_score_snapshot")) {
+      const [, , , , , , revision, totalPoints, components, evidence, evidenceHash, computedAt] = values;
+      snapshots.push({
+        id: `snapshot-${snapshots.length + 1}`,
+        revision: Number(revision),
+        total_points: totalPoints as number,
+        components: JSON.parse(components as string),
+        evidence: JSON.parse(evidence as string),
+        evidence_hash: evidenceHash as string,
+        computed_at: computedAt as Date,
+      });
+      return { rows: [], rowCount: 1 };
+    }
+    throw new Error(`Unexpected client query: ${statement}`);
+  });
+  const client = {
+    query,
+    release: () => { released.count += 1; },
+  };
+  return { client, snapshots, released, wasRolledBack: () => rolledBack };
+}
+
+describe("computeAndPersistLeaderboardScore", () => {
+  it("rejects an unknown or inactive user without touching evidence tables", async () => {
+    const { client, released } = fakeSoloClient({ userExists: false });
+    mocks.connect.mockResolvedValueOnce(client);
+
+    await expect(computeAndPersistLeaderboardScore({
+      userId: "missing-user",
+      periodKind: "weekly",
+      now: NOW,
+    })).rejects.toThrow("LEADERBOARD_USER_NOT_FOUND");
+
+    expect(released.count).toBe(1);
+  });
+
+  it("persists a first revision and reuses it on an unchanged replay", async () => {
+    const { client, snapshots } = fakeSoloClient();
+    mocks.connect.mockResolvedValue(client);
+
+    const first = await computeAndPersistLeaderboardScore({
+      userId: "solo-user",
+      periodKind: "weekly",
+      now: NOW,
+    });
+    expect(first.replayed).toBe(false);
+    expect(first.revision).toBe(1);
+    expect(snapshots).toHaveLength(1);
+
+    const replay = await computeAndPersistLeaderboardScore({
+      userId: "solo-user",
+      periodKind: "weekly",
+      now: NOW,
+    });
+    expect(replay.replayed).toBe(true);
+    expect(replay.revision).toBe(1);
+    expect(replay.totalPoints).toBe(first.totalPoints);
+    expect(snapshots).toHaveLength(1);
+  });
+
+  it("bumps the revision when evidence changes and rolls back on failure", async () => {
+    const grown = fakeSoloClient({ meaningfulDayKeys: ["2026-07-07", "2026-07-08"] });
+    mocks.connect.mockResolvedValueOnce(fakeSoloClient().client);
+    await computeAndPersistLeaderboardScore({ userId: "solo-user", periodKind: "weekly", now: NOW });
+
+    mocks.connect.mockResolvedValueOnce(grown.client);
+    grown.snapshots.push({
+      id: "snapshot-seed",
+      revision: 1,
+      total_points: 1,
+      components: {},
+      evidence: { counts: {} },
+      evidence_hash: "stale-hash",
+      computed_at: NOW,
+    });
+    const revised = await computeAndPersistLeaderboardScore({ userId: "solo-user", periodKind: "weekly", now: NOW });
+    expect(revised.replayed).toBe(false);
+    expect(revised.revision).toBe(2);
+
+    const failing = {
+      query: vi.fn(async (statementInput: string) => {
+        const statement = statementInput.replace(/\s+/g, " ").trim().toLowerCase();
+        if (statement === "begin" || statement === "rollback") return { rows: [], rowCount: 0 };
+        if (statement.includes("pg_advisory_xact_lock")) return { rows: [], rowCount: 0 };
+        throw new Error("boom");
+      }),
+      release: vi.fn(),
+    };
+    mocks.connect.mockResolvedValueOnce(failing);
+    await expect(computeAndPersistLeaderboardScore({
+      userId: "solo-user",
+      periodKind: "weekly",
+      now: NOW,
+    })).rejects.toThrow("boom");
+    expect(failing.release).toHaveBeenCalledOnce();
+  });
+});
 
 describe("batched cohort leaderboard scoring", () => {
   it("bounds pool use and round trips while preserving replay and revision semantics", async () => {

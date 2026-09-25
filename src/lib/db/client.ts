@@ -3,9 +3,12 @@ import { Pool } from "pg";
 
 import * as schema from "./schema";
 
+// The local fallback uses 127.0.0.1, not localhost: when no database is listening,
+// a dual-stack localhost refusal surfaces as an AggregateError that the Next 16.3
+// dev server fails to construct, leaving the query (and the page) hung.
 const connectionString =
   process.env.DATABASE_URL ??
-  "postgresql://learncoding:learncoding@localhost:5432/learncoding";
+  "postgresql://learncoding:learncoding@127.0.0.1:5432/learncoding";
 
 declare global {
   var learnCodingPool: Pool | undefined;

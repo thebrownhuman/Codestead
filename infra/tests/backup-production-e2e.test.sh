@@ -9,10 +9,11 @@ readonly PRODUCTION_COMPOSE_PROJECT="learncoding"
 readonly -a REQUIRED_SERVICES=(
   app cloudflared exam-finalization-worker mail-worker migrate postgres
   practice-runner-recovery-worker project-review-correction-worker
-  regrade-worker reward-worker
+  regrade-worker reward-worker runner-egress-gateway file-erasure-worker
 )
 readonly -a REQUIRED_NETWORKS=(
-  frontend mail-egress runner-egress github-egress data scanner signature-egress
+  frontend mail-egress runner-client runner-egress github-egress data scanner
+  signature-egress
 )
 
 github_escape() {
@@ -766,6 +767,12 @@ run_inner() {
     "$backup_root/state" "$stage_root" "$ephemeral_root" "$verify_root" \
     "$app_extract_root" "$restore_app_root" "$recovery_root"
   assert_ephemeral_runtime_clean "$ephemeral_root"
+  # PostgreSQL runs as the reviewed 999:999 image identity and needs to own its
+  # data directory and the per-run socket directory that replaces the host
+  # /run/learncoding-postgres bind mount (absent on a disposable runner).
+  install -d -m 0700 "$learn_data_root/postgres-socket"
+  chown 999:999 "$learn_data_root/postgres" "$learn_data_root/postgres-socket" \
+    || fail "PostgreSQL data and socket ownership could not be set"
   install -d -m 0755 "$lock_root"
   printf '%s\n' LEARNCODING_BACKUP_V1 >"$backup_root/.learncoding-backup-root"
   chmod 0600 "$backup_root/.learncoding-backup-root"
@@ -788,6 +795,12 @@ run_inner() {
     "$role_migrator_password" "$role_worker_password" "$role_ops_password" \
     "$role_backup_reporter_password" \
     || fail "source database role URL fixture generation failed"
+  for secret_name in database_bootstrap_url database_migrator_url \
+    database_worker_url database_ops_url database_backup_reporter_url; do
+    install -m 0400 "$source_role_secret_root/$secret_name" \
+      "$secrets_root/$secret_name" \
+      || fail "database role secret staging failed for $secret_name"
+  done
   db_sentinel="$(random_hex 24)" || fail "database sentinel generation failed"
   app_sentinel="$(random_hex 24)" || fail "application sentinel generation failed"
   credential_master_key="$(python3 -c \
@@ -851,6 +864,8 @@ ingress:
 EOF
   chmod 0440 "$config_root/cloudflared.yml"
 
+  # POSTGRES_UID/GID are the reviewed 999:999 identity of the pinned PostgreSQL
+  # image; production-topology.test.sh proves the image still matches it.
   cat >"$compose_env" <<EOF
 APP_NAME=Codestead Backup E2E
 APP_URL=https://backup-e2e.invalid
@@ -874,10 +889,12 @@ CLOUDFLARED_IMAGE=$cloudflared_digest
 CLAMAV_IMAGE=$operations_digest
 POSTGRES_DB=learncoding
 POSTGRES_USER=learncoding
+POSTGRES_UID=999
+POSTGRES_GID=999
 RUNNER_BASE_URL=http://127.0.0.1:4100
 GOOGLE_CLIENT_ID=
 BOOTSTRAP_ADMIN_EMAIL=
-MAIL_ADAPTER=outbox
+MAIL_ADAPTER=console
 MAIL_FROM=
 MAIL_OUTBOX_PHASE=dual-write-v1
 OUTBOX_WORKER_MODE=fenced-postgres-v1
@@ -926,6 +943,12 @@ EOF
       printf '    labels:\n'
       printf '      "%s": "%s"\n' "$OWNER_LABEL_KEY" "$run_id"
       printf '      "%s": "%s"\n' "$OWNER_PROJECT_LABEL_KEY" "$ownership_project"
+      if [[ "$service" == postgres ]]; then
+        printf '    volumes:\n'
+        printf '      - type: bind\n'
+        printf '        source: "%s"\n' "$learn_data_root/postgres-socket"
+        printf '        target: /run/learncoding-postgres\n'
+      fi
     done
     printf 'networks:\n'
     for network_name in "${REQUIRED_NETWORKS[@]}"; do
@@ -945,13 +968,22 @@ EOF
   chmod 0600 "$compose_override"
 
   unset COMPOSE_FILE COMPOSE_PROJECT_NAME COMPOSE_PROFILES
+  # Compose diagnostics name files, fields and images, never secret values; keep
+  # their tail so a failing gate says why instead of only that it failed.
+  local compose_diagnostics="$tmp_root/compose-diagnostics.log"
   docker compose --project-directory "$repo_root" --env-file "$compose_env" \
     -f "$repo_root/compose.yaml" -f "$compose_override" config --quiet \
-    >/dev/null 2>&1 || fail "generated Compose contract is invalid"
+    >"$compose_diagnostics" 2>&1 || {
+      tail -n 20 -- "$compose_diagnostics" >&2
+      fail "generated Compose contract is invalid"
+    }
   docker compose --project-directory "$repo_root" --env-file "$compose_env" \
     -f "$repo_root/compose.yaml" -f "$compose_override" \
     create --no-build --pull never "${REQUIRED_SERVICES[@]}" \
-    >/dev/null 2>&1 || fail "required Compose containers were not created"
+    >"$compose_diagnostics" 2>&1 || {
+      tail -n 20 -- "$compose_diagnostics" >&2
+      fail "required Compose containers were not created"
+    }
 
   : >"$expected_images"
   chmod 0600 "$expected_images"
@@ -1043,6 +1075,11 @@ EOF
   [[ "$database_version" =~ ^postgres[[:space:]]+\(PostgreSQL\)[[:space:]]+17([.][0-9]+)? ]] \
     || fail "PostgreSQL major version is not 17"
 
+  # Role bootstrap/migration/verification scripts intentionally emit only a
+  # generic JSON event and error code on failure, never connection strings or
+  # role passwords, so their tail is safe to surface directly.
+  local role_bootstrap_diagnostics="$tmp_root/role-bootstrap-diagnostics.log"
+
   docker run --rm --pull never --name "$resource_prefix-source-role-bootstrap-pre" \
     --label "$OWNER_LABEL_KEY=$run_id" \
     --label "$OWNER_PROJECT_LABEL_KEY=$ownership_project" \
@@ -1059,7 +1096,10 @@ EOF
     --env DATABASE_OPS_URL_FILE=/run/secrets/database_ops_url \
     --env DATABASE_BACKUP_REPORTER_URL_FILE=/run/secrets/database_backup_reporter_url \
     "$operations_digest" node /app/scripts/bootstrap-database-roles.mjs \
-    >/dev/null 2>&1 || fail "source database initial role bootstrap failed"
+    >"$role_bootstrap_diagnostics" 2>&1 || {
+      tail -n 40 -- "$role_bootstrap_diagnostics" >&2
+      fail "source database initial role bootstrap failed"
+    }
 
   docker run --rm --pull never --name "$resource_prefix-source-migrate" \
     --label "$OWNER_LABEL_KEY=$run_id" \
@@ -1073,17 +1113,17 @@ EOF
     --env DATABASE_URL_FILE=/run/secrets/database_url \
     --env REQUIRE_POSTGRES_MAJOR=17 \
     "$operations_digest" node /app/scripts/migrate-production.mjs \
-    >/dev/null 2>&1 || fail "source database reviewed migration failed"
+    >"$role_bootstrap_diagnostics" 2>&1 || {
+      tail -n 40 -- "$role_bootstrap_diagnostics" >&2
+      fail "source database reviewed migration failed"
+    }
 
   if ! docker exec -i "$postgres_id" psql --username=learncoding \
     --dbname=learncoding --no-psqlrc --quiet --set=ON_ERROR_STOP=1 \
     >/dev/null 2>&1 <<EOF
-CREATE TABLE public.backup_e2e_sentinel (
-  id integer PRIMARY KEY,
-  value text NOT NULL
-);
-INSERT INTO public.backup_e2e_sentinel (id, value)
-VALUES (1, '$db_sentinel');
+INSERT INTO public.verification (id, identifier, value, expires_at)
+VALUES ('backup-e2e-sentinel', 'backup-e2e-sentinel', '$db_sentinel',
+        TIMESTAMPTZ '2099-01-01 00:00:00+00');
 EOF
   then
     fail "PostgreSQL fixture initialization failed"
@@ -1105,7 +1145,10 @@ EOF
     --env DATABASE_OPS_URL_FILE=/run/secrets/database_ops_url \
     --env DATABASE_BACKUP_REPORTER_URL_FILE=/run/secrets/database_backup_reporter_url \
     "$operations_digest" node /app/scripts/bootstrap-database-roles.mjs \
-    >/dev/null 2>&1 || fail "source database complete role bootstrap failed"
+    >"$role_bootstrap_diagnostics" 2>&1 || {
+      tail -n 40 -- "$role_bootstrap_diagnostics" >&2
+      fail "source database complete role bootstrap failed"
+    }
 
   docker run --rm --pull never --name "$resource_prefix-source-role-boundary" \
     --label "$OWNER_LABEL_KEY=$run_id" \
@@ -1124,7 +1167,10 @@ EOF
     --env DATABASE_BACKUP_REPORTER_URL_FILE=/run/secrets/database_backup_reporter_url \
     "$operations_digest" node /app/scripts/verify-database-role-boundaries.mjs \
       --require-application-objects \
-    >/dev/null 2>&1 || fail "source database role boundary verification failed"
+    >"$role_bootstrap_diagnostics" 2>&1 || {
+      tail -n 40 -- "$role_bootstrap_diagnostics" >&2
+      fail "source database role boundary verification failed"
+    }
 
   mapfile -t migration_fixture_metadata < <(
     python3 - "$repo_root/drizzle/meta/_journal.json" "$repo_root/drizzle" <<'PY'
@@ -1185,7 +1231,7 @@ PY
   original_value="$(docker exec "$postgres_id" psql --username=learncoding \
     --dbname=learncoding --no-psqlrc --quiet --tuples-only --no-align \
     --set=ON_ERROR_STOP=1 \
-    --command='SELECT value FROM public.backup_e2e_sentinel WHERE id = 1')" \
+    --command="SELECT value FROM public.verification WHERE id = 'backup-e2e-sentinel'")" \
     || fail "database sentinel query failed"
   [[ "$original_value" == "$db_sentinel" ]] \
     || fail "database sentinel was not initialized"
@@ -1210,7 +1256,29 @@ PY
     bash "$repo_root/scripts/backup/backup.sh" >"$controller_log" 2>&1
   controller_status=$?
   set -e
-  [[ "$controller_status" -eq 0 ]] || fail "production backup controller failed"
+  if [[ "$controller_status" -ne 0 ]]; then
+    # Surface the controller's tail only after proving it holds none of the
+    # generated secrets checked below; otherwise keep the failure opaque.
+    local controller_log_clean=1
+    for secret_value in "$postgres_password" "$database_url" "$credential_master_key" \
+      "$role_app_password" "$role_migrator_password" "$role_worker_password" \
+      "$role_ops_password" "$role_backup_reporter_password" \
+      "$cloudflare_account" "$cloudflare_secret" "$cloudflare_tunnel" \
+      "$db_sentinel" "$app_sentinel"; do
+      grep -Fq -- "$secret_value" "$controller_log" && controller_log_clean=0
+    done
+    for secret_file in "$secrets_root"/*; do
+      while IFS= read -r secret_line || [[ -n "$secret_line" ]]; do
+        [[ -n "$secret_line" ]] || continue
+        grep -Fq -- "$secret_line" "$controller_log" && controller_log_clean=0
+      done <"$secret_file"
+    done
+    grep -Fq 'AGE-SECRET-KEY-' "$controller_log" && controller_log_clean=0
+    if [[ "$controller_log_clean" -eq 1 ]]; then
+      tail -n 40 -- "$controller_log" >&2
+    fi
+    fail "production backup controller failed"
+  fi
   for secret_value in "$postgres_password" "$database_url" "$credential_master_key" \
     "$role_app_password" "$role_migrator_password" "$role_worker_password" \
     "$role_ops_password" "$role_backup_reporter_password" \
@@ -1447,7 +1515,10 @@ PY
     "$operations_digest" /bin/sh -ceu \
       'node --import tsx /app/scripts/verify-restored-backup.ts --remove-ledger-authority-before-bootstrap
        exec node /app/scripts/bootstrap-database-roles.mjs' \
-    >/dev/null 2>&1 || fail "restored database role bootstrap failed"
+    >"$role_bootstrap_diagnostics" 2>&1 || {
+      tail -n 40 -- "$role_bootstrap_diagnostics" >&2
+      fail "restored database role bootstrap failed"
+    }
 
   docker run --rm --pull never --name "$resource_prefix-restore-role-boundary" \
     --label "$OWNER_LABEL_KEY=$run_id" \
@@ -1466,7 +1537,10 @@ PY
     --env DATABASE_BACKUP_REPORTER_URL_FILE=/run/secrets/database_backup_reporter_url \
     "$operations_digest" node /app/scripts/verify-database-role-boundaries.mjs \
       --require-application-objects \
-    >/dev/null 2>&1 || fail "restored database role boundary verification failed"
+    >"$role_bootstrap_diagnostics" 2>&1 || {
+      tail -n 40 -- "$role_bootstrap_diagnostics" >&2
+      fail "restored database role boundary verification failed"
+    }
 
   docker run --rm --pull never --name "$resource_prefix-restore-ledger-authority-installer" \
     --label "$OWNER_LABEL_KEY=$run_id" \
@@ -1513,14 +1587,14 @@ PY
   restored_value="$(docker exec "$postgres_id" psql --username=learncoding \
     --dbname="$restore_database" --no-psqlrc --quiet --tuples-only --no-align \
     --set=ON_ERROR_STOP=1 \
-    --command='SELECT value FROM public.backup_e2e_sentinel WHERE id = 1')" \
+    --command="SELECT value FROM public.verification WHERE id = 'backup-e2e-sentinel'")" \
     || fail "restored database sentinel query failed"
   [[ "$restored_value" == "$db_sentinel" ]] \
     || fail "restored database sentinel does not match"
   original_value="$(docker exec "$postgres_id" psql --username=learncoding \
     --dbname=learncoding --no-psqlrc --quiet --tuples-only --no-align \
     --set=ON_ERROR_STOP=1 \
-    --command='SELECT value FROM public.backup_e2e_sentinel WHERE id = 1')" \
+    --command="SELECT value FROM public.verification WHERE id = 'backup-e2e-sentinel'")" \
     || fail "original database sentinel recheck failed"
   [[ "$original_value" == "$db_sentinel" ]] \
     || fail "original database sentinel changed"
@@ -1814,11 +1888,15 @@ docker run --rm --pull never --network none --read-only --cap-drop ALL \
   ' >/dev/null \
   || fail "offline operations image cannot import the capability-gated bootstrap and verifier"
 
+# The toolbox is root with every capability dropped, but its ledgers, token and
+# config tree are owned by the unprivileged runner user, and it re-owns the secrets
+# it stages. These file capabilities add nothing beyond the Docker socket it holds.
 docker run --rm --name "$resource_prefix-toolbox" \
   --hostname "$resource_prefix-toolbox" \
   --label "$OWNER_LABEL_KEY=$run_id" \
   --label "$OWNER_PROJECT_LABEL_KEY=$ownership_project" \
   --network none --read-only --cap-drop ALL \
+  --cap-add DAC_OVERRIDE --cap-add CHOWN --cap-add FOWNER \
   --security-opt no-new-privileges --pids-limit 512 --memory 1g --cpus 2 \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=256m \
   --tmpfs /run/bpe:rw,noexec,nosuid,nodev,size=16m,mode=0700,uid=0,gid=0 \

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-07-13T10:09:18.577Z",
-  "revalidatedAt": "2026-07-13T20:49:22+05:30",
+  "revalidatedAt": "2026-09-25T15:33:00.000Z",
   "evidenceKind": "local-working-tree-release-gate-summary",
   "status": "passed-with-external-and-manual-gates-open",
   "repositoryGate": {
@@ -107,23 +107,23 @@
         "reports": [
           {
             "path": "docs/evidence/dsa-parity-runtime-2026-07-12.json",
-            "sha256": "24fc6b85a84b00bdcfaafa8c078e8c5f473b32ee993d407789ed4a52f473db62"
+            "sha256": "ec0678d22d8ce891f908355c39ab183dc9d31c439faabb7858e069d5685bc004"
           },
           {
             "path": "docs/evidence/c-cpp-executable-runtime-2026-07-12.json",
-            "sha256": "2e3fb58b489aaae616bc65400b288e7dc2876495866b0aff9db7555178a7796d"
+            "sha256": "dd627c80bb43c5a7006b70594e2cc3e5416ea76f723b82287c089d0286943bd1"
           },
           {
             "path": "docs/evidence/java-python-executable-runtime-2026-07-12.json",
-            "sha256": "2d041c72eb7c4395ab74f4815946b7166849c5bc6eabaf96f9d6047e0249ae49"
+            "sha256": "42d3dd421fffccc7ecb2550a0c6e7b1107b7395a2d0dac928bcf113cc6055719"
           },
           {
             "path": "docs/evidence/ai-code-executable-runtime-2026-07-12.json",
-            "sha256": "6f3b4ca6a7c936be7456c3edc283bef51fc9d03ee2d3b414b69488c0b26bac9b"
+            "sha256": "8059b412d64e987ad2d3a8ec85b2daeaf8e30483e9da4f103c4f5e8253bb78a6"
           },
           {
             "path": "docs/evidence/web-executable-runtime-2026-07-12.json",
-            "sha256": "08f3ce460421c7783c7c4bb679e8bca937fbf78e566ce18e4e498595f4da1572"
+            "sha256": "411c878eab31f871897b398364c592d5d4804c6d703661c5dce7ff042c9d8283"
           }
         ]
       }

@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import { gotoSettled } from "./pages/settled-navigation";
 
 test.describe("public and learner smoke journeys", () => {
   test("landing page exposes the private-beta entry points", async ({ page }) => {
@@ -47,7 +48,7 @@ test.describe("public and learner smoke journeys", () => {
 
   test("mobile view keeps learning navigation usable", async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.includes("mobile"), "mobile-only check");
-    await page.goto("/learn");
+    await gotoSettled(page, "/learn");
 
     await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toHaveCount(0);
     await page.getByRole("button", { name: "Open navigation" }).click();

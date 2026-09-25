@@ -545,7 +545,7 @@ function validateHarnessRestoreEntrypointContract(source) {
       "production E2E does not install the restore-only ledger authority",
     ],
     [
-      "node /app/scripts/verify-database-role-boundaries.mjs \\\n      --require-application-objects \\\n    >/dev/null 2>&1 || fail \"restored database role boundary verification failed\"",
+      "node /app/scripts/verify-database-role-boundaries.mjs \\\n      --require-application-objects \\\n    >\"$role_bootstrap_diagnostics\" 2>&1 || {\n      tail -n 40 -- \"$role_bootstrap_diagnostics\" >&2\n      fail \"restored database role boundary verification failed\"\n    }",
       "production E2E does not run the full database role boundary verifier",
     ],
     [
@@ -671,7 +671,7 @@ function validateHarnessReviewedRestoreFixtureContract(source) {
       "production E2E omits the complete post-migration role bootstrap",
     ],
     [
-      "node /app/scripts/verify-database-role-boundaries.mjs \\\n      --require-application-objects \\\n    >/dev/null 2>&1 || fail \"source database role boundary verification failed\"",
+      "node /app/scripts/verify-database-role-boundaries.mjs \\\n      --require-application-objects \\\n    >\"$role_bootstrap_diagnostics\" 2>&1 || {\n      tail -n 40 -- \"$role_bootstrap_diagnostics\" >&2\n      fail \"source database role boundary verification failed\"\n    }",
       "production E2E omits the full source application-object boundary verifier",
     ],
     [
@@ -704,7 +704,7 @@ function validateHarnessBoundaryVerifierCredentialContract(source) {
       "restored database role boundary verification failed",
     ],
   ]) {
-    const failureOffset = source.indexOf(`|| fail "${failure}"`);
+    const failureOffset = source.indexOf(`fail "${failure}"`);
     const blockStart = source.lastIndexOf("docker run", failureOffset);
     if (failureOffset < 0 || blockStart < 0 || blockStart >= failureOffset) {
       fail(`production E2E ${label} boundary verifier block is missing`);
@@ -831,6 +831,7 @@ const requiredBackupRuns = [
   "bash infra/tests/systemd-backup.test.sh",
 ];
 const expectedApplicationRuns = [
+  'sudo ln -sf "$(command -v node)" /usr/bin/node',
   "npm ci",
   registrationRun,
   "npm run test:github-runner-context:registration",
@@ -951,6 +952,7 @@ const setupNodeProjection = [
 const dockerSetupProjection = [
   "      - uses: docker/setup-docker-action@6d7cfa65f60a9dda7b46e5513fa982536f3c9877 # v5.3.0",
   "        with:",
+  "          set-host: true",
   "          daemon-config: |",
   "            {",
   '              "features": {',
@@ -1034,7 +1036,7 @@ const topologyDockerProjection = [
 const trivySetupProjection = [
   "      - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6",
   "        with:",
-  "          version: 0.69.3",
+  "          version: v0.69.3",
   '      - run: trivy image --cache-dir "$RUNTIME_TRIVY_CACHE_DIR" --download-db-only',
   '      - run: trivy image --cache-dir "$RUNTIME_TRIVY_CACHE_DIR" --download-java-db-only',
 ];
@@ -1048,7 +1050,7 @@ function runnerCacheInitializationProjection(variable, suffix) {
 const applicationImageTrivyProjection = [
   "      - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6",
   "        with:",
-  "          version: 0.69.3",
+  "          version: v0.69.3",
   '      - run: trivy image --cache-dir "$APP_IMAGE_TRIVY_CACHE_DIR" --download-db-only',
   '      - run: trivy image --cache-dir "$APP_IMAGE_TRIVY_CACHE_DIR" --download-java-db-only',
 ];
@@ -1166,6 +1168,7 @@ const reviewedJobContracts = new Map([
       "    timeout-minutes: 30",
       "    steps:",
       ...checkoutProjection,
+      "      - run: bash infra/tests/install-reviewed-docker-engine.sh",
       `      - run: ${productionE2eRun}`,
     ],
   ],
@@ -1224,7 +1227,7 @@ const reviewedJobContracts = new Map([
       "      - run: npm run test:mail-guarded-delivery-0069:roles",
       canonicalPostgresProjection.livePg17IntegrationLine,
       canonicalPostgresProjection.dockerPg17PullLine,
-      "      - run: docker pull node:22.23.1-alpine3.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737",
+      "      - run: docker pull node:22.23.3-alpine3.23@sha256:489418a947387da1c5b4c0c5749c963da56ecaac0ced1da74c67db60e42f2b3a",
       canonicalPostgresProjection.dockerPg17IntegrationLine,
       "      - run: |",
       "          set -Eeuo pipefail",
@@ -1288,10 +1291,28 @@ const reviewedJobContracts = new Map([
       "      - run: npm run curriculum:runtime-pins:check",
       "      - run: npx playwright install --with-deps chromium",
       "      - run: npm run dsa:parity:verify",
+      "      - run: npm run dsa:parity:evidence:apply",
+      "        if: failure()",
+      "      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2",
+      "        if: failure()",
+      "        with:",
+      "          name: dsa-parity-evidence-regenerated",
+      "          path: docs/evidence/dsa-parity-runtime-*.json",
+      "          if-no-files-found: warn",
+      "          retention-days: 14",
       "      - run: npm run c-cpp:executable:verify",
       "      - run: npm run java-python:executable:verify",
       "      - run: npm run ai-code:executable:verify",
       "      - run: npm run web:executable:verify",
+      "      - run: npm run c-cpp:executable:evidence:apply || true; npm run java-python:executable:evidence:apply || true; npm run ai-code:executable:evidence:apply || true; npm run web:executable:evidence:apply || true",
+      "        if: failure()",
+      "      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2",
+      "        if: failure()",
+      "        with:",
+      "          name: executable-evidence-regenerated",
+      "          path: docs/evidence/*-executable-runtime-*.json",
+      "          if-no-files-found: warn",
+      "          retention-days: 14",
       ...runtimeEvidenceUploadProjection("curriculum-runtime-release-evidence"),
     ],
   ],
@@ -2043,13 +2064,19 @@ function runAdversarialSelfTests(document) {
       `${productionStep}\n${productionStep}`,
     ),
   );
+  const productionEngineStep =
+    "      - run: bash infra/tests/install-reviewed-docker-engine.sh";
   expectRejected(
     "reordered production e2e steps",
     replaceExactly(
       document,
-      `${productionStepsAnchor}${productionCheckout}\n${productionStep}`,
-      `${productionStepsAnchor}${productionStep}\n${productionCheckout}`,
+      `${productionStepsAnchor}${productionCheckout}\n${productionEngineStep}\n${productionStep}`,
+      `${productionStepsAnchor}${productionStep}\n${productionCheckout}\n${productionEngineStep}`,
     ),
+  );
+  expectRejected(
+    "production e2e without the reviewed Docker Engine",
+    replaceExactly(document, `${productionEngineStep}\n`, ""),
   );
   expectRejected(
     "quoted production e2e command",
@@ -2071,24 +2098,24 @@ function runAdversarialSelfTests(document) {
     "production e2e checkout credentials persistence enabled",
     replaceExactly(
       document,
-      `${productionCheckout}\n${productionStep}`,
-      `${checkoutStep}\n        with:\n          persist-credentials: true\n${productionStep}`,
+      `${productionCheckout}\n${productionEngineStep}`,
+      `${checkoutStep}\n        with:\n          persist-credentials: true\n${productionEngineStep}`,
     ),
   );
   expectRejected(
     "production e2e checkout credentials setting missing",
     replaceExactly(
       document,
-      `${productionCheckout}\n${productionStep}`,
-      `${checkoutStep}\n${productionStep}`,
+      `${productionCheckout}\n${productionEngineStep}`,
+      `${checkoutStep}\n${productionEngineStep}`,
     ),
   );
   expectRejected(
     "production e2e checkout extra properties",
     replaceExactly(
       document,
-      `${productionCheckout}\n${productionStep}`,
-      `${productionCheckout}\n          fetch-depth: 0\n${productionStep}`,
+      `${productionCheckout}\n${productionEngineStep}`,
+      `${productionCheckout}\n          fetch-depth: 0\n${productionEngineStep}`,
     ),
   );
   for (const indicator of ["|", "|-", "|+", ">", ">-", ">+"]) {
@@ -2150,8 +2177,8 @@ function runAdversarialSelfTests(document) {
     "actual PostgreSQL Docker downgrade reaches the canonical cross-guard",
     replaceExactly(
       document,
-      "docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
-      "docker pull postgres:16-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+      "docker pull postgres:17-bookworm@sha256:4f736ae292687621d4dbe0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+      "docker pull postgres:16-bookworm@sha256:4f736ae292687621d4dbe0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
     ),
     "canonical PostgreSQL CI cross-guard changed: the pinned Docker PostgreSQL 17 integration image must appear exactly once",
   );
@@ -2159,8 +2186,8 @@ function runAdversarialSelfTests(document) {
     "arbitrary PostgreSQL 16 Docker image reaches the canonical cross-guard",
     replaceExactly(
       document,
-      "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394\n",
-      "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394\n      - run: docker run --rm postgres:16-bookworm\n",
+      "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4dbe0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394\n",
+      "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4dbe0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394\n      - run: docker run --rm postgres:16-bookworm\n",
     ),
     "canonical PostgreSQL CI cross-guard changed: PostgreSQL 16 must not appear in the canonical CI matrix",
   );

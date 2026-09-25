@@ -88,6 +88,21 @@ test("release gate requires the exact unique complete 17-contract runtime suite"
   const extra = structuredClone(complete);
   extra.contract.results.push({ name: "python: unreviewed extra", status: "passed" });
   assert.throws(() => validate(extra), /contract.*exact|required.*contract|failed or incomplete/i);
+
+  // The real runtime contract report records each duration.
+  const timed = structuredClone(complete);
+  timed.contract.results = timed.contract.results.map((result, index) => ({ ...result, durationMs: 100 + index }));
+  assert.equal(validate(timed).contract.results.length, 17);
+
+  for (const durationMs of [-1, 1.5, "12", null]) {
+    const badDuration = structuredClone(complete);
+    badDuration.contract.results[0] = { ...badDuration.contract.results[0], durationMs };
+    assert.throws(() => validate(badDuration), /contract.*exact|required.*contract/i);
+  }
+
+  const failedTimed = structuredClone(complete);
+  failedTimed.contract.results[0] = { ...failedTimed.contract.results[0], status: "failed", durationMs: 5 };
+  assert.throws(() => validate(failedTimed), /contract.*exact|required.*contract/i);
 });
 
 test("release gate rejects missing, extra, conflated, or mismatched identity fields", () => {

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.1.0",
   "generatedAt": "2026-07-12",
-  "revalidatedAt": "2026-07-28T13:27:44.340Z",
+  "revalidatedAt": "2026-09-24T12:09:03.456Z",
   "status": "verified",
   "scope": "Deterministic offline provider outage, administrator-funded fallback authority, stuck-operation recovery, and deletion serialization",
   "productionModelQualityEvidence": false,
@@ -71,7 +71,7 @@
     "drizzle/0032_short_green_goblin.sql": "ad353e63c2e45c5b46de0266b5f265f20e475771093cc8575aa49abe870b04e5",
     "drizzle/0034_fallback_authority_delete_guard.sql": "ca1ee5a9fe728c83f9d8af42b11ad3a9467d5a93af779a79420f57cdc31d6f73",
     "drizzle/meta/_journal.json": "f62f2d8ce0640aa88eab712de40e463fcb27d7c3f78197e56a248612f2309080",
-    "src/lib/db/schema.ts": "3575f2617f5cf449848ef5a5fcf01a8e1217823d570e87189313b7eff9cb6b1b",
+    "src/lib/db/schema.ts": "e9bf049f9bc3ea51c6184913fbb8a089664bd88efd986d62833e097ba06dd82c",
     "src/lib/security/user-authority-lock.ts": "de516e12927515f83ee095364a96f23408f2328e19672b923046782f6557b64a",
     "src/lib/ai/fallback-budget.ts": "e71ea062b326f044850e92d60951e00095609941bc24c7416abe8881782ec145",
     "src/lib/ai/fallback-grants.ts": "275668e91a8c0614762b721677e6b3551aaadb88df1f154e685e9d1104946a68",
@@ -79,11 +79,11 @@
     "src/lib/ai/router.ts": "5951f7b8204b3adf4c182d7d726c69f4c1f8bccb4f5ea8aefe85465987e2fcba",
     "src/lib/ai/provider-operation-idempotency.ts": "06d2e17e1d3cb76b93e4ba736760763c5b5d94decff3f4a29cd535add88aefc5",
     "src/lib/ai/__tests__/provider-operation-idempotency-store.test.ts": "0ef67a0418aab93bb24f438a4b099a2f726c75318d00f30984f71f60bc10cac4",
-    "src/app/api/ai/tutor/route.ts": "fb2564df7e56af0e16f2caa2bd12e348272b0aa6d515d8cd10bdbbd41410b47f",
+    "src/app/api/ai/tutor/route.ts": "7b22d2901414f75b1bfe98f4e11ceefe150ff66be6e1ff499a237991262fbc36",
     "src/lib/privacy/consent.ts": "7028354d1bff8efaaf91ee47623fa0f325b928707fa39cbf1d8a0816b15bc958",
     "src/app/api/privacy/consents/route.ts": "14a613b56f579d5031342312812c99bf74b36efc2abda71ae473fdfbed337c71",
     "src/app/api/onboarding/profile/route.ts": "bf6d31bb478913a58de658705b1264fe07e551617a90cd67d257765abae389e5",
-    "src/lib/data-lifecycle/deletion.ts": "fad4507e9f96b03e695b2ea0335ffdf2ed353c8fc7dcd990a7c69f5f178a96b3",
+    "src/lib/data-lifecycle/deletion.ts": "86357867c19ae18c0ccd5c06c8e0dbc0d484c51f8e9755105dd71b09ca6973e5",
     "src/app/api/admin/fallback-grants/route.ts": "68d4f10f868bfe01f0ec6f50200d99c95a8e44e9db2a36fccba2bf74cbd258d0",
     "src/app/api/admin/fallback-grants/[id]/revoke/route.ts": "798024fe4eded7eb61636d9b23886fcd2b8fb132632c328f63ee68a9c83f73d7",
     "src/components/admin/admin-fallback-grant-manager.tsx": "b93aa202456b49ce6011111140dbfcd2210948974e9f8952e214e511c4f0b6ca",
@@ -196,6 +196,21 @@
       "artifact": "integration/postgres.integration.test.ts",
       "priorDigest": "4c28733f84f547357569642be1831954b520b6cf0a0564cc09dd2de32599caf1",
       "replacedAt": "2026-07-28T23:06:21.4800341+05:30"
+    },
+    {
+      "artifact": "src/app/api/ai/tutor/route.ts",
+      "priorDigest": "fb2564df7e56af0e16f2caa2bd12e348272b0aa6d515d8cd10bdbbd41410b47f",
+      "replacedAt": "2026-09-24T12:09:03.456Z"
+    },
+    {
+      "artifact": "src/lib/data-lifecycle/deletion.ts",
+      "priorDigest": "fad4507e9f96b03e695b2ea0335ffdf2ed353c8fc7dcd990a7c69f5f178a96b3",
+      "replacedAt": "2026-09-24T12:09:03.456Z"
+    },
+    {
+      "artifact": "src/lib/db/schema.ts",
+      "priorDigest": "3575f2617f5cf449848ef5a5fcf01a8e1217823d570e87189313b7eff9cb6b1b",
+      "replacedAt": "2026-09-24T12:09:03.456Z"
     }
   ]
 }

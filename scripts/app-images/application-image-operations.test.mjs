@@ -235,6 +235,22 @@ test("SPDX and Trivy evidence are bound to the exact deployable identity and fai
   assert.equal(binding.vulnerability.high, 0);
   assert.equal(binding.vulnerability.critical, 0);
 
+  // The containerd image store reports the manifest digest as Trivy's ImageID.
+  const containerdReport = JSON.parse(vulnerabilityText);
+  containerdReport.Metadata.ImageID = identity.manifestDigest;
+  assert.doesNotThrow(() => operations.validateApplicationScanArtifacts({
+    identity,
+    spdxText,
+    vulnerabilityText: JSON.stringify(containerdReport),
+  }));
+  const foreignImage = JSON.parse(vulnerabilityText);
+  foreignImage.Metadata.ImageID = `sha256:${"9".repeat(64)}`;
+  assert.throws(() => operations.validateApplicationScanArtifacts({
+    identity,
+    spdxText,
+    vulnerabilityText: JSON.stringify(foreignImage),
+  }), /exact application image identity/);
+
   const vulnerable = JSON.parse(vulnerabilityText);
   vulnerable.Results = [{
     Target: identity.reference,

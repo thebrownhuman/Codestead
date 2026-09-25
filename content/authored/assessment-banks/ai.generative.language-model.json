@@ -164,7 +164,7 @@
         "engine": "isolated-runner",
         "language": "python",
         "version": "Python 3.14",
-        "imageDigest": "sha256:857294af16c8bbb1a8d5c792acc785283b0c99cf8dcb2be2955208f06a43d3a2",
+        "imageDigest": "sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb",
         "entrypoint": "main.py",
         "timeLimitMs": 2000,
         "memoryLimitMb": 128

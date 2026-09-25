@@ -10,6 +10,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const read = (path) => readFileSync(resolve(repoRoot, path), "utf8");
 const harness = read("infra/tests/production-topology.test.sh");
 const workflow = read(".github/workflows/ci.yml");
+const bootstrapScript = read("scripts/bootstrap-database-roles.mjs");
 const job = workflow.match(
   /^  production-topology:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
 )?.[0] ?? "";
@@ -105,8 +106,8 @@ test("cleanup proves fallback network, Compose resources, images, and workdir ar
 
 test("seed and bootstrap proof uses explicit unique identities and an exact replay snapshot", () => {
   assert.match(harness, /expected_policy_identities=/u);
-  assert.match(harness, /nvidia_nim:credential_validation:meta\/llama-3\.1-8b-instruct/u);
-  assert.match(harness, /nvidia_nim:tutor:meta\/llama-3\.1-8b-instruct/u);
+  assert.match(harness, /nvidia_nim:credential_validation:mistralai\/mistral-nemotron/u);
+  assert.match(harness, /nvidia_nim:tutor:openai\/gpt-oss-20b/u);
   assert.match(harness, /expected_achievement_identities=/u);
   for (const slug of [
     "first-independent-skill",
@@ -286,6 +287,8 @@ test("database role bootstrap precedes migration and both contend on the shared 
   const lockReleased = harness.indexOf('wait "$lock_holder_pid"', noSuccess);
   assert.match(observation, /pg_stat_activity/u);
   assert.match(observation, /select pg_try_advisory_lock\(hashtextextended\(\$1, 0\)\) acquired/u);
+  assert.match(observation, /select pg_catalog\.pg_try_advisory_lock\(pg_catalog\.hashtextextended\(\$1, 0\)\) acquired/u);
+  assert.match(bootstrapScript, /"select pg_catalog\.pg_try_advisory_lock\(pg_catalog\.hashtextextended\(\$1, 0\)\) acquired"/u);
   assert.match(observation, /learncoding:codestead-topology-role-bootstrap/u);
   assert.match(observation, /learncoding_migrator:codestead-topology-migrate/u);
   assert.match(observation, /kill -0 "\$lock_holder_pid" "\$bootstrap_pid" "\$migrate_pid"/u);
