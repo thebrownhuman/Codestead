@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-07-12T16:28:00.000Z",
-  "revalidatedAt": "2026-09-24T13:33:01.983Z",
+  "revalidatedAt": "2026-09-25T12:50:51.955Z",
   "scope": "Local deterministic validation of nightly backup status reporting through the dedicated least-privilege reporter and current PostgreSQL mail-authority chain on native disposable PostgreSQL 17; no Docker, host PostgreSQL service, real data, real credentials, or external email was used.",
   "status": "passed",
   "shellContract": {
@@ -121,7 +121,7 @@
     },
     {
       "path": "compose.yaml",
-      "sha256": "3693bebfabc7c50d73616ebd3c19c96809949649b8fc1a5e2fbb70315f63f7a5"
+      "sha256": "748589f926300e90993891c3490874211cae791f343c879023363189a9df26f5"
     },
     {
       "path": "drizzle/0065_backup_status_mail_authority.sql",
@@ -145,7 +145,7 @@
     },
     {
       "path": "scripts/migrate-production.mjs",
-      "sha256": "c78ce13741076478935c4945b671b25835d4e526c56ef258b6eaaf24cfaea801"
+      "sha256": "ac53361c85c4ee1341432a68924b133a9a33e93a3745edc650c956dd67b93046"
     },
     {
       "path": "scripts/bootstrap-database-roles.mjs",
@@ -197,11 +197,11 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "154a7604c1fe228168c6861d403caae205d9a00fe3459bf48e7ccdd84fce6562"
+      "sha256": "715bd498444d9ebb120abbb86859870ae3aa7b7a34ba9be544e0ab5312a46ba6"
     },
     {
       "path": "infra/tests/backup-ci-registration.test.mjs",
-      "sha256": "2c29c57c19a770614833e25d36209b2fcc7fb182177da03b9f4d21a07f0e4898"
+      "sha256": "5411514a2aae47785991a8b210446f0308bf152ba4513ee7ac24ff937292171a"
     }
   ],
   "supersededDigests": [

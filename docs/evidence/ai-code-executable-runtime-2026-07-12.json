@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-20T20:12:25.928Z",
+  "generatedAt": "2026-09-25T12:35:50.325Z",
   "scope": "AI course deterministic offline Python labs pinned-runtime evidence",
   "status": "verified",
   "counts": {
@@ -14,13 +14,13 @@
   "externalProviderCalls": 0,
   "imageEvidence": {
     "tag": "learncoding/runtime-python:local",
-    "manifestDigest": "sha256:857294af16c8bbb1a8d5c792acc785283b0c99cf8dcb2be2955208f06a43d3a2",
-    "configDigest": "sha256:5a6482be32a415224ea9731dfd3689dace3395fdf3370e5200d1566c57410bc3",
-    "immutableReference": "learncoding/runtime-python@sha256:857294af16c8bbb1a8d5c792acc785283b0c99cf8dcb2be2955208f06a43d3a2",
-    "tagDescriptorDigest": "sha256:857294af16c8bbb1a8d5c792acc785283b0c99cf8dcb2be2955208f06a43d3a2",
-    "tagImageId": "sha256:857294af16c8bbb1a8d5c792acc785283b0c99cf8dcb2be2955208f06a43d3a2",
-    "exactReferenceDescriptorDigest": "sha256:857294af16c8bbb1a8d5c792acc785283b0c99cf8dcb2be2955208f06a43d3a2",
-    "exactReferenceImageId": "sha256:857294af16c8bbb1a8d5c792acc785283b0c99cf8dcb2be2955208f06a43d3a2",
+    "manifestDigest": "sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb",
+    "configDigest": "sha256:9e6e58082d37d77bf4e9eff174b719c78256896ebc04f867ed390f55ec05777e",
+    "immutableReference": "learncoding/runtime-python@sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb",
+    "tagDescriptorDigest": "sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb",
+    "tagImageId": "sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb",
+    "exactReferenceDescriptorDigest": "sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb",
+    "exactReferenceImageId": "sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb",
     "independentlyValidated": true
   },
   "results": [
