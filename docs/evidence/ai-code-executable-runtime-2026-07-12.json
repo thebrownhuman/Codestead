@@ -30,7 +30,6 @@
       "testId": "ai.data.quality.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 1079,
       "sourceHash": "sha256:8fe125aaa5c77e06dd1a9d33eeaf02fe20a804da3edce629ebf4285b7d6360c9"
     },
     {
@@ -39,7 +38,6 @@
       "testId": "ai.data.quality.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 1148,
       "sourceHash": "sha256:8fe125aaa5c77e06dd1a9d33eeaf02fe20a804da3edce629ebf4285b7d6360c9"
     },
     {
@@ -48,7 +46,6 @@
       "testId": "ai.data.splits-leakage.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 1251,
       "sourceHash": "sha256:596219b56b1a1f39ae4f945c65ac1159abbe4689a299390895b925574ee7c256"
     },
     {
@@ -57,7 +54,6 @@
       "testId": "ai.data.splits-leakage.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 1055,
       "sourceHash": "sha256:596219b56b1a1f39ae4f945c65ac1159abbe4689a299390895b925574ee7c256"
     },
     {
@@ -66,7 +62,6 @@
       "testId": "ai.decision.utility.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 1241,
       "sourceHash": "sha256:7db08ca23efe00c681a0b4f61ab4dc40d7784a2bedbf493869c6bde7bc74de51"
     },
     {
@@ -75,7 +70,6 @@
       "testId": "ai.decision.utility.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 1215,
       "sourceHash": "sha256:7db08ca23efe00c681a0b4f61ab4dc40d7784a2bedbf493869c6bde7bc74de51"
     },
     {
@@ -84,7 +78,6 @@
       "testId": "ai.evaluation.fairness-explain.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 1496,
       "sourceHash": "sha256:ba7b7230cc8d4e8a59539bc76bfedd0bff92fd974b31a94a04c4d1a93a194dcf"
     },
     {
@@ -93,7 +86,6 @@
       "testId": "ai.evaluation.fairness-explain.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 1316,
       "sourceHash": "sha256:ba7b7230cc8d4e8a59539bc76bfedd0bff92fd974b31a94a04c4d1a93a194dcf"
     },
     {
@@ -102,7 +94,6 @@
       "testId": "ai.evaluation.metrics.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 1001,
       "sourceHash": "sha256:94c668b1cf396d5c35b895abb0ed4d9439a7b818b7ba15e35c3400d292e2df4c"
     },
     {
@@ -111,7 +102,6 @@
       "testId": "ai.evaluation.metrics.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 1077,
       "sourceHash": "sha256:94c668b1cf396d5c35b895abb0ed4d9439a7b818b7ba15e35c3400d292e2df4c"
     },
     {
@@ -120,7 +110,6 @@
       "testId": "ai.generative.api-safety.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 1211,
       "sourceHash": "sha256:3b52dced074c0517350e1c1bd2db0c30bac03aca341c42903da71a6a2b15da33"
     },
     {
@@ -129,7 +118,6 @@
       "testId": "ai.generative.api-safety.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 1127,
       "sourceHash": "sha256:3b52dced074c0517350e1c1bd2db0c30bac03aca341c42903da71a6a2b15da33"
     },
     {
@@ -138,7 +126,6 @@
       "testId": "ai.generative.embeddings-rag.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 1541,
       "sourceHash": "sha256:9f4d27f0b48858a9831decdbe10137b07fe54dd3bbb37aa25bbefbba19bab802"
     },
     {
@@ -147,7 +134,6 @@
       "testId": "ai.generative.embeddings-rag.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 1549,
       "sourceHash": "sha256:9f4d27f0b48858a9831decdbe10137b07fe54dd3bbb37aa25bbefbba19bab802"
     },
     {
@@ -156,7 +142,6 @@
       "testId": "ai.generative.language-model.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 1208,
       "sourceHash": "sha256:b850bc3a2b9cce7e4d1775ab4acf1447872356b5c0ea01fcf651b440d42d15af"
     },
     {
@@ -165,7 +150,6 @@
       "testId": "ai.generative.language-model.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 1216,
       "sourceHash": "sha256:b850bc3a2b9cce7e4d1775ab4acf1447872356b5c0ea01fcf651b440d42d15af"
     },
     {
@@ -174,7 +158,6 @@
       "testId": "ai.generative.prompt-output.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 1149,
       "sourceHash": "sha256:eb8d3bac399b20ad40859cb31d77a4f46e536fc083062c927cbb93d64a1f5d43"
     },
     {
@@ -183,7 +166,6 @@
       "testId": "ai.generative.prompt-output.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 1158,
       "sourceHash": "sha256:eb8d3bac399b20ad40859cb31d77a4f46e536fc083062c927cbb93d64a1f5d43"
     },
     {
@@ -192,7 +174,6 @@
       "testId": "ai.knowledge.inference.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 764,
       "sourceHash": "sha256:0864c3f23e6979d7a2adf676d923c60061bb9ec72a5362aab17bd45f557de58f"
     },
     {
@@ -201,7 +182,6 @@
       "testId": "ai.knowledge.inference.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 863,
       "sourceHash": "sha256:0864c3f23e6979d7a2adf676d923c60061bb9ec72a5362aab17bd45f557de58f"
     },
     {
@@ -210,7 +190,6 @@
       "testId": "ai.neural.training.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 1267,
       "sourceHash": "sha256:548f7873271cde7c024276f7936bda80015a82915e64ff9dfcc3b2d913774d65"
     },
     {
@@ -219,7 +198,6 @@
       "testId": "ai.neural.training.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 1146,
       "sourceHash": "sha256:548f7873271cde7c024276f7936bda80015a82915e64ff9dfcc3b2d913774d65"
     },
     {
@@ -228,7 +206,6 @@
       "testId": "ai.neural.units-layers.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 1148,
       "sourceHash": "sha256:2d5e89646a2246c59cbced1a5c1d311dc159e686dd014c5efde936e1f538b161"
     },
     {
@@ -237,7 +214,6 @@
       "testId": "ai.neural.units-layers.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 1144,
       "sourceHash": "sha256:2d5e89646a2246c59cbced1a5c1d311dc159e686dd014c5efde936e1f538b161"
     },
     {
@@ -246,7 +222,6 @@
       "testId": "ai.planning.actions.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 1080,
       "sourceHash": "sha256:2eb3373ea495487904671a6fb522d2892a26e51b075427a06373d56a19bbc2ea"
     },
     {
@@ -255,7 +230,6 @@
       "testId": "ai.planning.actions.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 1124,
       "sourceHash": "sha256:2eb3373ea495487904671a6fb522d2892a26e51b075427a06373d56a19bbc2ea"
     },
     {
@@ -264,7 +238,6 @@
       "testId": "ai.planning.constraints.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 1024,
       "sourceHash": "sha256:2b1a75e4341d7c97f965438599d58fb4902a4f793b7fff7e8be4efe2b735efe4"
     },
     {
@@ -273,7 +246,6 @@
       "testId": "ai.planning.constraints.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 978,
       "sourceHash": "sha256:2b1a75e4341d7c97f965438599d58fb4902a4f793b7fff7e8be4efe2b735efe4"
     },
     {
@@ -282,7 +254,6 @@
       "testId": "ai.project.reproducibility.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 990,
       "sourceHash": "sha256:f0223f2ef5055294bfc272ae10f71fdf5c016541409efe660107bc6077c483fa"
     },
     {
@@ -291,7 +262,6 @@
       "testId": "ai.project.reproducibility.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 1072,
       "sourceHash": "sha256:f0223f2ef5055294bfc272ae10f71fdf5c016541409efe660107bc6077c483fa"
     },
     {
@@ -300,7 +270,6 @@
       "testId": "ai.search.adversarial.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 1070,
       "sourceHash": "sha256:e2952ffba188d9e21bca52c93d3cf646afc8caf0afc7b21973b92ca55b6e8d72"
     },
     {
@@ -309,7 +278,6 @@
       "testId": "ai.search.adversarial.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 1175,
       "sourceHash": "sha256:e2952ffba188d9e21bca52c93d3cf646afc8caf0afc7b21973b92ca55b6e8d72"
     },
     {
@@ -318,7 +286,6 @@
       "testId": "ai.search.heuristics.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 1538,
       "sourceHash": "sha256:196237e6e33642e4223e760cc74e03e09e9d9438efda5ce903827d157f04419b"
     },
     {
@@ -327,7 +294,6 @@
       "testId": "ai.search.heuristics.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 1165,
       "sourceHash": "sha256:196237e6e33642e4223e760cc74e03e09e9d9438efda5ce903827d157f04419b"
     },
     {
@@ -336,7 +302,6 @@
       "testId": "ai.search.uninformed.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 1101,
       "sourceHash": "sha256:a02699ae48b67d47bcc95b927898747ba07ef65aec767b966e4c41bfa14bd820"
     },
     {
@@ -345,7 +310,6 @@
       "testId": "ai.search.uninformed.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 1144,
       "sourceHash": "sha256:a02699ae48b67d47bcc95b927898747ba07ef65aec767b966e4c41bfa14bd820"
     },
     {
@@ -354,7 +318,6 @@
       "testId": "ai.supervised.classification.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 1107,
       "sourceHash": "sha256:0990ffa2411047523b5a81eeac09e8eee73ca217a600057ea50f8300ec326907"
     },
     {
@@ -363,7 +326,6 @@
       "testId": "ai.supervised.classification.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 1080,
       "sourceHash": "sha256:0990ffa2411047523b5a81eeac09e8eee73ca217a600057ea50f8300ec326907"
     },
     {
@@ -372,7 +334,6 @@
       "testId": "ai.supervised.models.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 969,
       "sourceHash": "sha256:2e1fcc89c6495b1d224935968fe79c3f71f8f084715fab4e975847b0d86fcb6e"
     },
     {
@@ -381,7 +342,6 @@
       "testId": "ai.supervised.models.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 926,
       "sourceHash": "sha256:2e1fcc89c6495b1d224935968fe79c3f71f8f084715fab4e975847b0d86fcb6e"
     },
     {
@@ -390,7 +350,6 @@
       "testId": "ai.supervised.regression.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 1018,
       "sourceHash": "sha256:e8edc191b3e9ed2d6aeb49824586684f01372e0ec3e7a6d8216b3bafa6755221"
     },
     {
@@ -399,7 +358,6 @@
       "testId": "ai.supervised.regression.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 838,
       "sourceHash": "sha256:e8edc191b3e9ed2d6aeb49824586684f01372e0ec3e7a6d8216b3bafa6755221"
     },
     {
@@ -408,7 +366,6 @@
       "testId": "ai.uncertainty.bayes.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 1097,
       "sourceHash": "sha256:4ed23539052b61d08ec0ef189dee2c9c14bacba595980361f9cf281e8657abe4"
     },
     {
@@ -417,7 +374,6 @@
       "testId": "ai.uncertainty.bayes.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 1117,
       "sourceHash": "sha256:4ed23539052b61d08ec0ef189dee2c9c14bacba595980361f9cf281e8657abe4"
     },
     {
@@ -426,7 +382,6 @@
       "testId": "ai.unsupervised.anomaly.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 1182,
       "sourceHash": "sha256:6079cbc02882b567c44085a04dd1b1e0e49f50776fd09330db8d796c202e1543"
     },
     {
@@ -435,7 +390,6 @@
       "testId": "ai.unsupervised.anomaly.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 1257,
       "sourceHash": "sha256:6079cbc02882b567c44085a04dd1b1e0e49f50776fd09330db8d796c202e1543"
     },
     {
@@ -444,7 +398,6 @@
       "testId": "ai.unsupervised.clustering.case.1",
       "visibility": "visible",
       "status": "passed",
-      "durationMs": 1216,
       "sourceHash": "sha256:04f8534dae214b8f1eb3ceb258ac9a0c042bd434a97af2b7f3bcdcf59429320b"
     },
     {
@@ -453,7 +406,6 @@
       "testId": "ai.unsupervised.clustering.case.2",
       "visibility": "hidden",
       "status": "passed",
-      "durationMs": 1166,
       "sourceHash": "sha256:04f8534dae214b8f1eb3ceb258ac9a0c042bd434a97af2b7f3bcdcf59429320b"
     }
   ],

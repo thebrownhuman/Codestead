@@ -72,7 +72,6 @@ interface CaseResult {
   readonly visibility: string;
   readonly category: string;
   readonly status: "passed" | "failed";
-  readonly durationMs: number;
   readonly sourceHash: string;
   readonly consoleErrors?: readonly string[];
   readonly failure?: string;
@@ -670,7 +669,6 @@ async function main(): Promise<void> {
     const nodeJobs = codeItems.filter((item) => item.runtime.engine === "isolated-runner")
       .flatMap((item) => item.tests.map((test, testIndex) => ({ item, test, testIndex })));
     await runJobs(nodeJobs, 2, async ({ item, test, testIndex }) => {
-      const started = Date.now();
       try {
         if (!nodeIdentity) throw new Error("Validated local runtime identity is missing for javascript.");
         const execution = await executeNode(item, test.stdin, nodeIdentity.immutableReference);
@@ -679,9 +677,9 @@ async function main(): Promise<void> {
         if (!compareOutput(item, testIndex, execution.stdout)) {
           throw new Error(`stdout mismatch; expected=${JSON.stringify(test.expectedStdout)} actual=${JSON.stringify(execution.stdout)}`);
         }
-        results.push({ itemId: item.id, skillId: item.skillId, engine: "isolated-runner", language: item.runtime.language, testId: test.id, visibility: test.visibility, category: test.category, status: "passed", durationMs: Date.now() - started, sourceHash: digest(item.answer.referenceSolution) });
+        results.push({ itemId: item.id, skillId: item.skillId, engine: "isolated-runner", language: item.runtime.language, testId: test.id, visibility: test.visibility, category: test.category, status: "passed", sourceHash: digest(item.answer.referenceSolution) });
       } catch (error) {
-        results.push({ itemId: item.id, skillId: item.skillId, engine: "isolated-runner", language: item.runtime.language, testId: test.id, visibility: test.visibility, category: test.category, status: "failed", durationMs: Date.now() - started, sourceHash: digest(item.answer.referenceSolution), failure: error instanceof Error ? error.message : String(error) });
+        results.push({ itemId: item.id, skillId: item.skillId, engine: "isolated-runner", language: item.runtime.language, testId: test.id, visibility: test.visibility, category: test.category, status: "failed", sourceHash: digest(item.answer.referenceSolution), failure: error instanceof Error ? error.message : String(error) });
       }
     });
     console.log(`Web verifier Node progress: ${nodeJobs.length}/${nodeJobs.length} cases.`);
@@ -691,15 +689,14 @@ async function main(): Promise<void> {
       .flatMap((item) => item.tests.map((test, testIndex) => ({ item, test, testIndex, testCase: parseBrowserCase(test.stdin, test.id) })));
     let completed = 0;
     await runJobs(browserJobs, 4, async ({ item, test, testIndex, testCase }) => {
-      const started = Date.now();
       try {
         const execution = await executeBrowser({ browser: browser!, item, testCase, reactBundles });
         if (!compareOutput(item, testIndex, execution.stdout)) {
           throw new Error(`browser verifier output mismatch; expected=${JSON.stringify(test.expectedStdout)} actual=${JSON.stringify(execution.stdout)}`);
         }
-        results.push({ itemId: item.id, skillId: item.skillId, engine: "browser-verifier", language: item.runtime.language, testId: test.id, visibility: test.visibility, category: test.category, status: "passed", durationMs: Date.now() - started, sourceHash: digest(item.answer.referenceSolution), ...(execution.consoleErrors.length ? { consoleErrors: execution.consoleErrors } : {}) });
+        results.push({ itemId: item.id, skillId: item.skillId, engine: "browser-verifier", language: item.runtime.language, testId: test.id, visibility: test.visibility, category: test.category, status: "passed", sourceHash: digest(item.answer.referenceSolution), ...(execution.consoleErrors.length ? { consoleErrors: execution.consoleErrors } : {}) });
       } catch (error) {
-        results.push({ itemId: item.id, skillId: item.skillId, engine: "browser-verifier", language: item.runtime.language, testId: test.id, visibility: test.visibility, category: test.category, status: "failed", durationMs: Date.now() - started, sourceHash: digest(item.answer.referenceSolution), failure: error instanceof Error ? error.message : String(error) });
+        results.push({ itemId: item.id, skillId: item.skillId, engine: "browser-verifier", language: item.runtime.language, testId: test.id, visibility: test.visibility, category: test.category, status: "failed", sourceHash: digest(item.answer.referenceSolution), failure: error instanceof Error ? error.message : String(error) });
       }
       completed += 1;
       if (completed % 25 === 0 || completed === browserJobs.length) console.log(`Web verifier browser progress: ${completed}/${browserJobs.length} cases.`);

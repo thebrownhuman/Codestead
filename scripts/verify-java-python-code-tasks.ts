@@ -159,7 +159,6 @@ async function main(): Promise<void> {
     language: string;
     visibility: string;
     status: "passed" | "failed";
-    durationMs: number;
     sourceHash: string;
     failure?: string;
   }> = [];
@@ -169,7 +168,6 @@ async function main(): Promise<void> {
       const index = cursor++;
       if (index >= jobs.length) return;
       const { skillId, item, test } = jobs[index]!;
-      const started = Date.now();
       try {
         if (item.runtime.engine !== "isolated-runner") throw new Error("runtime changed after validation");
         const language = asPinnedLanguage(item.runtime.language);
@@ -195,7 +193,6 @@ async function main(): Promise<void> {
           language: item.runtime.language,
           visibility: test.visibility,
           status: "passed",
-          durationMs: Date.now() - started,
           sourceHash: sourceHash(item.answer.referenceSolution),
         });
       } catch (error) {
@@ -206,7 +203,6 @@ async function main(): Promise<void> {
           language: item.runtime.engine === "isolated-runner" ? item.runtime.language : "invalid",
           visibility: test.visibility,
           status: "failed",
-          durationMs: Date.now() - started,
           sourceHash: sourceHash(item.answer.referenceSolution),
           failure: error instanceof Error ? error.message : String(error),
         });
