@@ -358,31 +358,15 @@ for (const requiredLiveProof of [
 const liveRoleBootstrapStart = integrationHarness.indexOf(
   "async function runLiveRoleBootstrap(port, database)",
 );
-const historicalPhaseVerifierStart = integrationHarness.indexOf(
-  "async function runHistoricalPhase0064CatalogVerifier(port, database)",
-);
 const migrationFrameworkStart = integrationHarness.indexOf(
   "async function applyMigrationsWithFramework(port, database, migrationsFolder)",
 );
 assert.ok(liveRoleBootstrapStart >= 0);
-assert.ok(
-  historicalPhaseVerifierStart > liveRoleBootstrapStart,
-  "the 0063 harness must use an explicitly historical catalog verifier",
-);
-assert.ok(migrationFrameworkStart > historicalPhaseVerifierStart);
+assert.ok(migrationFrameworkStart > liveRoleBootstrapStart);
 assert.match(
-  integrationHarness.slice(liveRoleBootstrapStart, historicalPhaseVerifierStart),
+  integrationHarness.slice(liveRoleBootstrapStart, migrationFrameworkStart),
   /databaseBackupReporterUrl:\s*roleUrl\(\s*"learncoding_backup_reporter",\s*"r"\.repeat\(48\)\)/u,
 );
-const historicalPhaseVerifierSource = integrationHarness.slice(
-  historicalPhaseVerifierStart,
-  migrationFrameworkStart,
-);
-assert.match(
-  historicalPhaseVerifierSource,
-  /verifyReviewedMailAuthorityCatalogContracts\(\s*client,\s*phase0064/u,
-);
-assert.match(historicalPhaseVerifierSource, /\(\{ index \}\) => index === 64/u);
 const rawCatalogAssertion = integrationHarness.indexOf(
   "assertHostileFunctionAclsRemoved(port, database)",
 );
@@ -394,14 +378,12 @@ const latestPhaseMigration = integrationHarness.indexOf(
   "frameworkMigrationDirectoryThrough0064",
   postMigrationBootstrap,
 );
-const historicalBoundaryVerifier = integrationHarness.indexOf(
-  "await runHistoricalPhase0064CatalogVerifier(port, database)",
-  latestPhaseMigration,
-);
 assert.ok(rawCatalogAssertion >= 0);
 assert.ok(postMigrationBootstrap > rawCatalogAssertion);
 assert.ok(latestPhaseMigration > postMigrationBootstrap);
-assert.ok(historicalBoundaryVerifier > latestPhaseMigration);
+// The historical phase-0064 catalog boundary is owned by
+// test:mail-dispatch-binding-0064; the 0063 harness must not re-run it.
+assert.doesNotMatch(integrationHarness, /runHistoricalPhase0064CatalogVerifier/u);
 
 const boundaryVerifierCommand =
   'command: ["node", "/app/scripts/verify-database-role-boundaries.mjs", "--require-application-objects"]';

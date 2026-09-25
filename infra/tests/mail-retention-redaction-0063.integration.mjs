@@ -727,6 +727,19 @@ function createFrameworkMigrationSlice(temporaryRoot, maximumIndex) {
   return target;
 }
 
+// A 0000-0063 ledger resolves to the closed-world foundation phase, which
+// deliberately withholds schema usage from every login role. This historical
+// harness restores only the schema reachability the 0063-era runtime had, so
+// the migration's own routine and table ACLs remain the authority under test.
+function grantHistorical0063SchemaUsage(port, database) {
+  psql(port, database, `
+    set role learncoding_owner;
+    grant usage on schema public
+      to learncoding_app, learncoding_worker, learncoding_ops;
+    reset role;
+  `, { label: "grant_historical_0063_schema_usage" });
+}
+
 function installHostilePre0063CatalogState(port, database) {
   psql(port, database, `
     create role mail_retention_hostile_default nologin;
@@ -1047,43 +1060,6 @@ async function runLiveRoleBootstrap(port, database) {
     pool,
     clusterAdministrationPool,
   });
-}
-
-async function runHistoricalPhase0064CatalogVerifier(port, database) {
-  const [
-    { Pool },
-    { verifyReviewedMailAuthorityCatalogContracts },
-    { REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES },
-  ] = await Promise.all([
-    import("pg"),
-    import("../../scripts/verify-database-role-boundaries.mjs"),
-    import("../../scripts/bootstrap-database-roles.mjs"),
-  ]);
-  const phase0064 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(
-    ({ index }) => index === 64,
-  );
-  if (phase0064 === undefined) {
-    throw nativeHarnessFailure("reviewed_phase_0064_missing");
-  }
-  const pool = new Pool({
-    host: "127.0.0.1",
-    port,
-    user: "learncoding_ops",
-    database,
-    max: 1,
-    connectionTimeoutMillis: 5_000,
-    statement_timeout: 5_000,
-  });
-  const client = await pool.connect();
-  try {
-    return await verifyReviewedMailAuthorityCatalogContracts(
-      client,
-      phase0064,
-    );
-  } finally {
-    client.release();
-    await pool.end();
-  }
 }
 
 async function applyMigrationsWithFramework(port, database, migrationsFolder) {
@@ -2412,69 +2388,6 @@ function proveReconciliationAfterRedaction(port, database) {
   );
 }
 
-async function assertHistoricalPhaseBoundaryRejects(port, database, label) {
-  await assert.rejects(
-    runHistoricalPhase0064CatalogVerifier(port, database),
-    { name: "DatabaseRoleBoundaryError" },
-    `${label} tamper escaped the historical phase-0064 catalog verifier`,
-  );
-}
-
-async function proveHistoricalPhaseBoundaryTamperAndRestore(
-  port,
-  database,
-  migration0063,
-) {
-  await runHistoricalPhase0064CatalogVerifier(port, database);
-  psql(port, database, `
-    alter function public.redact_unresolved_email_outbox_authority(
-      timestamp with time zone,
-      integer
-    ) rename to redact_unresolved_email_outbox_authority_missing;
-  `, {
-    label: "production_boundary_missing_routine",
-  });
-  await assertHistoricalPhaseBoundaryRejects(port, database, "missing_routine");
-  psql(port, database, `
-    alter function public.redact_unresolved_email_outbox_authority_missing(
-      timestamp with time zone,
-      integer
-    ) rename to redact_unresolved_email_outbox_authority;
-  `, { label: "production_boundary_restore_missing_routine" });
-
-  psql(port, database, `
-    grant execute on function
-      public.classify_email_outbox_retention_redaction(
-        public.email_outbox,
-        timestamp with time zone
-      ) to learncoding_app;
-  `, { label: "production_boundary_classifier_acl" });
-  await assertHistoricalPhaseBoundaryRejects(port, database, "classifier_acl");
-  replayMigration0063(port, database, migration0063);
-
-  psql(port, database, `
-    alter function public.redact_unresolved_email_outbox_authority(
-      timestamp with time zone,
-      integer
-    ) security invoker;
-  `, { label: "production_boundary_redactor_security" });
-  await assertHistoricalPhaseBoundaryRejects(port, database, "redactor_security");
-  replayMigration0063(port, database, migration0063);
-
-  psql(port, database, `
-    alter table public.email_outbox
-      disable trigger email_outbox_payload_immutable;
-  `, { label: "production_boundary_trigger_disabled" });
-  await assertHistoricalPhaseBoundaryRejects(port, database, "trigger_disabled");
-  psql(port, database, `
-    alter table public.email_outbox
-      enable trigger email_outbox_payload_immutable;
-  `, { label: "production_boundary_restore_trigger" });
-  replayMigration0063(port, database, migration0063);
-
-  await runHistoricalPhase0064CatalogVerifier(port, database);
-  assertCatalogContract(port, database);
-}
 function proveCatalogTamperDetection(port, database) {
   expectCatalogTamperRejected(
     port,
@@ -2825,6 +2738,7 @@ async function main(control = defaultHarnessControl) {
     removeHostileCatalogRoles(port, database);
     await runLiveRoleBootstrap(port, database);
     assertCatalogContract(port, database);
+    grantHistorical0063SchemaUsage(port, database);
 
     await proveRedactionContract(port, database);
     await proveClassificationFenceRevalidationRace(
@@ -2892,12 +2806,11 @@ async function main(control = defaultHarnessControl) {
       "65",
       "framework did not record migrations 0000 through 0064",
     );
-    await runHistoricalPhase0064CatalogVerifier(port, database);
-    await proveHistoricalPhaseBoundaryTamperAndRestore(
-      port,
-      database,
-      migration0063,
-    );
+    // The historical phase-0064 catalog boundary is proven by
+    // `npm run test:mail-dispatch-binding-0064`.
+    // Here a 0000-0064 ledger stays in the closed-world foundation phase, and
+    // this fixture database cannot reach the current phase because the 0067
+    // delivery cutover requires quiescence.
 
     process.stdout.write("mail_retention_0063=ledger_contiguous:pass\n");
     process.stdout.write("mail_retention_0063=catalog_authority:pass\n");
