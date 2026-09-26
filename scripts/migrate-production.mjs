@@ -471,35 +471,61 @@ export async function runProductionMigration(options) {
       throw checkout.outcome.error;
     }
     client = checkout.outcome.value;
-    await runMigrationOperationWithinDeadline(
-      client,
-      async () => {
-        await requireProductionPostgresMajor(
+    // A role bootstrap that wins the shared administration lock can terminate
+    // this connection while it is idle between lock polls (no query in
+    // flight). node-postgres then has no pending query promise to reject, so
+    // it surfaces the backend's real error (with its SQLSTATE, e.g. 57P01)
+    // as an 'error' event on the client instead. Without a listener, Node
+    // treats that as an unhandled 'error' event and crashes the process
+    // before the existing INTERRUPTED_BEFORE_LOCK retry path ever runs.
+    // Route it into a rejection instead so the normal catch/retry below sees
+    // the real error and code.
+    const supportsConnectionErrorEvents =
+      typeof client.on === "function" && typeof client.removeListener === "function";
+    let connectionErrorReject;
+    const connectionErrorPromise = supportsConnectionErrorEvents
+      ? new Promise((_, reject) => {
+          connectionErrorReject = reject;
+        })
+      : new Promise(() => undefined);
+    const onClientConnectionError = (error) => connectionErrorReject(error);
+    if (supportsConnectionErrorEvents) client.on("error", onClientConnectionError);
+    try {
+      await Promise.race([
+        runMigrationOperationWithinDeadline(
           client,
-          options.requiredPostgresMajor,
-        );
-        try {
-          await acquireMigrationLock(client, options.lockOptions);
-          lockAcquired = true;
-        } catch (error) {
-          destroyClient = true;
-          throw error;
-        }
-        await verifyMigrationIdentity(client, "learncoding_migrator");
-        verifyReviewedMigrationRepository({ drizzleDirectory: migrationsFolder });
-        await client.query("SET ROLE learncoding_owner");
-        ownerRoleAssumed = true;
-        await verifyMigrationIdentity(client, "learncoding_owner");
-        await verifyAppliedMigrationLedger(client, {
-          requireComplete: false,
-        });
-        await migrate(drizzle(client), { migrationsFolder });
-        await verifyAppliedMigrationLedger(client, {
-          requireComplete: true,
-        });
-      },
-      operationDeadline,
-    );
+          async () => {
+            await requireProductionPostgresMajor(
+              client,
+              options.requiredPostgresMajor,
+            );
+            try {
+              await acquireMigrationLock(client, options.lockOptions);
+              lockAcquired = true;
+            } catch (error) {
+              destroyClient = true;
+              throw error;
+            }
+            await verifyMigrationIdentity(client, "learncoding_migrator");
+            verifyReviewedMigrationRepository({ drizzleDirectory: migrationsFolder });
+            await client.query("SET ROLE learncoding_owner");
+            ownerRoleAssumed = true;
+            await verifyMigrationIdentity(client, "learncoding_owner");
+            await verifyAppliedMigrationLedger(client, {
+              requireComplete: false,
+            });
+            await migrate(drizzle(client), { migrationsFolder });
+            await verifyAppliedMigrationLedger(client, {
+              requireComplete: true,
+            });
+          },
+          operationDeadline,
+        ),
+        connectionErrorPromise,
+      ]);
+    } finally {
+      if (supportsConnectionErrorEvents) client.removeListener("error", onClientConnectionError);
+    }
   } catch (error) {
     destroyClient = true;
     sessionAmbiguous = error instanceof MigrationOperationTimeoutError;
