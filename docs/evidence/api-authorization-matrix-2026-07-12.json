@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
-  "files": 123,
-  "operations": 158,
-  "matrixRows": 158,
+  "files": 124,
+  "operations": 159,
+  "matrixRows": 159,
   "boundaryCounts": {
-    "public": 5,
+    "public": 6,
     "auth-handler": 2,
     "authenticated": 88,
     "admin": 63
   },
   "objectAuthorizationCounts": {
-    "public-input": 5,
+    "public-input": 6,
     "administrator-scope": 63,
     "session-user": 84,
     "auth-provider": 2,
@@ -2088,6 +2088,19 @@
       "operationSourceSha256": "c4faf80ed50db877777176229c198d60037becb466dc8c13372d0dd71c8dd4e5"
     },
     {
+      "operation": "POST /api/security/session-takeover",
+      "file": "src/app/api/security/session-takeover/route.ts",
+      "route": "/api/security/session-takeover",
+      "method": "POST",
+      "boundary": "public",
+      "anonymous": "allowed",
+      "learner": "allowed",
+      "admin": "allowed",
+      "objectAuthorization": "public-input",
+      "ownershipProof": "validated public request",
+      "operationSourceSha256": "f5095ab1a3c2ae866b54d34954ab0ffcffd527528b3fa2a0f34f91f56d94f3e1"
+    },
+    {
       "operation": "POST /api/security/verify-backup-code",
       "file": "src/app/api/security/verify-backup-code/route.ts",
       "route": "/api/security/verify-backup-code",
@@ -2179,7 +2192,7 @@
       "operationSourceSha256": "b88f55f3a91e588c90d93419fbf944eba9e0f64f9fd6a5ab3e2f9a003ce2ccd8"
     }
   ],
-  "generatedAt": "2026-09-26T14:54:10.133Z",
+  "generatedAt": "2026-09-26T16:12:01.551Z",
   "scope": "Complete static role/object-authorization source inventory. The endpoint sweep verifies guard invocation, while authz.test.ts verifies real guard decisions and runtime-authorization.integration.test.ts behaviorally covers a representative owner-bound route set. This report alone is not runtime cross-user proof, deployed proxy/browser evidence, or PostgreSQL RLS evidence.",
   "runtimeVerification": {
     "guardInvocationTest": "src/lib/security/__tests__/endpoint-auth-boundaries.test.ts",

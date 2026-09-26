@@ -71,8 +71,12 @@ describe("onboarding status MFA requirements", () => {
     expect(body.requirements).toMatchObject({ mfaEnabled: true, mfaFresh: true });
   });
 
-  it("keeps enrollment complete while requiring another code after 24 hours", async () => {
+  it("stays fresh for the whole MFA-completed session but not for a session without MFA", async () => {
     mocks.requireAuth.mockResolvedValue(authz(new Date(Date.now() - 25 * 60 * 60_000)));
+    rows(true);
+    expect((await (await GET()).json()).requirements).toMatchObject({ mfaEnabled: true, mfaFresh: true });
+
+    mocks.requireAuth.mockResolvedValue(authz(null));
     rows(true);
 
     const response = await GET();

@@ -277,7 +277,7 @@ describe("out-of-band lost-device ceremony", () => {
 
     await db
       .update(session)
-      .set({ mfaVerifiedAt: new Date(now.getTime() - 10 * 60_000) })
+      .set({ mfaVerifiedAt: new Date(now.getTime() - 25 * 60 * 60_000) })
       .where(eq(session.id, ADMIN_SESSION_ID));
     const stale = await decideRevocation(
       jsonPost(

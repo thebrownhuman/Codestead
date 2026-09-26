@@ -12,7 +12,7 @@ describe("privileged access", () => {
 
   it("requires a recent MFA assertion", () => {
     expect(isFreshMfa(new Date(now.getTime() - 60_000), now)).toBe(true);
-    expect(isFreshMfa(new Date(now.getTime() - 10 * 60_000), now)).toBe(false);
+    expect(isFreshMfa(new Date(now.getTime() - 25 * 60 * 60_000), now)).toBe(false);
   });
 
   it("requires admin role, fresh MFA, and a meaningful reason", () => {
@@ -49,7 +49,7 @@ describe("privileged access", () => {
       })).toEqual({ allowed: true, code: "AUTHORIZED" });
       expect(authorizePrivilegedAction({
         actorRole: "admin",
-        mfaVerifiedAt: new Date(now.getTime() - 10 * 60_000),
+        mfaVerifiedAt: new Date(now.getTime() - 25 * 60 * 60_000),
         reason: "A reviewed lifecycle operation reason",
         action,
         now,
@@ -73,23 +73,23 @@ describe("privileged access", () => {
     })).toEqual({ allowed: true, code: "AUTHORIZED" });
     expect(authorizePrivilegedAction({
       actorRole: "admin",
-      mfaVerifiedAt: new Date(now.getTime() - 10 * 60_000),
+      mfaVerifiedAt: new Date(now.getTime() - 25 * 60 * 60_000),
       reason: "A specific credential lifecycle reason",
       action,
       now,
     }).code).toBe("FRESH_MFA_REQUIRED");
   });
 
-  it("keeps administrator privileged actions on the short step-up window", () => {
-    const sixMinutesAgo = new Date(now.getTime() - 6 * 60_000);
+  it("keeps administrator privileged actions on the 24-hour step-up window", () => {
+    const staleBeyondOneDay = new Date(now.getTime() - 25 * 60 * 60_000);
     expect(authorizePrivilegedAction({
       actorRole: "admin",
-      mfaVerifiedAt: sixMinutesAgo,
+      mfaVerifiedAt: staleBeyondOneDay,
       reason: "Rotating a leaked provider key",
       action: "role.change",
       now,
     })).toEqual({ allowed: false, code: "FRESH_MFA_REQUIRED" });
-    expect(ADMIN_STEP_UP_MFA_MS).toBe(5 * 60_000);
-    expect(LEARNER_SELF_SERVICE_MFA_MS).toBe(24 * 60 * 60_000);
+    expect(ADMIN_STEP_UP_MFA_MS).toBe(24 * 60 * 60_000);
+    expect(LEARNER_SELF_SERVICE_MFA_MS).toBe(Number.POSITIVE_INFINITY);
   });
 });
