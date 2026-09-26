@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildGeneralTutorMessages,
   buildTutorMessages,
   contextManifest,
   projectTutorContextManifest,
+  TUTOR_ROLE_POLICY_LINES,
+  type GeneralTutorContext,
   type LearnerTutorContext,
 } from "../context";
 
@@ -112,5 +115,26 @@ describe("tutor structured context policy", () => {
     expect(safe?.provenance["concept_mastery.current_skill"]).toContain("owner/current-concept");
     expect(JSON.stringify(safe)).not.toContain("nvapi-");
     expect(JSON.stringify(safe)).not.toContain("stealTokens");
+  });
+});
+
+describe("Patch role policy (shared between lesson and general chat)", () => {
+  const generalContext: GeneralTutorContext = {
+    learnerId: "learner-1",
+    displayName: "Asha",
+    analogyPreference: "helpful",
+    confirmedInterests: [],
+    learnerGoals: [],
+    selectedTracks: [],
+  };
+
+  it("is present verbatim in the lesson-mode system prompt", () => {
+    const [system] = buildTutorMessages(context, "Explain scalars.");
+    for (const line of TUTOR_ROLE_POLICY_LINES) expect(system?.content).toContain(line);
+  });
+
+  it("is present verbatim in the general-chat system prompt", () => {
+    const [system] = buildGeneralTutorMessages(generalContext, "What's a linked list?");
+    for (const line of TUTOR_ROLE_POLICY_LINES) expect(system?.content).toContain(line);
   });
 });
