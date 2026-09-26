@@ -64,6 +64,26 @@ readonly trivy_version='0.69.3'
 readonly syft_version='1.42.3'
 readonly grype_version='0.104.1'
 
+# The installer invokes /usr/bin/node directly. On this runner that path is a
+# symlink the workflow creates (`ln -sf "$(command -v node)" /usr/bin/node`)
+# pointing at the toolchain's real install, which commonly lives under /opt
+# (e.g. hostedtoolcache). The sandbox below replaces /opt with an empty tmpfs
+# so only the reviewed release tree is visible there; without re-exposing the
+# real Node install, /usr/bin/node resolves to a target the sandbox hides and
+# every install-guest.sh invocation fails at the runtime-record verification
+# step with a generic error, regardless of scenario. Re-bind the real
+# top-level /opt directory that owns the Node binary, read-only, alongside
+# the reviewed release tree.
+node_bind_args=()
+if node_real_path="$(command -v node 2>/dev/null)" && node_real_path="$(readlink -f -- "$node_real_path")"; then
+  if [[ "$node_real_path" == /opt/*/* ]]; then
+    node_opt_root="/opt/$(cut -d/ -f3 <<<"$node_real_path")"
+    if [[ -d "$node_opt_root" ]]; then
+      node_bind_args=(--ro-bind "$node_opt_root" "$node_opt_root")
+    fi
+  fi
+fi
+
 write_runner_environment() {
   cat >"$work/etc-learncoding/runner.env" <<'EOF'
 RUNNER_HOST=192.168.122.12
@@ -376,6 +396,7 @@ run_installer() {
       --bind "$work/usr-sbin" /usr/sbin \
       --bind "$work/etc" /etc \
       --tmpfs /opt --dir /opt/learncoding --bind "$release" /opt/learncoding \
+      "${node_bind_args[@]}" \
       --tmpfs /var --tmpfs /tmp --dir /tmp/fixture-artifacts --dir /tmp/fixture-output \
       --bind "$work/etc-learncoding" /etc/learncoding \
       --bind "$work/systemd" /etc/systemd/system \
