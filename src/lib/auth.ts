@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-import { and, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, eq, gt, sql } from "drizzle-orm";
 import { betterAuth } from "better-auth";
 import { createAuthMiddleware } from "better-auth/api";
+import type { GenericEndpointContext } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { admin, twoFactor } from "better-auth/plugins";
@@ -31,6 +32,26 @@ import {
   restrictedAdminRole,
   restrictedLearnerRole,
 } from "@/lib/security/better-auth-admin-policy";
+import {
+  activeSessionElsewhereError,
+  consumeSessionTakeoverBudget,
+  hasActiveSession,
+  recordSessionTakeoverFailure,
+  revokeSessionsForTakeover,
+  SECOND_FACTOR_PATHS,
+  sessionTakeoverRateLimitedError,
+  wantsSessionTakeover,
+} from "@/lib/security/session-takeover";
+
+/** Account behind a password-verified sign-in that is waiting for its second factor. */
+async function pendingTwoFactorUserId(ctx: GenericEndpointContext) {
+  const cookie = ctx.context.createAuthCookie("two_factor");
+  const identifier = await ctx.getSignedCookie(cookie.name, ctx.context.secret);
+  if (!identifier) return null;
+  const pending = await ctx.context.internalAdapter.findVerificationValue(identifier);
+  if (!pending || pending.expiresAt <= new Date()) return null;
+  return pending.value;
+}
 
 const isBuild = process.env.NEXT_PHASE === "phase-production-build";
 const authSecret =
@@ -169,13 +190,35 @@ export const auth = betterAuth({
     database: { generateId: () => randomUUID() },
   },
   hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      if (!SECOND_FACTOR_PATHS.includes(ctx.path)) return;
+      const pendingUserId = await pendingTwoFactorUserId(ctx);
+      if (!pendingUserId) return;
+      if (wantsSessionTakeover(ctx.path, ctx.headers)) {
+        if (!(await consumeSessionTakeoverBudget(pendingUserId))) {
+          await recordSessionTakeoverFailure(pendingUserId, "rate_limited");
+          throw sessionTakeoverRateLimitedError();
+        }
+        return;
+      }
+      // Refuse before the challenge or single-use code is consumed, so a
+      // blocked learner can still choose to take over with a fresh code.
+      await archiveExpiredSessions(pendingUserId);
+      if (await hasActiveSession(pendingUserId)) throw activeSessionElsewhereError();
+    }),
     after: createAuthMiddleware(async (ctx) => {
       if (![
         "/two-factor/verify-totp",
         "/two-factor/verify-backup-code",
       ].includes(ctx.path)) return;
       const completed = ctx.context.newSession;
-      if (!completed) return;
+      if (!completed) {
+        if (wantsSessionTakeover(ctx.path, ctx.headers)) {
+          const pendingUserId = await pendingTwoFactorUserId(ctx);
+          if (pendingUserId) await recordSessionTakeoverFailure(pendingUserId, "invalid_code");
+        }
+        return;
+      }
       await db
         .update(schema.session)
         .set({ mfaVerifiedAt: new Date() })
@@ -224,22 +267,17 @@ export const auth = betterAuth({
     },
     session: {
       create: {
-        before: async (candidate) => {
+        before: async (candidate, context) => {
           await archiveExpiredSessions(candidate.userId);
-          const [activeSession] = await db
-            .select({ id: schema.session.id })
-            .from(schema.session)
-            .where(
-              and(
-                eq(schema.session.userId, candidate.userId),
-                isNull(schema.session.revokedAt),
-                gt(schema.session.expiresAt, new Date()),
-              ),
-            )
-            .limit(1);
-
           // One active device family. Multiple tabs share the same auth cookie.
-          if (activeSession) return false;
+          if (!(await hasActiveSession(candidate.userId))) return;
+          // Reaching session creation on the takeover path means this request
+          // already verified the password challenge and a valid TOTP code.
+          if (wantsSessionTakeover(context?.path, context?.headers)) {
+            await revokeSessionsForTakeover(candidate.userId);
+            return;
+          }
+          throw activeSessionElsewhereError();
         },
         after: async (createdSession) => {
           try {

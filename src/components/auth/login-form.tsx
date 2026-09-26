@@ -21,6 +21,7 @@ export function LoginForm() {
   const [busy, setBusy] = useState(false);
   const [gate, setGate] = useState<LoginGateState>("checking");
   const [error, setError] = useState<string | null>(null);
+  const [signedInElsewhere, setSignedInElsewhere] = useState(false);
   const submittingRef = useRef(false);
   const gateGenerationRef = useRef(0);
 
@@ -107,6 +108,7 @@ export function LoginForm() {
     submittingRef.current = true;
     setBusy(true);
     setError(null);
+    setSignedInElsewhere(false);
     const data = new FormData(event.currentTarget);
     try {
       const result = await authClient.signIn.email({
@@ -116,9 +118,14 @@ export function LoginForm() {
       });
       if (result.error) {
         const duplicateSession =
+          result.error.code === "ACTIVE_SESSION_ELSEWHERE" ||
           result.error.code === "FAILED_TO_CREATE_SESSION" ||
           result.error.message === "Failed to create session";
         if (duplicateSession && await resumeExistingSession()) return;
+        if (duplicateSession) {
+          setSignedInElsewhere(true);
+          return;
+        }
         setError(result.error.message ?? "We could not sign you in.");
         return;
       }
@@ -183,6 +190,12 @@ export function LoginForm() {
   return (
     <form className={styles.form} onSubmit={submit}>
       {error && <p className={styles.error} role="alert">{error}</p>}
+      {signedInElsewhere && (
+        <div className={styles.error} role="alert">
+          <p><strong>You&apos;re signed in on another device.</strong> Codestead allows one active device at a time.</p>
+          <p>Sign out there first, or if you can&apos;t reach it, <Link href="/lost-device">request lost-device help</Link>. Accounts with an authenticator app can sign the other device out from the verification step.</p>
+        </div>
+      )}
       <div className={styles.field}>
         <label htmlFor="email">Email address</label>
         <input id="email" name="email" type="email" autoComplete="email" placeholder="you@example.com" required />

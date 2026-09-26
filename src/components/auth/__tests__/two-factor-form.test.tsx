@@ -99,4 +99,52 @@ describe("two-factor session completion", () => {
     expect(screen.getByRole("button", { name: "Verify and continue" })).toBeEnabled();
     expect(code).toHaveValue("123456");
   });
+
+  it("offers to sign out the other device and confirms the takeover with a fresh TOTP code", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(json({ error: "Authentication required." }, 401))
+      .mockResolvedValueOnce(json({ error: "Authentication required." }, 401))
+      .mockResolvedValueOnce(json({ ok: true, redirectTo: "/onboarding" }));
+    vi.stubGlobal("fetch", fetchMock);
+    mocks.verifyTotp
+      .mockResolvedValueOnce({
+        data: null,
+        error: { code: "ACTIVE_SESSION_ELSEWHERE", message: "You're signed in on another device." },
+      })
+      .mockResolvedValueOnce({ data: { ok: true }, error: null });
+    const user = userEvent.setup();
+    render(<TwoFactorForm />);
+    await user.type(screen.getByLabelText("Authenticator code"), "123456");
+    await user.click(screen.getByRole("button", { name: "Verify and continue" }));
+    expect(await screen.findByText("You're signed in on another device.")).toBeTruthy();
+    expect(mocks.push).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Sign out my other device and sign in here" }));
+    expect(screen.queryByRole("button", { name: "Use a saved recovery code" })).toBeNull();
+    const input = screen.getByLabelText("Authenticator code");
+    await user.clear(input);
+    await user.type(input, "654321");
+    await user.click(screen.getByRole("button", { name: "Sign out other device and continue" }));
+
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/onboarding"));
+    expect(mocks.verifyTotp).toHaveBeenLastCalledWith(
+      { code: "654321", trustDevice: false },
+      { headers: { "x-codestead-session-takeover": "1" } },
+    );
+  });
+
+  it("shows the server error when the takeover code is wrong", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json({ error: "Authentication required." }, 401)));
+    mocks.verifyTotp
+      .mockResolvedValueOnce({ data: null, error: { code: "ACTIVE_SESSION_ELSEWHERE", message: "x" } })
+      .mockResolvedValueOnce({ data: null, error: { code: "INVALID_CODE", message: "Invalid code" } });
+    const user = userEvent.setup();
+    render(<TwoFactorForm />);
+    await user.type(screen.getByLabelText("Authenticator code"), "123456");
+    await user.click(screen.getByRole("button", { name: "Verify and continue" }));
+    await user.click(await screen.findByRole("button", { name: "Sign out my other device and sign in here" }));
+    await user.click(screen.getByRole("button", { name: "Sign out other device and continue" }));
+    expect(await screen.findByText("Invalid code")).toBeTruthy();
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
 });
