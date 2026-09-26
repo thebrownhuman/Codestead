@@ -80,6 +80,11 @@
 .reviewItem span:nth-child(2) { display: grid; min-width: 0; }
 .reviewItem strong { font-size: .82rem; }
 .reviewItem small { color: var(--ink-soft); font-size: .75rem; }
+.plannedCoursesSection { display: grid; gap: 12px; }
+.plannedCoursesSection summary { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-muted); color: var(--ink-soft); cursor: pointer; font-size: .8rem; font-weight: 800; list-style: none; }
+.plannedCoursesSection summary::-webkit-details-marker { display: none; }
+.plannedCoursesSection summary svg { flex: none; transition: transform var(--motion-base) var(--ease-out); }
+.plannedCoursesSection[open] summary svg { transform: rotate(180deg); }
 .sideCard { display: grid; gap: 10px; padding: 16px; }
 .sideCard h3 { margin: 0; font-size: .875rem; }
 .sideCard p { margin: 0; color: var(--ink-soft); font-size: .875rem; }
