@@ -101,7 +101,7 @@
 .rewardUnavailable > div { display: grid; gap: 3px; }
 .rewardUnavailable strong { font-size: .8rem; }
 .rewardUnavailable small { color: var(--ink-soft); font-size: .67rem; }
-.sectionBlock { display: grid; gap: 14px; padding-top: 13px; }
+.sectionBlock { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr); gap: 14px; padding-top: 13px; }
 .sectionTitle { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
 .sectionTitle h2 { margin: 3px 0 0; font-size: 1.5rem; letter-spacing: -.035em; }
 .sectionTitle > a { display: flex; align-items: center; gap: 6px; color: var(--brand); font-size: .7rem; font-weight: 800; }
