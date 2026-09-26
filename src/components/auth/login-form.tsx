@@ -89,7 +89,8 @@ export function LoginForm() {
     // one-device sign-in surfaces as a query param instead of a result.error.
     const params = new URLSearchParams(window.location.search);
     if (params.get("error") === "ACTIVE_SESSION_ELSEWHERE") {
-      setSignedInElsewhere(true);
+      // Deferred so the effect body stays free of synchronous setState.
+      queueMicrotask(() => setSignedInElsewhere(true));
       const url = new URL(window.location.href);
       url.searchParams.delete("error");
       url.searchParams.delete("error_description");
