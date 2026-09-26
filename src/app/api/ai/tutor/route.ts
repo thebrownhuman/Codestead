@@ -6,8 +6,10 @@ import { z } from "zod";
 import {
   AUTHORED_TUTOR_FALLBACK_MESSAGE,
   BUDDY_TUTOR_PROMPT_VERSION,
+  buildGeneralTutorMessages,
   buildTutorMessages,
   contextManifest,
+  generalContextManifest,
 } from "@/lib/ai/context";
 import {
   reconcileFallbackBudget,
@@ -57,11 +59,16 @@ import {
 
 const requestSchema = z.object({
   requestId: z.uuid(),
-  courseId: z.string().regex(/^[a-z][a-z0-9-]*$/),
-  skillId: z.string().min(3).max(180),
+  // Both present opens Patch grounded in that lesson; both absent is
+  // general coding help with no curriculum context to leak.
+  courseId: z.string().regex(/^[a-z][a-z0-9-]*$/).optional(),
+  skillId: z.string().min(3).max(180).optional(),
   message: z.string().trim().min(1).max(8_000),
   threadId: z.uuid().optional(),
-});
+}).refine(
+  (value) => Boolean(value.courseId) === Boolean(value.skillId),
+  { message: "courseId and skillId must both be present or both be absent." },
+);
 
 const noStore = {
   "Cache-Control": "private, no-store, max-age=0, must-revalidate",
@@ -129,10 +136,14 @@ export async function POST(request: NextRequest) {
   const body = requestSchema.safeParse(await request.json().catch(() => null));
   if (!body.success) {
     return NextResponse.json(
-      { error: "A request ID, course, skill, and message are required.", code: "INVALID_REQUEST" },
+      {
+        error: "A request ID and message are required; course and skill must both be present or both be absent.",
+        code: "INVALID_REQUEST",
+      },
       { status: 400, headers: noStore },
     );
   }
+  const hasLesson = Boolean(body.data.courseId && body.data.skillId);
   // Redact once before hashing, provider transmission, or chat persistence.
   const learnerMessage = sanitizeTutorMemoryText(body.data.message, 8_000);
   const receiptInput = {
@@ -140,8 +151,8 @@ export async function POST(request: NextRequest) {
     action: "tutor.post" as const,
     requestId: body.data.requestId,
     inputHash: canonicalProviderOperationHash({
-      courseId: body.data.courseId,
-      skillId: body.data.skillId,
+      courseId: body.data.courseId ?? null,
+      skillId: body.data.skillId ?? null,
       message: learnerMessage.text,
       threadId: body.data.threadId ?? null,
     }),
@@ -157,11 +168,13 @@ export async function POST(request: NextRequest) {
     ],
     async () => {
   const repository = createContentRepository();
-  const [course, location] = await Promise.all([
-    repository.getCourse(body.data.courseId),
-    repository.getSkillLocation(body.data.skillId),
-  ]);
-  if (!course || !location || location.course.id !== course.id) {
+  const [course, location] = hasLesson
+    ? await Promise.all([
+        repository.getCourse(body.data.courseId!),
+        repository.getSkillLocation(body.data.skillId!),
+      ])
+    : [null, null] as const;
+  if (hasLesson && (!course || !location || location.course.id !== course.id)) {
     return NextResponse.json({ error: "Published curriculum context not found." }, { status: 404 });
   }
 
@@ -405,56 +418,77 @@ export async function POST(request: NextRequest) {
       return leftPriority - rightPriority;
     });
 
-    const implementationLanguage = course.id === "dsa"
-      ? profile?.dsaLanguage ?? "cpp"
-      : course.runtime.language;
-    const [structuredMemory, mentorRecommendation] = await Promise.all([
-      loadTutorStructuredMemory({
+    const analogyPreference =
+      profile?.analogyFrequency === "frequent"
+        ? ("frequent" as const)
+        : profile?.analogyFrequency === "neutral"
+          ? ("neutral" as const)
+          : ("helpful" as const);
+    const confirmedInterests = (profile?.analogyInterests ?? [])
+      .filter((interest) => interest.confirmed)
+      .map((interest) => interest.label)
+      .slice(0, 5);
+    const learningPreferences = {
+      selfReportedLevel: profile?.selfReportedLevel,
+      preferredSessionMinutes: profile?.preferredSessionMinutes,
+      weeklyGoalMinutes: profile?.weeklyGoalMinutes,
+    };
+
+    // A lesson is optional: Patch also answers general coding questions with
+    // no course/skill context to leak. loadMentorRecommendation is
+    // learner-level (not skill-scoped), so it runs in both modes.
+    const mentorRecommendation = await loadMentorRecommendation(authz.session.user.id);
+    let messages: ReturnType<typeof buildTutorMessages>;
+    let tutorContextManifest: ReturnType<typeof contextManifest> | ReturnType<typeof generalContextManifest>;
+    if (hasLesson && course && location) {
+      const implementationLanguage = course.id === "dsa"
+        ? profile?.dsaLanguage ?? "cpp"
+        : course.runtime.language;
+      const structuredMemory = await loadTutorStructuredMemory({
         userId: authz.session.user.id,
         skillId: location.skill.id,
         preferredLanguage: implementationLanguage,
         selectedThreadId: requestedThreadId,
-      }),
-      loadMentorRecommendation(authz.session.user.id),
-    ]);
-    const tutorContext = {
-      learnerId: authz.session.user.id,
-      displayName: authz.session.user.name,
-      course: { slug: course.id, version: course.version, title: course.title },
-      lesson: {
-        slug: location.skill.id,
-        title: location.skill.title,
-        objective: location.skill.outcomes.join(" "),
-      },
-      currentConcepts: [
-        structuredMemory.currentConcept,
-      ],
-      activeMisconceptionTags: [...structuredMemory.activeMisconceptionTags],
-      implementationLanguage,
-      analogyPreference:
-        profile?.analogyFrequency === "frequent"
-          ? ("frequent" as const)
-          : profile?.analogyFrequency === "neutral"
-            ? ("neutral" as const)
-            : ("helpful" as const),
-      confirmedInterests: (profile?.analogyInterests ?? [])
-        .filter((interest) => interest.confirmed)
-        .map((interest) => interest.label)
-        .slice(0, 5),
-      learnerGoals: profile?.learningGoals ?? [],
-      selectedTracks: profile?.selectedTracks ?? [],
-      learningPreferences: {
-        selfReportedLevel: profile?.selfReportedLevel,
-        preferredSessionMinutes: profile?.preferredSessionMinutes,
-        weeklyGoalMinutes: profile?.weeklyGoalMinutes,
-      },
-      recentRelevantSummary: structuredMemory.recentRelevantSummary ?? undefined,
-      selectedThreadTail: structuredMemory.selectedThreadTail,
-      evidenceRowsConsidered: structuredMemory.evidenceRowsConsidered,
-      evidenceRowsCapped: structuredMemory.evidenceRowsCapped,
-    };
-    const messages = buildTutorMessages(tutorContext, learnerMessage.text);
-    const tutorContextManifest = contextManifest(tutorContext);
+      });
+      const tutorContext = {
+        learnerId: authz.session.user.id,
+        displayName: authz.session.user.name,
+        course: { slug: course.id, version: course.version, title: course.title },
+        lesson: {
+          slug: location.skill.id,
+          title: location.skill.title,
+          objective: location.skill.outcomes.join(" "),
+        },
+        currentConcepts: [
+          structuredMemory.currentConcept,
+        ],
+        activeMisconceptionTags: [...structuredMemory.activeMisconceptionTags],
+        implementationLanguage,
+        analogyPreference,
+        confirmedInterests,
+        learnerGoals: profile?.learningGoals ?? [],
+        selectedTracks: profile?.selectedTracks ?? [],
+        learningPreferences,
+        recentRelevantSummary: structuredMemory.recentRelevantSummary ?? undefined,
+        selectedThreadTail: structuredMemory.selectedThreadTail,
+        evidenceRowsConsidered: structuredMemory.evidenceRowsConsidered,
+        evidenceRowsCapped: structuredMemory.evidenceRowsCapped,
+      };
+      messages = buildTutorMessages(tutorContext, learnerMessage.text);
+      tutorContextManifest = contextManifest(tutorContext);
+    } else {
+      const generalContext = {
+        learnerId: authz.session.user.id,
+        displayName: authz.session.user.name,
+        analogyPreference,
+        confirmedInterests,
+        learnerGoals: profile?.learningGoals ?? [],
+        selectedTracks: profile?.selectedTracks ?? [],
+        learningPreferences,
+      };
+      messages = buildGeneralTutorMessages(generalContext, learnerMessage.text);
+      tutorContextManifest = generalContextManifest();
+    }
     const routed = await routeTutorRequest({
       learnerId: authz.session.user.id,
       candidates,
@@ -560,7 +594,7 @@ export async function POST(request: NextRequest) {
           .insert(chatThread)
           .values({
             userId: authz.session.user.id,
-            title: `${course.title}: ${location.skill.title}`,
+            title: hasLesson && course && location ? `${course.title}: ${location.skill.title}` : "General chat",
           })
           .returning({
             id: chatThread.id,
@@ -574,19 +608,22 @@ export async function POST(request: NextRequest) {
       }
 
       if (!appendRejected) {
+        const curriculumRefs = hasLesson && course && location
+          ? [course.id, location.module.id, location.skill.id]
+          : [];
         await tx.insert(chatMessage).values([
           {
             threadId: threadId!,
             role: "user",
             content: learnerMessage.text,
-            curriculumRefs: [course.id, location.module.id, location.skill.id],
+            curriculumRefs,
           },
           {
             threadId: threadId!,
             role: "assistant",
             content: routed.result.content,
             modelCallId: callId,
-            curriculumRefs: [course.id, location.module.id, location.skill.id],
+            curriculumRefs,
           },
         ]);
       }

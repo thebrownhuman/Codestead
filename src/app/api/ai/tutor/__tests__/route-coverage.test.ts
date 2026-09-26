@@ -406,6 +406,31 @@ describe("tutor route durable execution coverage", () => {
     expect(mocks.parseMasterKey).not.toHaveBeenCalled();
   });
 
+  it("answers general chat with no lesson: no curriculum lookup, general policy manifest, generic thread title", async () => {
+    queueExecution({ threadId: undefined });
+    mocks.routeTutorRequest.mockImplementationOnce(async (input) => {
+      expect(JSON.stringify(input.messages)).toContain("No lesson is open right now");
+      expect(JSON.stringify(input.messages)).not.toContain("Current lesson:");
+      return providerSuccess();
+    });
+
+    const response = await POST(tutorRequest({ threadId: undefined, courseId: undefined, skillId: undefined }));
+    expect(response.status).toBe(200);
+    expect(mocks.getCourse).not.toHaveBeenCalled();
+    expect(mocks.getSkillLocation).not.toHaveBeenCalled();
+    expect(mocks.loadTutorStructuredMemory).not.toHaveBeenCalled();
+    const body = await response.json();
+    expect(body.contextManifest.course).toBeNull();
+    expect(body.contextManifest.included).not.toContain("curriculum.current_course_lesson");
+    expect(state.persistedValues.some((value) => isRecord(value) && value.title === "General chat")).toBe(true);
+  });
+
+  it("rejects a request with only one of courseId/skillId", async () => {
+    const response = await POST(tutorRequest({ threadId: undefined, skillId: undefined }));
+    expect(response.status).toBe(400);
+    expect((await response.json()).code).toBe("INVALID_REQUEST");
+  });
+
   it("routes a learner with only a Google credential using the default Gemini tutor policy", async () => {
     state.acceptedPurposes.add("provider:google");
     mocks.consentPurposeForProvider.mockImplementation((provider) =>
