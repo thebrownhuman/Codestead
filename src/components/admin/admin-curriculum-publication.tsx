@@ -4,6 +4,7 @@ import { AlertTriangle, BookOpenCheck, CheckCircle2, FileSearch, RefreshCw, Shie
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { PasswordInput } from "@/components/ui/password-input";
+import { useConfirm } from "@/components/ui/use-confirm";
 import { REVIEW_DIMENSIONS, type CurriculumReviewChecklist } from "@/lib/curriculum-publication/contracts";
 import { approvedLabel } from "@/lib/curriculum-publication/review-approval-labels";
 
@@ -38,7 +39,7 @@ type Detail = {
   timeline: Array<{ id: string; reviewerName: string; decision: string; reason: string }>;
 };
 type GateIssue = { code: string; artifactKey?: string; message: string };
-type Gate = { allowed: boolean; issues: GateIssue[]; warnings?: GateIssue[]; reportHash: string };
+type Gate = { allowed: boolean; issues: GateIssue[]; warnings?: GateIssue[]; warningsOmitted?: number; reportHash: string };
 
 // Single-owner mode: one state per artifact, driven by the formal approval.
 function ApprovalBadge({ approved }: { approved: boolean }) {
@@ -101,6 +102,7 @@ export function AdminCurriculumPublication({
   // Tests switch the disabled checklist back on so its code stays exercised.
   detailedReviewChecklist = DETAILED_REVIEW_CHECKLIST_ENABLED,
 }: { readonly detailedReviewChecklist?: boolean } = {}) {
+  const { confirm, confirmDialog } = useConfirm();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [reviewQueue, setReviewQueue] = useState<ReviewQueue>(emptyReviewQueue);
   const [queueCourse, setQueueCourse] = useState("");
@@ -246,7 +248,7 @@ export function AdminCurriculumPublication({
     catch (cause) {
       const message = cause instanceof Error ? cause.message : "Operation failed safely.";
       setError(message === "FRESH_MFA_REQUIRED"
-        ? "Enter your six-digit authenticator code once; it stays valid for about five minutes."
+        ? "Enter your six-digit authenticator code once; it stays valid for 24 hours on this session."
         : message);
       // The error and the code/reason inputs live at the top of a long page.
       document.getElementById("curriculum-auth")?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -281,7 +283,12 @@ export function AdminCurriculumPublication({
   }
   async function approveAndPublish() {
     if (!candidate) return;
-    if (!window.confirm(`Approve every artifact of ${candidate.title} v${candidate.version} and publish it as ${targetStage}? Learners will see it immediately.`)) return;
+    if (!(await confirm({
+      title: `Approve and publish ${candidate.title} v${candidate.version}?`,
+      description: `Every artifact will be approved and published as ${targetStage}. Learners will see it immediately.`,
+      confirmLabel: "Approve & publish",
+      destructive: true,
+    }))) return;
     const approvePayload = { reason: reason.trim() };
     const publishPayload = { expectedVersion: candidate.publicationRevision, targetStage, reason: reason.trim() };
     await mutation(async () => {
@@ -303,7 +310,7 @@ export function AdminCurriculumPublication({
     await mutation(() => requestAdminJson(`/api/admin/curriculum/versions/${candidate.id}/retire`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ requestId: idFor(fingerprint), ...payload }) }), "Non-current curriculum version retired; its immutable history was preserved.");
   }
 
-  return <main className={styles.adminPage}>
+  return <><main className={styles.adminPage}>
     <header className={styles.pageHead}><div><span className={styles.eyebrow}>Human editorial control</span><h1>Course <span>review &amp; publication</span></h1><p>{reviewQueue.total} staged artifacts need review across {reviewQueue.courseCount} course versions. Approval remains a human, MFA-protected decision.</p></div><div className={styles.headActions}><button type="button" className="button button-secondary" onClick={() => void loadCurriculum()}><RefreshCw size={14} /> Refresh</button><button type="button" className="button button-primary" disabled={busy} onClick={() => void stage()}><BookOpenCheck size={14} /> Stage drafts</button></div></header>
     <p className={styles.safeNotice}><ShieldCheck size={14} /> AI-assisted files remain draft and exam-ineligible. Staging never approves, publishes, or rewrites them.</p>
     {error && <p className={styles.inlineError} role="alert">{error}</p>}{notice && <p className={styles.inlineSuccess} role="status">{notice}</p>}
@@ -338,7 +345,7 @@ export function AdminCurriculumPublication({
                 ? approvedLabel(artifacts.filter((item) => item.reviewStatus === "approved").length, artifacts.length)
                 : approvedLabel(candidate.approvedCount, candidate.artifactCount)}</small></span></div><StatusPill status={candidate.stage} /></div><div className={styles.headActions}><select aria-label="Publication target" value={targetStage} onChange={(event) => { setGate(null); setTargetStage(event.target.value as typeof targetStage); }}><option value="beta">Beta</option><option value="verified">Verified</option></select>{targetStage === "beta" && candidate.stage !== "draft"
             ? <span className={styles.inlineSuccess}><CheckCircle2 size={14} /> Already published as {candidate.stage}. Nothing to do here.</span>
-            : <><button type="button" className="button button-secondary" disabled={busy} onClick={() => void runGate()}>Check readiness</button><button type="button" className="button button-primary" disabled={busy} onClick={() => void approveAndPublish()}>Approve &amp; publish {targetStage}</button></>}{!candidate.isCurrent && candidate.stage !== "retired" && <button type="button" className="button button-secondary" disabled={busy} onClick={() => void retire()}>Retire version</button>}</div>{gate && <div className={gate.allowed ? styles.inlineSuccess : styles.inlineError}><strong>{gate.allowed ? "Ready to publish" : `${gate.issues.length} blocker${gate.issues.length === 1 ? "" : "s"} (unapproved artifacts are approved by "Approve & publish")`}</strong>{groupGateIssues(gate.issues).map((group) => <p key={group.code}>{group.code}{group.count > 1 ? ` ×${group.count}` : ""}: {group.message}</p>)}</div>}{gate?.warnings?.length ? <details className={styles.evidenceDisclosure}><summary>{gate.warnings.length} warnings (don&apos;t block publishing; exams stay off for this course)</summary>{groupGateIssues(gate.warnings).map((group) => <p key={group.code}>{group.code}{group.count > 1 ? ` ×${group.count}` : ""}: {group.message}{group.code === "RUNTIME_LESSON_MISSING" ? ` Skills: ${gate.warnings!.filter((entry) => entry.code === group.code).map((entry) => entry.artifactKey).join(", ")}` : ""}</p>)}</details> : null}{candidate.isCurrent && <div className={styles.headActions}><select aria-label="Rollback target" value={rollbackTarget} onChange={(event) => setRollbackTarget(event.target.value)}><option value="">Select prior version</option>{candidates.filter((item) => item.courseId === candidate.courseId && item.id !== candidate.id && ["beta", "verified"].includes(item.stage)).map((item) => <option key={item.id} value={item.id}>v{item.version}</option>)}</select><button type="button" className="button button-secondary" disabled={!rollbackTarget} onClick={() => void rollback()}>Rollback pointer</button></div>}</article>;
+            : <><button type="button" className="button button-secondary" disabled={busy} onClick={() => void runGate()}>Check readiness</button><button type="button" className="button button-primary" disabled={busy} onClick={() => void approveAndPublish()}>Approve &amp; publish {targetStage}</button></>}{!candidate.isCurrent && candidate.stage !== "retired" && <button type="button" className="button button-secondary" disabled={busy} onClick={() => void retire()}>Retire version</button>}</div>{gate && <div className={gate.allowed ? styles.inlineSuccess : styles.inlineError}><strong>{gate.allowed ? "Ready to publish" : `${gate.issues.length} blocker${gate.issues.length === 1 ? "" : "s"} (unapproved artifacts are approved by "Approve & publish")`}</strong>{groupGateIssues(gate.issues).map((group) => <p key={group.code}>{group.code}{group.count > 1 ? ` ×${group.count}` : ""}: {group.message}</p>)}</div>}{gate?.warnings?.length ? <details className={styles.evidenceDisclosure}><summary>{gate.warnings.length + (gate.warningsOmitted ?? 0)} warnings (don&apos;t block publishing; exams stay off for this course)</summary>{groupGateIssues(gate.warnings).map((group) => <p key={group.code}>{group.code}{group.count > 1 ? ` ×${group.count}` : ""}: {group.message}{group.code === "RUNTIME_LESSON_MISSING" ? ` Skills: ${gate.warnings!.filter((entry) => entry.code === group.code).map((entry) => entry.artifactKey).join(", ")}` : ""}</p>)}{gate.warningsOmitted ? <p>{gate.warningsOmitted} more warnings not shown.</p> : null}</details> : null}{candidate.isCurrent && <div className={styles.headActions}><select aria-label="Rollback target" value={rollbackTarget} onChange={(event) => setRollbackTarget(event.target.value)}><option value="">Select prior version</option>{candidates.filter((item) => item.courseId === candidate.courseId && item.id !== candidate.id && ["beta", "verified"].includes(item.stage)).map((item) => <option key={item.id} value={item.id}>v{item.version}</option>)}</select><button type="button" className="button button-secondary" disabled={!rollbackTarget} onClick={() => void rollback()}>Rollback pointer</button></div>}</article>;
         })()}
         {(artifactsLoading || detailLoading) && <p role="status">Loading the selected curriculum evidence…</p>}
         <div className={styles.balancedColumns}><article className={styles.panel}><div className={styles.panelHead}><div><FileSearch size={18} /><span><strong>Artifacts</strong><small>{approvedLabel(artifacts.filter((item) => item.reviewStatus === "approved").length, artifacts.length)}</small></span></div>{artifacts.some((item) => item.reviewStatus !== "approved") && <button className="button button-secondary" disabled={busy} onClick={() => void approve()} type="button"><CheckCircle2 size={14} /> Approve all</button>}</div>{artifacts.map((item) => <button className={styles.curriculumArtifact} key={item.id} onClick={() => setArtifactId(item.id)}><span><strong>{item.artifactKey}</strong><small>{humanize(item.artifactType)} · {item.sourcePath}</small></span><span className={styles.reviewBadges}><ApprovalBadge approved={item.reviewStatus === "approved"} /></span></button>)}</article>
@@ -347,5 +354,5 @@ export function AdminCurriculumPublication({
               : <button className="button button-primary" disabled={busy || !detail.artifact.contentHashValid} onClick={() => void approve([detail.artifact.id])} type="button"><CheckCircle2 size={14} /> Approve</button>}</div>}{detail.timeline.map((event) => <p className={styles.safeNotice} key={event.id}>{event.reviewerName} · {humanize(event.decision)} · {event.reason}</p>)}</> : <p>Select an artifact.</p>}</article></div>
       </section>
     </div>
-  </main>;
+  </main>{confirmDialog}</>;
 }

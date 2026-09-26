@@ -239,6 +239,52 @@ describe("adaptive learning application service", () => {
     expect(persistPlan).not.toHaveBeenCalled();
   });
 
+  it("auto-created roadmap plans stay idempotent across two initializePlans calls (e.g. onboarding completion then a lazy /learn visit)", async () => {
+    // Mirrors the deterministic-enrollment-id + onConflictDoNothing dedup that
+    // DrizzleLearningStore.persistPlan performs: the same (user, track) pair
+    // always resolves to the same persisted enrollment, no matter how many
+    // times initializePlans runs or which idempotency key is used.
+    const persistedByTrack = new Map<string, { enrollmentId: string; trackId: string; revisionId: string; revision: number; idempotent: boolean }>();
+    const persistPlan = vi.fn(async (input: { draft: { trackId: string } }) => {
+      const existing = persistedByTrack.get(input.draft.trackId);
+      if (existing) return { ...existing, idempotent: true };
+      const created = {
+        enrollmentId: `enrollment-${input.draft.trackId}`,
+        trackId: input.draft.trackId,
+        revisionId: `revision-${input.draft.trackId}`,
+        revision: 1,
+        idempotent: false,
+      };
+      persistedByTrack.set(input.draft.trackId, created);
+      return created;
+    });
+    const service = serviceWith({
+      getPlanningProfile: vi.fn(async () => ({
+        selectedTrackIds: ["python"],
+        dsaLanguage: null,
+        selfReportedLevel: "advanced",
+      })),
+      getCoursePublications: vi.fn(async (trackIds: readonly string[]) =>
+        trackIds.map((trackId) => ({
+          trackId,
+          courseVersionId: `version-${trackId}`,
+          version: "0.1.0",
+          stage: "beta",
+        }))),
+      persistPlan: persistPlan as LearningTransaction["persistPlan"],
+    });
+
+    const first = await service.initializePlans(USER_ID, "onboarding-plans:learner-1");
+    const second = await service.initializePlans(USER_ID, "lazy-plans:learner-1");
+
+    expect(first.plans.map((plan) => plan.enrollmentId).sort()).toEqual(
+      second.plans.map((plan) => plan.enrollmentId).sort(),
+    );
+    expect(new Set(persistedByTrack.values()).size).toBe(persistedByTrack.size);
+    expect(persistedByTrack.size).toBe(2); // programming-foundations prerequisite + python
+    expect(second.plans.every((plan) => plan.idempotent)).toBe(true);
+  });
+
   it("returns a clear degraded plan when a published version is absent", async () => {
     const service = serviceWith({
       getPlanningProfile: vi.fn(async () => ({

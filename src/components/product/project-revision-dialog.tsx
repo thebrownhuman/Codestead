@@ -4,6 +4,7 @@ import { Download, FileCheck2, GitCommitHorizontal, History, Plus, X } from "luc
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ModalDialog } from "@/components/ui/modal-dialog";
+import { useConfirm } from "@/components/ui/use-confirm";
 
 import styles from "./product-pages.module.css";
 
@@ -61,6 +62,7 @@ export function ProjectRevisionDialog({
   projectTitle: string;
   onClose: () => void;
 }>) {
+  const { confirm, confirmDialog } = useConfirm();
   const [history, setHistory] = useState<RevisionHistory | null>(null);
   const [files, setFiles] = useState<LibraryFile[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -103,9 +105,9 @@ export function ProjectRevisionDialog({
     };
   }, [readHistory]);
 
-  function requestClose() {
+  async function requestClose() {
     if (busy) return;
-    if (dirty && !window.confirm("Discard this unfinished revision checkpoint?")) return;
+    if (dirty && !(await confirm({ title: "Discard this unfinished revision checkpoint?", confirmLabel: "Discard", destructive: true }))) return;
     onClose();
   }
 
@@ -195,6 +197,7 @@ export function ProjectRevisionDialog({
   }
 
   return (
+    <>
     <ModalDialog
       backdropClassName={styles.dialogBackdrop}
       describedBy="project-revisions-description"
@@ -253,5 +256,8 @@ export function ProjectRevisionDialog({
           {history?.nextBeforeSequence && <button className="button button-secondary" disabled={olderBusy} onClick={() => void loadOlder()} type="button">{olderBusy ? "Loading…" : "Load older revisions"}</button>}
         </section>
     </ModalDialog>
+    {confirmDialog}
+    </>
   );
 }
+

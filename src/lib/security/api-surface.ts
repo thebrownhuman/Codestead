@@ -19,6 +19,8 @@ const PUBLIC_OPERATIONS: Readonly<Record<string, readonly string[]>> = {
   "src/app/api/invitations/validate/route.ts": ["GET"],
   "src/app/api/lost-device/request/route.ts": ["POST"],
   "src/app/api/lost-device/verify/route.ts": ["POST"],
+  // No session yet by design; re-proves password + single-use TOTP itself.
+  "src/app/api/security/session-takeover/route.ts": ["POST"],
 };
 const AUTH_HANDLER = "src/app/api/auth/[...all]/route.ts";
 const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]);

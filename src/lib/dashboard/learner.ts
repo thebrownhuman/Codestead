@@ -526,6 +526,30 @@ export function createUnavailableDashboardData(displayName: string): Authoritati
   };
 }
 
+/**
+ * Lazily creates the learner's saved plans the first time a plan-bearing
+ * page (`/learn`, `/roadmap`) is visited after their selected tracks became
+ * publishable. Mirrors the "Create my roadmap" button's server call so the
+ * button remains only an error-recovery fallback. `initializePlans` is safe
+ * to call unconditionally here: it takes a per-user advisory lock and uses
+ * deterministic enrollment ids, so concurrent visits cannot create
+ * duplicate plans.
+ */
+export async function ensureLearnerRoadmapInitialized(
+  userId: string,
+  displayName: string,
+  dashboard: AuthoritativeDashboardData,
+): Promise<AuthoritativeDashboardData> {
+  if (dashboard.roadmap.state !== "initialization_required") return dashboard;
+  try {
+    await learningService.initializePlans(userId, `lazy-plans:${userId}`);
+  } catch (error) {
+    reportDashboardFailure("authoritative-load", error);
+    return dashboard;
+  }
+  return loadAuthoritativeDashboard(userId, displayName);
+}
+
 export async function loadAuthoritativeDashboard(
   userId: string,
   displayName: string,

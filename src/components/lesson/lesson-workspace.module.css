@@ -21,11 +21,14 @@
 .outline .activeOutline { color: var(--ink); background: var(--brand-soft); }
 .outline .activeOutline b { border-color: var(--brand); color: var(--on-brand); background: var(--brand); }
 .outline .completeOutline b { color: var(--brand); }
-.content { display: grid; width: min(940px, calc(100% - 36px)); align-content: start; gap: 15px; margin: 0 auto; padding: 22px 0 30px; }
+.content { display: grid; width: min(1320px, calc(100% - 36px)); align-content: start; gap: 15px; margin: 0 auto; padding: 22px 0 30px; }
 .modeTabs { display: flex; justify-content: safe center; gap: 6px; } /* "safe" keeps the first tab reachable when the row scrolls on phones */
 .modeTabs button { display: flex; min-height: var(--control-min,44px); align-items: center; gap: 6px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 9px; color: var(--ink-soft); background: var(--surface); font-size: var(--text-xs,.75rem); font-weight: 750; cursor: pointer; }
 .modeTabs .activeMode { border-color: var(--brand); color: var(--brand-strong); background: var(--brand-soft); }
 .lessonCard { padding: clamp(22px,4vw,46px); border: 1px solid var(--line); border-radius: 22px; background: var(--surface-solid); box-shadow: var(--shadow-small); }
+/* Wider screens give the card room for code/blocks to use, but prose text
+   keeps a readable line length instead of stretching edge to edge. */
+.lessonCard p, .lessonCard li, .lessonCard blockquote { max-width: 72ch; }
 .inlineCheckpoint { overflow: hidden; border: 1px solid color-mix(in srgb,var(--signal-violet) 30%,var(--line)); border-radius: 18px; background: linear-gradient(120deg,color-mix(in srgb,var(--signal-violet-soft) 54%,var(--surface-solid)),var(--surface-solid)); box-shadow: var(--shadow-small); }
 .inlineCheckpoint > summary { display: grid; min-height: 76px; grid-template-columns: 42px minmax(0,1fr) auto; align-items: center; gap: 12px; padding: 13px 16px; cursor: pointer; list-style: none; }
 .inlineCheckpoint > summary::-webkit-details-marker { display: none; }

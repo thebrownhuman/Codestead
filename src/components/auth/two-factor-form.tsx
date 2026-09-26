@@ -53,10 +53,10 @@ export function TwoFactorForm() {
         ? await authClient.twoFactor.verifyBackupCode({ code, trustDevice: false, disableSession: false })
         : elsewhere === "takeover"
           ? await authClient.twoFactor.verifyTotp(
-              { code, trustDevice: false },
+              { code, trustDevice: true },
               { headers: { [SESSION_TAKEOVER_HEADER]: "1" } },
             )
-          : await authClient.twoFactor.verifyTotp({ code, trustDevice: false });
+          : await authClient.twoFactor.verifyTotp({ code, trustDevice: true });
       if (result.error) {
         if (result.error.code === "ACTIVE_SESSION_ELSEWHERE") {
           setElsewhere("blocked");

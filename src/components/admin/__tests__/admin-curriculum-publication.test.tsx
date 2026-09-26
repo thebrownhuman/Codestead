@@ -285,8 +285,8 @@ describe("administrator curriculum editorial queue", () => {
     expect(screen.getByText(/1 warnings/)).toBeInTheDocument();
     expect(screen.getByText(/Skills: python\.variables/)).toBeInTheDocument();
 
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     await user.click(screen.getByRole("button", { name: /Approve & publish verified/i }));
+    await user.click(await screen.findByRole("button", { name: "Approve & publish" }));
     await waitFor(() => expect(screen.getByText("Approved and published as verified.")).toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledWith(`/api/admin/curriculum/versions/${versionDraft}/publish`, expect.objectContaining({ method: "POST" }));
 
@@ -315,12 +315,12 @@ describe("administrator curriculum editorial queue", () => {
       throw new Error(`Unexpected request: ${url}`);
     });
     vi.stubGlobal("fetch", fetchMock);
-    vi.spyOn(window, "confirm").mockReturnValue(false);
     const user = userEvent.setup();
 
     render(<AdminCurriculumPublication />);
     await screen.findByText("Editorial review queue");
     await user.click(screen.getByRole("button", { name: /Approve & publish beta/i }));
+    await user.click(await screen.findByRole("button", { name: "Cancel" }));
 
     expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/approve"), expect.anything());
     expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/publish"), expect.anything());

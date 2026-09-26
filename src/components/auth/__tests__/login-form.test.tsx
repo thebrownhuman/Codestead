@@ -300,6 +300,12 @@ describe("login session resume guard", () => {
     expect(password).toHaveAttribute("type", "password");
   });
 
+  it("hides the Google sign-in control when the server says OAuth is not configured", async () => {
+    render(<LoginForm googleEnabled={false} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled());
+    expect(screen.queryByRole("button", { name: /Continue with Google/i })).not.toBeInTheDocument();
+  });
+
   it("signs in with Google and surfaces a returned error", async () => {
     mocks.signInSocial.mockResolvedValue({ error: { message: "Google sign-in was declined." } });
     const user = userEvent.setup();

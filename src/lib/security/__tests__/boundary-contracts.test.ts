@@ -9,9 +9,9 @@ import { authorizePrivilegedAction, isFreshMfa } from "../privileged-access";
 describe("fresh-MFA boundary contract", () => {
   const now = new Date("2026-07-12T12:00:00.000Z");
 
-  it("accepts exactly the five-minute boundary but rejects future and stale assertions", () => {
-    expect(isFreshMfa(new Date(now.getTime() - 5 * 60_000), now)).toBe(true);
-    expect(isFreshMfa(new Date(now.getTime() - 5 * 60_000 - 1), now)).toBe(false);
+  it("accepts exactly the 24-hour boundary but rejects future and stale assertions", () => {
+    expect(isFreshMfa(new Date(now.getTime() - 24 * 60 * 60_000), now)).toBe(true);
+    expect(isFreshMfa(new Date(now.getTime() - 24 * 60 * 60_000 - 1), now)).toBe(false);
     expect(isFreshMfa(new Date(now.getTime() + 1), now)).toBe(false);
     expect(isFreshMfa(new Date("invalid"), now)).toBe(false);
     expect(isFreshMfa(null, now)).toBe(false);
@@ -19,7 +19,7 @@ describe("fresh-MFA boundary contract", () => {
 
   it.each([
     { actorRole: "learner", mfaVerifiedAt: now, reason: "A valid audit reason", code: "ADMIN_REQUIRED" },
-    { actorRole: "admin", mfaVerifiedAt: new Date(now.getTime() - 300_001), reason: "A valid audit reason", code: "FRESH_MFA_REQUIRED" },
+    { actorRole: "admin", mfaVerifiedAt: new Date(now.getTime() - 24 * 60 * 60_000 - 1), reason: "A valid audit reason", code: "FRESH_MFA_REQUIRED" },
     { actorRole: "admin", mfaVerifiedAt: now, reason: " short ", code: "REASON_REQUIRED" },
     { actorRole: "admin", mfaVerifiedAt: now, reason: "x".repeat(501), code: "REASON_TOO_LONG" },
   ])("denies privileged action with $code", ({ actorRole, mfaVerifiedAt, reason, code }) => {

@@ -41,7 +41,7 @@ describe("complete API authorization surface", () => {
     expect(report.errors).toEqual([]);
     expect(report.files).toBeGreaterThanOrEqual(80);
     expect(report.operations).toBeGreaterThanOrEqual(90);
-    expect(report.boundaryCounts.public).toBe(5);
+    expect(report.boundaryCounts.public).toBe(6);
     expect(report.boundaryCounts["auth-handler"]).toBe(2);
     expect(report.boundaryCounts.admin).toBeGreaterThan(30);
     expect(report.boundaryCounts.authenticated).toBeGreaterThan(50);
@@ -56,6 +56,7 @@ describe("complete API authorization surface", () => {
       "/api/invitations/validate",
       "/api/lost-device/request",
       "/api/lost-device/verify",
+      "/api/security/session-takeover",
     ]);
   });
 });

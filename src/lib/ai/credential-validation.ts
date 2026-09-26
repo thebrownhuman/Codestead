@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { and, asc, eq } from "drizzle-orm";
 
+import { defaultModelForProvider, type CatalogProviderId } from "@/lib/ai/provider-catalog";
 import { callProvider } from "@/lib/ai/providers";
 import { ProviderError, type SupportedProvider } from "@/lib/ai/types";
 import { db } from "@/lib/db/client";
@@ -34,7 +35,11 @@ export async function validateProviderCredential(input: {
     policy?.model ??
     (input.provider === "nvidia_nim"
       ? process.env.NVIDIA_NIM_VALIDATION_MODEL ?? "mistralai/mistral-nemotron"
-      : null);
+      // custom_openai_compatible has no self-serve default: it only works
+      // with an administrator-configured base URL and policy row.
+      : input.provider === "custom_openai_compatible"
+        ? null
+        : defaultModelForProvider(input.provider as CatalogProviderId));
 
   if (!model) {
     return {

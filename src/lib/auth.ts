@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { and, eq, gt, sql } from "drizzle-orm";
 import { betterAuth } from "better-auth";
-import { createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import type { GenericEndpointContext } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
@@ -32,10 +32,15 @@ import {
   restrictedAdminRole,
   restrictedLearnerRole,
 } from "@/lib/security/better-auth-admin-policy";
+import { isGoogleOAuthConfigured } from "@/lib/security/oauth-provider-config";
 import {
   activeSessionElsewhereError,
+  consumeInternalTotpGrant,
+  INTERNAL_TOTP_GRANT_HEADER,
+  isTotpCodeUsed,
   consumeSessionTakeoverBudget,
   hasActiveSession,
+  TRUSTED_DEVICE_MAX_AGE_SECONDS,
   recordSessionTakeoverFailure,
   revokeSessionsForTakeover,
   SECOND_FACTOR_PATHS,
@@ -64,9 +69,7 @@ if (!authSecret) {
   throw new Error("BETTER_AUTH_SECRET is required outside development/build.");
 }
 
-const googleConfigured = Boolean(
-  process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET,
-);
+const googleConfigured = isGoogleOAuthConfigured();
 
 export const auth = betterAuth({
   appName: process.env.APP_NAME ?? "Codestead",
@@ -194,6 +197,14 @@ export const auth = betterAuth({
       if (!SECOND_FACTOR_PATHS.includes(ctx.path)) return;
       const pendingUserId = await pendingTwoFactorUserId(ctx);
       if (!pendingUserId) return;
+      const code = typeof ctx.body?.code === "string" ? ctx.body.code : "";
+      if (ctx.path === "/two-factor/verify-totp" && code) {
+        const internalGrant = consumeInternalTotpGrant(ctx.headers?.get(INTERNAL_TOTP_GRANT_HEADER));
+        // A code already spent on a takeover cannot be replayed anywhere else.
+        if (!internalGrant && await isTotpCodeUsed(pendingUserId, code)) {
+          throw new APIError("UNAUTHORIZED", { code: "INVALID_CODE", message: "Invalid code" });
+        }
+      }
       if (wantsSessionTakeover(ctx.path, ctx.headers)) {
         if (!(await consumeSessionTakeoverBudget(pendingUserId))) {
           await recordSessionTakeoverFailure(pendingUserId, "rate_limited");
@@ -207,6 +218,21 @@ export const auth = betterAuth({
       if (await hasActiveSession(pendingUserId)) throw activeSessionElsewhereError();
     }),
     after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === "/sign-in/email") {
+        // A second device never gets here: session creation is refused while
+        // another device is active (session_one_active_user_unique), and the
+        // takeover goes through /api/security/session-takeover with a code.
+        const created = ctx.context.newSession;
+        if (!created?.user.twoFactorEnabled) return;
+        // Trusted device (24h): the plugin keeps this session without a new
+        // code. Record it as MFA-completed; if the plugin instead issues a
+        // challenge it deletes this provisional session and the stamp with it.
+        await db
+          .update(schema.session)
+          .set({ mfaVerifiedAt: new Date() })
+          .where(eq(schema.session.id, created.session.id));
+        return;
+      }
       if (![
         "/two-factor/verify-totp",
         "/two-factor/verify-backup-code",
@@ -348,7 +374,8 @@ export const auth = betterAuth({
     twoFactor({
       issuer: process.env.APP_NAME ?? "Codestead",
       allowPasswordless: true,
-      trustDeviceMaxAge: 0,
+      // PingID-style: a TOTP-verified browser stays trusted for 24 hours.
+      trustDeviceMaxAge: TRUSTED_DEVICE_MAX_AGE_SECONDS,
     }),
     admin({
       defaultRole: "learner",

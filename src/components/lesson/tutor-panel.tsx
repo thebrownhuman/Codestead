@@ -385,7 +385,7 @@ export function TutorLauncher() {
 
   async function send() {
     const text = message.trim();
-    if (!text || busy || !lesson) return;
+    if (!text || busy) return;
 
     const requestId = crypto.randomUUID();
     const userMessageId = `user-${requestId}`;
@@ -394,8 +394,7 @@ export function TutorLauncher() {
       headers: { "content-type": "application/json", accept: "application/json" },
       body: JSON.stringify({
         requestId,
-        courseId: lesson.courseId,
-        skillId: lesson.skillId,
+        ...(lesson ? { courseId: lesson.courseId, skillId: lesson.skillId } : {}),
         message: text,
         ...(threadId ? { threadId } : {}),
       }),
@@ -634,7 +633,7 @@ export function TutorLauncher() {
           {phone && <span aria-hidden="true" className={styles.grabber} />}
           <span className={styles.title}>
             <strong id="lesson-buddy-title">Patch</strong>
-            <small>{title ? `About: ${title}` : "No lesson open yet"}</small>
+            <small>{title ? `About: ${title}` : "General coding help"}</small>
           </span>
           <span className={styles.headActions}>
             <button
@@ -659,7 +658,7 @@ export function TutorLauncher() {
             <span className={styles.eyebrow}><Sparkles aria-hidden="true" size={13} /> {title ? "Ask about this skill" : "Hi, I'm Patch"}</span>
             <p>{title
               ? <>I know you are working on <strong>{title}</strong>. Ask anything, or pick a start below.</>
-              : "Open any lesson and I can help you with it."}</p>
+              : "Ask me general coding questions any time, or open a lesson and I'll help with it directly."}</p>
           </section>}
           {messages.map((item) => {
             if (item.role === "user") return <div className={styles.userMessage} key={item.id}>{item.content}</div>;
@@ -678,15 +677,14 @@ export function TutorLauncher() {
             <textarea
               aria-label="Message Patch"
               autoFocus
-              disabled={!lesson}
               onChange={(event) => setMessage(event.target.value)}
               onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }}
-              placeholder={lesson ? "Ask Patch about this skill…" : "Open a lesson to chat with Patch"}
+              placeholder={lesson ? "Ask Patch about this skill…" : "Ask Patch anything about code…"}
               ref={inputRef}
               rows={1}
               value={message}
             />
-            <button aria-label="Send message" disabled={busy || !message.trim() || !lesson} type="submit"><ArrowUp aria-hidden="true" size={16} /></button>
+            <button aria-label="Send message" disabled={busy || !message.trim()} type="submit"><ArrowUp aria-hidden="true" size={16} /></button>
           </form>
           <p className={styles.privacy}>Enter to send · Shift+Enter for a new line · Hidden tests and keys stay private.</p>
         </div>

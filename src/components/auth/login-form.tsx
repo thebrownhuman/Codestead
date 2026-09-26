@@ -16,12 +16,15 @@ import styles from "./auth.module.css";
 
 type LoginGateState = "checking" | "cleaning" | "ready" | "session-error" | "cleanup-error";
 
-export function LoginForm() {
+export function LoginForm({ googleEnabled = true }: { googleEnabled?: boolean } = {}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [gate, setGate] = useState<LoginGateState>("checking");
   const [error, setError] = useState<string | null>(null);
   const [signedInElsewhere, setSignedInElsewhere] = useState(false);
+  const [takeover, setTakeover] = useState(false);
+  const [takeoverCode, setTakeoverCode] = useState("");
+  const credentialsRef = useRef<{ email: string; password: string } | null>(null);
   const submittingRef = useRef(false);
   const gateGenerationRef = useRef(0);
 
@@ -124,7 +127,9 @@ export function LoginForm() {
     setBusy(true);
     setError(null);
     setSignedInElsewhere(false);
+    setTakeover(false);
     const data = new FormData(event.currentTarget);
+    credentialsRef.current = { email: String(data.get("email")), password: String(data.get("password")) };
     try {
       const result = await authClient.signIn.email({
         email: String(data.get("email")),
@@ -149,6 +154,40 @@ export function LoginForm() {
         return;
       }
       router.push("/onboarding");
+      router.refresh();
+    } catch {
+      setError("Sign-in is temporarily unavailable. Check your connection and try again.");
+    } finally {
+      submittingRef.current = false;
+      setBusy(false);
+    }
+  }
+
+  async function takeOver(event: React.FormEvent) {
+    event.preventDefault();
+    const credentials = credentialsRef.current;
+    if (!credentials || submittingRef.current) return;
+    const code = takeoverCode.replace(/\s/g, "");
+    if (!/^\d{6}$/.test(code)) {
+      setError("Enter the current six-digit code from your authenticator app.");
+      return;
+    }
+    submittingRef.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/security/session-takeover", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...credentials, code }),
+      });
+      const body = (await response.json().catch(() => ({}))) as { error?: string; redirectTo?: string };
+      if (!response.ok) {
+        setError(body.error ?? "We could not sign out your other device.");
+        return;
+      }
+      credentialsRef.current = null;
+      router.push(body.redirectTo ?? "/onboarding");
       router.refresh();
     } catch {
       setError("Sign-in is temporarily unavailable. Check your connection and try again.");
@@ -210,7 +249,16 @@ export function LoginForm() {
       {signedInElsewhere && (
         <div className={styles.error} role="alert">
           <p><strong>You&apos;re signed in on another device.</strong> Codestead allows one active device at a time.</p>
-          <p>Sign out there first, or if you can&apos;t reach it, <Link href="/lost-device">request lost-device help</Link>. Accounts with an authenticator app can sign the other device out from the verification step.</p>
+          <p>Sign out there first, or if you can&apos;t reach it, <Link href="/lost-device">request lost-device help</Link>.</p>
+          {!takeover && <button className="button button-secondary" disabled={busy} onClick={() => { setTakeover(true); setError(null); }} type="button">Sign out my other device and sign in here</button>}
+        </div>
+      )}
+      {signedInElsewhere && takeover && (
+        <div className={styles.field}>
+          <label htmlFor="takeover-code">Authenticator code</label>
+          <input autoComplete="one-time-code" id="takeover-code" inputMode="numeric" maxLength={6} value={takeoverCode} onChange={(event) => setTakeoverCode(event.target.value)} />
+          <small>Enter a fresh code. Your other device will be signed out and this one signed in.</small>
+          <button className="button button-primary" disabled={busy} onClick={(event) => void takeOver(event)} type="button">{busy ? "Signing in…" : "Sign out other device and continue"}</button>
         </div>
       )}
       <div className={styles.field}>
@@ -223,8 +271,8 @@ export function LoginForm() {
       </div>
       <label className={styles.check}><input name="remember" type="checkbox" defaultChecked /> Keep me signed in on this device for 30 days</label>
       <button className={`button button-primary ${styles.submit}`} disabled={busy} type="submit"><LogIn size={18} /> {busy ? "Signing in…" : "Sign in"}</button>
-      <div className={styles.divider}>or</div>
-      <button className={`button button-secondary ${styles.googleButton}`} disabled={busy} type="button" onClick={google}>G&nbsp; Continue with Google</button>
+      {googleEnabled && <div className={styles.divider}>or</div>}
+      {googleEnabled && <button className={`button button-secondary ${styles.googleButton}`} disabled={busy} type="button" onClick={google}>G&nbsp; Continue with Google</button>}
       <p className={styles.footLink}>Cannot reach the only approved browser profile? <Link href="/lost-device">Request lost-device help</Link></p>
       <p className={styles.footLink}>New to this private cohort? <Link href="/request-access">Request access</Link></p>
     </form>

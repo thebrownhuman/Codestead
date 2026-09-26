@@ -258,16 +258,26 @@ export function RoadmapView({
         </section>
       ) : null}
 
+      <div className={`${styles.sideCard} card`}>
+        <h3><CheckCircle2 size={15} /> What mastery means here</h3>
+        <p>
+          80% can unlock the next topic when all critical criteria pass. A 95%+ independent mastery
+          exam awards the profile badge. Delayed reviews can move a skill back to “needs review”—that
+          is healthy, not punishment.
+        </p>
+      </div>
+
       {futureCatalog.length ? (
-        <>
+        <details className={styles.plannedCoursesSection}>
+          <summary>
+            <span>Planned courses (not available yet)</span>
+            <ChevronDown aria-hidden="true" size={16} />
+          </summary>
           <div className={styles.sectionTitle}>
-            <div>
-              <h2>Coming Soon</h2>
-              <p>Approved scope previews only. These tracks contain no lessons or exams yet.</p>
-            </div>
+            <p>Approved scope previews only. These tracks contain no lessons or exams yet.</p>
             <span className="pill"><Lock size={13} /> Roadmap only</span>
           </div>
-          <section className={styles.roadmap} aria-label="Coming Soon curriculum catalog">
+          <section className={styles.roadmap} aria-label="Planned curriculum catalog">
             {futureCatalog.map((track, index) => (
               <article
                 className={`${styles.roadmapCard} ${styles.locked} card`}
@@ -277,7 +287,7 @@ export function RoadmapView({
               >
                 <span className={styles.trackIcon}>{track.id.slice(0, 3).toUpperCase()}</span>
                 <div className={styles.trackCopy}>
-                  <span>Coming Soon · {track.release}</span>
+                  <span>Planned · {track.release}</span>
                   <h3>{track.title}</h3>
                   <p>{track.scopeBrief}</p>
                   <small>
@@ -290,17 +300,8 @@ export function RoadmapView({
               </article>
             ))}
           </section>
-        </>
+        </details>
       ) : null}
-
-      <div className={`${styles.sideCard} card`}>
-        <h3><CheckCircle2 size={15} /> What mastery means here</h3>
-        <p>
-          80% can unlock the next topic when all critical criteria pass. A 95%+ independent mastery
-          exam awards the profile badge. Delayed reviews can move a skill back to “needs review”—that
-          is healthy, not punishment.
-        </p>
-      </div>
     </div>
   );
 }
