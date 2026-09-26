@@ -165,9 +165,7 @@ export function LoginForm() {
     setError(null);
     try {
       const result = await authClient.signIn.social({
-        provider: "google",
-        callbackURL: "/two-factor",
-        errorCallbackURL: "/login",
+        provider: "google", callbackURL: "/two-factor", errorCallbackURL: "/login",
       });
       if (result?.error) {
         setError(result.error.message ?? "Google sign-in is not available.");
