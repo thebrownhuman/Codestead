@@ -51,8 +51,16 @@
 .floatCardOne strong, .floatCardTwo strong { color: var(--ink); }
 .trackBand { display: flex; align-items: center; gap: 30px; padding: 19px 26px; border: 1px solid var(--line); border-radius: 18px; background: color-mix(in srgb, var(--surface) 88%, transparent); box-shadow: var(--shadow-small); }
 .trackBand > span { flex: 0 0 auto; color: var(--ink-soft); font-size: .75rem; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; }
-.trackBand div { display: flex; width: 100%; min-height: var(--control-min); align-items: center; justify-content: space-around; gap: 20px; }
-.trackBand b { color: var(--ink-soft); font-size: .9rem; }
+.trackList { display: flex; width: 100%; min-height: var(--control-min); align-items: center; justify-content: space-around; gap: 20px; flex-wrap: wrap; }
+.trackChipWrap { position: relative; display: inline-flex; }
+.trackChip { border: 0; background: none; color: var(--ink-soft); font: inherit; font-size: .9rem; cursor: pointer; padding: 6px 2px; border-radius: 8px; }
+.trackChip:hover, .trackChip:focus-visible { color: var(--brand-strong); }
+.trackPopover { position: absolute; z-index: 20; top: calc(100% + 10px); left: 50%; display: grid; width: 250px; gap: 6px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-solid); box-shadow: var(--shadow); font-size: .82rem; text-align: left; transform: translateX(-50%); }
+.trackPopover strong { font-size: .95rem; }
+.trackLevel { color: var(--brand); font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.trackPopover p { margin: 0; color: var(--ink-soft); line-height: 1.5; }
+.trackPopover ul { display: grid; gap: 3px; margin: 4px 0 0; padding: 0 0 0 16px; color: var(--ink-soft); }
+.trackDialogTopics { display: grid; gap: 6px; margin: 0; padding: 0 0 0 18px; color: var(--ink-soft); font-size: .88rem; }
 .section { padding: 130px 0; }
 .sectionHeading { max-width: 740px; margin: 0 auto 50px; text-align: center; }
 .sectionHeading h2, .trustCopy h2, .cta h2 { margin: 18px 0 13px; font-size: clamp(2.1rem, 4vw, 4rem); line-height: 1.02; letter-spacing: -.055em; }

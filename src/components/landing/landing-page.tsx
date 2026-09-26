@@ -15,10 +15,9 @@ import {
   TerminalSquare
 } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
+import { CurriculumChips } from "./curriculum-chips";
 import { PromiseCards } from "./promise-cards";
 import styles from "./landing-page.module.css";
-
-const tracks = ["C", "C++", "Java", "Python", "Web", "DSA", "Git", "AI"];
 
 export function LandingPage() {
   return (
@@ -109,7 +108,7 @@ export function LandingPage() {
 
         <section id="curriculum" className={`${styles.trackBand} page-width`} aria-label="Available curriculum">
           <span>Launch curriculum</span>
-          <div aria-label="Launch curriculum tracks" tabIndex={0}>{tracks.map((track) => <b key={track}>{track}</b>)}</div>
+          <CurriculumChips />
         </section>
 
         <section id="how-it-works" className={`${styles.section} page-width`}>
