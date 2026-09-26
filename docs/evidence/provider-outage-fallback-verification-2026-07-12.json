@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.1.0",
   "generatedAt": "2026-07-12",
-  "revalidatedAt": "2026-09-26T12:26:53.964Z",
+  "revalidatedAt": "2026-09-26T20:24:58.000Z",
   "status": "verified",
   "scope": "Deterministic offline provider outage, administrator-funded fallback authority, stuck-operation recovery, and deletion serialization",
   "productionModelQualityEvidence": false,
@@ -22,7 +22,7 @@
     },
     "focusedContracts": {
       "command": "npm.cmd test -- --run src/lib/ai/__tests__/fallback-grant-boundary.test.ts src/lib/ai/__tests__/fallback-budget.test.ts src/lib/ai/__tests__/router.test.ts src/lib/ai/__tests__/provider-operation-idempotency.test.ts src/lib/ai/__tests__/provider-operation-idempotency-store.test.ts src/lib/data-lifecycle/__tests__/deletion-runtime.test.ts src/app/api/privacy/consents/__tests__/route.test.ts src/app/api/onboarding/profile/__tests__/route.test.ts src/app/api/ai/tutor/__tests__/route-coverage.test.ts",
-      "result": "122 passed / 0 failed across 9 files"
+      "result": "126 passed / 0 failed across 9 files (route-coverage.test.ts grew from 19 to 21 with the default-tutor-policy and no-lesson general-chat cases added alongside the route.ts change below)"
     },
     "typecheck": {
       "command": "npm.cmd run typecheck",
@@ -65,7 +65,8 @@
     "Accuracy of administrator-entered pricing snapshots against provider invoices or foreign-exchange changes; the snapshot is a local authorization cap, not an invoice assertion",
     "Production cookies, deployed routing, provider-side observability, or a deployed account-deletion/outage drill",
     "Cross-request provider circuit breaking, automated provider-health decisions, or operator alert delivery",
-    "A multi-administrator PostgreSQL revocation journey; the release schema enforces a singleton active administrator, while the revocation command is structurally not bound to the grant creator"
+    "A multi-administrator PostgreSQL revocation journey; the release schema enforces a singleton active administrator, while the revocation command is structurally not bound to the grant creator",
+    "The 2026-09-26 no-lesson general-chat addition to route.ts was verified only by the focused Vitest contracts above (unit-level, mocked DB); the Postgres-backed providerOutagePostgresJourney/combinedPostgresGate/selectedNativePostgresGate suites in this file were not re-run for that change"
   ],
   "artifactSha256": {
     "drizzle/0032_short_green_goblin.sql": "ad353e63c2e45c5b46de0266b5f265f20e475771093cc8575aa49abe870b04e5",
@@ -79,7 +80,7 @@
     "src/lib/ai/router.ts": "5951f7b8204b3adf4c182d7d726c69f4c1f8bccb4f5ea8aefe85465987e2fcba",
     "src/lib/ai/provider-operation-idempotency.ts": "06d2e17e1d3cb76b93e4ba736760763c5b5d94decff3f4a29cd535add88aefc5",
     "src/lib/ai/__tests__/provider-operation-idempotency-store.test.ts": "0ef67a0418aab93bb24f438a4b099a2f726c75318d00f30984f71f60bc10cac4",
-    "src/app/api/ai/tutor/route.ts": "85bb53ec848f7989bbab62c5ec77fbaad3f4cb96300e0f8f2a56c6946ac3040b",
+    "src/app/api/ai/tutor/route.ts": "7c4f3478127a41ab906931b3e5ddb21897ed617d7e07e3ebb8e9409614b5b416",
     "src/lib/privacy/consent.ts": "7028354d1bff8efaaf91ee47623fa0f325b928707fa39cbf1d8a0816b15bc958",
     "src/app/api/privacy/consents/route.ts": "14a613b56f579d5031342312812c99bf74b36efc2abda71ae473fdfbed337c71",
     "src/app/api/onboarding/profile/route.ts": "2b54cd8d028e4a4cc505f569e7f77270e18539a631cdb9f600f39c0ea9d1c822",
@@ -231,6 +232,11 @@
       "artifact": "src/components/admin/admin-fallback-grant-manager.tsx",
       "priorDigest": "9a2679a00294dfcb5e0f7c1ea4deba922a295efe6413c03ed0e3a8990644af87",
       "replacedAt": "2026-09-26T12:26:53.964Z"
+    },
+    {
+      "artifact": "src/app/api/ai/tutor/route.ts",
+      "priorDigest": "85bb53ec848f7989bbab62c5ec77fbaad3f4cb96300e0f8f2a56c6946ac3040b",
+      "replacedAt": "2026-09-26T20:24:58.000Z"
     }
   ]
 }

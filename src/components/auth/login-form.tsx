@@ -16,7 +16,7 @@ import styles from "./auth.module.css";
 
 type LoginGateState = "checking" | "cleaning" | "ready" | "session-error" | "cleanup-error";
 
-export function LoginForm() {
+export function LoginForm({ googleEnabled = true }: { googleEnabled?: boolean } = {}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [gate, setGate] = useState<LoginGateState>("checking");
@@ -223,8 +223,8 @@ export function LoginForm() {
       </div>
       <label className={styles.check}><input name="remember" type="checkbox" defaultChecked /> Keep me signed in on this device for 30 days</label>
       <button className={`button button-primary ${styles.submit}`} disabled={busy} type="submit"><LogIn size={18} /> {busy ? "Signing in…" : "Sign in"}</button>
-      <div className={styles.divider}>or</div>
-      <button className={`button button-secondary ${styles.googleButton}`} disabled={busy} type="button" onClick={google}>G&nbsp; Continue with Google</button>
+      {googleEnabled && <div className={styles.divider}>or</div>}
+      {googleEnabled && <button className={`button button-secondary ${styles.googleButton}`} disabled={busy} type="button" onClick={google}>G&nbsp; Continue with Google</button>}
       <p className={styles.footLink}>Cannot reach the only approved browser profile? <Link href="/lost-device">Request lost-device help</Link></p>
       <p className={styles.footLink}>New to this private cohort? <Link href="/request-access">Request access</Link></p>
     </form>

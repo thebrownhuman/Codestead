@@ -32,6 +32,7 @@ import {
   restrictedAdminRole,
   restrictedLearnerRole,
 } from "@/lib/security/better-auth-admin-policy";
+import { isGoogleOAuthConfigured } from "@/lib/security/oauth-provider-config";
 import {
   activeSessionElsewhereError,
   consumeSessionTakeoverBudget,
@@ -64,9 +65,7 @@ if (!authSecret) {
   throw new Error("BETTER_AUTH_SECRET is required outside development/build.");
 }
 
-const googleConfigured = Boolean(
-  process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET,
-);
+const googleConfigured = isGoogleOAuthConfigured();
 
 export const auth = betterAuth({
   appName: process.env.APP_NAME ?? "Codestead",
