@@ -51,18 +51,36 @@
 .floatCardOne strong, .floatCardTwo strong { color: var(--ink); }
 .trackBand { display: flex; align-items: center; gap: 30px; padding: 19px 26px; border: 1px solid var(--line); border-radius: 18px; background: color-mix(in srgb, var(--surface) 88%, transparent); box-shadow: var(--shadow-small); }
 .trackBand > span { flex: 0 0 auto; color: var(--ink-soft); font-size: .75rem; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; }
-.trackBand div { display: flex; width: 100%; min-height: var(--control-min); align-items: center; justify-content: space-around; gap: 20px; }
-.trackBand b { color: var(--ink-soft); font-size: .9rem; }
+.trackList { display: flex; width: 100%; min-height: var(--control-min); align-items: center; justify-content: space-around; gap: 20px; flex-wrap: wrap; }
+.trackChipWrap { position: relative; display: inline-flex; }
+.trackChip { border: 0; background: none; color: var(--ink-soft); font: inherit; font-size: .9rem; cursor: pointer; padding: 6px 2px; border-radius: 8px; }
+.trackChip:hover, .trackChip:focus-visible { color: var(--brand-strong); }
+.trackPopover { position: absolute; z-index: 20; top: calc(100% + 10px); left: 50%; display: grid; width: 250px; gap: 6px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-solid); box-shadow: var(--shadow); font-size: .82rem; text-align: left; transform: translateX(-50%); }
+.trackPopover strong { font-size: .95rem; }
+.trackLevel { color: var(--brand); font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.trackPopover p { margin: 0; color: var(--ink-soft); line-height: 1.5; }
+.trackPopover ul { display: grid; gap: 3px; margin: 4px 0 0; padding: 0 0 0 16px; color: var(--ink-soft); }
+.trackDialogTopics { display: grid; gap: 6px; margin: 0; padding: 0 0 0 18px; color: var(--ink-soft); font-size: .88rem; }
 .section { padding: 130px 0; }
 .sectionHeading { max-width: 740px; margin: 0 auto 50px; text-align: center; }
 .sectionHeading h2, .trustCopy h2, .cta h2 { margin: 18px 0 13px; font-size: clamp(2.1rem, 4vw, 4rem); line-height: 1.02; letter-spacing: -.055em; }
 .sectionHeading p, .trustCopy > p, .cta p { color: var(--ink-soft); font-size: 1.04rem; }
 .promiseGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-.promiseGrid article { position: relative; min-height: 275px; padding: 24px; box-shadow: none; }
-.promiseGrid article > svg { margin-top: 50px; color: var(--brand); }
-.promiseGrid h3 { margin: 18px 0 8px; font-size: 1.08rem; letter-spacing: -.025em; }
-.promiseGrid p { margin: 0; color: var(--ink-soft); font-size: .88rem; line-height: 1.65; }
+.promiseCard { position: relative; min-height: 275px; padding: 24px; border: 0; box-shadow: none; color: inherit; background: var(--surface); font: inherit; text-align: left; cursor: pointer; transition: box-shadow var(--motion-base) var(--ease-out), transform var(--motion-fast) var(--ease-out); }
+.promiseCard:hover, .promiseCard:focus-visible { box-shadow: var(--shadow-small); transform: translateY(-2px); }
+.promiseCard > svg { margin-top: 50px; color: var(--brand); }
+.promiseCard h3 { margin: 18px 0 8px; font-size: 1.08rem; letter-spacing: -.025em; }
+.promiseCard p { margin: 0; color: var(--ink-soft); font-size: .88rem; line-height: 1.65; }
 .promiseNumber { position: absolute; top: 20px; right: 20px; color: color-mix(in srgb, var(--ink-soft) 42%, transparent); font: 700 .72rem var(--font-mono); }
+
+.promiseBackdrop { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(11,17,12,.55); backdrop-filter: blur(5px); }
+.promiseDialog { display: grid; width: min(520px, 100%); gap: 12px; padding: 24px; }
+.promiseDialogHead { display: flex; align-items: center; justify-content: space-between; }
+.promiseDialogHead svg { color: var(--brand); }
+.promiseDialogHead button { display: grid; width: 40px; height: 40px; place-items: center; border: 0; border-radius: 9px; color: var(--ink-soft); background: var(--surface-muted); cursor: pointer; }
+.promiseDialog h2 { margin: 0; font-size: 1.3rem; letter-spacing: -.03em; }
+.promiseDialog p { margin: 0; color: var(--ink-soft); font-size: .92rem; line-height: 1.6; }
+.promiseExample { padding: 12px 14px; border-radius: 12px; background: var(--brand-soft); color: var(--ink) !important; font-size: .87rem !important; }
 .trustSection { display: grid; grid-template-columns: 1.05fr .95fr; align-items: center; gap: 80px; padding: 55px 0 135px; }
 .trustCopy ul { display: grid; gap: 18px; margin: 30px 0 0; padding: 0; list-style: none; }
 .trustCopy li { display: flex; gap: 12px; }

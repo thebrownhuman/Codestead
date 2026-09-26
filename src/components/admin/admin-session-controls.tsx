@@ -3,6 +3,8 @@
 import { Laptop, ShieldAlert } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
+import { PasswordInput } from "@/components/ui/password-input";
+
 import { formatDateTime, requestAdminJson } from "./admin-utils";
 import styles from "./admin.module.css";
 import { EmptyState, StatusPill } from "./status-pill";
@@ -157,7 +159,7 @@ export function AdminSessionControls({ learnerId }: { readonly learnerId: string
       </div>}
 
       <div className={styles.approveForm} style={{ marginTop: 14 }}>
-        <label>Current six-digit authenticator code<input autoComplete="one-time-code" inputMode="numeric" maxLength={6} onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))} pattern="[0-9]{6}" type="password" value={totp} /></label>
+        <label>Current six-digit authenticator code<PasswordInput autoComplete="one-time-code" inputMode="numeric" maxLength={6} onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))} pattern="[0-9]{6}" value={totp} /></label>
         <label>Recorded reason<textarea maxLength={500} minLength={8} onChange={(event) => setReason(event.target.value)} value={reason} /></label>
         <p className={styles.safeNotice}><ShieldAlert size={14} /> A mailbox link proves control of the approved email only. Confirm identity through the separate operator procedure; every revoke or decision also requires fresh MFA, a reason, a durable audit event, and learner notification.</p>
       </div>

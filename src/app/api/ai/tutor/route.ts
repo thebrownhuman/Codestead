@@ -227,9 +227,9 @@ export async function POST(request: NextRequest) {
     return purpose ? isCurrentConsentAccepted(currentConsents, purpose) : false;
   });
 
-  if (!ownCredentials.some((credential) => credential.provider === "nvidia_nim")) {
+  if (ownCredentials.length === 0) {
     return NextResponse.json(
-      { error: "Add and validate your required NVIDIA NIM key before using Codestead." },
+      { error: "Connect an AI key to enable the tutor.", code: "NO_AI_CREDENTIAL" },
       { status: 409 },
     );
   }

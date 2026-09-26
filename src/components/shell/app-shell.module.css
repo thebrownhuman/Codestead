@@ -50,7 +50,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 7px 18px;
+  min-height: 44px;
+  padding: 0 7px;
+  margin-bottom: 18px;
 }
 
 .closeMenu {
@@ -995,7 +997,6 @@
      so expanding only reveals labels to their right. */
   .shellDrawer .sidebarHeader {
     position: relative;
-    min-height: 40px;
     padding-inline: 7px 0;
   }
 
@@ -1009,8 +1010,9 @@
 
   .shellDrawer .sidebarToggle {
     position: absolute;
-    top: 2px;
+    top: 50%;
     right: 0;
+    transform: translateY(-50%);
   }
 
   .shellDrawer .sidebar:is(.railSuppressed, :not(:hover):not(:has(:focus-visible)):not(.railMenuOpen)) .sidebarToggle {

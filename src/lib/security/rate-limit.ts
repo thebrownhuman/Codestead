@@ -65,7 +65,8 @@ export type RateLimitPolicyName =
   | "notification_preferences_user"
   | "curriculum_mutation_admin"
   | "mentor_evidence_read_admin"
-  | "runner_recovery_admin";
+  | "runner_recovery_admin"
+  | "session_takeover_user";
 
 export type RateLimitPolicy = Readonly<{
   name: RateLimitPolicyName;
@@ -133,6 +134,7 @@ const DEFAULT_POLICIES: Record<RateLimitPolicyName, RateLimitPolicy> = {
   curriculum_mutation_admin: policy("curriculum_mutation_admin", 60, 60 * 60),
   mentor_evidence_read_admin: policy("mentor_evidence_read_admin", 30, 60 * 60),
   runner_recovery_admin: policy("runner_recovery_admin", 10, 60 * 60),
+  session_takeover_user: policy("session_takeover_user", 5, 15 * 60),
 };
 
 function policy(

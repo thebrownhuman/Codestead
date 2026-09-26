@@ -193,6 +193,25 @@ describe("login session resume guard", () => {
     expect(screen.queryByText("Failed to create session")).not.toBeInTheDocument();
   });
 
+  it("explains the one-device block and points password users to lost-device help", async () => {
+    mocks.getSession.mockResolvedValue({ data: null, error: null });
+    mocks.signInEmail.mockResolvedValue({
+      data: null,
+      error: { code: "ACTIVE_SESSION_ELSEWHERE", message: "You're signed in on another device." },
+    });
+    const user = userEvent.setup();
+    render(<LoginForm />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled());
+
+    await user.type(screen.getByLabelText("Email address"), "learner@example.com");
+    await user.type(screen.getByLabelText("Password"), "a-secure-password");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByText("You're signed in on another device.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "request lost-device help" })).toHaveAttribute("href", "/lost-device");
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
   it("recovers from a rejected sign-in request without clearing credentials", async () => {
     mocks.signInEmail.mockRejectedValueOnce(new TypeError("synthetic network failure"));
     const user = userEvent.setup();

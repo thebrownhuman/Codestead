@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { MentorRecommendation } from "@/lib/ai/mentor-policy";
@@ -138,7 +139,24 @@ export function TutorView() {
   const [error, setError] = useState<string | null>(null);
   const [sanitizationNotice, setSanitizationNotice] = useState<string | null>(null);
   const [mentorRecommendation, setMentorRecommendation] = useState<MentorRecommendation | null>(null);
+  const [hasAiKey, setHasAiKey] = useState<boolean | null>(null);
   const readSequence = useRef(0);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/credentials", { method: "GET", headers: { accept: "application/json" }, cache: "no-store" })
+      .then((response) => jsonBody<{ credentials?: Array<{ status: string }> }>(response))
+      .then((body) => {
+        if (!active) return;
+        setHasAiKey((body.credentials ?? []).some((credential) => credential.status === "active"));
+      })
+      .catch(() => {
+        if (active) setHasAiKey(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const loadThreads = useCallback(async (
     cursor: string | null = null,
@@ -446,6 +464,14 @@ export function TutorView() {
         </div>
         <span className="pill"><ShieldCheck size={14} /> Your key · bounded context</span>
       </header>
+
+      {hasAiKey === false && (
+        <section aria-label="No AI provider connected" className={`${styles.aiKeyNotice} card`} role="status">
+          <Bot aria-hidden="true" size={20} />
+          <span><strong>Connect an AI key to enable the tutor.</strong><small>Explanations, hints, and chat need a connected provider. Authored lessons and grading still work without one.</small></span>
+          <Link className="button button-secondary" href="/settings">Go to settings</Link>
+        </section>
+      )}
 
       {mentorRecommendation && <section
         aria-label="Personalized daily mentor challenge"

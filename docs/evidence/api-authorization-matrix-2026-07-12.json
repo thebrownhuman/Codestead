@@ -71,7 +71,7 @@
       "file": "src/lib/session-controls.ts",
       "purpose": "learner session revocation",
       "anchors": 1,
-      "sourceSha256": "15b79351cbca7396936b8d659c191a8412e055f0f186976336dbea4a0aa85d1c"
+      "sourceSha256": "08c305e736302479318e3a841b02dfcb14524ceeed28d46929ddda04e3c7b54e"
     },
     {
       "file": "src/lib/certificates/service.ts",
@@ -1006,7 +1006,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by eq(chatThread.userId, authz.session.user.id)",
-      "operationSourceSha256": "5b0af3b01a191bd561543ce49a71261f6eda2943946e3076f56645f15c3af0cf"
+      "operationSourceSha256": "200bca3d5c7b66c113da44f274582729e6667ab39fbf7f6260d609852d192772"
     },
     {
       "operation": "GET /api/auth/[...all]",
@@ -1864,7 +1864,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "e2b89eae4b3eae39234fd47232ab2556a53651ef33d064cd4894a6e0d873cb7f"
+      "operationSourceSha256": "d8f4371cdeb1aed8e4d507b3dec986a39fde7f05d45b63b2287e091e3d51585d"
     },
     {
       "operation": "POST /api/onboarding/interests/preview",
@@ -1877,7 +1877,7 @@
       "admin": "allowed",
       "objectAuthorization": "no-user-object",
       "ownershipProof": "stateless interest-category preview",
-      "operationSourceSha256": "206249574ca310352c17b61dea80ab29a7abab94550a4b280006a94264dbc3aa"
+      "operationSourceSha256": "5bb15848c13d544a9c89d40d76cc118c49922221707d3f1eb744b046054acef3"
     },
     {
       "operation": "POST /api/onboarding/profile",
@@ -1890,7 +1890,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "d52bf8aa9136c57b4517599f53e2fa57c711d61d33a8695bbee30b6669b55176"
+      "operationSourceSha256": "df4e671c40691b229a645e167478b4ec9d968ba4737f34b5d643ca22fa60973d"
     },
     {
       "operation": "GET /api/onboarding/status",
@@ -1903,7 +1903,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "81c14a2f627d3abd40f1a35ac0f9256882e6c4b4c0c62e7ef87ba8d2a8db0c79"
+      "operationSourceSha256": "dddd1bd7ff6bf05a4c79f9f0ff6aadb2967741ee1b01ad6097f2c0ebc9c30267"
     },
     {
       "operation": "GET /api/portfolio",
@@ -2166,7 +2166,7 @@
       "operationSourceSha256": "b88f55f3a91e588c90d93419fbf944eba9e0f64f9fd6a5ab3e2f9a003ce2ccd8"
     }
   ],
-  "generatedAt": "2026-09-23T19:24:25.650Z",
+  "generatedAt": "2026-09-26T08:49:06.972Z",
   "scope": "Complete static role/object-authorization source inventory. The endpoint sweep verifies guard invocation, while authz.test.ts verifies real guard decisions and runtime-authorization.integration.test.ts behaviorally covers a representative owner-bound route set. This report alone is not runtime cross-user proof, deployed proxy/browser evidence, or PostgreSQL RLS evidence.",
   "runtimeVerification": {
     "guardInvocationTest": "src/lib/security/__tests__/endpoint-auth-boundaries.test.ts",

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { KeyRound, Mail } from "lucide-react";
 import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 
+import { PasswordInput } from "@/components/ui/password-input";
 import { authClient } from "@/lib/auth-client";
 import { openBrowserOutbox } from "@/lib/browser-durability/indexed-db";
 import {
@@ -159,11 +160,11 @@ export function ResetPasswordForm({ token, invalid }: { token?: string; invalid?
       {error && <p className={styles.error} role="alert">{error}</p>}
       <div className={styles.field}>
         <label htmlFor="new-password">New password</label>
-        <input id="new-password" name="password" type="password" autoComplete="new-password" minLength={12} maxLength={128} required disabled={!token} />
+        <PasswordInput id="new-password" name="password" autoComplete="new-password" minLength={12} maxLength={128} required disabled={!token} />
       </div>
       <div className={styles.field}>
         <label htmlFor="confirm-password">Confirm new password</label>
-        <input id="confirm-password" name="confirmation" type="password" autoComplete="new-password" minLength={12} maxLength={128} required disabled={!token} />
+        <PasswordInput id="confirm-password" name="confirmation" autoComplete="new-password" minLength={12} maxLength={128} required disabled={!token} />
       </div>
       <button className={`button button-primary ${styles.submit}`} disabled={busy || !token} type="submit">
         <KeyRound size={17} /> {busy ? "Changing…" : "Change password"}

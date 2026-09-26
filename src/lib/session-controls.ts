@@ -15,6 +15,7 @@ export type SessionEndReason =
   | "learner_logout_others"
   | "admin_revoked"
   | "lost_device_approved"
+  | "signed_in_elsewhere"
   | "password_reset"
   | "expired";
 

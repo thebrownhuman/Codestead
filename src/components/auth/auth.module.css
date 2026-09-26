@@ -40,7 +40,7 @@
   align-self: flex-start;
   color: white;
 }
-.storyPanel > a :global(span:first-child) { color: #143c28; background: #b7e6c8; }
+.storyPanel > a :global(.brand-mark__icon) { color: #143c28; background: #b7e6c8; }
 
 .storyCopy {
   position: relative;

@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import type { ExamResult, PublicExamForm } from "@/lib/exams/contracts";
+import { PasswordInput } from "@/components/ui/password-input";
 
 import { formatDateTime, humanize, requestAdminJson } from "./admin-utils";
 import styles from "./admin.module.css";
@@ -388,7 +389,7 @@ export function AdminAppealQueue({
                   <fieldset><legend>Decision</legend>{(["upheld", "needs_learner_input", "overturned"] as const).map((value) => <label key={value}><input checked={decision === value} name="appeal-decision" onChange={() => changeDecision(value)} type="radio" /> {humanize(value)}</label>)}</fieldset>
                   <label>Recorded decision reason<textarea maxLength={2000} minLength={20} onChange={(event) => { setReason(event.target.value); requestRef.current = null; }} value={reason} /></label>
                   {decision === "overturned" && <label>Required corrective action<textarea maxLength={2000} minLength={20} onChange={(event) => { setCorrectiveAction(event.target.value); requestRef.current = null; }} value={correctiveAction} /><small>The original result stays preserved. This instruction creates a pending corrective review.</small></label>}
-                  <label>Current six-digit authenticator code<input autoComplete="one-time-code" inputMode="numeric" maxLength={6} onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))} type="password" value={totp} /></label>
+                  <label>Current six-digit authenticator code<PasswordInput autoComplete="one-time-code" inputMode="numeric" maxLength={6} onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))} value={totp} /></label>
                   <button className="button button-primary" disabled={submitting || !detail.appeal.evidenceHashValid} onClick={() => void decide()} type="button"><CheckCircle2 size={15} /> {submitting ? "Recording…" : "Record decision and notify learner"}</button>
                   {!detail.appeal.evidenceHashValid && <p className={styles.inlineError} role="alert">Decision disabled because the immutable evidence hash failed verification.</p>}
                 </div>

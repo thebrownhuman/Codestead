@@ -755,6 +755,9 @@ class KillablePersistentProfile {
       this.server = server;
       this.browser = browser;
       this.context = contexts[0] ?? null;
+      // tsx/esbuild keepNames wraps named functions in __name(); callbacks
+      // serialized into page.evaluate need that helper in the page realm.
+      await this.context?.addInitScript({ content: "globalThis.__name ??= (fn) => fn;" });
       this.currentPid = pid;
       persistentProfiles.add(this);
       registered = true;

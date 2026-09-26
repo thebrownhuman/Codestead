@@ -64,10 +64,12 @@
 .backup code { display: block; padding: 12px; border-radius: 8px; white-space: pre-wrap; background: var(--surface-muted); }
 .providerCard, .securityNote { display: flex; align-items: center; gap: 13px; padding: 15px; border: 1px solid var(--line); border-radius: 15px; background: var(--surface); }
 .nvidiaMark { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 11px; color: #111; background: #76b900; font-size: .76rem; font-weight: 900; }
-.providerCard > span:nth-child(2), .securityNote > span { display: grid; }
+.providerMark { display: grid; width: 42px; height: 42px; flex: none; place-items: center; border-radius: 11px; color: var(--on-brand); background: var(--brand); }
+.providerCard > span:last-of-type, .securityNote > span { display: grid; }
 .providerCard small, .securityNote small { color: var(--ink-soft); }
 .providerCard a { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; color: var(--brand); font-size: .78rem; font-weight: 800; }
 .securityNote { align-items: flex-start; color: var(--brand-strong); background: var(--brand-soft); }
+.stepActions { display: flex; align-items: center; gap: 10px; }
 .error { padding: 11px 13px; border-radius: 11px; color: var(--danger) !important; background: color-mix(in srgb, var(--danger) 9%, transparent); }
 .loading { display: flex; min-height: 100vh; align-items: center; justify-content: center; gap: 10px; color: var(--ink-soft); }
 .spin { animation: spin 1s linear infinite; }

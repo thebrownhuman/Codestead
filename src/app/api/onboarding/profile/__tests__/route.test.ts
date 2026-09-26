@@ -56,7 +56,6 @@ const validBody = {
     serverCodeExecution: true,
     retentionPolicy: true,
     inactivityMentorNotice: true,
-    nvidiaNimProvider: true,
   },
   optionalConsents: {
     cohortProfile: false,
@@ -148,10 +147,9 @@ describe("versioned onboarding profile and disclosure", () => {
     const consentRows = (mocks.values.mock.calls as unknown as Array<[unknown]>).find(
       ([value]) => Array.isArray(value),
     )?.[0] as Array<{ purpose: string; decision: string; policyVersion: string }>;
-    expect(consentRows).toHaveLength(REQUIRED_DISCLOSURE_PURPOSES.length + 4);
+    expect(consentRows).toHaveLength(REQUIRED_DISCLOSURE_PURPOSES.length + 3);
     expect(consentRows).toEqual(expect.arrayContaining([
       expect.objectContaining({ purpose: "adult_18_plus", decision: "accepted" }),
-      expect.objectContaining({ purpose: "provider:nvidia_nim", decision: "accepted" }),
       expect.objectContaining({ purpose: "cohort_profile", decision: "withdrawn" }),
       expect.objectContaining({ purpose: "leaderboard", decision: "withdrawn" }),
       expect.objectContaining({ purpose: "admin_fallback_ai", decision: "withdrawn" }),

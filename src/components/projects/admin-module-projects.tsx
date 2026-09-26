@@ -3,6 +3,7 @@
 import { BookOpenCheck, CheckCircle2, FileSearch, RefreshCw, ShieldCheck, UploadCloud } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { PasswordInput } from "@/components/ui/password-input";
 import styles from "./module-projects.module.css";
 
 type Template = {
@@ -95,7 +96,7 @@ export function AdminModuleProjects() {
     <p className={styles.safeNotice}><ShieldCheck size={17} /><span>Promotion is MFA-protected, version-checked, and bound to the exact current course publication. A template cannot award mastery, badges, XP, coins, or certificates.</span></p>
     {error ? <p className={styles.error} role="alert">{error}</p> : null}{notice ? <p className={styles.success} role="status">{notice}</p> : null}
     <section className={`${styles.adminAuth} card`}>
-      <label>Authenticator code<input aria-label="Module project authenticator code" inputMode="numeric" maxLength={6} type="password" value={totp} onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))} /></label>
+      <label>Authenticator code<PasswordInput aria-label="Module project authenticator code" inputMode="numeric" maxLength={6} value={totp} onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))} /></label>
       <label>Recorded editorial reason<textarea maxLength={500} value={reason} onChange={(event) => { setReason(event.target.value); requestRef.current = null; }} placeholder="What evidence did you inspect, and why is this decision safe?" /></label>
       <button className="button button-primary" disabled={Boolean(busy)} onClick={() => void sync()} type="button"><UploadCloud size={15} /> Sync immutable drafts</button>
     </section>

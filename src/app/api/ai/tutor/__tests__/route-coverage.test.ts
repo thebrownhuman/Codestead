@@ -380,7 +380,7 @@ describe("tutor route durable execution coverage", () => {
     expect(mocks.openCredential).not.toHaveBeenCalled();
   });
 
-  it("filters unrecognized or unconsented credentials and still requires an owned NIM key", async () => {
+  it("filters unrecognized or unconsented credentials and still requires an owned, consented key", async () => {
     queueExecution({
       credentials: [
         { ...credential, id: "unknown-credential", provider: "unknown_provider" },
@@ -390,7 +390,8 @@ describe("tutor route durable execution coverage", () => {
     const response = await POST(tutorRequest());
     expect(response.status).toBe(409);
     expect(await response.json()).toEqual({
-      error: "Add and validate your required NVIDIA NIM key before using Codestead.",
+      error: "Connect an AI key to enable the tutor.",
+      code: "NO_AI_CREDENTIAL",
     });
     expect(mocks.openCredential).not.toHaveBeenCalled();
   });

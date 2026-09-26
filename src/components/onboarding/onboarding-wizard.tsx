@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import {
   ArrowRight,
+  Bot,
   Check,
   CheckCircle2,
   ExternalLink,
@@ -16,7 +17,10 @@ import {
 import { useEffect, useMemo, useState } from "react";
 
 import { BrandMark } from "@/components/brand-mark";
+import { PasswordInput } from "@/components/ui/password-input";
 import { authClient } from "@/lib/auth-client";
+import { AI_PROVIDER_CATALOG, type CatalogProviderId } from "@/lib/ai/provider-catalog";
+import { INTEREST_CATEGORIES, INTEREST_CATEGORY_EXAMPLES } from "@/lib/profile/interests";
 import styles from "./onboarding.module.css";
 
 const tracks = [
@@ -35,9 +39,13 @@ const tracks = [
 ] as const;
 
 const disclosureVersion = "enrollment-disclosure-2026-07-12.v2";
-const interestCategories = ["cooking", "cars", "games", "sports", "music", "art", "travel", "technology", "everyday-life"] as const;
+const interestCategories = INTEREST_CATEGORIES;
+const interestExampleChips = Object.values(INTEREST_CATEGORY_EXAMPLES).flat().slice(0, 8);
+function interestCategoryLabel(category: string) {
+  return category === "everyday-life" ? "Other" : category.replaceAll("-", " ");
+}
 
-type Requirements = { profileComplete: boolean; mfaEnabled: boolean; mfaFresh: boolean; nimActive: boolean };
+type Requirements = { profileComplete: boolean; mfaEnabled: boolean; mfaFresh: boolean; aiKeyActive: boolean };
 type ExistingProfile = {
   selfReportedLevel: string;
   preferredSessionMinutes: number;
@@ -60,7 +68,6 @@ type ProfileDraft = {
     serverCodeExecution: boolean;
     retentionPolicy: boolean;
     inactivityMentorNotice: boolean;
-    nvidiaNimProvider: boolean;
   };
   optionalConsents: {
     cohortProfile: boolean;
@@ -94,7 +101,7 @@ function isRequirements(value: unknown): value is Requirements {
     typeof value.profileComplete === "boolean" &&
     typeof value.mfaEnabled === "boolean" &&
     typeof value.mfaFresh === "boolean" &&
-    typeof value.nimActive === "boolean";
+    typeof value.aiKeyActive === "boolean";
 }
 
 function isExistingProfile(value: unknown): value is ExistingProfile | null {
@@ -182,9 +189,9 @@ function ForcedPasswordChange({ onChanged }: { onChanged: () => void }) {
       <form className={styles.form} onSubmit={submit}>
         <h1>Choose your own password.</h1>
         <p>This account was created with a temporary password. Set a new one (at least 12 characters), then sign in again to continue setup.</p>
-        <label><span>Temporary password</span><input autoComplete="current-password" maxLength={128} minLength={12} name="currentPassword" required type="password" /></label>
-        <label><span>New password</span><input autoComplete="new-password" maxLength={128} minLength={12} name="newPassword" required type="password" /></label>
-        <label><span>Confirm new password</span><input autoComplete="new-password" maxLength={128} minLength={12} name="confirmPassword" required type="password" /></label>
+        <label><span>Temporary password</span><PasswordInput autoComplete="current-password" maxLength={128} minLength={12} name="currentPassword" required /></label>
+        <label><span>New password</span><PasswordInput autoComplete="new-password" maxLength={128} minLength={12} name="newPassword" required /></label>
+        <label><span>Confirm new password</span><PasswordInput autoComplete="new-password" maxLength={128} minLength={12} name="confirmPassword" required /></label>
         {error ? <p className={styles.error} role="alert">{error}</p> : null}
         <button className="button button-primary" disabled={busy} type="submit">{busy ? "Saving…" : "Save password"}</button>
       </form>
@@ -203,13 +210,15 @@ export function OnboardingWizard() {
   const [totpUri, setTotpUri] = useState<string | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
-  const [requirements, setRequirements] = useState<Requirements>({ profileComplete: false, mfaEnabled: false, mfaFresh: false, nimActive: false });
+  const [requirements, setRequirements] = useState<Requirements>({ profileComplete: false, mfaEnabled: false, mfaFresh: false, aiKeyActive: false });
+  const [aiProvider, setAiProvider] = useState<CatalogProviderId>("google");
   const [existingProfile, setExistingProfile] = useState<ExistingProfile | null>(null);
   const [accountName, setAccountName] = useState("");
   const [consents, setConsents] = useState<ConsentSnapshot>({});
   const [profileDraft, setProfileDraft] = useState<ProfileDraft | null>(null);
   const [interestPreview, setInterestPreview] = useState<InterestPreview[]>([]);
   const [interestConfirmationOpen, setInterestConfirmationOpen] = useState(false);
+  const [rejectedInterests, setRejectedInterests] = useState<Array<{ label: string; reason: string }>>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -275,6 +284,7 @@ export function OnboardingWizard() {
       setProfileDraft(null);
       setInterestPreview([]);
       setInterestConfirmationOpen(false);
+      setRejectedInterests([]);
       setRequirements((current) => ({ ...current, profileComplete: true }));
       setStep(2);
     } catch {
@@ -299,7 +309,6 @@ export function OnboardingWizard() {
           serverCodeExecution: form.get("serverCodeExecution") === "on",
           retentionPolicy: form.get("retentionPolicy") === "on",
           inactivityMentorNotice: form.get("inactivityMentorNotice") === "on",
-          nvidiaNimProvider: form.get("nvidiaNimProvider") === "on",
         },
         optionalConsents: {
           cohortProfile: form.get("cohortProfile") === "on",
@@ -335,16 +344,23 @@ export function OnboardingWizard() {
         setError(responseError(result, "Codestead could not categorize those interests."));
         return;
       }
+      const rejected = result.rejected ?? [];
       if (!Array.isArray(result.interests) || !result.interests.every((interest) =>
         isRecord(interest) && typeof interest.label === "string" &&
         typeof interest.suggestedCategory === "string" &&
-        interestCategories.includes(interest.suggestedCategory as (typeof interestCategories)[number]))) {
+        interestCategories.includes(interest.suggestedCategory as (typeof interestCategories)[number])) ||
+        !Array.isArray(rejected) || !rejected.every((entry) =>
+          isRecord(entry) && typeof entry.label === "string" && typeof entry.reason === "string")) {
         throw new Error("Malformed interest preview");
       }
       setProfileDraft(draft);
       setInterestPreview(result.interests.map((interest) => ({
         label: String(interest.label),
         category: String(interest.suggestedCategory),
+      })));
+      setRejectedInterests(rejected.map((entry) => ({
+        label: String(entry.label),
+        reason: String(entry.reason),
       })));
       setInterestConfirmationOpen(true);
     } catch {
@@ -417,7 +433,32 @@ export function OnboardingWizard() {
     }
   }
 
-  async function saveNim(event: React.FormEvent<HTMLFormElement>) {
+  async function completeOnboarding() {
+    const complete = await fetch("/api/onboarding/complete", { method: "POST" });
+    const completion = await readJsonObject(complete);
+    if (!complete.ok) {
+      setError(responseError(completion, "One onboarding requirement is still incomplete."));
+      return false;
+    }
+    if (completion.ok !== true) throw new Error("Malformed completion response");
+    router.push(typeof completion.redirectTo === "string" ? completion.redirectTo : "/learn");
+    router.refresh();
+    return true;
+  }
+
+  async function skipAiKey() {
+    setBusy(true);
+    setError(null);
+    try {
+      await completeOnboarding();
+    } catch {
+      setError("Onboarding could not continue. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveProviderKey(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     setError(null);
@@ -445,12 +486,28 @@ export function OnboardingWizard() {
         }
         setRequirements((current) => ({ ...current, mfaFresh: true }));
       }
+      const providerMeta = AI_PROVIDER_CATALOG.find((entry) => entry.id === aiProvider);
+      const consentResponse = await fetch("/api/privacy/consents", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          requestId: crypto.randomUUID(),
+          purpose: `provider:${aiProvider}`,
+          decision: "accepted",
+          policyVersion: disclosureVersion,
+        }),
+      });
+      if (!consentResponse.ok) {
+        const consentResult = await readJsonObject(consentResponse);
+        setError(responseError(consentResult, "Provider consent could not be recorded."));
+        return;
+      }
       const response = await fetch("/api/credentials", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          provider: "nvidia_nim",
-          label: "My NVIDIA NIM key",
+          provider: aiProvider,
+          label: `My ${providerMeta?.label ?? aiProvider} key`,
           secret: form.get("key"),
           preferred: true,
         }),
@@ -466,19 +523,11 @@ export function OnboardingWizard() {
         return;
       }
       if (!isRecord(result.credential) || result.credential.status !== "active") {
-        setError("The key was encrypted, but NVIDIA did not validate it. Check the key or try again later.");
+        setError("The key was encrypted, but the provider did not validate it. Check the key or try again later.");
         return;
       }
-      setRequirements((current) => ({ ...current, nimActive: true }));
-      const complete = await fetch("/api/onboarding/complete", { method: "POST" });
-      const completion = await readJsonObject(complete);
-      if (!complete.ok) {
-        setError(responseError(completion, "One onboarding requirement is still incomplete."));
-        return;
-      }
-      if (completion.ok !== true) throw new Error("Malformed completion response");
-      router.push(typeof completion.redirectTo === "string" ? completion.redirectTo : "/learn");
-      router.refresh();
+      setRequirements((current) => ({ ...current, aiKeyActive: true }));
+      await completeOnboarding();
     } catch {
       setError("Onboarding could not continue. Check your connection and try again.");
     } finally {
@@ -526,7 +575,7 @@ export function OnboardingWizard() {
           <i />
           <span aria-current={step === 2 ? "step" : undefined} className={step >= 2 ? styles.currentStep : ""}><b>{requirements.mfaEnabled ? <Check size={16} /> : "2"}</b><span><strong>Secure your account</strong><small>Authenticator and recovery codes</small></span></span>
           <i />
-          <span aria-current={step === 3 ? "step" : undefined} className={step >= 3 ? styles.currentStep : ""}><b>{requirements.nimActive ? <Check size={16} /> : "3"}</b><span><strong>Connect your tutor</strong><small>Your mandatory NVIDIA NIM key</small></span></span>
+          <span aria-current={step === 3 ? "step" : undefined} className={step >= 3 ? styles.currentStep : ""}><b>{requirements.aiKeyActive ? <Check size={16} /> : "3"}</b><span><strong>Connect your tutor</strong><small>Optional — you can skip and add a key later</small></span></span>
         </aside>
 
         <section className={styles.stage}>
@@ -535,7 +584,12 @@ export function OnboardingWizard() {
             <form className={styles.form} onSubmit={confirmInterests}>
               <span className={styles.eyebrow}><Sparkles size={15} /> Confirm personalization</span>
               <h1>Did Codestead understand your interests?</h1>
-              <p>Confirm or correct each category. These interests stay private by default and only shape optional analogies.</p>
+              <p>Confirm or correct each category. Anything we didn&apos;t recognize is kept under &quot;Other&quot; rather than dropped. These interests stay private by default and only shape optional analogies.</p>
+              {rejectedInterests.length > 0 && (
+                <p role="status">
+                  Skipped: {rejectedInterests.map((entry) => `"${entry.label}" (${entry.reason})`).join(", ")}
+                </p>
+              )}
               <div className={styles.interestConfirmList}>
                 {interestPreview.map((interest, index) => (
                   <label key={`${interest.label}-${index}`}>
@@ -545,7 +599,7 @@ export function OnboardingWizard() {
                       onChange={(event) => setInterestPreview((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, category: event.target.value } : item))}
                       value={interest.category}
                     >
-                      {interestCategories.map((category) => <option key={category} value={category}>{category.replaceAll("-", " ")}</option>)}
+                      {interestCategories.map((category) => <option key={category} value={category}>{interestCategoryLabel(category)}</option>)}
                     </select>
                   </label>
                 ))}
@@ -571,7 +625,7 @@ export function OnboardingWizard() {
                 <label><span>Weekly learning goal</span><select name="weeklyGoalMinutes" defaultValue={String(profileDraft?.weeklyGoalMinutes ?? existingProfile?.weeklyGoalMinutes ?? 180)}><option value="60">1 hour</option><option value="120">2 hours</option><option value="180">3 hours</option><option value="300">5 hours</option><option value="420">7 hours</option><option value="600">10 hours</option><option value="900">15 hours</option></select></label>
               </div>
               <div className={styles.twoColumns}>
-                <label><span>Interests or hobbies <small>comma separated</small></span><input defaultValue={profileDraft?.hobbyLabels.join(", ") ?? existingProfile?.analogyInterests.map((item) => item.label).join(", ") ?? ""} name="hobbies" placeholder="cooking, cars, cricket" /></label>
+                <label><span>Interests or hobbies <small>comma separated</small></span><input defaultValue={profileDraft?.hobbyLabels.join(", ") ?? existingProfile?.analogyInterests.map((item) => item.label).join(", ") ?? ""} name="hobbies" placeholder="cooking, cars, cricket" /><small>For example: {interestExampleChips.join(", ")}…</small></label>
                 <label><span>Analogy style</span><select name="analogyFrequency" defaultValue={profileDraft?.analogyFrequency ?? existingProfile?.analogyFrequency ?? "helpful"}><option value="neutral">Neutral explanations</option><option value="helpful">Analogies when helpful</option><option value="frequent">Frequent analogies</option></select></label>
               </div>
               <fieldset className={styles.disclosureFieldset}>
@@ -579,8 +633,7 @@ export function OnboardingWizard() {
                 <p>Read and acknowledge each core boundary before learning. Optional cohort and administrator-funded AI choices remain off until you opt in and can be withdrawn later.</p>
                 <label className={styles.consentItem}><input defaultChecked={profileDraft?.acknowledgements.adult18Plus ?? accepted("adult_18_plus")} name="adult18Plus" required type="checkbox" /><span><strong>I am at least 18 years old.</strong><small>No date of birth is collected.</small></span></label>
                 <label className={styles.consentItem}><input defaultChecked={profileDraft?.acknowledgements.mentorVisibility ?? accepted("mentor_visibility")} name="mentorVisibility" required type="checkbox" /><span><strong>I understand administrator mentor visibility.</strong><small>The administrator can inspect progress, attempts, projects, tutor history, and operational records for mentoring. Deliberate sensitive reads are audited.</small></span></label>
-                <label className={styles.consentItem}><input defaultChecked={profileDraft?.acknowledgements.externalAiRouting ?? accepted("external_ai_routing")} name="externalAiRouting" required type="checkbox" /><span><strong>I understand external AI routing.</strong><small>Bounded lesson context, preferences, relevant chat, and code I choose to discuss may go to my selected provider. Email, keys, hidden tests, and other learners are excluded.</small></span></label>
-                <label className={styles.consentItem}><input defaultChecked={profileDraft?.acknowledgements.nvidiaNimProvider ?? accepted("provider:nvidia_nim")} name="nvidiaNimProvider" required type="checkbox" /><span><strong>I allow NVIDIA NIM for tutor requests.</strong><small>I can withdraw future routing later; authored lessons and deterministic grading continue without AI.</small></span></label>
+                <label className={styles.consentItem}><input defaultChecked={profileDraft?.acknowledgements.externalAiRouting ?? accepted("external_ai_routing")} name="externalAiRouting" required type="checkbox" /><span><strong>I understand external AI routing.</strong><small>If I connect an AI provider, bounded lesson context, preferences, relevant chat, and code I choose to discuss may go to that provider. Email, keys, hidden tests, and other learners are excluded. I can skip connecting a provider entirely.</small></span></label>
                 <label className={styles.consentItem}><input defaultChecked={profileDraft?.acknowledgements.serverCodeExecution ?? accepted("server_code_execution")} name="serverCodeExecution" required type="checkbox" /><span><strong>I understand server code execution.</strong><small>Submitted code and input run in isolated, network-disabled containers. Formal hidden tests remain private.</small></span></label>
                 <label className={styles.consentItem}><input defaultChecked={profileDraft?.acknowledgements.retentionPolicy ?? accepted("retention_policy")} name="retentionPolicy" required type="checkbox" /><span><strong>I understand retention and backups.</strong><small>Mastery persists until deletion; raw chat/code/AI metadata normally retain 12 months, security/admin records up to 24 months, and encrypted backups age out under 7 daily / 4 weekly / 12 monthly retention.</small></span></label>
                 <label className={styles.consentItem}><input defaultChecked={profileDraft?.acknowledgements.inactivityMentorNotice ?? accepted("inactivity_mentor_notice")} name="inactivityMentorNotice" required type="checkbox" /><span><strong>I understand generic inactivity notices.</strong><small>A generic learner reminder and administrator notice may be sent after 24 hours, then one final learner reminder after 72 hours. The app stays silent until meaningful learning starts a future episode. Messages omit scores, mistakes, code, chat, provider details, keys, and raw study time.</small></span></label>
@@ -602,20 +655,29 @@ export function OnboardingWizard() {
               <span className={styles.eyebrow}><ShieldCheck size={15} /> Required for everyone</span>
               <h1>Protect your progress.</h1>
               <p>Use any TOTP authenticator. The QR is generated here in your browser; it is not sent to another service.</p>
-              {!totpUri ? <form className={styles.innerForm} onSubmit={beginMfa}><label><span>Current password <small>leave empty for Google-only accounts</small></span><input name="password" type="password" autoComplete="current-password" /></label><button className="button button-primary" disabled={busy} type="submit"><KeyRound size={17} /> {busy ? "Preparing…" : "Set up authenticator"}</button></form> : <form className={styles.innerForm} onSubmit={confirmMfa}><div className={styles.mfaGrid}><div className={styles.qr}>{qr ? <Image alt="Authenticator setup QR code" src={qr} width={220} height={220} unoptimized /> : <LoaderCircle className={styles.spin} />}</div><div><h2>Scan, then verify</h2><ol><li>Open your authenticator.</li><li>Scan this QR or enter the setup URI manually.</li><li>Enter the new six-digit code below.</li></ol><label><span>Verification code</span><input className={styles.otp} name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required /></label></div></div>{backupCodes.length > 0 && <details className={styles.backup}><summary>Save your recovery codes</summary><p>Store these offline. Each is single-use.</p><code>{backupCodes.join("\n")}</code></details>}<button className="button button-primary" disabled={busy} type="submit"><ShieldCheck size={17} /> {busy ? "Verifying…" : "Verify authenticator"}</button></form>}
+              {!totpUri ? <form className={styles.innerForm} onSubmit={beginMfa}><label><span>Current password <small>leave empty for Google-only accounts</small></span><PasswordInput name="password" autoComplete="current-password" /></label><button className="button button-primary" disabled={busy} type="submit"><KeyRound size={17} /> {busy ? "Preparing…" : "Set up authenticator"}</button></form> : <form className={styles.innerForm} onSubmit={confirmMfa}><div className={styles.mfaGrid}><div className={styles.qr}>{qr ? <Image alt="Authenticator setup QR code" src={qr} width={220} height={220} unoptimized /> : <LoaderCircle className={styles.spin} />}</div><div><h2>Scan, then verify</h2><ol><li>Open your authenticator.</li><li>Scan this QR or enter the setup URI manually.</li><li>Enter the new six-digit code below.</li></ol><label><span>Verification code</span><input className={styles.otp} name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required /></label></div></div>{backupCodes.length > 0 && <details className={styles.backup}><summary>Save your recovery codes</summary><p>Store these offline. Each is single-use.</p><code>{backupCodes.join("\n")}</code></details>}<button className="button button-primary" disabled={busy} type="submit"><ShieldCheck size={17} /> {busy ? "Verifying…" : "Verify authenticator"}</button></form>}
             </div>
           )}
 
           {step === 3 && (
-            <form className={styles.form} onSubmit={saveNim}>
-              <span className={styles.eyebrow}><Sparkles size={15} /> Bring your own AI</span>
-              <h1>Connect NVIDIA NIM.</h1>
-              <p>Your key is encrypted before storage and is only decrypted in memory for your provider request. Authored lessons, quizzes, exams, and progress still work if the provider is unavailable.</p>
-              <div className={styles.providerCard}><span className={styles.nvidiaMark}>NV</span><span><strong>NVIDIA NIM</strong><small>Required primary tutor provider</small></span><a href="https://build.nvidia.com/" target="_blank" rel="noreferrer">Create a key <ExternalLink size={14} /></a></div>
-              {!requirements.mfaFresh && <label key="nim-mfa-challenge"><span>Current authenticator code</span><input className={styles.otp} name="mfaCode" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required /><small>Credential changes require a recent authenticator check. This approval lasts five minutes.</small></label>}
-              <label key="nim-api-key"><span>NVIDIA API key</span><input name="key" type="password" autoComplete="off" placeholder="Paste once; only the last four will be shown later" required minLength={8} /><small>The app makes a tiny validation request. It never writes the key to logs.</small></label>
+            <form className={styles.form} onSubmit={saveProviderKey}>
+              <span className={styles.eyebrow}><Sparkles size={15} /> Bring your own AI (optional)</span>
+              <h1>Connect an AI provider.</h1>
+              <p>Your key is encrypted before storage and is only decrypted in memory for your provider request. Authored lessons, quizzes, exams, and progress work with or without a connected provider — you can skip this and add a key later from Settings.</p>
+              <label key="ai-provider"><span>Provider</span><select name="provider" onChange={(event) => setAiProvider(event.target.value as CatalogProviderId)} value={aiProvider}>{AI_PROVIDER_CATALOG.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select></label>
+              {(() => {
+                const providerMeta = AI_PROVIDER_CATALOG.find((entry) => entry.id === aiProvider)!;
+                return (
+                  <div className={styles.providerCard}><span className={styles.providerMark}><Bot aria-hidden="true" size={19} /></span><span><strong>{providerMeta.label}</strong><small>{providerMeta.hint}</small></span><a href={providerMeta.keyUrl} target="_blank" rel="noreferrer">Create a key <ExternalLink size={14} /></a></div>
+                );
+              })()}
+              {!requirements.mfaFresh && <label key="ai-mfa-challenge"><span>Current authenticator code</span><input className={styles.otp} name="mfaCode" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required /><small>Credential changes require a recent authenticator check. This approval lasts five minutes.</small></label>}
+              <label key="ai-api-key"><span>API key</span><PasswordInput name="key" autoComplete="off" placeholder="Paste once; only the last four will be shown later" required minLength={8} /><small>The app makes a tiny validation request. It never writes the key to logs.</small></label>
               <div className={styles.securityNote}><ShieldCheck size={20} /><span><strong>Protected by envelope encryption</strong><small>Full reveal later requires administrator MFA, a reason, an audit event, and a notification to you.</small></span></div>
-              <button className="button button-primary" disabled={busy} type="submit">{busy ? "Encrypting and validating…" : "Connect NIM and start learning"}<ArrowRight size={17} /></button>
+              <div className={styles.stepActions}>
+                <button className="button button-primary" disabled={busy} type="submit">{busy ? "Encrypting and validating…" : "Connect and start learning"}<ArrowRight size={17} /></button>
+                <button className="button button-ghost" disabled={busy} onClick={skipAiKey} type="button">Skip for now</button>
+              </div>
             </form>
           )}
         </section>

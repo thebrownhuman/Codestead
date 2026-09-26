@@ -3,6 +3,8 @@
 import { GitCompareArrows, History, ListRestart, Route } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { PasswordInput } from "@/components/ui/password-input";
+
 import { formatDateTime, humanize, requestAdminJson } from "./admin-utils";
 import styles from "./admin.module.css";
 import { EmptyState } from "./status-pill";
@@ -447,7 +449,7 @@ export function AdminPlanRevisionManager({ learnerId }: { readonly learnerId: st
                 {(operationType === "assign_remediation" || operationType.startsWith("override_")) && <label>Operation note<textarea maxLength={500} minLength={8} onChange={(event) => { setNote(event.target.value); resetPreview(); }} value={note} /></label>}
                 <label>Effective immediately at<input max={immediateLocal()} onChange={(event) => { setEffectiveAt(event.target.value); resetPreview(); }} type="datetime-local" value={effectiveAt} /></label>
                 <label>Recorded reason<textarea maxLength={500} minLength={8} onChange={(event) => { setReason(event.target.value); resetPreview(); }} value={reason} /></label>
-                <label>Current six-digit authenticator code<input autoComplete="one-time-code" inputMode="numeric" maxLength={6} onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))} pattern="[0-9]{6}" type="password" value={totp} /></label>
+                <label>Current six-digit authenticator code<PasswordInput autoComplete="one-time-code" inputMode="numeric" maxLength={6} onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))} pattern="[0-9]{6}" value={totp} /></label>
                 <div className={styles.planActions}>
                   <button className="button button-secondary" disabled={busy} onClick={() => void previewChange()} type="button">Preview diff and impact</button>
                   <button className="button button-primary" disabled={busy || preview?.impact.canApply !== true} onClick={() => void saveChange()} type="button">Save new revision</button>
@@ -483,7 +485,7 @@ export function AdminPlanRevisionManager({ learnerId }: { readonly learnerId: st
               <div className={styles.approveForm}>
                 <label>Effective immediately at<input max={immediateLocal()} onChange={(event) => setEffectiveAt(event.target.value)} type="datetime-local" value={effectiveAt} /></label>
                 <label>Recorded reason<textarea maxLength={500} minLength={8} onChange={(event) => setReason(event.target.value)} value={reason} /></label>
-                <label>Current six-digit authenticator code<input autoComplete="one-time-code" inputMode="numeric" maxLength={6} onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))} pattern="[0-9]{6}" type="password" value={totp} /></label>
+                <label>Current six-digit authenticator code<PasswordInput autoComplete="one-time-code" inputMode="numeric" maxLength={6} onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))} pattern="[0-9]{6}" value={totp} /></label>
                 <button className="button button-primary" disabled={busy || !detail.comparisonToLatest.impact.canApply} onClick={() => void revertTo(detail.selected.revision)} type="button">Revert revision {detail.selected.revision} as new</button>
               </div>
             </section>
