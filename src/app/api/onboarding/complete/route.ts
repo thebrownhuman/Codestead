@@ -2,7 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db/client";
-import { learnerProfile, providerCredential, twoFactor, user } from "@/lib/db/schema";
+import { learnerProfile, twoFactor, user } from "@/lib/db/schema";
 import { requireAuth } from "@/lib/http/authz";
 import { learningService } from "@/lib/learning-service/runtime";
 import { lockUserAuthority } from "@/lib/security/user-authority-lock";
@@ -24,17 +24,6 @@ export async function POST() {
     .from(learnerProfile)
     .where(eq(learnerProfile.userId, authz.session.user.id))
     .limit(1);
-  const [nim] = await db
-    .select({ id: providerCredential.id })
-    .from(providerCredential)
-    .where(
-      and(
-        eq(providerCredential.userId, authz.session.user.id),
-        eq(providerCredential.provider, "nvidia_nim"),
-        eq(providerCredential.status, "active"),
-      ),
-    )
-    .limit(1);
   const [factor] = await db
     .select({ verified: twoFactor.verified })
     .from(twoFactor)
@@ -42,14 +31,12 @@ export async function POST() {
     .limit(1);
   const currentConsents = await getCurrentConsents(authz.session.user.id);
   const disclosureAccepted = REQUIRED_DISCLOSURE_PURPOSES.every((purpose) =>
-    isCurrentConsentAccepted(currentConsents, purpose)) &&
-    isCurrentConsentAccepted(currentConsents, "provider:nvidia_nim");
+    isCurrentConsentAccepted(currentConsents, purpose));
   const missing = [
     ...(authz.account.mustChangePassword === true ? ["password_change"] : []),
     ...(!profile?.selectedTracks.length ? ["profile"] : []),
     ...(!disclosureAccepted ? ["current_disclosure"] : []),
     ...(!(authz.account.twoFactorEnabled === true && factor?.verified === true) ? ["mfa"] : []),
-    ...(!nim ? ["nvidia_nim"] : []),
   ];
   if (missing.length) {
     return NextResponse.json({ error: "Onboarding requirements are incomplete.", missing }, { status: 409 });

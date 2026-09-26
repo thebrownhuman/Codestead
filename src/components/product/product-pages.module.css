@@ -276,6 +276,10 @@
 .securityExplainer span { display: grid; gap: 4px; padding: 11px; border-radius: 10px; background: var(--surface-muted); }
 .securityExplainer strong { font-size: .7rem; }
 .securityExplainer small { color: var(--ink-soft); font-size: .62rem; }
+.aiKeyNotice { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+.aiKeyNotice > svg { flex: none; color: var(--brand); }
+.aiKeyNotice > span { display: grid; flex: 1; min-width: 0; }
+.aiKeyNotice small { color: var(--ink-soft); }
 .mentorRecommendation { display: grid; gap: 10px; padding: 16px; border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, var(--surface)), var(--surface)); }
 .mentorRecommendation h2, .mentorRecommendation p { margin: 0; }
 .mentorRecommendation h2 { font-size: 1rem; }

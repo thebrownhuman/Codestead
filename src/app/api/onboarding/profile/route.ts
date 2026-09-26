@@ -38,7 +38,6 @@ const profileSchema = z.object({
     serverCodeExecution: z.literal(true),
     retentionPolicy: z.literal(true),
     inactivityMentorNotice: z.literal(true),
-    nvidiaNimProvider: z.literal(true),
   }),
   optionalConsents: z.object({
     cohortProfile: z.boolean(),
@@ -91,14 +90,6 @@ export async function POST(request: NextRequest) {
       requestId: body.data.requestId,
       occurredAt: now,
     })),
-    consentInsert({
-      userId: authz.session.user.id,
-      purpose: "provider:nvidia_nim",
-      decision: "accepted",
-      source: "onboarding",
-      requestId: body.data.requestId,
-      occurredAt: now,
-    }),
     consentInsert({
       userId: authz.session.user.id,
       purpose: "cohort_profile",

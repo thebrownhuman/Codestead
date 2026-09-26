@@ -20,13 +20,12 @@ export async function GET() {
     .from(learnerProfile)
     .where(eq(learnerProfile.userId, authz.session.user.id))
     .limit(1);
-  const [nim] = await db
+  const [activeCredential] = await db
     .select({ id: providerCredential.id, status: providerCredential.status })
     .from(providerCredential)
     .where(
       and(
         eq(providerCredential.userId, authz.session.user.id),
-        eq(providerCredential.provider, "nvidia_nim"),
         eq(providerCredential.status, "active"),
       ),
     )
@@ -45,8 +44,7 @@ export async function GET() {
   const mfaEnabled = authz.account.twoFactorEnabled === true && factor?.verified === true;
   const currentConsents = await getCurrentConsents(authz.session.user.id);
   const disclosureAccepted = REQUIRED_DISCLOSURE_PURPOSES.every((purpose) =>
-    isCurrentConsentAccepted(currentConsents, purpose)) &&
-    isCurrentConsentAccepted(currentConsents, "provider:nvidia_nim");
+    isCurrentConsentAccepted(currentConsents, purpose));
   return NextResponse.json(
     {
       profile,
@@ -58,7 +56,7 @@ export async function GET() {
         profileComplete: Boolean(profile?.selectedTracks.length) && disclosureAccepted,
         mfaEnabled,
         mfaFresh: mfaEnabled && isFreshMfa(mfaVerifiedAt),
-        nimActive: Boolean(nim),
+        aiKeyActive: Boolean(activeCredential),
       },
       disclosureVersion: ENROLLMENT_DISCLOSURE_VERSION,
       consents: Object.fromEntries(

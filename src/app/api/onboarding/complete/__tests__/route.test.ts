@@ -71,7 +71,6 @@ const authz = {
 function rows(factorVerified: boolean) {
   mocks.limit
     .mockResolvedValueOnce([{ selectedTracks: ["python"] }])
-    .mockResolvedValueOnce([{ id: "credential-1" }])
     .mockResolvedValueOnce([{ verified: factorVerified }]);
 }
 

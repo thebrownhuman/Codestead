@@ -27,7 +27,7 @@ function json(body: unknown, init: ResponseInit = {}) {
 }
 
 const emptyStatus = {
-  requirements: { profileComplete: false, mfaEnabled: false, mfaFresh: false, nimActive: false },
+  requirements: { profileComplete: false, mfaEnabled: false, mfaFresh: false, aiKeyActive: false },
   profile: null,
   account: { name: "Approved Learner" },
   consents: {},
@@ -37,7 +37,6 @@ const requiredDisclosureNames = [
   /I am at least 18/i,
   /administrator mentor visibility/i,
   /external AI routing/i,
-  /allow NVIDIA NIM/i,
   /server code execution/i,
   /retention and backups/i,
   /generic inactivity notices/i,
@@ -90,15 +89,7 @@ describe("resumable disclosed onboarding", () => {
     expect(screen.getByDisplayValue("Approved Learner")).toBeInTheDocument();
     await user.type(screen.getByLabelText("Your first outcome"), "Learn Python independently");
     await user.type(screen.getByLabelText(/Interests or hobbies/i), "baking, formula racing");
-    for (const name of [
-      /I am at least 18/i,
-      /administrator mentor visibility/i,
-      /external AI routing/i,
-      /allow NVIDIA NIM/i,
-      /server code execution/i,
-      /retention and backups/i,
-      /generic inactivity notices/i,
-    ]) await user.click(screen.getByRole("checkbox", { name }));
+    for (const name of requiredDisclosureNames) await user.click(screen.getByRole("checkbox", { name }));
     await user.click(screen.getByRole("button", { name: /Save and secure account/i }));
 
     expect(await screen.findByRole("heading", { name: /Did Codestead understand your interests/i })).toBeInTheDocument();
@@ -122,7 +113,6 @@ describe("resumable disclosed onboarding", () => {
         serverCodeExecution: true,
         retentionPolicy: true,
         inactivityMentorNotice: true,
-        nvidiaNimProvider: true,
       },
       hobbies: [
         { label: "baking", category: "cooking", confirmed: true },
@@ -204,7 +194,7 @@ describe("resumable disclosed onboarding", () => {
     expect(screen.getByRole("checkbox", { name: /external AI routing/i })).not.toBeChecked();
   });
 
-  it("completes authenticator setup and validates the mandatory NIM credential", async () => {
+  it("completes authenticator setup and validates the optional AI provider credential", async () => {
     const calls: Array<{ url: string; body?: Record<string, unknown> }> = [];
     mocks.enableMfa.mockResolvedValue({
       data: {
@@ -220,10 +210,11 @@ describe("resumable disclosed onboarding", () => {
       if (url === "/api/onboarding/status") {
         return json({
           ...emptyStatus,
-          requirements: { profileComplete: true, mfaEnabled: false, mfaFresh: false, nimActive: false },
+          requirements: { profileComplete: true, mfaEnabled: false, mfaFresh: false, aiKeyActive: false },
         });
       }
       if (url === "/api/security/fresh-mfa") return json({ ok: true });
+      if (url === "/api/privacy/consents") return json({ ok: true });
       if (url === "/api/credentials") return json({ credential: { status: "active" } }, { status: 201 });
       if (url === "/api/onboarding/complete") return json({ ok: true });
       throw new Error(`Unexpected request: ${url}`);
@@ -240,20 +231,49 @@ describe("resumable disclosed onboarding", () => {
     await user.type(screen.getByLabelText("Verification code"), "123456");
     await user.click(screen.getByRole("button", { name: /Verify authenticator/i }));
 
-    expect(await screen.findByRole("heading", { name: "Connect NVIDIA NIM." })).toBeInTheDocument();
-    await user.type(screen.getByPlaceholderText(/Paste once; only the last four/i), "nvapi-test-key");
-    await user.click(screen.getByRole("button", { name: /Connect NIM and start learning/i }));
+    expect(await screen.findByRole("heading", { name: "Connect an AI provider." })).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText(/Paste once; only the last four/i), "test-key-123");
+    await user.click(screen.getByRole("button", { name: /Connect and start learning/i }));
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/learn"));
     expect(mocks.refresh).toHaveBeenCalledOnce();
     expect(calls.find((call) => call.url === "/api/security/fresh-mfa")?.body).toEqual({ code: "123456" });
+    expect(calls.find((call) => call.url === "/api/privacy/consents")?.body).toMatchObject({
+      purpose: "provider:google",
+      decision: "accepted",
+    });
     expect(calls.find((call) => call.url === "/api/credentials")?.body).toMatchObject({
-      provider: "nvidia_nim",
-      secret: "nvapi-test-key",
+      provider: "google",
+      secret: "test-key-123",
       preferred: true,
     });
   });
 
-  it("requires a current authenticator code and refreshes MFA before storing a NIM credential", async () => {
+  it("lets the learner skip connecting an AI provider and still complete onboarding", async () => {
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      calls.push(url);
+      if (url === "/api/onboarding/status") {
+        return json({
+          ...emptyStatus,
+          requirements: { profileComplete: true, mfaEnabled: true, mfaFresh: true, aiKeyActive: false },
+        });
+      }
+      if (url === "/api/onboarding/complete") return json({ ok: true, redirectTo: "/learn" });
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    const user = userEvent.setup();
+
+    render(<OnboardingWizard />);
+    expect(await screen.findByRole("heading", { name: "Connect an AI provider." })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Skip for now/i }));
+
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/learn"));
+    expect(calls).not.toContain("/api/credentials");
+    expect(calls).not.toContain("/api/privacy/consents");
+  });
+
+  it("requires a current authenticator code and refreshes MFA before storing an AI provider credential", async () => {
     const calls: Array<{ url: string; body?: Record<string, unknown> }> = [];
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
@@ -262,10 +282,11 @@ describe("resumable disclosed onboarding", () => {
       if (url === "/api/onboarding/status") {
         return json({
           ...emptyStatus,
-          requirements: { profileComplete: true, mfaEnabled: true, mfaFresh: false, nimActive: false },
+          requirements: { profileComplete: true, mfaEnabled: true, mfaFresh: false, aiKeyActive: false },
         });
       }
       if (url === "/api/security/fresh-mfa") return json({ ok: true });
+      if (url === "/api/privacy/consents") return json({ ok: true });
       if (url === "/api/credentials") return json({ credential: { status: "active" } }, { status: 201 });
       if (url === "/api/onboarding/complete") return json({ ok: true, redirectTo: "/learn" });
       throw new Error(`Unexpected request: ${url}`);
@@ -273,13 +294,13 @@ describe("resumable disclosed onboarding", () => {
     const user = userEvent.setup();
 
     render(<OnboardingWizard />);
-    expect(await screen.findByRole("heading", { name: "Connect NVIDIA NIM." })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Connect an AI provider." })).toBeInTheDocument();
     const mfaCode = screen.getByLabelText(/authenticator.*code/i);
     expect(mfaCode).toBeRequired();
     expect(mfaCode).toHaveAttribute("name", "mfaCode");
     await user.type(mfaCode, "654321");
     await user.type(screen.getByPlaceholderText(/Paste once; only the last four/i), "nvapi-test-key");
-    await user.click(screen.getByRole("button", { name: /Connect NIM and start learning/i }));
+    await user.click(screen.getByRole("button", { name: /Connect and start learning/i }));
 
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/learn"));
     const securityCall = calls.findIndex((call) => call.url === "/api/security/fresh-mfa");
@@ -289,7 +310,7 @@ describe("resumable disclosed onboarding", () => {
     expect(calls[securityCall]?.body).toEqual({ code: "654321" });
   });
 
-  it("does not send the NIM credential when inline MFA verification fails", async () => {
+  it("does not send the AI provider credential when inline MFA verification fails", async () => {
     const calls: string[] = [];
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -297,7 +318,7 @@ describe("resumable disclosed onboarding", () => {
       if (url === "/api/onboarding/status") {
         return json({
           ...emptyStatus,
-          requirements: { profileComplete: true, mfaEnabled: true, mfaFresh: false, nimActive: false },
+          requirements: { profileComplete: true, mfaEnabled: true, mfaFresh: false, aiKeyActive: false },
         });
       }
       if (url === "/api/security/fresh-mfa") {
@@ -308,17 +329,17 @@ describe("resumable disclosed onboarding", () => {
     const user = userEvent.setup();
 
     render(<OnboardingWizard />);
-    expect(await screen.findByRole("heading", { name: "Connect NVIDIA NIM." })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Connect an AI provider." })).toBeInTheDocument();
     await user.type(screen.getByLabelText(/authenticator.*code/i), "123456");
     await user.type(screen.getByPlaceholderText(/Paste once; only the last four/i), "nvapi-test-key");
-    await user.click(screen.getByRole("button", { name: /Connect NIM and start learning/i }));
+    await user.click(screen.getByRole("button", { name: /Connect and start learning/i }));
 
     expect(await screen.findByText("That authenticator code was not accepted.")).toBeInTheDocument();
     expect(calls).not.toContain("/api/credentials");
     expect(mocks.push).not.toHaveBeenCalled();
   });
 
-  it("keeps the learner on NIM setup and requests a new code when MFA expires during credential storage", async () => {
+  it("keeps the learner on the AI provider step and requests a new code when MFA expires during credential storage", async () => {
     const calls: string[] = [];
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -326,10 +347,11 @@ describe("resumable disclosed onboarding", () => {
       if (url === "/api/onboarding/status") {
         return json({
           ...emptyStatus,
-          requirements: { profileComplete: true, mfaEnabled: true, mfaFresh: false, nimActive: false },
+          requirements: { profileComplete: true, mfaEnabled: true, mfaFresh: false, aiKeyActive: false },
         });
       }
       if (url === "/api/security/fresh-mfa") return json({ ok: true });
+      if (url === "/api/privacy/consents") return json({ ok: true });
       if (url === "/api/credentials") {
         return json({
           code: "FRESH_MFA_REQUIRED",
@@ -341,15 +363,15 @@ describe("resumable disclosed onboarding", () => {
     const user = userEvent.setup();
 
     render(<OnboardingWizard />);
-    expect(await screen.findByRole("heading", { name: "Connect NVIDIA NIM." })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Connect an AI provider." })).toBeInTheDocument();
     const keyInput = screen.getByPlaceholderText(/Paste once; only the last four/i);
     await user.type(screen.getByLabelText(/authenticator.*code/i), "654321");
     await user.type(keyInput, "nvapi-test-key");
-    await user.click(screen.getByRole("button", { name: /Connect NIM and start learning/i }));
+    await user.click(screen.getByRole("button", { name: /Connect and start learning/i }));
 
     expect(await screen.findByText(/five-minute authenticator window expired/i)).toBeInTheDocument();
     expect(screen.getByText(/key was not stored/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Connect NVIDIA NIM." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Connect an AI provider." })).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Paste once; only the last four/i)).toHaveValue("nvapi-test-key");
     expect(screen.getByLabelText(/authenticator.*code/i)).toBeInTheDocument();
     expect(calls.filter((url) => url === "/api/credentials")).toHaveLength(1);
@@ -451,7 +473,7 @@ describe("resumable disclosed onboarding", () => {
       if (url === "/api/onboarding/status") {
         return json({
           ...emptyStatus,
-          requirements: { profileComplete: true, mfaEnabled: false, mfaFresh: false, nimActive: false },
+          requirements: { profileComplete: true, mfaEnabled: false, mfaFresh: false, aiKeyActive: false },
         });
       }
       if (url === "/api/security/fresh-mfa") {
@@ -479,15 +501,16 @@ describe("resumable disclosed onboarding", () => {
     expect(screen.getByRole("button", { name: /Verify authenticator/i })).toBeEnabled();
   });
 
-  it("releases the NIM action when completion returns malformed data", async () => {
+  it("releases the AI provider action when completion returns malformed data", async () => {
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url === "/api/onboarding/status") {
         return json({
           ...emptyStatus,
-          requirements: { profileComplete: true, mfaEnabled: true, mfaFresh: true, nimActive: false },
+          requirements: { profileComplete: true, mfaEnabled: true, mfaFresh: true, aiKeyActive: false },
         });
       }
+      if (url === "/api/privacy/consents") return json({ ok: true });
       if (url === "/api/credentials") return json({ credential: { status: "active" } }, { status: 201 });
       if (url === "/api/onboarding/complete") {
         return new Response("not-json", { status: 200, headers: { "content-type": "application/json" } });
@@ -497,12 +520,12 @@ describe("resumable disclosed onboarding", () => {
     const user = userEvent.setup();
     render(<OnboardingWizard />);
 
-    expect(await screen.findByRole("heading", { name: "Connect NVIDIA NIM." })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Connect an AI provider." })).toBeInTheDocument();
     await user.type(screen.getByPlaceholderText(/Paste once; only the last four/i), "nvapi-test-key");
-    await user.click(screen.getByRole("button", { name: /Connect NIM and start learning/i }));
+    await user.click(screen.getByRole("button", { name: /Connect and start learning/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/could not continue.*try again/i);
-    expect(screen.getByRole("button", { name: /Connect NIM and start learning/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Connect and start learning/i })).toBeEnabled();
     expect(mocks.push).not.toHaveBeenCalled();
   });
 

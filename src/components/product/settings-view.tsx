@@ -15,6 +15,7 @@ import {
   type MotionPreference,
   type TextSizePreference,
 } from "@/lib/preferences/accessibility-preferences";
+import { AI_PROVIDER_CATALOG, type CatalogProviderId } from "@/lib/ai/provider-catalog";
 import { ModalDialog } from "@/components/ui/modal-dialog";
 import { PasswordInput } from "@/components/ui/password-input";
 
@@ -47,6 +48,7 @@ export function SettingsView({ initialTab = "ai" }: { initialTab?: SettingsTab }
   const [deleteTarget, setDeleteTarget] = useState<Credential | null>(null);
   const [credentialLoadState, setCredentialLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [credentialLoadError, setCredentialLoadError] = useState<string | null>(null);
+  const [addProvider, setAddProvider] = useState<CatalogProviderId>("google");
   const accessibilityPreferences = useSyncExternalStore(
     subscribeToAccessibilityPreferences,
     getAccessibilityPreferencesSnapshot,
@@ -502,7 +504,7 @@ export function SettingsView({ initialTab = "ai" }: { initialTab?: SettingsTab }
             {error && <p className={styles.error} role="alert">{error}</p>}
             <form className={styles.form} onSubmit={add}>
               {!replaceTarget && <>
-                <label>Provider<select name="provider"><option value="nvidia_nim">NVIDIA NIM</option><option value="openrouter">OpenRouter</option><option value="google">Google Gemini</option><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="deepseek">DeepSeek</option></select></label>
+                <label>Provider<select name="provider" onChange={(event) => setAddProvider(event.target.value as CatalogProviderId)} value={addProvider}>{AI_PROVIDER_CATALOG.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select><small>{AI_PROVIDER_CATALOG.find((entry) => entry.id === addProvider)?.hint}</small></label>
                 <label>Label<input name="label" placeholder="My personal key" required minLength={2} /></label>
               </>}
               <label>{replaceTarget ? "New API key" : "API key"}<PasswordInput name="secret" autoComplete="off" placeholder="Paste once" required minLength={8} /><small>Never paste a key you have already exposed publicly; rotate it first.</small></label>
