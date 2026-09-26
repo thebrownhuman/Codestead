@@ -197,7 +197,7 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "dc330a745de9bcc5e4998c0ad6e60a43ffe744f849cdc891d63a77bd244329d7"
+      "sha256": "6db7306e26f96e92b8beb4f5c766f1a500eb61ce5f5b94ae48d92f48e7067dde"
     },
     {
       "path": "infra/tests/backup-ci-registration.test.mjs",
