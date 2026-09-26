@@ -89,7 +89,11 @@ export function AppShell({
   const [open, setOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [narrowViewport, setNarrowViewport] = useState(false);
-  const [sidebarHidden, setSidebarHidden] = useState(false);
+  // Initialized from the pathname (available during SSR) so the lesson
+  // workspace never flashes an open sidebar and then collapses it a moment
+  // later — that post-mount shift moved primary lesson controls (e.g. the
+  // topic checkpoint's "Start checkpoint" button) while a click was landing.
+  const [sidebarHidden, setSidebarHidden] = useState(() => isLessonPath(pathname));
   const hasStoredSidebarPreferenceRef = useRef(false);
   // After collapsing, the pointer is still over the rail; keep it collapsed until
   // the pointer leaves once, as browser vertical tabs do.
