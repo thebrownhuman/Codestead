@@ -491,40 +491,55 @@ export async function runProductionMigration(options) {
     const onClientConnectionError = (error) => connectionErrorReject(error);
     if (supportsConnectionErrorEvents) client.on("error", onClientConnectionError);
     try {
-      await Promise.race([
-        runMigrationOperationWithinDeadline(
-          client,
-          async () => {
-            await requireProductionPostgresMajor(
-              client,
-              options.requiredPostgresMajor,
-            );
-            try {
-              await acquireMigrationLock(client, options.lockOptions);
-              lockAcquired = true;
-            } catch (error) {
-              destroyClient = true;
-              throw error;
-            }
-            await verifyMigrationIdentity(client, "learncoding_migrator");
-            verifyReviewedMigrationRepository({ drizzleDirectory: migrationsFolder });
-            await client.query("SET ROLE learncoding_owner");
-            ownerRoleAssumed = true;
-            await verifyMigrationIdentity(client, "learncoding_owner");
-            await verifyAppliedMigrationLedger(client, {
-              requireComplete: false,
-            });
-            await migrate(drizzle(client), { migrationsFolder });
-            await verifyAppliedMigrationLedger(client, {
-              requireComplete: true,
-            });
-          },
-          operationDeadline,
-        ),
-        connectionErrorPromise,
-      ]);
+      const operationPromise = runMigrationOperationWithinDeadline(
+        client,
+        async () => {
+          await requireProductionPostgresMajor(
+            client,
+            options.requiredPostgresMajor,
+          );
+          try {
+            await acquireMigrationLock(client, options.lockOptions);
+            lockAcquired = true;
+          } catch (error) {
+            destroyClient = true;
+            throw error;
+          }
+          await verifyMigrationIdentity(client, "learncoding_migrator");
+          verifyReviewedMigrationRepository({ drizzleDirectory: migrationsFolder });
+          await client.query("SET ROLE learncoding_owner");
+          ownerRoleAssumed = true;
+          await verifyMigrationIdentity(client, "learncoding_owner");
+          await verifyAppliedMigrationLedger(client, {
+            requireComplete: false,
+          });
+          await migrate(drizzle(client), { migrationsFolder });
+          await verifyAppliedMigrationLedger(client, {
+            requireComplete: true,
+          });
+        },
+        operationDeadline,
+      );
+      // If connectionErrorPromise wins the race below, this promise is left
+      // running in the background against a connection we've already moved on
+      // from, and will typically reject once its own query observes the dead
+      // connection. Promise.race already subscribes to it, so Node does not
+      // treat that later rejection as unhandled — but attach an explicit
+      // no-op catch too, defensively, so nothing here depends on that subtlety.
+      operationPromise.catch(() => undefined);
+      await Promise.race([operationPromise, connectionErrorPromise]);
     } finally {
-      if (supportsConnectionErrorEvents) client.removeListener("error", onClientConnectionError);
+      // Swap to a no-op listener instead of fully removing it: the operation
+      // above may still be running in the background after we get here (the
+      // connection-error branch of the race can win while the abandoned
+      // operation is mid-query), and a later 'error' event on this client with
+      // no listener at all would crash the process the same way the original
+      // bug did. The client is released/destroyed by the cleanup below, which
+      // is the last point it's safe to stop listening altogether.
+      if (supportsConnectionErrorEvents) {
+        client.removeListener("error", onClientConnectionError);
+        client.on("error", () => undefined);
+      }
     }
   } catch (error) {
     destroyClient = true;
