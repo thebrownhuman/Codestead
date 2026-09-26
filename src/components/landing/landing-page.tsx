@@ -15,6 +15,7 @@ import {
   TerminalSquare
 } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
+import { landingJsonLd } from "@/lib/seo/landing-jsonld";
 import { CurriculumChips } from "./curriculum-chips";
 import { PromiseCards } from "./promise-cards";
 import styles from "./landing-page.module.css";
@@ -22,6 +23,10 @@ import styles from "./landing-page.module.css";
 export function LandingPage() {
   return (
     <div className={styles.page}>
+      <script
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(landingJsonLd()) }}
+        type="application/ld+json"
+      />
       <header className={`${styles.header} page-width`}>
         <BrandMark />
         <nav className={styles.nav} aria-label="Primary navigation">

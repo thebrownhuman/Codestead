@@ -1,9 +1,14 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { AppShell } from "@/components/shell/app-shell";
 import { createBrowserDurabilityNamespace } from "@/lib/drafts/cache-namespace";
 import { requireAuth } from "@/lib/http/authz";
 import { isApplicationAuthRequired } from "@/lib/security/runtime-policy";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default async function LearnerLayout({ children }: { children: React.ReactNode }) {
   if (isApplicationAuthRequired()) {
