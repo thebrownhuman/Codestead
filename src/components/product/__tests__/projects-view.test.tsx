@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProjectsView } from "../projects-view";
@@ -246,7 +247,7 @@ describe("learner project-review appeals", () => {
 
   it("warns before discarding a changed project brief and restores focus when closed", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ projects: [] }), { status: 200 })));
-    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const user = userEvent.setup();
     render(<ProjectsView />);
     const trigger = await screen.findByRole("button", { name: "Create your first brief" });
     trigger.focus();
@@ -254,10 +255,12 @@ describe("learner project-review appeals", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Project title" }), { target: { value: "Unfinished brief" } });
 
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
-    expect(confirm).toHaveBeenCalledWith("Discard this unfinished project brief?");
+    expect(await screen.findByRole("heading", { name: "Discard this unfinished project brief?" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.getByRole("dialog", { name: "Shape a project brief" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await user.click(await screen.findByRole("button", { name: "Discard" }));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Shape a project brief" })).not.toBeInTheDocument());
     expect(trigger).toHaveFocus();
   });
@@ -300,17 +303,19 @@ describe("learner project-review appeals", () => {
 
   it("warns before discarding an unfinished appeal reason and restores focus when closed", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(projectPayload()), { status: 200 })));
-    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const user = userEvent.setup();
     render(<ProjectsView />);
     const trigger = await screen.findByRole("button", { name: /Appeal review/ });
     fireEvent.click(trigger);
     fireEvent.change(screen.getByRole("textbox", { name: "Project review appeal reason" }), { target: { value: "Started typing a reason." } });
 
     fireEvent.click(screen.getByRole("button", { name: "Close appeal" }));
-    expect(confirm).toHaveBeenCalledWith("Discard this unfinished appeal reason?");
+    expect(await screen.findByRole("heading", { name: "Discard this unfinished appeal reason?" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.getByRole("dialog", { name: "Appeal stored review" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Close appeal" }));
+    await user.click(await screen.findByRole("button", { name: "Discard" }));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Appeal stored review" })).not.toBeInTheDocument());
   });
 

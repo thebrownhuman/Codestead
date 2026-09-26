@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-07-12T17:45:30+05:30",
-  "revalidatedAt": "2026-07-28T13:27:44.340Z",
+  "revalidatedAt": "2026-09-26T21:29:00.000Z",
   "scope": "Launch 1 learner-owned project revision workspace; local source, UI, and disposable PostgreSQL evidence only",
   "status": "verified",
   "claims": {
@@ -79,7 +79,7 @@
     },
     "learnerUi": {
       "path": "src/components/product/project-revision-dialog.tsx",
-      "sha256": "e86365156af8122b54020fe0439e27ecbde671132f492ee9cd2e72334ca960ef"
+      "sha256": "595be16ce1d1cf50e6765fd014ff786ed6b1593f1bdf780e9807d2aa49477316"
     },
     "postgresTest": {
       "path": "integration/project-revisions.integration.test.ts",
@@ -101,6 +101,11 @@
       "artifact": "integration/project-revisions.integration.test.ts",
       "priorDigest": "03d08a34d7c3569ddba4a63530ca5a3709a934703d85ebe540e8bbe6a4b00dec",
       "replacedAt": "2026-07-28T13:27:44.340Z"
+    },
+    {
+      "artifact": "src/components/product/project-revision-dialog.tsx",
+      "priorDigest": "e86365156af8122b54020fe0439e27ecbde671132f492ee9cd2e72334ca960ef",
+      "replacedAt": "2026-09-26T21:29:00.000Z"
     }
   ],
   "notProven": [

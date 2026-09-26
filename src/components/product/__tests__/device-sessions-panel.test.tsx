@@ -33,6 +33,12 @@ function unreadableDeniedResponse(status: 401 | 403, body: BodyInit | null = nul
   return { response, jsonSpy };
 }
 
+/** Clicks a logout trigger, then confirms the app's confirm dialog (replaces window.confirm). */
+async function clickAndConfirm(user: ReturnType<typeof userEvent.setup>, triggerName: string) {
+  await user.click(screen.getByRole("button", { name: triggerName }));
+  await user.click(await screen.findByRole("button", { name: "Sign out" }));
+}
+
 const activeSession = {
   id: "session-current",
   current: true,
@@ -282,13 +288,12 @@ describe("device session controls", () => {
       .mockResolvedValueOnce(json({}))
       .mockResolvedValueOnce(json({ sessions: [activeSession], revocationRequests: [] }));
     vi.stubGlobal("fetch", fetchMock);
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     const user = userEvent.setup();
 
     render(<DeviceSessionsPanel />);
     expect(await screen.findByText("Chrome on Windows")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "End other sessions" }));
+    await clickAndConfirm(user, "End other sessions");
     expect(await screen.findByText("2 other session(s) ended.")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/sessions", expect.objectContaining({
       method: "DELETE",
@@ -296,7 +301,7 @@ describe("device session controls", () => {
     }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
 
-    await user.click(screen.getByRole("button", { name: "End other sessions" }));
+    await clickAndConfirm(user, "End other sessions");
     expect(await screen.findByText("0 other session(s) ended.")).toBeInTheDocument();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(5));
     expect(durability.purgeRecovery).not.toHaveBeenCalled();
@@ -308,7 +313,6 @@ describe("device session controls", () => {
       .mockResolvedValueOnce(json({ sessions: [activeSession], revocationRequests: [] }))
       .mockResolvedValueOnce(denied.response);
     vi.stubGlobal("fetch", fetchMock);
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     const navigate = vi.fn();
     const user = userEvent.setup();
     render(
@@ -318,7 +322,7 @@ describe("device session controls", () => {
     );
     expect(await screen.findByText("Chrome on Windows")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "End other sessions" }));
+    await clickAndConfirm(user, "End other sessions");
 
     await waitFor(() => expect(navigate).toHaveBeenCalledWith("/login?reason=session-expired"));
     expect(denied.jsonSpy).not.toHaveBeenCalled();
@@ -341,7 +345,6 @@ describe("device session controls", () => {
         : Promise.resolve(json({ sessions: [activeSession], revocationRequests: [] }))
     ));
     vi.stubGlobal("fetch", fetchMock);
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     const navigate = vi.fn();
     const user = userEvent.setup();
     render(
@@ -350,7 +353,7 @@ describe("device session controls", () => {
       </BrowserDurabilityNamespaceProvider>,
     );
     expect(await screen.findByText("Chrome on Windows")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Sign out everywhere" }));
+    await clickAndConfirm(user, "Sign out everywhere");
 
     expect(durability.purgeRecovery).not.toHaveBeenCalled();
     expect(navigate).not.toHaveBeenCalled();
@@ -370,7 +373,6 @@ describe("device session controls", () => {
       .mockResolvedValueOnce(json({ sessions: [activeSession], revocationRequests: [] }))
       .mockResolvedValueOnce(json({ error: "Could not end the current session." }, { status: 503 }));
     vi.stubGlobal("fetch", fetchMock);
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     const navigate = vi.fn();
     const user = userEvent.setup();
     render(
@@ -379,7 +381,7 @@ describe("device session controls", () => {
       </BrowserDurabilityNamespaceProvider>,
     );
     expect(await screen.findByText("Chrome on Windows")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Sign out everywhere" }));
+    await clickAndConfirm(user, "Sign out everywhere");
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Could not end the current session.");
     expect(durability.purgeRecovery).not.toHaveBeenCalled();
@@ -395,7 +397,6 @@ describe("device session controls", () => {
         : Promise.resolve(json({ sessions: [activeSession], revocationRequests: [] }))
     ));
     vi.stubGlobal("fetch", fetchMock);
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     const navigate = vi.fn();
     const user = userEvent.setup();
     const view = render(
@@ -404,7 +405,7 @@ describe("device session controls", () => {
       </BrowserDurabilityNamespaceProvider>,
     );
     expect(await screen.findByText("Chrome on Windows")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Sign out everywhere" }));
+    await clickAndConfirm(user, "Sign out everywhere");
     await act(async () => {
       view.rerender(
         <BrowserDurabilityNamespaceProvider namespace="namespace-new">
@@ -422,16 +423,21 @@ describe("device session controls", () => {
   it("requires confirmation before destructive session revocation", async () => {
     const fetchMock = vi.fn().mockResolvedValue(json({ sessions: [activeSession], revocationRequests: [] }));
     vi.stubGlobal("fetch", fetchMock);
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     const user = userEvent.setup();
 
     render(<DeviceSessionsPanel />);
     expect(await screen.findByText("Chrome on Windows")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "End other sessions" }));
-    await user.click(screen.getByRole("button", { name: "Sign out everywhere" }));
 
-    expect(confirm).toHaveBeenNthCalledWith(1, "End every other signed-in session? Your current approved device will stay signed in.");
-    expect(confirm).toHaveBeenNthCalledWith(2, "Sign out every session, including this approved device?");
+    await user.click(screen.getByRole("button", { name: "End other sessions" }));
+    expect(await screen.findByRole("heading", { name: "End every other session?" })).toBeInTheDocument();
+    expect(screen.getByText("Your current approved device will stay signed in.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await user.click(screen.getByRole("button", { name: "Sign out everywhere" }));
+    expect(await screen.findByRole("heading", { name: "Sign out every session?" })).toBeInTheDocument();
+    expect(screen.getByText("This includes this approved device.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(screen.getByText("Chrome on Windows")).toBeInTheDocument();
   });
@@ -448,17 +454,18 @@ describe("device session controls", () => {
       return json({ sessions: [activeSession], revocationRequests: [] });
     });
     vi.stubGlobal("fetch", fetchMock);
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const user = userEvent.setup();
 
     render(<DeviceSessionsPanel />);
     expect(await screen.findByText("Chrome on Windows")).toBeInTheDocument();
     const endOthers = screen.getByRole("button", { name: "End other sessions" });
-    fireEvent.click(endOthers);
-    fireEvent.click(endOthers);
+    await user.click(endOthers);
+    const confirmButton = await screen.findByRole("button", { name: "Sign out" });
+    fireEvent.click(confirmButton);
+    fireEvent.click(confirmButton);
 
     await waitFor(() => expect(deleteCalls).toBe(1));
-    expect(confirm).toHaveBeenCalledTimes(1);
-    expect(endOthers).toBeDisabled();
+    await waitFor(() => expect(endOthers).toBeDisabled());
 
     await act(async () => { resolveDelete(json({ revokedCount: 1 })); });
     expect(await screen.findByRole("status")).toHaveTextContent("1 other session(s) ended.");
@@ -473,12 +480,11 @@ describe("device session controls", () => {
       .mockResolvedValueOnce(json({ sessions: [activeSession], revocationRequests: [] }))
       .mockResolvedValueOnce(json(body, { status: 409 }));
     vi.stubGlobal("fetch", fetchMock);
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     const user = userEvent.setup();
 
     render(<DeviceSessionsPanel />);
     expect(await screen.findByText("Chrome on Windows")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "End other sessions" }));
+    await clickAndConfirm(user, "End other sessions");
 
     expect(await screen.findByText(message)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "End other sessions" })).toBeEnabled();

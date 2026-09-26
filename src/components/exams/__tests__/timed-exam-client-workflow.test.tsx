@@ -256,8 +256,6 @@ describe("timed exam client workflows", () => {
     Object.defineProperty(window.navigator, "sendBeacon", { configurable: true, value: sendBeacon });
     const requestFullscreen = vi.fn(async () => undefined);
     Object.defineProperty(document.documentElement, "requestFullscreen", { configurable: true, value: requestFullscreen });
-    vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValue(true);
-
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const body = typeof init?.body === "string"
@@ -331,8 +329,10 @@ describe("timed exam client workflows", () => {
     expect(await screen.findByText("Connected")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Submit final" }));
+    await user.click(await screen.findByRole("button", { name: "Cancel" }));
     expect(calls.some((call) => call.url.endsWith("/submit"))).toBe(false);
     await user.click(screen.getByRole("button", { name: "Submit final" }));
+    await user.click(await screen.findByRole("button", { name: "Yes, submit" }));
     expect(await screen.findByRole("heading", { name: "mastered" })).toBeInTheDocument();
     expect(screen.getByText("95%")).toBeInTheDocument();
   });
@@ -386,7 +386,6 @@ describe("timed exam client workflows", () => {
     const autosave = deferred<Response>();
     const calls: string[] = [];
     let currentExam = activeExam();
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       calls.push(url);
@@ -407,6 +406,7 @@ describe("timed exam client workflows", () => {
 
     await user.click(screen.getByRole("button", { name: "Save & next" }));
     await user.click(screen.getByRole("button", { name: "Submit final" }));
+    await user.click(await screen.findByRole("button", { name: "Yes, submit" }));
     expect(await screen.findByText("Syncing to Codestead...")).toBeInTheDocument();
     expect(calls.some((url) => url.endsWith("/submit"))).toBe(false);
     const fetchMock = vi.mocked(fetch);
@@ -422,7 +422,6 @@ describe("timed exam client workflows", () => {
     "bounds stalled final-submit %s and recovers authoritative status without resubmitting",
     async (stalledPart) => {
       vi.stubGlobal("indexedDB", new FakeIDBFactory());
-      vi.spyOn(window, "confirm").mockReturnValue(true);
       let getCalls = 0;
       let submitCalls = 0;
       let submitSignal: AbortSignal | undefined;
@@ -454,6 +453,7 @@ describe("timed exam client workflows", () => {
 
       vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
       fireEvent.click(screen.getByRole("button", { name: "Submit final" }));
+      fireEvent.click(screen.getByRole("button", { name: "Yes, submit" }));
       await act(async () => { await Promise.resolve(); await Promise.resolve(); });
       expect(submitCalls).toBe(1);
       expect(getCalls).toBe(1);
@@ -476,7 +476,6 @@ describe("timed exam client workflows", () => {
 
   it("releases editing but fences resubmission while authoritative recovery GET stalls", async () => {
     vi.stubGlobal("indexedDB", new FakeIDBFactory());
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     let getCalls = 0;
     let submitCalls = 0;
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
@@ -500,6 +499,7 @@ describe("timed exam client workflows", () => {
 
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     fireEvent.click(screen.getByRole("button", { name: "Submit final" }));
+    fireEvent.click(screen.getByRole("button", { name: "Yes, submit" }));
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(10_000);
@@ -519,7 +519,6 @@ describe("timed exam client workflows", () => {
 
   it("keeps resubmission fenced when authoritative recovery GET fails", async () => {
     vi.stubGlobal("indexedDB", new FakeIDBFactory());
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     let getCalls = 0;
     let submitCalls = 0;
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
@@ -544,6 +543,7 @@ describe("timed exam client workflows", () => {
 
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     fireEvent.click(screen.getByRole("button", { name: "Submit final" }));
+    fireEvent.click(screen.getByRole("button", { name: "Yes, submit" }));
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(10_000);
@@ -563,7 +563,6 @@ describe("timed exam client workflows", () => {
 
   it("aborts owned final-submit work when the active exam unmounts", async () => {
     vi.stubGlobal("indexedDB", new FakeIDBFactory());
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     let submitSignal: AbortSignal | undefined;
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
@@ -580,6 +579,7 @@ describe("timed exam client workflows", () => {
     await screen.findByLabelText("Your response");
     await user.click(screen.getByRole("button", { name: "Save & next" }));
     fireEvent.click(screen.getByRole("button", { name: "Submit final" }));
+    fireEvent.click(screen.getByRole("button", { name: "Yes, submit" }));
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
 
     expect(submitSignal?.aborted).toBe(false);
@@ -589,7 +589,6 @@ describe("timed exam client workflows", () => {
 
   it("does not start final-submit work after unmount wins the flush continuation", async () => {
     vi.stubGlobal("indexedDB", new FakeIDBFactory());
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     let submitCalls = 0;
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
       const url = String(input);
@@ -606,6 +605,7 @@ describe("timed exam client workflows", () => {
     await screen.findByLabelText("Your response");
     fireEvent.click(screen.getByRole("button", { name: "Save & next" }));
     fireEvent.click(screen.getByRole("button", { name: "Submit final" }));
+    fireEvent.click(screen.getByRole("button", { name: "Yes, submit" }));
     rendered.unmount();
     await act(async () => {
       await Promise.resolve();
@@ -767,7 +767,6 @@ describe("timed exam client workflows", () => {
   it("renders a genuine answer conflict and blocks final submission until the learner chooses", async () => {
     vi.stubGlobal("indexedDB", new FakeIDBFactory());
     const calls: string[] = [];
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       calls.push(url);
@@ -788,6 +787,7 @@ describe("timed exam client workflows", () => {
     });
     await user.click(screen.getByRole("button", { name: "Save & next" }));
     await user.click(screen.getByRole("button", { name: "Submit final" }));
+    await user.click(await screen.findByRole("button", { name: "Yes, submit" }));
     expect(await screen.findByText("Needs attention: choose which answer to keep.")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Explain the trace/i }));
     expect(screen.getByDisplayValue("recovered conflict value")).toBeInTheDocument();
@@ -799,7 +799,6 @@ describe("timed exam client workflows", () => {
 
   it("disables both conflict choices while the admitted choice is pending", async () => {
     vi.stubGlobal("indexedDB", new FakeIDBFactory());
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     const replacementGate = deferred<void>();
     let autosaves = 0;
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -829,6 +828,7 @@ describe("timed exam client workflows", () => {
     });
     await user.click(screen.getByRole("button", { name: "Save & next" }));
     await user.click(screen.getByRole("button", { name: "Submit final" }));
+    await user.click(await screen.findByRole("button", { name: "Yes, submit" }));
     await user.click(screen.getByRole("button", { name: "Previous" }));
     const keepRecovered = await screen.findByRole("button", { name: "Keep recovered answer" });
     const useServer = screen.getByRole("button", { name: "Use server answer" });
@@ -849,7 +849,6 @@ describe("timed exam client workflows", () => {
     const now = new Date("2026-07-15T10:00:00.000Z");
     vi.setSystemTime(now);
     vi.stubGlobal("indexedDB", new FakeIDBFactory());
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     const expiring = activeExam({
       serverNow: now.toISOString(),
       serverDeadlineAt: new Date(now.getTime() + 1_000).toISOString(),
@@ -874,6 +873,7 @@ describe("timed exam client workflows", () => {
     });
     await user.click(screen.getByRole("button", { name: "Save & next" }));
     await user.click(screen.getByRole("button", { name: "Submit final" }));
+    await user.click(await screen.findByRole("button", { name: "Yes, submit" }));
     await user.click(screen.getByRole("button", { name: "Previous" }));
     const keepRecovered = await screen.findByRole("button", { name: "Keep recovered answer" });
     const useServer = screen.getByRole("button", { name: "Use server answer" });
@@ -925,7 +925,6 @@ describe("timed exam client workflows", () => {
 
   it("does not recreate or beacon unload recovery while successful terminal purge is still mounted", async () => {
     vi.stubGlobal("indexedDB", new FakeIDBFactory());
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     const sendBeacon = vi.fn(() => true);
     Object.defineProperty(window.navigator, "sendBeacon", {
       configurable: true,
@@ -967,6 +966,7 @@ describe("timed exam client workflows", () => {
 
     await user.click(screen.getByRole("button", { name: "Save & next" }));
     await user.click(screen.getByRole("button", { name: "Submit final" }));
+    await user.click(await screen.findByRole("button", { name: "Yes, submit" }));
     expect(await screen.findByRole("heading", { name: "mastered" })).toBeInTheDocument();
     expect(firedDuringPurge).toBe(true);
     expect(sendBeacon).not.toHaveBeenCalled();
@@ -1245,7 +1245,6 @@ describe("timed exam client workflows", () => {
 
   it("treats a malformed final-submit 401 as the same exact auth boundary", async () => {
     vi.stubGlobal("indexedDB", new FakeIDBFactory());
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     const navigate = vi.fn();
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -1258,6 +1257,7 @@ describe("timed exam client workflows", () => {
     await screen.findByLabelText("Your response");
     fireEvent.click(screen.getByRole("button", { name: "Save & next" }));
     fireEvent.click(screen.getByRole("button", { name: "Submit final" }));
+    fireEvent.click(screen.getByRole("button", { name: "Yes, submit" }));
 
     expect(await screen.findByText(/Redirecting to sign in/i)).toBeInTheDocument();
     expect(navigate).toHaveBeenCalledWith("/login");
@@ -1351,7 +1351,6 @@ describe("timed exam client workflows", () => {
     const retainedEvent = eventRecord();
     await seed.putExamEvent(retainedEvent);
     seed.close();
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     const calls: string[] = [];
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -1373,6 +1372,7 @@ describe("timed exam client workflows", () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "Save & next" }));
     await user.click(screen.getByRole("button", { name: "Submit final" }));
+    await user.click(await screen.findByRole("button", { name: "Yes, submit" }));
     expect(await screen.findByText("Finalization is still pending.")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "mastered" })).not.toBeInTheDocument();
     rendered.unmount();
@@ -1489,7 +1489,6 @@ describe("timed exam client workflows", () => {
     const now = new Date("2026-07-15T10:00:00.000Z");
     vi.setSystemTime(now);
     vi.stubGlobal("indexedDB", new FakeIDBFactory());
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     const autosave = deferred<Response>();
     let autosaveCalls = 0;
     let submitCalls = 0;
@@ -1517,6 +1516,7 @@ describe("timed exam client workflows", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Save & next" }));
     fireEvent.click(screen.getByRole("button", { name: "Submit final" }));
+    fireEvent.click(screen.getByRole("button", { name: "Yes, submit" }));
     await waitFor(() => expect(autosaveCalls).toBe(1));
 
     await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });

@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ProjectRevisionDialog } from "./project-revision-dialog";
 import { ModalDialog } from "@/components/ui/modal-dialog";
+import { useConfirm } from "@/components/ui/use-confirm";
 import styles from "./product-pages.module.css";
 
 type ProjectReview = {
@@ -118,6 +119,7 @@ function deterministicFindingSummary(findings: Array<Record<string, unknown>>) {
 }
 
 export function ProjectsView() {
+  const { confirm, confirmDialog } = useConfirm();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -204,16 +206,16 @@ export function ProjectsView() {
     setOpen(true);
   }
 
-  function closeCreateDialog() {
+  async function closeCreateDialog() {
     if (createBusy) return;
-    if (createDirty && !window.confirm("Discard this unfinished project brief?")) return;
+    if (createDirty && !(await confirm({ title: "Discard this unfinished project brief?", confirmLabel: "Discard", destructive: true }))) return;
     setCreateDirty(false);
     setOpen(false);
   }
 
-  function closeAppealDialog() {
+  async function closeAppealDialog() {
     if (appealBusy) return;
-    if (appealDirty && !window.confirm("Discard this unfinished appeal reason?")) return;
+    if (appealDirty && !(await confirm({ title: "Discard this unfinished appeal reason?", confirmLabel: "Discard", destructive: true }))) return;
     setAppealDirty(false);
     setAppealTarget(null);
   }
@@ -406,6 +408,7 @@ export function ProjectsView() {
             <button className="button button-primary" disabled={appealBusy} type="submit"><Scale size={16} /> {appealBusy ? "Submitting..." : "Submit appeal"}</button>
           </form>
       </ModalDialog>}
+      {confirmDialog}
     </div>
   );
 }

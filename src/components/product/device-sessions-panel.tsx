@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 
 import { useBrowserDurabilityNamespace } from "@/lib/browser-durability/context";
 import { openBrowserOutbox } from "@/lib/browser-durability/indexed-db";
+import { useConfirm } from "@/components/ui/use-confirm";
 import {
   purgeBrowserRecoveryData,
   withBrowserRecoveryRepository,
@@ -52,6 +53,7 @@ export function DeviceSessionsPanel({
   navigate?: (destination: string) => void;
 } = {}) {
   const browserDurabilityNamespace = useBrowserDurabilityNamespace();
+  const { confirm, confirmDialog } = useConfirm();
   const [sessions, setSessions] = useState<SessionView[]>([]);
   const [requests, setRequests] = useState<RevocationRequestView[]>([]);
   const [reason, setReason] = useState("");
@@ -137,11 +139,14 @@ export function DeviceSessionsPanel({
 
   async function logout(scope: "all" | "others") {
     if (mutationRef.current) return;
-    const confirmed = window.confirm(
-      scope === "all"
-        ? "Sign out every session, including this approved device?"
-        : "End every other signed-in session? Your current approved device will stay signed in.",
-    );
+    const confirmed = await confirm({
+      title: scope === "all" ? "Sign out every session?" : "End every other session?",
+      description: scope === "all"
+        ? "This includes this approved device."
+        : "Your current approved device will stay signed in.",
+      confirmLabel: "Sign out",
+      destructive: true,
+    });
     if (!confirmed) return;
     mutationRef.current = true;
     setBusy(true);
@@ -310,6 +315,7 @@ export function DeviceSessionsPanel({
           ))}
         </div>
       )}
+      {confirmDialog}
     </>
   );
 }

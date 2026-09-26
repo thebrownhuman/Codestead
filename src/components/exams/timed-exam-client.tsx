@@ -41,6 +41,7 @@ import {
   type ExamAnswerSaveState,
 } from "@/lib/exams/use-durable-exam-outbox";
 import { remainingExamSeconds, serverClockOffsetMs } from "@/app/api/exams/_lib/policy";
+import { useConfirm } from "@/components/ui/use-confirm";
 
 import styles from "./exams.module.css";
 
@@ -330,6 +331,7 @@ function ActiveExam({
   onRefresh: () => Promise<boolean>;
   onSession: (exam: ExamSessionView) => void;
 }) {
+  const { confirm, confirmDialog } = useConfirm();
   const [activeIndex, setActiveIndex] = useState(0);
   const [remaining, setRemaining] = useState(() => remainingExamSeconds(
     exam.serverDeadlineAt,
@@ -401,7 +403,12 @@ function ActiveExam({
     if (
       submitting
       || submitRecoveryPending
-      || (!deadline && !window.confirm("Submit this exam? You cannot change answers afterward."))
+      || (!deadline && !(await confirm({
+        title: "Submit this exam?",
+        description: "You cannot change answers afterward.",
+        confirmLabel: "Yes, submit",
+        destructive: true,
+      })))
     ) return;
     setSubmitting(true);
     setNotice(deadline
@@ -451,7 +458,7 @@ function ActiveExam({
       }
       if (mountedRef.current) setSubmitting(false);
     }
-  }, [exam.sessionId, flushOutbox, onAuthDenial, onRefresh, onSession, purgeOutbox, submitRecoveryPending, submitting]);
+  }, [confirm, exam.sessionId, flushOutbox, onAuthDenial, onRefresh, onSession, purgeOutbox, submitRecoveryPending, submitting]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -767,6 +774,7 @@ function ActiveExam({
           </footer>
         </main>
       </div>
+      {confirmDialog}
     </div>
   );
 }
