@@ -10,6 +10,7 @@ import {
 } from "../src/lib/notifications/guarded-prepared-dispatch";
 import { scheduleInactivityReminders } from
   "../src/lib/notifications/inactivity";
+import { resolveMailFrom } from "../src/lib/notifications/mail-from";
 import {
   startMailDispatchHardWatchdog,
   type MailDispatchHardWatchdog,
@@ -63,7 +64,6 @@ const MAX_MATERIALIZE_ATTEMPTS = 8;
 const MAX_RETRY_DELAY_MS = 6 * 60 * 60_000;
 const TERMINAL_PERSISTENCE_ATTEMPTS = 3;
 const FENCED_WORKER_MODE = "fenced-postgres-v1";
-const DEFAULT_MAIL_FROM = "Codestead <noreply@example.com>";
 const TERMINATION_SIGNALS = ["SIGTERM", "SIGINT"] as const;
 const APPLICATION_DRAIN_TIMEOUT_CODE = "APPLICATION_DRAIN_TIMEOUT";
 const APPLICATION_STOP_TIMEOUT_CODE = "APPLICATION_STOP_TIMEOUT";
@@ -252,7 +252,7 @@ function configuredAdapter(): MailAdapter {
 }
 
 function configuredFromAddress() {
-  const from = process.env.MAIL_FROM ?? DEFAULT_MAIL_FROM;
+  const from = resolveMailFrom();
   if (
     !from.trim()
     || from.length > 512

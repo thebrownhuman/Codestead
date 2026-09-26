@@ -11,6 +11,7 @@ import {
   outboxCorrelationToken,
   outboxMessageId,
 } from "./provider-correlation";
+import { resolveMailFrom } from "./mail-from";
 import { renderEmail } from "./templates";
 
 export interface OutgoingEmail {
@@ -148,10 +149,7 @@ function mimeMessage(
 ) {
   const rendered = renderEmail(input.template, input.variables);
   const boundary = `learncoding-${randomUUID()}`;
-  const from = headerValue(
-    process.env.MAIL_FROM ?? "Codestead <noreply@example.com>",
-    "From",
-  );
+  const from = headerValue(resolveMailFrom(), "From");
   const to = headerValue(input.to, "To");
   const subject = headerValue(rendered.subject, "Subject");
   return [
