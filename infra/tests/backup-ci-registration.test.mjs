@@ -783,6 +783,10 @@ function normalizeWorkflow(document) {
   return document.replaceAll("\r\n", "\n");
 }
 
+// Backup CI jobs are PARKED by owner decision (2026-09-26) until backups are rewritten
+// with a proven tool; the full job contract below is still enforced, only the gate is off.
+const parkedBackupCondition =
+  "    if: false # PARKED by owner 2026-09-26 until backups move to a proven tool (was: needs.changes.outputs.backup == 'true')";
 const registrationRun = "node infra/tests/backup-ci-registration.test.mjs";
 const releaseRollbackRun =
   "npm run test:mail-guarded-delivery-0069:release-rollback";
@@ -1234,7 +1238,7 @@ const reviewedJobContracts = new Map([
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 60",
       "    needs: changes",
-      "    if: needs.changes.outputs.backup == 'true'",
+      parkedBackupCondition,
       "    steps:",
       ...checkoutProjection,
       ...setupNodeProjection,
@@ -1247,7 +1251,7 @@ const reviewedJobContracts = new Map([
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 30",
       "    needs: changes",
-      "    if: needs.changes.outputs.backup == 'true'",
+      parkedBackupCondition,
       "    steps:",
       ...checkoutProjection,
       "      - run: bash infra/tests/install-reviewed-docker-engine.sh",
@@ -2149,8 +2153,8 @@ function runAdversarialSelfTests(document) {
     "aliased production e2e steps",
     replaceExactly(
       document,
-      "  backup-production-e2e:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n    needs: changes\n    if: needs.changes.outputs.backup == 'true'\n    steps:\n",
-      "  backup-production-e2e:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n    needs: changes\n    if: needs.changes.outputs.backup == 'true'\n    steps: *production-steps\n",
+      "  backup-production-e2e:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n    needs: changes\n" + parkedBackupCondition + "\n    steps:\n",
+      "  backup-production-e2e:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n    needs: changes\n" + parkedBackupCondition + "\n    steps: *production-steps\n",
     ),
   );
   expectRejected(
@@ -2179,7 +2183,7 @@ function runAdversarialSelfTests(document) {
     "      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0";
   const productionCheckout = `${checkoutStep}\n        with:\n          persist-credentials: false`;
   const productionStepsAnchor =
-    "  backup-production-e2e:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n    needs: changes\n    if: needs.changes.outputs.backup == 'true'\n    steps:\n";
+    "  backup-production-e2e:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n    needs: changes\n" + parkedBackupCondition + "\n    steps:\n";
   expectRejected(
     "missing production e2e run",
     replaceExactly(document, `${productionStep}\n`, ""),
