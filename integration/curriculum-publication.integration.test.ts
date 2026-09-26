@@ -257,6 +257,21 @@ describe("real PostgreSQL curriculum governance", () => {
     expect(after.allowed).toBe(true);
     expect(after.warnings.some((warning) => warning.code === "RELEASE_EVIDENCE_MISSING")).toBe(true);
 
+    // DSA is large enough to produce more than 500 warnings; warnings must be
+    // bounded on their own and never turn into an ISSUES_TRUNCATED blocker.
+    const [dsa] = (await pool.query<{ id: string }>(
+      `select cv.id from course_version cv join course c on c.id = cv.course_id where c.slug = 'dsa' limit 1`,
+    )).rows;
+    await approveCurriculumArtifactsAsOwner({
+      actorUserId: ADMIN_ID, courseVersionId: dsa!.id,
+      requestId: "92000000-0000-4000-8000-0000000000a6", reason: "Owner approves the DSA course.", now: NOW,
+    });
+    const dsaGate = await evaluateCurriculumPublicationGate({ courseVersionId: dsa!.id, targetStage: "beta" });
+    expect(dsaGate.issues).toEqual([]);
+    expect(dsaGate.allowed).toBe(true);
+    expect(dsaGate.warnings.length + dsaGate.warningsOmitted).toBeGreaterThan(500);
+    expect(dsaGate.warnings).toHaveLength(500);
+
     await expect(approveCurriculumArtifactsAsOwner({
       actorUserId: LEARNER_ID, courseVersionId: versionId,
       requestId: "92000000-0000-4000-8000-0000000000a5", reason: "Learner cannot approve.", now: NOW,

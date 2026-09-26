@@ -28,6 +28,7 @@ export interface PublicationGateReport {
   readonly issues: readonly PublicationGateIssue[];
   /** Reported but non-blocking in single-owner mode (see OWNER_MODE_WARNING_CODES). */
   readonly warnings: readonly PublicationGateIssue[];
+  readonly warningsOmitted: number;
   readonly summary: {
     readonly promisedSkills: number;
     readonly artifacts: number;
@@ -56,6 +57,8 @@ const DEV_WAIVABLE_REVIEW_CODES = new Set([
 // not exist yet (runtime lesson rows, signed release bundles, verified test
 // bundles, exam eligibility) and are surfaced as warnings instead of blockers.
 // Exams still only use courses with valid release evidence (runtime.ts).
+const GATE_LIST_LIMIT = 500;
+
 export const OWNER_MODE_WARNING_CODES = new Set([
   "RUNTIME_LESSON_MISSING",
   "RUNTIME_LESSON_STAGE",
@@ -87,10 +90,10 @@ export async function evaluateCurriculumPublicationGate(input: {
 }): Promise<PublicationGateReport> {
   const client = input.client ?? pool;
   const issues: PublicationGateIssue[] = [];
-  let truncated = false;
+  // Collected unbounded; blockers and warnings are bounded separately below
+  // so a long warning list can never masquerade as a blocker.
   const issue = (value: PublicationGateIssue) => {
-    if (issues.length < 500) issues.push(value);
-    else truncated = true;
+    issues.push(value);
   };
   const versionResult = await client.query<{
     id: string;
@@ -106,6 +109,7 @@ export async function evaluateCurriculumPublicationGate(input: {
       currentStage: "missing",
       issues: [{ code: "COURSE_VERSION_MISSING", message: "The publication candidate does not exist." }],
       warnings: [],
+      warningsOmitted: 0,
       summary: { promisedSkills: 0, artifacts: 0, approvedArtifacts: 0, codeItems: 0, runtimeLessons: 0, releaseEvidenceVersion: null },
     } as const;
     return { ...report, reportHash: hashCurriculumValue(report) };
@@ -345,9 +349,15 @@ export async function evaluateCurriculumPublicationGate(input: {
       issue({ code: "OWNER_REVIEW_INCOMPLETE", message: "Mark every artifact of this course reviewed before publishing it as verified locally." });
     }
   }
-  if (truncated) issues.push({ code: "ISSUES_TRUNCATED", message: "Additional publication blockers were omitted from this bounded response." });
-  const warnings = issues.filter((entry) => OWNER_MODE_WARNING_CODES.has(entry.code));
-  const blockers = issues.filter((entry) => !OWNER_MODE_WARNING_CODES.has(entry.code));
+  const allWarnings = issues.filter((entry) => OWNER_MODE_WARNING_CODES.has(entry.code));
+  const allBlockers = issues.filter((entry) => !OWNER_MODE_WARNING_CODES.has(entry.code));
+  const blockers = allBlockers.slice(0, GATE_LIST_LIMIT);
+  // Truncation only ever accompanies real blockers, so it never blocks alone.
+  if (allBlockers.length > GATE_LIST_LIMIT) {
+    blockers.push({ code: "ISSUES_TRUNCATED", message: `${allBlockers.length - GATE_LIST_LIMIT} more publication blockers were omitted from this bounded response.` });
+  }
+  const warnings = allWarnings.slice(0, GATE_LIST_LIMIT);
+  const warningsOmitted = allWarnings.length - warnings.length;
   const reportWithoutHash = {
     allowed: blockers.length === 0,
     courseVersionId: input.courseVersionId,
@@ -355,6 +365,7 @@ export async function evaluateCurriculumPublicationGate(input: {
     currentStage: version.stage,
     issues: blockers,
     warnings,
+    warningsOmitted,
     summary: {
       promisedSkills: skillIds.length,
       artifacts: artifacts.length,
