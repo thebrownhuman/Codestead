@@ -1,3 +1,5 @@
+import { EventEmitter } from "node:events";
+
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -1260,6 +1262,80 @@ describe("runProductionMigrationWithRetry", () => {
     expect(sleep).toHaveBeenCalledTimes(2);
     expect(terminated.migrate).not.toHaveBeenCalled();
     expect(succeeding.migrate).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries gracefully, without an unhandled rejection, when the client emits a connection error while idle between lock polls", async () => {
+    // Unlike sqlError() above (a query that throws synchronously), a role
+    // bootstrap that wins the shared administration lock terminates a
+    // migration connection that is idle between pg_try_advisory_lock polls
+    // (no query in flight). node-postgres then has no pending query promise
+    // to reject and instead emits 'error' directly on the Client. This test
+    // simulates that exact delivery path with a real EventEmitter client.
+    const unhandledRejections: unknown[] = [];
+    const onUnhandledRejection = (reason: unknown) => unhandledRejections.push(reason);
+    process.on("unhandledRejection", onUnhandledRejection);
+
+    class FakeClient extends EventEmitter {
+      queryCount = 0;
+      armed = false;
+      dead = false;
+      release = vi.fn();
+      async query(sql: string) {
+        this.queryCount += 1;
+        if (this.dead) {
+          throw Object.assign(new Error("Client has encountered a connection error"), {});
+        }
+        if (sql.includes("pg_try_advisory_lock")) {
+          if (!this.armed) {
+            this.armed = true;
+            setTimeout(() => {
+              this.dead = true;
+              const error = Object.assign(
+                new Error("terminating connection due to administrator command"),
+                { code: "57P01", severity: "FATAL" },
+              );
+              this.emit("error", error);
+            }, 0);
+          }
+          return { rows: [{ acquired: false }] };
+        }
+        return { rows: [{ server_version_num: "170010" }] };
+      }
+    }
+
+    try {
+      const terminated = {
+        connectionString: "postgresql://learncoding_migrator:Fake@postgres/learncoding",
+        pool: {
+          connect: vi.fn(async () => new FakeClient()),
+          end: vi.fn(async () => undefined),
+        },
+        drizzle: vi.fn(() => ({})),
+        migrate: vi.fn(async () => undefined),
+        lockOptions: {
+          pollMs: 1,
+          timeoutMs: 2_000,
+          // A real yield to the macrotask queue (unlike an immediately
+          // resolved promise) so the pending connection-error timeout below
+          // gets a turn instead of the poll loop starving it on microtasks.
+          sleep: () => new Promise<void>((resolve) => setTimeout(resolve, 0)),
+        },
+      };
+      const succeeding = attemptOptions(async () => ({ rows: [{ acquired: true }] }));
+      const attempts = [terminated, succeeding.options];
+      const sleep = vi.fn(async () => undefined);
+
+      await runProductionMigrationWithRetry(() => attempts.shift()!, { sleep, backoffMs: 1 });
+
+      expect(terminated.migrate).not.toHaveBeenCalled();
+      expect(succeeding.migrate).toHaveBeenCalledTimes(1);
+      // Give any stray microtask/macrotask a turn to surface a rejection
+      // before asserting none did.
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(unhandledRejections).toEqual([]);
+    } finally {
+      process.removeListener("unhandledRejection", onUnhandledRejection);
+    }
   });
 
   it("does not retry failures after the lock is held", async () => {
