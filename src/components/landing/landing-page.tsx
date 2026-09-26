@@ -7,42 +7,18 @@ import {
   BrainCircuit,
   Check,
   Code2,
-  Gamepad2,
   GitBranch,
   LockKeyhole,
   Play,
-  Route,
   ShieldCheck,
   Sparkles,
   TerminalSquare
 } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
+import { PromiseCards } from "./promise-cards";
 import styles from "./landing-page.module.css";
 
 const tracks = ["C", "C++", "Java", "Python", "Web", "DSA", "Git", "AI"];
-
-const promises = [
-  {
-    icon: Route,
-    title: "A roadmap that changes with you",
-    copy: "Diagnostics find the exact skills you know, then reopen only the gaps—not an entire course."
-  },
-  {
-    icon: BrainCircuit,
-    title: "Explanations that feel familiar",
-    copy: "Your hobbies shape examples and analogies while canonical definitions keep every lesson technically sound."
-  },
-  {
-    icon: Gamepad2,
-    title: "Practice you can see moving",
-    copy: "Logical games, trace tables, and code visualizers make program state tangible without replacing real code."
-  },
-  {
-    icon: BadgeCheck,
-    title: "Mastery backed by evidence",
-    copy: "Badges require independent work, critical tests, and delayed review—not clicks, streaks, or one lucky answer."
-  }
-];
 
 export function LandingPage() {
   return (
@@ -142,16 +118,7 @@ export function LandingPage() {
             <h2>Less watching. More thinking, trying, and remembering.</h2>
             <p>The app adapts presentation and practice while keeping curriculum and grading deterministic.</p>
           </div>
-          <div className={styles.promiseGrid}>
-            {promises.map(({ icon: Icon, title, copy }, index) => (
-              <article className="card" key={title}>
-                <div className={styles.promiseNumber}>0{index + 1}</div>
-                <Icon size={24} aria-hidden="true" />
-                <h3>{title}</h3>
-                <p>{copy}</p>
-              </article>
-            ))}
-          </div>
+          <PromiseCards />
         </section>
 
         <section id="trust" className={`${styles.trustSection} page-width`}>
