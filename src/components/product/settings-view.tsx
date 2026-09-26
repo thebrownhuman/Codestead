@@ -82,13 +82,14 @@ export function SettingsView({ initialTab = "ai" }: { initialTab?: SettingsTab }
     let responseError: string | null = null;
     try {
       const response = await fetch("/api/credentials", { cache: "no-store", signal });
-      const body = (await response.json().catch(() => ({}))) as { credentials?: Credential[]; error?: string };
+      const body = (await response.json().catch(() => ({}))) as { credentials?: Credential[]; mfaFresh?: boolean; error?: string };
       if (!response.ok || !Array.isArray(body.credentials)) {
         responseError = body.error ?? "The provider list could not be loaded.";
         throw new Error(responseError);
       }
       if (signal?.aborted) return false;
       setCredentials(body.credentials);
+      setMfaFresh(body.mfaFresh === true);
       setCredentialLoadState("ready");
       return true;
     } catch {
@@ -305,7 +306,7 @@ export function SettingsView({ initialTab = "ai" }: { initialTab?: SettingsTab }
       {error && !deleteTarget && !open && <p className={styles.error} role="alert">{error}</p>}
       <div className={styles.sideCard}>
         <h3>Verify before changing a key</h3>
-        <p>{mfaFresh ? "Authenticator verified for this short security window." : "Enter a current authenticator code. Verification remains valid for up to five minutes."}</p>
+        <p>{mfaFresh ? "Authenticator verified on this device for today." : "Enter a current authenticator code. Verification stays valid on this device for 24 hours."}</p>
         <label>
           Six-digit code
           <input

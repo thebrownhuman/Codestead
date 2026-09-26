@@ -11,6 +11,7 @@ import { requireAuth } from "@/lib/http/authz";
 import { writeAuditEvent } from "@/lib/security/audit-writer";
 import { parseMasterKey, sealCredential } from "@/lib/security/credential-vault";
 import { withRateLimit } from "@/lib/security/rate-limit";
+import { isFreshMfa, LEARNER_SELF_SERVICE_MFA_MS } from "@/lib/security/privileged-access";
 import { requireRecentMfa } from "@/lib/security/recent-mfa";
 import {
   consentPurposeForProvider,
@@ -62,8 +63,12 @@ export async function GET() {
     .where(eq(providerCredential.userId, authz.session.user.id))
     .orderBy(asc(providerCredential.createdAt));
   const currentConsents = await getCurrentConsents(authz.session.user.id);
+  const rawMfaVerifiedAt = (authz.session.session as { mfaVerifiedAt?: Date | string | null }).mfaVerifiedAt;
+  const mfaVerifiedAt = rawMfaVerifiedAt ? new Date(rawMfaVerifiedAt) : null;
   return NextResponse.json(
     {
+      // Advisory only: mutations re-check freshness against the session row.
+      mfaFresh: isFreshMfa(mfaVerifiedAt, new Date(), LEARNER_SELF_SERVICE_MFA_MS),
       credentials: credentials.map((credential) => {
         const purpose = consentPurposeForProvider(credential.provider);
         return {

@@ -159,6 +159,9 @@
 .form label:has(input[type="checkbox"], input[type="radio"]) { min-height: 44px; align-content: center; }
 .form input, .form textarea, .form select { min-height: 45px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--surface-solid); }
 .form textarea { min-height: 90px; resize: vertical; }
+.form label:has(> span > input[type="checkbox"]) > span { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: start; gap: 10px; line-height: 1.45; }
+.form label:has(> span > input[type="checkbox"]) > small { padding-left: 28px; }
+.form input[type="checkbox"], .form input[type="radio"] { width: 18px; height: 18px; min-height: 18px; margin: 2px 0 0; padding: 0; accent-color: var(--brand); }
 .form small { color: var(--ink-soft); font-weight: 500; }
 .revisionDialog { width: min(900px,100%); max-height: min(900px,92vh); overflow-y: auto; overscroll-behavior: contain; }
 .revisionForm { padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-muted); }

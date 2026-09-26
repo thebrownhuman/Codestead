@@ -10,7 +10,7 @@ import {
   isCurrentConsentAccepted,
   REQUIRED_DISCLOSURE_PURPOSES,
 } from "@/lib/privacy/consent";
-import { isFreshMfa } from "@/lib/security/privileged-access";
+import { isFreshMfa, LEARNER_SELF_SERVICE_MFA_MS } from "@/lib/security/privileged-access";
 
 export async function GET() {
   const authz = await requireAuth({ allowPending: true });
@@ -55,7 +55,7 @@ export async function GET() {
       requirements: {
         profileComplete: Boolean(profile?.selectedTracks.length) && disclosureAccepted,
         mfaEnabled,
-        mfaFresh: mfaEnabled && isFreshMfa(mfaVerifiedAt),
+        mfaFresh: mfaEnabled && isFreshMfa(mfaVerifiedAt, new Date(), LEARNER_SELF_SERVICE_MFA_MS),
         aiKeyActive: Boolean(activeCredential),
       },
       disclosureVersion: ENROLLMENT_DISCLOSURE_VERSION,
