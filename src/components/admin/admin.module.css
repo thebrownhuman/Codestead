@@ -195,6 +195,7 @@
 .curriculumJson { margin-top: 10px; }
 .curriculumJson textarea { min-height: 150px; resize: vertical; font-family: var(--font-mono); }
 .curriculumArtifact { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; margin-top: 6px; padding: 9px; border: 1px solid var(--line); border-radius: 11px; color: var(--ink); background: var(--surface-muted); text-align: left; }
+.reviewBadges { display: flex; align-items: center; gap: 6px; }
 .curriculumArtifact:hover, .curriculumArtifact:focus-visible { border-color: color-mix(in srgb, var(--brand) 44%, var(--line)); background: var(--brand-soft); }
 .curriculumArtifactActive { border-color: color-mix(in srgb, var(--brand) 60%, var(--line)); background: var(--brand-soft); }
 .curriculumArtifact > span { display: grid; min-width: 0; }
