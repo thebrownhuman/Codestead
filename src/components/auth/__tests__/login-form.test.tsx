@@ -212,6 +212,16 @@ describe("login session resume guard", () => {
     expect(mocks.replace).not.toHaveBeenCalled();
   });
 
+  it("explains the one-device block when Google's OAuth callback redirects back with the error", async () => {
+    mocks.getSession.mockResolvedValue({ data: null, error: null });
+    window.history.pushState({}, "", "/login?error=ACTIVE_SESSION_ELSEWHERE&error_description=blocked");
+    render(<LoginForm />);
+
+    expect(await screen.findByText("You're signed in on another device.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "request lost-device help" })).toHaveAttribute("href", "/lost-device");
+    expect(window.location.search).toBe("");
+  });
+
   it("recovers from a rejected sign-in request without clearing credentials", async () => {
     mocks.signInEmail.mockRejectedValueOnce(new TypeError("synthetic network failure"));
     const user = userEvent.setup();
@@ -299,7 +309,11 @@ describe("login session resume guard", () => {
     await user.click(screen.getByRole("button", { name: /Continue with Google/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Google sign-in was declined.");
-    expect(mocks.signInSocial).toHaveBeenCalledWith({ provider: "google", callbackURL: "/two-factor" });
+    expect(mocks.signInSocial).toHaveBeenCalledWith({
+      provider: "google",
+      callbackURL: "/two-factor",
+      errorCallbackURL: "/login",
+    });
   });
 
   it("recovers when the Google sign-in request rejects", async () => {

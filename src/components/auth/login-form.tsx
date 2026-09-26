@@ -84,6 +84,20 @@ export function LoginForm() {
   }, [cleanAnonymousRecovery]);
 
   useEffect(() => {
+    // The Google OAuth callback redirects failures back here as a full page
+    // navigation (not a fetch this component can await), so a blocked
+    // one-device sign-in surfaces as a query param instead of a result.error.
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("error") === "ACTIVE_SESSION_ELSEWHERE") {
+      setSignedInElsewhere(true);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("error");
+      url.searchParams.delete("error_description");
+      window.history.replaceState(null, "", url.pathname + url.search);
+    }
+  }, []);
+
+  useEffect(() => {
     let active = true;
     queueMicrotask(() => {
       if (active) void decideLoginGate();
@@ -149,7 +163,11 @@ export function LoginForm() {
     setBusy(true);
     setError(null);
     try {
-      const result = await authClient.signIn.social({ provider: "google", callbackURL: "/two-factor" });
+      const result = await authClient.signIn.social({
+        provider: "google",
+        callbackURL: "/two-factor",
+        errorCallbackURL: "/login",
+      });
       if (result?.error) {
         setError(result.error.message ?? "Google sign-in is not available.");
       }
