@@ -39,9 +39,17 @@ describe("recent MFA gate", () => {
     expect(mocks.writeAuditEvent).not.toHaveBeenCalled();
   });
 
+  it("keeps a learner verification valid on the same device session for 24 hours", async () => {
+    mocks.limit.mockResolvedValueOnce([
+      { mfaVerifiedAt: new Date("2026-07-11T10:00:00.000Z") },
+    ]);
+
+    await expect(requireRecentMfa(input)).resolves.toEqual({ allowed: true });
+  });
+
   it("denies and audits a stale assertion without exposing credential data", async () => {
     mocks.limit.mockResolvedValueOnce([
-      { mfaVerifiedAt: new Date("2026-07-12T09:54:59.999Z") },
+      { mfaVerifiedAt: new Date("2026-07-11T09:59:59.999Z") },
     ]);
 
     const result = await requireRecentMfa(input);

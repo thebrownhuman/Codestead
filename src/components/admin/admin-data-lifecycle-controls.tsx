@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { PasswordInput } from "@/components/ui/password-input";
 import styles from "./admin.module.css";
+import { withStepUp } from "./step-up-request";
 
 type DeletionReport = {
   tombstoneId: string;
@@ -39,14 +40,14 @@ export function AdminDataLifecycleControls({ learnerId }: { readonly learnerId: 
     setMessageIsError(false);
     try {
       await freshMfa();
-      const response = await fetch(
+      const response = await withStepUp(() => fetch(
         `/api/admin/learners/${encodeURIComponent(learnerId)}/data-export`,
         {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ requestId: crypto.randomUUID(), reason }),
         },
-      );
+      ));
       if (!response.ok) {
         const body = (await response.json()) as { error?: string };
         throw new Error(body.error ?? "The export could not be created.");
@@ -79,7 +80,7 @@ export function AdminDataLifecycleControls({ learnerId }: { readonly learnerId: 
     setMessageIsError(false);
     try {
       await freshMfa();
-      const response = await fetch(
+      const response = await withStepUp(() => fetch(
         `/api/admin/learners/${encodeURIComponent(learnerId)}/delete-account`,
         {
           method: "POST",
@@ -90,7 +91,7 @@ export function AdminDataLifecycleControls({ learnerId }: { readonly learnerId: 
             reason,
           }),
         },
-      );
+      ));
       const body = (await response.json()) as {
         error?: string;
         report?: DeletionReport;

@@ -10,6 +10,8 @@ import {
 
 const RECENT_SESSION_LIMIT = 20;
 
+export type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 export type SessionEndReason =
   | "learner_logout"
   | "learner_logout_others"
@@ -167,9 +169,10 @@ export async function archiveAndDeleteSessions(input: {
   scope: "all" | "others";
   reason: SessionEndReason;
   now?: Date;
+  tx?: DbTransaction;
 }) {
   const now = input.now ?? new Date();
-  return db.transaction(async (tx) => {
+  const run = async (tx: DbTransaction) => {
     const rows = await tx
       .select({
         id: session.id,
@@ -223,7 +226,8 @@ export async function archiveAndDeleteSessions(input: {
         ),
       );
     return ids;
-  });
+  };
+  return input.tx ? run(input.tx) : db.transaction(run);
 }
 
 /** Remove expired rows before a new login so the database uniqueness guard

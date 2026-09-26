@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -221,7 +221,7 @@ describe("administrator curriculum editorial queue", () => {
     });
   });
 
-  it("runs the publication lifecycle: stage, gate, owner review, publish, evidence, retire, and rollback", async () => {
+  it("runs the single-owner lifecycle: stage, approve, readiness, approve & publish, retire, and rollback", async () => {
     const versionDraft = "20000000-0000-4000-8000-000000000003";
     const versionCurrent = "20000000-0000-4000-8000-000000000004";
     const versionPrior = "20000000-0000-4000-8000-000000000005";
@@ -252,10 +252,13 @@ describe("administrator curriculum editorial queue", () => {
       if (url === `/api/admin/curriculum/artifacts/${artifactDraft}`) return json({ detail: detailFor(draftItem) });
       if (url === "/api/admin/curriculum/stage" && method === "POST") return json({ ok: true });
       if (url === `/api/admin/curriculum/versions/${versionDraft}/gate?target=verified`) {
-        return json({ gate: { allowed: true, issues: [], reportHash: "hash-ok" } });
+        return json({ gate: { allowed: true, issues: [], warnings: [{ code: "RUNTIME_LESSON_MISSING", artifactKey: "python.variables", message: "Runtime lesson missing." }], reportHash: "hash-ok" } });
       }
       if (url === `/api/admin/curriculum/versions/${versionDraft}/publish` && method === "POST") return json({ ok: true });
-      if (url === `/api/admin/curriculum/versions/${versionDraft}/evidence` && method === "POST") return json({ ok: true });
+      if (url === `/api/admin/curriculum/versions/${versionDraft}/approve` && method === "POST") {
+        queue = { ...queue, total: 0, statusCounts: [], items: [] };
+        return json({ report: { approvedCount: 1, alreadyApprovedCount: 0 } });
+      }
       if (url === `/api/admin/curriculum/versions/${versionDraft}/retire` && method === "POST") return json({ ok: true });
       if (url === `/api/admin/curriculum/courses/course-lifecycle/rollback` && method === "POST") return json({ ok: true });
       throw new Error(`Unexpected request: ${method} ${url}`);
@@ -272,19 +275,20 @@ describe("administrator curriculum editorial queue", () => {
       expect.objectContaining({ method: "POST" }),
     ));
 
-    await user.click(screen.getByRole("button", { name: /Mark all reviewed/i }));
-    await waitFor(() => expect(screen.getByText("Marked 1 as reviewed.")).toBeInTheDocument());
+    expect(screen.queryByText("Reviewed")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Approve all/i }));
+    await waitFor(() => expect(screen.getByText("All artifacts in this version are approved.")).toBeInTheDocument());
 
     await user.selectOptions(screen.getByLabelText("Publication target"), "verified");
-    await user.click(screen.getByRole("button", { name: "Run gate" }));
-    await waitFor(() => expect(screen.getByText("Gate passed")).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "Check readiness" }));
+    await waitFor(() => expect(screen.getByText("Ready to publish")).toBeInTheDocument());
+    expect(screen.getByText(/1 warnings/)).toBeInTheDocument();
+    expect(screen.getByText(/Skills: python\.variables/)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /Publish verified/i }));
-    await waitFor(() => expect(screen.getByText(/Published verified/)).toBeInTheDocument());
-
-    fireEvent.change(screen.getByPlaceholderText('{"schemaVersion":1,...}'), { target: { value: '{"schemaVersion":1}' } });
-    await user.click(screen.getByRole("button", { name: "Append release evidence" }));
-    await waitFor(() => expect(screen.getByText(/Signed release evidence appended/)).toBeInTheDocument());
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    await user.click(screen.getByRole("button", { name: /Approve & publish verified/i }));
+    await waitFor(() => expect(screen.getByText("Approved and published as verified.")).toBeInTheDocument());
+    expect(fetchMock).toHaveBeenCalledWith(`/api/admin/curriculum/versions/${versionDraft}/publish`, expect.objectContaining({ method: "POST" }));
 
     await user.click(screen.getByRole("button", { name: "Retire version" }));
     await waitFor(() => expect(screen.getByText(/retired; its immutable history/)).toBeInTheDocument());
@@ -299,7 +303,7 @@ describe("administrator curriculum editorial queue", () => {
     await waitFor(() => expect(screen.getByText(/Catalog pointer rolled back/)).toBeInTheDocument());
   });
 
-  it("blocks release evidence with invalid JSON without sending a request", async () => {
+  it("sends nothing when the owner cancels Approve & publish", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url === "/api/admin/curriculum") return json({
@@ -311,19 +315,15 @@ describe("administrator curriculum editorial queue", () => {
       throw new Error(`Unexpected request: ${url}`);
     });
     vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(window, "confirm").mockReturnValue(false);
     const user = userEvent.setup();
 
     render(<AdminCurriculumPublication />);
     await screen.findByText("Editorial review queue");
+    await user.click(screen.getByRole("button", { name: /Approve & publish beta/i }));
 
-    fireEvent.change(screen.getByPlaceholderText('{"schemaVersion":1,...}'), { target: { value: "{not json" } });
-    await user.click(screen.getByRole("button", { name: "Append release evidence" }));
-
-    expect(await screen.findByText("Release evidence must be valid JSON.")).toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalledWith(
-      expect.stringContaining("/evidence"),
-      expect.anything(),
-    );
+    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/approve"), expect.anything());
+    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/publish"), expect.anything());
   });
 
   it("surfaces the fresh-MFA prompt and a generic failure message", async () => {

@@ -1,3 +1,5 @@
+import { withStepUp } from "./step-up-request";
+
 export type StatusTone = "good" | "warning" | "danger" | "neutral" | "info";
 
 const GOOD_STATUSES = new Set([
@@ -140,14 +142,14 @@ export async function requestAdminJson<T>(
   input: string,
   init?: RequestInit,
 ): Promise<T> {
-  const response = await fetch(input, {
+  const response = await withStepUp(() => fetch(input, {
     ...init,
     cache: "no-store",
     headers: {
       Accept: "application/json",
       ...init?.headers,
     },
-  });
+  }));
   const body = (await response.json().catch(() => null)) as { error?: string } | null;
   if (!response.ok) {
     throw new AdminApiError(body?.error ?? "The administrator service did not respond.", response.status);

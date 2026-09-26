@@ -4,7 +4,7 @@ import { APIError } from "better-auth/api";
 import { db } from "@/lib/db/client";
 import { session } from "@/lib/db/schema";
 import { archiveAndDeleteSessions } from "@/lib/session-controls";
-import { writeAuditEvent } from "@/lib/security/audit-writer";
+import { writeAuditEvent, writeAuditEventInTransaction } from "@/lib/security/audit-writer";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import {
   ACTIVE_SESSION_ELSEWHERE,
@@ -79,23 +79,26 @@ export function sessionTakeoverRateLimitedError() {
  * event. Called only after the authenticator code in this request was valid.
  */
 export async function revokeSessionsForTakeover(userId: string, now = new Date()) {
-  const revoked = await archiveAndDeleteSessions({
-    userId,
-    actorUserId: userId,
-    currentSessionId: "",
-    scope: "all",
-    reason: "signed_in_elsewhere",
-    now,
+  return db.transaction(async (tx) => {
+    const revoked = await archiveAndDeleteSessions({
+      userId,
+      actorUserId: userId,
+      currentSessionId: "",
+      scope: "all",
+      reason: "signed_in_elsewhere",
+      now,
+      tx,
+    });
+    await writeAuditEventInTransaction(tx, {
+      actorUserId: userId,
+      subjectUserId: userId,
+      action: "session.takeover",
+      resourceType: "session",
+      outcome: "success",
+      metadata: { revokedSessionCount: revoked.length, factor: "totp" },
+    });
+    return revoked;
   });
-  await writeAuditEvent({
-    actorUserId: userId,
-    subjectUserId: userId,
-    action: "session.takeover",
-    resourceType: "session",
-    outcome: "success",
-    metadata: { revokedSessionCount: revoked.length, factor: "totp" },
-  });
-  return revoked;
 }
 
 export async function recordSessionTakeoverFailure(

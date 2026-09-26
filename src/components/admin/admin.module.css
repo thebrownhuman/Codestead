@@ -345,6 +345,13 @@
 .requestIdentity a { font-size: .875rem; }
 .adminFrame summary { display: flex; min-height: 44px; align-items: center; font-size: .875rem; }
 .adminFrame label:has(input[type="checkbox"], input[type="radio"]) { min-height: 44px; align-items: center; }
+.pageHead .textLink { display: flex; width: fit-content; margin-bottom: 4px; }
+.stepUpBackdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, #000 55%, transparent); }
+.stepUpDialog { display: grid; width: min(420px, 100%); gap: 12px; padding: 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface-solid, var(--surface)); box-shadow: 0 20px 60px rgb(0 0 0 / .35); }
+.stepUpDialog h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 1.1rem; }
+.stepUpDialog p { margin: 0; color: var(--ink-soft); font-size: .85rem; }
+.stepUpDialog label { display: grid; gap: 6px; font-size: .8rem; font-weight: 750; }
+.stepUpDialog input { min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 1.1rem; letter-spacing: .2em; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (max-width: 1120px) { .summaryGrid { grid-template-columns: repeat(3, 1fr); } .opsGrid { grid-template-columns: repeat(2, 1fr); } .adminRail { grid-template-columns: 1fr; grid-template-areas: "identity" "nav"; gap: 8px; } .adminIdentity { border-right: 0; } .adminRail nav { min-width: 0; flex-wrap: wrap; padding-bottom: 2px; } .adminRail nav a { flex: 0 0 auto; white-space: nowrap; } .adminRail > p { display: none; } }
 @media (max-width: 820px) { .adminRail { top: 74px; grid-template-columns: 1fr; grid-template-areas: "identity" "nav"; gap: 8px; } .adminIdentity { border-right: 0; } .adminRail nav { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; overscroll-behavior-inline: contain; } .adminRail nav a { white-space: nowrap; } .twoColumn, .balancedColumns, .detailGrid,.appealWorkspace,.planWorkspace,.curriculumAuth { grid-template-columns: 1fr; } .curriculumQueueControls { grid-template-columns: 1fr; } .appealQueue { position: static; max-height: 360px; } .spanTwo { grid-column: auto; } .detailStats { grid-template-columns: repeat(3, 1fr); } .requestCard { grid-template-columns: 1fr; } .curriculumChecklist > div, .credentialChoiceList, .credentialFields { grid-template-columns: 1fr; } .credentialFields label:nth-child(3) { grid-column: auto; } }

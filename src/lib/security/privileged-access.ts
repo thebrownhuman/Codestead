@@ -1,4 +1,21 @@
-const DEFAULT_FRESH_MFA_MS = 5 * 60 * 1_000;
+/**
+ * Step-up freshness windows (how long an authenticator verification on this
+ * device session counts as "fresh").
+ *
+ * - Administrator privileged actions (role/credential management, data
+ *   erasure/export, curriculum publication, revocations, …) keep a short
+ *   5-minute step-up window via authorizePrivilegedAction.
+ * - Learner self-service actions (own AI keys, onboarding) accept a
+ *   verification from the last 24 hours on the same session, like a daily
+ *   PingID prompt.
+ *
+ * Neither window applies to one-device takeover, password change, 2FA
+ * disable or recovery: those always require a fresh code or password in the
+ * same request.
+ */
+export const ADMIN_STEP_UP_MFA_MS = 5 * 60 * 1_000;
+export const LEARNER_SELF_SERVICE_MFA_MS = 24 * 60 * 60 * 1_000;
+const DEFAULT_FRESH_MFA_MS = ADMIN_STEP_UP_MFA_MS;
 
 export type PrivilegedAction =
   | "credential.reveal"

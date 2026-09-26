@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db/client";
 import { session } from "@/lib/db/schema";
 import { writeAuditEvent } from "@/lib/security/audit-writer";
-import { isFreshMfa } from "@/lib/security/privileged-access";
+import { isFreshMfa, LEARNER_SELF_SERVICE_MFA_MS } from "@/lib/security/privileged-access";
 
 export type RecentMfaAction =
   | "credential.add"
@@ -37,7 +37,7 @@ export async function requireRecentMfa(input: {
     .where(and(eq(session.id, input.sessionId), eq(session.userId, input.userId)))
     .limit(1);
 
-  if (isFreshMfa(record?.mfaVerifiedAt, input.now)) return { allowed: true };
+  if (isFreshMfa(record?.mfaVerifiedAt, input.now, LEARNER_SELF_SERVICE_MFA_MS)) return { allowed: true };
 
   await writeAuditEvent({
     actorUserId: input.userId,

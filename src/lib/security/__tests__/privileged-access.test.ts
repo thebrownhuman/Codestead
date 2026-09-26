@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { authorizePrivilegedAction, isFreshMfa } from "../privileged-access";
+import {
+  ADMIN_STEP_UP_MFA_MS,
+  authorizePrivilegedAction,
+  isFreshMfa,
+  LEARNER_SELF_SERVICE_MFA_MS,
+} from "../privileged-access";
 
 describe("privileged access", () => {
   const now = new Date("2026-07-12T00:00:00Z");
@@ -73,5 +78,18 @@ describe("privileged access", () => {
       action,
       now,
     }).code).toBe("FRESH_MFA_REQUIRED");
+  });
+
+  it("keeps administrator privileged actions on the short step-up window", () => {
+    const sixMinutesAgo = new Date(now.getTime() - 6 * 60_000);
+    expect(authorizePrivilegedAction({
+      actorRole: "admin",
+      mfaVerifiedAt: sixMinutesAgo,
+      reason: "Rotating a leaked provider key",
+      action: "role.change",
+      now,
+    })).toEqual({ allowed: false, code: "FRESH_MFA_REQUIRED" });
+    expect(ADMIN_STEP_UP_MFA_MS).toBe(5 * 60_000);
+    expect(LEARNER_SELF_SERVICE_MFA_MS).toBe(24 * 60 * 60_000);
   });
 });

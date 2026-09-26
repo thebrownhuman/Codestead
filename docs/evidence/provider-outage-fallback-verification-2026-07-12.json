@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.1.0",
   "generatedAt": "2026-07-12",
-  "revalidatedAt": "2026-09-26T10:29:29.642Z",
+  "revalidatedAt": "2026-09-26T12:26:53.964Z",
   "status": "verified",
   "scope": "Deterministic offline provider outage, administrator-funded fallback authority, stuck-operation recovery, and deletion serialization",
   "productionModelQualityEvidence": false,
@@ -86,7 +86,7 @@
     "src/lib/data-lifecycle/deletion.ts": "86357867c19ae18c0ccd5c06c8e0dbc0d484c51f8e9755105dd71b09ca6973e5",
     "src/app/api/admin/fallback-grants/route.ts": "68d4f10f868bfe01f0ec6f50200d99c95a8e44e9db2a36fccba2bf74cbd258d0",
     "src/app/api/admin/fallback-grants/[id]/revoke/route.ts": "798024fe4eded7eb61636d9b23886fcd2b8fb132632c328f63ee68a9c83f73d7",
-    "src/components/admin/admin-fallback-grant-manager.tsx": "9a2679a00294dfcb5e0f7c1ea4deba922a295efe6413c03ed0e3a8990644af87",
+    "src/components/admin/admin-fallback-grant-manager.tsx": "98a117559427c723b5ddc1066e8d123652de11bc38c7029b7d8788c83d555828",
     "integration/provider-outage-fallback.integration.test.ts": "f7f3ff1d262755c1ccbcc0e3edbbe55e1bc0031e6651b25e12217ff838430d8f",
     "integration/provider-operation-idempotency.integration.test.ts": "c58e4507cb07184e91d5540f580d7f244ce69a93a6aeb9d8513230c6d35fca89",
     "integration/postgres.integration.test.ts": "4932701ec5e32a27efe1bf94bbc0c43f1290442768cbbd7641e692af9f5fe080"
@@ -226,6 +226,11 @@
       "artifact": "src/components/admin/admin-fallback-grant-manager.tsx",
       "priorDigest": "b93aa202456b49ce6011111140dbfcd2210948974e9f8952e214e511c4f0b6ca",
       "replacedAt": "2026-09-26T10:29:29.642Z"
+    },
+    {
+      "artifact": "src/components/admin/admin-fallback-grant-manager.tsx",
+      "priorDigest": "9a2679a00294dfcb5e0f7c1ea4deba922a295efe6413c03ed0e3a8990644af87",
+      "replacedAt": "2026-09-26T12:26:53.964Z"
     }
   ]
 }

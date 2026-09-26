@@ -43,4 +43,26 @@ describe("resolveMailFrom", () => {
     vi.stubEnv("MAIL_FROM_ADDRESS", "evil@example.com>\r\nBcc: attacker@example.com");
     expect(() => resolveMailFrom()).toThrow();
   });
+
+  it("throws in production when neither MAIL_FROM nor MAIL_FROM_ADDRESS is set", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    expect(() => resolveMailFrom()).toThrow(/MAIL_FROM/);
+  });
+
+  it("allows the noreply@example.com default outside production", () => {
+    vi.stubEnv("NODE_ENV", "test");
+    expect(resolveMailFrom()).toBe("Codestead <noreply@example.com>");
+  });
+
+  it("allows production when MAIL_FROM_ADDRESS is set", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("MAIL_FROM_ADDRESS", "hello@codestead.app");
+    expect(resolveMailFrom()).toBe("Codestead <hello@codestead.app>");
+  });
+
+  it("allows production when legacy MAIL_FROM is set", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("MAIL_FROM", "hello@codestead.app");
+    expect(resolveMailFrom()).toBe("Codestead <hello@codestead.app>");
+  });
 });

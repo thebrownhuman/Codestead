@@ -121,7 +121,7 @@ describe("endpoint-wide executable authorization boundary", () => {
 
   it("rejects an anonymous caller before every administrator operation does work", async () => {
     const operations = await protectedOperations("admin");
-    expect(operations).toHaveLength(62);
+    expect(operations).toHaveLength(63);
 
     for (const { entry, method } of operations) {
       mocks.requireAdmin.mockClear();

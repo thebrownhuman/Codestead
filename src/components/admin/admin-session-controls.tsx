@@ -8,6 +8,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { formatDateTime, requestAdminJson } from "./admin-utils";
 import styles from "./admin.module.css";
 import { EmptyState, StatusPill } from "./status-pill";
+import { withStepUp } from "./step-up-request";
 
 type SessionView = {
   id: string;
@@ -76,11 +77,11 @@ export function AdminSessionControls({ learnerId }: { readonly learnerId: string
   async function privilegedPost(url: string, body: Record<string, string>) {
     if (reason.trim().length < 8) throw new Error("Enter a specific reason of at least eight characters.");
     await assertFreshMfa();
-    const response = await fetch(url, {
+    const response = await withStepUp(() => fetch(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
-    });
+    }));
     const result = (await response.json()) as { error?: string };
     if (!response.ok) throw new Error(result.error ?? "The session action failed.");
   }

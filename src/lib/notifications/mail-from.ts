@@ -26,6 +26,10 @@ export function resolveMailFrom(): string {
   const legacyMailFrom = process.env.MAIL_FROM?.trim();
   const name = process.env.MAIL_FROM_NAME?.trim() || DEFAULT_MAIL_FROM_NAME;
 
+  if (process.env.NODE_ENV === "production" && !explicitAddress && !legacyMailFrom) {
+    throw new Error("MAIL_FROM or MAIL_FROM_ADDRESS must be set in production.");
+  }
+
   const address = explicitAddress
     || (legacyMailFrom ? addressFromLegacyMailFrom(legacyMailFrom) : DEFAULT_MAIL_FROM_ADDRESS);
 

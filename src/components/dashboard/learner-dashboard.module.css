@@ -1,4 +1,4 @@
-.dashboard { display: grid; gap: 28px; }
+.dashboard { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
 .greeting { display: flex; align-items: flex-end; justify-content: space-between; gap: 30px; }
 .eyebrow, .sectionTitle > div > span { color: var(--brand); font-size: .66rem; font-weight: 850; letter-spacing: .11em; }
 .greeting h1 { margin: 7px 0 7px; font-size: clamp(2rem, 3.5vw, 3.45rem); line-height: 1.05; letter-spacing: -.05em; }

@@ -7,7 +7,6 @@ import {
 } from "@/lib/content";
 import { pool } from "@/lib/db/client";
 
-import { unreviewedCurriculumWaived } from "./gate";
 import { aggregateArtifactHash, hashCurriculumValue } from "./hash";
 
 interface RuntimeArtifactRow {
@@ -197,10 +196,10 @@ export async function listPublishedExamCourses(): Promise<readonly PublishedExam
   // unreviewedCurriculumWaived in ./gate). Such courses can never offer exams, so
   // leave them out of the exam catalog instead of failing every learner page.
   // Integrity problems (hashes, mixed versions, manifests) still throw.
-  const examReady = unreviewedCurriculumWaived()
-    ? versions.filter((rows) => rows.every((row) => row.review_event_exists && row.review_status === "approved")
-      && rows[0]?.release_evidence_exists === true)
-    : versions;
+  // Single-owner mode publishes without release evidence (gate.ts
+  // OWNER_MODE_WARNING_CODES); exams still require it, in every environment.
+  // Every other integrity problem still throws in materializePublishedCourse.
+  const examReady = versions.filter((rows) => rows[0]?.release_evidence_exists !== false);
   return examReady.map(materializePublishedCourse);
 }
 

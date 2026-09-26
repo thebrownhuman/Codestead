@@ -7,6 +7,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 
 import { formatBytes } from "./admin-utils";
 import styles from "./admin.module.css";
+import { withStepUp } from "./step-up-request";
 
 const GIB = 1024 ** 3;
 const OPTIONS = [2, 2.25, 2.5, 2.75, 3] as const;
@@ -58,7 +59,7 @@ export function AdminStorageQuotaManager({
       });
       const mfaBody = (await mfaResponse.json()) as { error?: string };
       if (!mfaResponse.ok) throw new Error(mfaBody.error ?? "Fresh MFA verification failed.");
-      const response = await fetch(
+      const response = await withStepUp(() => fetch(
         `/api/admin/learners/${encodeURIComponent(learnerId)}/storage-quota`,
         {
           method: "PATCH",
@@ -70,7 +71,7 @@ export function AdminStorageQuotaManager({
             reason,
           }),
         },
-      );
+      ));
       const body = (await response.json()) as QuotaResponse;
       if (!response.ok || body.quotaBytes === undefined || body.rowVersion === undefined) {
         throw new Error(body.error ?? "Storage quota could not be changed.");
