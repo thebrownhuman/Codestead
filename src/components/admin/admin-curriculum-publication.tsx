@@ -246,7 +246,7 @@ export function AdminCurriculumPublication({
     catch (cause) {
       const message = cause instanceof Error ? cause.message : "Operation failed safely.";
       setError(message === "FRESH_MFA_REQUIRED"
-        ? "Enter your six-digit authenticator code once; it stays valid for about five minutes."
+        ? "Enter your six-digit authenticator code once; it stays valid for 24 hours on this session."
         : message);
       // The error and the code/reason inputs live at the top of a long page.
       document.getElementById("curriculum-auth")?.scrollIntoView({ behavior: "smooth", block: "center" });

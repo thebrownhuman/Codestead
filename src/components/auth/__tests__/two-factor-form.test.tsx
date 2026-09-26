@@ -54,7 +54,7 @@ describe("two-factor session completion", () => {
     vi.stubGlobal("fetch", fetchMock);
     await submit();
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/onboarding"));
-    expect(mocks.verifyTotp).toHaveBeenCalledWith({ code: "123456", trustDevice: false });
+    expect(mocks.verifyTotp).toHaveBeenCalledWith({ code: "123456", trustDevice: true });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
@@ -128,7 +128,7 @@ describe("two-factor session completion", () => {
 
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/onboarding"));
     expect(mocks.verifyTotp).toHaveBeenLastCalledWith(
-      { code: "654321", trustDevice: false },
+      { code: "654321", trustDevice: true },
       { headers: { "x-codestead-session-takeover": "1" } },
     );
   });

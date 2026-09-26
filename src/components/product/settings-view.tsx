@@ -306,7 +306,7 @@ export function SettingsView({ initialTab = "ai" }: { initialTab?: SettingsTab }
       {error && !deleteTarget && !open && <p className={styles.error} role="alert">{error}</p>}
       <div className={styles.sideCard}>
         <h3>Verify before changing a key</h3>
-        <p>{mfaFresh ? "Authenticator verified on this device for today." : "Enter a current authenticator code. Verification stays valid on this device for 24 hours."}</p>
+        <p>{mfaFresh ? "Authenticator verified for this sign-in; no extra code needed." : "Enter a current authenticator code. Verification stays valid for this sign-in."}</p>
         <label>
           Six-digit code
           <input

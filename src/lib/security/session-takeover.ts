@@ -1,8 +1,10 @@
+import { createHash, randomUUID } from "node:crypto";
+
 import { and, eq, gt, isNull } from "drizzle-orm";
 import { APIError } from "better-auth/api";
 
 import { db } from "@/lib/db/client";
-import { session } from "@/lib/db/schema";
+import { session, verification } from "@/lib/db/schema";
 import { archiveAndDeleteSessions } from "@/lib/session-controls";
 import { writeAuditEvent, writeAuditEventInTransaction } from "@/lib/security/audit-writer";
 import { withRateLimit } from "@/lib/security/rate-limit";
@@ -57,6 +59,51 @@ export async function hasActiveSession(userId: string, now = new Date()) {
   return Boolean(active);
 }
 
+export const TRUSTED_DEVICE_MAX_AGE_SECONDS = 24 * 60 * 60;
+
+/**
+ * TOTP single use for takeover. A code accepted by the takeover endpoint is
+ * recorded for longer than its validity window; any later verification of the
+ * same code for the same account is refused, except the endpoint's own
+ * internal Better Auth verifyTOTP call, which carries a one-time in-process
+ * grant that cannot be supplied from outside.
+ */
+const TOTP_REPLAY_WINDOW_MS = 2 * 60_000;
+export const INTERNAL_TOTP_GRANT_HEADER = "x-codestead-internal-totp-grant";
+const internalTotpGrants = new Set<string>();
+
+function totpReplayIdentifier(userId: string, code: string) {
+  return `totp-used:${createHash("sha256").update(`${userId}:${code}`).digest("hex")}`;
+}
+
+export async function isTotpCodeUsed(userId: string, code: string, now = new Date()) {
+  const [used] = await db
+    .select({ id: verification.id })
+    .from(verification)
+    .where(and(eq(verification.identifier, totpReplayIdentifier(userId, code)), gt(verification.expiresAt, now)))
+    .limit(1);
+  return Boolean(used);
+}
+
+export async function markTotpCodeUsed(userId: string, code: string, now = new Date()) {
+  await db.insert(verification).values({
+    id: randomUUID(),
+    identifier: totpReplayIdentifier(userId, code),
+    value: userId,
+    expiresAt: new Date(now.getTime() + TOTP_REPLAY_WINDOW_MS),
+  });
+}
+
+export function issueInternalTotpGrant() {
+  const grant = randomUUID();
+  internalTotpGrants.add(grant);
+  return grant;
+}
+
+export function consumeInternalTotpGrant(grant: string | null | undefined) {
+  return Boolean(grant) && internalTotpGrants.delete(grant!);
+}
+
 /** Per-account budget for takeover attempts, independent of IP. */
 export async function consumeSessionTakeoverBudget(userId: string) {
   const response = await withRateLimit(
@@ -103,7 +150,7 @@ export async function revokeSessionsForTakeover(userId: string, now = new Date()
 
 export async function recordSessionTakeoverFailure(
   userId: string,
-  reason: "invalid_code" | "rate_limited",
+  reason: "invalid_code" | "invalid_credentials" | "rate_limited" | "signin_after_revoke_failed",
 ) {
   try {
     await writeAuditEvent({

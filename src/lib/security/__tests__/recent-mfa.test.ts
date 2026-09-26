@@ -47,9 +47,9 @@ describe("recent MFA gate", () => {
     await expect(requireRecentMfa(input)).resolves.toEqual({ allowed: true });
   });
 
-  it("denies and audits a stale assertion without exposing credential data", async () => {
+  it("denies and audits a session that never completed MFA without exposing credential data", async () => {
     mocks.limit.mockResolvedValueOnce([
-      { mfaVerifiedAt: new Date("2026-07-11T09:59:59.999Z") },
+      { mfaVerifiedAt: null },
     ]);
 
     const result = await requireRecentMfa(input);

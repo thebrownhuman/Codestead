@@ -2,19 +2,22 @@
  * Step-up freshness windows (how long an authenticator verification on this
  * device session counts as "fresh").
  *
- * - Administrator privileged actions (role/credential management, data
- *   erasure/export, curriculum publication, revocations, …) keep a short
- *   5-minute step-up window via authorizePrivilegedAction.
- * - Learner self-service actions (own AI keys, onboarding) accept a
- *   verification from the last 24 hours on the same session, like a daily
- *   PingID prompt.
+ * Owner decision (PingID-style, 2026-09-26):
+ * - Administrator privileged actions accept a verification from the last
+ *   24 hours on the same session (authorizePrivilegedAction).
+ * - Learner self-service actions (own AI keys, onboarding) need no extra code
+ *   while the MFA-completed session lasts.
+ * - A TOTP-verified browser is trusted for 24 hours at sign-in
+ *   (auth.ts trustDeviceMaxAge); new or untrusted devices still need a code.
  *
  * Neither window applies to one-device takeover, password change, 2FA
  * disable or recovery: those always require a fresh code or password in the
  * same request.
  */
-export const ADMIN_STEP_UP_MFA_MS = 5 * 60 * 1_000;
-export const LEARNER_SELF_SERVICE_MFA_MS = 24 * 60 * 60 * 1_000;
+export const ADMIN_STEP_UP_MFA_MS = 24 * 60 * 60 * 1_000;
+// Learner self-service (own AI keys, onboarding) needs no extra code while the
+// MFA-completed session lasts.
+export const LEARNER_SELF_SERVICE_MFA_MS = Number.POSITIVE_INFINITY;
 const DEFAULT_FRESH_MFA_MS = ADMIN_STEP_UP_MFA_MS;
 
 export type PrivilegedAction =

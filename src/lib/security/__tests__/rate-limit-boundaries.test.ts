@@ -14,6 +14,7 @@ const protectedRoutes = [
   ["src/app/api/session-revocation-requests/route.ts", ["session_revocation_user"]],
   ["src/app/api/lost-device/request/route.ts", ["lost_device_request_ip", "lost_device_request_email"]],
   ["src/app/api/lost-device/verify/route.ts", ["lost_device_verify_ip", "lost_device_verify_proof"]],
+  ["src/app/api/security/session-takeover/route.ts", ["session_takeover_ip", "session_takeover_email"]],
   ["src/app/api/credentials/route.ts", ["credential_write_user"]],
   ["src/app/api/credentials/[id]/route.ts", ["credential_write_user"]],
   ["src/app/api/admin/credentials/[id]/reveal/route.ts", ["credential_reveal_admin"]],
