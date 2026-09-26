@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { PasswordInput } from "@/components/ui/password-input";
 import { REVIEW_DIMENSIONS, type CurriculumReviewChecklist } from "@/lib/curriculum-publication/contracts";
-import { approvedLabel, reviewApprovalSummary } from "@/lib/curriculum-publication/review-approval-labels";
+import { approvedLabel } from "@/lib/curriculum-publication/review-approval-labels";
 
 import { humanize, requestAdminJson } from "./admin-utils";
 import styles from "./admin.module.css";
@@ -37,7 +37,15 @@ type Detail = {
   };
   timeline: Array<{ id: string; reviewerName: string; decision: string; reason: string }>;
 };
-type Gate = { allowed: boolean; issues: Array<{ code: string; artifactKey?: string; message: string }>; reportHash: string };
+type GateIssue = { code: string; artifactKey?: string; message: string };
+type Gate = { allowed: boolean; issues: GateIssue[]; warnings?: GateIssue[]; reportHash: string };
+
+// Single-owner mode: one state per artifact, driven by the formal approval.
+function ApprovalBadge({ approved }: { approved: boolean }) {
+  return approved
+    ? <span className={styles.inlineSuccess}><CheckCircle2 size={12} aria-hidden="true" /> Approved</span>
+    : <span className={styles.mutedText}>Needs approval</span>;
+}
 
 const emptyPart = { passed: false, evidenceRef: "", note: "" };
 const emptyReviewQueue: ReviewQueue = { total: 0, courseCount: 0, statusCounts: [], courseCounts: [], items: [] };
@@ -101,7 +109,7 @@ export function AdminCurriculumPublication({
   const [queuePage, setQueuePage] = useState(1);
   const [versionId, setVersionId] = useState<string | null>(null);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
-  const [ownerReviewed, setOwnerReviewed] = useState<ReadonlySet<string>>(new Set());
+  const [, setOwnerReviewed] = useState<ReadonlySet<string>>(new Set());
   const [artifactId, setArtifactId] = useState<string | null>(null);
   const [detail, setDetail] = useState<Detail | null>(null);
   const [artifactsLoading, setArtifactsLoading] = useState(false);
@@ -110,7 +118,6 @@ export function AdminCurriculumPublication({
   const [reviewedItems, setReviewedItems] = useState<string[]>([]);
   const [decision, setDecision] = useState<"approved" | "changes_requested" | "rejected">("changes_requested");
   const [targetStage, setTargetStage] = useState<"beta" | "verified">("beta");
-  const [releaseEvidence, setReleaseEvidence] = useState("");
   const [rollbackTarget, setRollbackTarget] = useState("");
   const [gate, setGate] = useState<Gate | null>(null);
   const [totp, setTotp] = useState("");
@@ -250,23 +257,6 @@ export function AdminCurriculumPublication({
     const fingerprint = `stage:${reason.trim()}`;
     await mutation(() => requestAdminJson("/api/admin/curriculum/stage", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ requestId: idFor(fingerprint), reason: reason.trim() }) }), "Filesystem content staged as immutable drafts; nothing was approved.");
   }
-  // One-click owner review marks (see src/lib/curriculum-publication/owner-review.ts).
-  async function markOwnerReview(ids: readonly string[], reviewed: boolean) {
-    if (!versionId || !ids.length) return;
-    setBusy(true); setError(null); setNotice(null);
-    try {
-      const body = await requestAdminJson<{ updated: number; reviewedArtifactIds: string[] }>(
-        `/api/admin/curriculum/versions/${versionId}/owner-review`,
-        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ artifactIds: ids, reviewed }) },
-      );
-      setOwnerReviewed(new Set(body.reviewedArtifactIds));
-      setNotice(reviewed ? `Marked ${body.updated} as reviewed.` : `Cleared ${body.updated} review mark${body.updated === 1 ? "" : "s"}.`);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not save the review mark.");
-    } finally {
-      setBusy(false);
-    }
-  }
   async function review() {
     if (!detail || detailLoading || detail.artifact.id !== artifactId) return;
     const payload = { expectedVersion: detail.artifact.rowVersion, decision, checklist, reviewedItemIds: reviewedItems, reason: reason.trim() };
@@ -280,19 +270,25 @@ export function AdminCurriculumPublication({
     catch (cause) { setError(cause instanceof Error ? cause.message : "Gate failed."); }
     finally { setBusy(false); }
   }
-  async function appendEvidence() {
-    if (!candidate) return;
-    let evidence: unknown;
-    try { evidence = JSON.parse(releaseEvidence); } catch { setError("Release evidence must be valid JSON."); return; }
-    const payload = { expectedVersion: candidate.publicationRevision, evidence, reason: reason.trim() };
-    const fingerprint = JSON.stringify({ versionId: candidate.id, ...payload });
-    await mutation(() => requestAdminJson(`/api/admin/curriculum/versions/${candidate.id}/evidence`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ requestId: idFor(fingerprint), ...payload }) }), "Signed release evidence appended; publication still requires a new gate pass.");
+  async function approve(ids?: readonly string[]) {
+    if (!versionId) return;
+    const payload = { artifactIds: ids ? [...ids] : undefined, reason: reason.trim() };
+    const fingerprint = JSON.stringify({ versionId, action: "approve", ...payload });
+    await mutation(
+      () => requestAdminJson(`/api/admin/curriculum/versions/${versionId}/approve`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ requestId: idFor(fingerprint), ...payload }) }),
+      ids?.length === 1 ? "Approved. Any later content change will need a new approval." : "All artifacts in this version are approved.",
+    );
   }
-  async function publish() {
+  async function approveAndPublish() {
     if (!candidate) return;
-    const payload = { expectedVersion: candidate.publicationRevision, targetStage, reason: reason.trim() };
-    const fingerprint = JSON.stringify({ versionId: candidate.id, ...payload });
-    await mutation(() => requestAdminJson(`/api/admin/curriculum/versions/${candidate.id}/publish`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ requestId: idFor(fingerprint), ...payload }) }), `Published ${targetStage}; the catalog pointer advanced atomically.`);
+    if (!window.confirm(`Approve every artifact of ${candidate.title} v${candidate.version} and publish it as ${targetStage}? Learners will see it immediately.`)) return;
+    const approvePayload = { reason: reason.trim() };
+    const publishPayload = { expectedVersion: candidate.publicationRevision, targetStage, reason: reason.trim() };
+    await mutation(async () => {
+      await requestAdminJson(`/api/admin/curriculum/versions/${candidate.id}/approve`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ requestId: idFor(JSON.stringify({ versionId: candidate.id, action: "approve-all", ...approvePayload })), ...approvePayload }) });
+      requestRef.current = null;
+      await requestAdminJson(`/api/admin/curriculum/versions/${candidate.id}/publish`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ requestId: idFor(JSON.stringify({ versionId: candidate.id, action: "publish", ...publishPayload })), ...publishPayload }) });
+    }, `Approved and published as ${targetStage}.`);
   }
   async function rollback() {
     if (!candidate?.pointerVersion || !rollbackTarget) return;
@@ -321,7 +317,7 @@ export function AdminCurriculumPublication({
         <label className={styles.curriculumQueueFilter}>Status<select aria-label="Filter editorial queue by status" value={queueStatus} onChange={(event) => { setQueueStatus(event.target.value); setQueuePage(1); }}><option value="">All outstanding statuses</option>{reviewQueue.statusCounts.map((item) => <option key={item.status} value={item.status}>{humanize(item.status)} ({item.count})</option>)}</select></label>
       </div>
       <div className={styles.curriculumReviewQueue} aria-label="Outstanding curriculum artifacts">
-        {visibleReviewItems.map((item) => <button className={`${styles.curriculumArtifact} ${item.id === artifactId ? styles.curriculumArtifactActive : ""}`} key={item.id} onClick={() => { setGate(null); setVersionId(item.courseVersionId); setArtifactId(item.id); }} type="button"><span><strong>{item.artifactKey}</strong><small>{item.courseTitle} v{item.courseVersion} · {humanize(item.artifactType)} · {item.sourcePath}</small></span><span className={styles.reviewBadges}><StatusPill status={item.reviewStatus} />{ownerReviewed.has(item.id) && <span className={styles.inlineSuccess}><CheckCircle2 size={11} aria-hidden="true" /> Reviewed</span>}</span></button>)}
+        {visibleReviewItems.map((item) => <button className={`${styles.curriculumArtifact} ${item.id === artifactId ? styles.curriculumArtifactActive : ""}`} key={item.id} onClick={() => { setGate(null); setVersionId(item.courseVersionId); setArtifactId(item.id); }} type="button"><span><strong>{item.artifactKey}</strong><small>{item.courseTitle} v{item.courseVersion} · {humanize(item.artifactType)} · {item.sourcePath}</small></span><span className={styles.reviewBadges}><ApprovalBadge approved={item.reviewStatus === "approved"} /></span></button>)}
         {!visibleReviewItems.length && <p>{reviewQueue.total ? "No artifacts match these filters." : "No staged artifacts need editorial review."}</p>}
       </div>
       <div className={styles.curriculumQueueFooter}>
@@ -338,20 +334,17 @@ export function AdminCurriculumPublication({
       <aside className={styles.appealQueue} aria-label="Curriculum candidates">{candidates.length ? candidates.map((item) => <button type="button" className={`${styles.appealQueueItem} ${item.id === versionId ? styles.appealQueueItemActive : ""}`} key={item.id} onClick={() => { setGate(null); setVersionId(item.id); }}><span><strong>{item.title} v{item.version}</strong><small>{approvedLabel(item.approvedCount, item.artifactCount)} · {item.aiAssistedCount} AI-assisted</small></span><StatusPill status={item.stage} /><p>{item.isCurrent ? "Current catalog pointer" : `Publication revision ${item.publicationRevision}`}</p></button>) : <p>No staged candidates.</p>}</aside>
       <section className={styles.appealDetail}>
         {candidate && (() => {
-          // Formal approvals or, locally, the owner's marks on every artifact.
-          const verifiedReady = candidate.unreviewedCount === 0
-            || (candidate.id === versionId && artifacts.length > 0 && artifacts.every((item) => ownerReviewed.has(item.id)));
           return <article className={styles.panel}><div className={styles.panelHead}><div><BookOpenCheck size={18} /><span><strong>{candidate.courseSlug} · {candidate.contentHash.slice(0, 12)}…</strong><small>{candidate.id === versionId
-                ? reviewApprovalSummary({ reviewedCount: ownerReviewed.size, approvedCount: candidate.approvedCount, artifactCount: artifacts.length })
-                : approvedLabel(candidate.approvedCount, candidate.artifactCount)} · release evidence {candidate.evidenceVersion ?? "missing"}</small></span></div><StatusPill status={candidate.stage} /></div><div className={styles.headActions}><select aria-label="Publication target" value={targetStage} onChange={(event) => { setGate(null); setTargetStage(event.target.value as typeof targetStage); }}><option value="beta">Beta</option><option disabled={!verifiedReady} value="verified">{verifiedReady ? "Verified" : "Verified (review every item first)"}</option></select>{targetStage === "beta" && candidate.stage !== "draft"
+                ? approvedLabel(artifacts.filter((item) => item.reviewStatus === "approved").length, artifacts.length)
+                : approvedLabel(candidate.approvedCount, candidate.artifactCount)}</small></span></div><StatusPill status={candidate.stage} /></div><div className={styles.headActions}><select aria-label="Publication target" value={targetStage} onChange={(event) => { setGate(null); setTargetStage(event.target.value as typeof targetStage); }}><option value="beta">Beta</option><option value="verified">Verified</option></select>{targetStage === "beta" && candidate.stage !== "draft"
             ? <span className={styles.inlineSuccess}><CheckCircle2 size={14} /> Already published as {candidate.stage}. Nothing to do here.</span>
-            : <><button type="button" className="button button-secondary" onClick={() => void runGate()}>Run gate</button><button type="button" className="button button-primary" disabled={!gate?.allowed || busy} onClick={() => void publish()}>Publish {targetStage}</button></>}{!candidate.isCurrent && candidate.stage !== "retired" && <button type="button" className="button button-secondary" disabled={busy} onClick={() => void retire()}>Retire version</button>}</div>{gate && <div className={gate.allowed ? styles.inlineSuccess : styles.inlineError}><strong>{gate.allowed ? "Gate passed" : `${gate.issues.length} blockers`}</strong>{groupGateIssues(gate.issues).map((group) => <p key={group.code}>{group.code}{group.count > 1 ? ` ×${group.count}` : ""}: {group.message}</p>)}</div>}<label className={styles.curriculumJson}>Release evidence JSON<textarea value={releaseEvidence} onChange={(event) => setReleaseEvidence(event.target.value)} placeholder='{"schemaVersion":1,...}' /></label><button type="button" className="button button-secondary" onClick={() => void appendEvidence()}>Append release evidence</button>{candidate.isCurrent && <div className={styles.headActions}><select aria-label="Rollback target" value={rollbackTarget} onChange={(event) => setRollbackTarget(event.target.value)}><option value="">Select prior version</option>{candidates.filter((item) => item.courseId === candidate.courseId && item.id !== candidate.id && ["beta", "verified"].includes(item.stage)).map((item) => <option key={item.id} value={item.id}>v{item.version}</option>)}</select><button type="button" className="button button-secondary" disabled={!rollbackTarget} onClick={() => void rollback()}>Rollback pointer</button></div>}</article>;
+            : <><button type="button" className="button button-secondary" disabled={busy} onClick={() => void runGate()}>Check readiness</button><button type="button" className="button button-primary" disabled={busy} onClick={() => void approveAndPublish()}>Approve &amp; publish {targetStage}</button></>}{!candidate.isCurrent && candidate.stage !== "retired" && <button type="button" className="button button-secondary" disabled={busy} onClick={() => void retire()}>Retire version</button>}</div>{gate && <div className={gate.allowed ? styles.inlineSuccess : styles.inlineError}><strong>{gate.allowed ? "Ready to publish" : `${gate.issues.length} blocker${gate.issues.length === 1 ? "" : "s"} (unapproved artifacts are approved by "Approve & publish")`}</strong>{groupGateIssues(gate.issues).map((group) => <p key={group.code}>{group.code}{group.count > 1 ? ` ×${group.count}` : ""}: {group.message}</p>)}</div>}{gate?.warnings?.length ? <details className={styles.evidenceDisclosure}><summary>{gate.warnings.length} warnings (don&apos;t block publishing; exams stay off for this course)</summary>{groupGateIssues(gate.warnings).map((group) => <p key={group.code}>{group.code}{group.count > 1 ? ` ×${group.count}` : ""}: {group.message}{group.code === "RUNTIME_LESSON_MISSING" ? ` Skills: ${gate.warnings!.filter((entry) => entry.code === group.code).map((entry) => entry.artifactKey).join(", ")}` : ""}</p>)}</details> : null}{candidate.isCurrent && <div className={styles.headActions}><select aria-label="Rollback target" value={rollbackTarget} onChange={(event) => setRollbackTarget(event.target.value)}><option value="">Select prior version</option>{candidates.filter((item) => item.courseId === candidate.courseId && item.id !== candidate.id && ["beta", "verified"].includes(item.stage)).map((item) => <option key={item.id} value={item.id}>v{item.version}</option>)}</select><button type="button" className="button button-secondary" disabled={!rollbackTarget} onClick={() => void rollback()}>Rollback pointer</button></div>}</article>;
         })()}
         {(artifactsLoading || detailLoading) && <p role="status">Loading the selected curriculum evidence…</p>}
-        <div className={styles.balancedColumns}><article className={styles.panel}><div className={styles.panelHead}><div><FileSearch size={18} /><span><strong>Artifacts</strong><small>{ownerReviewed.size} of {artifacts.length} reviewed by you</small></span></div>{artifacts.length > ownerReviewed.size && <button className="button button-secondary" disabled={busy} onClick={() => void markOwnerReview(artifacts.filter((item) => !ownerReviewed.has(item.id)).map((item) => item.id), true)} type="button"><CheckCircle2 size={14} /> Mark all reviewed</button>}</div>{artifacts.map((item) => <button className={styles.curriculumArtifact} key={item.id} onClick={() => setArtifactId(item.id)}><span><strong>{item.artifactKey}</strong><small>{humanize(item.artifactType)} · {item.sourcePath}</small></span><span className={styles.reviewBadges}><StatusPill status={item.reviewStatus} />{ownerReviewed.has(item.id) && <span className={styles.inlineSuccess}><CheckCircle2 size={11} aria-hidden="true" /> Reviewed</span>}</span></button>)}</article>
-        <article className={styles.panel}>{detail ? <><div className={styles.panelHead}><div><FileSearch size={18} /><span><strong>{detail.artifact.artifactKey}</strong><small>v{detail.artifact.rowVersion} · {detail.artifact.contentHashValid ? "hash verified" : "HASH FAILED"}</small></span></div><StatusPill status={detail.artifact.publicationStage} /></div>{detail.artifact.aiAssisted && <p className={styles.safeNotice}><AlertTriangle size={14} /> AI-assisted draft. Approval stays blocked until the authored file contains human-approved metadata and every bank item is exam-eligible.</p>}<details className={styles.evidenceDisclosure}><summary>Content, provenance, and answer-oracle evidence</summary><pre>{JSON.stringify(detail.artifact.content, null, 2)}</pre></details>{detailedReviewChecklist ? <><fieldset className={styles.curriculumChecklist}><legend>Seven-dimension human checklist</legend>{REVIEW_DIMENSIONS.map((name) => <div key={name}><label><input type="checkbox" checked={checklist[name].passed} onChange={(event) => setChecklist((current) => ({ ...current, [name]: { ...current[name], passed: event.target.checked } }))} /> {humanize(name)}</label><input aria-label={`${name} evidence reference`} placeholder="Evidence reference" value={checklist[name].evidenceRef} onChange={(event) => setChecklist((current) => ({ ...current, [name]: { ...current[name], evidenceRef: event.target.value } }))} /><input aria-label={`${name} review note`} placeholder="Specific review note" value={checklist[name].note} onChange={(event) => setChecklist((current) => ({ ...current, [name]: { ...current[name], note: event.target.value } }))} /></div>)}</fieldset><fieldset className={styles.curriculumItems}><legend>Every item must be reviewed</legend>{detail.artifact.expectedReviewItemIds.map((item) => <label key={item}><input type="checkbox" checked={reviewedItems.includes(item)} onChange={(event) => setReviewedItems((current) => event.target.checked ? [...current, item] : current.filter((value) => value !== item))} /> {item}</label>)}</fieldset><label className={styles.curriculumJson}>Decision<select value={decision} onChange={(event) => setDecision(event.target.value as typeof decision)}><option value="changes_requested">Changes requested</option><option value="rejected">Rejected</option><option value="approved">Approved</option></select></label><button className="button button-primary" disabled={busy || !detail.artifact.contentHashValid} onClick={() => void review()}><CheckCircle2 size={14} /> Append review</button></> : <div className={styles.headActions}>{ownerReviewed.has(detail.artifact.id)
-              ? <><span className={styles.inlineSuccess}><CheckCircle2 size={14} /> You reviewed this version.</span><button className="button button-secondary" disabled={busy} onClick={() => void markOwnerReview([detail.artifact.id], false)} type="button">Undo</button></>
-              : <button className="button button-primary" disabled={busy} onClick={() => void markOwnerReview([detail.artifact.id], true)} type="button"><CheckCircle2 size={14} /> Mark reviewed</button>}</div>}{detail.timeline.map((event) => <p className={styles.safeNotice} key={event.id}>{event.reviewerName} · {humanize(event.decision)} · {event.reason}</p>)}</> : <p>Select an artifact.</p>}</article></div>
+        <div className={styles.balancedColumns}><article className={styles.panel}><div className={styles.panelHead}><div><FileSearch size={18} /><span><strong>Artifacts</strong><small>{approvedLabel(artifacts.filter((item) => item.reviewStatus === "approved").length, artifacts.length)}</small></span></div>{artifacts.some((item) => item.reviewStatus !== "approved") && <button className="button button-secondary" disabled={busy} onClick={() => void approve()} type="button"><CheckCircle2 size={14} /> Approve all</button>}</div>{artifacts.map((item) => <button className={styles.curriculumArtifact} key={item.id} onClick={() => setArtifactId(item.id)}><span><strong>{item.artifactKey}</strong><small>{humanize(item.artifactType)} · {item.sourcePath}</small></span><span className={styles.reviewBadges}><ApprovalBadge approved={item.reviewStatus === "approved"} /></span></button>)}</article>
+        <article className={styles.panel}>{detail ? <><div className={styles.panelHead}><div><FileSearch size={18} /><span><strong>{detail.artifact.artifactKey}</strong><small>v{detail.artifact.rowVersion} · {detail.artifact.contentHashValid ? "hash verified" : "HASH FAILED"}</small></span></div><StatusPill status={detail.artifact.publicationStage} /></div>{detail.artifact.aiAssisted && <p className={styles.safeNotice}><AlertTriangle size={14} /> AI-assisted draft. Read it before approving; your approval covers this exact content only.</p>}<details className={styles.evidenceDisclosure}><summary>Content, provenance, and answer-oracle evidence</summary><pre>{JSON.stringify(detail.artifact.content, null, 2)}</pre></details>{detailedReviewChecklist ? <><fieldset className={styles.curriculumChecklist}><legend>Seven-dimension human checklist</legend>{REVIEW_DIMENSIONS.map((name) => <div key={name}><label><input type="checkbox" checked={checklist[name].passed} onChange={(event) => setChecklist((current) => ({ ...current, [name]: { ...current[name], passed: event.target.checked } }))} /> {humanize(name)}</label><input aria-label={`${name} evidence reference`} placeholder="Evidence reference" value={checklist[name].evidenceRef} onChange={(event) => setChecklist((current) => ({ ...current, [name]: { ...current[name], evidenceRef: event.target.value } }))} /><input aria-label={`${name} review note`} placeholder="Specific review note" value={checklist[name].note} onChange={(event) => setChecklist((current) => ({ ...current, [name]: { ...current[name], note: event.target.value } }))} /></div>)}</fieldset><fieldset className={styles.curriculumItems}><legend>Every item must be reviewed</legend>{detail.artifact.expectedReviewItemIds.map((item) => <label key={item}><input type="checkbox" checked={reviewedItems.includes(item)} onChange={(event) => setReviewedItems((current) => event.target.checked ? [...current, item] : current.filter((value) => value !== item))} /> {item}</label>)}</fieldset><label className={styles.curriculumJson}>Decision<select value={decision} onChange={(event) => setDecision(event.target.value as typeof decision)}><option value="changes_requested">Changes requested</option><option value="rejected">Rejected</option><option value="approved">Approved</option></select></label><button className="button button-primary" disabled={busy || !detail.artifact.contentHashValid} onClick={() => void review()}><CheckCircle2 size={14} /> Append review</button></> : <div className={styles.headActions}>{detail.artifact.reviewStatus === "approved"
+              ? <ApprovalBadge approved />
+              : <button className="button button-primary" disabled={busy || !detail.artifact.contentHashValid} onClick={() => void approve([detail.artifact.id])} type="button"><CheckCircle2 size={14} /> Approve</button>}</div>}{detail.timeline.map((event) => <p className={styles.safeNotice} key={event.id}>{event.reviewerName} · {humanize(event.decision)} · {event.reason}</p>)}</> : <p>Select an artifact.</p>}</article></div>
       </section>
     </div>
   </main>;

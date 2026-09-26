@@ -443,6 +443,102 @@ export async function reviewCurriculumArtifact(input: {
   }
 }
 
+/**
+ * Single-owner mode: the course owner (an active administrator) approves
+ * artifacts directly. Each approval is a human, attributable review event bound
+ * to the artifact's current content hash; any content change produces a new
+ * hash and therefore needs a new approval. Artifacts whose latest approval
+ * already matches their hash are skipped, so the call is idempotent.
+ */
+export const OWNER_APPROVAL_CHECKLIST: CurriculumReviewChecklist = Object.fromEntries(
+  (["technical", "source", "pedagogy", "accessibility", "security", "answerOracle", "exampleExecution"] as const)
+    .map((dimension) => [dimension, {
+      passed: true,
+      evidenceRef: "single-owner approval",
+      note: "Approved by the course owner in single-owner mode.",
+    }]),
+) as CurriculumReviewChecklist;
+
+export async function approveCurriculumArtifactsAsOwner(input: {
+  actorUserId: string;
+  courseVersionId: string;
+  artifactIds?: readonly string[];
+  requestId: string;
+  reason: string;
+  now?: Date;
+}) {
+  const now = input.now ?? new Date();
+  const reason = input.reason.trim();
+  if (
+    !UUID_PATTERN.test(input.courseVersionId)
+    || !UUID_PATTERN.test(input.requestId)
+    || reason.length < 8
+    || (input.artifactIds && (input.artifactIds.length === 0 || input.artifactIds.some((id) => !UUID_PATTERN.test(id))))
+  ) throw new CurriculumAdminError("INVALID_REQUEST");
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    await assertAdmin(client, input.actorUserId);
+    await client.query("select pg_advisory_xact_lock(hashtext($1))", [`curriculum-version:${input.courseVersionId}`]);
+    const artifacts = await client.query<{
+      id: string;
+      artifact_key: string;
+      artifact_type: string;
+      content: Record<string, unknown>;
+      content_hash: string;
+      row_version: string | number;
+      review_status: string;
+      latest_decision: string | null;
+      latest_hash: string | null;
+    }>(
+      `select a.id, a.artifact_key, a.artifact_type, a.content, a.content_hash, a.row_version, a.review_status,
+              r.decision as latest_decision, r.content_hash as latest_hash
+         from curriculum_artifact a
+         left join lateral (
+           select decision, content_hash from curriculum_review_event
+            where artifact_id = a.id order by resulting_version desc, id desc limit 1
+         ) r on true
+        where a.course_version_id = $1
+          and ($2::uuid[] is null or a.id = any($2::uuid[]))
+        for update of a`,
+      [input.courseVersionId, input.artifactIds ?? null],
+    );
+    if (!artifacts.rows.length || (input.artifactIds && artifacts.rows.length !== new Set(input.artifactIds).size)) {
+      throw new CurriculumAdminError("NOT_FOUND");
+    }
+    const approvedIds: string[] = [];
+    for (const artifact of artifacts.rows) {
+      if (hashCurriculumValue(artifact.content) !== artifact.content_hash) throw new CurriculumAdminError("HUMAN_APPROVAL_BLOCKED");
+      if (
+        artifact.review_status === "approved"
+        && artifact.latest_decision === "approved"
+        && artifact.latest_hash === artifact.content_hash
+      ) continue;
+      const resultingVersion = Number(artifact.row_version) + 1;
+      await client.query(
+        `insert into curriculum_review_event
+          (artifact_id, reviewer_user_id, reviewer_kind, decision, request_id,
+           content_hash, checklist, reviewed_item_ids, reason, resulting_version, occurred_at)
+         values ($1, $2, 'human', 'approved', $3, $4, $5::jsonb, $6::jsonb, $7, $8, $9)`,
+        [artifact.id, input.actorUserId, input.requestId, artifact.content_hash, JSON.stringify(OWNER_APPROVAL_CHECKLIST),
+          JSON.stringify(expectedReviewItemIds(artifact)), reason, resultingVersion, now],
+      );
+      await client.query(
+        `update curriculum_artifact set review_status = 'approved', row_version = row_version + 1, updated_at = $2 where id = $1`,
+        [artifact.id, now],
+      );
+      approvedIds.push(artifact.id);
+    }
+    await client.query("commit");
+    return { courseVersionId: input.courseVersionId, approvedCount: approvedIds.length, alreadyApprovedCount: artifacts.rows.length - approvedIds.length } as const;
+  } catch (error) {
+    await client.query("rollback").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function submitCurriculumReleaseEvidence(input: {
   actorUserId: string;
   courseVersionId: string;

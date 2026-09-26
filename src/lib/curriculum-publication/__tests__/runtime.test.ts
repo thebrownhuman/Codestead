@@ -47,10 +47,14 @@ describe("published curriculum runtime fail-closed boundary", () => {
     ["cross-course pointer", { version_course_id: "10000000-0000-4000-8000-000000000099" }],
     ["draft target", { course_stage: "draft" }],
     ["missing publish event", { publication_event_exists: false }],
-    ["missing release evidence", { release_evidence_exists: false }],
   ])("rejects a pointer with %s instead of falling back to draft files", async (_label, overrides) => {
     mocks.query.mockResolvedValue({ rows: [pointerRow(overrides)] });
     await expect(listPublishedExamCourses()).rejects.toBeInstanceOf(PublishedCurriculumRuntimeError);
     await expect(listPublishedExamCourses()).rejects.toMatchObject({ code: "PUBLICATION_POINTER_INVALID" });
+  });
+
+  it("leaves owner-published courses without release evidence out of the exam catalog", async () => {
+    mocks.query.mockResolvedValue({ rows: [pointerRow({ release_evidence_exists: false })] });
+    await expect(listPublishedExamCourses()).resolves.toEqual([]);
   });
 });

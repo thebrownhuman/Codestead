@@ -413,7 +413,7 @@ describe("evaluateCurriculumPublicationGate", () => {
     expect(report.issues.some((issue) => issue.code === "ITEM_REVIEW_INCOMPLETE")).toBe(true);
   });
 
-  it("flags AUTHORED_PUBLICATION_UNREVIEWED when the authored file lacks reviewed metadata", async () => {
+  it("accepts the owner's hash-bound human approval without authored publication metadata", async () => {
     const lesson = lessonArtifact();
     lesson.content = { publication: { stage: "draft", reviewer: null } };
     lesson.content_hash = hashCurriculumValue(lesson.content);
@@ -431,10 +431,10 @@ describe("evaluateCurriculumPublicationGate", () => {
       targetStage: "beta",
       client,
     });
-    expect(report.issues.some((issue) => issue.code === "AUTHORED_PUBLICATION_UNREVIEWED")).toBe(true);
+    expect(report.issues.some((issue) => issue.code === "AUTHORED_PUBLICATION_UNREVIEWED")).toBe(false);
   });
 
-  it("flags ITEM_EXAM_INELIGIBLE for exam-ineligible bank items", async () => {
+  it("reports ITEM_EXAM_INELIGIBLE as a non-blocking owner-mode warning for exam-ineligible bank items", async () => {
     const bank = bankArtifact();
     bank.content = {
       publication: { stage: "approved", reviewer: { kind: "human" } },
@@ -455,10 +455,11 @@ describe("evaluateCurriculumPublicationGate", () => {
       targetStage: "beta",
       client,
     });
-    expect(report.issues.some((issue) => issue.code === "ITEM_EXAM_INELIGIBLE")).toBe(true);
+    expect(report.warnings.some((issue) => issue.code === "ITEM_EXAM_INELIGIBLE")).toBe(true);
+    expect(report.issues.some((issue) => issue.code === "ITEM_EXAM_INELIGIBLE")).toBe(false);
   });
 
-  it("flags RELEASE_EVIDENCE_MISSING when no release row exists", async () => {
+  it("reports RELEASE_EVIDENCE_MISSING as a non-blocking owner-mode warning when no release row exists", async () => {
     const { client } = fullHappyPathClient();
     // Drop the release row queued last by re-queuing everything except it.
     const emptyReleaseClient = makeClient([]);
@@ -479,7 +480,8 @@ describe("evaluateCurriculumPublicationGate", () => {
       targetStage: "beta",
       client: noReleaseClient,
     });
-    expect(report.issues.some((issue) => issue.code === "RELEASE_EVIDENCE_MISSING")).toBe(true);
+    expect(report.warnings.some((issue) => issue.code === "RELEASE_EVIDENCE_MISSING")).toBe(true);
+    expect(report.issues.some((issue) => issue.code === "RELEASE_EVIDENCE_MISSING")).toBe(false);
   });
 
   it("allows publication with zero issues on a fully compliant fixture", async () => {
@@ -501,7 +503,7 @@ describe("evaluateCurriculumPublicationGate", () => {
     });
   });
 
-  it("flags RUNTIME_LESSON_MISSING when no runtime lesson row matches a promised skill", async () => {
+  it("reports RUNTIME_LESSON_MISSING as a non-blocking owner-mode warning when no runtime lesson row matches a promised skill", async () => {
     const { client } = fullHappyPathClient();
     void client;
     const manifest = manifestArtifact();
@@ -530,7 +532,8 @@ describe("evaluateCurriculumPublicationGate", () => {
       targetStage: "beta",
       client: noRuntimeLessonClient,
     });
-    expect(report.issues.some((issue) => issue.code === "RUNTIME_LESSON_MISSING")).toBe(true);
+    expect(report.warnings.some((issue) => issue.code === "RUNTIME_LESSON_MISSING")).toBe(true);
+    expect(report.issues.some((issue) => issue.code === "RUNTIME_LESSON_MISSING")).toBe(false);
   });
 });
 

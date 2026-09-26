@@ -5,6 +5,7 @@ import {
   publishCurriculumVersion,
   retireCurriculumVersion,
   reviewCurriculumArtifact,
+  approveCurriculumArtifactsAsOwner,
   rollbackCurriculumPointer,
   submitCurriculumReleaseEvidence,
 } from "@/lib/curriculum-publication/admin-service";
@@ -216,6 +217,52 @@ function releaseEvidence(artifacts: Awaited<ReturnType<typeof seedPublishableCan
 }
 
 describe("real PostgreSQL curriculum governance", () => {
+  it("single-owner mode: owner approval unblocks a real staged course; warnings stay visible; approvals are idempotent", async () => {
+    const staged = await stageFilesystemCurriculum({
+      actorUserId: ADMIN_ID,
+      requestId: "92000000-0000-4000-8000-0000000000a1",
+      reason: "Stage the validated filesystem catalog for owner approval.",
+      sourceCommit: "integration-commit",
+      now: NOW,
+    });
+    const versionId = staged.courseVersionIds[0]!;
+    const before = await evaluateCurriculumPublicationGate({ courseVersionId: versionId, targetStage: "beta" });
+    expect(before.allowed).toBe(false);
+    expect(before.issues.some((issue) => issue.code === "HUMAN_REVIEW_MISSING")).toBe(true);
+
+    const [firstArtifact] = (await pool.query<{ id: string }>(
+      `select id from curriculum_artifact where course_version_id = $1 order by artifact_key limit 1`, [versionId],
+    )).rows;
+    const single = await approveCurriculumArtifactsAsOwner({
+      actorUserId: ADMIN_ID, courseVersionId: versionId, artifactIds: [firstArtifact!.id],
+      requestId: "92000000-0000-4000-8000-0000000000a2", reason: "Owner approves one artifact.", now: NOW,
+    });
+    expect(single).toMatchObject({ approvedCount: 1 });
+    const partial = await evaluateCurriculumPublicationGate({ courseVersionId: versionId, targetStage: "beta" });
+    expect(partial.allowed).toBe(false);
+
+    const all = await approveCurriculumArtifactsAsOwner({
+      actorUserId: ADMIN_ID, courseVersionId: versionId,
+      requestId: "92000000-0000-4000-8000-0000000000a3", reason: "Owner approves the whole course.", now: NOW,
+    });
+    expect(all.alreadyApprovedCount).toBe(1);
+    const again = await approveCurriculumArtifactsAsOwner({
+      actorUserId: ADMIN_ID, courseVersionId: versionId,
+      requestId: "92000000-0000-4000-8000-0000000000a4", reason: "Owner approves the whole course again.", now: NOW,
+    });
+    expect(again.approvedCount).toBe(0);
+
+    const after = await evaluateCurriculumPublicationGate({ courseVersionId: versionId, targetStage: "beta" });
+    expect(after.issues).toEqual([]);
+    expect(after.allowed).toBe(true);
+    expect(after.warnings.some((warning) => warning.code === "RELEASE_EVIDENCE_MISSING")).toBe(true);
+
+    await expect(approveCurriculumArtifactsAsOwner({
+      actorUserId: LEARNER_ID, courseVersionId: versionId,
+      requestId: "92000000-0000-4000-8000-0000000000a5", reason: "Learner cannot approve.", now: NOW,
+    })).rejects.toMatchObject({ code: "ADMIN_REQUIRED" });
+  });
+
   it("stages every filesystem artifact as an unapproved draft and protects review history under replay and concurrency", async () => {
     const input = {
       actorUserId: ADMIN_ID,

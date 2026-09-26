@@ -26,6 +26,8 @@ export interface PublicationGateReport {
   readonly targetStage: "beta" | "verified";
   readonly currentStage: string;
   readonly issues: readonly PublicationGateIssue[];
+  /** Reported but non-blocking in single-owner mode (see OWNER_MODE_WARNING_CODES). */
+  readonly warnings: readonly PublicationGateIssue[];
   readonly summary: {
     readonly promisedSkills: number;
     readonly artifacts: number;
@@ -47,6 +49,19 @@ const DEV_WAIVABLE_REVIEW_CODES = new Set([
   // Nothing materializes runtime lesson rows yet; lesson pages read authored files.
   "RUNTIME_LESSON_MISSING",
   "RELEASE_EVIDENCE_MISSING",
+]);
+
+// Single-owner mode (owner decision 2026-09-26): the owner's hash-bound human
+// approval is authoritative. These checks describe pipeline evidence that does
+// not exist yet (runtime lesson rows, signed release bundles, verified test
+// bundles, exam eligibility) and are surfaced as warnings instead of blockers.
+// Exams still only use courses with valid release evidence (runtime.ts).
+export const OWNER_MODE_WARNING_CODES = new Set([
+  "RUNTIME_LESSON_MISSING",
+  "RUNTIME_LESSON_STAGE",
+  "RELEASE_EVIDENCE_MISSING",
+  "ITEM_EXAM_INELIGIBLE",
+  "EXECUTION_EVIDENCE_MISSING",
 ]);
 
 export function unreviewedCurriculumWaived(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -90,6 +105,7 @@ export async function evaluateCurriculumPublicationGate(input: {
       targetStage: input.targetStage,
       currentStage: "missing",
       issues: [{ code: "COURSE_VERSION_MISSING", message: "The publication candidate does not exist." }],
+      warnings: [],
       summary: { promisedSkills: 0, artifacts: 0, approvedArtifacts: 0, codeItems: 0, runtimeLessons: 0, releaseEvidenceVersion: null },
     } as const;
     return { ...report, reportHash: hashCurriculumValue(report) };
@@ -120,9 +136,6 @@ export async function evaluateCurriculumPublicationGate(input: {
   for (const artifact of artifacts) {
     if (hashCurriculumValue(artifact.content) !== artifact.content_hash) {
       issue({ code: "ARTIFACT_HASH_MISMATCH", artifactKey: artifact.artifact_key, message: "The stored artifact content does not match its immutable hash." });
-    }
-    if (!["approved", "published"].includes(artifact.publication_stage)) {
-      issue({ code: "ARTIFACT_STAGE_UNAPPROVED", artifactKey: artifact.artifact_key, message: "Every publication artifact must carry an approved or published immutable stage." });
     }
   }
   const aggregateHash = aggregateArtifactHash(artifacts.map((artifact) => ({
@@ -173,6 +186,18 @@ export async function evaluateCurriculumPublicationGate(input: {
     [artifacts.map((artifact) => artifact.id)],
   );
   const reviews = new Map(reviewsResult.rows.map((review) => [review.artifact_id, review]));
+  const ownerApproved = (artifact: (typeof artifacts)[number]) => {
+    const review = reviews.get(artifact.id);
+    return artifact.review_status === "approved"
+      && review?.decision === "approved"
+      && review.reviewer_kind === "human"
+      && review.content_hash === artifact.content_hash;
+  };
+  for (const artifact of artifacts) {
+    if (!["approved", "published"].includes(artifact.publication_stage) && !ownerApproved(artifact)) {
+      issue({ code: "ARTIFACT_STAGE_UNAPPROVED", artifactKey: artifact.artifact_key, message: "Every publication artifact must carry an approved or published immutable stage." });
+    }
+  }
   let approvedArtifacts = 0;
   const codeItems: Array<{ id: string; artifactKey: string }> = [];
   for (const artifact of artifacts) {
@@ -197,7 +222,7 @@ export async function evaluateCurriculumPublicationGate(input: {
       issue({ code: "ITEM_REVIEW_INCOMPLETE", artifactKey: artifact.artifact_key, message: "Every item in the immutable artifact must be explicitly reviewed." });
       continue;
     }
-    if (artifact.artifact_type !== "course_manifest") {
+    if (artifact.artifact_type !== "course_manifest" && !ownerApproved(artifact)) {
       const publication = object(artifact.content.publication);
       const reviewer = object(publication?.reviewer);
       if (
@@ -321,12 +346,15 @@ export async function evaluateCurriculumPublicationGate(input: {
     }
   }
   if (truncated) issues.push({ code: "ISSUES_TRUNCATED", message: "Additional publication blockers were omitted from this bounded response." });
+  const warnings = issues.filter((entry) => OWNER_MODE_WARNING_CODES.has(entry.code));
+  const blockers = issues.filter((entry) => !OWNER_MODE_WARNING_CODES.has(entry.code));
   const reportWithoutHash = {
-    allowed: issues.length === 0,
+    allowed: blockers.length === 0,
     courseVersionId: input.courseVersionId,
     targetStage: input.targetStage,
     currentStage: version.stage,
-    issues,
+    issues: blockers,
+    warnings,
     summary: {
       promisedSkills: skillIds.length,
       artifacts: artifacts.length,

@@ -1,17 +1,17 @@
 {
   "schemaVersion": 1,
-  "files": 122,
-  "operations": 157,
-  "matrixRows": 157,
+  "files": 123,
+  "operations": 158,
+  "matrixRows": 158,
   "boundaryCounts": {
     "public": 5,
     "auth-handler": 2,
     "authenticated": 88,
-    "admin": 62
+    "admin": 63
   },
   "objectAuthorizationCounts": {
     "public-input": 5,
-    "administrator-scope": 62,
+    "administrator-scope": 63,
     "session-user": 84,
     "auth-provider": 2,
     "no-user-object": 2,
@@ -448,6 +448,19 @@
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
       "operationSourceSha256": "9f94941b8c1cc170b571bcc7b483c0b36a7c9dd738c1af9f7a84b880e88e1487"
+    },
+    {
+      "operation": "POST /api/admin/curriculum/versions/[versionId]/approve",
+      "file": "src/app/api/admin/curriculum/versions/[versionId]/approve/route.ts",
+      "route": "/api/admin/curriculum/versions/[versionId]/approve",
+      "method": "POST",
+      "boundary": "admin",
+      "anonymous": "authenticated",
+      "learner": "administrator",
+      "admin": "allowed",
+      "objectAuthorization": "administrator-scope",
+      "ownershipProof": "requireAdmin() before request parsing or data access",
+      "operationSourceSha256": "f2f3c8c21a1d05d78eb0bfa77042f8a910239118ceb2e2142fe452db86a0a7d8"
     },
     {
       "operation": "GET /api/admin/curriculum/versions/[versionId]/artifacts",
@@ -1266,7 +1279,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "aa209dbbb077e46d4db5a42597d51016436c539d6c12b9e9c6c717dcc52a8ad8"
+      "operationSourceSha256": "92fb8c1b2988dae31a448ddb322074fc8ae5c7e0c0e5cbebc2ac1ccfef61327f"
     },
     {
       "operation": "POST /api/credentials",
@@ -1903,7 +1916,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "dddd1bd7ff6bf05a4c79f9f0ff6aadb2967741ee1b01ad6097f2c0ebc9c30267"
+      "operationSourceSha256": "43728be0ddb95d2c2544023695bca0c379015537de0b1ed7ca7261a2ad2152c0"
     },
     {
       "operation": "GET /api/portfolio",
@@ -2166,7 +2179,7 @@
       "operationSourceSha256": "b88f55f3a91e588c90d93419fbf944eba9e0f64f9fd6a5ab3e2f9a003ce2ccd8"
     }
   ],
-  "generatedAt": "2026-09-26T08:49:06.972Z",
+  "generatedAt": "2026-09-26T12:03:19.856Z",
   "scope": "Complete static role/object-authorization source inventory. The endpoint sweep verifies guard invocation, while authz.test.ts verifies real guard decisions and runtime-authorization.integration.test.ts behaviorally covers a representative owner-bound route set. This report alone is not runtime cross-user proof, deployed proxy/browser evidence, or PostgreSQL RLS evidence.",
   "runtimeVerification": {
     "guardInvocationTest": "src/lib/security/__tests__/endpoint-auth-boundaries.test.ts",
@@ -2174,8 +2187,8 @@
     "representativeObjectAuthorizationTest": "integration/runtime-authorization.integration.test.ts",
     "protectedOperationInvocations": {
       "anonymousAuthenticated": 88,
-      "anonymousAdmin": 62,
-      "learnerAdmin": 62
+      "anonymousAdmin": 63,
+      "learnerAdmin": 63
     },
     "betterAuthAdminPolicyTest": "src/lib/security/__tests__/better-auth-admin-policy.test.ts"
   }
