@@ -1,16 +1,35 @@
 import type { Metadata, Viewport } from "next";
 
 import { ACCESSIBILITY_PREFERENCES_BOOTSTRAP_SCRIPT } from "@/lib/preferences/accessibility-preferences";
+import { SITE_URL } from "@/lib/site";
 
 import "./globals.css";
 
+const DESCRIPTION = "Build skills that stay with a private, adaptive learning studio for coding, DSA, web, and AI.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "Codestead",
     template: "%s · Codestead"
   },
-  description: "Build skills that stay with a private, adaptive learning studio for coding, DSA, web, and AI.",
-  applicationName: "Codestead"
+  description: DESCRIPTION,
+  applicationName: "Codestead",
+  alternates: {
+    canonical: "/"
+  },
+  openGraph: {
+    type: "website",
+    url: SITE_URL,
+    siteName: "Codestead",
+    title: "Codestead",
+    description: DESCRIPTION
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Codestead",
+    description: DESCRIPTION
+  }
 };
 
 export const viewport: Viewport = {

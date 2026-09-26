@@ -9,7 +9,9 @@ const mocks = vi.hoisted(() => {
   archiveExpiredSessions: vi.fn(async () => undefined),
   archiveAndDeleteSessions: vi.fn(async () => ["old-session"]),
   writeAuditEvent: vi.fn(async () => undefined),
+  writeAuditEventInTransaction: vi.fn(async () => undefined),
   withRateLimit: vi.fn(async (_check: unknown, handler: () => Promise<Response>) => handler()),
+  transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback({})),
   };
 });
 
@@ -22,7 +24,7 @@ vi.mock("better-auth/adapters/drizzle", () => ({ drizzleAdapter: () => ({}) }));
 vi.mock("better-auth/next-js", () => ({ nextCookies: () => ({}) }));
 vi.mock("better-auth/plugins", () => ({ admin: () => ({}), twoFactor: () => ({}) }));
 vi.mock("@/lib/db/client", () => ({
-  db: { select: mocks.select, update: mocks.update },
+  db: { select: mocks.select, update: mocks.update, transaction: mocks.transaction },
   pool: {},
 }));
 vi.mock("@/lib/session-controls", () => ({
@@ -32,7 +34,10 @@ vi.mock("@/lib/session-controls", () => ({
   boundedUserAgent: (value: string | null) => value,
   describeUserAgent: () => "Browser",
 }));
-vi.mock("@/lib/security/audit-writer", () => ({ writeAuditEvent: mocks.writeAuditEvent }));
+vi.mock("@/lib/security/audit-writer", () => ({
+  writeAuditEvent: mocks.writeAuditEvent,
+  writeAuditEventInTransaction: mocks.writeAuditEventInTransaction,
+}));
 vi.mock("@/lib/security/rate-limit", () => ({ withRateLimit: mocks.withRateLimit }));
 
 import { auth } from "@/lib/auth";
@@ -122,11 +127,17 @@ describe("one-active-device session creation", () => {
         actorUserId: "learner-1",
         scope: "all",
         reason: "signed_in_elsewhere",
+        tx: expect.anything(),
       }),
     );
-    expect(mocks.writeAuditEvent).toHaveBeenCalledWith(
+    expect(mocks.writeAuditEventInTransaction).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({ action: "session.takeover", outcome: "success", subjectUserId: "learner-1" }),
     );
+    expect(mocks.transaction).toHaveBeenCalledTimes(1);
+    const [txArg] = mocks.archiveAndDeleteSessions.mock.calls.at(-1) as unknown as [{ tx: unknown }];
+    const [auditTx] = mocks.writeAuditEventInTransaction.mock.calls.at(-1) as unknown as [unknown];
+    expect(txArg.tx).toBe(auditTx);
   });
 });
 
