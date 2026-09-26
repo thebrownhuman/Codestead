@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-07-12T16:28:00.000Z",
-  "revalidatedAt": "2026-09-25T16:50:00.000Z",
+  "revalidatedAt": "2026-09-26T16:51:36.000Z",
   "scope": "Local deterministic validation of nightly backup status reporting through the dedicated least-privilege reporter and current PostgreSQL mail-authority chain on native disposable PostgreSQL 17; no Docker, host PostgreSQL service, real data, real credentials, or external email was used.",
   "status": "passed",
   "shellContract": {
@@ -145,7 +145,7 @@
     },
     {
       "path": "scripts/migrate-production.mjs",
-      "sha256": "ac53361c85c4ee1341432a68924b133a9a33e93a3745edc650c956dd67b93046"
+      "sha256": "fb8dcd2e70138f92536ce0e1586e2ae6668d0b4e882176c97f22590dfd91cf05"
     },
     {
       "path": "scripts/bootstrap-database-roles.mjs",
@@ -394,6 +394,11 @@
       "artifact": "scripts/bootstrap-database-roles.mjs",
       "priorDigest": "19c4b1a842a067bfb29027d0b441e19f734c64d4de8a449214c95d9f230616a3",
       "replacedAt": "2026-09-25T16:50:00.000Z"
+    },
+    {
+      "artifact": "scripts/migrate-production.mjs",
+      "priorDigest": "ac53361c85c4ee1341432a68924b133a9a33e93a3745edc650c956dd67b93046",
+      "replacedAt": "2026-09-26T16:51:36.000Z"
     }
   ],
   "limitations": [
