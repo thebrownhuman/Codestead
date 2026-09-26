@@ -454,6 +454,26 @@ describe("AppShell compact navigation", () => {
     expect(trigger).toHaveFocus();
   });
 
+  it("defaults the sidebar to collapsed on a lesson page with no stored preference", async () => {
+    navigation.pathname = "/courses/python/skills/string-transformations";
+    const { container } = render(<AppShell><p>Lesson content</p></AppShell>);
+    await waitFor(() => expect(container.querySelector('[class*="shellDrawer"]')).not.toBeNull());
+  });
+
+  it("defaults the sidebar to open on a non-lesson page with no stored preference", async () => {
+    navigation.pathname = "/learn";
+    const { container } = render(<AppShell><p>Home content</p></AppShell>);
+    await waitFor(() => expect(screen.getByText("Home content")).toBeInTheDocument());
+    expect(container.querySelector('[class*="shellDrawer"]')).toBeNull();
+  });
+
+  it("keeps an explicit sidebar choice across lesson and non-lesson pages", async () => {
+    navigation.pathname = "/learn";
+    localStorage.setItem("codestead.sidebar-collapsed", "true");
+    const { container } = render(<AppShell><p>Home content</p></AppShell>);
+    await waitFor(() => expect(container.querySelector('[class*="shellDrawer"]')).not.toBeNull());
+  });
+
   it("exposes profile-menu semantics and restores trigger focus after Escape", async () => {
     const user = userEvent.setup();
     render(<AppShell><button type="button">Learning action</button></AppShell>);

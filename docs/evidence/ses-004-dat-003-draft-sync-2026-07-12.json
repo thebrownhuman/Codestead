@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-07-12T17:42:00+05:30",
-  "revalidatedAt": "2026-09-25T12:50:51.955Z",
+  "revalidatedAt": "2026-09-26T21:02:16.000Z",
   "requirements": [
     "SES-004",
     "DAT-003"
@@ -145,7 +145,7 @@
     "src/lib/drafts/use-synced-draft.ts": "5ce6d04576e3c6b7d9046f3a88caae38b5497418ca8a992e2cf66c104c1ab93c",
     "src/lib/drafts/logout.ts": "c7515692d430c9024dafaa2ba8784fcaa12d1cc8ee437ffb949eaf54135a208c",
     "src/app/api/drafts/route.ts": "f2624118a0ca8fe8d52da7241371a12a34b98bb68f82b6a8729cf0d11adc68ba",
-    "src/components/lesson/lesson-workspace.tsx": "6e657ffd958bfed113f6f49a9f2f0b5af97f285421ea0fd95f14db814410bce9",
+    "src/components/lesson/lesson-workspace.tsx": "b175b5369350433909f720001733ba463f95c36df7856b72c491203806eec537",
     "integration/learner-drafts.integration.test.ts": "10c060a3992d80b603fbf3472981f65925c5d0b539021e931a7ddfc8ddc89da2"
   },
   "supersededDigests": [
@@ -183,12 +183,18 @@
       "artifact": "integration/learner-drafts.integration.test.ts",
       "priorDigest": "ef15f3a605a8d02adb240a484be12ab8f259a6bca7b943acc147b9f71a9cc91f",
       "replacedAt": "2026-07-28T13:27:44.340Z"
+    },
+    {
+      "artifact": "src/components/lesson/lesson-workspace.tsx",
+      "priorDigest": "6e657ffd958bfed113f6f49a9f2f0b5af97f285421ea0fd95f14db814410bce9",
+      "replacedAt": "2026-09-26T21:02:16.000Z"
     }
   ],
   "remainingLimitations": [
     "Offline support is warm-page/browser-session only; a cold offline launch is impossible by design because the product is not an installable PWA.",
     "Unsynced local-only text can be lost if sessionStorage is evicted before synchronization; the UI states this explicitly.",
     "A disconnected server cannot remotely execute JavaScript to erase old sessionStorage after account deletion; server access is revoked immediately and normal logout/next denied request clears the current namespace.",
-    "No deployed Cloudflare/real-cookie multi-device browser penetration run has been retained; evidence here is local unit, browser-contract, route, lifecycle, and real-PostgreSQL integration evidence."
+    "No deployed Cloudflare/real-cookie multi-device browser penetration run has been retained; evidence here is local unit, browser-contract, route, lifecycle, and real-PostgreSQL integration evidence.",
+    "The 2026-09-26 lesson-workspace layout change (wider content column, sidebar/outline collapsed by default) only touched layout/CSS and default-open state; draft-sync behavior itself is unchanged and was verified by re-running the focused Vitest suites in the command list above, not the full Postgres integration/coverage runs."
   ]
 }

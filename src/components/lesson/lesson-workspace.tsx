@@ -955,7 +955,9 @@ const LESSON_OUTLINE = [
 
 function AuthoredLessonWorkspace({ authoredLesson, assessmentBank, blueprint, skill, courseTitle, moduleTitle, dsaRunnerLanguage, previousHref, nextHref, publishedStage }: LessonWorkspaceProps & { authoredLesson: AuthoredLesson }) {
   const [mode, setMode] = useState<LearningMode>("lesson");
-  const [outlineOpen, setOutlineOpen] = useState(true);
+  // Collapsed by default so the lesson gets the width; a viewer who opens it
+  // has that choice remembered (see the mount effect below).
+  const [outlineOpen, setOutlineOpen] = useState(false);
   // Like the app sidebar: right after collapsing, stay collapsed until the pointer leaves.
   const [outlineHoverSuppressed, setOutlineHoverSuppressed] = useState(false);
   const [activeSection, setActiveSection] = useState<string>(LESSON_OUTLINE[0]!.id);
@@ -964,7 +966,7 @@ function AuthoredLessonWorkspace({ authoredLesson, assessmentBank, blueprint, sk
     try {
       // Read after mount on purpose: localStorage is unavailable during the server render.
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (window.localStorage.getItem(OUTLINE_COLLAPSED_KEY) === "true") setOutlineOpen(false);
+      if (window.localStorage.getItem(OUTLINE_COLLAPSED_KEY) === "false") setOutlineOpen(true);
     } catch {
       // Storage may be unavailable; the outline then starts open.
     }
