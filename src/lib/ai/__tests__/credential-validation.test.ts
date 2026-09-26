@@ -62,11 +62,29 @@ describe("provider credential validation", () => {
     expect(JSON.stringify(mocks.values.mock.calls)).not.toContain(base.secret);
   });
 
-  it("returns pending without transmitting an optional provider key when no policy exists", async () => {
-    const result = await validateProviderCredential({ ...base, provider: "openai" });
+  it("returns pending without transmitting a custom provider key when the administrator has not configured one", async () => {
+    const result = await validateProviderCredential({ ...base, provider: "custom_openai_compatible" });
     expect(result).toEqual({ status: "pending_validation", failureCode: null, model: null });
     expect(mocks.callProvider).not.toHaveBeenCalled();
     expect(mocks.values).not.toHaveBeenCalled();
+  });
+
+  it("validates a self-serve provider with no admin policy row using its built-in default model", async () => {
+    mocks.callProvider.mockResolvedValueOnce({
+      provider: "google",
+      model: "gemini-2.5-flash",
+      content: "OK",
+      inputTokens: 2,
+      outputTokens: 1,
+      latencyMs: 5,
+    });
+    const result = await validateProviderCredential({ ...base, provider: "google" });
+    expect(result).toMatchObject({ status: "active", model: "gemini-2.5-flash" });
+    expect(mocks.callProvider).toHaveBeenCalledWith(expect.objectContaining({
+      provider: "google",
+      model: "gemini-2.5-flash",
+      apiKey: base.secret,
+    }));
   });
 
   it("classifies rate limits without logging key material", async () => {

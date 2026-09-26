@@ -13,6 +13,7 @@ import {
   reconcileFallbackBudget,
   reserveFallbackBudget,
 } from "@/lib/ai/fallback-budget";
+import { AI_PROVIDER_CATALOG, defaultModelForProvider } from "@/lib/ai/provider-catalog";
 import { routeTutorRequest, type ProviderCandidate } from "@/lib/ai/router";
 import {
   loadMentorRecommendation,
@@ -245,12 +246,16 @@ export async function POST(request: NextRequest) {
     if (!policyByProvider.has(policy.provider)) policyByProvider.set(policy.provider, policy);
     policyByProviderModel.set(`${policy.provider}\u0000${policy.model}`, policy);
   }
-  if (!policyByProvider.has("nvidia_nim")) {
-    const defaultNimPolicy: (typeof policies)[number] = {
+  // Admin provider_policy rows always win; every self-serve provider gets a
+  // default here so a learner isn't silently unroutable just because nobody
+  // configured that provider in the admin console.
+  for (const provider of AI_PROVIDER_CATALOG) {
+    if (policyByProvider.has(provider.id)) continue;
+    const defaultPolicy: (typeof policies)[number] = {
       id: randomUUID(),
-      provider: "nvidia_nim",
+      provider: provider.id,
       operation: "tutor",
-      model: process.env.NVIDIA_NIM_TUTOR_MODEL ?? "openai/gpt-oss-20b",
+      model: defaultModelForProvider(provider.id),
       priority: 1,
       enabled: true,
       maxInputTokens: 16_000,
@@ -259,8 +264,8 @@ export async function POST(request: NextRequest) {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    policyByProvider.set("nvidia_nim", defaultNimPolicy);
-    policyByProviderModel.set(`nvidia_nim\u0000${defaultNimPolicy.model}`, defaultNimPolicy);
+    policyByProvider.set(provider.id, defaultPolicy);
+    policyByProviderModel.set(`${provider.id}\u0000${defaultPolicy.model}`, defaultPolicy);
   }
 
   const fallbackNow = new Date();

@@ -406,6 +406,43 @@ describe("tutor route durable execution coverage", () => {
     expect(mocks.parseMasterKey).not.toHaveBeenCalled();
   });
 
+  it("routes a learner with only a Google credential using the default Gemini tutor policy", async () => {
+    state.acceptedPurposes.add("provider:google");
+    mocks.consentPurposeForProvider.mockImplementation((provider) =>
+      ["nvidia_nim", "openai", "google"].includes(provider) ? `provider:${provider}` : null);
+    const googleCredential = { ...credential, id: "google-credential", provider: "google" };
+    queueExecution({ credentials: [googleCredential], policies: [] });
+    mocks.routeTutorRequest.mockImplementationOnce(async (input) => {
+      expect(input.candidates).toHaveLength(1);
+      expect(input.candidates[0]).toMatchObject({
+        provider: "google",
+        model: "gemini-2.5-flash",
+        credentialId: "google-credential",
+        source: "learner",
+      });
+      return providerSuccess("google-credential", "learner");
+    });
+
+    const response = await POST(tutorRequest());
+    expect(response.status).toBe(200);
+  });
+
+  it("prefers an admin-configured Google policy model over the built-in default", async () => {
+    state.acceptedPurposes.add("provider:google");
+    mocks.consentPurposeForProvider.mockImplementation((provider) =>
+      ["nvidia_nim", "openai", "google"].includes(provider) ? `provider:${provider}` : null);
+    const googleCredential = { ...credential, id: "google-credential", provider: "google" };
+    const adminGooglePolicy = { ...nimPolicy, id: "policy-google", provider: "google", model: "gemini-1.5-pro" };
+    queueExecution({ credentials: [googleCredential], policies: [adminGooglePolicy] });
+    mocks.routeTutorRequest.mockImplementationOnce(async (input) => {
+      expect(input.candidates[0]).toMatchObject({ provider: "google", model: "gemini-1.5-pro" });
+      return providerSuccess("google-credential", "learner");
+    });
+
+    const response = await POST(tutorRequest());
+    expect(response.status).toBe(200);
+  });
+
   it("redacts once, routes eligible learner/fallback credentials, records CAS outcomes, and persists an active append", async () => {
     state.acceptedPurposes.add("provider:openai");
     state.acceptedPurposes.add("admin_fallback_ai");
