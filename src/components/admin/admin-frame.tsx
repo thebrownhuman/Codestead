@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import styles from "./admin.module.css";
+import { AdminStepUpDialog } from "./step-up";
 
 const links = [
   { href: "/admin", label: "Overview", icon: Gauge, exact: true },
@@ -30,6 +31,7 @@ export function AdminFrame({
   const pathname = usePathname();
   return (
     <div className={styles.adminFrame} data-admin-frame>
+      <AdminStepUpDialog />
       <header className={styles.adminRail}>
         <div className={styles.adminIdentity}>
           <span><ShieldCheck size={18} /></span>

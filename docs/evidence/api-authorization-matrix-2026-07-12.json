@@ -71,7 +71,7 @@
       "file": "src/lib/session-controls.ts",
       "purpose": "learner session revocation",
       "anchors": 1,
-      "sourceSha256": "08c305e736302479318e3a841b02dfcb14524ceeed28d46929ddda04e3c7b54e"
+      "sourceSha256": "da68e780d557fae3b4a83901e4b500c64735070fca5454f0beaf9cfdda259c4f"
     },
     {
       "file": "src/lib/certificates/service.ts",
@@ -2179,7 +2179,7 @@
       "operationSourceSha256": "b88f55f3a91e588c90d93419fbf944eba9e0f64f9fd6a5ab3e2f9a003ce2ccd8"
     }
   ],
-  "generatedAt": "2026-09-26T12:03:19.856Z",
+  "generatedAt": "2026-09-26T12:26:27.538Z",
   "scope": "Complete static role/object-authorization source inventory. The endpoint sweep verifies guard invocation, while authz.test.ts verifies real guard decisions and runtime-authorization.integration.test.ts behaviorally covers a representative owner-bound route set. This report alone is not runtime cross-user proof, deployed proxy/browser evidence, or PostgreSQL RLS evidence.",
   "runtimeVerification": {
     "guardInvocationTest": "src/lib/security/__tests__/endpoint-auth-boundaries.test.ts",

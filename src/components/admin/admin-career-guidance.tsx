@@ -4,6 +4,7 @@ import { BriefcaseBusiness, ExternalLink, Plus, RefreshCw, Send, ShieldCheck } f
 import { useCallback, useEffect, useState } from "react";
 
 import styles from "@/components/milestones/milestones.module.css";
+import { withStepUp } from "./step-up-request";
 
 type Course = { id: string; slug: string; title: string; currentVersion: string | null; currentStage: string | null; eligibleForPublishedPrerequisite: boolean };
 type Card = {
@@ -49,7 +50,7 @@ export function AdminCareerGuidance() {
     setBusy(true); setError(null); setMessage(null);
     try {
       const market = form.marketEnabled ? { claim: form.marketClaim, sourceUrl: form.marketSourceUrl, region: form.marketRegion, observedAt: isoDateTime(form.marketObservedAt), reviewedAt: isoDateTime(form.marketReviewedAt), expiresAt: isoDateTime(form.marketExpiresAt) } : null;
-      const response = await fetch("/api/admin/career", { method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ requestId:crypto.randomUUID(),cardId:form.cardId,expectedVersion:form.expectedVersion,action,slug:form.slug,path:form.path,technology:form.technology,title:form.title,summary:form.summary,futureScope:form.futureScope,reason:form.reason,market,prerequisites:Object.entries(form.prerequisiteRationales).map(([courseId,rationale])=>({courseId,rationale})) }) });
+      const response = await withStepUp(() => fetch("/api/admin/career", { method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ requestId:crypto.randomUUID(),cardId:form.cardId,expectedVersion:form.expectedVersion,action,slug:form.slug,path:form.path,technology:form.technology,title:form.title,summary:form.summary,futureScope:form.futureScope,reason:form.reason,market,prerequisites:Object.entries(form.prerequisiteRationales).map(([courseId,rationale])=>({courseId,rationale})) }) }));
       const body = await response.json() as { cards?: Card[]; result?: { cardId:string }; error?: string };
       if(!response.ok) throw new Error(body.error??"CAREER_MUTATION_FAILED");
       await load();

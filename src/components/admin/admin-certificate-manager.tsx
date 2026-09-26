@@ -4,6 +4,7 @@ import { Award, RefreshCw, ShieldAlert } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import styles from "@/components/milestones/milestones.module.css";
+import { withStepUp } from "./step-up-request";
 
 type Certificate = {
   id: string;
@@ -58,11 +59,11 @@ export function AdminCertificateManager() {
     setError(null);
     setMessage(null);
     try {
-      const response = await fetch(`/api/admin/certificates/${selectedId}/revoke`, {
+      const response = await withStepUp(() => fetch(`/api/admin/certificates/${selectedId}/revoke`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ requestId: crypto.randomUUID(), reason: reason.trim() }),
-      });
+      }));
       const body = await response.json() as { error?: string };
       if (!response.ok) throw new Error(body.error ?? "CERTIFICATE_REVOCATION_FAILED");
       await load();

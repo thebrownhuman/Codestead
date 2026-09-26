@@ -8,6 +8,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { credentialTail, formatDateTime, humanize, requestAdminJson } from "./admin-utils";
 import styles from "./admin.module.css";
 import { EmptyState, StatusPill } from "./status-pill";
+import { withStepUp } from "./step-up-request";
 
 type CredentialView = {
   id: string;
@@ -174,11 +175,11 @@ export function AdminFallbackGrantManager({ learnerId }: { readonly learnerId: s
         ? pendingCreate.current.requestId
         : crypto.randomUUID();
       pendingCreate.current = { fingerprint, requestId };
-      const response = await fetch("/api/admin/fallback-grants", {
+      const response = await withStepUp(() => fetch("/api/admin/fallback-grants", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ ...command, requestId }),
-      });
+      }));
       const body = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(body.error ?? "Fallback access could not be granted.");
       pendingCreate.current = null;
@@ -203,14 +204,14 @@ export function AdminFallbackGrantManager({ learnerId }: { readonly learnerId: s
       const pending = pendingRevocations.current.get(grantId);
       const requestId = pending?.reason === reason ? pending.requestId : crypto.randomUUID();
       pendingRevocations.current.set(grantId, { reason, requestId });
-      const response = await fetch(
+      const response = await withStepUp(() => fetch(
         `/api/admin/fallback-grants/${encodeURIComponent(grantId)}/revoke`,
         {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ reason, requestId }),
         },
-      );
+      ));
       const body = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(body.error ?? "Fallback access could not be revoked.");
       pendingRevocations.current.delete(grantId);
