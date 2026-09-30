@@ -93,7 +93,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 70
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           # release-production.test.sh resolves the reviewed 0064 boundary commit
@@ -218,7 +218,7 @@ jobs:
       CODESTEAD_DISPOSABLE_DOCKER_DAEMON: "1"
       CODESTEAD_TOPOLOGY_RESTART_DOCKER: "1"
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Install the reviewed system Docker Engine
@@ -282,7 +282,7 @@ jobs:
             docker-buildx-plugin
           sudo systemctl enable --now docker.service
       - name: Install the reviewed Docker Compose plugin
-        uses: docker/setup-compose-action@112d3e30db3bf437d207fea57f22510569d1ab97 # v2.0.0
+        uses: docker/setup-compose-action@54042514f505b273907334ae2b9cdbb9a0213c1a # v2.4.0
         with:
           version: v5.3.1
       - name: Validate reviewed Docker versions and disposable daemon scope
@@ -321,7 +321,7 @@ jobs:
       APP_IMAGE_SOURCE_REPOSITORY: ${{ github.server_url }}/${{ github.repository }}
       APP_IMAGE_SOURCE_REVISION: ${{ github.sha }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Initialize the runner-local cache path
@@ -334,7 +334,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Set up Docker with containerd image store
-        uses: docker/setup-docker-action@6d7cfa65f60a9dda7b46e5513fa982536f3c9877 # v5.3.0
+        uses: docker/setup-docker-action@2bf61fb9464cc67f0cbdeabed6aa0380accd1c70 # v5.5.0
         with:
           set-host: true
           daemon-config: |
@@ -346,7 +346,7 @@ jobs:
       - run: npm run app-images:test
       - run: npm run app-images:build
       - run: npm run app-images:inspect
-      - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
+      - uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
           version: v0.69.3
       - run: trivy image --cache-dir "$APP_IMAGE_TRIVY_CACHE_DIR" --download-db-only
@@ -354,7 +354,7 @@ jobs:
       - run: npm run app-images:scan
       - run: npm run app-images:record
       - name: Upload application image release evidence
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: application-image-release-evidence
@@ -375,7 +375,7 @@ jobs:
     needs: changes
     if: false # PARKED by owner 2026-09-26 until backups move to a proven tool (was: needs.changes.outputs.backup == 'true')
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -413,7 +413,7 @@ jobs:
     needs: changes
     if: false # PARKED by owner 2026-09-26 until backups move to a proven tool (was: needs.changes.outputs.backup == 'true')
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - run: bash infra/tests/install-reviewed-docker-engine.sh
@@ -432,7 +432,7 @@ jobs:
       run:
         working-directory: services/runner
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Initialize the runner-local cache path
@@ -449,7 +449,7 @@ jobs:
       - run: npm test
       - run: npm run build
       - name: Set up Docker with containerd image store
-        uses: docker/setup-docker-action@6d7cfa65f60a9dda7b46e5513fa982536f3c9877 # v5.3.0
+        uses: docker/setup-docker-action@2bf61fb9464cc67f0cbdeabed6aa0380accd1c70 # v5.5.0
         with:
           set-host: true
           daemon-config: |
@@ -461,7 +461,7 @@ jobs:
       - run: npm run runtime:build
       - run: npm run runtime:inspect
       - run: npm run runtime:test
-      - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
+      - uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
           version: v0.69.3
       - run: trivy image --cache-dir "$RUNTIME_TRIVY_CACHE_DIR" --download-db-only
@@ -470,7 +470,7 @@ jobs:
       - run: npm run runtime:record
       - run: npm audit --audit-level=high
       - name: Upload runtime release evidence
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: runner-runtime-release-evidence
@@ -488,7 +488,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -569,7 +569,7 @@ jobs:
       RUNTIME_SOURCE_REPOSITORY: ${{ github.server_url }}/${{ github.repository }}
       RUNTIME_SOURCE_REVISION: ${{ github.sha }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Initialize the runner-local cache path
@@ -584,7 +584,7 @@ jobs:
       - run: npm ci
         working-directory: services/runner
       - name: Set up Docker with containerd image store
-        uses: docker/setup-docker-action@6d7cfa65f60a9dda7b46e5513fa982536f3c9877 # v5.3.0
+        uses: docker/setup-docker-action@2bf61fb9464cc67f0cbdeabed6aa0380accd1c70 # v5.5.0
         with:
           set-host: true
           daemon-config: |
@@ -599,7 +599,7 @@ jobs:
         working-directory: services/runner
       - run: npm run runtime:test
         working-directory: services/runner
-      - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
+      - uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
           version: v0.69.3
       - run: trivy image --cache-dir "$RUNTIME_TRIVY_CACHE_DIR" --download-db-only
@@ -615,7 +615,7 @@ jobs:
         run: npm run dsa:parity:evidence:apply
         if: failure()
       - name: Upload regenerated DSA parity runtime evidence
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
           name: dsa-parity-evidence-regenerated
@@ -630,7 +630,7 @@ jobs:
         run: npm run c-cpp:executable:evidence:apply || true; npm run java-python:executable:evidence:apply || true; npm run ai-code:executable:evidence:apply || true; npm run web:executable:evidence:apply || true
         if: failure()
       - name: Upload regenerated executable runtime evidence
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
           name: executable-evidence-regenerated
@@ -638,7 +638,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
       - name: Upload curriculum runtime evidence
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: curriculum-runtime-release-evidence
@@ -658,7 +658,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.browser == 'true'
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -691,7 +691,7 @@ jobs:
           - project: mobile-safari
             browser: webkit
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
