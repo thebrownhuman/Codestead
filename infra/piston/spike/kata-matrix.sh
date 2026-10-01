@@ -20,7 +20,7 @@ env APP_RUNTIME_IMAGE="$img" APP_TOOLING_IMAGE="$img" APP_WORKER_IMAGE="$img" \
   config --format json piston > /tmp/piston.json
 # The piston service publishes no port; add one for measurement only.
 node -e 'const f="/tmp/piston.json",c=JSON.parse(require("fs").readFileSync(f));c.services.piston.ports=[{target:2000,published:"2100",host_ip:"127.0.0.1"}];c.networks.piston.internal=false;c.networks.piston.name="pistonmatrix";require("fs").writeFileSync(f,JSON.stringify(c))'
-node -e 'const f="/tmp/piston.json",c=JSON.parse(require("fs").readFileSync(f));const s=c.services.piston;s.tmpfs=s.tmpfs.filter(t=>t.startsWith("/piston/jobs"));require("fs").writeFileSync("/tmp/piston-notmpfs.json",JSON.stringify(c))'
+node -e 'const f="/tmp/piston.json",c=JSON.parse(require("fs").readFileSync(f));const s=c.services.piston;s.tmpfs=s.tmpfs.filter(t=>t.startsWith("/piston/jobs"));s.read_only=false;require("fs").writeFileSync("/tmp/piston-notmpfs.json",JSON.stringify(c))'
 
 kata_rss() { ps -eo rss,comm | awk '/qemu|containerd-shim-kata|virtiofsd/ {s+=$1} END {printf "%d", s/1024}'; }
 
@@ -35,8 +35,10 @@ run_variant() { # label compose-file kata-settings...
   docker compose -p m -f "$file" down -t 1 >/dev/null 2>&1 || true
   local t0; t0=$(date +%s%N)
   docker compose -p m -f "$file" up -d piston >/dev/null
-  until curl -sf -m 2 localhost:2100/api/v2/execute -H content-type:application/json \
+  local tries=0
+  until (( tries++ > 600 )) || curl -sf -m 2 localhost:2100/api/v2/execute -H content-type:application/json \
       -d '{"language":"python","version":"3.12.0","files":[{"content":"print(1)"}]}' | grep -q '"stdout":"1'; do sleep 0.2; done
+  (( tries <= 600 )) || { echo "MATRIX $label DID NOT START"; docker logs m-piston-1 2>&1 | tail -5; docker compose -p m -f "$file" down -t 1 >/dev/null 2>&1; return 0; }
   echo "MATRIX $label cold_start_ms=$(( ($(date +%s%N) - t0) / 1000000 ))"
   sleep 3; echo "MATRIX $label rss_idle_mb=$(kata_rss)"
   node "$here/matrix.mjs" http://127.0.0.1:2100 "$label"
