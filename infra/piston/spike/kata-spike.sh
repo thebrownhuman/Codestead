@@ -38,15 +38,18 @@ remount=(--entrypoint bash)
 remount_cmd=(-c "mount -o remount,rw /sys/fs/cgroup && exec /piston_api/src/docker-entrypoint.sh")
 for variant in "--cap-add SYS_ADMIN --security-opt systempaths=unconfined"                "--cap-add ALL --security-opt systempaths=unconfined --security-opt seccomp=unconfined"                "--privileged"; do
   docker rm -f kata >/dev/null 2>&1 || true
+  for _ in $(seq 30); do docker inspect kata >/dev/null 2>&1 || break; sleep 1; done
   # shellcheck disable=SC2086
   if ! docker run -d --name kata --runtime io.containerd.kata.v2 $variant -p 127.0.0.1:2001:2000 "${common[@]}" "${remount[@]}" codestead-piston:spike "${remount_cmd[@]}" >/dev/null 2>/tmp/kata-err; then
     echo "KATA VARIANT [$variant] create failed: $(head -c 300 /tmp/kata-err)"; continue
   fi
   for _ in $(seq 60); do curl -sf localhost:2001/api/v2/runtimes >/dev/null && break; sleep 1; done
+  response=$(curl -s -m 30 localhost:2001/api/v2/execute -H content-type:application/json -d '{"language":"python","version":"3.12.0","files":[{"content":"print(6*7)"}]}' || true)
+  echo "KATA VARIANT [$variant] execute response: ${response:0:600}"
   if curl -sf localhost:2001/api/v2/execute -H content-type:application/json -d '{"language":"python","version":"3.12.0","files":[{"content":"print(6*7)"}]}' | grep -q '"stdout":"42'; then
     echo "KATA VARIANT [$variant] WORKS"; kata_ok=1; break
   fi
-  echo "KATA VARIANT [$variant] api failed: $(docker logs kata 2>&1 | grep -v INFO | tail -3)"
+  echo "KATA VARIANT [$variant] api failed:"; docker logs kata 2>&1 | tail -15 | cut -c1-300
 done
 [[ -n "$kata_ok" ]] || exit 1
 
