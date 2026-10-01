@@ -17,7 +17,10 @@ echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sud
 sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
 ls -l /dev/kvm
 echo "kata config: $(readlink -f /opt/kata/share/defaults/kata-containers/configuration.toml)"
-grep -E '^\s*(default_memory|default_vcpus)\s*=' /opt/kata/share/defaults/kata-containers/configuration.toml || true
+kata_conf=$(readlink -f /opt/kata/share/defaults/kata-containers/configuration.toml)
+# Size the micro-VM honestly: 1 GiB instead of the 2 GiB default.
+sudo sed -i -E 's/^(\s*default_memory\s*=).*/\1 1024/' "$kata_conf"
+grep -E '^\s*(default_memory|default_vcpus)\s*=' "$kata_conf" || true
 echo "::endgroup::"
 
 echo "::group::build piston image"

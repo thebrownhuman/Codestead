@@ -38,7 +38,7 @@ if (label === "load") {
   process.exit(0);
 }
 const p = (a, q) => [...a].sort((x, y) => x - y)[Math.min(a.length - 1, Math.floor(q * a.length))];
-for (const [lang, , , programs] of Object.values(P).map((v, i) => [Object.keys(P)[i], ...v])) {
+for (const [lang, [, , , programs]] of Object.entries(P)) {
   for (const kind of Object.keys(programs)) {
     const n = kind === "hello" || kind === "echo" ? 10 : 1;
     const times = []; let first;
