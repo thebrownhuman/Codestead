@@ -1075,12 +1075,11 @@ services:
       PISTON_MAX_FILE_SIZE: "16777216"
     ulimits:
       nofile: 65536
+    # No Docker healthcheck: Kata 4.2 does not support exec into the guest, so
+    # an exec-based check always reports unhealthy. The app checks Piston
+    # through its HTTP API instead.
     healthcheck:
-      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/2000"]
-      interval: 15s
-      timeout: 3s
-      retries: 3
-      start_period: 60s
+      disable: true
     logging: *default-logging
 
 networks:

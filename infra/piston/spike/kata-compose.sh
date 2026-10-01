@@ -20,15 +20,10 @@ env APP_RUNTIME_IMAGE="$img" APP_TOOLING_IMAGE="$img" APP_WORKER_IMAGE="$img" \
   config --format json piston > /tmp/piston-compose.json
 docker network create glitchtip-ingest >/dev/null 2>&1 || true
 docker compose -p pistonspike -f /tmp/piston-compose.json up -d piston
-for _ in $(seq 120); do
-  state=$(docker inspect -f '{{.State.Health.Status}}' pistonspike-piston-1 2>/dev/null || true)
-  [[ "$state" == healthy || "$state" == unhealthy ]] && break; sleep 2
-done
-echo "COMPOSE piston health: ${state:-unknown}"
+sleep 45; echo "COMPOSE piston state: $(docker inspect -f {{.State.Status}} pistonspike-piston-1)"
 docker logs pistonspike-piston-1 2>&1 | grep -v INFO | tail -5
 # The service publishes no port, so call it from a throwaway container on its network.
 net=$(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' pistonspike-piston-1)
 docker run --rm --network "$net" -v "$here:/spike:ro" node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 \
   sh -c 'cp /spike/probe.mjs /spike/bench.mjs /tmp/ && sed -i "s|http://127.0.0.1:\${port}|http://piston:2000|" /tmp/probe.mjs /tmp/bench.mjs && node /tmp/probe.mjs 0 compose && node /tmp/bench.mjs 0 compose'
 echo "COMPOSE egress from piston network: $(docker run --rm --network "$net" alpine:3.22@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764 sh -c 'wget -q -T 3 -O /dev/null http://1.1.1.1 && echo OPEN || echo blocked')"
-[[ "${state:-}" == healthy ]]
