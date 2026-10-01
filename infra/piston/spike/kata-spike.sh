@@ -36,7 +36,7 @@ kata_ok=
 # kernel cgroup tree, so remount it rw before Piston starts.
 remount=(--entrypoint bash)
 remount_cmd=(-c "mount -o remount,rw /sys/fs/cgroup && exec /piston_api/src/docker-entrypoint.sh")
-for variant in "--cap-add SYS_ADMIN --security-opt systempaths=unconfined"                "--cap-add ALL --security-opt systempaths=unconfined --security-opt seccomp=unconfined"                "--privileged"; do
+for variant in "--cap-add SYS_ADMIN --cap-add NET_ADMIN --security-opt systempaths=unconfined"                "--cap-add ALL --security-opt systempaths=unconfined --security-opt seccomp=unconfined"                "--privileged"; do
   docker rm -f kata >/dev/null 2>&1 || true
   for _ in $(seq 30); do docker inspect kata >/dev/null 2>&1 || break; sleep 1; done
   # shellcheck disable=SC2086
