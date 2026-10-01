@@ -19,7 +19,7 @@ env APP_RUNTIME_IMAGE="$img" APP_TOOLING_IMAGE="$img" APP_WORKER_IMAGE="$img" \
   docker compose --env-file infra/env/compose.env.example -f compose.yaml --profile piston \
   config --format json piston > /tmp/piston.json
 # The piston service publishes no port; add one for measurement only.
-node -e 'const f="/tmp/piston.json",c=JSON.parse(require("fs").readFileSync(f));c.services.piston.ports=[{target:2000,published:"2100",host_ip:"127.0.0.1"}];c.networks.piston.internal=false;require("fs").writeFileSync(f,JSON.stringify(c))'
+node -e 'const f="/tmp/piston.json",c=JSON.parse(require("fs").readFileSync(f));c.services.piston.ports=[{target:2000,published:"2100",host_ip:"127.0.0.1"}];c.networks.piston.internal=false;c.networks.piston.name="pistonmatrix";require("fs").writeFileSync(f,JSON.stringify(c))'
 node -e 'const f="/tmp/piston.json",c=JSON.parse(require("fs").readFileSync(f));const s=c.services.piston;s.tmpfs=s.tmpfs.filter(t=>t.startsWith("/piston/jobs"));require("fs").writeFileSync("/tmp/piston-notmpfs.json",JSON.stringify(c))'
 
 kata_rss() { ps -eo rss,comm | awk '/qemu|containerd-shim-kata|virtiofsd/ {s+=$1} END {printf "%d", s/1024}'; }
