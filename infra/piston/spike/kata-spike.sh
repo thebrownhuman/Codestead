@@ -28,11 +28,23 @@ common=(--tmpfs /piston/jobs:exec,uid=1001,gid=1001,mode=711
   -e PISTON_RUN_MEMORY_LIMIT=268435456 -e PISTON_COMPILE_MEMORY_LIMIT=536870912
   -e PISTON_MAX_CONCURRENT_JOBS=2 -e PISTON_OUTPUT_MAX_SIZE=65536 -e PISTON_MAX_PROCESS_COUNT=32)
 docker run -d --name plain --privileged -p 127.0.0.1:2000:2000 "${common[@]}" codestead-piston:spike >/dev/null
-docker run -d --name kata --runtime io.containerd.kata.v2 --privileged -p 127.0.0.1:2001:2000 "${common[@]}" codestead-piston:spike >/dev/null
-for port in 2000 2001; do
-  for _ in $(seq 60); do curl -sf "localhost:$port/api/v2/runtimes" >/dev/null && break; sleep 1; done
+for _ in $(seq 60); do curl -sf localhost:2000/api/v2/runtimes >/dev/null && break; sleep 1; done
+# Docker --privileged passes every host device to Kata, which runtime-rs cannot map.
+# Inside Kata the cgroup tree belongs to the guest kernel, so try narrower variants.
+kata_ok=
+for variant in "--cap-add SYS_ADMIN --security-opt systempaths=unconfined"                "--cap-add ALL --security-opt systempaths=unconfined --security-opt seccomp=unconfined"                "--privileged"; do
+  docker rm -f kata >/dev/null 2>&1 || true
+  # shellcheck disable=SC2086
+  if ! docker run -d --name kata --runtime io.containerd.kata.v2 $variant -p 127.0.0.1:2001:2000 "${common[@]}" codestead-piston:spike >/dev/null 2>/tmp/kata-err; then
+    echo "KATA VARIANT [$variant] create failed: $(head -c 300 /tmp/kata-err)"; continue
+  fi
+  for _ in $(seq 60); do curl -sf localhost:2001/api/v2/runtimes >/dev/null && break; sleep 1; done
+  if curl -sf localhost:2001/api/v2/execute -H content-type:application/json -d '{"language":"python","version":"3.12.0","files":[{"content":"print(6*7)"}]}' | grep -q '"stdout":"42'; then
+    echo "KATA VARIANT [$variant] WORKS"; kata_ok=1; break
+  fi
+  echo "KATA VARIANT [$variant] api failed: $(docker logs kata 2>&1 | grep -v INFO | tail -3)"
 done
-docker logs kata 2>&1 | tail -3
+[[ -n "$kata_ok" ]] || exit 1
 
 echo "::group::kata containment (inside the container, privileged)"
 echo "host kernel: $(uname -r)"
