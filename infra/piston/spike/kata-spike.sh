@@ -19,7 +19,7 @@ ls -l /dev/kvm
 echo "kata config: $(readlink -f /opt/kata/share/defaults/kata-containers/runtime-rs/configuration.toml)"
 kata_conf=$(readlink -f /opt/kata/share/defaults/kata-containers/runtime-rs/configuration.toml)
 # Size the micro-VM honestly: 1 GiB instead of the 2 GiB default.
-sudo sed -i -E 's/^(\s*default_memory\s*=).*/\1 1024/' "$kata_conf"
+sudo sed -i -E "s/^(\s*default_memory\s*=).*/\1 ${KATA_MEM:-1536}/" "$kata_conf"
 grep -E '^\s*(default_memory|default_vcpus)\s*=' "$kata_conf" || true
 echo "::endgroup::"
 
@@ -46,7 +46,7 @@ for variant in "--cap-add SYS_ADMIN --cap-add NET_ADMIN --security-opt systempat
   if ! docker run -d --name kata --runtime io.containerd.kata.v2 $variant -p 127.0.0.1:2001:2000 "${common[@]}" "${remount[@]}" codestead-piston:spike "${remount_cmd[@]}" >/dev/null 2>/tmp/kata-err; then
     echo "KATA VARIANT [$variant] create failed: $(head -c 300 /tmp/kata-err)"; continue
   fi
-  for _ in $(seq 60); do curl -sf localhost:2001/api/v2/runtimes >/dev/null && break; sleep 1; done
+  for _ in $(seq 120); do curl -sf localhost:2001/api/v2/runtimes >/dev/null && break; sleep 1; done
   response=$(curl -s -m 30 localhost:2001/api/v2/execute -H content-type:application/json -d '{"language":"python","version":"3.12.0","files":[{"content":"print(6*7)"}]}' || true)
   echo "KATA VARIANT [$variant] execute response: ${response:0:600}"
   if curl -sf localhost:2001/api/v2/execute -H content-type:application/json -d '{"language":"python","version":"3.12.0","files":[{"content":"print(6*7)"}]}' | grep -q '"stdout":"42'; then
