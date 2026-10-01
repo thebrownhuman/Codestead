@@ -6,6 +6,8 @@ root=$(cd "$(dirname "$0")/../../.." && pwd)
 here=$(cd "$(dirname "$0")" && pwd)
 cd "$root"
 conf=/opt/kata/share/defaults/kata-containers/runtime-rs/configuration-qemu-runtime-rs.toml
+docker rm -f kata plain >/dev/null 2>&1 || true
+docker compose -p pistonspike -f /tmp/piston-compose.json down -t 1 >/dev/null 2>&1 || true
 sudo cp "$conf" /tmp/kata-base.toml
 docker build -q -t codestead-piston:matrix infra/piston >/dev/null
 sha=$(printf 'a%.0s' $(seq 40)); img="ghcr.io/x/y@sha256:$(printf '1%.0s' $(seq 64))"
