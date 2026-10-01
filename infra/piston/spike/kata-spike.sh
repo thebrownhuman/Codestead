@@ -55,7 +55,9 @@ done
 
 echo "::group::kata containment (inside the container, privileged)"
 echo "host kernel: $(uname -r)"
-docker exec kata sh -c 'echo "guest kernel: $(uname -r)"; echo "block devices: $(ls /dev | grep -E "^(sd|nvme|vd|xvd)" | tr "\n" " ")"; echo "mem total: $(grep MemTotal /proc/meminfo)"; echo "cgroup: $(cat /sys/fs/cgroup/cgroup.controllers)"; echo "host docker sock: $(ls /var/run/docker.sock 2>&1)"; echo "host procs visible: $(ls /proc | grep -c "^[0-9]")"'
+docker exec kata sh -c 'echo "container kernel: $(uname -r)"; echo "block devices: $(ls /dev | grep -E "^(sd|nvme|vd|xvd)" | tr "\n" " ")"; echo "mem total: $(grep MemTotal /proc/meminfo)"; echo "cgroup: $(cat /sys/fs/cgroup/cgroup.controllers)"; echo "host docker sock: $(ls /var/run/docker.sock 2>&1)"; echo "host procs visible: $(ls /proc | grep -c "^[0-9]")"' 2>&1 || echo "docker exec into kata failed (exit $?)"
+node "$here/probe.mjs" 2001 kata || true
+node "$here/probe.mjs" 2000 plain || true
 echo "::endgroup::"
 
 rss() { # host-side RSS in MB of the processes backing a container
