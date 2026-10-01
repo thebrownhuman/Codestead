@@ -1,0 +1,39 @@
+# Runs inside the dedicated runner VM only. Piston's isolate sandbox needs a
+# privileged container (cgroup v2 control), so this must never run on the NUC
+# host itself. See docs/plans/piston-runner.md.
+name: codestead-piston
+services:
+  piston:
+    image: codestead-piston:${PISTON_IMAGE_TAG:?set PISTON_IMAGE_TAG}
+    pull_policy: never
+    privileged: true
+    restart: unless-stopped
+    # Host networking inside the VM: every packet passes the guest firewall
+    # input/output chains (published ports would bypass them via forward).
+    network_mode: host
+    tmpfs:
+      - /piston/jobs:exec,uid=1001,gid=1001,mode=711
+      - /tmp:exec
+    environment:
+      PISTON_LOG_LEVEL: "INFO"
+      PISTON_BIND_ADDRESS: "0.0.0.0:4100"
+      PISTON_DISABLE_NETWORKING: "true"
+      PISTON_RUN_TIMEOUT: "3000"
+      PISTON_COMPILE_TIMEOUT: "10000"
+      PISTON_RUN_MEMORY_LIMIT: "268435456"
+      PISTON_COMPILE_MEMORY_LIMIT: "536870912"
+      PISTON_MAX_CONCURRENT_JOBS: "4"
+      PISTON_OUTPUT_MAX_SIZE: "65536"
+      PISTON_MAX_PROCESS_COUNT: "32"
+      PISTON_MAX_OPEN_FILES: "64"
+      PISTON_MAX_FILE_SIZE: "16777216"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/4100"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
