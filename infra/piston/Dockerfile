@@ -1,6 +1,6 @@
-# Piston with its language packages baked in at build time, so the runner VM
-# never needs network access. Build on a host with internet access, then copy
-# the saved image into the VM (see install-piston-guest.sh).
+# Piston with its language packages baked in at build time, so the container
+# never needs network access. Runs only under the Kata Containers runtime (see
+# docs/runbooks/piston-kata.md and docs/plans/piston-runner.md).
 FROM alpine:3.22@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764 AS packages
 RUN apk add --no-cache curl
 WORKDIR /pkgs
@@ -29,3 +29,6 @@ RUN set -eu; \
       echo 0 > "$dir.ppman-installed"; \
       chown 1001:1001 "$dir.env" "$dir.ppman-installed"; \
     done
+COPY --chmod=0555 entrypoint.sh /usr/local/bin/codestead-piston-entrypoint
+ENTRYPOINT ["/usr/local/bin/codestead-piston-entrypoint"]
+CMD []
