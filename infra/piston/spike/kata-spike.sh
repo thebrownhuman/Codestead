@@ -16,8 +16,8 @@ sudo ln -sf /opt/kata/runtime-rs/bin/containerd-shim-kata-v2 /usr/local/bin/cont
 echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules >/dev/null
 sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
 ls -l /dev/kvm
-echo "kata config: $(readlink -f /opt/kata/share/defaults/kata-containers/configuration.toml)"
-kata_conf=$(readlink -f /opt/kata/share/defaults/kata-containers/configuration.toml)
+echo "kata config: $(readlink -f /opt/kata/share/defaults/kata-containers/runtime-rs/configuration.toml)"
+kata_conf=$(readlink -f /opt/kata/share/defaults/kata-containers/runtime-rs/configuration.toml)
 # Size the micro-VM honestly: 1 GiB instead of the 2 GiB default.
 sudo sed -i -E 's/^(\s*default_memory\s*=).*/\1 1024/' "$kata_conf"
 grep -E '^\s*(default_memory|default_vcpus)\s*=' "$kata_conf" || true
