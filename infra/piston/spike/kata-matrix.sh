@@ -32,7 +32,10 @@ run_variant() { # label compose-file kata-settings...
     key=${kv%%=*}; value=${kv#*=}
     sudo sed -i -E "s|^(\s*$key\s*=).*|\1 $value|" "$conf"
   done
-  docker compose -p m -f "$file" down -t 1 >/dev/null 2>&1 || true
+  docker ps -aq | xargs -r docker rm -f >/dev/null 2>&1 || true
+  for _ in $(seq 60); do pgrep -f qemu-system >/dev/null || break; sleep 1; done
+  pgrep -f qemu-system >/dev/null && echo "MATRIX $label WARNING qemu still running"
+  echo "MATRIX $label rss_before_mb=$(kata_rss)"
   local t0; t0=$(date +%s%N)
   docker compose -p m -f "$file" up -d piston >/dev/null
   local tries=0
@@ -40,6 +43,7 @@ run_variant() { # label compose-file kata-settings...
       -d '{"language":"python","version":"3.12.0","files":[{"content":"print(1)"}]}' | grep -q '"stdout":"1'; do sleep 0.2; done
   (( tries <= 600 )) || { echo "MATRIX $label DID NOT START"; docker logs m-piston-1 2>&1 | tail -5; docker compose -p m -f "$file" down -t 1 >/dev/null 2>&1; return 0; }
   echo "MATRIX $label cold_start_ms=$(( ($(date +%s%N) - t0) / 1000000 ))"
+  echo "MATRIX $label guest: $(curl -s localhost:2100/api/v2/execute -H content-type:application/json -d '{"language":"python","version":"3.12.0","files":[{"content":"import os\nprint(os.cpu_count(), open(\"/proc/meminfo\").readline().split()[1])"}]}' | node -e 'process.stdout.write(JSON.parse(require("fs").readFileSync(0)).run.stdout.trim())')"
   sleep 3; echo "MATRIX $label rss_idle_mb=$(kata_rss)"
   node "$here/matrix.mjs" http://127.0.0.1:2100 "$label"
   for _ in 1 2 3; do node "$here/matrix.mjs" http://127.0.0.1:2100 load >/dev/null & done; sleep 6
