@@ -21,7 +21,7 @@ env APP_RUNTIME_IMAGE="$img" APP_TOOLING_IMAGE="$img" APP_WORKER_IMAGE="$img" \
 docker network create glitchtip-ingest >/dev/null 2>&1 || true
 docker compose -p pistonspike -f /tmp/piston-compose.json up -d piston
 sleep 45; echo "COMPOSE piston state: $(docker inspect -f {{.State.Status}} pistonspike-piston-1)"
-docker logs pistonspike-piston-1 2>&1 | grep -v INFO | tail -5
+docker logs pistonspike-piston-1 2>&1 | tail -5 || true
 # The service publishes no port, so call it from a throwaway container on its network.
 net=$(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' pistonspike-piston-1)
 docker run --rm --network "$net" -v "$here:/spike:ro" node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 \
