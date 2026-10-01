@@ -32,10 +32,14 @@ for _ in $(seq 60); do curl -sf localhost:2000/api/v2/runtimes >/dev/null && bre
 # Docker --privileged passes every host device to Kata, which runtime-rs cannot map.
 # Inside Kata the cgroup tree belongs to the guest kernel, so try narrower variants.
 kata_ok=
+# Docker mounts cgroupfs read-only without --privileged; inside Kata it is the guest
+# kernel cgroup tree, so remount it rw before Piston starts.
+remount=(--entrypoint bash)
+remount_cmd=(-c "mount -o remount,rw /sys/fs/cgroup && exec /piston_api/src/docker-entrypoint.sh")
 for variant in "--cap-add SYS_ADMIN --security-opt systempaths=unconfined"                "--cap-add ALL --security-opt systempaths=unconfined --security-opt seccomp=unconfined"                "--privileged"; do
   docker rm -f kata >/dev/null 2>&1 || true
   # shellcheck disable=SC2086
-  if ! docker run -d --name kata --runtime io.containerd.kata.v2 $variant -p 127.0.0.1:2001:2000 "${common[@]}" codestead-piston:spike >/dev/null 2>/tmp/kata-err; then
+  if ! docker run -d --name kata --runtime io.containerd.kata.v2 $variant -p 127.0.0.1:2001:2000 "${common[@]}" "${remount[@]}" codestead-piston:spike "${remount_cmd[@]}" >/dev/null 2>/tmp/kata-err; then
     echo "KATA VARIANT [$variant] create failed: $(head -c 300 /tmp/kata-err)"; continue
   fi
   for _ in $(seq 60); do curl -sf localhost:2001/api/v2/runtimes >/dev/null && break; sleep 1; done
