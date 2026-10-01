@@ -1,0 +1,63 @@
+#!/usr/bin/bash
+# Throwaway spike (not for merge): Piston privileged under Kata Containers vs plain Docker.
+set -Eeuo pipefail
+KATA_VERSION=4.2.0
+KATA_SHA256=b828904fa3f1e49ddd7dc799c72cb1503cd1e772d354c3987c8d4189b2a623a8
+here=$(cd "$(dirname "$0")" && pwd)
+
+echo "::group::install kata"
+sudo apt-get install -y -qq zstd >/dev/null
+curl -fsSL -o /tmp/kata.tar.zst \
+  "https://github.com/kata-containers/kata-containers/releases/download/$KATA_VERSION/kata-static-$KATA_VERSION-amd64.tar.zst"
+echo "$KATA_SHA256  /tmp/kata.tar.zst" | sha256sum -c -
+zstd -dc /tmp/kata.tar.zst | sudo tar x -C /
+rm /tmp/kata.tar.zst
+sudo ln -sf /opt/kata/runtime-rs/bin/containerd-shim-kata-v2 /usr/local/bin/containerd-shim-kata-v2
+echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules >/dev/null
+sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+ls -l /dev/kvm
+echo "kata config: $(readlink -f /opt/kata/share/defaults/kata-containers/configuration.toml)"
+grep -E '^\s*(default_memory|default_vcpus)\s*=' /opt/kata/share/defaults/kata-containers/configuration.toml || true
+echo "::endgroup::"
+
+echo "::group::build piston image"
+docker build -q -t codestead-piston:spike "$here/.."
+echo "::endgroup::"
+
+common=(--tmpfs /piston/jobs:exec,uid=1001,gid=1001,mode=711
+  -e PISTON_RUN_MEMORY_LIMIT=268435456 -e PISTON_COMPILE_MEMORY_LIMIT=536870912
+  -e PISTON_MAX_CONCURRENT_JOBS=2 -e PISTON_OUTPUT_MAX_SIZE=65536 -e PISTON_MAX_PROCESS_COUNT=32)
+docker run -d --name plain --privileged -p 127.0.0.1:2000:2000 "${common[@]}" codestead-piston:spike >/dev/null
+docker run -d --name kata --runtime io.containerd.kata.v2 --privileged -p 127.0.0.1:2001:2000 "${common[@]}" codestead-piston:spike >/dev/null
+for port in 2000 2001; do
+  for _ in $(seq 60); do curl -sf "localhost:$port/api/v2/runtimes" >/dev/null && break; sleep 1; done
+done
+docker logs kata 2>&1 | tail -3
+
+echo "::group::kata containment (inside the container, privileged)"
+echo "host kernel: $(uname -r)"
+docker exec kata sh -c 'echo "guest kernel: $(uname -r)"; echo "block devices: $(ls /dev | grep -E "^(sd|nvme|vd|xvd)" | tr "\n" " ")"; echo "mem total: $(grep MemTotal /proc/meminfo)"; echo "cgroup: $(cat /sys/fs/cgroup/cgroup.controllers)"; echo "host docker sock: $(ls /var/run/docker.sock 2>&1)"; echo "host procs visible: $(ls /proc | grep -c "^[0-9]")"'
+echo "::endgroup::"
+
+rss() { # host-side RSS in MB of the processes backing a container
+  if [[ "$1" == plain ]]; then
+    docker stats --no-stream --format '{{.MemUsage}}' plain
+  else
+    ps -eo rss,comm | awk '/qemu|cloud-hyp|containerd-shim-kata|virtiofsd|dragonball/ {s+=$1} END {printf "%.0f MiB (qemu+shim+virtiofsd RSS)\n", s/1024}'
+  fi
+}
+echo "idle RSS plain: $(rss plain)"
+echo "idle RSS kata:  $(rss kata)"
+
+node "$here/bench.mjs" 2000 plain
+node "$here/bench.mjs" 2001 kata
+
+# Load: concurrency 2, mixed languages, then sample RSS.
+for port in 2000 2001; do
+  (for i in $(seq 6); do node "$here/bench.mjs" "$port" load >/dev/null & node "$here/bench.mjs" "$port" load >/dev/null; wait; done) &
+done
+sleep 8
+echo "loaded RSS plain: $(rss plain)"
+echo "loaded RSS kata:  $(rss kata)"
+wait
+echo "piston container RSS (inside, kata): $(docker exec kata sh -c 'ps -eo rss= | awk "{s+=\$1} END {print int(s/1024)\" MiB\"}"')"
