@@ -87,6 +87,8 @@ describe("resumable disclosed onboarding", () => {
     expect(screen.getByRole("progressbar", { name: "Onboarding step 1 of 3" })).toHaveAttribute("aria-valuenow", "1");
     expect(screen.getByText("Learning profile").parentElement?.parentElement).toHaveAttribute("aria-current", "step");
     expect(screen.getByDisplayValue("Approved Learner")).toBeInTheDocument();
+    expect(screen.getByLabelText("Your name")).toHaveAttribute("placeholder", "Your name");
+    expect(screen.queryByPlaceholderText("Aarav Rao")).not.toBeInTheDocument();
     await user.type(screen.getByLabelText("Your first outcome"), "Learn Python independently");
     await user.type(screen.getByLabelText(/Interests or hobbies/i), "baking, formula racing");
     for (const name of requiredDisclosureNames) await user.click(screen.getByRole("checkbox", { name }));

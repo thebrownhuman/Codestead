@@ -618,7 +618,7 @@ export function OnboardingWizard() {
               <h1>Tell Codestead how you want to learn.</h1>
               <p>These choices create your first roadmap. You can extend it later; prerequisites still protect the learning order.</p>
               <div className={styles.twoColumns}>
-                <label><span>Your name</span><input name="name" autoComplete="name" defaultValue={profileDraft?.name ?? accountName} placeholder="Aarav Rao" required minLength={2} /></label>
+                <label><span>Your name</span><input name="name" autoComplete="name" defaultValue={profileDraft?.name ?? accountName} placeholder="Your name" required minLength={2} /></label>
                 <label><span>Starting point</span><select name="level" defaultValue={profileDraft?.level ?? existingProfile?.selfReportedLevel ?? "beginner"}><option value="beginner">Complete beginner</option><option value="some_experience">I know a few basics</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced; place me by diagnostic</option></select></label>
               </div>
               <label><span>Your first outcome</span><textarea defaultValue={profileDraft?.goal ?? existingProfile?.learningGoals[0] ?? ""} name="goal" placeholder="For example: become confident in C++ and solve college DSA questions independently." required /></label>
