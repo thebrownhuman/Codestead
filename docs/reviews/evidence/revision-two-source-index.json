@@ -1,0 +1,67 @@
+[
+  {
+    "name": "hedy",
+    "url": "https://raw.githubusercontent.com/hedyorg/hedy/main/README.md",
+    "status": 200,
+    "bytes": 4395,
+    "sha256": "163d52e7a522dc3ce37fc09d36b0a6f57f9609ef952417840c5503937777ae10"
+  },
+  {
+    "name": "hedy-license",
+    "url": "https://raw.githubusercontent.com/hedyorg/hedy/main/LICENSE",
+    "status": 200,
+    "bytes": 13827,
+    "sha256": "6fc9e709ccbfe0d77fbffa2427a983282be2eb88e47b1cdb49f21a83b4d1e665"
+  },
+  {
+    "name": "blockly",
+    "url": "https://raw.githubusercontent.com/google/blockly/master/README.md",
+    "status": 200,
+    "bytes": 5904,
+    "sha256": "fe75c822ef7e9eb2457102ea70cbbaa458d0a7f1551a69ec9fca0a613c5563c0"
+  },
+  {
+    "name": "phaser",
+    "url": "https://raw.githubusercontent.com/phaserjs/phaser/master/README.md",
+    "status": 200,
+    "bytes": 15891,
+    "sha256": "14735751fff0e0a93fc6fd40e5b1393ff8d5b951ce176d8f430eb754aa386379"
+  },
+  {
+    "name": "codecombat-license",
+    "url": "https://raw.githubusercontent.com/codecombat/codecombat/master/LICENSE",
+    "status": 200,
+    "bytes": 1110,
+    "sha256": "c23018d7459c0d96034600b7603bd5a8d12e2af895d199256ce3768b52aadd2c"
+  },
+  {
+    "name": "python-tutor",
+    "url": "https://raw.githubusercontent.com/pgbovine/OnlinePythonTutor/master/README.md",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "name": "codecombat-readme",
+    "url": "https://raw.githubusercontent.com/codecombat/codecombat/master/README.md",
+    "bytes": 9305
+  },
+  {
+    "name": "codecombat-art-license",
+    "url": "https://raw.githubusercontent.com/codecombat/codecombat/master/LICENSE-ART",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "name": "fsrs",
+    "url": "https://raw.githubusercontent.com/open-spaced-repetition/ts-fsrs/main/README.md",
+    "bytes": 4613
+  },
+  {
+    "name": "parsons",
+    "url": "https://raw.githubusercontent.com/js-parsons/js-parsons/master/README.md",
+    "bytes": 2221
+  },
+  {
+    "name": "parsons-license",
+    "url": "https://raw.githubusercontent.com/js-parsons/js-parsons/master/LICENSE",
+    "bytes": 1095
+  }
+]

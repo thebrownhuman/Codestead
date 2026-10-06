@@ -1,0 +1,14 @@
+{
+  "library": "nodemailer",
+  "version": "10.0.15",
+  "license": "MIT-0",
+  "checksPassed": 6,
+  "unicodeHeadersEncoded": true,
+  "unicodeBodyEncoded": true,
+  "stableMessageIdPreserved": true,
+  "evidenceHeaderPreserved": true,
+  "independentBuildsHaveDifferentBytes": true,
+  "deliveryAttempted": false,
+  "bytes": 821,
+  "sha256": "9d7bd28383a3e6d1c0863e1e5fda102dac26f6c77aab153ec454bdf34f0767dc"
+}

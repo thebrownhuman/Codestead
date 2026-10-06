@@ -27,7 +27,7 @@ import {
   StepForward,
   TerminalSquare,
 } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import type {
   AtomicSkill,
@@ -168,33 +168,67 @@ export function Visualizer({ trace }: { trace?: AuthoredLesson["trace"] }) {
   const [index, setIndex] = useState(0);
   const state = visualStates[index];
   const [playing, setPlaying] = useState(false);
+  const hasNextStep = index < visualStates.length - 1;
+  const autoplaying = playing && hasNextStep;
   useEffect(() => {
-    if (!playing || visualStates.length < 2 || (typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
-    const timer = window.setInterval(() => {
+    if (!autoplaying || (typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
+    const timer = window.setTimeout(() => {
       setIndex((value) => Math.min(visualStates.length - 1, value + 1));
     }, 900);
-    return () => window.clearInterval(timer);
-  }, [playing, visualStates.length]);
+    return () => window.clearTimeout(timer);
+  }, [autoplaying, index, visualStates.length]);
   if (!state) return <div className={styles.visualizer} role="status"><p>No visual trace for this skill yet</p></div>;
-  return <div className={styles.visualizer}><div className={styles.visualTop}><span><Sparkles size={16} /> {trace ? "Topic trace visualizer" : "State visualizer"}</span><div><button aria-label="Restart visualizer" onClick={() => { setIndex(0); setPlaying(false); }}><RotateCcw size={15} /></button><button aria-label={playing ? "Pause visualizer" : "Play visualizer"} onClick={() => setPlaying(!playing)}>{playing ? <Pause size={15} /> : <Play size={15} />}</button><button aria-label="Next visualizer step" onClick={() => setIndex((value) => Math.min(visualStates.length - 1, value + 1))}><StepForward size={15} /></button></div></div><div className={styles.fakeCode}>{artifact.map((line, lineIndex) => <code className={state.line === lineIndex + 1 ? styles.activeLine : ""} key={`${lineIndex}-${line}`}><b>{lineIndex + 1}</b>{line}</code>)}</div><div className={styles.memoryTable}><span>Variable</span><span>Value now</span>{Object.entries(state.values).flatMap(([key, value]) => [<code key={`${key}-k`}>{key}</code>,<strong key={`${key}-v`}>{value}</strong>])}</div><div aria-live="polite" className={styles.visualNote}><b>Step {index + 1}: {state.label}</b><p>{state.note}</p></div><div className={styles.visualProgress}>{visualStates.map((_, item) => <i className={item <= index ? styles.doneStep : ""} key={item} />)}</div></div>;
+  return <div className={styles.visualizer}><div className={styles.visualTop}><span><Sparkles size={16} /> {trace ? "Topic trace visualizer" : "State visualizer"}</span><div><button aria-label="Restart visualizer" onClick={() => { setIndex(0); setPlaying(false); }}><RotateCcw size={15} /></button><button aria-label={autoplaying ? "Pause visualizer" : "Play visualizer"} disabled={!hasNextStep} onClick={() => setPlaying(!playing)}>{autoplaying ? <Pause size={15} /> : <Play size={15} />}</button><button aria-label="Next visualizer step" disabled={!hasNextStep} onClick={() => setIndex((value) => Math.min(visualStates.length - 1, value + 1))}><StepForward size={15} /></button></div></div><div className={styles.fakeCode}>{artifact.map((line, lineIndex) => <code className={state.line === lineIndex + 1 ? styles.activeLine : ""} key={`${lineIndex}-${line}`}><b>{lineIndex + 1}</b>{line}</code>)}</div><div className={styles.memoryTable}><span>Variable</span><span>Value now</span>{Object.entries(state.values).flatMap(([key, value]) => [<code key={`${key}-k`}>{key}</code>,<strong key={`${key}-v`}>{value}</strong>])}</div><div aria-live="polite" className={styles.visualNote}><b>Step {index + 1}: {state.label}</b><p>{state.note}</p></div><div className={styles.visualProgress}>{visualStates.map((_, item) => <i className={item <= index ? styles.doneStep : ""} key={item} />)}</div></div>;
 }
 
 function FallbackLogicGame({ skill }: { skill: AtomicSkill }) {
   const [stage, setStage] = useState(0);
   const [answer, setAnswer] = useState("");
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [advancing, setAdvancing] = useState(false);
+  const [complete, setComplete] = useState(false);
+  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (advanceTimer.current !== null) clearTimeout(advanceTimer.current);
+  }, []);
   const challenges = [
     { title: "Restore the control panel", prompt: `Name the observable result that proves ${skill.title} worked.`, token: "" },
     { title: "Power the next room", prompt: "Write one state change, condition, operation, or call that belongs in a minimal example.", token: "" },
     { title: "Explain the mechanism", prompt: `In one sentence, explain why your change demonstrates: ${skill.outcomes[0]}`, token: "" },
   ];
   const challenge = challenges[stage];
-  function check() { if (answer.trim().length < 8) { setFeedback("Write at least one complete idea."); return; } setFeedback("This is an ungraded reflection. No evidence is saved. Use practice or the runner for a correctness check."); if (stage < challenges.length - 1) { setTimeout(() => { setStage((value) => value + 1); setAnswer(""); setFeedback(null); }, 500); } }
-  return <div className={styles.game}><div className={styles.gameScene}><span className={styles.gameBot}>B</span><div className={styles.gamePath}>{challenges.map((_,index) => <i className={index <= stage ? styles.gameActive : ""} key={index}>{index + 1}</i>)}</div><span className={styles.gameGoal}>★</span></div><span className={styles.eyebrow}>Logic quest · stage {stage + 1} of {challenges.length}</span><h3>{challenge.title}</h3><p>{challenge.prompt}</p><textarea value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder="Type your reasoning or code fragment…" /><div className={styles.gameActions}><button className="button button-primary" type="button" onClick={check}>{stage === challenges.length - 1 ? "Finish quest" : "Run action"}<ArrowRight size={15} /></button><button className="button button-ghost" type="button" onClick={() => setFeedback("Hint: start from the skill outcome and name a before-and-after state.")}>Use a hint</button></div>{feedback && <p className={styles.gameFeedback}>{feedback}</p>}</div>;
+  function check() {
+    if (advanceTimer.current !== null) return;
+    if (answer.trim().length < 8) {
+      setFeedback("Write at least one complete idea.");
+      return;
+    }
+    setFeedback("This is an ungraded reflection. No evidence is saved. Use practice or the runner for a correctness check.");
+    if (stage === challenges.length - 1) {
+      setComplete(true);
+      return;
+    }
+    setAdvancing(true);
+    advanceTimer.current = setTimeout(() => {
+      advanceTimer.current = null;
+      setStage(stage + 1);
+      setAnswer("");
+      setFeedback(null);
+      setAdvancing(false);
+    }, 500);
+  }
+  if (complete) return <div className={styles.game}>
+    <h3>Reflection quest complete</h3>
+    <p>This was ungraded practice. No evidence, mastery, or XP was awarded.</p>
+    <button className="button button-secondary" onClick={() => {
+      setStage(0); setComplete(false); setAnswer(""); setFeedback(null);
+    }} type="button"><RotateCcw size={15} /> Replay reflection</button>
+  </div>;
+  return <div className={styles.game}><div className={styles.gameScene}><span className={styles.gameBot}>B</span><div className={styles.gamePath}>{challenges.map((_,index) => <i className={index <= stage ? styles.gameActive : ""} key={index}>{index + 1}</i>)}</div><span className={styles.gameGoal}>★</span></div><span className={styles.eyebrow}>Logic quest · stage {stage + 1} of {challenges.length}</span><h3>{challenge.title}</h3><p>{challenge.prompt}</p><textarea value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder="Type your reasoning or code fragment…" /><div className={styles.gameActions}><button className="button button-primary" disabled={advancing} type="button" onClick={check}>{stage === challenges.length - 1 ? "Finish quest" : "Run action"}<ArrowRight size={15} /></button><button className="button button-ghost" type="button" onClick={() => setFeedback("Hint: start from the skill outcome and name a before-and-after state.")}>Use a hint</button></div>{feedback && <p className={styles.gameFeedback}>{feedback}</p>}</div>;
 }
 
 function LogicGame({ skill, bank }: { skill: AtomicSkill; bank?: LearnerAssessmentBank }) {
-  return bank ? <DeterministicLogicGame bank={bank} skill={skill} /> : <FallbackLogicGame skill={skill} />;
+  return bank ? <DeterministicLogicGame bank={bank} skill={skill} /> : <FallbackLogicGame key={skill.id} skill={skill} />;
 }
 
 const practiceRunnerStatuses = new Set([

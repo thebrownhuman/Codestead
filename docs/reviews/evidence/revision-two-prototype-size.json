@@ -1,0 +1,22 @@
+{
+  "rawBytes": 15439,
+  "gzipBytes": 5539,
+  "files": [
+    {
+      "file": "robot-courier.css",
+      "bytes": 2716,
+      "gzipBytes": 1005
+    },
+    {
+      "file": "robot-courier.html",
+      "bytes": 3704,
+      "gzipBytes": 1524
+    },
+    {
+      "file": "robot-courier.js",
+      "bytes": 9019,
+      "gzipBytes": 3010
+    }
+  ],
+  "scope": "Three standalone design files; independently gzipped; excludes HTTP overhead; no new production bundle measurement."
+}

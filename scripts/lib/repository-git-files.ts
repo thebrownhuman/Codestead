@@ -80,7 +80,7 @@ async function assertCanonicalGitTopLevel(root: string): Promise<void> {
   const { stdout } = await execFileAsync(
     "git",
     ["-C", root, "rev-parse", "--show-toplevel"],
-    { encoding: "buffer", maxBuffer: 1024 * 1024 },
+    { encoding: "buffer", maxBuffer: 1024 * 1024, env: { ...process.env, LC_ALL: "C" } },
   );
   const topLevel = decodeGitTopLevel(stdout);
   const [canonicalRoot, canonicalTopLevel] = await Promise.all([
@@ -105,6 +105,10 @@ function isExactNoRepositoryError(error: GitCommandError): boolean {
   return (
     stderr.replace(/\r?\n$/u, "") ===
     "fatal: not a git repository (or any of the parent directories): .git"
+    // Git uses this second exact diagnostic when discovery reaches a mount
+    // boundary. It still means a Git-free archive; malformed metadata and
+    // unrelated Git errors must continue to fail closed.
+    || /^fatal: not a git repository \(or any parent up to mount point [^\r\n]+\)\r?\nStopping at filesystem boundary \(GIT_DISCOVERY_ACROSS_FILESYSTEM not set\)\.\r?\n?$/u.test(stderr)
   );
 }
 export function repositoryFindingPath(relativePath: string): string {
@@ -125,7 +129,7 @@ export async function listGitTrackedRepositoryPaths(
   const { stdout } = await execFileAsync(
     "git",
     ["-C", root, "ls-files", "--cached", "-z"],
-    { encoding: "buffer", maxBuffer: 64 * 1024 * 1024 },
+    { encoding: "buffer", maxBuffer: 64 * 1024 * 1024, env: { ...process.env, LC_ALL: "C" } },
   );
   return new Set(decodeGitPathList(stdout));
 }

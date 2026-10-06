@@ -58,6 +58,27 @@ describe("shared sensitive-text boundary", () => {
     });
   });
 
+  it.each(["access token", "DEPLOY_API_KEY", "service-auth-password", "aws_secret_access_key"])(
+    "preserves prefixes and quotes when redacting the %s label", (label) => {
+      const candidate = ["Q7w9", "Er2Ty4Ui6Op8As0Df3Gh"].join("");
+      const input = `${label}="${candidate}"`;
+      expect(redactSensitiveText(input, 1_000)).toEqual({
+        text: `${label}="[REDACTED]"`, redacted: true, truncated: false,
+      });
+      expect(containsCredentialOrHiddenEvidence(input)).toBe(true);
+    },
+  );
+
+  it("handles long prose prefixes while retaining credential detection after them", () => {
+    const prefix = "a ".repeat(65_536);
+    expect(containsCredentialOrHiddenEvidence(prefix)).toBe(false);
+    const input = `${prefix}service_token=${["Q7w9", "Er2Ty4Ui6Op8As0Df3Gh"].join("")}`;
+    expect(containsCredentialOrHiddenEvidence(input)).toBe(true);
+    expect(redactSensitiveText(input, input.length)).toEqual({
+      text: `${prefix}service_token=[REDACTED]`, redacted: true, truncated: false,
+    });
+  });
+
   it("does not redact ordinary identifiers, hashes, prose, URLs, or short non-secret labels", () => {
     const safe = [
       "python.values.scalars",

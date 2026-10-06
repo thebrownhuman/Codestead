@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight, CheckCircle2, RotateCcw, ShieldCheck } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { AtomicSkill, LearnerAssessmentBank, LearnerAssessmentItem } from "@/lib/content";
 
@@ -34,6 +34,13 @@ export function DeterministicLogicGame({
   readonly skill: AtomicSkill;
   readonly bank: LearnerAssessmentBank;
 }) {
+  return <DeterministicQuest bank={bank} key={`${skill.id}:${bank.id}`} skill={skill} />;
+}
+
+function DeterministicQuest({ skill, bank }: {
+  readonly skill: AtomicSkill;
+  readonly bank: LearnerAssessmentBank;
+}) {
   const challenges = useMemo(
     () => bank.items.filter((item) => item.kind !== "code").slice(0, 3),
     [bank.items],
@@ -47,6 +54,14 @@ export function DeterministicLogicGame({
   const [result, setResult] = useState<CheckResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [complete, setComplete] = useState(false);
+  const pending = useRef(false);
+  const controller = useRef<AbortController | null>(null);
+  const advanceTimer = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    controller.current?.abort();
+    if (advanceTimer.current !== null) window.clearTimeout(advanceTimer.current);
+  }, []);
 
   function clearResponse() {
     setSelected([]);
@@ -78,11 +93,16 @@ export function DeterministicLogicGame({
 
   const item = challenges[stage]!;
   async function check() {
+    if (pending.current) return;
+    pending.current = true;
+    const request = new AbortController();
+    controller.current = request;
     setBusy(true);
     setResult(null);
     try {
       const response = await fetch("/api/games/check", {
         method: "POST",
+        signal: request.signal,
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           skillId: skill.id,
@@ -93,19 +113,24 @@ export function DeterministicLogicGame({
         }),
       });
       const body = (await response.json().catch(() => ({}))) as CheckResult & { error?: string };
+      if (request.signal.aborted) return;
       if (!response.ok) throw new Error(body.error ?? "The deterministic checker is unavailable.");
       setResult(body);
       setHint(body.hint);
       if (body.stageAdvance) {
-        window.setTimeout(() => {
+        advanceTimer.current = window.setTimeout(() => {
+          advanceTimer.current = null;
           if (stage >= challenges.length - 1) setComplete(true);
           else {
-            setStage((value) => value + 1);
+            setStage(stage + 1);
             clearResponse();
           }
+          pending.current = false;
+          setBusy(false);
         }, 700);
       }
     } catch (error) {
+      if (request.signal.aborted) return;
       setResult({
         correct: false,
         feedback: error instanceof Error ? error.message : "The deterministic checker is unavailable.",
@@ -115,11 +140,15 @@ export function DeterministicLogicGame({
         notice: "No learning evidence was recorded.",
       });
     } finally {
-      setBusy(false);
+      if (!request.signal.aborted && advanceTimer.current === null) {
+        pending.current = false;
+        setBusy(false);
+      }
     }
   }
 
   function revealHint() {
+    if (hintIndex >= Math.min(item.hints.length || 1, 20)) return;
     const next = item.hints[Math.min(hintIndex, Math.max(0, item.hints.length - 1))] ??
       "Return to the lesson outcome and trace one before-and-after state.";
     setHint(next);
@@ -146,7 +175,7 @@ export function DeterministicLogicGame({
     {item.kind === "trace" && <textarea aria-label="Trace response" onChange={(event) => setText(event.target.value)} placeholder="Type the trace or observable result…" value={text} />}
     <div className={styles.gameActions}>
       <button className="button button-primary" disabled={busy || !responseReady} onClick={() => void check()} type="button">{busy ? "Checking…" : "Run action"}<ArrowRight size={15} /></button>
-      <button className="button button-ghost" disabled={busy} onClick={revealHint} type="button">Use a hint</button>
+      <button className="button button-ghost" disabled={busy || hintIndex >= Math.min(item.hints.length || 1, 20)} onClick={revealHint} type="button">Use a hint</button>
     </div>
     {hint && <p className={styles.gameHint}><strong>Hint:</strong> {hint}</p>}
     {result && <div aria-live="polite" className={styles.gameFeedback} role="status">{result.correct ? <CheckCircle2 size={16} /> : <ShieldCheck size={16} />}<span><strong>{result.correct ? "Checkpoint restored" : "Not yet"}</strong><small>{result.feedback}</small><small>{result.notice}</small></span></div>}

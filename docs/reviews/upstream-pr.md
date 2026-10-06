@@ -1,0 +1,9 @@
+When a learner submits a correct quest answer twice during the advancement delay, the old UI can skip a checkpoint. This change locks each transition, cancels abandoned work, bounds hint use, and gives fallback reflections an explicit practice-only completion/replay flow. The visualizer also stops scheduling work at its final step.
+
+Credential-label scanning now matches the suffix directly instead of repeatedly exploring arbitrary word prefixes. The same synthetic 65,536-character input went from approximately 5.9 seconds to 1.2 milliseconds in isolated runs on the review host, with credential/placeholder regression coverage retained. Git-free archive scanning also recognizes Git's filesystem-boundary diagnostic under a controlled locale while preserving failure on corrupt metadata.
+
+The PR includes a separate, dependency-free Robot Courier design prototype, browser tests, preserved baseline research/evidence, and Revision Two's ranked game and NUC optimization plan. The prototype simulates a finite command vocabulary and previews corresponding Python; it does not execute arbitrary Python, publish curriculum, or award mastery/XP.
+
+The lockfile also takes compatible security fixes for `source-map-js` (1.2.2) and `sharp` (0.35.5, with its platform/libvips packages). No direct dependencies are added or removed. Existing deployed images require rebuilding to consume these patches.
+
+Validation and exact outcomes: [Revision Two verification](https://github.com/dik5678920-bot/Codestead/blob/main/docs/reviews/evidence/revision-two-verification.json). Production build, type checking, lint, curriculum checks, unit/regression checks, and selected browser/integration checks are recorded separately. Browser verification uses system Chromium; external providers and production NUC load are outside this pass.

@@ -1,0 +1,12 @@
+{
+  "node": "v24.19.0",
+  "courses": 12,
+  "skills": 476,
+  "coldRuntimeMs": 397.116117,
+  "coldHeapDeltaBytes": 51279296,
+  "coldRssDeltaBytes": 116219904,
+  "warmIterations": 20,
+  "warmTotalMs": 0.590970999999854,
+  "warmMedianMs": 0.015704000000027918,
+  "scope": "One content-repository process on the cloud host during verification; no DB, HTTP, NUC benchmark, or per-user repository allocation."
+}

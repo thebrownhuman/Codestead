@@ -1,0 +1,20 @@
+[
+  {
+    "family": "ordinary_words",
+    "chars": 65536,
+    "elapsedMs": 1.8098499999999973,
+    "outputChars": 4000
+  },
+  {
+    "family": "unterminated_private_key_headers",
+    "chars": 56000,
+    "elapsedMs": 49.437568,
+    "outputChars": 4000
+  },
+  {
+    "family": "credential_label_near_matches",
+    "chars": 78000,
+    "elapsedMs": 2.5364959999999996,
+    "outputChars": 4000
+  }
+]

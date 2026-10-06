@@ -1,0 +1,182 @@
+{
+  "date": "2026-10-06",
+  "baselineCommit": "7a0dda402f0a3486c85de75f2c5fe5bbd8654479",
+  "node": "v24.19.0",
+  "unit": {
+    "success": true,
+    "startTime": 1791305427419,
+    "numTotalTests": 6843,
+    "numPassedTests": 6816,
+    "numFailedTests": 0,
+    "numPendingTests": 27,
+    "filesPassed": 574,
+    "filesSkipped": 4,
+    "durationSeconds": 434.5,
+    "stage": "Final source and patched installed dependency tree",
+    "command": "npm test -- --maxWorkers=2"
+  },
+  "authBoundary": {
+    "success": true,
+    "numTotalTests": 16,
+    "numPassedTests": 16,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "postgresIntegration": {
+    "success": true,
+    "startTime": 1791304776868,
+    "numTotalTests": 33,
+    "numPassedTests": 33,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "filesPassed": 4,
+    "bootstrapAndRoleHarnessChecksPassed": 86,
+    "stage": "After source fixes, before sharp/source-map-js lockfile patch",
+    "command": "npm run test:integration -- integration/postgres.integration.test.ts integration/practice-learning.integration.test.ts integration/daily-review.integration.test.ts integration/learner-journey.integration.test.ts"
+  },
+  "appBrowser": {
+    "passed": 14,
+    "skipped": 1,
+    "failed": 0,
+    "stage": "After application fixes, before dependency patch",
+    "browser": "system Chromium",
+    "config": "Ignored local config selecting keyboard, code-lab, and learner-experience specs",
+    "apiResponses": "Several runner, credential, community, and project endpoints mocked; local demo auth; not a live authenticated NUC journey"
+  },
+  "prototypeBrowser": {
+    "passed": 8,
+    "failed": 0,
+    "viewports": [
+      {
+        "width": 1280,
+        "height": 1000
+      },
+      {
+        "width": 320,
+        "height": 568
+      }
+    ],
+    "browser": "system Chromium",
+    "stage": "Final prototype and patched dependency tree",
+    "accessibility": "Axe WCAG A/AA, reduced-motion preference, horizontal overflow; no manual screen-reader outcome claim"
+  },
+  "build": {
+    "passed": true,
+    "command": "npm run build",
+    "stage": "Patched installed dependency tree",
+    "existingWarning": "process.exit in src/instrumentation.ts is not supported in Edge runtime"
+  },
+  "typecheck": {
+    "passed": true,
+    "command": "npm run typecheck",
+    "stage": "Patched installed dependency tree"
+  },
+  "lint": {
+    "passed": true,
+    "errors": 0,
+    "existingWarnings": 2,
+    "command": "npm run lint",
+    "stage": "Final source and patched dependency tree"
+  },
+  "contentValidation": {
+    "passed": true,
+    "courses": 12,
+    "skills": 476,
+    "authoredLessons": 476,
+    "assessmentBanks": 476
+  },
+  "beginnerAudit": {
+    "passed": 476,
+    "failed": 0,
+    "scope": "Automated authored-content quality checks, not measured educational outcomes"
+  },
+  "architecture": {
+    "passed": true,
+    "files": 1029,
+    "imports": 4387,
+    "documentedExceptions": 10,
+    "violations": 0,
+    "staleExceptions": 0
+  },
+  "secretAndEncodingScans": {
+    "passed": true,
+    "scope": "Recognized credential canaries and common mojibake checks"
+  },
+  "productionDependencyAudit": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "allDependencyAudit": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 5,
+    "critical": 0,
+    "total": 5
+  },
+  "remainingAdvisory": {
+    "package": "braces",
+    "advisory": "GHSA-vfj7-8cjw-p6xm",
+    "scope": "Development ESLint/fast-glob chain",
+    "registrySuggestedRemedy": "Incompatible eslint-config-next 14.2.35 downgrade; not applied"
+  },
+  "patchedLibraryCompatibility": {
+    "assertionsPassed": 7,
+    "sharp": "0.35.5",
+    "librsvg": "2.63.2",
+    "source-map-js": "1.2.2",
+    "scope": "Benign SVG-to-PNG dimensions/color, basic mappings, and indexed mapping behavior compared with 1.2.1"
+  },
+  "offlineMailer": {
+    "assertionsPassed": 6,
+    "nodemailer": "10.0.15",
+    "deliveryAttempted": false
+  },
+  "initialFailures": [
+    {
+      "run": "Initial full suite",
+      "passed": 6809,
+      "failed": 6,
+      "skipped": 27,
+      "cause": "Previously reported F11 Git-free archive diagnostic mismatch; fixed"
+    },
+    {
+      "run": "Intermediate full suite overlapping locale source/test edits",
+      "passed": 6815,
+      "failed": 1,
+      "skipped": 27,
+      "cause": "French locale diagnostic in an overlapping run; current focused scanner suite and subsequent stable full suites pass"
+    },
+    {
+      "run": "First prototype browser attempt",
+      "failed": 8,
+      "cause": "System browser blocks file URLs; replaced test setup with a finite HTTP file fixture; subsequent browser tests pass"
+    }
+  ],
+  "upstreamPullRequest": {
+    "created": false,
+    "attempt": "gh pr create --repo thebrownhuman/Codestead --base main --head dik5678920-bot:main --draft --body-file docs/reviews/upstream-pr.md",
+    "blocker": "GitHub GraphQL API returned 403 Forbidden; Git push to fork works",
+    "compareUrl": "https://github.com/thebrownhuman/Codestead/compare/main...dik5678920-bot:main?expand=1"
+  },
+  "notRun": [
+    "Production NUC load",
+    "Live Piston VM execution",
+    "Real email-provider delivery",
+    "Live LLM calls",
+    "Real R2 restore",
+    "Pinned Firefox/WebKit matrix",
+    "New beginner outcome trial"
+  ],
+  "lockSha256": "4826d09ce001b7560d0b79ca4aa62e20cc7d418091c7591ee478e7208c89aade",
+  "sourceHashes": {
+    "src/components/lesson/deterministic-logic-game.tsx": "c16b256da5e5d4586b52f69249bd996219a5c05fe3ecdbe4073a0f8f411d87cb",
+    "src/components/lesson/lesson-workspace.tsx": "bb7d3ec69ae4e1a0283d0dca3d528feb28c17fd549a7f5525b38ea9318ee5ed0",
+    "src/lib/security/credential-patterns.ts": "708aee8187ae00bbe29a6bc94b8e2c45603e31630ef793c15830a75594dc0a6e",
+    "scripts/lib/repository-git-files.ts": "7c843bc38d678e7ab232bdf65ca7750a9aceefee6adee278461a19bbff566d73"
+  }
+}

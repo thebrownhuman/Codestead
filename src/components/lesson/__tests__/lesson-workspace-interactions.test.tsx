@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -10,7 +10,7 @@ import {
   type AuthoredFallbackLessonBlueprint,
   type AuthoredLesson,
 } from "@/lib/content";
-import { CodeLab, LessonWorkspace } from "../lesson-workspace";
+import { CodeLab, LessonWorkspace, Visualizer } from "../lesson-workspace";
 import { TutorLessonProvider } from "../tutor-context";
 import { TutorLauncherHost } from "../tutor-panel";
 
@@ -51,6 +51,46 @@ const baseProps = () => ({
 });
 
 describe("lesson workspace interactions", () => {
+  it("stops visualizer timers at the last step and releases them on unmount", async () => {
+    vi.useFakeTimers();
+    const { unmount } = render(<Visualizer trace={authoredLesson.trace} />);
+    fireEvent.click(screen.getByRole("button", { name: "Play visualizer" }));
+    for (let step = 1; step < authoredLesson.trace.steps.length; step++) {
+      await act(async () => { await vi.advanceTimersByTimeAsync(900); });
+    }
+    expect(screen.getByRole("button", { name: "Play visualizer" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Next visualizer step" })).toBeDisabled();
+    expect(vi.getTimerCount()).toBe(0);
+    fireEvent.click(screen.getByRole("button", { name: "Restart visualizer" }));
+    fireEvent.click(screen.getByRole("button", { name: "Play visualizer" }));
+    expect(vi.getTimerCount()).toBe(1);
+    unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("advances fallback reflections once, finishes clearly, and supports replay", async () => {
+    vi.useFakeTimers();
+    render(<LessonWorkspace {...baseProps()} authoredLesson={authoredLesson} />);
+    fireEvent.click(screen.getByRole("tab", { name: /Quest/i }));
+    for (let step = 0; step < 3; step++) {
+      fireEvent.change(screen.getByPlaceholderText(/reasoning or code fragment/i), {
+        target: { value: "Describe a before-and-after state." },
+      });
+      const run = screen.getByRole("button", { name: step === 2 ? /Finish quest/i : /Run action/i });
+      fireEvent.click(run);
+      fireEvent.click(run);
+      if (step < 2) {
+        expect(run).toBeDisabled();
+        await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+        expect(screen.getByText(`Logic quest · stage ${step + 2} of 3`)).toBeInTheDocument();
+      }
+    }
+    expect(screen.getByRole("heading", { name: "Reflection quest complete" })).toBeInTheDocument();
+    expect(screen.getByText(/No evidence, mastery, or XP was awarded/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Replay reflection/i }));
+    expect(screen.getByText("Logic quest · stage 1 of 3")).toBeInTheDocument();
+  });
+
   it("switches an authored pilot between lesson, visualizer, and quest modes", async () => {
     const user = userEvent.setup();
     render(<LessonWorkspace {...baseProps()} authoredLesson={authoredLesson} />);

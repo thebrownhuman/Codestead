@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Robot Courier · Codestead design prototype</title>
+  <link rel="stylesheet" href="robot-courier.css">
+  <script src="robot-courier.js" defer></script>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">CODESTEAD · PLAYABLE DESIGN PROTOTYPE</p>
+      <h1>Small steps. Real understanding.</h1>
+      <p>Help a little courier find its way. Predict, run, inspect, and improve your program.</p>
+    </header>
+    <nav aria-label="Missions" class="missions">
+      <button type="button" data-mission="0" aria-current="step">1 · Predict</button>
+      <button type="button" data-mission="1">2 · Repair</button>
+      <button type="button" data-mission="2">3 · Build</button>
+    </nav>
+    <div class="workspace">
+      <section class="card world" aria-labelledby="mission-title">
+        <p class="eyebrow">ROBOT COURIER</p>
+        <h2 id="mission-title"></h2>
+        <p id="mission-description"></p>
+        <svg id="map" viewBox="0 0 500 400" role="img" aria-label="Robot delivery map"></svg>
+        <p id="position" class="position"></p>
+        <div class="legend"><span>● Courier</span><span>★ Package destination</span><span>■ Obstacle</span></div>
+        <div class="actions">
+          <button id="previous" type="button">Previous step</button>
+          <button id="next" type="button">Next step</button>
+          <button id="result" type="button">Show result</button>
+        </div>
+        <p id="trace" class="trace" aria-live="polite"></p>
+      </section>
+      <section class="card program" aria-labelledby="program-title">
+        <p class="eyebrow">YOUR PROGRAM</p>
+        <h2 id="program-title">Make the next move.</h2>
+        <div id="commands"></div>
+        <div id="builder" hidden>
+          <label>New direction
+            <select id="new-direction"><option value="east">East →</option><option value="north">North ↑</option><option value="west">West ←</option><option value="south">South ↓</option></select>
+          </label>
+          <label>New repeat count <input id="new-count" type="number" min="1" max="6" value="1"></label>
+          <button id="add" type="button">Add command</button>
+        </div>
+        <h3>Python preview</h3>
+        <pre id="code" tabindex="0" aria-label="Generated Python preview"></pre>
+        <p class="note">This prototype simulates the movement commands shown here. It does not execute arbitrary Python. Production code execution would use Codestead’s isolated runner.</p>
+        <fieldset>
+          <legend>Before running: where will the courier stop?</legend>
+          <label>Predicted column <select id="prediction-column"><option value="">Choose a column</option></select></label>
+          <label>Predicted row <select id="prediction-row"><option value="">Choose a row</option></select></label>
+        </fieldset>
+        <div class="actions"><button id="run" class="primary" type="button" disabled>Run program</button><button id="reset" type="button">Reset mission</button></div>
+        <p id="feedback" role="status" aria-live="polite"></p>
+      </section>
+    </div>
+    <footer class="card">
+      <h2>Take the idea with you.</h2>
+      <p>A loop repeats an instruction. For a new problem, <code>print("Hello")</code> displays a greeting. Write a loop that displays it four times. Explain how many times the loop runs and why.</p>
+      <p class="note">Practice only: this prototype saves no answers and awards no mastery, XP, badges, or exam credit. No account, AI key, or network service is required.</p>
+    </footer>
+  </main>
+</body>
+</html>

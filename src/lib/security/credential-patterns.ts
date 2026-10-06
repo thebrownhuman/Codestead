@@ -89,8 +89,12 @@ export const CREDENTIAL_VALUE_PATTERNS: readonly CredentialPattern[] = [
   },
 ] as const;
 
-const CREDENTIAL_LABEL_SOURCE = String.raw`(?:aws[\s_-]?secret[\s_-]?access[\s_-]?key|(?:[a-z0-9]+[\s_-]+)*(?:api[\s_-]?key|secret|token|password|passphrase))`;
-const CREDENTIAL_ASSIGNMENT_SOURCE = String.raw`(?<![A-Za-z0-9_])(?<label>${CREDENTIAL_LABEL_SOURCE})(?![A-Za-z0-9_])["']?\s*[:=]\s*(?:"(?<doubleQuoted>[^"\r\n]{1,512})"|'(?<singleQuoted>[^'\r\n]{1,512})'|\`(?<backtickQuoted>[^\`\r\n]{1,512})\`|(?<bare>[^\s,;#}\]"'\`\r\n]{1,512}))`;
+// Match the credential suffix directly, leaving arbitrary label prefixes in
+// the original text. Repeated word prefixes made a near-match prose scan
+// quadratic. Underscores are valid separators before a suffix, while the
+// trailing boundary still excludes ordinary identifiers such as token_count.
+const CREDENTIAL_LABEL_SOURCE = String.raw`(?:aws[\s_-]?secret[\s_-]?access[\s_-]?key|api[\s_-]?key|secret|token|password|passphrase)`;
+const CREDENTIAL_ASSIGNMENT_SOURCE = String.raw`(?<![A-Za-z0-9])(?<label>${CREDENTIAL_LABEL_SOURCE})(?![A-Za-z0-9_])["']?\s*[:=]\s*(?:"(?<doubleQuoted>[^"\r\n]{1,512})"|'(?<singleQuoted>[^'\r\n]{1,512})'|\`(?<backtickQuoted>[^\`\r\n]{1,512})\`|(?<bare>[^\s,;#}\]"'\`\r\n]{1,512}))`;
 
 const PLACEHOLDER_WORDS = new Set([
   "changeme",

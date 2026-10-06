@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   decodeGitPathList,
@@ -17,6 +17,7 @@ const temporaryDirectories: string[] = [];
 const execFileAsync = promisify(execFile);
 
 afterEach(async () => {
+  vi.unstubAllEnvs();
   await Promise.all(
     temporaryDirectories
       .splice(0)
@@ -78,5 +79,12 @@ describe("Git repository path identity", () => {
     await expect(tryListGitTrackedRepositoryPaths(root)).rejects.toMatchObject({
       code: 128,
     });
+  });
+
+  it("recognizes a Git-free archive even when the parent process requests another locale", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "codestead-localized-archive-"));
+    temporaryDirectories.push(root);
+    vi.stubEnv("LC_ALL", "fr_FR.UTF-8");
+    await expect(tryListGitTrackedRepositoryPaths(root)).resolves.toBeNull();
   });
 });
