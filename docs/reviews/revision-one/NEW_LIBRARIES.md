@@ -1,0 +1,71 @@
+> Historical review of baseline `7a0dda402f0a3486c85de75f2c5fe5bbd8654479`, captured 2026-10-06. Read Revision Two for subsequent fixes and validation. Local evidence paths inside the archive document the original execution environment.
+
+# Codestead: library research and migration contracts
+
+Research snapshot: 2026-10-06. See [new metadata](research/new-library-metadata.json) and [original metadata](library-metadata.json). Versions below are observed registry versions, not application changes. Core packages were installed into an external isolated lab with install scripts disabled. Source/documentation/test snapshots are catalogued in [source-index.json](research/upstream/source-index.json).
+
+## Existing recommendations checked more deeply
+
+| Mechanism and candidate | What was independently checked | Migration requirement |
+| --- | --- | --- |
+| Subprocess lifecycle: **Execa 10.0.1**, MIT, Node >=22 | Its termination/output docs and installed package were inspected. `/usr/bin/true` with 131,072 stdin bytes returned normally in the lab. | Keep Docker cleanup, process/container ownership, admission, provenance, deadlines and output accounting. Upgrade the runner's declared Node floor or select a compatible version; check ESM integration. |
+| Durable browser storage: **idb 8.0.4**, ISC | Upstream API/transaction tests were read. Lab request succeeds, then abort causes `tx.done` rejection and no persisted value. | Await transaction completion before acknowledging a durable write. Preserve namespace ownership, logout clearing, tombstones, revision compare/replay and version-change/block handling. Native-browser behavior still needs tests. |
+| Resolved import rules: **dependency-cruiser 18.5.0**, MIT, Node ^22/^24/>=26 | Actual relative import from a domain fixture to DB is resolved and flagged. Upstream rules support reachability checks. | Configure TS aliases, TypeScript parser, dynamic/re-export semantics, explicit exceptions and coverage checks. Derive Next client directives using an AST; a graph library does not infer all Next policies. |
+| Shared dialogs: **Radix Dialog 1.2.0**, MIT, or **React Aria Components 1.21.1**, Apache-2.0 | Radix source uses `hideOthers`, trapped FocusScope and prevention of focus outside modal content; FocusScope contains focus moved by code as well as keyboard. | Integrate and test portals, focus restoration, nested overlays, labeling, scroll lock and admin step-up. Existing pending-promise cleanup is a separate application responsibility. Choose one common primitive family. |
+| Provider protocol: **openai 7.28.0**, Apache-2.0, Node >=22; **@anthropic-ai/sdk 0.131.0**, MIT | OpenAI documentation and Anthropic client source show default two retries and ten-minute timeouts. | Set `maxRetries: 0` for the current uncertain-effect contract; pass explicit deadlines and retain safe bounded transport. Never expose keys through browser support. Test custom-provider compatibility and usage/cost settlement. |
+| GitHub protocol: **@octokit/rest 22.0.1**, MIT, Node >=20 | Official SDK README and current application reviewer inspected. | Use a total deadline, bounded fetch responses, exact commit pins and explicitly controlled retry/pagination behavior. It does not fix false deductions or automatically cap recursive trees. |
+| Public IP parsing: **ipaddr.js 2.5.0**, MIT, Node >=10 | Upstream parsing/range API and existing public-address/DNS-pinning implementation read. | Delegate address parsing/subnet mechanics while preserving the chosen routable-address policy, all-answer validation, pinned TLS lookup, SNI/host verification, redirect rejection and response caps. No existing SSRF bypass proved. |
+
+**Execa trap:** with `maxBuffer:1024`, `encoding:'buffer'` and `all:true`, a process writing 700 stdout bytes and 700 stderr bytes was accepted. `maxBuffer` does not directly implement the runner's 1,024-byte combined-stream cap. By default it also buffers a much larger amount and text measurement has different units. Preserve a shared byte counter and explicit stop/cleanup behavior. Configure signal/escalation timing; defaults need not match the existing runner.
+
+**idb trap:** resolving a `put` request is not the same as committing the transaction. The official docs also warn that a transaction can auto-close while awaiting unrelated work. Do not make a network call in the middle of a transaction expected to remain open. The lab uses fake-indexeddb, so native browser quota/eviction/versionchange behavior remains to be checked.
+
+**dependency-cruiser trap:** the first lab attempt had no locally available TypeScript parser and cruised zero TypeScript modules. Installing the parser resulted in two modules and the expected forbidden edge. Also, the JSON reporter returned process exit zero while its summary contained an error/advised failure; the `err-long` reporter exited one for the same fixture. CI must select the failing reporter or explicitly assert JSON error/advised-exit fields and nonzero inventory. A successful command with zero inspected files is not an architecture gate.
+
+## New candidates with concrete uses
+
+| Candidate / observed version / license | Code it could replace or simplify | Decision, maturity evidence and important limits |
+| --- | --- | --- |
+| **@radix-ui/react-alert-dialog 1.1.24**, MIT | `use-confirm.tsx` / confirmation presentation | Good extension of a Radix dialog migration. Source explicitly focuses Cancel on open and suppresses outside-pointer dismissal. Preserve deliberate confirm/cancel semantics and settle promises on unmount. Use Alert Dialog for decisions requiring attention, not every ordinary form. React 19 is included in declared peers. |
+| **@radix-ui/react-dropdown-menu 2.1.25**, MIT | Manual account-menu keyboard/focus logic in [app-shell.tsx:436](../../../src/components/shell/app-shell.tsx) | Good candidate if adopting Radix. Replaces generic menu mechanics; preserve Next links, sign-out pending state, accessible labels and app navigation behavior. Current package peers include React 19. Installed app browser integration was not tested. |
+| **@floating-ui/react 0.27.20**, MIT | Notification/account overlay positioning and outside-dismiss handling in [notification-menu.tsx:77](../../../src/components/shell/notification-menu.tsx) | Good alternative for popovers requiring custom presentation/positioning. `useDismiss` and FloatingFocusManager source plus actual upstream dismissal tests were inspected. The package declares unit and browser tests and React >=17 peers. Positioning alone does not implement full menu/dialog semantics. Avoid using it and Radix to maintain the same overlay. |
+| **@internationalized/date 3.12.4**, Apache-2.0 | Repeated local-calendar/timezone handling in [smart-reminders.ts:129](../../../src/lib/notifications/smart-reminders.ts), [rewards/policy.ts:252](../../../src/lib/rewards/policy.ts), inactivity/dashboard/day keys | Strong alternative to Luxon/Temporal for shared calendar operations. Adobe package README and manipulation tests cover calendar boundaries; two lab cases verify a local calendar day crossing DST is 23 elapsed hours and nonexistent local input can be rejected. Its calendar arithmetic does not replace notification/grading policy. Choose one calendar library; UTC/elapsed exam deadlines stay separate. |
+| **p-limit 7.3.3**, MIT, Node >=20 | Bounded GitHub blob-fetch concurrency after operation/response caps are defined | Small, focused candidate when only active concurrency is needed. Lab peak was two active tasks with six still queued from eight submissions. It provides no admission cap, durable queue, per-tenant fairness or fleet-wide limit. Shared per-process use is required for a process-wide cap. Prefer p-queue only when its additional scheduling features are actually needed. |
+| **@asteasolutions/zod-to-openapi 9.1.0**, MIT | Future versioned API specification from existing route Zod schemas | Conditional improvement for the currently missing published API contract. Upstream README and published scripts include runtime/type tests. Zod peer ^4 matches the app's ^4.4.3 declaration. Use existing Zod 4 `toJSONSchema` first where JSON Schema alone suffices; add this library only for OpenAPI paths/components/documentation. It does not detect authorization or hidden-field leakage automatically. |
+| **@opentelemetry/instrumentation-pg 0.74.0**, Apache-2.0, Node ^18.19/>=20.6 | Standard query/pool-wait tracing around `pg` | Conditional observability improvement. Official documentation covers pool-connect timing; package publishes real service/version test commands. Review initialization timing and compatible OTel versions. `enhancedDatabaseReporting` can attach query parameters/results; even without it, `db.query.text` is documented. Disable sensitive reporting and filter emitted SQL/attributes; do not assume turning off enhanced reporting removes every secret-bearing field. |
+| **@react-aria/focus 3.22.1**, Apache-2.0 | A constrained focus-containment utility if full dialog adoption is inappropriate | Alternative only. Focus handling is one part of modal correctness; accessible hiding, labels, portals, dismissal and scroll lock remain. Metadata shows dependency on the broader `react-aria` package, so measure the actual bundle rather than assume this entry point is tiny. React 19 is covered by peers. Prefer a full shared modal primitive for F8. |
+
+All entries above are incremental mechanism choices. No package can automatically fix the consent replay defect, decide a retention policy, repair backend grading, guarantee secret filtering or provide an atomic DB/filesystem snapshot.
+
+## Candidates researched but not recommended for immediate addition
+
+- **Native `re2@1.27.0`, BSD-3-Clause:** promising linear-time regex engine after detector rewrite, but no lookaround support and native installation/build requirements. Its published Node range is `^22.22.2 || ^24.15.0 || >=26.0.0`; the runner's current advertised >=20.9.0 range is incompatible. Preserve Unicode/multibyte/redaction semantics and verify exact Linux image artifacts before adoption. It was not built in this lab.
+- **`re2-wasm@1.0.2`, Apache-2.0:** installed to verify the lookbehind incompatibility, not endorsed as the default remediation. Registry latest publication is 2021-09-14. Audit its maintenance/build/runtime size before any adoption. A parser/bounded detector may be simpler.
+- **`p-cancelable@4.0.1`, MIT:** the promise ownership issue is better handled by explicit unmount settlement and the existing/native AbortController model. A cancellation wrapper alone does not clean the global step-up slot. Its latest publication is from 2022.
+- **`jose@6.2.12`, MIT:** no new JWT verification gap was found that justifies another auth/crypto layer. Better Auth already owns its authentication protocol, while the runner uses its own versioned HMAC contract. JOSE is appropriate only for a genuine JWT/JWK protocol requirement.
+- **`jsonc-parser@3.3.1`, MIT:** useful if authoring intentionally adopts JSON-with-comments or needs syntax-position edits. Current strict JSON/schema content does not establish that requirement. Do not silently relax published validation formats.
+- **`@jsonjoy.com/json-pack@18.30.0`, Apache-2.0:** no demonstrated serialization/binary-format requirement justifies its scope. Do not change evidence canonicalization merely to use a general serializer.
+- **`pino-http@11.0.0`, MIT:** optional request logging only after safe serializer/redaction behavior is specified. Logging a request object can expose cookies, headers or identifiers. It does not repair the monitoring tunnel's outbound allowlist.
+- **pg-boss 12.37.0 / Graphile Worker 0.18.0, MIT:** useful candidates for ordinary PostgreSQL-backed jobs, with Node >=22.12 / >=22.18 respectively. They do not replace the fenced mail delivery-authority protocol, sealed payloads or ambiguous provider outcome handling. No Redis or job-system rewrite is needed for the new findings.
+
+## What the isolated checks actually establish
+
+| Check | Result |
+| --- | --- |
+| Early-closed stdin using Execa | Child exits normally; host survives. |
+| Execa combined-stream counterexample | 700+700 bytes accepted at maxBuffer 1,024; custom combined accounting required. |
+| IDB request versus transaction completion | Request succeeds, transaction is aborted, commit rejects, value absent. |
+| Calendar day across DST | Same local clock on next calendar day with 23 elapsed hours. |
+| Nonexistent local calendar time | Explicit reject disambiguation throws. |
+| RE2 lookbehind | Unsupported syntax rejected; current detector cannot be copied unchanged. |
+| p-limit | Two active tasks; remaining tasks queue rather than being rejected. |
+| dependency-cruiser fixture | Relative domain-to-DB import resolved and forbidden; failing text reporter exits one. |
+| source-map-js installed versus fixed | Old implementation exhausts a capped child heap on excessive offset; 1.2.2 rejects the offset. |
+
+The first seven probes assert behavior and are in [probes.mjs](research/library-lab/probes.mjs). The graph fixture and source-map comparison are separate. The lab lock audit reports zero known advisories at the research time. This is not an application security certification, full upstream test run, production runtime proof, legal opinion or migration patch.
+
+## Adoption checklist tied to this repository
+
+For each actual migration, define the generic responsibility being removed and retain the application's authority boundary. Pin/select a supported version, inspect its full license/transitive dependencies and lifecycle scripts, and use the existing build/test/browser/image gates. Verify release Node/ESM compatibility, bundle size where relevant, privacy defaults, resource limits, durable record/hash compatibility and rollback behavior. Add tests for the specific invariant the library does not provide. Leave unrelated features and already appropriate libraries in place.
+
+The app is AGPL-3.0-only. Metadata licenses are useful screening information; preservation of notices and the exact adopted/transitive terms still needs review. The research does not propose adding all 61 candidates or replacing every custom domain service.
