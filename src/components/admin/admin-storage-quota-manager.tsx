@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { HardDrive, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
@@ -107,10 +109,10 @@ export function AdminStorageQuotaManager({
       <div className={styles.approveForm} style={{ marginTop: 12 }}>
         <label>
           New quota
-          <select onChange={(event) => setSelectedGiB(event.target.value)} value={selectedGiB}>
+          <Select onChange={(event) => setSelectedGiB(event.target.value)} value={selectedGiB}>
             {!hasCurrentOption && <option value={String(currentGiB)}>{currentGiB.toFixed(2)} GiB · current</option>}
             {OPTIONS.map((value) => <option key={value} value={String(value)}>{value.toFixed(2)} GiB</option>)}
-          </select>
+          </Select>
         </label>
         <label>
           Current six-digit authenticator code

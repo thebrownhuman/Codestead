@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { BellOff, Clock3 } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
@@ -107,9 +109,9 @@ export function AdminInactivityPreferenceManager({ learnerId }: { readonly learn
           <form className={styles.approveForm} onSubmit={(event) => void mutate(event, Boolean(paused))} style={{ marginTop: 12 }}>
             {!paused ? (
               <label>Pause duration
-                <select disabled={saving} onChange={(event) => setDurationHours(Number(event.target.value))} value={durationHours}>
+                <Select disabled={saving} onChange={(event) => setDurationHours(Number(event.target.value))} value={durationHours}>
                   {durationOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                </select>
+                </Select>
               </label>
             ) : null}
             <label>{paused ? "Reason to resume" : "Reason for temporary pause"}

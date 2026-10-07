@@ -41,7 +41,9 @@ describe("administrator fallback grant manager", () => {
     const user = userEvent.setup();
     render(<AdminFallbackGrantManager learnerId="learner-1" />);
 
+    await user.click(await screen.findByLabelText("Administrator credential"));
     await screen.findByRole("option", { name: /Admin NIM/i });
+    await user.keyboard("{Escape}");
     await user.clear(screen.getByLabelText("Maximum tokens"));
     await user.type(screen.getByLabelText("Maximum tokens"), "12500");
     await user.type(screen.getByLabelText(/authenticator code/i), "123456");
@@ -79,7 +81,9 @@ describe("administrator fallback grant manager", () => {
     const user = userEvent.setup();
     render(<AdminFallbackGrantManager learnerId="learner-1" />);
 
+    await user.click(await screen.findByLabelText("Administrator credential"));
     await screen.findByRole("option", { name: /Admin NIM/i });
+    await user.keyboard("{Escape}");
     await user.type(screen.getByLabelText(/authenticator code/i), "123");
     await user.type(screen.getByLabelText("Recorded reason"), "short");
     await user.click(screen.getByRole("button", { name: "Grant capped fallback" }));

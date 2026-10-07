@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import {
   FileText,
   FolderKanban,
@@ -366,8 +368,8 @@ export function ProjectsView() {
           <form className={styles.form} onChange={() => setCreateDirty(true)} onSubmit={create}>
             <label>Project title<input name="title" placeholder="Recipe inventory CLI" minLength={3} maxLength={100} required /></label>
             <label>Problem to solve<textarea name="summary" placeholder="Describe who needs it, what they need to accomplish, and why." minLength={20} maxLength={1000} required /></label>
-            <label>Primary track<select name="track"><option>Python</option><option>C</option><option>C++</option><option>Java</option><option>JavaScript + React</option><option>AI foundations</option></select></label>
-            <label>Ambition<select name="difficulty"><option value="starter">Starter · one focused workflow</option><option value="portfolio">Portfolio · polished and tested</option><option value="stretch">Stretch · multiple concepts and trade-offs</option></select></label>
+            <label>Primary track<Select name="track"><option>Python</option><option>C</option><option>C++</option><option>Java</option><option>JavaScript + React</option><option>AI foundations</option></Select></label>
+            <label>Ambition<Select name="difficulty"><option value="starter">Starter · one focused workflow</option><option value="portfolio">Portfolio · polished and tested</option><option value="stretch">Stretch · multiple concepts and trade-offs</option></Select></label>
             <button className="button button-primary" disabled={createBusy} type="submit"><FileText size={16} /> {createBusy ? "Creating brief…" : "Create PRD and milestones"}</button>
           </form>
       </ModalDialog>}

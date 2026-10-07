@@ -1,3 +1,4 @@
+import { selectOption } from "@/test/select-option";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { hydrateRoot } from "react-dom/client";
@@ -27,13 +28,13 @@ describe("accessibility settings", () => {
     const container = document.createElement("div");
     container.innerHTML = renderToString(<SettingsView initialTab="accessibility" />);
 
-    const serverControls = Array.from(container.querySelectorAll("select[aria-label]"));
+    const serverControls = Array.from(container.querySelectorAll('button[role="combobox"][aria-label]'));
     expect(serverControls).toHaveLength(4);
     for (const control of serverControls) expect(control).toBeDisabled();
 
     const root = hydrateRoot(container, <SettingsView initialTab="accessibility" />);
     await waitFor(() => {
-      for (const control of container.querySelectorAll("select[aria-label]")) {
+      for (const control of container.querySelectorAll('button[role="combobox"][aria-label]')) {
         expect(control).toBeEnabled();
       }
     });
@@ -53,16 +54,16 @@ describe("accessibility settings", () => {
     render(<SettingsView initialTab="accessibility" />);
 
     await waitFor(() => {
-      expect(screen.getByRole("combobox", { name: "Text size" })).toHaveValue("130");
+      expect(screen.getByRole("combobox", { name: "Text size" })).toHaveAttribute("data-value", "130");
       expect(screen.getByRole("combobox", { name: "Text size" })).toBeEnabled();
-      expect(screen.getByRole("combobox", { name: "Interface theme and contrast" })).toHaveValue("dark");
-      expect(screen.getByRole("combobox", { name: "Code editor font" })).toHaveValue("16");
+      expect(screen.getByRole("combobox", { name: "Interface theme and contrast" })).toHaveAttribute("data-value", "dark");
+      expect(screen.getByRole("combobox", { name: "Code editor font" })).toHaveAttribute("data-value", "16");
     });
 
-    await user.selectOptions(screen.getByRole("combobox", { name: "Text size" }), "200");
-    await user.selectOptions(screen.getByRole("combobox", { name: "Motion" }), "reduce");
-    await user.selectOptions(screen.getByRole("combobox", { name: "Interface theme and contrast" }), "contrast");
-    await user.selectOptions(screen.getByRole("combobox", { name: "Code editor font" }), "18");
+    await selectOption(user, screen.getByRole("combobox", { name: "Text size" }), "200");
+    await selectOption(user, screen.getByRole("combobox", { name: "Motion" }), "reduce");
+    await selectOption(user, screen.getByRole("combobox", { name: "Interface theme and contrast" }), "contrast");
+    await selectOption(user, screen.getByRole("combobox", { name: "Code editor font" }), "18");
 
     expect(readAccessibilityPreferences()).toEqual({
       textSize: "200",
@@ -80,7 +81,7 @@ describe("accessibility settings", () => {
     render(<SettingsView initialTab="accessibility" />);
 
     await waitFor(() => {
-      expect(screen.getByRole("combobox", { name: "Text size" })).toHaveValue("100");
+      expect(screen.getByRole("combobox", { name: "Text size" })).toHaveAttribute("data-value", "100");
     });
 
     // A browser can deliver the next select event before React has committed
@@ -94,7 +95,7 @@ describe("accessibility settings", () => {
       codeEditorFont: "18",
     }));
 
-    await userEvent.setup().selectOptions(screen.getByRole("combobox", { name: "Motion" }), "reduce");
+    await selectOption(userEvent.setup(), screen.getByRole("combobox", { name: "Motion" }), "reduce");
 
     expect(readAccessibilityPreferences()).toEqual({
       textSize: "200",

@@ -1,3 +1,4 @@
+import { selectOption } from "@/test/select-option";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -20,7 +21,7 @@ describe("persisted settings profile", () => {
     expect(screen.getByLabelText("Bio")).toHaveValue(profile.bio);
     await user.clear(name); await user.type(name, "  New Name  ");
     await user.clear(screen.getByLabelText("Bio")); await user.type(screen.getByLabelText("Bio"), "New bio");
-    await user.selectOptions(screen.getByLabelText("Analogy preference"), "frequent");
+    await selectOption(user, screen.getByLabelText("Analogy preference"), "frequent");
     await user.click(screen.getByRole("button", { name: "Save profile" }));
     await screen.findByText("Profile saved.");
     const call = fetch.mock.calls.find(([, init]) => init?.method === "PATCH");

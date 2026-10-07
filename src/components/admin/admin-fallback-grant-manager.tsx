@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { KeyRound, ShieldAlert, WalletCards } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -266,7 +268,7 @@ export function AdminFallbackGrantManager({ learnerId }: { readonly learnerId: s
       <div className={styles.approveForm} style={{ marginTop: 14 }}>
         <label>
           Administrator credential
-          <select onChange={(event) => {
+          <Select onChange={(event) => {
             const nextId = event.target.value;
             const provider = data?.availableCredentials.find((item) => item.id === nextId)?.provider;
             setCredentialId(nextId);
@@ -276,16 +278,16 @@ export function AdminFallbackGrantManager({ learnerId }: { readonly learnerId: s
             {data?.availableCredentials.map((credential) => (
               <option disabled={data.learnerConsent?.providers[credential.provider] !== true} key={credential.id} value={credential.id}>{humanize(credential.provider)} · {credential.label} · {credentialTail(credential.lastFour)}{data.learnerConsent?.providers[credential.provider] === true ? "" : " · learner consent required"}</option>
             ))}
-          </select>
+          </Select>
         </label>
         <label>
           Enabled tutor model
-          <select onChange={(event) => setModel(event.target.value)} value={model}>
+          <Select onChange={(event) => setModel(event.target.value)} value={model}>
             <option value="">Choose a model</option>
             {data?.availableModels
               .filter((item) => item.provider === data.availableCredentials.find((credential) => credential.id === credentialId)?.provider)
               .map((item) => <option key={`${item.provider}:${item.model}`} value={item.model}>{item.model}</option>)}
-          </select>
+          </Select>
         </label>
         <label>
           Maximum tokens

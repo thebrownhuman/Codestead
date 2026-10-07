@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { useCallback, useEffect, useState } from "react";
 import { decodeSupportDetails } from "@/lib/learning-requests/support-contract";
 import { formatDateTime, requestAdminJson } from "./admin-utils";
@@ -41,7 +43,7 @@ export function AdminSupportRequestQueue() {
   }
   return <section className={styles.adminPage} aria-labelledby="support-queue-title">
     <div className={styles.pageHead}><div><h1 id="support-queue-title">Requests</h1><p>Review learner support requests and mark problems fixed. The learner receives a notification and email.</p></div><button type="button" className="button button-secondary" onClick={() => void load().catch((cause) => setError(cause instanceof Error ? cause.message : "Requests are unavailable."))}>Refresh requests</button></div>
-    <label htmlFor="support-status">Request status</label><select id="support-status" value={status} disabled={busy !== null} onChange={(event) => { setItems(null); setError(null); setStatus(event.target.value); }}><option value="open">Open</option><option value="resolved">Resolved</option></select>
+    <label htmlFor="support-status">Request status</label><Select id="support-status" value={status} disabled={busy !== null} onChange={(event) => { setItems(null); setError(null); setStatus(event.target.value); }}><option value="open">Open</option><option value="resolved">Resolved</option></Select>
     {error && <ErrorState message={error} onRetry={() => void load().catch((cause) => setError(cause instanceof Error ? cause.message : "Requests are unavailable."))} />}
     {!items && !error && <LoadingState label="Loading requests" />}
     {items?.length === 0 && <EmptyState title="No requests" detail={`There are no ${status} support requests.`} />}

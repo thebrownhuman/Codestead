@@ -1,3 +1,4 @@
+import { selectOption } from "@/test/select-option";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IDBFactory as FakeIDBFactory } from "fake-indexeddb";
@@ -1026,22 +1027,22 @@ describe("CodeLab authoritative draft synchronization", () => {
     fireEvent.change(editor, { target: { value: "python_only = 41\n" } });
     await screen.findByText("Saved locally on this browser. Syncing to Codestead...");
 
-    await user.selectOptions(selector, "c");
+    await selectOption(user, selector, "c");
     editor = await screen.findByRole("textbox", { name: "Practice source code" });
     await waitFor(() => expect((editor as HTMLTextAreaElement).value).toContain("#include <stdio.h>"));
     fireEvent.change(editor, { target: { value: "int c_only = 42;\n" } });
 
     for (const language of ["cpp", "java", "javascript"] as const) {
-      await user.selectOptions(selector, language);
+      await selectOption(user, selector, language);
       editor = await screen.findByRole("textbox", { name: "Practice source code" });
       await waitFor(() => expect(requestedUrls.some((url) => url.includes(`courseId=${language}`) && url.includes(`language=${language}`))).toBe(true));
     }
 
-    await user.selectOptions(selector, "python");
+    await selectOption(user, selector, "python");
     editor = await screen.findByRole("textbox", { name: "Practice source code" });
     await waitFor(() => expect(editor).toHaveValue("python_only = 41\n"));
 
-    await user.selectOptions(selector, "c");
+    await selectOption(user, selector, "c");
     editor = await screen.findByRole("textbox", { name: "Practice source code" });
     await waitFor(() => expect(editor).toHaveValue("int c_only = 42;\n"));
     expect(requestedUrls).toEqual(expect.arrayContaining([

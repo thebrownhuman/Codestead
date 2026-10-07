@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import {
   AlertTriangle,
   ArrowRight,
@@ -180,10 +182,10 @@ export function ExamCatalog() {
         <div><strong>{visible.length}</strong><span>module exams</span></div>
         <label>
           <span>Course</span>
-          <select value={courseFilter} onChange={(event) => setCourseFilter(event.target.value)}>
+          <Select value={courseFilter} onChange={(event) => setCourseFilter(event.target.value)}>
             <option value="all">All courses</option>
             {courses.map(([id, title]) => <option value={id} key={id}>{title}</option>)}
-          </select>
+          </Select>
         </label>
       </div>
 

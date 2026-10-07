@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
@@ -434,7 +436,7 @@ export function CodeLab({
     {allowLanguageSelection && <div className={styles.codeLanguageSelector}>
       <label>
         <span>Runner language</span>
-        <select
+        <Select
           aria-label="Runner language"
           disabled={running}
           onChange={(event) => {
@@ -443,7 +445,7 @@ export function CodeLab({
           value={selectedLanguage}
         >
           {codeLabLanguageOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-        </select>
+        </Select>
       </label>
       <small>Each language keeps a separate saved draft.</small>
     </div>}
