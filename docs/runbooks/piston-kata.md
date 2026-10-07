@@ -136,10 +136,13 @@ network and reads `PISTON_URL=http://piston:2000` from `compose.yaml`.
 
 5. Flag flip (owner approval): set `CODE_RUNNER_PROVIDER=piston` in
    `/etc/learncoding/compose.env` and run the same `redeploy-nuc.sh` command
-   again so the app is recreated with it. Practice, exam code and grading corrections all
-   select Piston. **Do not flip the flag until the PR4b publication migration is ready:**
-   legacy-pinned exam forms reject Piston runtime/image evidence, with no fallback.
-   Finish active legacy-pinned attempts first; their snapshots must stay immutable.
+   again so the app is recreated with it. Practice and newly published formal exam forms
+   select Piston; existing exams and grading corrections select the provider recorded in
+   the attempt's immutable runtime label. The implemented PR4b publication revision uses
+   the exact labels in `infra/piston/pr4b-runtime-handoff.json` and the deployed
+   digest-pinned `PISTON_IMAGE`; the handoff's reference-build digest is a record, not a
+   deployment pin. Keep legacy available for legacy-pinned attempts and their corrections;
+   no fallback or snapshot rewriting is permitted.
    See [the image build and PR4b handoff](../../infra/piston/README.md).
 
 `docker exec` into a Kata container is not supported by this Kata release.
@@ -280,9 +283,10 @@ this PR makes no NUC throughput or four-slot safety claim.
 ## Rollback
 
 1. Back to the legacy runner: set `CODE_RUNNER_PROVIDER=legacy` and run
-   rerun `redeploy-nuc.sh` with the deployed sha. This alone is a full rollback for
-   learners; Piston keeps running but receives no requests.
-2. To also stop Piston: remove the `piston` token from `COMPOSE_PROFILES` (leave
+   `redeploy-nuc.sh` with the deployed SHA. This changes the default provider for
+   practice and newly published forms; Piston must remain available for existing
+   Piston-pinned attempts and their corrections.
+2. Only when no immutable Piston-pinned attempt or correction still needs it, stop Piston: remove the `piston` token from `COMPOSE_PROFILES` (leave
    `PISTON_IMAGE` or clear it), redeploy as above, then remove the container:
 
    ```bash

@@ -86,7 +86,7 @@ Honest comparison with our runner:
 | Per-submission boundary | Fresh unprivileged container: cap-drop ALL, no-new-privileges, uid 65532, read-only root, `--network none`, pids/mem/cpu/fsize limits | isolate: namespaces + cgroup v2, uid 60003, no caps, no network, read-only root |
 | Service process | Needs the Docker socket (root-equivalent), so it is meant for a dedicated runner VM; Bubblewrap containment on the VM guest | **Privileged root container**. An isolate escape lands in a privileged container, which is effectively host root |
 | Shared NUC without a VM | Not safe either (Docker socket access) | Not safe: an isolate escape = NUC root |
-| Languages | GCC 14.2 (C23), G++ 14.2 (C++20), Java 21, Python 3.14, Node 22 | Official repo: gcc 10.2, java 15, python 3.12. Newer versions need our own package builds |
+| Languages | GCC 14.2 (C23), G++ 14.2 (C++20), Java 21, Python 3.14, Node 22 (CI 22.23.1, image 22.23.3) | Official repo: gcc 10.2, java 15, python 3.12. Newer versions need our own package builds |
 | Latency | ~0.9-1.9 s per run | ~0.05-0.5 s per run |
 
 Both runners need a VM boundary to be safe on the shared NUC. Piston's own inner sandbox is as good
@@ -183,7 +183,7 @@ them reach the server runner.
 | C++ | G++ 14.2 (C++20) | gcc 10.2.0 | gcc 10.2.0 |
 | Java | Java 21.0.12 | java 15.0.2 | java 15.0.2 |
 | Python | Python 3.14.7 | python 3.12.0 | python 3.12.0 |
-| JavaScript | Node 22 | node 20.11.1 | node 20.11.1 |
+| JavaScript | Node 22 (CI 22.23.1, image 22.23.3) | node 20.11.1 | node 20.11.1 |
 
 PR1 ships the official packages so the service can be measured. Matching the lessons needs our own
 packages (PR5). Plan:
@@ -198,7 +198,7 @@ packages (PR5). Plan:
   Add an AppCDS archive built at image build time (`-XX:ArchiveClassesAtExit` over a javac + hello
   run, then `-XX:SharedArchiveFile` for both javac and java) to cut JVM start-up.
 - **Python 3.14:** the python-build-standalone `install_only` tarball (sha256-pinned).
-- **Node 22:** the official nodejs.org linux-x64 tarball (sha256-pinned).
+- **Node 22 (CI 22.23.1, image 22.23.3):** the official nodejs.org linux-x64 tarball (sha256-pinned).
 
 ## Speed and resources
 
@@ -242,7 +242,7 @@ What each item does:
    tests compare all five languages' verdicts and scores using injected process/HTTP outcomes;
    live toolchain equivalence still depends on step 5. Project reviews stay bounded static analysis
    (`repositoryExecution: none`) with provider-independent findings and scores.
-5. Own Piston image on Debian trixie with GCC 14, Java 21 (+ AppCDS), Python 3.14 and Node 22.
+5. Own Piston image on Debian trixie with GCC 14, Java 21 (+ AppCDS), Python 3.14 and Node 22 (CI 22.23.1, image 22.23.3).
    The reviewed inputs and offline build live in `infra/piston`; live tests cover all five
    languages, modern syntax and isolate containment. `infra/piston/pr4b-runtime-handoff.json`
    records the tested image manifest and exact runtime labels for the separate PR4b publication
@@ -260,7 +260,7 @@ always require legacy. Keep both providers configured while either pinned lineag
 ### PR4b: reviewed publication pin revision
 
 `infra/piston/pr4b-publication-pins.json` records revision `piston-pr4b-v1`, the reviewed
-legacy version/digest allowlist and PR5 image reference. The target labels come directly
+legacy version/digest allowlist and PR5 image reference. The image reference is a reference-build record, not a deployment pin. The target labels come directly
 from `infra/piston/pr4b-runtime-handoff.json`; changes outside those exact pin pairs fail
 closed. Runtime label drift or a different configured image manifest blocks new Piston forms.
 
@@ -272,6 +272,8 @@ copies only runtime pins: authored content, tests, hidden answers, scoring, elig
 policy version and persisted publication/review/release records remain unchanged.
 No schema or persisted-artifact mutation is needed, so reviewed migration 0070 and its
 latest-migration pins remain current.
+
+Application runtime: Node 22 (CI 22.23.1, image 22.23.3). The table preserves exact immutable runtime labels, including `Node.js 22.23.3 (Piston)` from the handoff.
 
 | Language | Reviewed legacy label | New form label |
 | --- | --- | --- |

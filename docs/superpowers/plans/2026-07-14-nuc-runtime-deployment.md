@@ -6,7 +6,7 @@
 
 **Architecture:** Codestead remains a no-host-port Compose project behind its dedicated Cloudflare Tunnel. Pilot mode excludes ClamAV, one-shot operations use a dedicated image, file secrets are readable only through a supplemental numeric group, and systemd recreates reviewed images from durable bind mounts after boot. The KVM runner and encrypted backup implementation are separate plans.
 
-**Tech Stack:** Next.js 16, React 19, TypeScript 5.9, Vitest, Node.js 22.23.1, PostgreSQL 17, Drizzle ORM, Docker Engine 29, Docker Compose 5, Bash, systemd, and cloudflared.
+**Tech Stack:** Next.js 16, React 19, TypeScript 5.9, Vitest, Node 22 (CI 22.23.1, image 22.23.3), PostgreSQL 17, Drizzle ORM, Docker Engine 29, Docker Compose 5, Bash, systemd, and cloudflared.
 
 ## Global Constraints
 

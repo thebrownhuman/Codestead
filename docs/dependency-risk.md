@@ -17,7 +17,7 @@
 
 The remediation does not use `npm audit fix --force`. The offline verifier rejects missing or drifted overrides, malformed package versions, and any locked esbuild or PostCSS copy in either affected range. Its unit suite also proves both former vulnerable nested paths fail closed.
 
-The exact `react-router@8.0.1` dependency requires Node `>=22.22.0`; the application manifest enforces that floor and the production image is pinned to Node 22.23.1. The Windows authoring host reports Node 22.18.0, so its checks are useful development evidence but not deployment-runtime compatibility evidence.
+Use Node 22 (CI 22.23.1, image 22.23.3). The exact `react-router@8.0.1` dependency requires Node `>=22.22.0`, and the application manifest enforces that floor. The earlier Windows authoring checks used Node 22.18.0, so they are historical development evidence rather than deployment-runtime compatibility evidence. The runner manifest's `>=20.9.0` floor does not replace the application runtime pins.
 
 The full clean-checkout application build, standalone runtime inspection, SBOM generation, and image scan must be rerun from this changed lock before deployment acceptance. Prior image evidence is not reused as proof for the patched source tree. The runner has its own dependency and image gates.
 
@@ -32,7 +32,7 @@ The full clean-checkout application build, standalone runtime inspection, SBOM g
 - Offline advisory verifier: 13/13 unit tests passed.
 - TypeScript and targeted ESLint gates: passed.
 
-These checks do not replace the final Node 22.23.1 clean-checkout build, Linux container build, SBOM, image scan, or NUC deployment gates.
+These checks do not replace the final Node 22 (CI 22.23.1, image 22.23.3) clean-checkout build, Linux container build, SBOM, image scan, or NUC deployment gates.
 
 ## Recheck procedure
 

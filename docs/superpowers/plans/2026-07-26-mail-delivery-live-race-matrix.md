@@ -6,7 +6,7 @@
 
 **Architecture:** Keep one deterministic Vitest integration suite over the real PostgreSQL store and real account-deletion/retention services, with a small reusable harness for query barriers, phase-aware commit faults, exact provider-call recording, and redacted evidence. Use real role-separated disposable databases and real migrations; replace only Gmail HTTP with an in-process recorder. Run the same case inventory sequentially on the pinned PostgreSQL 17 and PostgreSQL 18 images and bind the evidence to the exact Git tree.
 
-**Tech Stack:** TypeScript, Vitest, `pg`, Drizzle migrations, PostgreSQL advisory locks/CAS/xid8, Node.js 22.23.1, Docker-based disposable integration harness.
+**Tech Stack:** TypeScript, Vitest, `pg`, Drizzle migrations, PostgreSQL advisory locks/CAS/xid8, Node 22 (CI 22.23.1, image 22.23.3), Docker-based disposable integration harness.
 
 ## Global Constraints
 

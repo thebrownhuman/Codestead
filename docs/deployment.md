@@ -258,6 +258,8 @@ The compatibility flag never authorizes rollback across `0062_mail_outbox_retent
 
 ### Install the reviewed host runtime for supervised load gates
 
+Application runtime: Node 22 (CI 22.23.1, image 22.23.3). The exact host package and checks below are separate supervised-load requirements; they do not describe the container image version.
+
 The application remains containerized, but the supervised production-load control, gate, and exact-journal recovery units intentionally run the repository's TypeScript entrypoints on the trusted host. They therefore require a fixed `/usr/bin/node` and the production `tsx` package tree under `/opt/learncoding`. Do not use a `curl | bash` setup script. Configure the signed NodeSource 22.x apt repository with the same reviewed-key procedure used by `infra/runner-vm/install-guest.sh`, then install the reviewed package version below. If `apt-cache` does not list that exact version, stop and review a replacement rather than silently floating.
 
 ```bash
