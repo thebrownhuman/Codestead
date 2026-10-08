@@ -177,8 +177,18 @@ export function assertBackupCiApplicationCrossGuard(applicationProjection) {
 export function assertMailGuardedDelivery0069PostgresProjection(
   postgresProjection,
 ) {
+  const installTimeoutAnchor =
+    "          sudo apt-get install --yes --no-install-recommends postgresql-17 postgresql-18\n        timeout-minutes: 10";
+  assert.equal(
+    postgresProjection.split(installTimeoutAnchor).length,
+    2,
+    "the PostgreSQL install step must have exactly one 10-minute timeout",
+  );
   assertExactWorkflowControls(
-    postgresProjection,
+    postgresProjection.replace(
+      installTimeoutAnchor,
+      installTimeoutAnchor.split("\n")[0],
+    ),
     "the PostgreSQL integration job",
     {
       expectedJobProperties: [
