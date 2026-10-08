@@ -47,7 +47,7 @@
       "file": "src/lib/learning-service/drizzle-store.ts",
       "purpose": "learning sessions and attempts",
       "anchors": 4,
-      "sourceSha256": "b25f8a798e54b0e714f1d4fb7b052804d5867089253aab344dac904f0a264a87"
+      "sourceSha256": "b214dddfb79491131d0356cf24d0d8535643c59253b37202767401341782594b"
     },
     {
       "file": "src/lib/daily-review/service.ts",

@@ -1332,11 +1332,16 @@ class DrizzleLearningTransaction implements LearningTransaction {
     if (!enrollmentIds.length) {
       return { planItems: [], progress: [], reviews: [], sessionCounts: { completedActions: 0, reviewActions: 0 } };
     }
-    const revisions = await this.executor
-      .select()
+    const latestRevisions = this.executor
+      .selectDistinctOn([planRevision.enrollmentId])
       .from(planRevision)
       .where(inArray(planRevision.enrollmentId, enrollmentIds))
-      .orderBy(desc(planRevision.revision));
+      .orderBy(asc(planRevision.enrollmentId), desc(planRevision.revision))
+      .as("latest_plan_revisions");
+    const revisions = await this.executor
+      .select()
+      .from(latestRevisions)
+      .orderBy(desc(latestRevisions.revision));
     const seenEnrollments = new Set<string>();
     const plans = revisions.filter((row) => {
       if (seenEnrollments.has(row.enrollmentId)) return false;

@@ -1,9 +1,8 @@
-import { and, asc, desc, eq, inArray, isNotNull, lte } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
 import { createContentRepository } from "@/lib/content";
 import { db } from "@/lib/db/client";
 import {
-  attempt,
   concept,
   conceptMastery,
   course,
@@ -11,13 +10,11 @@ import {
   curriculumPublicationPointer,
   enrollment,
   learnerProfile,
-  lesson,
   planRevision,
   reviewSchedule,
-  sessionEvent,
   user,
 } from "@/lib/db/schema";
-import { LESSON_COMPLETION_AUTHORITY } from "@/lib/learning-service/types";
+import { buildDashboardActivityQuery, projectDashboardActivitySummary, type DashboardActivitySummary } from "./history";
 import { learningService } from "@/lib/learning-service/runtime";
 import { loadRewardProgress } from "@/lib/rewards/service";
 
@@ -26,7 +23,6 @@ const DASHBOARD_TOPIC_LIMIT = 4;
 
 const NEEDS_REVIEW_REASON = "Mastery status requires review.";
 const PRACTICE_FALLBACK_REASON = "Evidence has not reached proficiency yet.";
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type DashboardFailureScope = "authoritative-load" | "next-recommendation" | "reward-projection";
 
@@ -563,7 +559,7 @@ export async function loadAuthoritativeDashboard(
       .limit(1);
     if (!owner) throw new Error("Dashboard owner is unavailable.");
     const timeZone = resolveDashboardTimeZone(owner.timezone);
-    const [masteryRows, dueRows, eventRows, officialAttemptRows, enrollmentRows, profileRows, publicationRows, nextAction, rewards] = await Promise.all([
+    const [masteryRows, dueRows, activitySummary, enrollmentRows, profileRows, publicationRows, nextAction, rewards] = await Promise.all([
       db
         .select({
           conceptId: conceptMastery.conceptId,
@@ -608,39 +604,9 @@ export async function loadAuthoritativeDashboard(
           eq(reviewSchedule.status, "scheduled"),
         ))
         .orderBy(asc(reviewSchedule.dueAt), asc(reviewSchedule.id)),
-      db
-        .select({
-          type: sessionEvent.type,
-          occurredAt: sessionEvent.occurredAt,
-          subjectType: sessionEvent.subjectType,
-          subjectId: sessionEvent.subjectId,
-          metadata: sessionEvent.metadata,
-        })
-        .from(sessionEvent)
-        .where(and(
-          eq(sessionEvent.userId, userId),
-          eq(sessionEvent.type, "lesson_completed"),
-          lte(sessionEvent.occurredAt, now),
-        )),
-      db
-        .select({
-          id: attempt.id,
-          occurredAt: attempt.submittedAt,
-        })
-        .from(attempt)
-        .innerJoin(
-          enrollment,
-          and(
-            eq(enrollment.id, attempt.enrollmentId),
-            eq(enrollment.userId, userId),
-          ),
-        )
-        .where(and(
-          eq(attempt.userId, userId),
-          inArray(attempt.status, ["submitted", "grading", "graded"]),
-          isNotNull(attempt.submittedAt),
-          lte(attempt.submittedAt, now),
-        )),
+      db.execute<DashboardActivitySummary>(buildDashboardActivityQuery(
+        userId, now, timeZone, dashboardLocalDateKey(now, timeZone),
+      )),
       db
         .select({
           enrollmentId: enrollment.id,
@@ -689,39 +655,7 @@ export async function loadAuthoritativeDashboard(
       }),
     ]);
 
-    const activityRows: DashboardActivityEvent[] = [
-      ...eventRows.map((row) => ({
-        type: row.type,
-        occurredAt: row.occurredAt,
-        subjectType: row.subjectType,
-        subjectId: row.subjectId,
-        authoritative: row.metadata.authority === LESSON_COMPLETION_AUTHORITY,
-      })),
-      ...officialAttemptRows.flatMap((row) => row.occurredAt ? [{
-        type: "attempt_submitted",
-        occurredAt: row.occurredAt,
-        subjectType: "attempt",
-        subjectId: row.id,
-        authoritative: true,
-      }] : []),
-    ];
-    const completedLessonCandidates = [...new Set(activityRows
-      .filter((row) => row.authoritative)
-      .filter((row) => row.type === "lesson_completed" && row.subjectType === "lesson")
-      .map((row) => row.subjectId?.trim().toLowerCase() ?? "")
-      .filter((subjectId) => UUID_PATTERN.test(subjectId)))];
-    const knownLessonRows = completedLessonCandidates.length
-      ? await db
-          .select({ id: lesson.id })
-          .from(lesson)
-          .where(inArray(lesson.id, completedLessonCandidates))
-      : [];
-    const activity = deriveActivityProjection(
-      activityRows,
-      now,
-      new Set(knownLessonRows.map((row) => row.id)),
-      timeZone,
-    );
+    const activity = projectDashboardActivitySummary(activitySummary.rows[0]);
     const topics = deriveTopicProjections(masteryRows);
     const masteredRows = masteryRows.filter((row) => row.status === "proficient" || row.status === "mastered");
     const masteryPercent = masteryRows.length
@@ -754,7 +688,7 @@ export async function loadAuthoritativeDashboard(
     );
     const revisionRows = dashboardEnrollmentRows.length
       ? await db
-          .select({
+          .selectDistinctOn([planRevision.enrollmentId], {
             enrollmentId: planRevision.enrollmentId,
             revision: planRevision.revision,
             source: planRevision.source,
@@ -766,7 +700,7 @@ export async function loadAuthoritativeDashboard(
             planRevision.enrollmentId,
             dashboardEnrollmentRows.map((row) => row.enrollmentId),
           ))
-          .orderBy(desc(planRevision.revision))
+          .orderBy(asc(planRevision.enrollmentId), desc(planRevision.revision))
       : [];
     const latestRevisionByEnrollment = new Map<
       string,
