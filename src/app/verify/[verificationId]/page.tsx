@@ -5,7 +5,16 @@ import { CertificateVerifier } from "@/components/milestones/certificate-verifie
 import { CertificateError, loadPublicCertificate } from "@/lib/certificates/service";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { robots: { index: false, follow: false, noarchive: true } };
+export function generateMetadata(): Metadata {
+  // Generic metadata avoids disclosing identity in crawler previews or caches.
+  const title = "Certificate verification | Codestead";
+  const description = "Check a Codestead certificate's course, issue date and current validity.";
+  return {
+    title, description,
+    robots: { index: false, follow: false, noarchive: true },
+    openGraph: { title, description, type: "website", images: [] },
+  };
+}
 
 export default async function VerifyCertificatePage({ params }: { readonly params: Promise<{ verificationId: string }> }) {
   let certificate: Awaited<ReturnType<typeof loadPublicCertificate>>;

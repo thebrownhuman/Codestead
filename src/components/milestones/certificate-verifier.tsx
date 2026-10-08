@@ -18,9 +18,11 @@ export function CertificateVerifier({ certificate }: { readonly certificate: Cer
         </header>
         <section className={styles.certificateBody}>
           <span className={styles.seal}><BadgeCheck aria-hidden="true" size={27} /></span>
-          <p>This certifies that</p>
-          <h1>{certificate.learnerDisplayName}</h1>
-          <p>completed the verified mastery requirements for</p>
+          {certificate.learnerDisplayName ? <>
+            <p>This certifies that</p>
+            <h1>{certificate.learnerDisplayName}</h1>
+            <p>completed the verified mastery requirements for</p>
+          </> : <h1>{valid ? "This certificate exists and is valid" : "This certificate has been revoked"}</h1>}
           <h2>{certificate.courseTitle}</h2>
           <p>Course version {certificate.courseVersion} · issued {new Date(certificate.issuedAt).toLocaleDateString()}</p>
           <p>{certificate.statement}</p>
