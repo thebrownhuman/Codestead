@@ -28,6 +28,9 @@ import {
   TerminalSquare,
 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
+import type { EditorProps } from "@monaco-editor/react";
+import { RunnerPanel } from "./runner-panel";
+import type { RunnerProblem } from "./runner-problems";
 
 import type {
   AtomicSkill,
@@ -494,6 +497,27 @@ function CodeLabSession({
     && new TextEncoder().encode(source).byteLength > DRAFT_CONTENT_MAX_BYTES;
   const [running, setRunning] = useState(false);
   const [stdin, setStdin] = useState("");
+  const [panelRunVersion, setPanelRunVersion] = useState(0);
+  const editorFrameRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<Parameters<NonNullable<EditorProps["onMount"]>>[0] | null>(null);
+  function jumpToProblem(problem: RunnerProblem) {
+    const editor = editorRef.current;
+    if (editor) {
+      const lineNumber = Math.min(problem.line, editor.getModel()?.getLineCount() ?? problem.line);
+      editor.setPosition({ lineNumber, column: problem.column });
+      editor.revealLineInCenter(lineNumber);
+      editor.focus();
+    } else {
+      const textarea = editorFrameRef.current?.querySelector("textarea");
+      if (!textarea) return;
+      const lines = textarea.value.split("\n");
+      const line = Math.min(problem.line, lines.length) - 1;
+      const offset = lines.slice(0, line).reduce((sum, value) => sum + value.length + 1, 0)
+        + Math.min(problem.column - 1, lines[line].length);
+      textarea.focus();
+      textarea.setSelectionRange(offset, offset);
+    }
+  }
   const [stdinRestoring, setStdinRestoring] = useState(Boolean(stdinStorageKey));
   const [resetConfirmationOpen, setResetConfirmationOpen] = useState(false);
   const [result, setResult] = useState<PracticeRunView | null>(null);
@@ -602,6 +626,7 @@ function CodeLabSession({
   async function run() {
     if (runDisabled) return;
     updateRunning(true);
+    setPanelRunVersion(version => version + 1);
     setResultSource(source);
     setResultStdin(stdin);
     setResult({
@@ -711,9 +736,11 @@ function CodeLabSession({
       onRetry={draft.retry}
       onUseServer={draft.useServerCopy}
     />
-    <div className={styles.editorFrame}>
-      <MonacoEditor height="100%" language={starter.language} value={source} onChange={(value) => changeSource(value ?? "")} options={{ ariaLabel: "Practice source code editor", minimap: { enabled: false }, fontSize: 14, lineNumbersMinChars: 3, tabSize: 4, automaticLayout: true, scrollBeyondLastLine: false, accessibilitySupport: "auto", readOnly: running || draftBlocksEditing }} theme="vs-dark" />
+    <div className={styles.editorFrame} ref={editorFrameRef}>
+      <MonacoEditor onMount={(editor) => { editorRef.current = editor; }} height="100%" language={starter.language} value={source} onChange={(value) => changeSource(value ?? "")} options={{ ariaLabel: "Practice source code editor", minimap: { enabled: false }, fontSize: 14, lineNumbersMinChars: 3, tabSize: 4, automaticLayout: true, scrollBeyondLastLine: false, accessibilitySupport: "auto", readOnly: running || draftBlocksEditing }} theme="vs-dark" />
     </div>
+    <span aria-atomic="true" aria-label="Run status" aria-live="polite" className="sr-only" role="status">{runAnnouncement}</span>
+    <RunnerPanel resetKey={String(panelRunVersion)} stderr={visibleResult?.stderr ?? ""} onJump={jumpToProblem} input={
     <div className={styles.stdinPanel}>
       <label htmlFor={stdinId}>
         <span>Program input <i>stdin</i></span>
@@ -736,7 +763,7 @@ function CodeLabSession({
       />
       <small>{stdin.length.toLocaleString()} / 16,384 characters</small>
     </div>
-    <span aria-atomic="true" aria-label="Run status" aria-live="polite" className="sr-only" role="status">{runAnnouncement}</span>
+    } output={
     <div aria-busy={running} className={styles.console} id={outputId}>
       <span><TerminalSquare size={14} /> Output {visibleResultMeta && <i aria-hidden="true" data-run-tone={visibleResultMeta.tone}>{running && <LoaderCircle className={styles.spin} size={12} />}{visibleResultMeta.label}</i>}</span>
       <div aria-label="Program output" className={styles.consoleStreams} role="region" tabIndex={visibleResult ? 0 : undefined}>
@@ -764,6 +791,7 @@ function CodeLabSession({
       {visibleResult?.queueNotice && <small className={styles.queueNotice}>{visibleResult.queueNotice}</small>}
       <small className={styles.practiceNotice}>Practice only: this panel cannot award mastery, badges, exam credit, or leaderboard points.</small>
     </div>
+    } />
     {resetConfirmationOpen && (
       <ModalDialog
         backdropClassName={styles.resetBackdrop}
@@ -831,8 +859,8 @@ function DraftSyncNotice({
 }) {
   return <div className={styles.draftSync} data-draft-status={status} role="status">
     <span>
-      <strong>Draft · {status.replaceAll("-", " ")}</strong>
-      <small>{draftStatusCopy[status]}</small>
+      <strong>{status === "synced" ? "Saved ✓" : `Draft · ${status.replaceAll("-", " ")}`}</strong>
+      <small className={status === "synced" ? "sr-only" : undefined}>{draftStatusCopy[status]}</small>
       {exceedsSaveLimit && <small>This draft exceeds the 131,072-byte UTF-8 save limit. Shorten it before retrying.</small>}
     </span>
     {status === "conflict" && hasServerCopy && <div><button type="button" onClick={onKeepLocal}>Keep my draft</button><button type="button" onClick={onUseServer}>Use server draft</button></div>}

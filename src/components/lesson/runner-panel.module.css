@@ -1,0 +1,12 @@
+.panel { min-width: 0; border-top: 1px solid var(--line); }
+.tabs { display: flex; flex-wrap: wrap; gap: 0; background: #141a15; }
+.tabs button { min-height: 44px; padding: 8px 12px; border: 0; border-bottom: 2px solid transparent; color: #b5c5b5; background: transparent; font: inherit; font-size: .8rem; cursor: pointer; }
+.tabs button[aria-selected="true"] { color: #fff; border-bottom-color: #9ce5b4; }
+.tabs button:disabled { opacity: .6; cursor: default; }
+.tabs small { display: block; font-size: .65rem; }
+.panel button:focus-visible, .panel [role="tabpanel"]:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.problems { max-height: 320px; overflow: auto; padding: 10px; color: #d8e4d8; background: #141a15; }
+.problems button { display: block; width: 100%; min-height: 44px; padding: 8px; border: 0; text-align: left; color: inherit; background: transparent; overflow-wrap: anywhere; font: inherit; cursor: pointer; }
+.problems button:hover { background: #28352b; }
+.problems span { color: #ffb4ab; font-family: var(--font-mono); }
+@media (max-width: 400px) { .tabs button { padding-inline: 8px; font-size: .75rem; } }
