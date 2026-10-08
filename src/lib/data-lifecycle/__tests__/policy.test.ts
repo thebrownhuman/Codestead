@@ -10,7 +10,7 @@ import {
 
 describe("versioned retention policy", () => {
   it("matches the approved category defaults without an automatic evidence or audit purge", () => {
-    expect(RETENTION_POLICY.version).toBe("2026-07-25.v5");
+    expect(RETENTION_POLICY.version).toBe("2026-10-08.v6");
     expect(RETENTION_POLICY.categories.rawChat.duration).toEqual({ unit: "months", value: 12 });
     expect(RETENTION_POLICY.categories.rawCode.duration).toEqual({ unit: "months", value: 12 });
     expect(RETENTION_POLICY.categories.aiRequestMetadataAndAttachments.duration).toEqual({ unit: "months", value: 12 });

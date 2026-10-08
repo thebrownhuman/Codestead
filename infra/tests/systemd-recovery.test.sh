@@ -709,13 +709,13 @@ expect_sequence \
 lifecycle_section="$(sed -n '/^  lifecycle:/,/^  platform-seed:/p' "$compose" | tr -d '\r')"
 mapfile -t lifecycle_command < <(command_items <<<"$lifecycle_section")
 expect_sequence \
-  'Compose lifecycle command must be the exact canonical v5 apply command' \
+  'Compose lifecycle command must be the exact canonical v6 apply command' \
   lifecycle_command \
-  node --import tsx /app/scripts/data-lifecycle.ts retention --apply --confirm 2026-07-25.v5
+  node --import tsx /app/scripts/data-lifecycle.ts retention --apply --confirm 2026-10-08.v6
 expect_contains \
   "$package_json" \
-  '"worker:retention": "tsx scripts/data-lifecycle.ts retention --apply --confirm 2026-07-25.v5"' \
-  'package.json worker:retention must use canonical retention version 2026-07-25.v5'
+  '"worker:retention": "tsx scripts/data-lifecycle.ts retention --apply --confirm 2026-10-08.v6"' \
+  'package.json worker:retention must use canonical retention version 2026-10-08.v6'
 
 for timer in \
   "$repo_root/infra/systemd/learncoding-backup.timer" \

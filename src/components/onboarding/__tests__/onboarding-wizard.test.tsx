@@ -84,7 +84,7 @@ describe("resumable disclosed onboarding", () => {
         });
       }
       if (url === "/api/onboarding/profile") {
-        return json({ ok: true, disclosureVersion: "enrollment-disclosure-2026-07-12.v2" });
+        return json({ ok: true, disclosureVersion: "enrollment-disclosure-2026-07-12.v3" });
       }
       throw new Error(`Unexpected request: ${url}`);
     });
@@ -115,7 +115,7 @@ describe("resumable disclosed onboarding", () => {
     expect(preview?.body).toEqual({ labels: ["baking", "formula racing"] });
     const profile = calls.find((call) => call.url === "/api/onboarding/profile");
     expect(profile?.body).toMatchObject({
-      disclosureVersion: "enrollment-disclosure-2026-07-12.v2",
+      disclosureVersion: "enrollment-disclosure-2026-07-12.v3",
       acknowledgements: {
         adult18Plus: true,
         mentorVisibility: true,
@@ -152,7 +152,7 @@ describe("resumable disclosed onboarding", () => {
           rejected: [{ label: "n/a", reason: "It doesn't describe an interest." }],
         });
       }
-      if (url === "/api/onboarding/profile") return json({ ok: true, disclosureVersion: "enrollment-disclosure-2026-07-12.v2" });
+      if (url === "/api/onboarding/profile") return json({ ok: true, disclosureVersion: "enrollment-disclosure-2026-07-12.v3" });
       throw new Error(`Unexpected request: ${url}`);
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -189,8 +189,8 @@ describe("resumable disclosed onboarding", () => {
         dsaLanguage: "java",
       },
       consents: {
-        adult_18_plus: { decision: "accepted", policyVersion: "enrollment-disclosure-2026-07-12.v2" },
-        mentor_visibility: { decision: "accepted", policyVersion: "enrollment-disclosure-2026-07-12.v2" },
+        adult_18_plus: { decision: "accepted", policyVersion: "enrollment-disclosure-2026-07-12.v3" },
+        mentor_visibility: { decision: "accepted", policyVersion: "enrollment-disclosure-2026-07-12.v3" },
       },
     })));
     render(<OnboardingWizard />);

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { redactSensitiveText } from "@/lib/security/sensitive-text";
+import { dynamicExecutionLines } from "./execution-analysis";
 
 const repoSchema = z.object({
   private: z.boolean(),
@@ -71,7 +72,7 @@ function isTestPath(path: string) {
 
 const sourceExtensions = new Set([
   ".c", ".h", ".cpp", ".cc", ".hpp", ".java", ".py", ".js", ".mjs", ".ts", ".tsx",
-  ".jsx", ".html", ".css", ".json", ".md", ".sql", ".yml", ".yaml", ".toml",
+  ".jsx", ".cjs", ".mts", ".cts", ".html", ".css", ".json", ".md", ".sql", ".yml", ".yaml", ".toml",
 ]);
 const ignoredSegments = new Set(["node_modules", "vendor", "dist", "build", ".next", "coverage", ".git"]);
 
@@ -86,7 +87,7 @@ export interface ReviewFinding {
   evidence: string;
 }
 
-export const PROJECT_REVIEW_ANALYZER_VERSION = "static-review-v3";
+export const PROJECT_REVIEW_ANALYZER_VERSION = "static-review-v4";
 export const PROJECT_REVIEW_RUBRIC_VERSION = "static-project-review-rubric-v3";
 
 export const PROJECT_REVIEW_RUBRIC = Object.freeze([
@@ -100,7 +101,7 @@ export const PROJECT_REVIEW_RUBRIC = Object.freeze([
 export type ProjectReviewCategory = (typeof PROJECT_REVIEW_RUBRIC)[number]["id"];
 
 export const PROJECT_REVIEW_LIMITATIONS = Object.freeze([
-  "This is a bounded static text-pattern review, not proof that the project is correct or secure.",
+  "This is a bounded static syntax and text-pattern review, not proof that the project is correct or secure.",
   "The reviewer does not clone, install dependencies, build, execute code, run tests, or make network calls from repository code.",
   "Up to 120 supported text files and 5 MB total are inspected, prioritizing README, tests, and entry points; each file is limited to 256 KB.",
   "Scores and findings are deterministic signals for the pinned commit; no model opinion is included.",
@@ -305,6 +306,7 @@ function analyzeFile(pathname: string, text: string): ReviewFinding[] {
   const findings: ReviewFinding[] = [];
   const lines = text.split(/\r?\n/);
   const safePath = safeFindingPath(pathname);
+  const executionLines = new Set(dynamicExecutionLines(pathname, text));
   const secretPatterns = [
     /\b(?:nvapi-|sk-|gh[pousr]_)[A-Za-z0-9_-]{12,}/,
     /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
@@ -328,7 +330,7 @@ function analyzeFile(pathname: string, text: string): ReviewFinding[] {
     if (/except\s*:\s*(?:#.*)?$/.test(line) || /catch\s*\([^)]*\)\s*\{\s*\}/.test(line)) {
       findings.push(finding({ ruleId: "likely-bug.swallowed-error", severity: "warning", category: "likely-bug", path: safePath, line: index + 1, message: "A broad or empty exception handler can hide failures; handle the expected error and preserve context.", evidence: "Broad/empty handler structure" }));
     }
-    if (/\beval\s*\(/.test(line) || /\bexec\s*\(/.test(line) || /\bnew\s+Function\s*\(/.test(line)) {
+    if (executionLines.has(index + 1)) {
       findings.push(finding({ ruleId: "security.dynamic-code-evaluation", severity: "warning", category: "security", path: safePath, line: index + 1, message: "Dynamic code evaluation can turn untrusted text into executable code. Remove it or constrain input with a reviewed parser and strict allowlist.", evidence: "Dynamic evaluation call structure; arguments are deliberately not stored." }));
     }
   });

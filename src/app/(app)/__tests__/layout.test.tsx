@@ -2,10 +2,12 @@ import { beforeEach, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   requireAuth: vi.fn(), authRequired: vi.fn(), createRepository: vi.fn(), listCourses: vi.fn(),
+  currentConsents: vi.fn(), needsRenewal: vi.fn(),
 }));
 vi.mock("@/lib/http/authz", () => ({ requireAuth: mocks.requireAuth }));
 vi.mock("@/lib/security/runtime-policy", () => ({ isApplicationAuthRequired: mocks.authRequired }));
 vi.mock("@/lib/content", () => ({ createContentRepository: mocks.createRepository }));
+vi.mock("@/lib/privacy/consent", () => ({ getCurrentConsents: mocks.currentConsents, needsDisclosureRenewal: mocks.needsRenewal }));
 vi.mock("@/components/shell/app-shell", () => ({ AppShell: () => null }));
 vi.mock("next/navigation", () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); } }));
 import LearnerLayout from "../layout";
@@ -18,8 +20,18 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.authRequired.mockReturnValue(true);
   mocks.requireAuth.mockResolvedValue(active);
+  mocks.currentConsents.mockResolvedValue(new Map());
+  mocks.needsRenewal.mockReturnValue(false);
   mocks.createRepository.mockReturnValue({ listCourses: mocks.listCourses });
   mocks.listCourses.mockResolvedValue([{ id: "python", title: "Python", modules: [{ skills: [{ id: "python.assignment", title: "Assignment" }] }] }]);
+});
+
+it("shows the renewal screen instead of a broken tutor page until acknowledgement", async () => {
+  mocks.needsRenewal.mockReturnValue(true);
+  const layout = await LearnerLayout({ children: "Tutor chat" });
+  expect(layout.props.children.type.name).toBe("DisclosureRenewal");
+  mocks.needsRenewal.mockReturnValue(false);
+  expect((await LearnerLayout({ children: "Tutor chat" })).props.children).toBe("Tutor chat");
 });
 
 it.each([

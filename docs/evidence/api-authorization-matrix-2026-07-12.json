@@ -2032,7 +2032,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "ce8efd8df2fae4a7bf08efd27ab3de16d45d453f2fb6cf5d35371c37f1675338"
+      "operationSourceSha256": "e1c2324313ca424956f0bc19986f6d1cc3405b8b29076715fb2aab0dca850332"
     },
     {
       "operation": "POST /api/projects/[id]/review",

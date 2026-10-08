@@ -102,7 +102,7 @@ describe("GitHub static reviewer", () => {
     const result = await reviewPublicRepository("https://github.com/octo/repo", fetchMock as typeof fetch);
     expect(result.commitSha).toBe(sha);
     expect(result).toMatchObject({
-      analyzerVersion: "static-review-v3",
+      analyzerVersion: "static-review-v4",
       rubricVersion: "static-project-review-rubric-v3",
       provenance: {
         analysisMode: "deterministic_static",

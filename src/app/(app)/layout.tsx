@@ -6,6 +6,8 @@ import { AppShell } from "@/components/shell/app-shell";
 import { createBrowserDurabilityNamespace } from "@/lib/drafts/cache-namespace";
 import { requireAuth } from "@/lib/http/authz";
 import { isApplicationAuthRequired } from "@/lib/security/runtime-policy";
+import { getCurrentConsents, needsDisclosureRenewal } from "@/lib/privacy/consent";
+import { DisclosureRenewal } from "@/components/product/disclosure-renewal";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -32,12 +34,13 @@ export default async function LearnerLayout({ children }: { children: React.Reac
       redirect("/login?error=account-inactive");
     }
     if (authz.account.status === "pending") redirect("/onboarding");
+    const renewalRequired = needsDisclosureRenewal(await getCurrentConsents(authz.session.user.id));
     const catalog = await loadCatalog();
     const browserDurabilityNamespace = createBrowserDurabilityNamespace(
       authz.session.user.id,
       authz.session.session.id,
     );
-    return <AppShell catalog={catalog} admin={authz.account.role === "admin"} browserDurabilityNamespace={browserDurabilityNamespace} viewer={{ name: authz.session.user.name, role: authz.account.role === "admin" ? "Administrator" : "Learner", image: authz.session.user.image }}>{children}</AppShell>;
+    return <AppShell catalog={catalog} admin={authz.account.role === "admin"} browserDurabilityNamespace={browserDurabilityNamespace} viewer={{ name: authz.session.user.name, role: authz.account.role === "admin" ? "Administrator" : "Learner", image: authz.session.user.image }}>{renewalRequired ? <DisclosureRenewal /> : children}</AppShell>;
   }
   const catalog = await loadCatalog();
   // A non-null namespace activates authenticated draft/device synchronization.

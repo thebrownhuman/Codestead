@@ -1,13 +1,14 @@
 # Data lifecycle, export, and account deletion
 
-Policy version `2026-07-25.v5` is authoritative in `src/lib/data-lifecycle/policy.ts`. All cutoffs are calculated from one injected UTC timestamp. Changing a duration requires a new policy version, review of this runbook, a migration if storage classification changes, and updated tests. Version v5 adds independent 30-day terminal-email, unresolved-delivery-authority, and non-external-console cutoffs with the 0068 redaction authority; version v4 added account-lifetime certificate and public-portfolio records; version v3 added account-lifetime append-only project revision history and file metadata snapshots; version v2 added authoritative learner drafts and their idempotency receipts. Browser session cache remains outside retention authority and is never a backup.
+Policy version `2026-10-08.v6` is authoritative in `src/lib/data-lifecycle/policy.ts`. All cutoffs are calculated from one injected UTC timestamp. Changing a duration requires a new policy version, review of this runbook, a migration if storage classification changes, and updated tests. Version v6 adds the per-user latest-10 tutor conversation cap (creation time descending, UUID tie-breaker), including archived conversations, enforced in bounded batches by this existing sweep and recorded in the same durable lifecycle report/checkpoint. Version v5 adds independent 30-day terminal-email, unresolved-delivery-authority, and non-external-console cutoffs with the 0068 redaction authority; version v4 added account-lifetime certificate and public-portfolio records; version v3 added account-lifetime append-only project revision history and file metadata snapshots; version v2 added authoritative learner drafts and their idempotency receipts. Browser session cache remains outside retention authority and is never a backup.
 
 ## Retention categories
 
 | Category | Launch retention | Automated action |
 |---|---:|---|
-| Raw tutor messages | 12 calendar months | Hard-delete in bounded batches; remove empty old threads |
-| Completed/indeterminate `tutor.post` replay receipts | 12 calendar months | Hard-delete safe-response copies in bounded batches with the raw-chat cutoff; credential test/replace receipts remain administrator/security records |
+| Tutor conversations | Latest 10 per learner | Existing sweep hard-deletes excess threads with cascading message deletion; each thread writes a `retention.deleted` audit-chain event atomically and counts are checkpointed as `tutorConversationCap`; both active and archived threads count |
+| Retained tutor messages | 12 calendar months | Existing age-based hard-delete in bounded batches; remove empty old threads |
+| Completed/indeterminate `tutor.post` replay receipts | 12 calendar months | Hard-delete safe-response copies in bounded batches with the 12-month cutoff independently of the conversation cap; credential test/replace receipts remain administrator/security records |
 | Raw code submissions and runner results | 12 calendar months | Hard-delete submission; runner jobs cascade |
 | AI request ledger and `ai_request_attachment` objects | 12 calendar months | Delete bounded metadata rows/attachments; never delete provider usage evidence needed for billing before this cutoff |
 | Token-free authentication/session and decided revocation history | 90 days | Delete; official exam/mastery evidence tables are deliberately outside this purge |
@@ -33,7 +34,7 @@ cd /opt/learncoding
 docker compose --env-file /etc/learncoding/compose.env \
   -f /opt/learncoding/compose.yaml --profile operations run --rm --no-deps lifecycle \
   node --import tsx /app/scripts/data-lifecycle.ts retention --dry-run \
-  --idempotency-key retention:2026-07-25.v5:YYYY-MM-DD:dry-run
+  --idempotency-key retention:2026-10-08.v6:YYYY-MM-DD:dry-run
 ```
 
 Apply requires the exact reviewed policy version:
@@ -42,8 +43,8 @@ Apply requires the exact reviewed policy version:
 docker compose --env-file /etc/learncoding/compose.env \
   -f /opt/learncoding/compose.yaml --profile operations run --rm --no-deps lifecycle \
   node --import tsx /app/scripts/data-lifecycle.ts retention --apply \
-  --confirm 2026-07-25.v5 \
-  --idempotency-key retention:2026-07-25.v5:YYYY-MM-DD:apply
+  --confirm 2026-10-08.v6 \
+  --idempotency-key retention:2026-10-08.v6:YYYY-MM-DD:apply
 ```
 
 The default key is policy/version/date/mode. Reusing a successful key returns the recorded report without deleting again. A running key fails closed; a failed key requires a new reviewed key. Every category reports eligible, physically deleted, retained, and `hasMore`; state-only changes such as expiring a request or marking a backup tombstone eligible for operator review use `transitioned` and keep `deleted=0`. Rerun with a new key when a bounded batch reports more. Failed object-file removal leaves metadata in place for retry.

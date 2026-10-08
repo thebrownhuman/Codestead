@@ -705,7 +705,7 @@ const operationCommands = {
     "retention",
     "--apply",
     "--confirm",
-    "2026-07-25.v5",
+    "2026-10-08.v6",
   ],
   "platform-seed": ["node", "--import", "tsx", "/app/scripts/seed-platform.ts"],
   "admin-bootstrap": ["node", "--import", "tsx", "/app/scripts/bootstrap-admin.ts"],

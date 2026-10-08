@@ -915,7 +915,7 @@ services:
       - retention
       - --apply
       - --confirm
-      - 2026-07-25.v5
+      - 2026-10-08.v6
     restart: "no"
     environment:
       NODE_ENV: production

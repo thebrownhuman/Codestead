@@ -413,6 +413,6 @@ Operator references:
 - [Incident response](runbooks/incident-response.md)
 - [Upload scanning](runbooks/upload-scanning.md)
 - [API rate limiting](runbooks/rate-limiting.md)
-- [Data lifecycle, export, and account deletion](runbooks/data-lifecycle.md) — canonical retention policy `2026-07-25.v5`
+- [Data lifecycle, export, and account deletion](runbooks/data-lifecycle.md) — canonical retention policy `2026-10-08.v6`
 
 Monthly, review disk use, update status, image digests, pending outbox count, backup freshness, offsite presence, UPS health, and the runner VM boundary. Quarterly, perform the supervised restore drill. Before every release, take and verify an encrypted backup.

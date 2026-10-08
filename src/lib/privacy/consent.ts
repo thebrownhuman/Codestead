@@ -5,7 +5,8 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { consentRecord } from "@/lib/db/schema";
 
-export const ENROLLMENT_DISCLOSURE_VERSION = "enrollment-disclosure-2026-07-12.v2";
+import { ENROLLMENT_DISCLOSURE_VERSION, PREVIOUS_DISCLOSURE_VERSION, RETENTION_DISCLOSURE } from "./disclosure-version";
+export { ENROLLMENT_DISCLOSURE_VERSION } from "./disclosure-version";
 
 export const REQUIRED_DISCLOSURE_PURPOSES = [
   "adult_18_plus",
@@ -62,7 +63,7 @@ export const ENROLLMENT_DISCLOSURES = [
   {
     purpose: "retention_policy",
     title: "Retention and backups",
-    summary: "Learning/mastery records remain until account deletion; raw chat, code, and AI-request metadata normally retain for 12 months, security/admin records for up to 24 months, and encrypted backups age out on the disclosed 7 daily / 4 weekly / 12 monthly schedule.",
+    summary: RETENTION_DISCLOSURE,
   },
   {
     purpose: "inactivity_mentor_notice",
@@ -132,6 +133,30 @@ export type CurrentConsent = {
   dataCategories: string[];
   occurredAt: Date;
 };
+
+export function needsDisclosureRenewal(current: ReadonlyMap<string, CurrentConsent>) {
+  return REQUIRED_DISCLOSURE_PURPOSES.some((purpose) => {
+    const record = current.get(purpose);
+    return record?.decision === "accepted" && record.policyVersion === PREVIOUS_DISCLOSURE_VERSION;
+  });
+}
+
+// Explicit renewal carries forward only unchanged choices actually accepted
+// under v2. Withdrawn, unknown and older-version choices remain unapproved.
+export function disclosureRenewalDecisions(current: ReadonlyMap<string, CurrentConsent>, input: {
+  userId: string; requestId: string; occurredAt: Date;
+}) {
+  if (!REQUIRED_DISCLOSURE_PURPOSES.every((purpose) => {
+    const record = current.get(purpose);
+    return record?.decision === "accepted" && [PREVIOUS_DISCLOSURE_VERSION, ENROLLMENT_DISCLOSURE_VERSION].includes(record.policyVersion);
+  })) throw new Error("DISCLOSURE_RENEWAL_UNAVAILABLE");
+  const purposes: ConsentPurpose[] = [...REQUIRED_DISCLOSURE_PURPOSES,
+    ...OPTIONAL_CONSENT_PURPOSES.filter((purpose) => {
+      const record = current.get(purpose);
+      return record?.decision === "accepted" && record.policyVersion === PREVIOUS_DISCLOSURE_VERSION;
+    })];
+  return purposes.map((purpose) => consentInsert({ ...input, purpose, decision: "accepted", source: "settings" }));
+}
 
 type ConsentReadDatabase = Pick<typeof db, "selectDistinctOn">;
 export async function getCurrentConsentsFrom(

@@ -1,4 +1,5 @@
-export const RETENTION_POLICY_VERSION = "2026-07-25.v5" as const;
+export const RETENTION_POLICY_VERSION = "2026-10-08.v6" as const;
+export const TUTOR_CONVERSATION_LIMIT = 10;
 
 export type RetentionDuration =
   | Readonly<{ unit: "days"; value: number }>

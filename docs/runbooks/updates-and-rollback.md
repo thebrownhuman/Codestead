@@ -77,7 +77,7 @@ No authority boundary after 0069 has an approved introduction SHA. Treat every f
 
 The mail store transition is a stricter boundary. Follow [Mail outbox store cutover](mail-outbox-cutover.md). `--mail-store-cutover` cannot be combined with `--schema-backward-compatible`; a record with `STORE_CUTOVER=true` is forward-only and the rollback tool will not restore its legacy claimant. Later fenced releases may roll back only to the exact reviewed previous fenced artifact.
 
-Recurring retention consumes the canonical `2026-07-25.v5` command from the Compose lifecycle service. Follow [Data lifecycle, export, and account deletion](data-lifecycle.md) for the authoritative invocation and idempotency rules rather than maintaining a second procedure here.
+Recurring retention consumes the canonical `2026-10-08.v6` command from the Compose lifecycle service. Follow [Data lifecycle, export, and account deletion](data-lifecycle.md) for the authoritative invocation and idempotency rules rather than maintaining a second procedure here.
 
 ## Container and host updates
 

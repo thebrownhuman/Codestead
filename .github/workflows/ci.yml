@@ -978,9 +978,11 @@ jobs:
           key: playwright-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright-version.outputs.version }}-chromium
       - run: npx playwright install --with-deps chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 10
       - name: Install only OS dependencies on a browser cache hit
         run: npx playwright install-deps chromium
         if: steps.playwright-cache.outputs.cache-hit == 'true'
+        timeout-minutes: 10
       - run: npm run ${{ matrix.verify }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure() && matrix.group == 'web'
@@ -1126,9 +1128,11 @@ jobs:
       # main, nightly and dispatch run every browser durability profile.
       - run: npx playwright install --with-deps ${{ github.event_name == 'pull_request' && 'chromium' || 'chromium firefox webkit' }}
         if: steps.playwright-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 10
       - name: Install only OS dependencies on a browser cache hit
         run: npx playwright install-deps ${{ github.event_name == 'pull_request' && 'chromium' || 'chromium firefox webkit' }}
         if: steps.playwright-cache.outputs.cache-hit == 'true'
+        timeout-minutes: 10
       - run: npm run test:browser:auth
         env:
           BROWSER_DURABILITY_PROFILES: ${{ github.event_name == 'pull_request' && 'chromium' || '' }}
@@ -1177,9 +1181,11 @@ jobs:
           key: playwright-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright-version.outputs.version }}-${{ matrix.browser }}
       - run: npx playwright install --with-deps ${{ matrix.browser }}
         if: steps.playwright-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 10
       - name: Install only OS dependencies on a browser cache hit
         run: npx playwright install-deps ${{ matrix.browser }}
         if: steps.playwright-cache.outputs.cache-hit == 'true'
+        timeout-minutes: 10
       - run: npm run sync:monaco
       - run: npm run test:e2e -- --project=${{ matrix.project }} --shard=${{ matrix.shard }}
 

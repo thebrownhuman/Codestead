@@ -22,12 +22,14 @@ import { lockUserAuthority } from "@/lib/security/user-authority-lock";
 import { writeAuditEvent } from "@/lib/security/audit-writer";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { withdrawCohortProfileForConsent } from "@/lib/social/profile-service";
+import { renewDisclosures } from "@/lib/privacy/renew-disclosures";
 
 const bodySchema = z.object({
   requestId: z.string().uuid(),
   purpose: z.string().trim().min(2).max(100),
   decision: z.enum(["accepted", "withdrawn"]),
   policyVersion: z.literal(ENROLLMENT_DISCLOSURE_VERSION),
+  renewDisclosures: z.literal(true).optional(),
 });
 
 export async function GET() {
@@ -70,6 +72,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Choose a supported consent purpose and decision." }, { status: 400 });
       }
       const purpose: ConsentPurpose = body.data.purpose;
+      if (body.data.renewDisclosures) {
+        if (purpose !== "retention_policy" || body.data.decision !== "accepted") return NextResponse.json({ error: "Explicit retention acknowledgement required." }, { status: 400 });
+        return renewDisclosures(authz.session.user.id, body.data.requestId);
+      }
       if (!isWithdrawablePurpose(purpose)) {
         return NextResponse.json(
           {

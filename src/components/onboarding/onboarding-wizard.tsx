@@ -1,6 +1,6 @@
 "use client";
 import { Select } from "@/components/ui/select";
-
+import { ENROLLMENT_DISCLOSURE_VERSION, RETENTION_DISCLOSURE } from "@/lib/privacy/disclosure-version";
 import { BREACHED_PASSWORD_MESSAGE } from "@/lib/security/password-messages";
 
 import Image from "next/image";
@@ -41,7 +41,7 @@ const tracks = [
   ["ai", "AI foundations", "ML, neural nets, GenAI, RAG, agents, evaluation, risk"],
 ] as const;
 
-const disclosureVersion = "enrollment-disclosure-2026-07-12.v2";
+const disclosureVersion = ENROLLMENT_DISCLOSURE_VERSION;
 const interestCategories = INTEREST_CATEGORIES;
 const interestExampleChips = Object.values(INTEREST_CATEGORY_EXAMPLES).flat().slice(0, 8);
 function interestCategoryLabel(category: string) {
@@ -639,7 +639,7 @@ export function OnboardingWizard() {
                 <label className={styles.consentItem}><input defaultChecked={profileDraft?.acknowledgements.mentorVisibility ?? accepted("mentor_visibility")} name="mentorVisibility" required type="checkbox" /><span><strong>I understand administrator mentor visibility.</strong><small>The administrator can inspect progress, attempts, projects, tutor history, and operational records for mentoring. Deliberate sensitive reads are audited.</small></span></label>
                 <label className={styles.consentItem}><input defaultChecked={profileDraft?.acknowledgements.externalAiRouting ?? accepted("external_ai_routing")} name="externalAiRouting" required type="checkbox" /><span><strong>I understand external AI routing.</strong><small>If I connect an AI provider, bounded lesson context, preferences, relevant chat, and code I choose to discuss may go to that provider. Email, keys, hidden tests, and other learners are excluded. I can skip connecting a provider entirely.</small></span></label>
                 <label className={styles.consentItem}><input defaultChecked={profileDraft?.acknowledgements.serverCodeExecution ?? accepted("server_code_execution")} name="serverCodeExecution" required type="checkbox" /><span><strong>I understand server code execution.</strong><small>Submitted code and input run in isolated, network-disabled containers. Formal hidden tests remain private.</small></span></label>
-                <label className={styles.consentItem}><input defaultChecked={profileDraft?.acknowledgements.retentionPolicy ?? accepted("retention_policy")} name="retentionPolicy" required type="checkbox" /><span><strong>I understand retention and backups.</strong><small>Mastery persists until deletion; raw chat/code/AI metadata normally retain 12 months, security/admin records up to 24 months, and encrypted backups age out under 7 daily / 4 weekly / 12 monthly retention.</small></span></label>
+                <label className={styles.consentItem}><input defaultChecked={profileDraft?.acknowledgements.retentionPolicy ?? accepted("retention_policy")} name="retentionPolicy" required type="checkbox" /><span><strong>I understand retention and backups.</strong><small>{RETENTION_DISCLOSURE}</small></span></label>
                 <label className={styles.consentItem}><input defaultChecked={profileDraft?.acknowledgements.inactivityMentorNotice ?? accepted("inactivity_mentor_notice")} name="inactivityMentorNotice" required type="checkbox" /><span><strong>I understand generic inactivity notices.</strong><small>A generic learner reminder and administrator notice may be sent after 24 hours, then one final learner reminder after 72 hours. The app stays silent until meaningful learning starts a future episode. Messages omit scores, mistakes, code, chat, provider details, keys, and raw study time.</small></span></label>
                 <details className={styles.optionalConsents}>
                   <summary>Optional sharing and fallback choices</summary>

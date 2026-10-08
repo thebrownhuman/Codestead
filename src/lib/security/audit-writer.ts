@@ -18,7 +18,10 @@ export type AuditEventInput = {
   metadata?: Record<string, unknown>;
 };
 
+// Only these operations are used by the writer. A caller-owned pg transaction
+// can supply a Drizzle view of its client without opening a second transaction.
 export type AuditTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type AuditWriterTransaction = Pick<AuditTransaction, "execute" | "select" | "insert">;
 
 /**
  * Appends to the audit hash chain inside an existing database transaction.
@@ -26,7 +29,7 @@ export type AuditTransaction = Parameters<Parameters<typeof db.transaction>[0]>[
  * and its durable notifications succeed or roll back as one unit.
  */
 export async function writeAuditEventInTransaction(
-  tx: AuditTransaction,
+  tx: AuditWriterTransaction,
   input: AuditEventInput,
 ) {
   const correlationId = input.correlationId ?? randomUUID();

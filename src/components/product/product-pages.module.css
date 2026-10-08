@@ -374,5 +374,40 @@ html[data-motion="reduce"] .roadmapCard[data-state="current"]::before { animatio
 @media (max-width: 1000px) { .deviceSession { grid-template-columns: 42px minmax(0, 1fr) auto; } .deviceSession > button { grid-column: 2 / -1; justify-self: start; } }
 @media (max-width: 760px) { .settingsNav { z-index: 8; background: var(--surface-solid); } }
 
+/* Mentor workspace: independently scrolling history/transcript, pinned composer. */
+.mentorPage { height: calc(100dvh - 148px); min-height: 480px; display: flex; flex-direction: column; gap: 10px; }
+.mentorHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mentorHeader h1 { margin: 0; font-size: 1.25rem; }
+.mentorHeader p,.mentorNotice { margin: 0; color: var(--ink-soft); font-size: .75rem; }
+.mentorLayout { flex: 1; min-height: 0; grid-template-columns: minmax(240px,300px) minmax(0,1fr); }
+.mentorLayout .tutorContext { max-height: none; min-height: 0; padding: 16px; gap: 12px; }
+.mentorLayout .tutorChat { min-height: 0; grid-template-rows: auto minmax(0,1fr) auto; }
+.mentorLayout .messageList { min-height: 0; overscroll-behavior: contain; padding: 20px; }
+.mentorLayout .threadList button { padding: 12px; gap: 6px; }
+.mentorLayout .composer { background: var(--surface-solid); }
+.mentorLayout .composer textarea { min-width: 0; min-height: 45px; padding: 10px 11px; border-radius: 10px; background: var(--surface-solid); }
+.mentorLayout button:focus-visible,.mentorLayout textarea:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+.mentorLayout .retentionNotice { font-size: .75rem; }
+.mobileHistoryButton { display: none; }
+@media (max-width: 760px) {
+  .mentorPage { height: calc(100dvh - 145px); min-height: 400px; }
+  .mentorHeader > :global(.pill) { display: none; }
+  .mentorLayout { grid-template-columns: minmax(0,1fr); }
+  .mentorLayout .mobileHistoryButton { display: inline-flex; flex-shrink: 0; }
+  .mentorLayout[data-history-open="false"] .tutorContext { display: none; }
+  .mentorLayout[data-history-open="true"] .tutorChat { display: none; }
+  .mentorLayout .tutorContext { border: 0; }
+  .mentorLayout .tutorChatHead { align-items: center; padding: 10px; }
+  .mentorLayout .tutorIdentity { min-width: 0; }
+  .mentorLayout .tutorIdentity > span:last-child { min-width: 0; }
+  .mentorLayout .tutorIdentity strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mentorLayout .tutorIdentity small { overflow-wrap: anywhere; }
+  .mentorLayout .threadActions :global(.pill) { display: none; }
+  .mentorLayout .threadActions { flex-shrink: 0; }
+  .mentorLayout .threadActions > button { white-space: nowrap; padding-inline: 10px; }
+  .mentorLayout .messageList { padding: 12px; }
+  .mentorLayout .composer { grid-template-columns: minmax(0,1fr) auto; padding: 10px; }
+  .mentorLayout .assistantBubble,.mentorLayout .learnerBubble { max-width: 95%; overflow-wrap: anywhere; }
+}
 .profileFields { display: grid; min-width: 0; gap: 22px; margin: 0; padding: 0; border: 0; }
 .formActions { composes: actions from "../ui/form.module.css"; }

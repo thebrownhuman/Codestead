@@ -5,6 +5,8 @@ import path from "node:path";
 import {
   consentIdempotencyKey,
   consentInsert,
+  disclosureRenewalDecisions,
+  needsDisclosureRenewal,
   consentPurposeForProvider,
   DATA_CATEGORIES,
   ENROLLMENT_DISCLOSURES,
@@ -19,6 +21,23 @@ import {
 } from "../consent";
 
 describe("versioned privacy consent policy", () => {
+  it("blocks v2 processing until renewal, preserves withdrawals and restores accepted provider access", () => {
+    const old = (purpose: string, decision: "accepted" | "withdrawn" = "accepted"): CurrentConsent => ({ id: purpose, purpose, decision,
+      policyVersion: "enrollment-disclosure-2026-07-12.v2", dataCategories: [], occurredAt: new Date() });
+    const current = new Map([...REQUIRED_DISCLOSURE_PURPOSES, "provider:openai"].map((purpose) => [purpose, old(purpose)]));
+    current.set("provider:google", old("provider:google", "withdrawn"));
+    current.set("provider:deepseek", { ...old("provider:deepseek"), policyVersion: "old.v1" });
+    expect(needsDisclosureRenewal(current)).toBe(true);
+    expect(isCurrentConsentAccepted(current, "provider:openai")).toBe(false);
+    const renewed = disclosureRenewalDecisions(current, { userId: "learner-1", requestId: "request-1", occurredAt: new Date() });
+    expect(renewed).toHaveLength(REQUIRED_DISCLOSURE_PURPOSES.length + 1);
+    for (const row of renewed) current.set(row.purpose, { ...row, id: row.purpose });
+    expect(needsDisclosureRenewal(current)).toBe(false);
+    expect(isCurrentConsentAccepted(current, "external_ai_routing")).toBe(true);
+    expect(isCurrentConsentAccepted(current, "provider:openai")).toBe(true);
+    expect(isCurrentConsentAccepted(current, "provider:google")).toBe(false);
+    expect(isCurrentConsentAccepted(current, "provider:deepseek")).toBe(false);
+  });
   it("covers every required disclosure with learner-facing copy and data categories", () => {
     expect(ENROLLMENT_DISCLOSURE_VERSION).toMatch(/^enrollment-disclosure-.+\.v\d+$/);
     expect(ENROLLMENT_DISCLOSURES.map((item) => item.purpose)).toEqual(

@@ -34,6 +34,7 @@ jobs:
           node-version: 22.23.1
           cache: npm
       - name: Install dependencies and Chromium
+        timeout-minutes: 10
         run: |
           npm ci > npm-ci.log 2>&1 || { cat npm-ci.log; exit 1; }
           npx playwright install --with-deps chromium > playwright.log 2>&1 || { cat playwright.log; exit 1; }

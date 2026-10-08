@@ -98,7 +98,7 @@ describe("administrator step-up", () => {
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
     render(<AdminStepUpDialog />);
-    const run = vi.fn().mockResolvedValue(json({ error: "FRESH_MFA_REQUIRED" }, 403));
+    const run = vi.fn(async () => json({ error: "FRESH_MFA_REQUIRED" }, 403));
     const first = withStepUp(run);
     await user.type(await screen.findByLabelText("Authenticator code"), "123456");
     await user.click(screen.getByRole("button", { name: "Verify and continue" }));

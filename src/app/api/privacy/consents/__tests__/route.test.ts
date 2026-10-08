@@ -9,7 +9,7 @@ import {
 const mocks = vi.hoisted(() => {
   const returning = vi.fn();
   const onConflictDoNothing = vi.fn(() => ({ returning }));
-  const values = vi.fn(() => ({ onConflictDoNothing }));
+  const values = vi.fn((_rows: unknown) => ({ onConflictDoNothing }));
   const insert = vi.fn(() => ({ values }));
   const accountRows = [] as Array<{ status: string }>;
   const limit = vi.fn(async () => accountRows);
@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => {
     getCurrentConsents: vi.fn(),
     writeAuditEvent: vi.fn(),
     withdrawCohortProfileForConsent: vi.fn(),
+    rateLimit: vi.fn<(checks: unknown, handler: () => Promise<Response>) => Promise<Response>>(),
   };
 });
 
@@ -47,7 +48,7 @@ vi.mock("@/lib/privacy/consent", async (importOriginal) => {
 vi.mock("@/lib/security/audit-writer", () => ({ writeAuditEvent: mocks.writeAuditEvent }));
 vi.mock("@/lib/social/profile-service", () => ({ withdrawCohortProfileForConsent: mocks.withdrawCohortProfileForConsent }));
 vi.mock("@/lib/security/rate-limit", () => ({
-  withRateLimit: vi.fn(async (_checks, handler: () => Promise<Response>) => handler()),
+  withRateLimit: mocks.rateLimit,
 }));
 
 import { GET, POST } from "../route";
@@ -77,8 +78,52 @@ const base = {
 };
 
 describe("privacy consent API", () => {
+  it("renews the changed disclosure and previously accepted provider choices in one action", async () => {
+    const purposes = ["adult_18_plus", "mentor_visibility", "external_ai_routing", "server_code_execution", "retention_policy", "inactivity_mentor_notice", "provider:nvidia_nim"];
+    mocks.getCurrentConsents.mockResolvedValue(new Map(purposes.map((purpose) => [purpose, { ...current(purpose), policyVersion: "enrollment-disclosure-2026-07-12.v2" }])));
+    const result = await POST(request({ ...base, purpose: "retention_policy", decision: "accepted", renewDisclosures: true }));
+    expect(result.status).toBe(200);
+    expect(mocks.values).toHaveBeenCalledWith(expect.arrayContaining([
+      expect.objectContaining({ purpose: "retention_policy", policyVersion: "enrollment-disclosure-2026-07-12.v3", decision: "accepted" }),
+      expect.objectContaining({ purpose: "provider:nvidia_nim", policyVersion: "enrollment-disclosure-2026-07-12.v3", decision: "accepted" }),
+    ]));
+    expect(mocks.getCurrentConsents).toHaveBeenCalledWith(expect.anything(), "learner-1");
+    expect(mocks.writeAuditEvent).toHaveBeenCalledWith(expect.objectContaining({
+      actorUserId: "learner-1", subjectUserId: "learner-1", action: "consent.disclosures_renewed", outcome: "success",
+    }));
+  });
+  it("requires a signed-in user before renewal and rate limiting", async () => {
+    mocks.requireAuth.mockResolvedValue({ session: null, response: new Response('{}', { status: 401 }) });
+    expect((await POST(request({ ...base, purpose: "retention_policy", decision: "accepted", renewDisclosures: true }))).status).toBe(401);
+    expect(mocks.transaction).not.toHaveBeenCalled();
+    expect(mocks.rateLimit).not.toHaveBeenCalled();
+  });
+  it("uses the existing consent rate limit and cannot mutate when it denies", async () => {
+    mocks.rateLimit.mockResolvedValueOnce(new Response('{}', { status: 429 }));
+    expect((await POST(request({ ...base, purpose: "retention_policy", decision: "accepted", renewDisclosures: true }))).status).toBe(429);
+    expect(mocks.rateLimit).toHaveBeenCalledWith({ policy: "privacy_consent_user", identity: { kind: "user", value: "learner-1" } }, expect.any(Function));
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+  it("ignores forged owner and choices, carrying forward only authenticated accepted choices", async () => {
+    const required = ["adult_18_plus", "mentor_visibility", "external_ai_routing", "server_code_execution", "retention_policy", "inactivity_mentor_notice"];
+    mocks.getCurrentConsents.mockResolvedValue(new Map([
+      ...required.map((purpose): [string, CurrentConsent] => [purpose, { ...current(purpose), policyVersion: "enrollment-disclosure-2026-07-12.v2" }]),
+      ["provider:openai", { ...current("provider:openai", "withdrawn"), policyVersion: "enrollment-disclosure-2026-07-12.v2" }],
+    ]));
+    const result = await POST(request({ ...base, purpose: "retention_policy", decision: "accepted", renewDisclosures: true,
+      userId: "other-learner", choices: { "provider:openai": "accepted", cohort_profile: "accepted" } }));
+    expect(result.status).toBe(200);
+    const rows: unknown = mocks.values.mock.calls[0]?.[0];
+    expect(rows).toHaveLength(required.length);
+    expect(rows).toEqual(required.map((purpose) => expect.objectContaining({ purpose, userId: "learner-1" })));
+  });
+  it.each(["withdrawn", "accepted"])("does not use renewal to change an optional decision (%s)", async (decision) => {
+    expect((await POST(request({ ...base, purpose: "provider:openai", decision, renewDisclosures: true }))).status).toBe(400);
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.rateLimit.mockImplementation(async (_checks, handler) => handler());
     mocks.returning.mockReset().mockResolvedValue([{ id: "record-1", purpose: "admin_fallback_ai" }]);
     mocks.requireAuth.mockResolvedValue({
       session: { user: { id: "learner-1" }, session: { id: "session-1" } },
