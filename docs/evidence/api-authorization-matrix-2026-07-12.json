@@ -1,23 +1,23 @@
 {
   "schemaVersion": 1,
-  "files": 129,
-  "operations": 167,
-  "matrixRows": 167,
+  "files": 130,
+  "operations": 168,
+  "matrixRows": 168,
   "boundaryCounts": {
     "public": 6,
     "auth-handler": 2,
-    "authenticated": 94,
+    "authenticated": 95,
     "admin": 65
   },
   "objectAuthorizationCounts": {
     "public-input": 6,
     "administrator-scope": 65,
-    "session-user": 88,
+    "session-user": 89,
     "auth-provider": 2,
     "no-user-object": 4,
     "consent-projected-cohort": 2
   },
-  "identifierOwnershipContracts": 36,
+  "identifierOwnershipContracts": 37,
   "supportingOwnershipProofs": [
     {
       "file": "src/lib/learning-requests/support-service.ts",
@@ -83,7 +83,7 @@
       "file": "src/lib/certificates/service.ts",
       "purpose": "learner-owned certificate candidates and immutable issuance",
       "anchors": 4,
-      "sourceSha256": "b1fe8e2188d82e3e4bcbd022ee0481f964d62774234c5d9801f866fbca3c8948"
+      "sourceSha256": "64d72a20b85f41cc3cb9b961db794ccfe18317abca2bd15c0eeb63d02db24681"
     },
     {
       "file": "src/lib/portfolio/service.ts",
@@ -1149,6 +1149,19 @@
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
       "operationSourceSha256": "53a4d9cfec3a930272a5c343c5c456c0ae69b62564f780422f710427e4479d91"
+    },
+    {
+      "operation": "GET /api/certificates/[certificateId]/pdf",
+      "file": "src/app/api/certificates/[certificateId]/pdf/route.ts",
+      "route": "/api/certificates/[certificateId]/pdf",
+      "method": "GET",
+      "boundary": "authenticated",
+      "anonymous": "authenticated",
+      "learner": "allowed",
+      "admin": "allowed",
+      "objectAuthorization": "session-user",
+      "ownershipProof": "identifier bound by loadOwnCertificate((await params).certificateId, authz.session!.user.id)",
+      "operationSourceSha256": "98c61c975e397e44a1c83e70a100e5c191fe84eb43197008be0f6a395c9ad7ff"
     },
     {
       "operation": "GET /api/certificates",
@@ -2314,7 +2327,7 @@
     "guardDecisionTest": "src/lib/http/__tests__/authz.test.ts",
     "representativeObjectAuthorizationTest": "integration/runtime-authorization.integration.test.ts",
     "protectedOperationInvocations": {
-      "anonymousAuthenticated": 94,
+      "anonymousAuthenticated": 95,
       "anonymousAdmin": 65,
       "learnerAdmin": 65
     },

@@ -44,6 +44,8 @@ export type RateLimitPolicyName =
   | "community_moderation_admin"
   | "certificate_revoke_admin"
   | "certificate_issue_user"
+  | "certificate_verify_ip"
+  | "certificate_download_user"
   | "module_project_start_user"
   | "career_mutation_admin"
   | "battle_read_user"
@@ -123,6 +125,8 @@ const DEFAULT_POLICIES: Record<RateLimitPolicyName, RateLimitPolicy> = {
   community_moderation_admin: policy("community_moderation_admin", 60, 60 * 60),
   certificate_revoke_admin: policy("certificate_revoke_admin", 10, 60 * 60),
   certificate_issue_user: policy("certificate_issue_user", 10, 24 * 60 * 60),
+  certificate_verify_ip: policy("certificate_verify_ip", 30, 15 * 60),
+  certificate_download_user: policy("certificate_download_user", 20, 60),
   module_project_start_user: policy("module_project_start_user", 20, 24 * 60 * 60),
   career_mutation_admin: policy("career_mutation_admin", 30, 60 * 60),
   battle_read_user: policy("battle_read_user", 90, 60),
