@@ -1644,6 +1644,7 @@ describe("timed exam client workflows", () => {
       const url = String(input);
       if (url === `/api/exams/${sessionId}`) return json({ exam: currentExam });
       if (url.endsWith("/appeal") && init?.method === "POST") {
+        expect(JSON.parse(String(init.body))).toMatchObject({ category: "technical" });
         currentExam = {
           ...currentExam,
           appealSubmitted: true,
@@ -1670,6 +1671,7 @@ describe("timed exam client workflows", () => {
 
     await user.click(screen.getByRole("button", { name: "Request a review" }));
     await selectOption(user, screen.getByLabelText("Review category"), "technical");
+    expect(screen.getByLabelText("Review category")).toHaveTextContent("Technical incident");
     await user.type(screen.getByLabelText("What should the reviewer inspect?"), "too short");
     await user.click(screen.getByRole("button", { name: "Submit appeal" }));
     expect(screen.getByRole("status")).toHaveTextContent(/at least 20 characters/i);

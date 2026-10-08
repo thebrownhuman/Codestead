@@ -338,10 +338,14 @@ test.describe("new learner experience", () => {
     });
 
     await page.reload();
-    await expect(settings.textSize).toHaveValue("200");
-    await expect(settings.motion).toHaveValue("reduce");
-    await expect(settings.theme).toHaveValue("contrast");
-    await expect(settings.editorFont).toHaveValue("18");
+    await expect(settings.textSize).toHaveText("Maximum · 200%");
+    await expect(settings.motion).toHaveText("Reduce motion");
+    await expect(settings.theme).toHaveText("High contrast");
+    await expect(settings.editorFont).toHaveText("18px");
+    await expect(settings.textSize).toHaveAttribute("data-value", "200");
+    await expect(settings.motion).toHaveAttribute("data-value", "reduce");
+    await expect(settings.theme).toHaveAttribute("data-value", "contrast");
+    await expect(settings.editorFont).toHaveAttribute("data-value", "18");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
   });
 
