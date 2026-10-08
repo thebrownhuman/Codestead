@@ -216,6 +216,15 @@ const staleNetworkOutcomes = [
 ] as const;
 
 describe("CodeLab authoritative draft synchronization", () => {
+  it("shows a compact Saved indicator only after server synchronization", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(json({ draft: serverDraft, cacheNamespace: namespace }));
+    renderLab();
+    await waitFor(() => expect(draftNotice()).toHaveAttribute("data-draft-status", "synced"));
+    expect(screen.getByText("Saved ✓", { exact: true })).toBeVisible();
+    expect(screen.getByText("Saved to Codestead.")).toHaveClass("sr-only");
+    expect(screen.queryByText("Draft · synced", { exact: true })).not.toBeInTheDocument();
+  });
+
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.useRealTimers();
