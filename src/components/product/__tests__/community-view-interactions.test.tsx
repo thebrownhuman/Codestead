@@ -1,3 +1,5 @@
+import userEvent from "@testing-library/user-event";
+import { selectOption } from "@/test/select-option";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -178,7 +180,7 @@ describe("community privacy controls", () => {
 
     render(<CommunityView />);
     await screen.findByText("top-learner");
-    fireEvent.change(screen.getByLabelText("Leaderboard period"), { target: { value: "allTime" } });
+    await selectOption(userEvent.setup(), screen.getByLabelText("Leaderboard period"), "allTime");
     expect(await screen.findByText("No opted-in entries")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Withdraw cohort consent" }));

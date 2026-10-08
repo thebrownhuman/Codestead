@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { BookOpenCheck, CheckCircle2, FileSearch, RefreshCw, ShieldCheck, UploadCloud } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -102,7 +104,7 @@ export function AdminModuleProjects() {
     </section>
     <div className={styles.controls}>
       <label><FileSearch size={16} /><span className="sr-only">Search project templates</span><input type="search" placeholder="Search course, module, or title" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
-      <label><span className="sr-only">Filter project template stage</span><select value={stage} onChange={(event) => setStage(event.target.value)}><option value="">All stages</option><option value="draft">Draft</option><option value="beta">Beta</option><option value="verified">Verified</option><option value="retired">Retired</option></select></label>
+      <label><span className="sr-only">Filter project template stage</span><Select value={stage} onChange={(event) => setStage(event.target.value)}><option value="">All stages</option><option value="draft">Draft</option><option value="beta">Beta</option><option value="verified">Verified</option><option value="retired">Retired</option></Select></label>
       <span className={styles.queueCount}>{visible.length} / {templates.length}</span>
     </div>
     <div className={styles.adminList}>{visible.map((item) => <article className="card" key={item.id}>

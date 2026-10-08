@@ -1,3 +1,4 @@
+import { selectOption } from "@/test/select-option";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import {
   IDBFactory as FakeIDBFactory,
@@ -1643,6 +1644,7 @@ describe("timed exam client workflows", () => {
       const url = String(input);
       if (url === `/api/exams/${sessionId}`) return json({ exam: currentExam });
       if (url.endsWith("/appeal") && init?.method === "POST") {
+        expect(JSON.parse(String(init.body))).toMatchObject({ category: "technical" });
         currentExam = {
           ...currentExam,
           appealSubmitted: true,
@@ -1668,7 +1670,8 @@ describe("timed exam client workflows", () => {
     expect(screen.getByText(/Retake opens/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Request a review" }));
-    await user.selectOptions(screen.getByLabelText("Review category"), "technical");
+    await selectOption(user, screen.getByLabelText("Review category"), "technical");
+    expect(screen.getByLabelText("Review category")).toHaveTextContent("Technical incident");
     await user.type(screen.getByLabelText("What should the reviewer inspect?"), "too short");
     await user.click(screen.getByRole("button", { name: "Submit appeal" }));
     expect(screen.getByRole("status")).toHaveTextContent(/at least 20 characters/i);

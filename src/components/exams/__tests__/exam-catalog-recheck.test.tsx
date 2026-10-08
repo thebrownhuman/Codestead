@@ -1,3 +1,4 @@
+import { selectOption } from "@/test/select-option";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -206,7 +207,7 @@ describe("exam catalog standard start flow", () => {
     expect(await screen.findByText("Complete the assigned remediation. Verified learning evidence unlocks the retake automatically.")).toBeInTheDocument();
 
     const courseSelect = screen.getByLabelText("Course") as HTMLSelectElement;
-    await actor.selectOptions(courseSelect, "javascript");
+    await selectOption(actor, courseSelect, "javascript");
     expect(screen.queryByText("Classes")).not.toBeInTheDocument();
     expect(screen.getByText("Arrays")).toBeInTheDocument();
 
@@ -228,7 +229,7 @@ describe("exam catalog standard start flow", () => {
     render(<ExamCatalog />);
 
     await screen.findByText("Arrays");
-    fireEvent.change(screen.getByLabelText("Course"), { target: { value: "python" } });
+    fireEvent.change(screen.getByLabelText("Course").parentElement!.querySelector("select")!, { target: { value: "python" } });
 
     expect(await screen.findByText("No module exams match this course.")).toBeInTheDocument();
   });

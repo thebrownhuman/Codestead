@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { GitCompareArrows, History, ListRestart, Route } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -384,9 +386,9 @@ export function AdminPlanRevisionManager({ learnerId }: { readonly learnerId: st
         <>
           <label className={styles.compactField}>
             Enrollment
-            <select disabled={busy} onChange={(event) => setEnrollmentId(event.target.value)} value={enrollmentId}>
+            <Select disabled={busy} onChange={(event) => setEnrollmentId(event.target.value)} value={enrollmentId}>
               {history.enrollments.map((item) => <option key={item.enrollmentId} value={item.enrollmentId}>{item.courseTitle} v{item.courseVersion} · {humanize(item.status)}</option>)}
-            </select>
+            </Select>
           </label>
 
           {detail && (
@@ -427,7 +429,7 @@ export function AdminPlanRevisionManager({ learnerId }: { readonly learnerId: st
               <div className={styles.approveForm}>
                 <label>
                   Operation
-                  <select onChange={(event) => { setOperationType(event.target.value as OperationChoice); setItemId(""); resetPreview(); }} value={operationType}>
+                  <Select onChange={(event) => { setOperationType(event.target.value as OperationChoice); setItemId(""); resetPreview(); }} value={operationType}>
                     <option value="assign_remediation">Assign remediation</option>
                     <option value="move">Reorder item</option>
                     <option value="remove">Remove item</option>
@@ -435,15 +437,15 @@ export function AdminPlanRevisionManager({ learnerId }: { readonly learnerId: st
                     <option value="override_prioritize">Prioritize directive</option>
                     <option value="override_defer">Defer directive</option>
                     <option value="override_unlock_requested">Record unlock request (gates enforced)</option>
-                  </select>
+                  </Select>
                 </label>
-                {operationType === "add" && <label>Source revision<select onChange={(event) => void chooseSourceRevision(event.target.value)} value={sourceRevision}><option value="">Choose a revision</option>{detail.history.filter((revision) => revision.revision !== detail.latestRevision).map((revision) => <option key={revision.id} value={revision.revision}>Revision {revision.revision}</option>)}</select></label>}
+                {operationType === "add" && <label>Source revision<Select onChange={(event) => void chooseSourceRevision(event.target.value)} value={sourceRevision}><option value="">Choose a revision</option>{detail.history.filter((revision) => revision.revision !== detail.latestRevision).map((revision) => <option key={revision.id} value={revision.revision}>Revision {revision.revision}</option>)}</Select></label>}
                 <label>
                   Plan item
-                  <select onChange={(event) => { setItemId(event.target.value); resetPreview(); }} value={itemId}>
+                  <Select onChange={(event) => { setItemId(event.target.value); resetPreview(); }} value={itemId}>
                     <option value="">Choose an item</option>
                     {(operationType === "add" ? sourceItems : detail.selected.plan).map((item) => <option key={item.id} value={item.id}>{item.position + 1}. {item.title}</option>)}
-                  </select>
+                  </Select>
                 </label>
                 {operationType === "move" && <label>New position<input min={1} max={detail.selected.plan.length} onChange={(event) => { setToPosition(event.target.value); resetPreview(); }} type="number" value={toPosition} /></label>}
                 {(operationType === "assign_remediation" || operationType.startsWith("override_")) && <label>Operation note<textarea maxLength={500} minLength={8} onChange={(event) => { setNote(event.target.value); resetPreview(); }} value={note} /></label>}

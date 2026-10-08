@@ -1,3 +1,4 @@
+import { selectOption } from "@/test/select-option";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -526,7 +527,7 @@ describe("community spaces UI boundaries", () => {
     render(<CommunitySpaces people={[]} />);
     await screen.findByRole("heading", { name: "Community spaces & coding battles" });
     await user.click(screen.getByText("Report"));
-    await user.selectOptions(screen.getByLabelText("Reason"), "harassment");
+    await selectOption(user, screen.getByLabelText("Reason"), "harassment");
     await user.click(screen.getByRole("button", { name: "Send report" }));
 
     expect(await screen.findByText(/Report sent privately/)).toBeInTheDocument();
@@ -570,7 +571,7 @@ describe("community spaces UI boundaries", () => {
     render(<CommunitySpaces people={[{ publicId: "cc000000-0000-4000-8000-000000000005", alias: "learner-beta" }]} />);
     await screen.findByRole("heading", { name: "Community spaces & coding battles" });
     await user.click(screen.getByText("Add a learner"));
-    await user.selectOptions(screen.getByLabelText("Learner"), "cc000000-0000-4000-8000-000000000005");
+    await selectOption(user, screen.getByLabelText("Learner"), "cc000000-0000-4000-8000-000000000005");
     await user.click(screen.getByRole("button", { name: "Add member" }));
 
     await waitFor(() => expect(memberBodies).toHaveLength(1));
@@ -609,7 +610,7 @@ describe("community spaces UI boundaries", () => {
     await user.click(screen.getByRole("tab", { name: "Battles" }));
 
     await user.click(screen.getByText("Create a battle"));
-    await user.selectOptions(screen.getByLabelText("Reviewed challenge"), "cc000000-0000-4000-8000-000000000004");
+    await selectOption(user, screen.getByLabelText("Reviewed challenge"), "cc000000-0000-4000-8000-000000000004");
     await user.click(screen.getByRole("button", { name: "Freeze reviewed challenge" }));
     await waitFor(() => expect(battleBodies).toHaveLength(1));
     expect(battleBodies[0]).toMatchObject({ scope: "invite" });

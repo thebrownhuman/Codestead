@@ -1,3 +1,4 @@
+import { selectOption } from "@/test/select-option";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -23,7 +24,7 @@ const existingRequest = {
 };
 
 async function completeForm(user: ReturnType<typeof userEvent.setup>) {
-  await user.selectOptions(screen.getByLabelText("Request type"), "new-subject");
+  await selectOption(user, screen.getByLabelText("Request type"), "new-subject");
   await user.type(screen.getByLabelText("Subject or topic"), "  Distributed systems  ");
   await user.type(screen.getByLabelText("What should the course cover?"), "  Consensus, failure models, and an evidence-based project.  ");
 }
@@ -52,7 +53,7 @@ describe("learner curriculum request view", () => {
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
     render(<LearningRequestsView prefill={{ kind: "content-defect", subject: "Python: Assignment", context: "Course: Python (python)\nSkill: Assignment (python.assignment)\nLesson: /courses/python/skills/python.assignment" }} />);
-    expect(screen.getByLabelText("Request type")).toHaveValue("content-defect");
+    expect(screen.getByLabelText("Request type")).toHaveAttribute("data-value", "content-defect");
     expect(screen.getByLabelText("Subject or topic")).toHaveValue("Python: Assignment");
     await user.type(screen.getByLabelText("What should the course cover?"), "The checkpoint has no activity.");
     await user.click(screen.getByRole("button", { name: "Send for review" }));

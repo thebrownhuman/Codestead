@@ -1,4 +1,6 @@
 "use client";
+import { Select } from "@/components/ui/select";
+
 import { useCallback, useEffect, useState } from "react";
 import { ModalDialog } from "@/components/ui/modal-dialog";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -77,7 +79,7 @@ function ProviderCard({ setting, reload }: { setting: ProviderSetting; reload: (
       <label>Model ID<input value={model} maxLength={200} onChange={(event) => chooseModel(event.target.value)} placeholder="Choose a listed model or type its ID" /></label>
       <label>Failover priority<input type="number" min={1} max={100} value={priority} onChange={(event) => setPriority(Number(event.target.value))} /></label>
       <small>Lower numbers are tried first among available learner credentials. Defaults use your saved model, then the provider tutor environment override, then the built-in fallback.</small>
-      <label>Save status<select value={verification} onChange={(event) => setVerification(event.target.value)}><option value="untested">Untested</option><option value="verified" disabled={!canVerify}>Verified</option></select></label>
+      <label>Save status<Select value={verification} onChange={(event) => setVerification(event.target.value)}><option value="untested">Untested</option><option value="verified" disabled={!canVerify}>Verified</option></Select></label>
       <small>Verified requires a successful test of this model and saved connection within the last 10 minutes. You can save a typed ID as untested without a platform key.</small>
       <div className={styles.actions}>
       {!chatOpen && error && <p role="alert" className={styles.error}>{error}</p>}

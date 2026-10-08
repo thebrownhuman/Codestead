@@ -28,10 +28,10 @@ export class AccessibilitySettingsPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.textSize = page.getByLabel("Text size");
-    this.motion = page.getByLabel("Motion");
-    this.theme = page.getByLabel("Interface theme and contrast");
-    this.editorFont = page.getByLabel("Code editor font");
+    this.textSize = page.getByRole("combobox", { name: "Text size", exact: true });
+    this.motion = page.getByRole("combobox", { name: "Motion", exact: true });
+    this.theme = page.getByRole("combobox", { name: "Interface theme and contrast", exact: true });
+    this.editorFont = page.getByRole("combobox", { name: "Code editor font", exact: true });
   }
 
   async goto() {
@@ -40,10 +40,14 @@ export class AccessibilitySettingsPage {
   }
 
   async chooseMaximumComfort() {
-    await this.textSize.selectOption("200");
-    await this.motion.selectOption("reduce");
-    await this.theme.selectOption("contrast");
-    await this.editorFont.selectOption("18");
+    await this.textSize.click();
+    await this.page.getByRole("option", { name: "Maximum · 200%", exact: true }).click();
+    await this.motion.click();
+    await this.page.getByRole("option", { name: "Reduce motion", exact: true }).click();
+    await this.theme.click();
+    await this.page.getByRole("option", { name: "High contrast", exact: true }).click();
+    await this.editorFont.click();
+    await this.page.getByRole("option", { name: "18px", exact: true }).click();
   }
 }
 

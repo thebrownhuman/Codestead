@@ -1,3 +1,4 @@
+import { selectOption } from "@/test/select-option";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -102,9 +103,9 @@ describe("resumable disclosed onboarding", () => {
     await user.click(screen.getByRole("button", { name: /Save and secure account/i }));
 
     expect(await screen.findByRole("heading", { name: /Did Codestead understand your interests/i })).toBeInTheDocument();
-    expect(screen.getByLabelText("Category for baking")).toHaveValue("cooking");
-    expect(screen.getByLabelText("Category for formula racing")).toHaveValue("cars");
-    await user.selectOptions(screen.getByLabelText("Category for formula racing"), "sports");
+    expect(screen.getByLabelText("Category for baking")).toHaveAttribute("data-value", "cooking");
+    expect(screen.getByLabelText("Category for formula racing")).toHaveAttribute("data-value", "cars");
+    await selectOption(user, screen.getByLabelText("Category for formula racing"), "sports");
     await user.click(screen.getByRole("checkbox", { name: /these categories describe what I meant/i }));
     await user.click(screen.getByRole("button", { name: /Confirm and secure account/i }));
 
@@ -167,7 +168,7 @@ describe("resumable disclosed onboarding", () => {
     // unrecognized one — nothing is silently dropped from the list.
     expect(screen.getByLabelText("Category for cars")).toBeInTheDocument();
     expect(screen.getByLabelText("Category for cooking")).toBeInTheDocument();
-    expect(screen.getByLabelText("Category for cats")).toHaveValue("animals");
+    expect(screen.getByLabelText("Category for cats")).toHaveAttribute("data-value", "animals");
     expect(screen.getByText(/Skipped:/)).toHaveTextContent('"n/a" (It doesn\'t describe an interest.)');
 
     const preview = calls.find((call) => call.url === "/api/onboarding/interests/preview");
@@ -194,10 +195,10 @@ describe("resumable disclosed onboarding", () => {
     })));
     render(<OnboardingWizard />);
     expect(await screen.findByDisplayValue("Prepare for college exams")).toBeInTheDocument();
-    expect(screen.getByLabelText("Typical study session")).toHaveValue("45");
-    expect(screen.getByLabelText("Weekly learning goal")).toHaveValue("300");
+    expect(screen.getByLabelText("Typical study session")).toHaveAttribute("data-value", "45");
+    expect(screen.getByLabelText("Weekly learning goal")).toHaveAttribute("data-value", "300");
     await waitFor(() => expect(screen.getByText(/^Java$/, { selector: "strong" }).closest("button")).toHaveAttribute("aria-pressed", "true"));
-    expect(await screen.findByLabelText(/DSA implementation language/i)).toHaveValue("java");
+    expect(await screen.findByLabelText(/DSA implementation language/i)).toHaveAttribute("data-value", "java");
     expect(screen.getByRole("checkbox", { name: /I am at least 18/i })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: /administrator mentor visibility/i })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: /external AI routing/i })).not.toBeChecked();
@@ -404,28 +405,28 @@ describe("resumable disclosed onboarding", () => {
     expect(await screen.findByRole("heading", { name: /Tell Codestead how you want to learn/i })).toBeInTheDocument();
     await user.clear(screen.getByLabelText("Your name"));
     await user.type(screen.getByLabelText("Your name"), "Preserved Learner");
-    await user.selectOptions(screen.getByLabelText("Starting point"), "intermediate");
-    await user.selectOptions(screen.getByLabelText("Typical study session"), "45");
-    await user.selectOptions(screen.getByLabelText("Weekly learning goal"), "300");
-    await user.selectOptions(screen.getByLabelText("Analogy style"), "frequent");
+    await selectOption(user, screen.getByLabelText("Starting point"), "intermediate");
+    await selectOption(user, screen.getByLabelText("Typical study session"), "45");
+    await selectOption(user, screen.getByLabelText("Weekly learning goal"), "300");
+    await selectOption(user, screen.getByLabelText("Analogy style"), "frequent");
     await completeRequiredProfile(user, { goal: "Master reliable systems", hobbies: "formula racing" });
     const dsaTrack = screen.getByText(/^DSA$/, { selector: "strong" }).closest("button");
     expect(dsaTrack).not.toBeNull();
     await user.click(dsaTrack!);
-    await user.selectOptions(screen.getByLabelText(/DSA implementation language/i), "java");
+    await selectOption(user, screen.getByLabelText(/DSA implementation language/i), "java");
     await user.click(screen.getByRole("button", { name: /Save and secure account/i }));
 
     expect(await screen.findByRole("heading", { name: /Did Codestead understand your interests/i })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Back and edit/i }));
 
     expect(screen.getByLabelText("Your name")).toHaveValue("Preserved Learner");
-    expect(screen.getByLabelText("Starting point")).toHaveValue("intermediate");
+    expect(screen.getByLabelText("Starting point")).toHaveAttribute("data-value", "intermediate");
     expect(screen.getByLabelText("Your first outcome")).toHaveValue("Master reliable systems");
-    expect(screen.getByLabelText("Typical study session")).toHaveValue("45");
-    expect(screen.getByLabelText("Weekly learning goal")).toHaveValue("300");
+    expect(screen.getByLabelText("Typical study session")).toHaveAttribute("data-value", "45");
+    expect(screen.getByLabelText("Weekly learning goal")).toHaveAttribute("data-value", "300");
     expect(screen.getByLabelText(/Interests or hobbies/i)).toHaveValue("formula racing");
-    expect(screen.getByLabelText("Analogy style")).toHaveValue("frequent");
-    expect(screen.getByLabelText(/DSA implementation language/i)).toHaveValue("java");
+    expect(screen.getByLabelText("Analogy style")).toHaveAttribute("data-value", "frequent");
+    expect(screen.getByLabelText(/DSA implementation language/i)).toHaveAttribute("data-value", "java");
     expect(screen.getByText(/^DSA$/, { selector: "strong" }).closest("button")).toHaveAttribute("aria-pressed", "true");
     for (const name of requiredDisclosureNames) expect(screen.getByRole("checkbox", { name })).toBeChecked();
   });

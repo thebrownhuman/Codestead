@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { AlertTriangle, FileCheck2, Play, RefreshCw, ShieldCheck, Wrench } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -265,7 +267,7 @@ export function AdminAssessmentCorrections({ initialAppealId = "" }: { readonly 
       <header className={styles.pageHead}>
         <div><span className={styles.eyebrow}>Immutable grading repair</span><h1>Assessment <span>corrections</span></h1><p>Bind a human-reviewed replacement to an overturned appeal, preview every exact affected form, and append superseding deterministic results.</p></div>
         <div className={styles.headActions}>
-          <label className={styles.compactField}>Queue<select aria-label="Correction queue scope" value={scope} onChange={(event) => setScope(event.target.value as typeof scope)}><option value="open">Open</option><option value="all">All</option></select></label>
+          <label className={styles.compactField}>Queue<Select aria-label="Correction queue scope" value={scope} onChange={(event) => setScope(event.target.value as typeof scope)}><option value="open">Open</option><option value="all">All</option></Select></label>
           <button className="button button-secondary" onClick={() => void load()} type="button"><RefreshCw size={14} /> Refresh</button>
         </div>
       </header>
@@ -277,7 +279,7 @@ export function AdminAssessmentCorrections({ initialAppealId = "" }: { readonly 
         <div className={styles.appealDecisionForm}>
           <label>Overturned appeal ID<input aria-label="Overturned appeal ID" value={appealId} onChange={(event) => { setAppealId(event.target.value); requestRef.current = null; }} /></label>
           <label>Exact exam item ID<input aria-label="Exact exam item ID" value={itemId} onChange={(event) => { setItemId(event.target.value); requestRef.current = null; }} /></label>
-          <label>Defect kind<select aria-label="Defect kind" value={defectKind} onChange={(event) => setDefectKind(event.target.value)}><option value="faulty_test">Faulty test</option><option value="ambiguous_oracle">Ambiguous oracle</option><option value="runtime_defect">Runtime defect</option></select></label>
+          <label>Defect kind<Select aria-label="Defect kind" value={defectKind} onChange={(event) => setDefectKind(event.target.value)}><option value="faulty_test">Faulty test</option><option value="ambiguous_oracle">Ambiguous oracle</option><option value="runtime_defect">Runtime defect</option></Select></label>
           <label>Recorded correction reason<textarea aria-label="Recorded correction reason" maxLength={2000} minLength={20} value={reason} onChange={(event) => { setReason(event.target.value); requestRef.current = null; }} /></label>
           <label>Human review evidence reference<input aria-label="Human review evidence reference" value={evidenceRef} onChange={(event) => setEvidenceRef(event.target.value)} /></label>
           <label>Human review note<textarea aria-label="Human review note" maxLength={2000} minLength={20} value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} /></label>

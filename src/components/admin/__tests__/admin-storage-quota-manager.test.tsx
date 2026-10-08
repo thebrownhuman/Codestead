@@ -1,3 +1,4 @@
+import { selectOption } from "@/test/select-option";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -31,7 +32,7 @@ describe("administrator storage quota manager", () => {
       learnerId="learner-1"
     />);
 
-    await user.selectOptions(screen.getByLabelText("New quota"), "3");
+    await selectOption(user, screen.getByLabelText("New quota"), "3");
     await user.type(screen.getByLabelText(/authenticator code/i), "123456");
     await user.type(screen.getByLabelText("Recorded reason"), "Learner needs additional PDF storage");
     await user.click(screen.getByRole("button", { name: /Change quota/i }));

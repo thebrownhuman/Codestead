@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "@/components/ui/select";
 import { ENROLLMENT_DISCLOSURE_VERSION, RETENTION_DISCLOSURE } from "@/lib/privacy/disclosure-version";
 import { BREACHED_PASSWORD_MESSAGE } from "@/lib/security/password-messages";
 
@@ -597,13 +598,13 @@ export function OnboardingWizard() {
                 {interestPreview.map((interest, index) => (
                   <label key={`${interest.label}-${index}`}>
                     <span>{interest.label}</span>
-                    <select
+                    <Select
                       aria-label={`Category for ${interest.label}`}
                       onChange={(event) => setInterestPreview((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, category: event.target.value } : item))}
                       value={interest.category}
                     >
                       {interestCategories.map((category) => <option key={category} value={category}>{interestCategoryLabel(category)}</option>)}
-                    </select>
+                    </Select>
                   </label>
                 ))}
               </div>
@@ -620,16 +621,16 @@ export function OnboardingWizard() {
               <p>These choices create your first roadmap. You can extend it later; prerequisites still protect the learning order.</p>
               <div className={styles.twoColumns}>
                 <label><span>Your name</span><input name="name" autoComplete="name" defaultValue={profileDraft?.name ?? accountName} placeholder="Your name" required minLength={2} /></label>
-                <label><span>Starting point</span><select name="level" defaultValue={profileDraft?.level ?? existingProfile?.selfReportedLevel ?? "beginner"}><option value="beginner">Complete beginner</option><option value="some_experience">I know a few basics</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced; place me by diagnostic</option></select></label>
+                <label><span>Starting point</span><Select name="level" defaultValue={profileDraft?.level ?? existingProfile?.selfReportedLevel ?? "beginner"}><option value="beginner">Complete beginner</option><option value="some_experience">I know a few basics</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced; place me by diagnostic</option></Select></label>
               </div>
               <label><span>Your first outcome</span><textarea defaultValue={profileDraft?.goal ?? existingProfile?.learningGoals[0] ?? ""} name="goal" placeholder="For example: become confident in C++ and solve college DSA questions independently." required /></label>
               <div className={styles.twoColumns}>
-                <label><span>Typical study session</span><select name="preferredSessionMinutes" defaultValue={String(profileDraft?.preferredSessionMinutes ?? existingProfile?.preferredSessionMinutes ?? 30)}><option value="10">10 minutes</option><option value="20">20 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option><option value="90">90 minutes</option><option value="120">120 minutes</option></select></label>
-                <label><span>Weekly learning goal</span><select name="weeklyGoalMinutes" defaultValue={String(profileDraft?.weeklyGoalMinutes ?? existingProfile?.weeklyGoalMinutes ?? 180)}><option value="60">1 hour</option><option value="120">2 hours</option><option value="180">3 hours</option><option value="300">5 hours</option><option value="420">7 hours</option><option value="600">10 hours</option><option value="900">15 hours</option></select></label>
+                <label><span>Typical study session</span><Select name="preferredSessionMinutes" defaultValue={String(profileDraft?.preferredSessionMinutes ?? existingProfile?.preferredSessionMinutes ?? 30)}><option value="10">10 minutes</option><option value="20">20 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option><option value="90">90 minutes</option><option value="120">120 minutes</option></Select></label>
+                <label><span>Weekly learning goal</span><Select name="weeklyGoalMinutes" defaultValue={String(profileDraft?.weeklyGoalMinutes ?? existingProfile?.weeklyGoalMinutes ?? 180)}><option value="60">1 hour</option><option value="120">2 hours</option><option value="180">3 hours</option><option value="300">5 hours</option><option value="420">7 hours</option><option value="600">10 hours</option><option value="900">15 hours</option></Select></label>
               </div>
               <div className={styles.twoColumns}>
                 <label><span>Interests or hobbies <small>comma separated</small></span><input defaultValue={profileDraft?.hobbyLabels.join(", ") ?? existingProfile?.analogyInterests.map((item) => item.label).join(", ") ?? ""} name="hobbies" placeholder="cooking, cars, cricket" /><small>For example: {interestExampleChips.join(", ")}…</small></label>
-                <label><span>Analogy style</span><select name="analogyFrequency" defaultValue={profileDraft?.analogyFrequency ?? existingProfile?.analogyFrequency ?? "helpful"}><option value="neutral">Neutral explanations</option><option value="helpful">Analogies when helpful</option><option value="frequent">Frequent analogies</option></select></label>
+                <label><span>Analogy style</span><Select name="analogyFrequency" defaultValue={profileDraft?.analogyFrequency ?? existingProfile?.analogyFrequency ?? "helpful"}><option value="neutral">Neutral explanations</option><option value="helpful">Analogies when helpful</option><option value="frequent">Frequent analogies</option></Select></label>
               </div>
               <fieldset className={styles.disclosureFieldset}>
                 <legend>Privacy and service disclosure <small>{disclosureVersion}</small></legend>
@@ -648,7 +649,7 @@ export function OnboardingWizard() {
                 </details>
               </fieldset>
               <fieldset className={styles.trackFieldset}><legend>What would you like on your roadmap?</legend><p>Select any interests. Locked prerequisites are inserted automatically.</p><div className={styles.trackGrid}>{tracks.map(([id, title, description]) => { const active = selected.includes(id); return <button aria-pressed={active} className={active ? styles.trackSelected : ""} key={id} type="button" onClick={() => setSelected((items) => items.includes(id) ? items.filter((item) => item !== id) : [...items, id])}><b>{active && <Check size={14} />}</b><span><strong>{title}</strong><small>{description}</small></span></button>; })}</div></fieldset>
-              {selected.includes("dsa") && <label><span>DSA implementation language</span><select name="dsaLanguage" defaultValue={profileDraft?.dsaLanguage ?? existingProfile?.dsaLanguage ?? "cpp"}><option value="c">C</option><option value="cpp">C++</option><option value="java">Java</option><option value="python">Python</option></select><small>Concept mastery transfers if you switch later; syntax skills are retested.</small></label>}
+              {selected.includes("dsa") && <label><span>DSA implementation language</span><Select name="dsaLanguage" defaultValue={profileDraft?.dsaLanguage ?? existingProfile?.dsaLanguage ?? "cpp"}><option value="c">C</option><option value="cpp">C++</option><option value="java">Java</option><option value="python">Python</option></Select><small>Concept mastery transfers if you switch later; syntax skills are retested.</small></label>}
               <button className="button button-primary" disabled={busy || selected.length === 0} type="submit">{busy ? "Saving…" : "Save and secure account"}<ArrowRight size={17} /></button>
             </form>
           ))}
@@ -667,7 +668,7 @@ export function OnboardingWizard() {
               <span className={styles.eyebrow}><Sparkles size={15} /> Bring your own AI (optional)</span>
               <h1>Connect an AI provider.</h1>
               <p>Your key is encrypted before storage and is only decrypted in memory for your provider request. Authored lessons, quizzes, exams, and progress work with or without a connected provider — you can skip this and add a key later from Settings.</p>
-              <label key="ai-provider"><span>Provider</span><select name="provider" onChange={(event) => setAiProvider(event.target.value as CatalogProviderId)} value={aiProvider}>{AI_PROVIDER_CATALOG.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select></label>
+              <label key="ai-provider"><span>Provider</span><Select name="provider" onChange={(event) => setAiProvider(event.target.value as CatalogProviderId)} value={aiProvider}>{AI_PROVIDER_CATALOG.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</Select></label>
               {(() => {
                 const providerMeta = AI_PROVIDER_CATALOG.find((entry) => entry.id === aiProvider)!;
                 return (
