@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { and, eq } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { z } from "zod";
@@ -30,7 +31,9 @@ export async function POST(
     { policy: "appeal_decision_admin", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
       const { correctionId } = await context.params;
-      const body = bodySchema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return secureAdminResponse(jsonBody.response);
+      const body = bodySchema.safeParse(jsonBody.value);
       if (!z.uuid().safeParse(correctionId).success || !body.success) {
         return adminJson({ error: "A correction, request id, and retry reason are required." }, 400);
       }

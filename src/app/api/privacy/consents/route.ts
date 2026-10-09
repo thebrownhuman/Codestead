@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -67,7 +68,9 @@ export async function POST(request: NextRequest) {
   return withRateLimit(
     { policy: "privacy_consent_user", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
-      const body = bodySchema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return jsonBody.response;
+      const body = bodySchema.safeParse(jsonBody.value);
       if (!body.success || !isConsentPurpose(body.data.purpose)) {
         return NextResponse.json({ error: "Choose a supported consent purpose and decision." }, { status: 400 });
       }

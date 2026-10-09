@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
@@ -25,7 +26,9 @@ export async function GET() {
 export async function DELETE(request: NextRequest) {
   const authz = await requireAuth();
   if (!authz.session) return secureSessionResponse(authz.response);
-  const parsed = revokeSchema.safeParse(await request.json().catch(() => null));
+  const jsonBody = await readBoundedJson(request);
+  if (jsonBody.response?.status === 413) return jsonBody.response;
+  const parsed = revokeSchema.safeParse(jsonBody.value);
   if (!parsed.success) {
     return sessionJson({ error: "Choose all sessions or other sessions." }, 400);
   }

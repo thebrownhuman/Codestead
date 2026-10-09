@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   list: vi.fn(),
@@ -19,6 +19,7 @@ vi.mock("@/lib/notifications/center", () => ({
 vi.mock("@/lib/security/rate-limit", () => ({ withRateLimit: mocks.rateLimit }));
 
 import { GET, PATCH } from "../route";
+afterEach(() => vi.restoreAllMocks());
 
 describe("notification center route", () => {
   beforeEach(() => {
@@ -26,6 +27,30 @@ describe("notification center route", () => {
     mocks.decode.mockReturnValue(null);
     mocks.list.mockResolvedValue({ notifications: [], unreadCount: 0, nextCursor: null });
     mocks.update.mockResolvedValue({ updated: 1 });
+  });
+
+  it.each(["absent", "truthful", "lying"])("bounds JSON before parsing with %s Content-Length and preserves normal/invalid responses", async (length) => {
+    const req = new NextRequest("https://learn.test/api/notifications", { method: "PATCH", body: JSON.stringify({ ids: ["11111111-1111-4111-8111-111111111111"], read: true }) });
+    const oversized = new NextRequest(req.url, {
+      method: req.method,
+      headers: req.headers,
+      body: JSON.stringify({ ids: ["11111111-1111-4111-8111-111111111111"], read: true }) + " ".repeat(65_536),
+    });
+    if (length === "truthful") oversized.headers.set("content-length", String(Buffer.byteLength(JSON.stringify({ ids: ["11111111-1111-4111-8111-111111111111"], read: true }) + " ".repeat(65_536))));
+    if (length === "lying") oversized.headers.set("content-length", "1");
+    const nativeParse = vi.spyOn(oversized, "json");
+    const jsonParse = vi.spyOn(JSON, "parse");
+    const response = await PATCH(oversized);
+    expect(response.status).toBe(413);
+    expect(nativeParse).not.toHaveBeenCalled();
+    expect(jsonParse.mock.calls.some(([value]) => typeof value === "string" && value.endsWith(" ".repeat(65_536)))).toBe(false);
+    expect(mocks.update).not.toHaveBeenCalled();
+    jsonParse.mockRestore();
+    expect((await PATCH(new NextRequest("https://learn.test/api/notifications", { method: "PATCH", body: JSON.stringify({ ids: ["11111111-1111-4111-8111-111111111111"], read: true }) }))).status).toBe(200);
+    const invalid = new NextRequest(req.url, { method: req.method, headers: req.headers, body: "{" });
+    const rejected = await PATCH(invalid);
+    expect(rejected.status).toBe(400);
+    expect((await rejected.json()).error).toBe('INVALID_NOTIFICATION_UPDATE');
   });
 
   it("lists only through the owner-bound service and validates limits", async () => {

@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -91,7 +92,9 @@ export async function PUT(request: NextRequest) {
   return withRateLimit(
     { policy: "draft_sync_user", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
-      const body = bodySchema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request, 1024 * 1024);
+      if (jsonBody.response?.status === 413) return jsonBody.response;
+      const body = bodySchema.safeParse(jsonBody.value);
       if (!body.success) {
         return json({ error: "The draft mutation is invalid or too large.", code: "INVALID_DRAFT_MUTATION" }, 400);
       }

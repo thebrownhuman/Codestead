@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -63,7 +64,9 @@ const profileSchema = z.object({
 export async function POST(request: NextRequest) {
   const authz = await requireAuth({ allowPending: true });
   if (!authz.session) return authz.response;
-  const body = profileSchema.safeParse(await request.json().catch(() => null));
+  const jsonBody = await readBoundedJson(request);
+  if (jsonBody.response?.status === 413) return jsonBody.response;
+  const body = profileSchema.safeParse(jsonBody.value);
   if (!body.success) {
     return NextResponse.json(
       { error: "Please complete your profile and select at least one track." },

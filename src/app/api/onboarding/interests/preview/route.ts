@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -11,7 +12,9 @@ const bodySchema = z.object({
 export async function POST(request: NextRequest) {
   const authz = await requireAuth({ allowPending: true });
   if (!authz.session) return authz.response;
-  const body = bodySchema.safeParse(await request.json().catch(() => null));
+  const jsonBody = await readBoundedJson(request);
+  if (jsonBody.response?.status === 413) return jsonBody.response;
+  const body = bodySchema.safeParse(jsonBody.value);
   if (!body.success) {
     return NextResponse.json(
       { error: "Enter up to eight short interests." },

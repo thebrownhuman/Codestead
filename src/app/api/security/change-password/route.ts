@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
@@ -19,7 +20,9 @@ export async function POST(request: NextRequest) {
   const current = authz.session;
   const userId = authz.session.user.id;
   return withRateLimit({ policy: "forced_password_change_user", identity: { kind: "user", value: userId } }, async () => {
-    const parsed = bodySchema.safeParse(await request.json().catch(() => null));
+    const jsonBody = await readBoundedJson(request);
+    if (jsonBody.response?.status === 413) return jsonBody.response;
+    const parsed = bodySchema.safeParse(jsonBody.value);
     if (!parsed.success) return failure(400, "Use a different new password with 12 to 128 characters.");
     let changed = false;
     let replacementCookies: string[] = [];

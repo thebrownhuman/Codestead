@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { and, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -20,7 +21,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     { policy: "certificate_revoke_admin", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
       const certificateId = (await params).certificateId;
-      const parsed = bodySchema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return jsonBody.response;
+      const parsed = bodySchema.safeParse(jsonBody.value);
       if (!z.uuid().safeParse(certificateId).success || !parsed.success) {
         return NextResponse.json({ error: "INVALID_REQUEST" }, { status: 400, headers: noStore });
       }

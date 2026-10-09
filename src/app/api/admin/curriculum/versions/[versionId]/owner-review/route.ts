@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { type NextRequest } from "next/server";
 import { z } from "zod";
 
@@ -33,7 +34,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     async () => {
       const { versionId } = await params;
       if (!z.uuid().safeParse(versionId).success) return adminJson({ error: "Candidate not found." }, 404);
-      const body = bodySchema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return secureAdminResponse(jsonBody.response);
+      const body = bodySchema.safeParse(jsonBody.value);
       if (!body.success) return adminJson({ error: "Choose between 1 and 500 artifacts." }, 400);
       const updated = await setOwnerReview({
         actorUserId: authz.session.user.id,

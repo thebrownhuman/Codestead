@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -69,8 +70,10 @@ export async function POST(request: NextRequest) {
 
   const origin = evaluateRequestOrigin({ method: request.method, headers: request.headers, appUrl: process.env.APP_URL, production: process.env.NODE_ENV === "production" });
   if (!origin.allowed) return NextResponse.json({ error: origin.code }, { status: origin.status, headers: noStoreHeaders });
-  const raw = await request.json().catch(() => null);
-  if (raw && typeof raw.kind === "string" && isSupportKind(raw.kind)) {
+  const jsonBody = await readBoundedJson(request);
+  if (jsonBody.response?.status === 413) return jsonBody.response;
+  const raw = jsonBody.value;
+  if (raw && typeof raw === "object" && "kind" in raw && typeof raw.kind === "string" && isSupportKind(raw.kind)) {
     const support = supportRequestSchema.safeParse(raw);
     if (!support.success) return NextResponse.json({ error: "Choose a category and provide a message up to 1000 characters. Remove keys and private content.", code: "SUPPORT_REQUEST_INVALID_INPUT" }, { status: 400, headers: noStoreHeaders });
     try { return await createSupportRequest(authz.session.user.id, support.data); }

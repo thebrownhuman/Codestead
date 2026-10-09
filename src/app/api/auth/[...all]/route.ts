@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { toNextJsHandler } from "better-auth/next-js";
 import { NextResponse } from "next/server";
 
@@ -31,7 +32,9 @@ export async function POST(request: Request) {
   if (action === "pass-through") return betterAuthHandlers.POST(request);
   if (action === "deny") return unavailableSecurityAction();
   if (action === "google-social-sign-in") {
-    const body = await request.clone().json().catch(() => null);
+    const jsonBody = await readBoundedJson(request.clone());
+    if (jsonBody.response?.status === 413) return jsonBody.response;
+    const body = jsonBody.value;
     if (!body || typeof body !== "object" || Array.isArray(body) ||
         (body as { provider?: unknown }).provider !== "google") {
       return unavailableSecurityAction();

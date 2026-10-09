@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { randomUUID } from "node:crypto";
 
 import { NextRequest, NextResponse } from "next/server";
@@ -49,7 +50,9 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const authz = await requireAuth({ closedBookCapability: "battles" });
   if (!authz.session) return authz.response;
-  const body = schema.safeParse(await request.json().catch(() => null));
+  const jsonBody = await readBoundedJson(request);
+  if (jsonBody.response?.status === 413) return jsonBody.response;
+  const body = schema.safeParse(jsonBody.value);
   if (!body.success) return NextResponse.json({ error: "Choose a reviewed activity, scope, and valid time window." }, { status: 400, headers });
   return withRateLimit(
     { policy: "battle_write_user", identity: { kind: "user", value: authz.session.user.id } },

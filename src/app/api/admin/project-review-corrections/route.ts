@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { and, eq } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { z } from "zod";
@@ -34,7 +35,9 @@ export async function POST(request: NextRequest) {
   return withRateLimit(
     { policy: "appeal_decision_admin", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
-      const body = createSchema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return secureAdminResponse(jsonBody.response);
+      const body = createSchema.safeParse(jsonBody.value);
       if (!body.success) return adminJson({ error: "A review, request id, and specific correction reason are required." }, 400);
       const [subject] = await db
         .select({ userId: project.userId })

@@ -147,7 +147,7 @@
       "admin": "allowed",
       "objectAuthorization": "public-input",
       "ownershipProof": "validated public request",
-      "operationSourceSha256": "4a5a2a1c3a786f14912bbcef850e364ada9c960ffe732c0d0885053713269331"
+      "operationSourceSha256": "2678cb93041a747cd1910adcf589de7704208e4ea6c287483cba8d736a183567"
     },
     {
       "operation": "POST /api/admin/access-requests/[id]/approve",
@@ -160,7 +160,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "fc1591beb733289e4310bdb16375177c8e4ac32de2e9b0cacbadfc857a70c28c"
+      "operationSourceSha256": "7e28d8430e0ec46daa3d72b7270f5f5c79df04b69883576fea200a112fd793b1"
     },
     {
       "operation": "POST /api/admin/access-requests/[id]/reject",
@@ -173,7 +173,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "998a10277b755f97ad83d32e2ac76f6781531c7a4943560b096c4a8e7c8e1bde"
+      "operationSourceSha256": "b821b4d275ebc6c8b2ebd39d657774c9857c5f5526d2abd7415df9402b4f99b2"
     },
     {
       "operation": "GET /api/admin/access-requests",
@@ -225,7 +225,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "344e57261c56659b830dbbf6818b4fd29d19c70d10dcf9d6630dcf97212d525b"
+      "operationSourceSha256": "212bd7198ab292d6d39d7bf30c59a14236b88874f4726761e68e5360147dcb8c"
     },
     {
       "operation": "GET /api/admin/appeals/[appealId]",
@@ -264,7 +264,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "4dd032eed6d81dcb797dcc5ae8e789cb183d92ac119ef1292417367a3ff5cb97"
+      "operationSourceSha256": "cf01b6269eb59fa648d5a62f0ce62c2925eb2bc5c9af4c0b06156adeb2add38d"
     },
     {
       "operation": "GET /api/admin/assessment-corrections/[correctionId]",
@@ -303,7 +303,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "3aa6a8e2312cb64966ee208e94d39e4a233a5f2f6520ec7b9dc55d0aa38112ce"
+      "operationSourceSha256": "b82c11abe72c2f430f1cc09ae550577a6d27c814fc3d56a0ada5943c2b69514a"
     },
     {
       "operation": "GET /api/admin/career",
@@ -329,7 +329,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "2abbf6b83cc3dac2cfd1ab00f4dd2b3c5a7bb0acf3a21b9dab704e11770d5317"
+      "operationSourceSha256": "ea3d8a98a849aeba12e24065c1296e936b042f2f8b4cbe135bed7a265bbc8617"
     },
     {
       "operation": "POST /api/admin/certificates/[certificateId]/revoke",
@@ -342,7 +342,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "8325dff1a0fca6970ccb08d9b3eb5731aa923a93b4246b07e1be005f756c35d6"
+      "operationSourceSha256": "5158223ae5b33c71cbc7e98b8c9e6818af4cbf349d8551d57b13b2cbdf656adc"
     },
     {
       "operation": "GET /api/admin/certificates",
@@ -381,7 +381,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "8bc19103513e7ac32faf164153dfb2d6f6f8e0f2848645a0554c998e1525fc60"
+      "operationSourceSha256": "5b8bc869fd76a443249064798a63b77d1f1d89bd03a9ca70e4b0c2ab0d3d752e"
     },
     {
       "operation": "POST /api/admin/credentials/[id]/reveal",
@@ -394,7 +394,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "7f2cf63a12751a4048066f1c45e84792a6d7842a576a0708062ac5ed4e669c8c"
+      "operationSourceSha256": "8d957969645f93eab4b00e78cf5ef5ad1d78c6077cb0b9acffe9c3a08d0bea36"
     },
     {
       "operation": "DELETE /api/admin/credentials/[id]",
@@ -407,7 +407,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "dbc4267be603181f078934d4231766c96d183dbee24835cae7445eef14aa3395"
+      "operationSourceSha256": "4b1e051bcdc72d69985f616b227113c58e3c1e5cb76b746bd779e83edc8cc5b7"
     },
     {
       "operation": "PATCH /api/admin/credentials/[id]",
@@ -420,7 +420,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "de18f8b9ca894b30157c9edb60a9263f5d0690efb6809abd63f6048ba793f9bc"
+      "operationSourceSha256": "8306bc31b59ca37575f46d81679544056964706b5013bec84087aaf8b1405f7b"
     },
     {
       "operation": "POST /api/admin/curriculum/artifacts/[artifactId]/review",
@@ -433,7 +433,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "3ac44f1cc9bc8ebd3381421907f7135f6f124c03872fced87ff879fcaa9973b2"
+      "operationSourceSha256": "0b8bb4b412e804d6a7644b118a23dc17b1bc9f2c3c29f3b108bdd66a93664199"
     },
     {
       "operation": "GET /api/admin/curriculum/artifacts/[artifactId]",
@@ -459,7 +459,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "da295376e3d7e864685184c79d12bd27b84255ce4140221d1c5361a313c40fed"
+      "operationSourceSha256": "75f212eb557eba4cf4c79ecdc7a2290a263203f9941f9febc06ba6e9ed7e71d3"
     },
     {
       "operation": "GET /api/admin/curriculum",
@@ -485,7 +485,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "9f94941b8c1cc170b571bcc7b483c0b36a7c9dd738c1af9f7a84b880e88e1487"
+      "operationSourceSha256": "1c68896187adceb03f5fde59df06dad9cf6e166676165d86e9029709b15b6e30"
     },
     {
       "operation": "POST /api/admin/curriculum/versions/[versionId]/approve",
@@ -498,7 +498,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "f2f3c8c21a1d05d78eb0bfa77042f8a910239118ceb2e2142fe452db86a0a7d8"
+      "operationSourceSha256": "d0bcfe79f47ef35a3a80bd0deeea7e2c63334cb74b0c8aa928a2fd560f2f1c1a"
     },
     {
       "operation": "GET /api/admin/curriculum/versions/[versionId]/artifacts",
@@ -524,7 +524,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "296d09ee1714616551a1fef615b9343aeba4e63722d7893c81ad8bb3671ae232"
+      "operationSourceSha256": "8f56221a11ffe5c07cfb719b618ba54f2af2052d6fefd4faa94ad9b8e5321a44"
     },
     {
       "operation": "GET /api/admin/curriculum/versions/[versionId]/gate",
@@ -563,7 +563,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "e22561a53a5f9ac91bee03b04d9fac39066903f1de133b7dde426025e99ccf2a"
+      "operationSourceSha256": "d6648bdf69b5ec3d44c4150e0b5629186fb2439096c0640b0521f742f1a325fb"
     },
     {
       "operation": "POST /api/admin/curriculum/versions/[versionId]/publish",
@@ -576,7 +576,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "9d86815ad6de93ae6b1b92448252e84ce78dc5a0ab7a367c77ba449ea9ae8349"
+      "operationSourceSha256": "57c26b326acf32716f34f7ab3d995d0b8960e07b8717beceebe95d95acdebd85"
     },
     {
       "operation": "POST /api/admin/curriculum/versions/[versionId]/retire",
@@ -589,7 +589,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "ec3dac9d9c186d3a7780e61a32a251fb46d4b8fbbafb3cfadc45c6b8d05bc66a"
+      "operationSourceSha256": "eecc1a3e132ee5e264f247c13aad26576da0193fd9bf2c27aef7d60c08c14184"
     },
     {
       "operation": "GET /api/admin/dashboard/learners/[learnerId]",
@@ -628,7 +628,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "94ae4053b762e488864044877f6166ff24c3033bc7e05c1f65db0207ad170861"
+      "operationSourceSha256": "d9c74841e8ce899c75e5904aa053df083ae07f7dd4f564e05137a04d6fa4a8b8"
     },
     {
       "operation": "POST /api/admin/fallback-grants/[id]/revoke",
@@ -641,7 +641,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "2a1bfe17fc3fb09603e9df293c96af0d953ed66569e4db02f3f0485a19df0cca"
+      "operationSourceSha256": "19ff64487fd41a7d80570b321e13e3b0ec15369466865e6c5d702de0a1174aac"
     },
     {
       "operation": "GET /api/admin/fallback-grants",
@@ -667,7 +667,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "e79f209c8274f85c23d2d02fd9ad7762641babf03b514a7dd484d193c610b04b"
+      "operationSourceSha256": "e965e8bdbebaddd4fc779114d5a9bb0f4a9310e5e943aa17323d22fec7415838"
     },
     {
       "operation": "POST /api/admin/learners/[learnerId]/data-export",
@@ -680,7 +680,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "5420793618325f41121fc0d823f29b2bc3536da89cc0a1d9e84a2336852f960a"
+      "operationSourceSha256": "3290b0d839c50cf09e9e7750537fa6369889c4ed5206a5839aee1b969f029848"
     },
     {
       "operation": "POST /api/admin/learners/[learnerId]/delete-account",
@@ -693,7 +693,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "fbbd13e96a21452042de893ad7f2e0e87b6e19213dafb31646272830d16664ea"
+      "operationSourceSha256": "5d54b2ef42eca8bee0fcebc311946ed394ce65665043cb7565ad0cb255f594b2"
     },
     {
       "operation": "GET /api/admin/learners/[learnerId]/inactivity-preference",
@@ -719,7 +719,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "485a6e21d3ae46893d4679b65de406159bad95af64c82550ddc3375318c3b1ab"
+      "operationSourceSha256": "8b2de3bc2995553ee9f3803cc680d41f431180266369d2e2903997d900f494c3"
     },
     {
       "operation": "POST /api/admin/learners/[learnerId]/mentor-evidence",
@@ -732,7 +732,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "9865446c044731abb3ae168d2f3952bf1ccdae19dd9b9e3ff571ab08b63cd8ec"
+      "operationSourceSha256": "0f00228f0e8ac9ee4c69f843d737d555e853dc5f7e3947700d3d4807847278f6"
     },
     {
       "operation": "POST /api/admin/learners/[learnerId]/plans/[enrollmentId]/revert",
@@ -745,7 +745,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "00f86735371279c3dd075361b68cde05ac21314b5a9e4b3aba52ae6111e53df4"
+      "operationSourceSha256": "9f932114839a496d57828f9ef7ada3f895c4486e550632fd5bc548f840cca045"
     },
     {
       "operation": "POST /api/admin/learners/[learnerId]/plans/[enrollmentId]/revisions",
@@ -758,7 +758,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "aeebe0dbd3acb6b339d9fdbb90eca15a7ab17030d20cc3b38447b909ce0cae94"
+      "operationSourceSha256": "2479ac8f8148f8f9650b87cfa64cc9c18e4e8be9a935a4383848d1a3d8dbd2f6"
     },
     {
       "operation": "GET /api/admin/learners/[learnerId]/plans/[enrollmentId]",
@@ -797,7 +797,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "49fdea0ec8bdbaee2e63a2ba745a24c3eb09a6784dd48da374fdcfc7de3c13d7"
+      "operationSourceSha256": "bb2f07b8ce979e40c2ae5faed310f47fafc0db6e5a006997e98f48d9db25d15e"
     },
     {
       "operation": "GET /api/admin/learners/[learnerId]/sessions",
@@ -836,7 +836,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "083407fc4b55367a67717332e7284a6f6130041532811fc5eed5b022a3908146"
+      "operationSourceSha256": "2eb8017b7be356cb5b0108e2abccfa3e670baf06810f750556144183474b4642"
     },
     {
       "operation": "POST /api/admin/learning-requests/[id]/decision",
@@ -849,7 +849,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "4fa7a6109283b650d49c02490dbe743d59c8b77d48f92bb2aaea1dd1689ac312"
+      "operationSourceSha256": "9c5d3e82f60bc8b3d2bc36ebc6925ee3ad7b4b83c7e2e5a969dd2621fe5217a2"
     },
     {
       "operation": "GET /api/admin/learning-requests",
@@ -875,7 +875,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "48c78b80f53ee9c76281bbaaa51685ca6fd1c84bf56123ca4bdafc5a06e4f9cb"
+      "operationSourceSha256": "b69f026dd14e8a2dff83c0e91858d0bb9e64cb7fdfb0f6c616378de71b0fa475"
     },
     {
       "operation": "GET /api/admin/module-projects",
@@ -901,7 +901,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "f2d661a33aafb0a22f67f6a664c2103bb1559d3809e1948091952577ec559017"
+      "operationSourceSha256": "284e3aed74fb2be54f766fa9ae18aecc484298a7e08f7476f0e4cb1ccddf5458"
     },
     {
       "operation": "GET /api/admin/project-review-corrections/[correctionId]",
@@ -927,7 +927,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "8a75534e4e63c1a9c7db397d496a8b3481789467bea2777091841e54749a506a"
+      "operationSourceSha256": "50147c2df7273e62b66ec7441d88f37ace6beb384805d3e1ec94dfdda1f61e04"
     },
     {
       "operation": "GET /api/admin/project-review-corrections",
@@ -953,7 +953,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "cfc953915ccb9fbc94c94477808e26bbc9a98d0766a0293965e557dc074012ec"
+      "operationSourceSha256": "daa77d1f19c75cd3ce41873ab9e070f285a8a3a7b1d9eb7017191454504c9974"
     },
     {
       "operation": "POST /api/admin/runner-recovery/[jobId]/resolve",
@@ -966,7 +966,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "a79dad83df9e7c0384311d099addadb0ad86ea2e245bf11311bd3541c2f2a863"
+      "operationSourceSha256": "067cf13761b1918861011d3435f3c1f9227389453be644fed6d74169144017d9"
     },
     {
       "operation": "POST /api/admin/session-revocation-requests/[id]/decision",
@@ -979,7 +979,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "06a31f8cf88584442fd2fd926d97c8aacb0990d393f18f04922eb5001821d662"
+      "operationSourceSha256": "7caa4516097245c890c1daa2560c228fdc8bb0404c107ac778fd29c778d32072"
     },
     {
       "operation": "GET /api/admin/session-revocation-requests",
@@ -1005,7 +1005,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by eq(modelCall.userId, authz.session.user.id)",
-      "operationSourceSha256": "3518fac3a8988d8a685cfb031f78a4a9168c37bf9275359f2c68241e190642c5"
+      "operationSourceSha256": "3a6613ea96ba2bcf1d92a8e22f91de0bd9dbf9c5b3de52dbbca4b1852b632977"
     },
     {
       "operation": "GET /api/ai/threads/[threadId]",
@@ -1031,7 +1031,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by userId: authz.session.user.id",
-      "operationSourceSha256": "4c5562515cc93b661f783debab5f149d32f5322420511e838284bd285fde1ef1"
+      "operationSourceSha256": "6af75e3de5fa5e002610a3fdcdfd74fa21b0a17684b12533ce16187836f26580"
     },
     {
       "operation": "GET /api/ai/threads",
@@ -1057,7 +1057,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by eq(chatThread.userId, authz.session.user.id)",
-      "operationSourceSha256": "ab954cc6565d9bc884af8ed040020c52191988fd460f43b1249f9858f81f2c5c"
+      "operationSourceSha256": "bf119d7fa969722d4b5a6e73989964d9a157101c283752e6a55357e293c1f9cf"
     },
     {
       "operation": "GET /api/auth/[...all]",
@@ -1083,7 +1083,7 @@
       "admin": "delegated-to-auth-provider",
       "objectAuthorization": "auth-provider",
       "ownershipProof": "Better Auth session and account policy",
-      "operationSourceSha256": "0d58de3970811cdbb23061a2d2418d5144e0a29c386ddd84aa0160ed4bbc6663"
+      "operationSourceSha256": "728b641a1940d6944e0292b36423cb9a7bdcda773bc82101bfeb97c3f3420cf3"
     },
     {
       "operation": "GET /api/battles/[battleId]",
@@ -1109,7 +1109,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by actorUserId: authz.session!.user.id, battleId",
-      "operationSourceSha256": "ae5a7cbd9f30422a72550935abab477694c5b1ed4ea4ce248d9242ffc3daa026"
+      "operationSourceSha256": "163954a5f2116625800e917e555f2e334b6dd24381c496ba37075eefaa47555c"
     },
     {
       "operation": "GET /api/battles",
@@ -1135,7 +1135,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "2d606097c9aa1b7c7abd638c294dd1f4fd1290e7b1619c2de92b74d4faff31aa"
+      "operationSourceSha256": "9f3a14d66d9134ff6ef6daf86d78bfaaeeb6a57c09860502b248862fe206829d"
     },
     {
       "operation": "GET /api/career",
@@ -1174,7 +1174,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by userId: authz.session!.user.id",
-      "operationSourceSha256": "0a41e60c8cdf391242f5364c979add01c60096e350a4f4091b1d4e6e06f2097b"
+      "operationSourceSha256": "1dbd583a2275bedc3d54426d40a303e7a85029994cf5a8dfcb84bc21b1585b2d"
     },
     {
       "operation": "GET /api/code/run",
@@ -1200,7 +1200,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "961622a7c43b12c5baf45576743f795f48c93045efb53b177d5559b77c5269bc"
+      "operationSourceSha256": "f1f942d06c87be3556c2c78f97447aa48512ed9bbd0dcf31099342e097e7cfdd"
     },
     {
       "operation": "GET /api/community/discussions",
@@ -1226,7 +1226,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by actorUserId: authz.session.user.id",
-      "operationSourceSha256": "ba759eb9ce11147d18c3a3032878b741f2336fb30a8b0aba4a566f41b4c7046b"
+      "operationSourceSha256": "5be333aea89526bab69beb7fd18aeac49598472978c793df0f8c1029c41787d5"
     },
     {
       "operation": "GET /api/community/profile",
@@ -1252,7 +1252,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "cde27daece3762446ae10ff1b773e3c9f5d9afac9bb2f2ee5dde06b0517247a7"
+      "operationSourceSha256": "d548d6b8b9f3605ce17b6a164e9150e18b0649899992ab0c708deac8e1b0d6bf"
     },
     {
       "operation": "GET /api/community/profiles/[publicId]",
@@ -1291,7 +1291,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by eq(providerCredential.userId, authz.session.user.id)",
-      "operationSourceSha256": "3e922eb9bb1e3b0378869b591a6168967f59f423cf55ae6d1997e47370e1756a"
+      "operationSourceSha256": "2d98201fb9a9ce61672871a1a367cc6f6dfcc4aaa27496ad305ca5066fe88c7d"
     },
     {
       "operation": "PATCH /api/credentials/[id]",
@@ -1304,7 +1304,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by eq(providerCredential.userId, authz.session.user.id)",
-      "operationSourceSha256": "e60d4638baf6631e2a60500bab2ab1648819ff782c562cad718f72624bce0054"
+      "operationSourceSha256": "a3261d6607f689d9e1b657891206cc7934dd71d7bda91489c51dd3366c845818"
     },
     {
       "operation": "GET /api/credentials",
@@ -1330,7 +1330,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "d3e355c2c94193ad7cd637760adc71c5e7af490b8651f2eae88828a82d50db30"
+      "operationSourceSha256": "43794639a99eb3ffdaa759104b92792da06fb5f73344b5ead282c08ccb5a5814"
     },
     {
       "operation": "GET /api/drafts",
@@ -1356,7 +1356,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "e1c72c0c2696e6025a406772c8402fb06059118e05aed564730424c3020bda57"
+      "operationSourceSha256": "78d24ee1cb2583cd90c2d3ad318f2db2b6243531ccc425386e1cf745b6d53351"
     },
     {
       "operation": "POST /api/exams/[sessionId]/appeal/reply",
@@ -1369,7 +1369,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by userId: authz.session.user.id",
-      "operationSourceSha256": "a6e5ac681f458f4792f12108a2201bf1e27d4033e7de864031ba0a1affcd0711"
+      "operationSourceSha256": "da616ae28f84fd5bbda260969de221d0e6235ad36625545ffe73c235840989d5"
     },
     {
       "operation": "POST /api/exams/[sessionId]/appeal",
@@ -1382,7 +1382,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by userId: authz.session.user.id",
-      "operationSourceSha256": "0cc0d694485ceebaaabaf3d05edaf6f3eaf4dae71d5b4ebbd66c756e5b649609"
+      "operationSourceSha256": "4efa314d353a17210454c4c4e6ac47957713826fe2ac667272bab7a72a3d6b8e"
     },
     {
       "operation": "PUT /api/exams/[sessionId]/autosave",
@@ -1395,7 +1395,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by userId: authz.session.user.id",
-      "operationSourceSha256": "ef9ce2105a9e706c9bfda5081e20c2753d2078b5c3746b8794bbd3cf2983590e"
+      "operationSourceSha256": "5622e5a01eb04bab9e10081336234be3ba7e689886f6fbcbab880669292e3a4e"
     },
     {
       "operation": "POST /api/exams/[sessionId]/events",
@@ -1408,7 +1408,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by userId: authz.session.user.id",
-      "operationSourceSha256": "229d21b30a2eb9b933676858eec24c53a95e3d8f114097a01eb2a2591049ae0e"
+      "operationSourceSha256": "4adc01970978e1caa459df647a4d97b0598841111e66384251b8dcf703300f6c"
     },
     {
       "operation": "POST /api/exams/[sessionId]/heartbeat",
@@ -1447,7 +1447,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by userId: authz.session.user.id",
-      "operationSourceSha256": "839202191f540ad18eb32a7a2577a36c4155aeaeb4e2bffe95464aaf8d725081"
+      "operationSourceSha256": "85622f9bca697c286b1af98c5359d3383346aa1bf0761d1e329653aab26c111d"
     },
     {
       "operation": "POST /api/exams/[sessionId]/submit",
@@ -1473,7 +1473,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by startMasteryRecheck(authz.session.user.id, recheckId",
-      "operationSourceSha256": "1aecb3db74d55c5f2d2416c4927ec4136b7ec9cf87316aa88f6930de3b609984"
+      "operationSourceSha256": "21002914f8aba5e6fffd5ad5964a0cfbfe482be4792c3458bc6bfdab8e3dd34f"
     },
     {
       "operation": "GET /api/exams",
@@ -1499,7 +1499,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "597257679b1f285ada35a43aba184643505d1e58b59f051d4a728a9d6abe9ff2"
+      "operationSourceSha256": "8c2931b3a0c70861ecdbd0afde587f6eb2454a29387ab84613c10b1e19a7265a"
     },
     {
       "operation": "DELETE /api/files/[id]",
@@ -1564,7 +1564,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "4b409ef6865a6633e1e3cb432b9e9025cfb208703f1024b1b62f738e1713b20e"
+      "operationSourceSha256": "106b6eb6899a598c052d3995bd3684b2136779d6201be817d472d4f88d365263"
     },
     {
       "operation": "POST /api/invitations/activate",
@@ -1577,7 +1577,7 @@
       "admin": "allowed",
       "objectAuthorization": "public-input",
       "ownershipProof": "validated public request",
-      "operationSourceSha256": "6d5b577d9298be8195023c9f9898fc6a67d1a6ab3b6fcf40b8a8d468312ada9d"
+      "operationSourceSha256": "8f6576d2a0aeccd53f5b8a8238a579b519ad56655065ec9d33a9b24bf6b71446"
     },
     {
       "operation": "GET /api/invitations/validate",
@@ -1616,7 +1616,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "50b1825342b8cd7350c0d13b430f00d80eb2447bda106d09586ab2601cfd5722"
+      "operationSourceSha256": "ea8ddc6c3daebda1d6d3342102f4d1e1461b16485a7aaec1ce56a5f501b9ff70"
     },
     {
       "operation": "POST /api/learning/attempts/[attemptId]/help",
@@ -1642,7 +1642,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by learningService.submitAttempt(authz.session.user.id, attemptId",
-      "operationSourceSha256": "dd4f9092edcc49d8572b5d6d8287b2775a9c05a1ea9eb3b318331e3ad5add40e"
+      "operationSourceSha256": "04ff845346bf7f3d0e116705255b86e8e3d3503e48b89844c5cfbc75d25bbab9"
     },
     {
       "operation": "POST /api/learning/attempts",
@@ -1811,7 +1811,7 @@
       "admin": "allowed",
       "objectAuthorization": "public-input",
       "ownershipProof": "validated public request",
-      "operationSourceSha256": "81d41942c24dcddc17d4ec8066693ee13ce5ccc040d60062e20cbb7fc3371c9b"
+      "operationSourceSha256": "724dddba64f43c804c6ff49e906114b25e878be595eebcc8942437443e6f3d0f"
     },
     {
       "operation": "POST /api/lost-device/verify",
@@ -1824,7 +1824,7 @@
       "admin": "allowed",
       "objectAuthorization": "public-input",
       "ownershipProof": "validated public request",
-      "operationSourceSha256": "f3990c6ddad867ae75811a772fcd1431d41453e24c85f723a0878b7316b1b9f2"
+      "operationSourceSha256": "97291f9f835c583499dcd587c522148936c6b29e47f39148752ea7b1b17f9631"
     },
     {
       "operation": "GET /api/module-projects",
@@ -1850,7 +1850,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by userId: authz.session!.user.id",
-      "operationSourceSha256": "52d1c711a338a65cbd7da4f7846fd8816cf0addeb198f45b90bb0c61ddf50ae1"
+      "operationSourceSha256": "24e395d72f4c7704621456f5549f02cfe8815cb7624dae0345e6a1920ac21008"
     },
     {
       "operation": "GET /api/monitoring/envelope",
@@ -1902,7 +1902,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "e101f1a05a18c1e57465ea5cdae28d9845eef6beccce14294aa1867b837671ab"
+      "operationSourceSha256": "46a79bc03b98d365d12aa9fbc07b9afde1600c46662893fb4477a5d51918ce3d"
     },
     {
       "operation": "GET /api/notifications",
@@ -1928,7 +1928,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "9ce68c4dea7dd1c438006a67d31bed970469dfc2e40ba684be273fb34c34f7e0"
+      "operationSourceSha256": "6bfb3d1d05544c128426f8772df2af64102d0729ad66bc566381d0ab69854a32"
     },
     {
       "operation": "POST /api/onboarding/complete",
@@ -1954,7 +1954,7 @@
       "admin": "allowed",
       "objectAuthorization": "no-user-object",
       "ownershipProof": "stateless interest-category preview",
-      "operationSourceSha256": "5bb15848c13d544a9c89d40d76cc118c49922221707d3f1eb744b046054acef3"
+      "operationSourceSha256": "d1f312d27df8401d4c07aa214057a5c083c5ccf37071c1bbb5df0e6b0ffba9d7"
     },
     {
       "operation": "POST /api/onboarding/profile",
@@ -1967,7 +1967,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "df4e671c40691b229a645e167478b4ec9d968ba4737f34b5d643ca22fa60973d"
+      "operationSourceSha256": "5ad2e2a612bc4f8b28e66ade6abef0adb4d2ba31589600b06406766c64c860d0"
     },
     {
       "operation": "GET /api/onboarding/status",
@@ -2006,7 +2006,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by userId: authz.session.user.id",
-      "operationSourceSha256": "f48e7a86231700dd08d0b1e634cbec4bd9923804011df59af3d11d9ab53c2c0d"
+      "operationSourceSha256": "5fbc22f487d4343fae6ae3e5b50c5fe15ee86bdc0c1e58fce9a1b2e3b9dd5352"
     },
     {
       "operation": "GET /api/privacy/consents",
@@ -2032,7 +2032,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "e1c2324313ca424956f0bc19986f6d1cc3405b8b29076715fb2aab0dca850332"
+      "operationSourceSha256": "2db9103476eb4426b56144270a202a19d913bed7d4a410d8bf034a7d0dff1995"
     },
     {
       "operation": "POST /api/projects/[id]/review",
@@ -2045,7 +2045,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by eq(project.userId, authz.session.user.id)",
-      "operationSourceSha256": "381c5f7ce01e09d17857e3daad69e19e1ce8d0450ef870c245a618e8713a6347"
+      "operationSourceSha256": "35c2bd42ae71ede00234aff61a3950835d9037ae293bc3a82fc306348c3e2025"
     },
     {
       "operation": "POST /api/projects/[id]/reviews/[reviewId]/appeal",
@@ -2058,7 +2058,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by userId: authz.session.user.id",
-      "operationSourceSha256": "76d193be27f394aecd60d62409f962af51ffd59a824b1798fcd60c8319a6473b"
+      "operationSourceSha256": "2da722b1abcf84d011b7572afb95889b795de9adace193553c1433817ba5471d"
     },
     {
       "operation": "GET /api/projects/[id]/revisions/[revisionId]",
@@ -2097,7 +2097,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by userId: authz.session.user.id",
-      "operationSourceSha256": "ec155c37ac70bb281df72182a31ca1c322325c30bc64baf2b0efff6db603c356"
+      "operationSourceSha256": "bfd58d5d76eb1d0d3faf64bf791430cd5823996e8c76c2b8abc7568f39a2d40e"
     },
     {
       "operation": "GET /api/projects",
@@ -2123,7 +2123,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "99c92ae437b3ba672f912de208aa2f440115e350f448c9f9f418fc35f060e100"
+      "operationSourceSha256": "a93b35a95c17da6cb292d2ef136c51efa1536d2e8ba95cb692d50cd9f4caae70"
     },
     {
       "operation": "POST /api/security/change-password",
@@ -2136,7 +2136,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "114a0dd417fe0978e7ff064b6007715b4c2fcc2cb233cb2c3a2057402a02abae"
+      "operationSourceSha256": "81dd50c653971ddf29a6f51a4a361651577a63f98ee79dfd29dacbc199e67790"
     },
     {
       "operation": "POST /api/security/forced-password-change",
@@ -2149,7 +2149,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "070d791b573a6faa82885d8eac54448224617b83f47db31a8ecaaa5e2a6d7fe1"
+      "operationSourceSha256": "a9623754df9a59a046a0f50a65001cba45bce1c0aca2501af25eaae9ac232d19"
     },
     {
       "operation": "POST /api/security/fresh-mfa",
@@ -2162,7 +2162,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "c4faf80ed50db877777176229c198d60037becb466dc8c13372d0dd71c8dd4e5"
+      "operationSourceSha256": "a7e8a0a72226134f07d4a9a4f1677d4fb5a1b6448eb7f456f517565cd101f2a8"
     },
     {
       "operation": "GET /api/security/password-status",
@@ -2188,7 +2188,7 @@
       "admin": "allowed",
       "objectAuthorization": "public-input",
       "ownershipProof": "validated public request",
-      "operationSourceSha256": "57319d52f5af0c7a763670bb4d286cd050de4af4ab6685e1040bee05d604f296"
+      "operationSourceSha256": "5054f632554d4b2128774404522821a457c5b6917bb3948f3f09ee9d57980a85"
     },
     {
       "operation": "POST /api/security/verify-backup-code",
@@ -2201,7 +2201,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "52bdc7df44e78c482643bedd0a00b296ada48afa6c3a2390fab173c97b5b3355"
+      "operationSourceSha256": "7e647d765aaaf3d20123f4a41daa93a30abed8837652c9bcf1955dbec69cd98b"
     },
     {
       "operation": "GET /api/session-revocation-requests",
@@ -2227,7 +2227,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "22ce4d5b0b82e899b0eb12fb16927a2ce3b48d33b57c1383b18d74bd6a6a5c81"
+      "operationSourceSha256": "ac25db4bb95e429c420b39767bd280bac173de2c99f42661985aea83b74c82b5"
     },
     {
       "operation": "DELETE /api/sessions/[id]",
@@ -2253,7 +2253,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "836d2d7fc180e3e45b77243d0eb71ef37b88249d301524a37c6f409188c397f2"
+      "operationSourceSha256": "5929a156c1ddb9ce459bb7fb86470fa9a1020415d6b5096a908e5f4968e589ba"
     },
     {
       "operation": "GET /api/sessions",
@@ -2292,7 +2292,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "b79d2944b013449a19bae885574f552dd0f22c6908b03db0b0e5099f4289a630"
+      "operationSourceSha256": "a3efaf6916634faea87ebfe687a1d0dd1078dcf7a2170b8475e65d9e8966e71a"
     },
     {
       "operation": "GET /api/trophies",

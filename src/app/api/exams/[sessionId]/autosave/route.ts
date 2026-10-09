@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { type NextRequest } from "next/server";
 import { z } from "zod";
 
@@ -27,7 +28,9 @@ export async function PUT(
     authz.response.headers.set("Cache-Control", "no-store");
     return authz.response;
   }
-  const body = autosaveSchema.safeParse(await request.json().catch(() => null));
+  const jsonBody = await readBoundedJson(request, 1024 * 1024);
+  if (jsonBody.response?.status === 413) return jsonBody.response;
+  const body = autosaveSchema.safeParse(jsonBody.value);
   if (!body.success) {
     return examJson({ error: "Autosave payload is invalid.", code: "INVALID_AUTOSAVE" }, { status: 400 });
   }

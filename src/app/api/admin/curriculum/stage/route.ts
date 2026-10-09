@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { type NextRequest } from "next/server";
 import { z } from "zod";
 
@@ -15,7 +16,9 @@ export async function POST(request: NextRequest) {
   const authz = await requireAdmin();
   if (!authz.session) return secureAdminResponse(authz.response);
   return withRateLimit({ policy: "curriculum_mutation_admin", identity: { kind: "user", value: authz.session.user.id } }, async () => {
-    const body = schema.safeParse(await request.json().catch(() => null));
+    const jsonBody = await readBoundedJson(request);
+    if (jsonBody.response?.status === 413) return secureAdminResponse(jsonBody.response);
+    const body = schema.safeParse(jsonBody.value);
     if (!body.success) return adminJson({ error: "A request id and specific staging reason are required." }, 400);
     const gate = await authorizeCurriculumAdmin({ actorUserId: authz.session.user.id, sessionId: authz.session.session.id, actorRole: authz.account.role, reason: body.data.reason, action: "curriculum.stage" });
     if (!gate.allowed) return adminJson({ error: gate.code }, 403);

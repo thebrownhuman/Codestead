@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -45,7 +46,9 @@ export async function PATCH(request: NextRequest) {
   return withRateLimit(
     { policy: "portfolio_mutation_user", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
-      const parsed = mutationSchema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return jsonBody.response;
+      const parsed = mutationSchema.safeParse(jsonBody.value);
       if (!parsed.success) return NextResponse.json({ error: "INVALID_REQUEST" }, { status: 400, headers: noStore });
       const auditMetadata = "action" in parsed.data ? {
         action: parsed.data.action,

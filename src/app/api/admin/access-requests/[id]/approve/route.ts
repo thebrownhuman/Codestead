@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { createHash, randomBytes } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
@@ -19,7 +20,9 @@ export async function POST(
 ) {
   const authz = await requireAdmin();
   if (!authz.session) return authz.response;
-  const body = bodySchema.safeParse(await request.json().catch(() => null));
+  const jsonBody = await readBoundedJson(request);
+  if (jsonBody.response?.status === 413) return jsonBody.response;
+  const body = bodySchema.safeParse(jsonBody.value);
   if (!body.success)
     return NextResponse.json(
       { error: "A review reason is required." },

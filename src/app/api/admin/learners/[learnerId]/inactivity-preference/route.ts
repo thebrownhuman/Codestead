@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { and, eq } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { z } from "zod";
@@ -45,7 +46,9 @@ export async function PATCH(
     async () => {
       const { learnerId } = await context.params;
       if (!learnerIdSchema.safeParse(learnerId).success) return adminJson({ error: "Learner identifier is invalid." }, 400);
-      const body = bodySchema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return secureAdminResponse(jsonBody.response);
+      const body = bodySchema.safeParse(jsonBody.value);
       if (!body.success) return adminJson({ error: "A version, pause expiry (or null), and specific reason are required." }, 400);
       const [adminSession] = await db
         .select({ mfaVerifiedAt: session.mfaVerifiedAt })

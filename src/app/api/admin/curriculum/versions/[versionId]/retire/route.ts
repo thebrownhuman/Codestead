@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
@@ -16,7 +17,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!authz.session) return secureAdminResponse(authz.response);
   return withRateLimit({ policy: "curriculum_mutation_admin", identity: { kind: "user", value: authz.session.user.id } }, async () => {
     const { versionId } = await params;
-    const body = schema.safeParse(await request.json().catch(() => null));
+    const jsonBody = await readBoundedJson(request);
+    if (jsonBody.response?.status === 413) return secureAdminResponse(jsonBody.response);
+    const body = schema.safeParse(jsonBody.value);
     if (!z.uuid().safeParse(versionId).success || !body.success) return adminJson({ error: "Valid version and reason required." }, 400);
     const gate = await authorizeCurriculumAdmin({ actorUserId: authz.session.user.id, sessionId: authz.session.session.id, actorRole: authz.account.role, reason: body.data.reason, action: "curriculum.rollback" });
     if (!gate.allowed) return adminJson({ error: gate.code }, 403);

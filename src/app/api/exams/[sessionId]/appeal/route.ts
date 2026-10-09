@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { type NextRequest } from "next/server";
 import { z } from "zod";
 
@@ -18,7 +19,9 @@ export async function POST(
 ) {
   const authz = await requireAuth();
   if (!authz.session) return authz.response;
-  const body = appealSchema.safeParse(await request.json().catch(() => null));
+  const jsonBody = await readBoundedJson(request);
+  if (jsonBody.response?.status === 413) return jsonBody.response;
+  const body = appealSchema.safeParse(jsonBody.value);
   if (!body.success) {
     return examJson({ error: "Give a concise reason for the appeal.", code: "INVALID_APPEAL" }, { status: 400 });
   }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { ZodType } from "zod";
 
 import { LearningServiceError } from "@/lib/learning-service";
+import { DEFAULT_JSON_BODY_MAX_BYTES, readBoundedJson } from "@/lib/http/bounded-json";
 
 const PRIVATE_HEADERS = {
   "Cache-Control": "private, no-store, max-age=0, must-revalidate",
@@ -18,8 +19,12 @@ export function secureLearningResponse(response: NextResponse): NextResponse {
   return response;
 }
 
-export async function parseLearningBody<T>(request: Request, schema: ZodType<T>): Promise<T> {
-  const parsed = schema.safeParse(await request.json().catch(() => null));
+export async function parseLearningBody<T>(request: Request, schema: ZodType<T>, maxBytes = DEFAULT_JSON_BODY_MAX_BYTES): Promise<T> {
+  const body = await readBoundedJson(request, maxBytes);
+  if (body.response?.status === 413) {
+    throw new LearningServiceError("BODY_TOO_LARGE", "Request body is too large.", 413);
+  }
+  const parsed = schema.safeParse(body.value);
   if (!parsed.success) {
     throw new LearningServiceError(
       "INVALID_REQUEST",

@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { createOTP } from "@better-auth/utils/otp";
 import { symmetricDecrypt } from "better-auth/crypto";
 import { and, eq } from "drizzle-orm";
@@ -64,7 +65,9 @@ export async function POST(request: NextRequest) {
   return withRateLimit(
     { policy: "fresh_mfa_user", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
-      const body = bodySchema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return jsonBody.response;
+      const body = bodySchema.safeParse(jsonBody.value);
       if (!body.success) return NextResponse.json({ error: "Enter a six-digit code." }, { status: 400 });
 
       let verifiedAt: Date;

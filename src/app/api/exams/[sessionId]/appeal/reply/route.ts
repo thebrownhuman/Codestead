@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { type NextRequest } from "next/server";
 import { z } from "zod";
 
@@ -17,7 +18,9 @@ export async function POST(
 ) {
   const authz = await requireAuth();
   if (!authz.session) return authz.response;
-  const body = replySchema.safeParse(await request.json().catch(() => null));
+  const jsonBody = await readBoundedJson(request);
+  if (jsonBody.response?.status === 413) return jsonBody.response;
+  const body = replySchema.safeParse(jsonBody.value);
   if (!body.success) {
     return examJson({
       error: "Give the reviewer a reply from 20 to 2000 characters.",

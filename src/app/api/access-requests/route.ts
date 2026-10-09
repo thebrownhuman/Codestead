@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { and, eq, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -25,8 +26,10 @@ export async function POST(request: NextRequest) {
       identity: { kind: "ip", value: rateLimitIp(request) },
     },
     async () => {
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return jsonBody.response;
       const parsed = requestSchema.safeParse(
-        await request.json().catch(() => null),
+        jsonBody.value,
       );
       if (!parsed.success) {
         return NextResponse.json(

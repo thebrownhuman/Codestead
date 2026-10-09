@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
@@ -24,7 +25,9 @@ export async function POST(request: NextRequest) {
   const authz = await requireAdmin();
   if (!authz.session) return secureAdminResponse(authz.response);
   return withRateLimit({ policy: "curriculum_mutation_admin", identity: { kind: "user", value: authz.session.user.id } }, async () => {
-    const parsed = syncSchema.safeParse(await request.json().catch(() => null));
+    const jsonBody = await readBoundedJson(request);
+    if (jsonBody.response?.status === 413) return secureAdminResponse(jsonBody.response);
+    const parsed = syncSchema.safeParse(jsonBody.value);
     if (!parsed.success) return adminJson({ error: "INVALID_REQUEST" }, 400);
     const gate = await authorizeCurriculumAdmin({
       actorUserId: authz.session.user.id,

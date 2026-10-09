@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { type NextRequest } from "next/server";
 import { z } from "zod";
 
@@ -25,7 +26,9 @@ export async function POST(
   return withRateLimit(
     { policy: "exam_run_user", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
-  const body = runSchema.safeParse(await request.json().catch(() => null));
+  const jsonBody = await readBoundedJson(request, 1024 * 1024);
+  if (jsonBody.response?.status === 413) return jsonBody.response;
+  const body = runSchema.safeParse(jsonBody.value);
   if (!body.success) {
     return examJson({ error: "Executable source and a request id are required.", code: "INVALID_CODE_RUN" }, { status: 400 });
   }

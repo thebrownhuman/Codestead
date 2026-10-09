@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
@@ -19,6 +19,7 @@ vi.mock("@/lib/assessment-corrections/admin-service", () => ({
 vi.mock("@/lib/security/audit-writer", () => ({ writeAuditEvent: mocks.writeAuditEvent }));
 
 import { GET, POST } from "../route";
+afterEach(() => vi.restoreAllMocks());
 
 const appealId = "10000000-0000-4000-8000-000000000001";
 const requestId = "20000000-0000-4000-8000-000000000001";
@@ -69,6 +70,30 @@ describe("assessment correction collection route", () => {
     });
     mocks.listAssessmentCorrections.mockResolvedValue([]);
     mocks.writeAuditEvent.mockResolvedValue({});
+  });
+
+  it.each(["absent", "truthful", "lying"])("bounds JSON before parsing with %s Content-Length and preserves normal/invalid responses", async (length) => {
+    const req = post(validBody);
+    const oversized = new NextRequest(req.url, {
+      method: req.method,
+      headers: req.headers,
+      body: JSON.stringify(validBody) + " ".repeat(8 * 1024 * 1024),
+    });
+    if (length === "truthful") oversized.headers.set("content-length", String(Buffer.byteLength(JSON.stringify(validBody) + " ".repeat(8 * 1024 * 1024))));
+    if (length === "lying") oversized.headers.set("content-length", "1");
+    const nativeParse = vi.spyOn(oversized, "json");
+    const jsonParse = vi.spyOn(JSON, "parse");
+    const response = await POST(oversized);
+    expect(response.status).toBe(413);
+    expect(nativeParse).not.toHaveBeenCalled();
+    expect(jsonParse.mock.calls.some(([value]) => typeof value === "string" && value.endsWith(" ".repeat(8 * 1024 * 1024)))).toBe(false);
+    expect(mocks.createAssessmentCorrection).not.toHaveBeenCalled();
+    jsonParse.mockRestore();
+    expect((await POST(post(validBody))).status).toBe(201);
+    const invalid = new NextRequest(req.url, { method: req.method, headers: req.headers, body: "{" });
+    const rejected = await POST(invalid);
+    expect(rejected.status).toBe(400);
+
   });
 
   it("fails closed before reading or mutating for a non-admin", async () => {

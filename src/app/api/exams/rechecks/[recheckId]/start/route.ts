@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { type NextRequest } from "next/server";
 import { z } from "zod";
 
@@ -21,7 +22,9 @@ export async function POST(
       if (!z.uuid().safeParse(recheckId).success) {
         return examJson({ error: "Mastery recheck was not found.", code: "MASTERY_RECHECK_NOT_FOUND" }, { status: 404 });
       }
-      const body = startExamRequestSchema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return jsonBody.response;
+      const body = startExamRequestSchema.safeParse(jsonBody.value);
       if (!body.success) {
         return examJson(
           { error: "Choose the module and accept both recheck statements.", code: "INVALID_EXAM_START" },

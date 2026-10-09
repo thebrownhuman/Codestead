@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { requireAuth } from "@/lib/http/authz";
@@ -20,7 +21,9 @@ export async function PATCH(request: NextRequest) {
   const origin = evaluateRequestOrigin({ method: request.method, headers: request.headers, appUrl: process.env.APP_URL, production: process.env.NODE_ENV === "production" });
   if (!origin.allowed) return NextResponse.json({ error: origin.code }, { status: origin.status, headers });
   return withRateLimit({ policy: "social_profile_user", identity: { kind: "user", value: authz.session.user.id } }, async () => {
-    const body = profileSettingsSchema.safeParse(await request.json().catch(() => null));
+    const jsonBody = await readBoundedJson(request);
+    if (jsonBody.response?.status === 413) return jsonBody.response;
+    const body = profileSettingsSchema.safeParse(jsonBody.value);
     if (!body.success) return NextResponse.json({ error: "Enter a name of 1–120 characters, a bio of at most 280 characters, and valid preferences." }, { status: 400, headers });
     try {
       await saveLearningProfile(authz.session.user.id, authz.account.role, body.data);

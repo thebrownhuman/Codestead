@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { and, eq } from "drizzle-orm";
 import { type NextRequest } from "next/server";
 import { z } from "zod";
@@ -27,7 +28,9 @@ export async function POST(
     async () => {
       const { sessionId } = await context.params;
       if (!z.uuid().safeParse(sessionId).success) return adminJson({ error: "Exam not found." }, 404);
-      const body = bodySchema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return secureAdminResponse(jsonBody.response);
+      const body = bodySchema.safeParse(jsonBody.value);
       if (!body.success) return adminJson({ error: "A request id and specific outage rationale are required." }, 400);
       const [bound] = await db
         .select({ mfaVerifiedAt: session.mfaVerifiedAt })

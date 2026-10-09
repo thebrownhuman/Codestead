@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -24,7 +25,9 @@ export async function POST(request: NextRequest) {
   return withRateLimit(
     { policy: "forced_password_change_user", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
-      const parsed = bodySchema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return jsonBody.response;
+      const parsed = bodySchema.safeParse(jsonBody.value);
       if (!parsed.success) return failure();
       try {
         const result = await completeForcedPasswordChange({

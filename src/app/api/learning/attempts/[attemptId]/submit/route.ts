@@ -26,7 +26,7 @@ export async function POST(
   return learningRoute(async () => {
     const { attemptId } = await context.params;
     if (!z.uuid().safeParse(attemptId).success) throw new LearningServiceError("INVALID_ATTEMPT_ID", "Attempt id is invalid.");
-    const body = await parseLearningBody(request, schema);
+    const body = await parseLearningBody(request, schema, 1024 * 1024);
     return learningService.submitAttempt(authz.session.user.id, attemptId, {
       ...body,
       submittedAt: new Date(),
