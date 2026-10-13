@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
 import { mutateCareerCard, listLearnerCareerRecommendations } from "@/lib/career/service";
-import { issueCourseCertificate, loadPublicCertificate, revokeCourseCertificate } from "@/lib/certificates/service";
+import { issueCourseCertificate, loadOwnCertificate, loadPublicCertificate, revokeCourseCertificate } from "@/lib/certificates/service";
 import { createLearnerExport } from "@/lib/data-lifecycle/export";
 import { pool } from "@/lib/db/client";
 import { loadPublicPortfolio, updatePublicPortfolio } from "@/lib/portfolio/service";
@@ -227,7 +227,7 @@ describe("real PostgreSQL milestone integrity", () => {
       requestId: "66000000-0000-4000-8000-000000000002",
       expectedVersion: 0,
       slug: "milestone-learner",
-      displayName: "Milestone Learner",
+      displayName: "Chosen Portfolio Name",
       headline: "Building verified Python projects in public",
       about: "A learner-selected public introduction.",
       publish: true,
@@ -258,6 +258,9 @@ describe("real PostgreSQL milestone integrity", () => {
       githubUrl: "https://github.com/safe/project",
     });
     expect(publicProfile.certificates).toHaveLength(1);
+    expect((await loadPublicCertificate(issued.certificate.verificationId)).learnerDisplayName).toBe("Chosen Portfolio Name");
+    await expect(loadOwnCertificate(issued.certificate.id, OTHER)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect((await loadOwnCertificate(issued.certificate.id, LEARNER)).learnerDisplayName).toBe(issued.certificate.learnerDisplayName);
     expect(JSON.stringify(publicProfile)).not.toMatch(/@integration\.invalid|mastery-evidence|administrator/i);
 
     await pool.query(
@@ -317,5 +320,8 @@ describe("real PostgreSQL milestone integrity", () => {
       confirmPublicDisclosure: false,
     });
     await expect(loadPublicPortfolio("milestone-learner")).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect((await loadPublicCertificate(issued.certificate.verificationId)).learnerDisplayName).toBeNull();
+    await updatePublicPortfolio({ ...publishInput, requestId: "66000000-0000-4000-8000-000000000006", expectedVersion: 2, selectedCertificateIds: [] });
+    expect((await loadPublicCertificate(issued.certificate.verificationId)).learnerDisplayName).toBeNull();
   });
 });

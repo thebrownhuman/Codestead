@@ -8,19 +8,19 @@ describe("nonce Content-Security-Policy", () => {
   it.each(["/health/live", "/health/ready", "/health/runner"])("exempts JSON health route %s from the document proxy", (url) => {
     expect(unstable_doesMiddlewareMatch({ config, url })).toBe(false);
   });
-  it("keeps origin rejection responses locked down", () => {
+  it("keeps origin rejection responses locked down", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("APP_URL", "https://codestead.test");
-    const response = proxy(new NextRequest("https://codestead.test/api/drafts", {
+    const response = await proxy(new NextRequest("https://codestead.test/api/drafts", {
       method: "PUT",
       headers: { cookie: "learncoding.session_token=opaque", origin: "https://attacker.test" },
     }));
     expect(response.status).toBe(403);
     expect(response.headers.get("content-security-policy")).toBe("default-src 'none'; base-uri 'none'; frame-ancestors 'none'");
   });
-  it.each(["production", "development", "test"])("authorizes only nonce scripts in %s", (environment) => {
+  it.each(["production", "development", "test"])("authorizes only nonce scripts in %s", async (environment) => {
     vi.stubEnv("NODE_ENV", environment);
-    const response = proxy(new NextRequest("https://codestead.test/login", {
+    const response = await proxy(new NextRequest("https://codestead.test/login", {
       headers: { "x-nonce": "attacker", "content-security-policy": "script-src *" },
     }));
     const csp = response.headers.get("content-security-policy")!;
@@ -42,14 +42,14 @@ describe("nonce Content-Security-Policy", () => {
     expect(csp).toContain("connect-src 'self'");
     expect(response.headers.get("x-middleware-request-content-security-policy")).toBe(csp);
     expect(response.headers.get("cache-control")).toContain("no-store");
-    const second = proxy(new NextRequest("https://codestead.test/login"));
+    const second = await proxy(new NextRequest("https://codestead.test/login"));
     expect(second.headers.get("x-middleware-request-x-nonce")).not.toBe(nonce);
   });
-  it.each(["development", "production"])("passes allowed API requests through untouched in %s (no request rewrite, no document CSP)", (environment) => {
+  it.each(["development", "production"])("passes allowed API requests through untouched in %s (no request rewrite, no document CSP)", async (environment) => {
     // Rewriting request headers on API routes left GET handlers hanging under
     // the dev server; APIs render no HTML, so they need no nonce or CSP.
     vi.stubEnv("NODE_ENV", environment);
-    const response = proxy(new NextRequest("https://codestead.test/api/monitoring/envelope", {
+    const response = await proxy(new NextRequest("https://codestead.test/api/monitoring/envelope", {
       headers: { "x-nonce": "attacker" },
     }));
     expect(response.headers.get("x-middleware-next")).toBe("1");

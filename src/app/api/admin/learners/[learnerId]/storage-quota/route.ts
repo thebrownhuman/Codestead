@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { and, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -69,7 +70,9 @@ export async function PATCH(
     { policy: "storage_quota_admin", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
       const { learnerId } = await context.params;
-      const body = bodySchema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return jsonBody.response;
+      const body = bodySchema.safeParse(jsonBody.value);
       if (!learnerIdSchema.safeParse(learnerId).success || !body.success) {
         return NextResponse.json(
           { error: "Provide a valid learner, quota, version, request id, and recorded reason." },

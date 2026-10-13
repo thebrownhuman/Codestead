@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ContactAdminButton } from "../contact-admin";
+import userEvent from "@testing-library/user-event";
+import { selectOption } from "@/test/select-option";
 describe("contact admin form", () => {
   afterEach(() => vi.unstubAllGlobals());
   it("sends bounded message and explicitly selected safe context only", async () => {
@@ -36,7 +38,7 @@ describe("contact admin form", () => {
     vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));
     render(<ContactAdminButton />);
     fireEvent.click(screen.getByRole("button", { name: "Contact admin" }));
-    fireEvent.change(screen.getByLabelText("Category"), { target: { value: "support-other" } });
+    await selectOption(userEvent.setup(), screen.getByLabelText("Category"), "support-other");
     fireEvent.change(screen.getByLabelText("Message"), { target: { value: "Help with my account" } });
     fireEvent.click(screen.getByRole("button", { name: "Send request" }));
     expect(screen.getByRole("button", { name: "Sending…" })).toBeDisabled();

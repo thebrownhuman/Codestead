@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -95,7 +96,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
   return withRateLimit(
     { policy: "project_revision_user", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
-      const body = createSchema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return jsonBody.response;
+      const body = createSchema.safeParse(jsonBody.value);
       if (!body.success) {
         return json({ error: "Project revision input is invalid.", code: "INVALID_REVISION_INPUT" }, 400);
       }

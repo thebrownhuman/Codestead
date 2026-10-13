@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import {
   AlertTriangle,
   CheckCircle2,
@@ -290,10 +292,10 @@ export function AdminAppealQueue({
         </div>
         <div className={styles.headActions}>
           <label className={styles.compactField}>Queue
-            <select aria-label="Appeal queue scope" onChange={(event) => setScope(event.target.value as typeof scope)} value={scope}>
+            <Select aria-label="Appeal queue scope" onChange={(event) => setScope(event.target.value as typeof scope)} value={scope}>
               <option value="actionable">Needs action</option>
               <option value="all">All appeals</option>
-            </select>
+            </Select>
           </label>
           <button aria-label="Refresh appeals" className="button button-secondary" onClick={() => void loadAppeals()} type="button"><RefreshCw size={14} /> Refresh</button>
         </div>

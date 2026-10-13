@@ -124,6 +124,7 @@
 .codeToolbar button:disabled { cursor: not-allowed; opacity: .55; }
 .draftSync { display: flex; min-height: 48px; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--brand) 4%, var(--surface-solid)); }
 .draftSync > span { display: grid; gap: 2px; }
+.draftSync[data-draft-status="synced"] { min-height: 28px; padding-block: 4px; }
 .draftSync strong { color: var(--ink); font-size: .68rem; text-transform: capitalize; }
 .draftSync small { color: var(--ink-soft); font-size: .75rem; }
 .draftSync > div { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -137,7 +138,7 @@
 .editorFallback textarea { width: 100%; min-height: 0; padding: 14px; border: 0; outline: 0; color: #d8e4d8; background: #141a15; font: 14px/1.55 var(--font-mono); resize: none; }
 .editorFallback textarea:read-only { cursor: wait; opacity: .72; }
 .editorFallback textarea:focus-visible { box-shadow: inset 0 0 0 3px color-mix(in srgb,var(--brand) 70%,transparent); }
-.stdinPanel { display: grid; grid-template-columns: minmax(180px,.65fr) minmax(260px,1.35fr) auto; align-items: center; gap: 12px; padding: 10px 12px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: color-mix(in srgb,var(--brand) 3%,var(--surface-solid)); }
+.stdinPanel { display: grid; grid-template-columns: minmax(0,1fr); align-items: center; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--line); background: color-mix(in srgb,var(--brand) 3%,var(--surface-solid)); }
 .stdinPanel label { display: grid; gap: 2px; min-width: 0; }
 .stdinPanel label > span { color: var(--ink); font-size: .76rem; font-weight: 800; }
 .stdinPanel label i { color: var(--ink-soft); font-family: var(--font-mono); font-size: .68rem; font-style: normal; font-weight: 600; }

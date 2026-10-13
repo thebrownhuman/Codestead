@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { and, desc, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -113,7 +114,9 @@ export async function POST(request: NextRequest) {
   return withRateLimit(
     { policy: "fallback_grant_admin", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
-      const body = createSchema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return jsonBody.response;
+      const body = createSchema.safeParse(jsonBody.value);
       if (!body.success) {
         return NextResponse.json(
           { error: "Choose a learner, active administrator credential, enabled model, token and rupee caps, pricing snapshot, expiry, and reason." },

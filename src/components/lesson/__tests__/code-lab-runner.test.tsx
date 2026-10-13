@@ -1,3 +1,4 @@
+import { selectOption } from "@/test/select-option";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -42,6 +43,39 @@ function storedValues() {
 }
 
 describe("CodeLab non-authoritative runner client", () => {
+  it.each(["", "x".repeat(262_144)])("renders empty or capped-size output without inventing problems", async stdout => {
+    const user = userEvent.setup();
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return json({ requestId: body.clientRequestId, status: "accepted", stdout });
+    });
+    render(<CodeLab courseId="python" skillId="python.output-boundaries" />);
+    await user.click(screen.getByRole("button", { name: "Run" }));
+    await waitFor(() => expect(screen.getByText("Completed")).toBeVisible());
+    const output = screen.getByRole("region", { name: "Program output" });
+    expect(output).toHaveTextContent(stdout || "Program finished with no output.");
+    await user.click(screen.getByRole("tab", { name: "Problems" }));
+    expect(screen.getByText(/No recognized problems/)).toBeVisible();
+  });
+
+  it("moves the basic editor cursor to a diagnostic line and column", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return json({ requestId: body.clientRequestId, status: "compile_error", stderr: "main.c:2:3: error: missing semicolon" });
+    });
+    render(<CodeLab courseId="c" skillId="c.jump" />);
+    const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    fireEvent.change(editor, { target: { value: "first\nsecond\nthird" } });
+    await user.click(screen.getByRole("button", { name: "Run" }));
+    await screen.findByText("main.c:2:3: error: missing semicolon", { selector: "pre" });
+    await user.click(screen.getByRole("tab", { name: /Problems/ }));
+    await user.click(screen.getByRole("button", { name: /main.c:2:3.*missing semicolon/ }));
+    expect(editor).toHaveFocus();
+    expect((editor as HTMLTextAreaElement).selectionStart).toBe(8);
+    expect((editor as HTMLTextAreaElement).selectionEnd).toBe(8);
+  });
+
   it("uses the server-selected Piston label in embedded practice", () => {
     render(<CodeLab courseId="python" skillId="python.variables" runnerLabel="isolated Piston runner" />);
     expect(screen.getByText(/PYTHON practice.*isolated Piston runner.*no mastery award/i)).toBeInTheDocument();
@@ -114,15 +148,17 @@ describe("CodeLab non-authoritative runner client", () => {
     render(<CodeLab allowLanguageSelection courseId="python" skillId="free-playground" />);
 
     const selector = screen.getByRole("combobox", { name: "Runner language" });
-    expect(Array.from(selector.querySelectorAll("option"), (option) => option.textContent)).toEqual([
+    await user.click(selector);
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
       "C",
       "C++",
       "Java",
       "JavaScript",
       "Python",
     ]);
-    await user.selectOptions(selector, language);
-    expect(selector).toHaveValue(language);
+    await user.keyboard("{Escape}");
+    await selectOption(user, selector, language);
+    expect(selector).toHaveAttribute("data-value", language);
     const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     expect(screen.getByText(new RegExp(`${escapedLabel} practice`, "i"))).toBeInTheDocument();
 
@@ -207,17 +243,20 @@ describe("CodeLab non-authoritative runner client", () => {
     });
     render(<CodeLab courseId="python" skillId="python.input" />);
 
+    fireEvent.click(screen.getByRole("tab", { name: /^Input$/ }));
+
     const stdin = screen.getByRole("textbox", { name: /Program input/i });
     await waitFor(() => expect(stdin).toBeEnabled());
     await user.type(stdin, "10{enter}20{enter}");
     await user.click(screen.getByRole("button", { name: "Run" }));
 
-    expect(await screen.findByText("30", { selector: "pre" })).toBeInTheDocument();
+    expect(await screen.findByText("30", { selector: "pre" })).toBeVisible();
     expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toMatchObject({
       language: "python",
       stdin: "10\n20\n",
     });
 
+    fireEvent.click(screen.getByRole("tab", { name: /^Input$/ }));
     await user.type(stdin, "5");
     expect(screen.queryByText("30", { selector: "pre" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Reset" }));
@@ -233,16 +272,19 @@ describe("CodeLab non-authoritative runner client", () => {
       </DraftCacheNamespaceProvider>,
     );
     const selector = screen.getByRole("combobox", { name: "Runner language" });
+    fireEvent.click(screen.getByRole("tab", { name: /^Input$/ }));
     let stdin = screen.getByRole("textbox", { name: /Program input/i });
     await waitFor(() => expect(stdin).toBeEnabled());
     expect(screen.getByText(/browser tab storage keeps this Python input through refresh when available.*sign-out.*closing the tab clears it.*sent only when you run/i)).toBeInTheDocument();
     await user.type(stdin, "python input");
 
-    await user.selectOptions(selector, "cpp");
+    await selectOption(user, selector, "cpp");
+    fireEvent.click(screen.getByRole("tab", { name: /^Input$/ }));
     stdin = screen.getByRole("textbox", { name: /Program input/i });
     await waitFor(() => expect(stdin).toHaveValue(""));
     await user.type(stdin, "cpp input");
-    await user.selectOptions(selector, "python");
+    await selectOption(user, selector, "python");
+    fireEvent.click(screen.getByRole("tab", { name: /^Input$/ }));
     stdin = screen.getByRole("textbox", { name: /Program input/i });
     await waitFor(() => expect(stdin).toHaveValue("python input"));
 
@@ -252,9 +294,11 @@ describe("CodeLab non-authoritative runner client", () => {
         <CodeLab allowLanguageSelection courseId="python" skillId="free-playground" />
       </DraftCacheNamespaceProvider>,
     );
+    fireEvent.click(screen.getByRole("tab", { name: /^Input$/ }));
     stdin = screen.getByRole("textbox", { name: /Program input/i });
     await waitFor(() => expect(stdin).toHaveValue("python input"));
-    await user.selectOptions(screen.getByRole("combobox", { name: "Runner language" }), "cpp");
+    await selectOption(user, screen.getByRole("combobox", { name: "Runner language" }), "cpp");
+    fireEvent.click(screen.getByRole("tab", { name: /^Input$/ }));
     await waitFor(() => expect(screen.getByRole("textbox", { name: /Program input/i })).toHaveValue("cpp input"));
   });
 
@@ -265,6 +309,7 @@ describe("CodeLab non-authoritative runner client", () => {
         <CodeLab courseId="python" skillId="python.stdin-reset" />
       </DraftCacheNamespaceProvider>,
     );
+    fireEvent.click(screen.getByRole("tab", { name: /^Input$/ }));
     const stdin = screen.getByRole("textbox", { name: /Program input/i });
     await waitFor(() => expect(stdin).toBeEnabled());
     await user.type(stdin, "private input");
@@ -279,6 +324,7 @@ describe("CodeLab non-authoritative runner client", () => {
         <CodeLab courseId="python" skillId="python.stdin-reset" />
       </DraftCacheNamespaceProvider>,
     );
+    fireEvent.click(screen.getByRole("tab", { name: /^Input$/ }));
     await waitFor(() => expect(screen.getByRole("textbox", { name: /Program input/i })).toHaveValue(""));
     expect(Array.from({ length: window.sessionStorage.length }, (_, index) => window.sessionStorage.key(index)))
       .not.toContainEqual(expect.stringMatching(/:stdin$/));
@@ -334,6 +380,7 @@ describe("CodeLab non-authoritative runner client", () => {
     const user = userEvent.setup();
     render(<CodeLab courseId="python" skillId="python.reset-safety" />);
     const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    fireEvent.click(screen.getByRole("tab", { name: /^Input$/ }));
     const stdin = screen.getByRole("textbox", { name: /Program input/i });
     const reset = screen.getByRole("button", { name: "Reset" });
     fireEvent.change(editor, { target: { value: "print(input())\n" } });
@@ -372,6 +419,7 @@ describe("CodeLab non-authoritative runner client", () => {
 
     const selector = screen.getByRole("combobox", { name: "Runner language" });
     const editor = await screen.findByRole("textbox", { name: "Practice source code" });
+    fireEvent.click(screen.getByRole("tab", { name: /^Input$/ }));
     const stdin = screen.getByRole("textbox", { name: /Program input/i });
     await user.click(screen.getByRole("button", { name: "Run" }));
 

@@ -54,6 +54,21 @@ async function openCodeLab(page: Page) {
 }
 
 test.describe("standalone Code Lab runner UX", () => {
+  test("keeps runner tabs keyboard accessible at 375px", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await openCodeLab(page);
+    const output = page.getByRole("tab", { name: "Output", exact: true });
+    await output.focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(page.getByRole("tab", { name: "Problems", exact: true })).toBeFocused();
+    await page.keyboard.press("End");
+    await expect(page.getByRole("tab", { name: "Input", exact: true })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByLabel(/Program input stdin/i)).toBeVisible();
+    await expect(page.getByRole("tab", { name: /Terminal/ })).toBeDisabled();
+    const width = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
+    expect(width.scroll).toBeLessThanOrEqual(width.client + 1);
+  });
+
   test("loads the same-origin rich editor without AMD module errors", async ({ page }, testInfo) => {
     test.skip(!["chromium", "webkit"].includes(testInfo.project.name), "desktop Chromium and WebKit loader regression");
     const monacoErrors: string[] = [];
@@ -96,6 +111,7 @@ test.describe("standalone Code Lab runner UX", () => {
     const runButton = page.getByRole("button", { name: "Run", exact: true });
     const outputId = await runButton.getAttribute("aria-controls");
     expect(outputId).toBeTruthy();
+    await page.getByRole("tab", { name: "Input", exact: true }).click();
     await page.getByLabel(/Program input stdin/i).fill("10\n20");
     await runButton.click();
 
@@ -274,6 +290,7 @@ test.describe("standalone Code Lab runner UX", () => {
 
     if (testInfo.project.name === "mobile-safari") {
       const selectFontSize = await page.getByRole("combobox", { name: "Runner language" }).evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
+      await page.getByRole("tab", { name: "Input", exact: true }).click();
       const stdinFontSize = await page.getByRole("textbox", { name: /Program input stdin/i }).evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
       expect(selectFontSize).toBeGreaterThanOrEqual(16);
       expect(stdinFontSize).toBeGreaterThanOrEqual(16);

@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 
@@ -20,7 +21,9 @@ export async function POST(
   if (!authz.session) return secureAdminResponse(authz.response);
   const { correctionId } = await context.params;
   if (!z.uuid().safeParse(correctionId).success) return adminJson({ error: "Correction not found." }, 404);
-  const body = queueCorrectionSchema.safeParse(await request.json().catch(() => null));
+  const jsonBody = await readBoundedJson(request);
+  if (jsonBody.response?.status === 413) return secureAdminResponse(jsonBody.response);
+  const body = queueCorrectionSchema.safeParse(jsonBody.value);
   if (!body.success) return adminJson({ error: "Current version, request id, and a specific queue rationale are required." }, 400);
   const gate = await authorizeAssessmentCorrection({
     actorUserId: authz.session.user.id,

@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { createHash, randomUUID } from "node:crypto";
 import { and, asc, desc, eq, gt, inArray, isNull, lte, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
@@ -137,7 +138,9 @@ export async function POST(request: NextRequest) {
       { status: examGate.status, headers: { "Cache-Control": "private, no-store" } },
     );
   }
-  const body = requestSchema.safeParse(await request.json().catch(() => null));
+  const jsonBody = await readBoundedJson(request);
+  if (jsonBody.response?.status === 413) return jsonBody.response;
+  const body = requestSchema.safeParse(jsonBody.value);
   if (!body.success) {
     return NextResponse.json(
       {

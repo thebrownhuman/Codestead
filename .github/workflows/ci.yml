@@ -106,15 +106,7 @@ jobs:
               - vitest.integration.config.ts
               - scripts/**
               - infra/**
-              - src/lib/db/**
-              - src/lib/notifications/**
-              - src/lib/*notifications.ts
-              - src/lib/daily-review/service.ts
-              - src/lib/learning-service/drizzle-store.ts
-              - src/lib/community/service.ts
-              - src/lib/curriculum-publication/admin-service.ts
-              - src/lib/career/service.ts
-              - src/lib/projects/module-project-service.ts
+              - src/**
 
   # Fast static, registration and contract gates. Every pull request runs them.
   quick:
@@ -258,6 +250,14 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
+      - run: |
+          set -Eeuo pipefail
+          printf '%s\n' 'Acquire::http::Timeout "20";' 'Acquire::https::Timeout "20";' 'Acquire::Retries "3";' | sudo tee /etc/apt/apt.conf.d/99timeouts >/dev/null
+          for source in /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
+            if [[ -f "$source" ]]; then
+              sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/g' "$source"
+            fi
+          done
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
@@ -288,6 +288,14 @@ jobs:
     needs: changes
     if: needs.changes.outputs.infra == 'true'
     steps:
+      - run: |
+          set -Eeuo pipefail
+          printf '%s\n' 'Acquire::http::Timeout "20";' 'Acquire::https::Timeout "20";' 'Acquire::Retries "3";' | sudo tee /etc/apt/apt.conf.d/99timeouts >/dev/null
+          for source in /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
+            if [[ -f "$source" ]]; then
+              sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/g' "$source"
+            fi
+          done
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
@@ -319,6 +327,14 @@ jobs:
     needs: changes
     if: needs.changes.outputs.infra == 'true'
     steps:
+      - run: |
+          set -Eeuo pipefail
+          printf '%s\n' 'Acquire::http::Timeout "20";' 'Acquire::https::Timeout "20";' 'Acquire::Retries "3";' | sudo tee /etc/apt/apt.conf.d/99timeouts >/dev/null
+          for source in /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
+            if [[ -f "$source" ]]; then
+              sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/g' "$source"
+            fi
+          done
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
@@ -349,6 +365,14 @@ jobs:
     needs: changes
     if: needs.changes.outputs.infra == 'true'
     steps:
+      - run: |
+          set -Eeuo pipefail
+          printf '%s\n' 'Acquire::http::Timeout "20";' 'Acquire::https::Timeout "20";' 'Acquire::Retries "3";' | sudo tee /etc/apt/apt.conf.d/99timeouts >/dev/null
+          for source in /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
+            if [[ -f "$source" ]]; then
+              sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/g' "$source"
+            fi
+          done
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
@@ -394,6 +418,14 @@ jobs:
     needs: changes
     if: needs.changes.outputs.infra == 'true'
     steps:
+      - run: |
+          set -Eeuo pipefail
+          printf '%s\n' 'Acquire::http::Timeout "20";' 'Acquire::https::Timeout "20";' 'Acquire::Retries "3";' | sudo tee /etc/apt/apt.conf.d/99timeouts >/dev/null
+          for source in /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
+            if [[ -f "$source" ]]; then
+              sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/g' "$source"
+            fi
+          done
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
@@ -420,6 +452,14 @@ jobs:
       CODESTEAD_DISPOSABLE_DOCKER_DAEMON: "1"
       CODESTEAD_TOPOLOGY_RESTART_DOCKER: "1"
     steps:
+      - run: |
+          set -Eeuo pipefail
+          printf '%s\n' 'Acquire::http::Timeout "20";' 'Acquire::https::Timeout "20";' 'Acquire::Retries "3";' | sudo tee /etc/apt/apt.conf.d/99timeouts >/dev/null
+          for source in /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
+            if [[ -f "$source" ]]; then
+              sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/g' "$source"
+            fi
+          done
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
@@ -583,6 +623,14 @@ jobs:
     needs: changes
     if: false # PARKED by owner 2026-09-26 until backups move to a proven tool (was: needs.changes.outputs.backup == 'true')
     steps:
+      - run: |
+          set -Eeuo pipefail
+          printf '%s\n' 'Acquire::http::Timeout "20";' 'Acquire::https::Timeout "20";' 'Acquire::Retries "3";' | sudo tee /etc/apt/apt.conf.d/99timeouts >/dev/null
+          for source in /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
+            if [[ -f "$source" ]]; then
+              sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/g' "$source"
+            fi
+          done
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
@@ -621,6 +669,14 @@ jobs:
     needs: changes
     if: false # PARKED by owner 2026-09-26 until backups move to a proven tool (was: needs.changes.outputs.backup == 'true')
     steps:
+      - run: |
+          set -Eeuo pipefail
+          printf '%s\n' 'Acquire::http::Timeout "20";' 'Acquire::https::Timeout "20";' 'Acquire::Retries "3";' | sudo tee /etc/apt/apt.conf.d/99timeouts >/dev/null
+          for source in /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
+            if [[ -f "$source" ]]; then
+              sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/g' "$source"
+            fi
+          done
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
@@ -704,6 +760,14 @@ jobs:
     needs: changes
     if: needs.changes.outputs.database == 'true'
     steps:
+      - run: |
+          set -Eeuo pipefail
+          printf '%s\n' 'Acquire::http::Timeout "20";' 'Acquire::https::Timeout "20";' 'Acquire::Retries "3";' | sudo tee /etc/apt/apt.conf.d/99timeouts >/dev/null
+          for source in /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
+            if [[ -f "$source" ]]; then
+              sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/g' "$source"
+            fi
+          done
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
@@ -756,6 +820,7 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/pgdg.sources >/dev/null
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends postgresql-17 postgresql-18
+        timeout-minutes: 10
       - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-retention-redaction-0063
       - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-dispatch-binding-0064:pg17
       - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:backup-status-mail-authority-0065
@@ -930,6 +995,14 @@ jobs:
             apply: web:executable:evidence:apply
             evidence: docs/evidence/web-executable-runtime-*.json
     steps:
+      - run: |
+          set -Eeuo pipefail
+          printf '%s\n' 'Acquire::http::Timeout "20";' 'Acquire::https::Timeout "20";' 'Acquire::Retries "3";' | sudo tee /etc/apt/apt.conf.d/99timeouts >/dev/null
+          for source in /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
+            if [[ -f "$source" ]]; then
+              sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/g' "$source"
+            fi
+          done
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
@@ -1094,6 +1167,14 @@ jobs:
     needs: changes
     if: needs.changes.outputs.browser == 'true'
     steps:
+      - run: |
+          set -Eeuo pipefail
+          printf '%s\n' 'Acquire::http::Timeout "20";' 'Acquire::https::Timeout "20";' 'Acquire::Retries "3";' | sudo tee /etc/apt/apt.conf.d/99timeouts >/dev/null
+          for source in /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
+            if [[ -f "$source" ]]; then
+              sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/g' "$source"
+            fi
+          done
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
@@ -1149,6 +1230,14 @@ jobs:
       matrix:
         include: ${{ fromJSON(github.event_name == 'pull_request' && '[{"project":"chromium","browser":"chromium","shard":"1/3"},{"project":"chromium","browser":"chromium","shard":"2/3"},{"project":"chromium","browser":"chromium","shard":"3/3"}]' || '[{"project":"chromium","browser":"chromium","shard":"1/3"},{"project":"chromium","browser":"chromium","shard":"2/3"},{"project":"chromium","browser":"chromium","shard":"3/3"},{"project":"firefox","browser":"firefox","shard":"1/1"},{"project":"webkit","browser":"webkit","shard":"1/1"},{"project":"tablet-safari","browser":"webkit","shard":"1/1"},{"project":"small-mobile","browser":"webkit","shard":"1/1"},{"project":"mobile-safari","browser":"webkit","shard":"1/1"}]') }}
     steps:
+      - run: |
+          set -Eeuo pipefail
+          printf '%s\n' 'Acquire::http::Timeout "20";' 'Acquire::https::Timeout "20";' 'Acquire::Retries "3";' | sudo tee /etc/apt/apt.conf.d/99timeouts >/dev/null
+          for source in /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
+            if [[ -f "$source" ]]; then
+              sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/g' "$source"
+            fi
+          done
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
