@@ -1,0 +1,8 @@
+*
+!Dockerfile
+!.dockerignore
+!patch.mjs
+!connection.mjs
+!build-inputs.sha256
+!base-image.json
+!base-inputs.sha256
