@@ -40,6 +40,24 @@ config digest and embedded source manifest before patching. The patch refuses
 upstream source bytes different from its reviewed SHA-256 values. Every variant
 build input is hashed, embedded and checked inside the image.
 
+Use Docker's containerd image store and the Docker driver on the active Docker
+context, both locally and in CI. The build explicitly selects that context's
+builder and rejects a separate `docker-container` builder, which cannot see the
+daemon's loaded images. No registry publication is needed: an explicit named
+build context maps the immutable `FROM codestead-piston@sha256:...` to
+`docker-image://<verified-local-batch-tag>`, with `--pull=false`. Before that
+mapping is used, the local image digest, config and embedded input manifest must
+match the batch build metadata and reviewed sources.
+
+CI builds the batch parent twice in the same job, verifies identical digests,
+and additionally requires its manifest to equal
+`sha256:6dc2d85a7b5b5fa15f1fae8f1232b43837eb912831bc23fc24c0dc0e0b5b0e3a`
+before building the interactive variant. The local Docker Desktop reference
+builder produces parent
+`sha256:2fc2e55122fbdc25c6100a0ee7d8f29a31282b9e0202655e206b644985ed8ef6`;
+that different builder's reference digest is recorded in the committed handoff.
+The CI pin never falls back to the local reference digest or to a registry pull.
+
 ```sh
 node infra/piston/prepare.mjs
 node infra/piston/build.mjs codestead-piston:interactive-base

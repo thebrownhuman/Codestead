@@ -59,8 +59,9 @@
     "base-inputs.sha256": "aacf579597c48c71ae058d61545a3717f78eaf1eee114cded82f2831bbf377bc"
   },
   "testInputSha256": {
-    "build.mjs": "cbf056059bfd97fa1464e20ac27d53d6415125445575adc992dee1414716f7c0",
-    "test-image.mjs": "59ab6a552cff4fbd6b61f6d2dbeafe633eaabfe035256d16597ddbb99577c79e",
+    "build.mjs": "e9c571d5d417a762d766805dacb896202d7ecbe28c1b40860b6ff63b1d971221",
+    "build.test.mjs": "368ec3fdf7d09cc67f301a6b802469cac78eba059245ea897a34577ea1f0e8d6",
+    "test-image.mjs": "f56fabc5f03058c88a7200e4e7e2cb552820f0e08ca10bff2ed801142a5efac6",
     "live-tests.mjs": "42b3e5f0df96d9327b212f056ac58b657be3bc3b1e30999fb75f6b10e5444e8b",
     "connection.test.mjs": "ea68f30c70df41203f237d39ba9632c656664b68c3733fae73c11e6442a390ae",
     "patch.test.mjs": "2a297a07b0c85fd8072ec2083431f302612a463ef1692831fe3e67fb7cd1ab49",

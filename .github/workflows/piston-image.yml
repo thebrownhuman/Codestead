@@ -57,6 +57,9 @@ jobs:
           rm build.log
       - name: Require identical digests from both builds
         run: node infra/piston/verify-digest.mjs first-build-metadata.json infra/piston/build-metadata.json
+      - name: Assert the reproducible CI batch parent pin
+        run: |
+          node --input-type=module -e "import assert from 'node:assert/strict'; import { readFileSync } from 'node:fs'; const metadata = JSON.parse(readFileSync('infra/piston/build-metadata.json')); assert.equal(metadata['containerimage.digest'], 'sha256:6dc2d85a7b5b5fa15f1fae8f1232b43837eb912831bc23fc24c0dc0e0b5b0e3a', 'CI batch parent differs from the reviewed reproducible pin');"
       - name: Test actual image and record its manifest
         run: |
           node infra/piston/test-image.mjs codestead-piston:ci > smoke.log 2>&1 || { cat smoke.log; exit 1; }

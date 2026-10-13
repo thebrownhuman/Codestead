@@ -12,6 +12,20 @@ export const root = path.dirname(fileURLToPath(import.meta.url));
 export const inputPaths = ['Dockerfile', '.dockerignore', 'patch.mjs', 'connection.mjs', 'base-image.json', 'base-inputs.sha256'];
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const docker = (...args) => execFileSync('docker', args, { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 }).trim();
+export function requireLocalDriver(description) {
+  assert.match(description, /^Driver:\s+docker\s*$/m, 'Interactive builds require the local Docker driver');
+}
+
+export function interactiveBuildArgs({ reference, base, builder, ...options }) {
+  const args = buildArgs(options);
+  // Resolve the immutable FROM through the verified local tag, not a registry.
+  // The Docker driver shares the daemon image store used by bindBase/load.
+  args.splice(-1, 0, '--builder', builder, '--pull=false',
+    '--build-context', `${reference}=docker-image://${base}`,
+    '--build-arg', `PISTON_BASE_IMAGE=${reference}`);
+  return args;
+}
+
 export async function bindBase(image) {
   const lock = JSON.parse(await readFile(path.join(root, '../piston/image-inputs.lock.json')));
   const metadata = JSON.parse(await readFile(path.join(root, '../piston/build-metadata.json')));
@@ -48,13 +62,15 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (!docker('info', '--format', '{{json .DriverStatus}}').includes('io.containerd.snapshotter.v1')) {
     throw new Error('The containerd image store is required');
   }
+  const builder = docker('context', 'show');
+  requireLocalDriver(docker('buildx', 'inspect', builder));
   const bound = await bindBase(base);
   const directory = await mkdtemp(path.join(os.tmpdir(), 'codestead-piston-interactive-'));
   try {
     const archive = path.join(directory, 'image.tar');
-    const argumentsForBuild = buildArgs({ epoch: bound.epoch, tag: image, archive,
+    const argumentsForBuild = interactiveBuildArgs({ reference: bound.reference, base, builder,
+      epoch: bound.epoch, tag: image, archive,
       metadataFile: path.join(root, 'build-metadata.json'), context: root, noCache });
-    argumentsForBuild.splice(-1, 0, '--build-arg', `PISTON_BASE_IMAGE=${bound.reference}`);
     execFileSync('docker', argumentsForBuild, { stdio: 'inherit' });
     execFileSync('docker', ['load', '--input', archive], { stdio: ['ignore', 'ignore', 'inherit'] });
   } finally {

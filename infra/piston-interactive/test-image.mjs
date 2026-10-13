@@ -57,7 +57,7 @@ try {
   const inputs = {};
   for (const file of inputPaths) inputs[file] = hash(await readFile(path.join(root, file)));
   const testInputs = {};
-  for (const file of ['build.mjs', 'test-image.mjs', 'live-tests.mjs', 'connection.test.mjs', 'patch.test.mjs', 'compose.test.mjs', 'verify-handoff.mjs']) {
+  for (const file of ['build.mjs', 'build.test.mjs', 'test-image.mjs', 'live-tests.mjs', 'connection.test.mjs', 'patch.test.mjs', 'compose.test.mjs', 'verify-handoff.mjs']) {
     testInputs[file] = hash(await readFile(path.join(root, file)));
   }
   const lock = JSON.parse(await readFile(path.join(root, '../piston/image-inputs.lock.json')));
