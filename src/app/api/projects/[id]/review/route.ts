@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { and, eq, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -20,7 +21,9 @@ export async function POST(
   return withRateLimit(
     { policy: "github_review_user", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
-  const body = bodySchema.safeParse(await request.json().catch(() => null));
+  const jsonBody = await readBoundedJson(request);
+  if (jsonBody.response?.status === 413) return jsonBody.response;
+  const body = bodySchema.safeParse(jsonBody.value);
   if (!body.success) return NextResponse.json({ error: "Provide a public GitHub repository URL." }, { status: 400 });
   const { id } = await context.params;
   const [owned] = await db

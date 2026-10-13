@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { FileSearch, RefreshCw, ShieldCheck, Wrench } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -193,7 +195,7 @@ export function AdminProjectReviewCorrections() {
     <header className={styles.pageHead}>
       <div><span className={styles.eyebrow}>Append-only evidence</span><h1>Project review <span>corrections</span></h1><p>Re-analyze the exact pinned commit with static rules. Original findings remain immutable; no AI or repository execution is permitted.</p></div>
       <div className={styles.headActions}>
-        <label className={styles.compactField}>Queue<select aria-label="Correction queue scope" onChange={(event) => setScope(event.target.value as typeof scope)} value={scope}><option value="actionable">Needs action</option><option value="all">All</option></select></label>
+        <label className={styles.compactField}>Queue<Select aria-label="Correction queue scope" onChange={(event) => setScope(event.target.value as typeof scope)} value={scope}><option value="actionable">Needs action</option><option value="all">All</option></Select></label>
         <button aria-label="Refresh corrections" className="button button-secondary" onClick={() => void load()} type="button"><RefreshCw size={14} /> Refresh</button>
       </div>
     </header>

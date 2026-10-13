@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -49,7 +50,9 @@ export async function POST(
   return withRateLimit(
     { policy: "plan_revision_admin", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
-      const parsed = bodySchema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request, 512 * 1024);
+      if (jsonBody.response?.status === 413) return jsonBody.response;
+      const parsed = bodySchema.safeParse(jsonBody.value);
       if (!parsed.success) {
         return NextResponse.json(
           { error: "Provide a request id, current revision, immediate effective time, reason, and valid plan operations." },

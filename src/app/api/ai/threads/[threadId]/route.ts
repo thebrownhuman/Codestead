@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -59,10 +60,12 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ t
   return withRateLimit(
     { policy: "learning_request_user", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
-      const [params, body] = await Promise.all([
+      const [params, boundedBody] = await Promise.all([
         context.params.then((value) => paramsSchema.safeParse(value)),
-        request.json().catch(() => null).then((value) => mutationSchema.safeParse(value)),
+        readBoundedJson(request).then((value) => ({ response: value.response, parsed: mutationSchema.safeParse(value.value) })),
       ]);
+      if (boundedBody.response?.status === 413) return boundedBody.response;
+      const body = boundedBody.parsed;
       if (!params.success || !body.success) return NextResponse.json({ error: "Tutor thread request is invalid." }, { status: 400, headers: noStore });
       try {
         return NextResponse.json({ thread: await setOwnedChatThreadStatus({

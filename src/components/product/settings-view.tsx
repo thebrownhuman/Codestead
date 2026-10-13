@@ -1,6 +1,8 @@
 "use client";
 import { ENROLLMENT_DISCLOSURE_VERSION } from "@/lib/privacy/disclosure-version";
 
+import { Select } from "@/components/ui/select";
+
 import { credentialValidationReason } from "@/lib/ai/credential-status";
 
 import { Accessibility, Bell, BrainCircuit, KeyRound, Laptop, Plus, Shield, ShieldCheck, Trash2, UserRound, X } from "lucide-react";
@@ -402,7 +404,7 @@ export function SettingsView({ initialTab = "ai" }: { initialTab?: SettingsTab }
       <div className={styles.form}>
         <label>
           Text size
-          <select
+          <Select
             aria-label="Text size"
             aria-describedby="text-size-help"
             disabled={!accessibilityControlsReady}
@@ -414,12 +416,12 @@ export function SettingsView({ initialTab = "ai" }: { initialTab?: SettingsTab }
             <option value="130">Extra large · 130%</option>
             <option value="150">Very large · 150%</option>
             <option value="200">Maximum · 200%</option>
-          </select>
+          </Select>
           <small id="text-size-help">Scales the complete interface without disabling browser zoom.</small>
         </label>
         <label>
           Motion
-          <select
+          <Select
             aria-label="Motion"
             disabled={!accessibilityControlsReady}
             onChange={(event) => updateAccessibilityPreference("motion", event.target.value as MotionPreference)}
@@ -428,11 +430,11 @@ export function SettingsView({ initialTab = "ai" }: { initialTab?: SettingsTab }
             <option value="system">Follow system</option>
             <option value="reduce">Reduce motion</option>
             <option value="normal">Allow subtle motion</option>
-          </select>
+          </Select>
         </label>
         <label>
           Interface theme and contrast
-          <select
+          <Select
             aria-label="Interface theme and contrast"
             disabled={!accessibilityControlsReady}
             onChange={(event) => updateAccessibilityPreference("interfaceTheme", event.target.value as InterfaceThemePreference)}
@@ -442,11 +444,11 @@ export function SettingsView({ initialTab = "ai" }: { initialTab?: SettingsTab }
             <option value="light">Light</option>
             <option value="dark">Dark</option>
             <option value="contrast">High contrast</option>
-          </select>
+          </Select>
         </label>
         <label>
           Code editor font
-          <select
+          <Select
             aria-label="Code editor font"
             disabled={!accessibilityControlsReady}
             onChange={(event) => updateAccessibilityPreference("codeEditorFont", event.target.value as CodeEditorFontPreference)}
@@ -456,7 +458,7 @@ export function SettingsView({ initialTab = "ai" }: { initialTab?: SettingsTab }
             <option value="14">14px</option>
             <option value="16">16px</option>
             <option value="18">18px</option>
-          </select>
+          </Select>
         </label>
       </div>
       <div className={styles.securityExplainer}>
@@ -520,7 +522,7 @@ export function SettingsView({ initialTab = "ai" }: { initialTab?: SettingsTab }
             </div>
             <form className={styles.form} onSubmit={add}>
               {!replaceTarget && <>
-                <label>Provider<select name="provider" onChange={(event) => setAddProvider(event.target.value as CatalogProviderId)} value={addProvider}>{AI_PROVIDER_CATALOG.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select><small>{AI_PROVIDER_CATALOG.find((entry) => entry.id === addProvider)?.hint}</small></label>
+                <label>Provider<Select name="provider" onChange={(event) => setAddProvider(event.target.value as CatalogProviderId)} value={addProvider}>{AI_PROVIDER_CATALOG.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</Select><small>{AI_PROVIDER_CATALOG.find((entry) => entry.id === addProvider)?.hint}</small></label>
                 <label>Label<input name="label" placeholder="My personal key" required minLength={2} /></label>
               </>}
               <Field id="settings-provider-key" label={replaceTarget ? "New API key" : "API key"} help="Never paste a key you have already exposed publicly; rotate it first."><PasswordInput id="settings-provider-key" aria-describedby="settings-provider-key-help" name="secret" autoComplete="off" placeholder="Paste once" required minLength={8} /></Field>

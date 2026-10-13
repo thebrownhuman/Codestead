@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import {
   AlertTriangle, CalendarClock, ChevronDown, Flag, Gamepad2, LockKeyhole,
   MessageCircle, Pencil, Plus, RefreshCw, Send, ShieldCheck, Trash2, Trophy, Users,
@@ -103,10 +105,10 @@ function ReportControl({ target, targetId, onDone, requestJson }: { target: "pos
   return <details className={styles.actionDetails}>
     <summary><Flag size={14} /> Report</summary>
     <div className={styles.inlineAction}>
-      <label>Reason<select value={reason} onChange={(event) => setReason(event.target.value as typeof reason)}>
+      <label>Reason<Select value={reason} onChange={(event) => setReason(event.target.value as typeof reason)}>
         <option value="other">Other concern</option><option value="harassment">Harassment</option>
         <option value="unsafe_code">Unsafe code</option><option value="spam">Spam</option><option value="privacy">Privacy</option>
-      </select></label>
+      </Select></label>
       <button type="button" className="button button-secondary" onClick={() => void submit()} disabled={busy}>Send report</button>
       {error && <small role="alert">{error}</small>}
     </div>
@@ -479,15 +481,15 @@ export function CommunitySpaces({ people }: { people: Person[] }) {
         <details className={styles.createPanel}><summary><Plus size={15} /> New group</summary><form onSubmit={(event) => void createGroup(event)}>
           <label>Name<input name="name" minLength={3} maxLength={80} required /></label>
           <label>Purpose<textarea name="description" minLength={10} maxLength={500} required /></label>
-          <label>Who can read?<select name="visibility"><option value="members">Members only</option><option value="cohort">Whole cohort</option></select></label>
+          <label>Who can read?<Select name="visibility"><option value="members">Members only</option><option value="cohort">Whole cohort</option></Select></label>
           <button className="button button-primary" disabled={busy}>Create group</button>
         </form></details>
       </aside>
       <div className={styles.feed}>
         {selected ? <div className={styles.groupHead}><div><h3>{selected.name}</h3><p>{selected.description}</p></div><span className={styles.pill}>{selected.visibility === "members" ? <LockKeyhole size={13} /> : <Users size={13} />}{selected.visibility === "members" ? "Members only" : "Cohort"}</span></div> : null}
-        {selected && ["owner", "moderator"].includes(selected.membershipRole ?? "") && selected.visibility === "members" && people.length ? <details className={styles.createPanel}><summary><Users size={15} /> Add a learner</summary><form onSubmit={(event) => void addMember(event)}><label>Learner<select name="learnerPublicId" required>{people.map((person) => <option key={person.publicId} value={person.publicId}>{person.alias}</option>)}</select></label><button className="button button-secondary" disabled={busy}>Add member</button></form></details> : null}
+        {selected && ["owner", "moderator"].includes(selected.membershipRole ?? "") && selected.visibility === "members" && people.length ? <details className={styles.createPanel}><summary><Users size={15} /> Add a learner</summary><form onSubmit={(event) => void addMember(event)}><label>Learner<Select name="learnerPublicId" required>{people.map((person) => <option key={person.publicId} value={person.publicId}>{person.alias}</option>)}</Select></label><button className="button button-secondary" disabled={busy}>Add member</button></form></details> : null}
         {selected && selected.status === "active" ? <details className={styles.createPanel} open={visiblePosts.length === 0}><summary><Plus size={15} /> Start a conversation</summary><form onSubmit={(event) => void createPost(event)}>
-          <div className={styles.formRow}><label>Type<select name="kind"><option value="discussion">Discussion</option><option value="help">Help request</option><option value="project_share">Project share</option></select></label><label>Title<input name="title" minLength={3} maxLength={160} required /></label></div>
+          <div className={styles.formRow}><label>Type<Select name="kind"><option value="discussion">Discussion</option><option value="help">Help request</option><option value="project_share">Project share</option></Select></label><label>Title<input name="title" minLength={3} maxLength={160} required /></label></div>
           <label>What do you want the group to know?<textarea name="body" minLength={10} maxLength={8000} required /></label>
           <p className={styles.helper}>Plain text only. Do not paste API keys, passwords, private test answers, or personal contact details.</p>
           <button className="button button-primary" disabled={busy}><Send size={15} /> Post</button>
@@ -513,12 +515,12 @@ export function CommunitySpaces({ people }: { people: Person[] }) {
     {tab === "battle" && <div className={styles.battleLayout} id="community-panel-battle" role="tabpanel" aria-labelledby="community-tab-battle">
       <aside className={styles.battleRail}>
         <div className={styles.railTitle}><Trophy size={17} /><strong>Challenge board</strong></div>
-        <label>Show<select value={battleFilter} onChange={(event) => setBattleFilter(event.target.value as typeof battleFilter)}><option value="all">All battles</option><option value="invite">Friend invites</option><option value="cohort">Cohort</option><option value="weekly">Weekly competition</option><option value="monthly">Monthly competition</option></select></label>
+        <label>Show<Select value={battleFilter} onChange={(event) => setBattleFilter(event.target.value as typeof battleFilter)}><option value="all">All battles</option><option value="invite">Friend invites</option><option value="cohort">Cohort</option><option value="weekly">Weekly competition</option><option value="monthly">Monthly competition</option></Select></label>
         {phone && <div className={styles.mobileNotice}><LockKeyhole size={17} /><span><strong>Read-only on phone</strong><small>Create, join, and submit on a tablet or laptop.</small></span></div>}
         {!phone && battles.sources.length ? <details className={styles.createPanel}><summary><Plus size={15} /> Create a battle</summary><form onSubmit={(event) => void createBattle(event)}>
-          <label>Reviewed challenge<select name="activityId" required>{battles.sources.map((source) => <option key={source.activityId} value={source.activityId}>{source.title} · {source.language}</option>)}</select></label>
-          <label>Scope<select name="scope" defaultValue="invite"><option value="invite">Invite one friend</option><option value="cohort">Open cohort challenge</option>{discussion.moderation && <><option value="weekly">Weekly competition (admin)</option><option value="monthly">Monthly competition (admin)</option></>}</select></label>
-          <label>Friend<select name="invite"><option value="">Choose for invite scope</option>{people.map((person) => <option key={person.publicId} value={person.publicId}>{person.alias}</option>)}</select></label>
+          <label>Reviewed challenge<Select name="activityId" required>{battles.sources.map((source) => <option key={source.activityId} value={source.activityId}>{source.title} · {source.language}</option>)}</Select></label>
+          <label>Scope<Select name="scope" defaultValue="invite"><option value="invite">Invite one friend</option><option value="cohort">Open cohort challenge</option>{discussion.moderation && <><option value="weekly">Weekly competition (admin)</option><option value="monthly">Monthly competition (admin)</option></>}</Select></label>
+          <label>Friend<Select name="invite"><option value="">Choose for invite scope</option>{people.map((person) => <option key={person.publicId} value={person.publicId}>{person.alias}</option>)}</Select></label>
           <label>Normal battle minutes<input name="durationMinutes" type="number" min={5} max={1440} defaultValue={60} /></label>
           {discussion.moderation && <label>Competition key<input name="competitionKey" placeholder="2026-W29 or 2026-07" /></label>}
           <button className="button button-primary" disabled={busy}>Freeze reviewed challenge</button>

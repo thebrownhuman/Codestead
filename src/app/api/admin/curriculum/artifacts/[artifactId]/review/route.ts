@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { type NextRequest } from "next/server";
 import { z } from "zod";
 
@@ -24,7 +25,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   return withRateLimit({ policy: "curriculum_mutation_admin", identity: { kind: "user", value: authz.session.user.id } }, async () => {
     const { artifactId } = await params;
     if (!z.uuid().safeParse(artifactId).success) return adminJson({ error: "Artifact not found." }, 404);
-    const body = schema.safeParse(await request.json().catch(() => null));
+    const jsonBody = await readBoundedJson(request);
+    if (jsonBody.response?.status === 413) return secureAdminResponse(jsonBody.response);
+    const body = schema.safeParse(jsonBody.value);
     if (!body.success) return adminJson({ error: "Complete the bounded review checklist, item list, reason, and version." }, 400);
     const gate = await authorizeCurriculumAdmin({ actorUserId: authz.session.user.id, sessionId: authz.session.session.id, actorRole: authz.account.role, reason: body.data.reason, action: "curriculum.review" });
     if (!gate.allowed) return adminJson({ error: gate.code }, 403);

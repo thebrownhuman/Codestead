@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { Eye, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
@@ -301,8 +303,8 @@ export function AdminMentorEvidenceReader({ learnerId }: { readonly learnerId: s
       </div>
       <p className={styles.safeNotice} role="alert"><ShieldAlert size={15} /> This area can display private learner-authored chats, code, answers, PRDs, and findings. Confirm nobody else can see your screen. Results are never cached and clear automatically after five minutes.</p>
       <div className={styles.appealDecisionForm}>
-        <label>Evidence category<select aria-label="Mentor evidence category" value={category} onChange={(event) => changeScope(() => setCategory(event.target.value as MentorEvidenceCategory))}>{Object.entries(CATEGORY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-        <label>Mentoring purpose<select aria-label="Mentor evidence purpose" value={purpose} onChange={(event) => changeScope(() => setPurpose(event.target.value as MentorEvidencePurpose))}>{Object.entries(PURPOSE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <label>Evidence category<Select aria-label="Mentor evidence category" value={category} onChange={(event) => changeScope(() => setCategory(event.target.value as MentorEvidenceCategory))}>{Object.entries(CATEGORY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label>
+        <label>Mentoring purpose<Select aria-label="Mentor evidence purpose" value={purpose} onChange={(event) => changeScope(() => setPurpose(event.target.value as MentorEvidencePurpose))}>{Object.entries(PURPOSE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label>
         <label>Specific reason<textarea aria-label="Mentor evidence reason" maxLength={500} minLength={20} onChange={(event) => changeScope(() => setReason(event.target.value))} value={reason} /></label>
         <label>Current six-digit authenticator code<PasswordInput aria-label="Mentor evidence authenticator code" autoComplete="one-time-code" inputMode="numeric" maxLength={6} onChange={(event) => setTotp(event.target.value.replace(/\D/g, ""))} value={totp} /></label>
         <div className={styles.headActions}>

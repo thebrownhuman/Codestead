@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
@@ -20,7 +21,9 @@ export async function POST(request: NextRequest) {
   return withRateLimit(
     { policy: "fresh_mfa_user", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
-      const body = bodySchema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return jsonBody.response;
+      const body = bodySchema.safeParse(jsonBody.value);
       if (!body.success) {
         return NextResponse.json({ error: "Enter one complete recovery code." }, { status: 400 });
       }

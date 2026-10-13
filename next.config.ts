@@ -20,6 +20,12 @@ const nextConfig: NextConfig = {
     onDemandEntries: { maxInactiveAge: 24 * 60 * 60 * 1000, pagesBufferLength: 1_000 },
   } : {}),
   output: "standalone",
+  outputFileTracingIncludes: {
+    "/api/certificates/*/pdf": [
+      "./src/lib/certificates/fonts/NotoSansDevanagari.ttf",
+      "./src/lib/certificates/fonts/OFL.txt",
+    ],
+  },
   poweredByHeader: false,
   allowedDevOrigins: ["127.0.0.1"],
   turbopack: {

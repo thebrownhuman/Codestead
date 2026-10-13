@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { and, eq } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { z } from "zod";
@@ -56,7 +57,9 @@ export async function POST(
   if (!authz.session) return secureAdminResponse(authz.response);
   const actorUserId = authz.session.user.id;
   const { learnerId } = await context.params;
-  const body = mentorEvidenceReadSchema.safeParse(await request.json().catch(() => null));
+  const jsonBody = await readBoundedJson(request);
+  if (jsonBody.response?.status === 413) return secureAdminResponse(jsonBody.response);
+  const body = mentorEvidenceReadSchema.safeParse(jsonBody.value);
   if (!learnerIdSchema.safeParse(learnerId).success || !body.success) {
     await deniedAudit({
       actorUserId,

@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { randomUUID } from "node:crypto";
 
 import { NextRequest, NextResponse } from "next/server";
@@ -43,7 +44,9 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ ba
 export async function POST(request: NextRequest, context: { params: Promise<{ battleId: string }> }) {
   const authz = await requireAuth({ closedBookCapability: "battles" });
   if (!authz.session) return authz.response;
-  const body = schema.safeParse(await request.json().catch(() => null));
+  const jsonBody = await readBoundedJson(request);
+  if (jsonBody.response?.status === 413) return jsonBody.response;
+  const body = schema.safeParse(jsonBody.value);
   if (!body.success) return NextResponse.json({ error: "Choose join or provide exactly one accepted submission type." }, { status: 400, headers });
   const policy = body.data.action === "submit" ? "battle_submit_user" : "battle_write_user";
   return withRateLimit(

@@ -3,12 +3,20 @@ import { expect, test } from "@playwright/test";
 test.describe("authored learning UI", () => {
   test("standalone Code Lab exposes all runner languages without overflowing", async ({ page }) => {
     await page.goto("/playground");
+    await page.setViewportSize({ width: 375, height: 812 });
     const selector = page.getByRole("combobox", { name: "Runner language" });
     await expect(selector).toBeVisible();
-    await expect(selector.locator("option")).toHaveCount(5);
-    expect(await selector.locator("option").allTextContents()).toEqual(["C", "C++", "Java", "JavaScript", "Python"]);
-    await selector.selectOption("cpp");
-    await expect(selector).toHaveValue("cpp");
+    await selector.click();
+    const options = page.getByRole("listbox").getByRole("option");
+    await expect(options).toHaveCount(5);
+    expect(await options.allTextContents()).toEqual(["C", "C++", "Java", "JavaScript", "Python"]);
+    const listBox = await page.getByRole("listbox").boundingBox();
+    expect(listBox).not.toBeNull();
+    expect(listBox!.x).toBeGreaterThanOrEqual(0);
+    expect(listBox!.x + listBox!.width).toBeLessThanOrEqual(375);
+    await page.getByRole("option", { name: "C++", exact: true }).click();
+    await expect(selector).toHaveText("C++");
+    await expect(selector).toHaveAttribute("data-value", "cpp");
     await expect(page.getByText(/C\+\+ practice.*isolated NUC runner/i)).toBeVisible();
     const selectorBox = await selector.boundingBox();
     expect(selectorBox?.height ?? 0).toBeGreaterThanOrEqual(44);
@@ -39,7 +47,8 @@ test.describe("authored learning UI", () => {
       && Math.max(formBox.top, historyBox.top) < Math.min(formBox.bottom, historyBox.bottom));
     expect(panelsOverlap).toBe(false);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
-    await page.getByLabel("Request type").selectOption("new-subject");
+    await page.getByRole("combobox", { name: "Request type" }).click();
+    await page.getByRole("option", { name: "Add a new subject", exact: true }).click();
     await page.getByLabel("Subject or topic").fill("High-performance computing");
     await page.getByLabel("What should the course cover?").fill("Parallel fundamentals, profiling, and a small evidence-based project.");
     await page.getByRole("button", { name: "Send for review" }).click();

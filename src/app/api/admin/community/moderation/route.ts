@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { and, eq } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { z } from "zod";
@@ -35,7 +36,9 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const authz = await requireAdmin();
   if (!authz.session) return secureAdminResponse(authz.response);
-  const body = schema.safeParse(await request.json().catch(() => null));
+  const jsonBody = await readBoundedJson(request);
+  if (jsonBody.response?.status === 413) return secureAdminResponse(jsonBody.response);
+  const body = schema.safeParse(jsonBody.value);
   if (!body.success) return adminJson({ error: "A target, action, and specific moderation reason are required." }, 400);
   return withRateLimit(
     { policy: "community_moderation_admin", identity: { kind: "user", value: authz.session.user.id } },

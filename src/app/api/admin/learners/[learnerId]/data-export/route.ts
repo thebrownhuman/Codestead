@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { and, eq, notInArray } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -49,7 +50,9 @@ export async function POST(
   return withRateLimit(
     { policy: "data_export_admin", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
-      const body = bodySchema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return jsonBody.response;
+      const body = bodySchema.safeParse(jsonBody.value);
       if (!body.success) return NextResponse.json(
         { error: "A request id, bounded export size, and specific reason are required." },
         { status: 400, headers: noStoreJsonHeaders },

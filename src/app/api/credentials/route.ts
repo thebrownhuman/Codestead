@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
@@ -96,7 +97,9 @@ export async function POST(request: NextRequest) {
   });
   if (!mfa.allowed) return mfa.response;
 
-  const body = createSchema.safeParse(await request.json().catch(() => null));
+  const jsonBody = await readBoundedJson(request);
+  if (jsonBody.response?.status === 413) return jsonBody.response;
+  const body = createSchema.safeParse(jsonBody.value);
   if (!body.success) {
     return NextResponse.json({ error: "Provider, label, and a valid key are required." }, { status: 400 });
   }

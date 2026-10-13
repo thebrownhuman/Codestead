@@ -369,8 +369,13 @@ export async function listCertificateCandidates(userId: string) {
 
 export async function loadPublicCertificate(verificationId: string) {
   if (!VERIFICATION_PATTERN.test(verificationId)) throw new CertificateError("NOT_FOUND");
-  const result = await pool.query<CertificatePrivateRow>(
-    `select certificate.id,certificate.verification_id,certificate.learner_display_name,
+  const result = await pool.query<CertificatePrivateRow & { public_display_name: string | null }>(
+    `select certificate.id,certificate.verification_id,null::text learner_display_name,
+            (select portfolio.display_name from public_portfolio portfolio
+               join public_portfolio_certificate selected on selected.user_id=portfolio.user_id
+              where portfolio.user_id=certificate.user_id and portfolio.is_published
+                and selected.certificate_id=certificate.id and selected.user_id=certificate.user_id
+            ) public_display_name,
             certificate.course_title,certificate.course_version_label,certificate.policy_version,
             certificate.issued_at,revocation.revoked_at,null::text revocation_reason
        from course_certificate certificate
@@ -383,7 +388,7 @@ export async function loadPublicCertificate(verificationId: string) {
   const certificate = privateCertificate(result.rows[0]);
   return {
     verificationId: certificate.verificationId,
-    learnerDisplayName: certificate.learnerDisplayName,
+    learnerDisplayName: result.rows[0].public_display_name ?? null,
     courseTitle: certificate.courseTitle,
     courseVersion: certificate.courseVersion,
     issuedAt: certificate.issuedAt,
@@ -393,6 +398,22 @@ export async function loadPublicCertificate(verificationId: string) {
       ? "This record matches an immutable certificate issued from the current verified course version and authoritative completion evidence at issue time."
       : "This certificate has been revoked. The private administrative reason is not exposed by the public verifier.",
   };
+}
+
+/** Owner-bound lookup also used by the private server-rendered PDF. */
+export async function loadOwnCertificate(certificateId: string, userId: string) {
+  if (!UUID_PATTERN.test(certificateId) || !userId.trim()) throw new CertificateError("NOT_FOUND");
+  const result = await pool.query<CertificatePrivateRow>(
+    `select certificate.id,certificate.verification_id,certificate.learner_display_name,
+            certificate.course_title,certificate.course_version_label,certificate.policy_version,
+            certificate.issued_at,revocation.revoked_at,revocation.reason revocation_reason
+       from course_certificate certificate
+       left join certificate_revocation revocation on revocation.certificate_id=certificate.id
+      where certificate.id=$1 and certificate.user_id=$2`,
+    [certificateId, userId],
+  );
+  if (!result.rows[0]) throw new CertificateError("NOT_FOUND");
+  return privateCertificate(result.rows[0]);
 }
 
 export async function listAdminCertificates() {

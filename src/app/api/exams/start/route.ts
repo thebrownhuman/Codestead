@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { type NextRequest } from "next/server";
 
 import { requireAuth } from "@/lib/http/authz";
@@ -13,7 +14,9 @@ export async function POST(request: NextRequest) {
   return withRateLimit(
     { policy: "exam_start_user", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
-  const body = startExamRequestSchema.safeParse(await request.json().catch(() => null));
+  const jsonBody = await readBoundedJson(request);
+  if (jsonBody.response?.status === 413) return jsonBody.response;
+  const body = startExamRequestSchema.safeParse(jsonBody.value);
   if (!body.success) {
     return examJson(
       { error: "Choose a module and accept both exam statements.", code: "INVALID_EXAM_START" },
