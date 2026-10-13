@@ -5,12 +5,16 @@ on:
     paths:
       - .github/workflows/piston-image.yml
       - infra/piston/**
+      - infra/piston-interactive/**
+      - compose.piston-interactive.yaml
       - src/lib/runner/**
   push:
     branches: [main]
     paths:
       - .github/workflows/piston-image.yml
       - infra/piston/**
+      - infra/piston-interactive/**
+      - compose.piston-interactive.yaml
       - src/lib/runner/**
   workflow_dispatch:
 
@@ -53,14 +57,35 @@ jobs:
           rm build.log
       - name: Require identical digests from both builds
         run: node infra/piston/verify-digest.mjs first-build-metadata.json infra/piston/build-metadata.json
+      - name: Assert the reproducible CI batch parent pin
+        run: |
+          node --input-type=module -e "import assert from 'node:assert/strict'; import { readFileSync } from 'node:fs'; const metadata = JSON.parse(readFileSync('infra/piston/build-metadata.json')); assert.equal(metadata['containerimage.digest'], 'sha256:6dc2d85a7b5b5fa15f1fae8f1232b43837eb912831bc23fc24c0dc0e0b5b0e3a', 'CI batch parent differs from the reviewed reproducible pin');"
       - name: Test actual image and record its manifest
         run: |
           node infra/piston/test-image.mjs codestead-piston:ci > smoke.log 2>&1 || { cat smoke.log; exit 1; }
           rm smoke.log
+      - name: Check interactive patch and isolated Compose addon
+        run: |
+          node --test infra/piston-interactive/*.test.mjs > interactive-contract.log 2>&1 || { tail -n 120 interactive-contract.log; exit 1; }
+          node infra/piston-interactive/verify-handoff.mjs >> interactive-contract.log 2>&1 || { tail -n 120 interactive-contract.log; exit 1; }
+          rm interactive-contract.log
+      - name: Build interactive image twice and require identical digests
+        run: |
+          node infra/piston-interactive/build.mjs codestead-piston-interactive:ci codestead-piston:ci > interactive-build.log 2>&1 || { tail -n 120 interactive-build.log; exit 1; }
+          cp infra/piston-interactive/build-metadata.json first-interactive-build.json
+          node infra/piston-interactive/build.mjs --no-cache codestead-piston-interactive:ci codestead-piston:ci > interactive-build.log 2>&1 || { tail -n 120 interactive-build.log; exit 1; }
+          node infra/piston/verify-digest.mjs first-interactive-build.json infra/piston-interactive/build-metadata.json
+          rm interactive-build.log
+      - name: Verify live interactive image behavior
+        run: |
+          node infra/piston-interactive/test-image.mjs codestead-piston-interactive:ci > interactive-live.log 2>&1 || { tail -n 120 interactive-live.log; exit 1; }
+          rm interactive-live.log
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: piston-image-runtime-handoff
           path: |
             infra/piston/image-result.json
             infra/piston/build-metadata.json
+            infra/piston-interactive/image-result.json
+            infra/piston-interactive/build-metadata.json
           if-no-files-found: error

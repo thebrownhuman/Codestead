@@ -1,0 +1,6 @@
+build-inputs.sha256
+build-metadata.json
+image-result.json
+*.log
+base-image.json
+base-inputs.sha256

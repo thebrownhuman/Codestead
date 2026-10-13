@@ -1,0 +1,52 @@
+# Optional image-only PR 1a service. No host port, application connection or broker.
+# Merge with compose.yaml explicitly; it remains OFF without this profile.
+services:
+  piston-interactive:
+    profiles: ["piston-interactive"]
+    platform: linux/amd64
+    image: ${PISTON_INTERACTIVE_IMAGE:?Set PISTON_INTERACTIVE_IMAGE to the reviewed locally-built image digest}
+    pull_policy: never
+    runtime: io.containerd.kata.v2
+    restart: unless-stopped
+    stop_grace_period: 15s
+    networks: ["piston-interactive"]
+    read_only: true
+    cap_drop: ["ALL"]
+    cap_add: ["SYS_ADMIN", "NET_ADMIN", "SETUID", "SETGID", "CHOWN", "DAC_OVERRIDE", "FOWNER", "SYS_CHROOT", "KILL"]
+    security_opt: ["no-new-privileges:true", "systempaths=unconfined"]
+    tmpfs:
+      - /piston/jobs:rw,exec,nosuid,nodev,size=256m,uid=1001,gid=1001,mode=0711
+      - /var/local/lib/isolate:rw,exec,nosuid,nodev,size=256m
+      - /run/isolate:rw,noexec,nosuid,nodev,size=8m
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    environment:
+      PISTON_LOG_LEVEL: ERROR
+      PISTON_DISABLE_NETWORKING: "true"
+      PISTON_RUN_TIMEOUT: "300000"
+      PISTON_RUN_CPU_TIME: "3000"
+      PISTON_COMPILE_TIMEOUT: "10000"
+      PISTON_COMPILE_CPU_TIME: "10000"
+      PISTON_RUN_MEMORY_LIMIT: "268435456"
+      PISTON_COMPILE_MEMORY_LIMIT: "536870912"
+      PISTON_MAX_CONCURRENT_JOBS: "2"
+      PISTON_OUTPUT_MAX_SIZE: "65536"
+      PISTON_MAX_PROCESS_COUNT: "32"
+      PISTON_MAX_OPEN_FILES: "64"
+      PISTON_MAX_FILE_SIZE: "16777216"
+    ulimits:
+      nofile: 65536
+    healthcheck:
+      disable: true
+    mem_limit: 2g
+    cpus: 2.0
+    pids_limit: 128
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  piston-interactive:
+    driver: bridge
+    internal: true

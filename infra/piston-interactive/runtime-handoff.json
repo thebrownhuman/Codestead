@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "imageReference": "codestead-piston-interactive:worker-a@sha256:2da692eef96326d5311d8037c46b40f11c82ddb688980af36e31ccdd0cc59215",
+  "imageConfigDigest": "sha256:bedd89b587aa344c933cbb9b104aa222527dbb62c858b24b5e973f8c51d322b8",
+  "baseImage": {
+    "imageReference": "codestead-piston@sha256:2fc2e55122fbdc25c6100a0ee7d8f29a31282b9e0202655e206b644985ed8ef6",
+    "imageConfigDigest": "sha256:fcd0ba23c9d8e65558ac27298f270f5eaff5cb2c54fd504183b404dc97037722",
+    "pistonCommit": "de2b365ac759670a3a0d13ea208a0869a92c7e64",
+    "sourceDateEpoch": 1790812800
+  },
+  "observedInventory": [
+    {
+      "language": "c",
+      "version": "14.2.0",
+      "aliases": [
+        "gcc"
+      ],
+      "runtime": "gcc"
+    },
+    {
+      "language": "c++",
+      "version": "14.2.0",
+      "aliases": [
+        "cpp",
+        "g++"
+      ],
+      "runtime": "gcc"
+    },
+    {
+      "language": "java",
+      "version": "21.0.12",
+      "aliases": [],
+      "runtime": "java"
+    },
+    {
+      "language": "javascript",
+      "version": "22.23.3",
+      "aliases": [
+        "node",
+        "js"
+      ],
+      "runtime": "node"
+    },
+    {
+      "language": "python",
+      "version": "3.14.8",
+      "aliases": [
+        "python3"
+      ],
+      "runtime": "python"
+    }
+  ],
+  "buildInputSha256": {
+    "Dockerfile": "abffc9f83bc83b74c781e2b1a6c1fb7091fe5fdafd4bc8797ce9512d62bf5b8e",
+    ".dockerignore": "351bcb2d688b150c2ecc65590294cd9c032901314769b77a0e0e4d6a43a7a37a",
+    "patch.mjs": "341d7055c73537110edd9b6dea2d6efb6894db109e28c92e38448479695a408f",
+    "connection.mjs": "50fcb3a7d29fe64d560a228dabafd086d8593d6cc812e75bb0a6af292b6e4253",
+    "base-image.json": "028cb1eaa27ca18d7cb99e6f4ba8ceb923a5c5b75960d40f43a212668a587a24",
+    "base-inputs.sha256": "aacf579597c48c71ae058d61545a3717f78eaf1eee114cded82f2831bbf377bc"
+  },
+  "testInputSha256": {
+    "build.mjs": "e9c571d5d417a762d766805dacb896202d7ecbe28c1b40860b6ff63b1d971221",
+    "build.test.mjs": "368ec3fdf7d09cc67f301a6b802469cac78eba059245ea897a34577ea1f0e8d6",
+    "test-image.mjs": "f56fabc5f03058c88a7200e4e7e2cb552820f0e08ca10bff2ed801142a5efac6",
+    "live-tests.mjs": "42b3e5f0df96d9327b212f056ac58b657be3bc3b1e30999fb75f6b10e5444e8b",
+    "connection.test.mjs": "ea68f30c70df41203f237d39ba9632c656664b68c3733fae73c11e6442a390ae",
+    "patch.test.mjs": "2a297a07b0c85fd8072ec2083431f302612a463ef1692831fe3e67fb7cd1ab49",
+    "compose.test.mjs": "117005502e9bca655f8773780ac9cf0c90b0681ed9b50a74586bcbe887a43d45",
+    "verify-handoff.mjs": "d9952522c769dbfadf474a41694c1f1bc04efc91de193398a561e0dc48b186b6"
+  },
+  "validation": {
+    "passed": true,
+    "liveTests": [
+      {
+        "name": "interactive image rejects REST execution and package mutations",
+        "passed": true
+      },
+      {
+        "name": "c: two prompts arrive before their corresponding input",
+        "passed": true
+      },
+      {
+        "name": "cpp: two prompts arrive before their corresponding input",
+        "passed": true
+      },
+      {
+        "name": "java: two prompts arrive before their corresponding input",
+        "passed": true
+      },
+      {
+        "name": "python: two prompts arrive before their corresponding input",
+        "passed": true
+      },
+      {
+        "name": "javascript: two prompts arrive before their corresponding input",
+        "passed": true
+      },
+      {
+        "name": "EOF closes stdin while preserving buffered input and normal exit",
+        "passed": true
+      },
+      {
+        "name": "combined stdout/stderr cap terminates the process",
+        "passed": true
+      },
+      {
+        "name": "stdin UTF-8 byte cap terminates the process",
+        "passed": true
+      },
+      {
+        "name": "the run CPU cap stays at three seconds",
+        "passed": true
+      },
+      {
+        "name": "disconnect: whole job dies, including a detached child ignoring signals",
+        "passed": true
+      },
+      {
+        "name": "stop: whole job dies, including a detached child ignoring signals",
+        "passed": true
+      },
+      {
+        "name": "ctrl-c: whole job dies, including a detached child ignoring signals",
+        "passed": true
+      },
+      {
+        "name": "signal: whole job dies, including a detached child ignoring signals",
+        "passed": true
+      },
+      {
+        "name": "cancelled jobs return both slots without disrupting another terminal",
+        "passed": true
+      }
+    ],
+    "skipped": 0,
+    "isolation": "isolate in disposable Docker Desktop/CI VM; production Kata requires owner deployment",
+    "resourceLimits": {
+      "memoryBytes": 2147483648,
+      "cpus": 2,
+      "pids": 128,
+      "slots": 2,
+      "readOnly": true
+    }
+  }
+}
