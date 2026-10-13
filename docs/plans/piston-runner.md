@@ -86,7 +86,7 @@ Honest comparison with our runner:
 | Per-submission boundary | Fresh unprivileged container: cap-drop ALL, no-new-privileges, uid 65532, read-only root, `--network none`, pids/mem/cpu/fsize limits | isolate: namespaces + cgroup v2, uid 60003, no caps, no network, read-only root |
 | Service process | Needs the Docker socket (root-equivalent), so it is meant for a dedicated runner VM; Bubblewrap containment on the VM guest | **Privileged root container**. An isolate escape lands in a privileged container, which is effectively host root |
 | Shared NUC without a VM | Not safe either (Docker socket access) | Not safe: an isolate escape = NUC root |
-| Languages | GCC 14.2 (C23), G++ 14.2 (C++20), Java 21, Python 3.14, Node 22 (CI 22.23.1, image 22.23.3) | Official repo: gcc 10.2, java 15, python 3.12. Newer versions need our own package builds |
+| Languages | GCC 14.2 (C23), G++ 14.2 (C++20), Java 21, Python 3.14, Node 22 | Official repo: gcc 10.2, java 15, python 3.12. Newer versions need our own package builds |
 | Latency | ~0.9-1.9 s per run | ~0.05-0.5 s per run |
 
 Both runners need a VM boundary to be safe on the shared NUC. Piston's own inner sandbox is as good
@@ -183,7 +183,7 @@ them reach the server runner.
 | C++ | G++ 14.2 (C++20) | gcc 10.2.0 | gcc 10.2.0 |
 | Java | Java 21.0.12 | java 15.0.2 | java 15.0.2 |
 | Python | Python 3.14.7 | python 3.12.0 | python 3.12.0 |
-| JavaScript | Node 22 (CI 22.23.1, image 22.23.3) | node 20.11.1 | node 20.11.1 |
+| JavaScript | Node 22 | node 20.11.1 | node 20.11.1 |
 
 PR1 ships the official packages so the service can be measured. Matching the lessons needs our own
 packages (PR5). Plan:
@@ -198,7 +198,7 @@ packages (PR5). Plan:
   Add an AppCDS archive built at image build time (`-XX:ArchiveClassesAtExit` over a javac + hello
   run, then `-XX:SharedArchiveFile` for both javac and java) to cut JVM start-up.
 - **Python 3.14:** the python-build-standalone `install_only` tarball (sha256-pinned).
-- **Node 22 (CI 22.23.1, image 22.23.3):** the official nodejs.org linux-x64 tarball (sha256-pinned).
+- **Node 22:** the official nodejs.org linux-x64 tarball (sha256-pinned).
 
 ## Speed and resources
 
