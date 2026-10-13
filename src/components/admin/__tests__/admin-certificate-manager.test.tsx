@@ -35,6 +35,7 @@ describe("administrator certificate manager", () => {
     const user = userEvent.setup();
     render(<AdminCertificateManager />);
     expect(await screen.findByText(/safe learner · learner@example.test/i)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Add to LinkedIn/ })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /review revocation/i }));
     const reason = screen.getByLabelText(/private administrative reason/i);
     const confirm = screen.getByRole("button", { name: /confirm permanent revocation/i });

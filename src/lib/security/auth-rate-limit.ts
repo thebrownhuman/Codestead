@@ -5,6 +5,10 @@ import { withRateLimit, type RateLimitPolicy } from "./rate-limit";
 
 // Auth budgets are fixed and fail closed, independent of API policy overrides.
 const rules: Record<string, RateLimitPolicy> = {
+  "/request-password-reset": { name: "auth_reset_request_ip", limit: 3, windowSeconds: 600, failureMode: "closed" },
+  "/reset-password": { name: "auth_reset_password_ip", limit: 6, windowSeconds: 60, failureMode: "closed" },
+  "/reset-password/:token": { name: "auth_reset_callback_ip", limit: 10, windowSeconds: 60, failureMode: "closed" },
+  "/two-factor/verify-backup-code": { name: "auth_backup_code_ip", limit: 6, windowSeconds: 60, failureMode: "closed" },
   "/sign-in/email": { name: "auth_sign_in_ip", limit: 8, windowSeconds: 60, failureMode: "closed" },
   "/sign-up/email": { name: "auth_sign_up_ip", limit: 3, windowSeconds: 600, failureMode: "closed" },
   "/two-factor/verify-totp": { name: "auth_totp_ip", limit: 6, windowSeconds: 60, failureMode: "closed" },
@@ -20,7 +24,7 @@ export function atomicAuthRateLimitPlugin(databaseRequired: boolean) {
       const basePath = new URL(context.baseURL).pathname.replace(/\/+$/, "");
       const pathname = new URL(request.url).pathname.replace(/\/+$/, "");
       const path = pathname.startsWith(`${basePath}/`) ? pathname.slice(basePath.length) : pathname;
-      const rule = rules[path];
+      const rule = rules[/^\/reset-password\/[A-Za-z0-9_-]+$/.test(path) ? "/reset-password/:token" : path];
       if (!rule) return;
       const candidate = request.headers.get("cf-connecting-ip")?.trim() ?? "";
       // Node accepts interface-scoped IPv6 literals; proxy IP headers must not.

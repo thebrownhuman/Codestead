@@ -4,6 +4,8 @@ import { Award, BadgeCheck, ExternalLink, RefreshCw, ShieldCheck } from "lucide-
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { buildLinkedInCertificateUrl } from "@/lib/certificates/linkedin";
+
 import styles from "./milestones.module.css";
 
 type Certificate = {
@@ -16,7 +18,7 @@ type Candidate = {
   masteredConcepts: number; totalConcepts: number; eligible: boolean; alreadyIssued: boolean; reason: string;
 };
 
-export function CertificateManager() {
+export function CertificateManager({ organizationName }: { organizationName: string }) {
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -129,6 +131,11 @@ export function CertificateManager() {
                 Verify <ExternalLink aria-hidden="true" size={15} />
               </Link>
               <a className="button button-secondary" href={`/api/certificates/${certificate.id}/pdf`} download>Download PDF</a>
+              {certificate.status === "valid" ? (
+                <a className="button button-secondary" href={buildLinkedInCertificateUrl(certificate, organizationName)} target="_blank" rel="noopener noreferrer">
+                  Add to LinkedIn <ExternalLink aria-hidden="true" size={15} />
+                </a>
+              ) : null}
             </div>
           </article>
         ))}
