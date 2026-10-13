@@ -1,3 +1,4 @@
+import { selectOption } from "@/test/select-option";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -147,8 +148,8 @@ describe("audited mentor evidence reader", () => {
     }));
     const user = userEvent.setup();
     render(<AdminMentorEvidenceReader learnerId={LEARNER_ID} />);
-    await user.selectOptions(screen.getByLabelText("Mentor evidence category"), "code_submissions");
-    await user.selectOptions(screen.getByLabelText("Mentoring purpose"), "safety_review");
+    await selectOption(user, screen.getByLabelText("Mentor evidence category"), "code_submissions");
+    await selectOption(user, screen.getByLabelText("Mentoring purpose"), "safety_review");
     await user.type(screen.getByLabelText("Mentor evidence reason"), "Review the active quarantine before a first-attempt operator resolution.");
     await user.type(screen.getByLabelText("Mentor evidence authenticator code"), "123456");
     await user.click(screen.getByRole("button", { name: /Read and audit evidence/i }));
@@ -191,8 +192,8 @@ describe("audited mentor evidence reader", () => {
     }));
     const user = userEvent.setup();
     render(<AdminMentorEvidenceReader learnerId={LEARNER_ID} />);
-    await user.selectOptions(screen.getByLabelText("Mentor evidence category"), "code_submissions");
-    await user.selectOptions(screen.getByLabelText("Mentoring purpose"), "safety_review");
+    await selectOption(user, screen.getByLabelText("Mentor evidence category"), "code_submissions");
+    await selectOption(user, screen.getByLabelText("Mentoring purpose"), "safety_review");
     await user.type(screen.getByLabelText("Mentor evidence reason"), "Review malformed recovery response handling without losing retry identity.");
     await user.type(screen.getByLabelText("Mentor evidence authenticator code"), "123456");
     await user.click(screen.getByRole("button", { name: /Read and audit evidence/i }));
@@ -266,8 +267,8 @@ describe("audited mentor evidence reader", () => {
     vi.stubGlobal("jest", vi);
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     render(<AdminMentorEvidenceReader learnerId={LEARNER_ID} />);
-    await user.selectOptions(screen.getByLabelText("Mentor evidence category"), "code_submissions");
-    await user.selectOptions(screen.getByLabelText("Mentoring purpose"), "safety_review");
+    await selectOption(user, screen.getByLabelText("Mentor evidence category"), "code_submissions");
+    await selectOption(user, screen.getByLabelText("Mentoring purpose"), "safety_review");
     await user.click(screen.getByLabelText("Mentor evidence reason"));
     await user.paste("Investigate the quarantined practice runner state before operator recovery.");
     await user.type(screen.getByLabelText("Mentor evidence authenticator code"), "123456");
@@ -376,7 +377,7 @@ describe("audited mentor evidence reader", () => {
 
     const user = userEvent.setup();
     render(<AdminMentorEvidenceReader learnerId={LEARNER_ID} />);
-    await user.selectOptions(screen.getByLabelText("Mentor evidence category"), "exams");
+    await selectOption(user, screen.getByLabelText("Mentor evidence category"), "exams");
     await user.type(screen.getByLabelText("Mentor evidence reason"), "Review the large exam record and its following smaller result safely.");
     await user.type(screen.getByLabelText("Mentor evidence authenticator code"), "123456");
     await user.click(screen.getByRole("button", { name: /Read and audit evidence/i }));
@@ -438,8 +439,8 @@ describe("audited mentor evidence reader", () => {
     }));
     const user = userEvent.setup();
     render(<AdminMentorEvidenceReader learnerId={LEARNER_ID} />);
-    await user.selectOptions(screen.getByLabelText("Mentor evidence category"), "code_submissions");
-    await user.selectOptions(screen.getByLabelText("Mentoring purpose"), "safety_review");
+    await selectOption(user, screen.getByLabelText("Mentor evidence category"), "code_submissions");
+    await selectOption(user, screen.getByLabelText("Mentoring purpose"), "safety_review");
     await user.type(screen.getByLabelText("Mentor evidence reason"), "Confirm the prior quarantined practice recovery is already terminal.");
     await user.type(screen.getByLabelText("Mentor evidence authenticator code"), "123456");
     await user.click(screen.getByRole("button", { name: /Read and audit evidence/i }));

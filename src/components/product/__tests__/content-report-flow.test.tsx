@@ -32,7 +32,7 @@ it.each(["practice", "checkpoint"] as const)("follows the unavailable %s report 
   expect(url.searchParams.get("kind")).toBe("content-defect");
   panel.unmount();
   render(await RequestsPage({ searchParams: Promise.resolve(Object.fromEntries(url.searchParams)) }));
-  expect(screen.getByLabelText("Request type")).toHaveValue("content-defect");
+  expect(screen.getByLabelText("Request type")).toHaveAttribute("data-value", "content-defect");
   expect(screen.getByLabelText("Subject or topic")).toHaveValue("Python: Assignment");
   await screen.findByText("No requests yet");
   await user.type(screen.getByLabelText("What should the course cover?"), "There is no reviewed activity.");

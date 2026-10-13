@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { Flag, X } from "lucide-react";
 import { useState } from "react";
 
@@ -47,7 +49,7 @@ export function AiOutputReport({ callId }: { callId: string }) {
         <button aria-label="Cancel report" className={styles.iconButton} onClick={() => setOpen(false)} type="button"><X size={14} /></button>
       </div>
       {error && <p className={styles.error} role="alert">{error}</p>}
-      <label>Problem category<select name="category" defaultValue="incorrect"><option value="incorrect">Incorrect or misleading</option><option value="harmful">Harmful or unsafe</option><option value="off-topic">Off topic</option><option value="privacy">Privacy concern</option><option value="other">Other</option></select></label>
+      <label>Problem category<Select name="category" defaultValue="incorrect"><option value="incorrect">Incorrect or misleading</option><option value="harmful">Harmful or unsafe</option><option value="off-topic">Off topic</option><option value="privacy">Privacy concern</option><option value="other">Other</option></Select></label>
       <label>What went wrong?<textarea name="description" required minLength={20} maxLength={2000} placeholder="Explain what Codestead said and why it should be reviewed." /></label>
       <small>The report preserves provider, model, prompt version, safe context manifest, and content hashes—not your API key.</small>
       <button className="button button-secondary" disabled={busy} type="submit">{busy ? "Submitting…" : "Submit report"}</button>

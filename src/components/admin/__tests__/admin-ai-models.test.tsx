@@ -2,6 +2,8 @@ import { fireEvent, render, screen, within, waitFor } from "@testing-library/rea
 import { afterEach, expect, it, vi } from "vitest";
 vi.mock("../step-up-request", () => ({ withStepUp: (run: () => Promise<Response>) => run() }));
 import { AdminAiModels } from "../admin-ai-models";
+import userEvent from "@testing-library/user-event";
+import { selectOption } from "@/test/select-option";
 const provider = { provider: "openrouter", label: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1", version: 2, hasPlatformKey: true, model: "test/model", priority: 1, verification: "untested", source: "admin" };
 const json = (body: unknown) => new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } });
 afterEach(() => vi.unstubAllGlobals());
@@ -46,7 +48,7 @@ it("shows the real test reply, status and latency, then saves verified with its 
   expect(await within(chat).findByText("Hello from the model")).toBeInTheDocument();
   expect(within(chat).getByText(/HTTP 200.*680 ms/)).toBeInTheDocument();
   fireEvent.click(within(chat).getByRole("button", { name: "Close test" }));
-  fireEvent.change(screen.getByLabelText("Save status"), { target: { value: "verified" } });
+  await selectOption(userEvent.setup(), screen.getByLabelText("Save status"), "verified");
   fireEvent.click(screen.getByRole("button", { name: "Save default model" }));
   await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/admin/ai-models", expect.objectContaining({ body: expect.stringContaining('"proof":"server-proof"') })));
 });
@@ -57,7 +59,9 @@ it("allows untested typed IDs without a key and requires saving endpoint edits b
   fireEvent.change(model, { target: { value: "typed/id" } });
   expect(screen.getByRole("button", { name: "Save default model" })).toBeEnabled();
   expect(screen.getByRole("button", { name: "Test" })).toBeDisabled();
-  expect(screen.getByRole("option", { name: "Verified" })).toBeDisabled();
+  await userEvent.click(screen.getByLabelText("Save status"));
+  expect(screen.getByRole("option", { name: "Verified" })).toHaveAttribute("aria-disabled", "true");
+  await userEvent.keyboard("{Escape}");
   fireEvent.change(screen.getByLabelText("HTTPS base URL"), { target: { value: "https://other.example/v1" } });
   expect(screen.getByRole("button", { name: "Load models" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Save default model" })).toBeDisabled();
@@ -80,7 +84,9 @@ it("shows provider test failure status without enabling verification", async () 
  vi.stubGlobal("fetch", vi.fn(async (_url, init) => init?.method ? new Response(JSON.stringify({ error: "Model was retired", httpStatus: 410 }), { status: 502 }) : json({ providers: [provider] })));
  render(<AdminAiModels />); fireEvent.click(await screen.findByRole("button", { name: "Test" }));
  fireEvent.click(screen.getByRole("button", { name: "Send test message" })); expect(await screen.findByRole("alert")).toHaveTextContent("Model was retired (HTTP 410)");
- fireEvent.click(screen.getByRole("button", { name: "Close test" })); expect(screen.getByRole("option", { name: "Verified" })).toBeDisabled();
+ fireEvent.click(screen.getByRole("button", { name: "Close test" }));
+ await userEvent.click(screen.getByLabelText("Save status"));
+ expect(screen.getByRole("option", { name: "Verified" })).toHaveAttribute("aria-disabled", "true");
 });
 it("refuses fractional failover priorities in the UI", async () => {
  vi.stubGlobal("fetch", vi.fn(async () => json({ providers: [provider] }))); render(<AdminAiModels />);
