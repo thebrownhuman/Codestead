@@ -946,7 +946,7 @@ describe("database role-boundary test launcher", () => {
       expect(output.indexOf(lanePasses[index - 1]!)).toBeLessThan(output.indexOf(laneStarts[index]!));
     }
     expect(output).toContain(
-      "publishes the exact migration-derived 0072 public and Drizzle inventory",
+      "publishes the exact migration-derived 0073 public and Drizzle inventory",
     );
     expect(output).toContain(
       "independently normalizes and accepts the exact current catalog",

@@ -52,7 +52,7 @@ describe("dedicated backup-status reporter role contract", () => {
     expect(bootstrap).toMatch(
       /alter role learncoding_backup_reporter nologin nosuperuser nocreatedb nocreaterole\s+noinherit noreplication nobypassrls connection limit -1 password null valid until 'infinity'/u,
     );
-    const { CURRENT_0072_DATABASE_RUNTIME_CAPABILITIES: policy } =
+    const { CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES: policy } =
       await import("../database-runtime-capabilities.mjs");
     const reporterRole = policy.roles.find(
       ({ name }: { name: string }) => name === "learncoding_backup_reporter",
@@ -233,10 +233,10 @@ describe("dedicated backup-status reporter role contract", () => {
       "drizzle/meta/_journal.json ./drizzle/meta/_journal.json",
     );
     expect(operationsStage).toContain(
-      "drizzle/meta/0072_public_column_attnums.json ./drizzle/meta/0072_public_column_attnums.json",
+      "drizzle/meta/0073_public_column_attnums.json ./drizzle/meta/0073_public_column_attnums.json",
     );
     expect(operationsStage).toContain(
-      "drizzle/meta/0072_snapshot.json ./drizzle/meta/0072_snapshot.json",
+      "drizzle/meta/0073_snapshot.json ./drizzle/meta/0073_snapshot.json",
     );
   });
 

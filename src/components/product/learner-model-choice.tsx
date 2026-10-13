@@ -9,16 +9,18 @@ export function LearnerModelChoice() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-  const refresh = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const response = await fetch("/api/settings/ai-model", { cache: "no-store", signal });
-      const body = await response.json() as Settings;
-      if (!response.ok || !Array.isArray(body.models)) throw new Error();
-      if (signal?.aborted) return;
-      setSettings(body); setKey(body.selectedKey ?? ""); setError(null);
-    } catch {
-      if (!signal?.aborted) setError("AI model settings could not be loaded. Try again.");
-    }
+  const refresh = useCallback((signal?: AbortSignal) => {
+    return Promise.resolve()
+      .then(() => fetch("/api/settings/ai-model", { cache: "no-store", signal }))
+      .then(async (response) => {
+        const body = await response.json() as Settings;
+        if (!response.ok || !Array.isArray(body.models)) throw new Error();
+        if (signal?.aborted) return;
+        setSettings(body); setKey(body.selectedKey ?? ""); setError(null);
+      })
+      .catch(() => {
+        if (!signal?.aborted) setError("AI model settings could not be loaded. Try again.");
+      });
   }, []);
   useEffect(() => {
     const controller = new AbortController();

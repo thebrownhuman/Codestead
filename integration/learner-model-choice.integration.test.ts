@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { afterAll, beforeAll, beforeEach, expect, it } from "vitest";
 import { pool } from "@/lib/db/client";
 import { adminModelsStore } from "@/lib/ai/admin-models-store";
@@ -22,6 +23,27 @@ afterAll(async () => {
   await pool.query('DELETE FROM "user" WHERE id=ANY($1::text[])', [users]);
   await pool.query("DELETE FROM provider_policy WHERE model=$1", [model]);
   await pool.end();
+});
+it("matches the replayed 0073 physical column inventory, including the learner preference", async () => {
+  const manifest = JSON.parse(await readFile("drizzle/meta/0073_public_column_attnums.json", "utf8")) as {
+    tables: Array<{ identity: string; columns: Array<{ name: string; attnum: number }> }>;
+  };
+  const actual = await pool.query<{ identity: string; name: string; attnum: number }>(`
+    SELECT namespace.nspname || '.' || relation.relname AS identity,
+           attribute.attname AS name, attribute.attnum
+      FROM pg_catalog.pg_class relation
+      JOIN pg_catalog.pg_namespace namespace ON namespace.oid = relation.relnamespace
+      JOIN pg_catalog.pg_attribute attribute ON attribute.attrelid = relation.oid
+     WHERE namespace.nspname = 'public' AND relation.relkind = 'r'
+       AND attribute.attnum > 0 AND NOT attribute.attisdropped
+     ORDER BY namespace.nspname COLLATE "C", relation.relname COLLATE "C", attribute.attnum
+  `);
+  expect(actual.rows).toEqual(manifest.tables.flatMap(({ identity, columns }) =>
+    columns.map(({ name, attnum }) => ({ identity, name, attnum })),
+  ));
+  expect(actual.rows).toContainEqual({
+    identity: "public.learner_profile", name: "preferred_ai_model_policy_id", attnum: 19,
+  });
 });
 it("enforces the foreign key and sets saved choices to NULL when a model row is deleted", async () => {
   await saveLearnerModelChoice(users[0], key);

@@ -1,6 +1,6 @@
 import {
   BOOTSTRAP_SESSION_AUTHORITY,
-  CURRENT_0072_DATABASE_RUNTIME_CAPABILITIES,
+  CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES,
   DATABASE_RUNTIME_CAPABILITY_PHASES,
   DatabaseRuntimeCapabilityPhaseError,
   canonicalDatabaseRuntimeCapabilitiesJson,
@@ -405,8 +405,8 @@ export function assertBootstrapDatabaseRuntimeCapabilityPhaseRequest(
     );
   }
   if (
-    requestedPhase === DATABASE_RUNTIME_CAPABILITY_PHASES.EXPAND_PREPARE_0072 ||
-    requestedPhase === DATABASE_RUNTIME_CAPABILITY_PHASES.CONTRACTED_0073
+    requestedPhase === DATABASE_RUNTIME_CAPABILITY_PHASES.EXPAND_PREPARE_0073 ||
+    requestedPhase === DATABASE_RUNTIME_CAPABILITY_PHASES.CONTRACTED_0074
   ) {
     throw new DatabaseRuntimeCapabilityPhaseError(
       `${requestedPhase} is unavailable until its reviewed migration exists`,
@@ -1873,7 +1873,7 @@ function expectedFoundationEnvelope(schemaNames) {
     ),
   ];
   const defaultRows =
-    CURRENT_0072_DATABASE_RUNTIME_CAPABILITIES.defaultAclRows.filter(
+    CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES.defaultAclRows.filter(
       (entry) =>
         entry.schema === null &&
         ["routine", "type"].includes(entry.objectKind) &&
@@ -1881,7 +1881,7 @@ function expectedFoundationEnvelope(schemaNames) {
           entry.creator?.kind === BOOTSTRAP_SESSION_AUTHORITY.kind),
     );
   const defaultAcls =
-    CURRENT_0072_DATABASE_RUNTIME_CAPABILITIES.defaultAcls.filter(
+    CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES.defaultAcls.filter(
       (entry) =>
         entry.schema === null &&
         ["routine", "type"].includes(entry.objectKind) &&
@@ -1890,10 +1890,10 @@ function expectedFoundationEnvelope(schemaNames) {
     );
   return {
     roles: sortedFoundationCollection(
-      CURRENT_0072_DATABASE_RUNTIME_CAPABILITIES.roles,
+      CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES.roles,
     ),
     memberships: sortedFoundationCollection(
-      CURRENT_0072_DATABASE_RUNTIME_CAPABILITIES.memberships,
+      CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES.memberships,
     ),
     authority: {
       objects: sortedFoundationCollection(objects),
@@ -2727,7 +2727,7 @@ export async function verifyBootstrapDatabaseRuntimeCapabilities(
   { postgresUser, postgresDatabase, resolution },
 ) {
   if (
-    resolution.phase !== DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0072 ||
+    resolution.phase !== DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073 ||
     resolution.reconcileApplicationAcls !== true ||
     resolution.policy === null
   ) {
@@ -2763,7 +2763,7 @@ export async function reconcileBootstrapDatabaseRuntimeCapabilities(
   { postgresUser, postgresDatabase, resolution },
 ) {
   if (
-    resolution.phase !== DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0072 ||
+    resolution.phase !== DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073 ||
     resolution.reconcileApplicationAcls !== true ||
     resolution.policy === null
   ) {

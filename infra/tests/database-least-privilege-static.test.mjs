@@ -10,7 +10,7 @@ import {
 } from "../../scripts/bootstrap-database-roles.mjs";
 
 import {
-  CURRENT_0072_DATABASE_RUNTIME_CAPABILITIES,
+  CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES,
   DATABASE_RUNTIME_CAPABILITY_PHASES,
   planDatabaseRuntimeCapabilityReconciliation,
 } from "../../scripts/database-runtime-capabilities.mjs";
@@ -236,10 +236,10 @@ test("bootstrap and migration share the administration lock without broad reassi
 });
 
 test("manifest reconciliation is behaviorally exact and fail-closed", () => {
-  const policy = CURRENT_0072_DATABASE_RUNTIME_CAPABILITIES;
+  const policy = CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES;
   const exactCatalog = structuredClone(policy);
   const exactPlan = planDatabaseRuntimeCapabilityReconciliation({
-    phase: DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0072,
+    phase: DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073,
     policy,
     catalog: exactCatalog,
   });
@@ -259,7 +259,7 @@ test("manifest reconciliation is behaviorally exact and fail-closed", () => {
     (entry) => JSON.stringify(entry) !== JSON.stringify(missing),
   );
   const repairPlan = planDatabaseRuntimeCapabilityReconciliation({
-    phase: DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0072,
+    phase: DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073,
     policy,
     catalog: missingCatalog,
   });
@@ -277,7 +277,7 @@ test("manifest reconciliation is behaviorally exact and fail-closed", () => {
   assert.throws(
     () =>
       planDatabaseRuntimeCapabilityReconciliation({
-        phase: DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0072,
+        phase: DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073,
         policy,
         catalog: malformedCatalog,
       }),

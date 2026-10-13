@@ -95,8 +95,8 @@ CMD ["node", "--import", "tsx", "/app/scripts/process-outbox.ts"]
 FROM worker AS operations
 COPY --chown=node:node content ./content
 COPY --chown=node:node drizzle/meta/_journal.json ./drizzle/meta/_journal.json
-COPY --chown=node:node drizzle/meta/0072_public_column_attnums.json ./drizzle/meta/0072_public_column_attnums.json
-COPY --chown=node:node drizzle/meta/0072_snapshot.json ./drizzle/meta/0072_snapshot.json
+COPY --chown=node:node drizzle/meta/0073_public_column_attnums.json ./drizzle/meta/0073_public_column_attnums.json
+COPY --chown=node:node drizzle/meta/0073_snapshot.json ./drizzle/meta/0073_snapshot.json
 COPY --chown=node:node scripts/bootstrap-admin.ts ./scripts/bootstrap-admin.ts
 COPY --chown=node:node scripts/bootstrap-database-roles.mjs ./scripts/bootstrap-database-roles.mjs
 COPY --chown=node:node scripts/bootstrap-database-runtime-capabilities.mjs ./scripts/bootstrap-database-runtime-capabilities.mjs

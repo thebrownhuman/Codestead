@@ -152,7 +152,7 @@ unset verifier_contract_provenance
   && "$reviewed_migration_tail_idx" == "$RESTORE_REPORT_REVIEWED_MIGRATION_TAIL_IDX" \
   && "$reviewed_migration_tail_tag" == "$RESTORE_REPORT_REVIEWED_MIGRATION_TAIL_TAG" \
   && "$reviewed_migration_ledger_sha256" == "$RESTORE_REPORT_REVIEWED_MIGRATION_LEDGER_SHA256" ]] \
-  || die "restore verifier image does not contain the exact reviewed 0072 contract"
+  || die "restore verifier image does not contain the exact reviewed 0073 contract"
 
 restore_secret_root="$work/database-secrets"
 install -d -m 0750 -o 0 -g "$restore_secrets_gid" "$restore_secret_root"
@@ -408,7 +408,7 @@ _valid_compact_utc_timestamp "$snapshot_utc" \
   && "$migration_last_id" =~ ^[0-9]{1,20}$ \
   && "$migration_last_created_at" == "$RESTORE_REPORT_REVIEWED_MIGRATION_TAIL_CREATED_AT" \
   && "$migration_state_sha256" =~ ^[0-9a-f]{64}$ ]] \
-  || die "restored backup migration provenance is not the reviewed 0072 ledger"
+  || die "restored backup migration provenance is not the reviewed 0073 ledger"
 preflight_ok=0
 preflight_metrics=""
 if preflight_metrics="$(bash "$SCRIPT_DIR/validate-restore-metrics.sh" preflight \

@@ -587,8 +587,8 @@ expect(
   /FROM worker AS operations/.test(dockerfile) &&
     /COPY --chown=node:node content \.\/content/.test(operationsStage) &&
     /COPY --chown=node:node drizzle\/meta\/_journal\.json \.\/drizzle\/meta\/_journal\.json/.test(operationsStage) &&
-    /COPY --chown=node:node drizzle\/meta\/0072_public_column_attnums\.json \.\/drizzle\/meta\/0072_public_column_attnums\.json/.test(operationsStage) &&
-    /COPY --chown=node:node drizzle\/meta\/0072_snapshot\.json \.\/drizzle\/meta\/0072_snapshot\.json/.test(operationsStage) &&
+    /COPY --chown=node:node drizzle\/meta\/0073_public_column_attnums\.json \.\/drizzle\/meta\/0073_public_column_attnums\.json/.test(operationsStage) &&
+    /COPY --chown=node:node drizzle\/meta\/0073_snapshot\.json \.\/drizzle\/meta\/0073_snapshot\.json/.test(operationsStage) &&
     /COPY --chown=node:node scripts\/bootstrap-admin\.ts \.\/scripts\/bootstrap-admin\.ts/.test(operationsStage) &&
     /COPY --chown=node:node scripts\/seed-platform\.ts \.\/scripts\/seed-platform\.ts/.test(operationsStage) &&
     /COPY --chown=node:node scripts\/bootstrap-database-roles\.mjs \.\/scripts\/bootstrap-database-roles\.mjs/.test(operationsStage) &&
