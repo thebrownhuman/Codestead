@@ -32,7 +32,7 @@ import {
 import { useEffect, useId, useRef, useState } from "react";
 import type { EditorProps } from "@monaco-editor/react";
 import { RunnerPanel } from "./runner-panel";
-import type { RunnerProblem } from "./runner-problems";
+import { RUNNER_SUBMISSION_FILES, type RunnerProblem } from "./runner-problems";
 
 import type {
   AtomicSkill,
@@ -742,7 +742,7 @@ function CodeLabSession({
       <MonacoEditor onMount={(editor) => { editorRef.current = editor; }} height="100%" language={starter.language} value={source} onChange={(value) => changeSource(value ?? "")} options={{ ariaLabel: "Practice source code editor", minimap: { enabled: false }, fontSize: 14, lineNumbersMinChars: 3, tabSize: 4, automaticLayout: true, scrollBeyondLastLine: false, accessibilitySupport: "auto", readOnly: running || draftBlocksEditing }} theme="vs-dark" />
     </div>
     <span aria-atomic="true" aria-label="Run status" aria-live="polite" className="sr-only" role="status">{runAnnouncement}</span>
-    <RunnerPanel resetKey={String(panelRunVersion)} stderr={visibleResult?.stderr ?? ""} onJump={jumpToProblem} input={
+    <RunnerPanel submittedFile={RUNNER_SUBMISSION_FILES[starter.language]} resetKey={String(panelRunVersion)} stderr={visibleResult?.stderr ?? ""} onJump={jumpToProblem} input={
     <div className={styles.stdinPanel}>
       <label htmlFor={stdinId}>
         <span>Program input <i>stdin</i></span>

@@ -6,15 +6,15 @@ import styles from "./runner-panel.module.css";
 
 const tabs = ["Output", "Problems", "Input"] as const;
 
-export function RunnerPanel({ output, input, stderr, onJump, resetKey = "" }: {
-  output: ReactNode; input: ReactNode; stderr: string; resetKey?: string; onJump(problem: RunnerProblem): void;
+export function RunnerPanel({ output, input, stderr, submittedFile, onJump, resetKey = "" }: {
+  output: ReactNode; input: ReactNode; stderr: string; submittedFile: string; resetKey?: string; onJump(problem: RunnerProblem): void;
 }) {
   const id = useId();
   const [selection, setSelection] = useState({ index: 0, resetKey });
   const active = selection.resetKey === resetKey ? selection.index : 0;
   const setActive = (index: number) => setSelection({ index, resetKey });
   const buttons = useRef<Array<HTMLButtonElement | null>>([]);
-  const problems = parseRunnerProblems(stderr);
+  const problems = parseRunnerProblems(stderr, submittedFile);
   const panels = [output, active === 1 ? <div key="problems" className={styles.problems}>
     {problems.length === 0 ? <p>No recognized problems. See Output for the full log.</p> : problems.map((problem, index) =>
       <button key={index} type="button" onClick={() => onJump(problem)}>
