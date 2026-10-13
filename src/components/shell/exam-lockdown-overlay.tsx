@@ -13,6 +13,8 @@ import {
   withBrowserRecoveryRepository,
 } from "@/lib/browser-durability/lifecycle";
 
+import { ModalDialog } from "@/components/ui/modal-dialog";
+
 import styles from "./app-shell.module.css";
 
 type ExamCatalogResponse = {
@@ -249,14 +251,7 @@ export function ExamLockdownOverlay({
 
   if (sessionBoundaryPending) {
     return (
-      <div className={styles.examLockBackdrop} role="presentation">
-        <section
-          aria-describedby="session-boundary-description"
-          aria-labelledby="session-boundary-title"
-          aria-modal="true"
-          className={styles.examLockDialog}
-          role="alertdialog"
-        >
+      <ModalDialog backdropClassName={styles.examLockBackdrop} dialogClassName={styles.examLockDialog} describedBy="session-boundary-description" labelledBy="session-boundary-title" role="alertdialog" dismissible={false} onClose={() => undefined}>
           <span className={styles.examLockIcon}><ShieldAlert aria-hidden="true" size={28} /></span>
           <span className={styles.navLabel}>SESSION BOUNDARY</span>
           <h1 id="session-boundary-title">Session ended</h1>
@@ -264,8 +259,7 @@ export function ExamLockdownOverlay({
             Codestead is clearing private browser recovery before returning to sign in.
           </p>
           <small>Redirecting to sign in...</small>
-        </section>
-      </div>
+        </ModalDialog>
     );
   }
 
@@ -281,14 +275,7 @@ export function ExamLockdownOverlay({
 
   if (lockState.kind === "unavailable") {
     return (
-      <div className={styles.examLockBackdrop} role="presentation">
-        <section
-          aria-describedby="exam-status-check-description"
-          aria-labelledby="exam-status-check-title"
-          aria-modal="true"
-          className={styles.examLockDialog}
-          role="alertdialog"
-        >
+      <ModalDialog backdropClassName={styles.examLockBackdrop} dialogClassName={styles.examLockDialog} describedBy="exam-status-check-description" labelledBy="exam-status-check-title" role="alertdialog" dismissible={false} onClose={() => undefined}>
           <span className={styles.examLockIcon}><ShieldAlert aria-hidden="true" size={28} /></span>
           <span className={styles.navLabel}>EXAM STATUS UNVERIFIED</span>
           <h1 id="exam-status-check-title">Cannot verify exam status</h1>
@@ -303,8 +290,7 @@ export function ExamLockdownOverlay({
             Check exam status again
           </button>
           <small>Reconnect or reload this page if status checks remain unavailable.</small>
-        </section>
-      </div>
+        </ModalDialog>
     );
   }
 
@@ -313,14 +299,7 @@ export function ExamLockdownOverlay({
   if (lockState.cleanup !== "ready") {
     const failed = lockState.cleanup === "error";
     return (
-      <div className={styles.examLockBackdrop} role="presentation">
-        <section
-          aria-describedby="active-exam-cleanup-description"
-          aria-labelledby="active-exam-cleanup-title"
-          aria-modal="true"
-          className={styles.examLockDialog}
-          role="alertdialog"
-        >
+      <ModalDialog backdropClassName={styles.examLockBackdrop} dialogClassName={styles.examLockDialog} describedBy="active-exam-cleanup-description" labelledBy="active-exam-cleanup-title" role="alertdialog" dismissible={false} onClose={() => undefined}>
           <span className={styles.examLockIcon}><ShieldAlert aria-hidden="true" size={28} /></span>
           <span className={styles.navLabel}>CLOSED-BOOK EXAM ACTIVE</span>
           <h1 id="active-exam-cleanup-title">
@@ -338,31 +317,22 @@ export function ExamLockdownOverlay({
               Retry browser storage cleanup
             </button>
           ) : <small>Preparing private browser storage...</small>}
-        </section>
-      </div>
+        </ModalDialog>
     );
   }
 
   return (
-    <div className={styles.examLockBackdrop} role="presentation">
-      <section
-        aria-describedby="active-exam-lock-description"
-        aria-labelledby="active-exam-lock-title"
-        aria-modal="true"
-        className={styles.examLockDialog}
-        role="alertdialog"
-      >
+    <ModalDialog backdropClassName={styles.examLockBackdrop} dialogClassName={styles.examLockDialog} describedBy="active-exam-lock-description" labelledBy="active-exam-lock-title" role="alertdialog" dismissible={false} onClose={() => undefined}>
         <span className={styles.examLockIcon}><ShieldAlert aria-hidden="true" size={28} /></span>
         <span className={styles.navLabel}>CLOSED-BOOK EXAM ACTIVE</span>
         <h1 id="active-exam-lock-title">Return to your exam workspace</h1>
         <p id="active-exam-lock-description">
           {lockState.exam.courseTitle} - {lockState.exam.moduleTitle} is still timed. Lessons, Codestead, practice games, general code runs, files, and project work remain server-locked until it is submitted or finalized.
         </p>
-        <Link className="button button-primary" href={`/exams/${lockState.exam.sessionId}`} ref={resumeRef}>
+        <Link className="button button-primary" data-dialog-initial-focus href={`/exams/${lockState.exam.sessionId}`} ref={resumeRef}>
           <ClipboardCheck size={16} /> Resume timed exam
         </Link>
         <small>The server timer continues. This screen does not decide misconduct; navigation and focus evidence remains available for human review.</small>
-      </section>
-    </div>
+      </ModalDialog>
   );
 }

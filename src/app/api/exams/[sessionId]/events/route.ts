@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { type NextRequest } from "next/server";
 import { z } from "zod";
 
@@ -19,7 +20,9 @@ export async function POST(
 ) {
   const authz = await requireAuth();
   if (!authz.session) return authz.response;
-  const body = eventSchema.safeParse(await request.json().catch(() => null));
+  const jsonBody = await readBoundedJson(request);
+  if (jsonBody.response?.status === 413) return jsonBody.response;
+  const body = eventSchema.safeParse(jsonBody.value);
   if (!body.success || JSON.stringify(body.data.metadata).length > 4_096) {
     return examJson({ error: "Integrity event is invalid.", code: "INVALID_EXAM_EVENT" }, { status: 400 });
   }

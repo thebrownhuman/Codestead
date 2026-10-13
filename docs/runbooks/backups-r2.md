@@ -5,11 +5,12 @@ Every night the NUC dumps PostgreSQL and backs up uploaded objects to a [restic]
 | What | How |
 |------|-----|
 | Database | `pg_dump --format=custom` in the `postgres` container. It is the same dump command the existing backup uses. The script checks the dump's table of contents before uploading it. |
-| Uploads | `/srv/learncoding/app-data/objects`, mounted read-only. It is skipped with a log line when the uploads profile is off. |
+| Uploads | `/srv/learncoding/app-data/objects`, mounted read-only. `RESTIC_UPLOADS_EXPECTED` (default `true`) is the expected scope: a missing or symlinked directory then fails the backup and alerts. Set it to `false` only for a database-only deployment; the backup still fails if the database references any uploaded object. |
+| Recovery point | The snapshot's `/stage` holds `database.dump`, `objects.manifest` (`<sha256> <size> <storage_key>` for every live `stored_object` row in that dump) and `recovery-point.json` (dump start/end time, scope, object count, manifest sha256). Each listed object must exist with the size and sha256 the database recorded, or the backup fails. App writes are not paused; a file deleted between the dump and the scan fails the run. After upload the same metadata plus the snapshot id is written to `/var/lib/learncoding/restic/recovery-point.json`. |
 | Encryption | restic encrypts everything client-side with the repository password, so R2 only sees ciphertext. |
-| Retention | `forget --prune` keeps 7 daily, 4 weekly and 6 monthly snapshots (`--host codestead --tag codestead`). |
+| Retention | `forget --prune` keeps 7 daily, 4 weekly and 12 monthly snapshots (`--host codestead --tag codestead`); the counts are `RESTIC_KEEP_*` in `scripts/backup/restic-common.sh`. |
 | Integrity | `restic check` runs nightly. The monthly restore test also reads 10% of the pack data. |
-| Restore test | Monthly. It restores the latest dump into a throwaway PostgreSQL container (no network, tmpfs data dir, same pinned image) and runs sanity queries. |
+| Restore test | Monthly. It restores the whole latest snapshot, checks the manifest against `recovery-point.json`, verifies every listed object's size and sha256, then restores the dump into a throwaway PostgreSQL container (no network, tmpfs data dir, same pinned image) and runs sanity queries. Snapshots made before the manifest existed fail this test until the next nightly backup. |
 | Alerting | A failure alerts through `learncoding-alert@` plus the alert hook, journald tag `learncoding-restic`, and the backup-status admin email. A stale state also alerts: no successful backup for more than 36h, or no successful restore test for more than 40 days. |
 | Tooling | restic `0.19.1`, run as `restic/restic:0.19.1@sha256:136600b6…` (pinned in `scripts/backup/restic-common.sh`). Nothing is installed on the host. |
 
@@ -48,7 +49,11 @@ sudo test -f /etc/learncoding/backup.env && sudo cp /etc/learncoding/backup.env 
 sudoedit /etc/learncoding/backup.env.new
 ```
 
-Add the restic block from `infra/env/backup.env.example` and replace every `REPLACE_` value. Keep the file root-owned with mode `0600`; the scripts refuse anything else, a symlink, or a leftover placeholder. Then move it into place:
+Add the restic block from `infra/env/backup.env.example` and replace every `REPLACE_` value.
+
+If uploads are not used (no `/srv/learncoding/app-data/objects` directory), set `RESTIC_UPLOADS_EXPECTED=false` in the backup env before the first run. Otherwise the backup fails closed on the missing directory. Check with `sudo test -d /srv/learncoding/app-data/objects && echo uploads-present`.
+
+Keep the file root-owned with mode `0600`; the scripts refuse anything else, a symlink, or a leftover placeholder. Then move it into place:
 
 ```bash
 sudo install -o root -g root -m 0600 /etc/learncoding/backup.env.new /etc/learncoding/backup.env
@@ -68,6 +73,8 @@ sudo systemctl enable --now learncoding-restic-backup.timer \
   learncoding-restic-freshness.timer learncoding-restic-restore-test.timer
 systemctl list-timers 'learncoding-restic*'
 ```
+
+The restore test needs a snapshot that contains the object manifest. On the first install, and after upgrading from a version without it, run one new backup (the manual start above, or the next nightly run) before the first restore test. Otherwise the restore test fails with "restored snapshot has no object manifest or recovery point".
 
 Do not run `install-systemd.sh --enable`. It also enables the parked drive and Google Drive timers.
 

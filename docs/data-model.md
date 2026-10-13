@@ -494,7 +494,8 @@ Audit actions include access decisions, role changes, raw learner detail access,
 | Data class | Online retention default | Notes |
 |---|---:|---|
 | Account, enrollment, plan, mastery, achievements, projects explicitly saved | account life | export/delete applies; legal/security holds explicit |
-| Raw chat and ordinary code submissions | 12 months | keep structured summaries and official evidence longer; user deletion where allowed |
+| Tutor conversations/messages | Latest 10 per learner, plus 12-month message age limit | Existing audited sweep hard-deletes excess conversations and cascading messages, including archived threads |
+| Ordinary code submissions | 12 months | keep structured summaries and official evidence longer; user deletion where allowed |
 | Official graded/exam/project evidence and appeal artifacts | account life or 24 months after course completion | required for reproducibility; exact policy to approve |
 | AI provider call metadata | 12 months | raw prompt/response shorter/minimized; cost/audit aggregates longer |
 | Auth/security and exam behavior events | 90 days | extend only for open incident/appeal |
@@ -576,7 +577,7 @@ It excludes rebuildable compiler/container caches, temporary checkouts, rotating
 ## 22. Open data decisions
 
 1. Exact retention for official graded evidence after account/course completion.
-2. Whether any raw learner chat/code is retained beyond 12 months by learner opt-in.
+2. Whether ordinary learner code is retained beyond 12 months by learner opt-in. Tutor conversations remain limited to the latest 10 and the existing message age limit.
 3. Whether private GitHub repository snapshots persist or only commit SHA/review output persists.
 4. Whether the 3 GB quota ceiling may be exceeded for selected projects and who approves it.
 5. Whether vector embeddings are needed; if so, which fields/providers, deletion behavior, and retention apply.

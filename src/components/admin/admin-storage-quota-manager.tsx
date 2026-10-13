@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { HardDrive, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
@@ -98,15 +100,6 @@ export function AdminStorageQuotaManager({
       <div className={styles.panelHead}>
         <div><HardDrive size={18} /><span><strong>Learner storage quota</strong><small>2 GiB default · adjustable up to 3 GiB</small></span></div>
       </div>
-      {message && (
-        <p
-          aria-live={messageIsError ? "assertive" : "polite"}
-          className={messageIsError ? styles.inlineError : styles.inlineSuccess}
-          role={messageIsError ? "alert" : "status"}
-        >
-          {message}
-        </p>
-      )}
       <div className={styles.profileFacts}>
         <div className={styles.profileFact}><span>Used</span><strong>{formatBytes(usedBytes)}</strong></div>
         <div className={styles.profileFact}><span>Current limit</span><strong>{formatBytes(quotaBytes)}</strong></div>
@@ -116,10 +109,10 @@ export function AdminStorageQuotaManager({
       <div className={styles.approveForm} style={{ marginTop: 12 }}>
         <label>
           New quota
-          <select onChange={(event) => setSelectedGiB(event.target.value)} value={selectedGiB}>
+          <Select onChange={(event) => setSelectedGiB(event.target.value)} value={selectedGiB}>
             {!hasCurrentOption && <option value={String(currentGiB)}>{currentGiB.toFixed(2)} GiB · current</option>}
             {OPTIONS.map((value) => <option key={value} value={String(value)}>{value.toFixed(2)} GiB</option>)}
-          </select>
+          </Select>
         </label>
         <label>
           Current six-digit authenticator code
@@ -136,9 +129,12 @@ export function AdminStorageQuotaManager({
           Recorded reason
           <textarea maxLength={500} minLength={8} onChange={(event) => setReason(event.target.value)} value={reason} />
         </label>
+        <div className={styles.formActions}>
+        {message && <p className={messageIsError ? styles.inlineError : styles.inlineSuccess} role={messageIsError ? "alert" : "status"}>{message}</p>}
         <button className="button button-secondary" disabled={busy} onClick={() => void changeQuota()} type="button">
           <HardDrive size={14} /> Change quota
         </button>
+        </div>
         <p className={styles.safeNotice}><ShieldCheck size={14} /> Fresh MFA, optimistic concurrency, an immutable audit event, and a learner notice protect every change. A limit cannot be reduced below current usage.</p>
       </div>
     </article>

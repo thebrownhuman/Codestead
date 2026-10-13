@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PasswordInput } from "@/components/ui/password-input";
 import styles from "./product-pages.module.css";
+import formStyles from "../ui/form.module.css";
+import { Field } from "../ui/field";
 
 async function readPasswordStatus(signal?: AbortSignal): Promise<boolean> {
   const response = await fetch("/api/security/password-status", { cache: "no-store", signal });
@@ -58,15 +60,16 @@ export function SecuritySettingsPanel() {
         : hasPassword === null ? <p role="status">Loading account security settings…</p>
         : !hasPassword ? <p>Signed in with Google; manage your password at Google.</p>
         : <><p>Changing your password revokes other sessions. Enter your current password to verify this sensitive action.</p>
-          {!open && <button className="button button-secondary" onClick={() => { setError(null); setMessage(null); setOpen(true); }}>Change password</button>}
-          {open && <form onSubmit={submit}>
-            <label htmlFor="current-password">Current password</label><PasswordInput id="current-password" autoComplete="current-password" required maxLength={128} value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} disabled={busy} />
-            <label htmlFor="new-password">New password</label><PasswordInput id="new-password" autoComplete="new-password" required minLength={12} maxLength={128} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} disabled={busy} />
-            <label htmlFor="confirm-new-password">Confirm new password</label><PasswordInput id="confirm-new-password" autoComplete="new-password" required minLength={12} maxLength={128} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} disabled={busy} />
-            <p>Use 12 to 128 characters. Compromised passwords are rejected.</p>
+          {!open && <div className={formStyles.actions}>{message && <p role="status">{message}</p>}<button className="button button-secondary" onClick={() => { setError(null); setMessage(null); setOpen(true); }}>Change password</button></div>}
+          {open && <form className={styles.form} onSubmit={submit}>
+            <Field id="current-password" label="Current password"><PasswordInput id="current-password" autoComplete="current-password" required maxLength={128} value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} disabled={busy} /></Field>
+            <Field id="new-password" label="New password" help="Use 12 to 128 characters. Compromised passwords are rejected."><PasswordInput id="new-password" aria-describedby="new-password-help" autoComplete="new-password" required minLength={12} maxLength={128} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} disabled={busy} /></Field>
+            <Field id="confirm-new-password" label="Confirm new password"><PasswordInput id="confirm-new-password" autoComplete="new-password" required minLength={12} maxLength={128} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} disabled={busy} /></Field>
+            <div className={formStyles.actions}>
+            {error && <p className={formStyles.error} role="alert">{error}</p>}
             <button type="submit" className="button button-primary" disabled={busy}>{busy ? "Saving…" : "Save password"}</button>
             <button type="button" className="button button-secondary" disabled={busy} onClick={() => { clearSecrets(); setError(null); setOpen(false); }}>Cancel</button>
+            </div>
           </form>}</>}
-      {error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
     </section></>;
 }

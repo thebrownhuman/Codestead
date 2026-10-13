@@ -1,0 +1,33 @@
+.form { display: grid; width: 100%; max-width: 560px; min-width: 0; gap: 22px; align-content: start; }
+.form.form { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+.field, .form.form label { display: grid; min-width: 0; gap: 8px; color: var(--ink); font-size: .875rem; font-weight: 650; }
+.field > label { display: block; }
+.field small, .form.form small { color: var(--ink-soft); font-size: .8125rem; font-weight: 400; line-height: 1.5; }
+.field small.error { color: var(--danger); }
+.form.form :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--surface-solid); font: inherit; font-size: .9375rem; }
+.form.form textarea { min-height: 104px; resize: vertical; }
+.form.form select { padding-right: 36px; }
+.form.form span:has(> button[aria-pressed]) > input { padding-right: 56px; }
+.form.form:is(label) { gap: 8px; }
+.form.form :is(input, select, textarea, button):focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.form.form :is(input[type="checkbox"], input[type="radio"]) { width: 18px; min-height: 18px; height: 18px; padding: 0; accent-color: var(--brand); }
+.form.form label:has(input[type="checkbox"], input[type="radio"]) { min-height: 44px; align-content: center; }
+.form.form label:has(> input:is([type="checkbox"], [type="radio"])) { grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: start; }
+.form.form > label:has(+ input, + select, + textarea) { margin-bottom: -14px; }
+.form.form > button { justify-self: end; min-height: 44px; font-size: .875rem; }
+.form.form button { min-height: 44px; }
+.section { display: grid; min-width: 0; gap: 22px; margin: 0; padding: 20px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-solid); }
+.section h3 { margin: 0; font-size: 1rem; }
+.section h4 { margin: 0 0 8px; font-size: .875rem; }
+.section p { margin: 0 0 8px; color: var(--ink-soft); font-size: .8125rem; }
+.section.section { grid-template-columns: minmax(0, 1fr); }
+.actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; min-width: 0; gap: 12px; }
+.actions p { flex: 1 1 180px; min-width: 0; margin: 0; overflow-wrap: anywhere; font-size: .875rem; }
+.actions button { min-height: 44px; }
+.form.form > div:has(> button) { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 12px; }
+.error { color: var(--danger); }
+.success { color: var(--brand-strong); }
+.avatar { display: grid; width: 56px; height: 56px; place-items: center; border-radius: var(--radius-md); color: var(--brand-strong); background: var(--brand-soft); font-weight: 750; }
+.interests { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.interests li { padding: 4px 8px; border-radius: 8px; background: var(--surface-muted); color: var(--ink-soft); font-size: .8125rem; overflow-wrap: anywhere; }
+@media (max-width: 480px) { .section { padding: 16px; } .actions p { flex-basis: 100%; } }

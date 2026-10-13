@@ -118,15 +118,6 @@ export function AdminDataLifecycleControls({ learnerId }: { readonly learnerId: 
       <div className={styles.panelHead}>
         <div><ShieldAlert size={18} /><span><strong>Data export and account deletion</strong><small>Administrator-only · fresh MFA · reason · audit · learner notice</small></span></div>
       </div>
-      {message && (
-        <p
-          aria-live={messageIsError ? "assertive" : "polite"}
-          className={messageIsError ? styles.inlineError : styles.inlineSuccess}
-          role={messageIsError ? "alert" : "status"}
-        >
-          {message}
-        </p>
-      )}
       <div className={styles.approveForm}>
         <label>
           Current six-digit authenticator code
@@ -155,9 +146,12 @@ export function AdminDataLifecycleControls({ learnerId }: { readonly learnerId: 
           Type DELETE for irreversible primary-store deletion
           <input autoComplete="off" onChange={(event) => setConfirmation(event.target.value)} value={confirmation} />
         </label>
+        <div className={styles.formActions}>
+        {message && <p className={messageIsError ? styles.inlineError : styles.inlineSuccess} role={messageIsError ? "alert" : "status"}>{message}</p>}
         <button className="button button-secondary" disabled={busy || confirmation !== "DELETE"} onClick={() => void deleteAccount()} type="button">
           <Trash2 size={14} /> Delete learner account
         </button>
+        </div>
         <p className={styles.safeNotice}>
           <ShieldAlert size={14} /> Deletion creates a pseudonymous tombstone. Existing encrypted restore points age out under 7 daily / 4 weekly / 12 monthly retention; this action does not claim immediate backup erasure.
         </p>

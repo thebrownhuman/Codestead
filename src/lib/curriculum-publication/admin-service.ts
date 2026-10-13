@@ -1,18 +1,23 @@
 import type { PoolClient } from "pg";
+import { randomUUID } from "node:crypto";
 
 import type { AssessmentBank } from "@/lib/content/authored-types";
+import { FileSystemContentLoader } from "@/lib/content/loader";
 import { pool } from "@/lib/db/client";
 
 import {
   allReviewDimensionsPassed,
   curriculumReleaseEvidenceSchema,
+  generateReleaseEvidenceRequestSchema,
   curriculumReviewChecklistSchema,
   type CurriculumReleaseEvidence,
   type CurriculumReviewChecklist,
   type CurriculumReviewDecision,
 } from "./contracts";
 import { evaluateCurriculumPublicationGate, type PublicationGateReport } from "./gate";
-import { hashCurriculumValue } from "./hash";
+import { aggregateArtifactHash, hashCurriculumValue } from "./hash";
+import { computeReleaseEvidence, NOT_RUN_REPORTS, type ReleaseArtifact } from "./release-generation";
+import { listPublishedExamCourseAvailability } from "./runtime";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -29,7 +34,9 @@ export class CurriculumAdminError extends Error {
       | "INVALID_STAGE_TRANSITION"
       | "CURRENT_VERSION_CANNOT_RETIRE"
       | "ROLLBACK_TARGET_INVALID"
-      | "WRITE_CONFLICT",
+      | "WRITE_CONFLICT"
+      | "CONTENT_HASH_MISMATCH"
+      | "RELEASE_CHECKS_FAILED",
     public readonly gate?: PublicationGateReport,
   ) {
     super(code);
@@ -96,6 +103,7 @@ export async function listCurriculumCandidates() {
     approved_count: string | number;
     unreviewed_count: string | number;
     evidence_version: string | number | null;
+    release_evidence: CurriculumReleaseEvidence | null;
     pointer_version: string | number | null;
     is_current: boolean;
     updated_at: Date;
@@ -107,6 +115,7 @@ export async function listCurriculumCandidates() {
             count(ca.id) filter (where ca.review_status = 'approved')::int as approved_count,
             count(ca.id) filter (where ca.review_status <> 'approved')::int as unreviewed_count,
             (select max(cre.evidence_version) from curriculum_release_evidence cre where cre.course_version_id = cv.id) as evidence_version,
+            (select cre.evidence from curriculum_release_evidence cre where cre.course_version_id = cv.id and cre.content_hash = cv.content_hash order by cre.evidence_version desc limit 1) as release_evidence,
             cpp.row_version as pointer_version,
             coalesce(cpp.current_course_version_id = cv.id, false) as is_current
        from course_version cv
@@ -116,6 +125,7 @@ export async function listCurriculumCandidates() {
       group by cv.id, c.id, cpp.course_id, cpp.current_course_version_id, cpp.row_version
       order by cv.updated_at desc, c.slug, cv.version`,
   );
+  const availability = new Map((await listPublishedExamCourseAvailability()).map((entry) => [entry.courseVersionId, { open: entry.open, reason: entry.reason }]));
   return result.rows.map((row) => ({
     id: row.id,
     courseId: row.course_id,
@@ -130,6 +140,11 @@ export async function listCurriculumCandidates() {
     approvedCount: Number(row.approved_count),
     unreviewedCount: Number(row.unreviewed_count),
     evidenceVersion: row.evidence_version === null ? null : Number(row.evidence_version),
+    examAvailability: availability.get(row.id) ?? { open: false, reason: "not the current published version" },
+    notRunReports: NOT_RUN_REPORTS.flatMap((report) => {
+      const value = row.release_evidence?.[report];
+      return value && "status" in value && value.status === "not_run" ? [{ report, reason: value.reason }] : [];
+    }),
     pointerVersion: row.pointer_version === null ? null : Number(row.pointer_version),
     isCurrent: row.is_current,
     updatedAt: row.updated_at.toISOString(),
@@ -539,6 +554,98 @@ export async function approveCurriculumArtifactsAsOwner(input: {
   }
 }
 
+export async function generateCurriculumReleaseEvidence(input: {
+  actorUserId: string; courseVersionId: string; requestId: string; expectedVersion: number;
+  expectedContentHash: string; reason: string; acknowledgeNotRun: true; notRunReason: string;
+  targetStage?: "beta" | "verified";
+}) {
+  const { actorUserId, courseVersionId, ...request } = input;
+  const parsed = generateReleaseEvidenceRequestSchema.safeParse(request);
+  if (!parsed.success || !UUID_PATTERN.test(courseVersionId)) throw new CurriculumAdminError("INVALID_REQUEST");
+  const data = parsed.data;
+  const client = await pool.connect();
+  let transactionStarted = false;
+  try {
+    await assertAdmin(client, actorUserId);
+    const versionBefore = await client.query<{ content_hash: string }>("select content_hash from course_version where id = $1", [courseVersionId]);
+    if (!versionBefore.rows[0]) throw new CurriculumAdminError("NOT_FOUND");
+    if (versionBefore.rows[0].content_hash !== data.expectedContentHash) throw new CurriculumAdminError("CONTENT_HASH_MISMATCH");
+    const artifacts = await client.query<ReleaseArtifact>(
+      "select artifact_key, artifact_type, skill_key, content, content_hash from curriculum_artifact where course_version_id = $1 order by artifact_key", [courseVersionId]);
+    // Expensive computation and any future remote checks run before BEGIN.
+    const now = new Date();
+    let evidence: CurriculumReleaseEvidence;
+    try {
+      evidence = computeReleaseEvidence({ artifacts: artifacts.rows, contentHash: data.expectedContentHash,
+        snapshot: await new FileSystemContentLoader().loadSnapshot(), actorUserId, now, notRunReason: data.notRunReason });
+    } catch (error) {
+      if (error instanceof Error && error.message === "CONTENT_HASH_MISMATCH") throw new CurriculumAdminError("CONTENT_HASH_MISMATCH");
+      throw new CurriculumAdminError("RELEASE_CHECKS_FAILED");
+    }
+    await client.query("begin"); transactionStarted = true;
+    await assertAdmin(client, actorUserId);
+    await client.query("select pg_advisory_xact_lock(hashtext($1))", [`curriculum-version:${courseVersionId}`]);
+    const locked = await client.query<{ course_id: string; content_hash: string; stage: string; publication_revision: string | number }>(
+      "select course_id, content_hash, stage, publication_revision from course_version where id = $1 for update", [courseVersionId]);
+    const version = locked.rows[0];
+    if (!version) throw new CurriculumAdminError("NOT_FOUND");
+    if (version.content_hash !== data.expectedContentHash) throw new CurriculumAdminError("CONTENT_HASH_MISMATCH");
+    const currentArtifacts = await client.query<ReleaseArtifact>(
+      "select artifact_key, artifact_type, skill_key, content, content_hash from curriculum_artifact where course_version_id = $1 order by artifact_key for share", [courseVersionId]);
+    if (hashCurriculumValue(currentArtifacts.rows) !== hashCurriculumValue(artifacts.rows)
+      || currentArtifacts.rows.some((row) => hashCurriculumValue(row.content) !== row.content_hash)
+      || aggregateArtifactHash(currentArtifacts.rows.map((row) => ({ artifactKey: row.artifact_key, artifactType: row.artifact_type, contentHash: row.content_hash }))) !== data.expectedContentHash) {
+      throw new CurriculumAdminError("CONTENT_HASH_MISMATCH");
+    }
+    const prior = await client.query<{ submitted_by: string; content_hash: string; evidence: CurriculumReleaseEvidence; evidence_version: number; reason: string; event_evidence: { resultingVersion: number; expectedVersion: number; targetStage?: string } }>(
+      `select cre.submitted_by, cre.content_hash, cre.evidence, cre.evidence_version, cpe.reason, cpe.evidence as event_evidence
+       from curriculum_release_evidence cre join curriculum_publication_event cpe
+         on cpe.course_version_id = cre.course_version_id and cpe.request_id = cre.request_id
+       where cre.course_version_id = $1 and cre.request_id = $2`, [courseVersionId, data.requestId]);
+    const skipped = (bundle: CurriculumReleaseEvidence) => NOT_RUN_REPORTS.flatMap((report) => {
+      const value = bundle[report];
+      return "status" in value && value.status === "not_run" ? [{ report, reason: value.reason }] : [];
+    });
+    if (prior.rows[0]) {
+      const previous = prior.rows[0];
+      if (previous.submitted_by !== actorUserId || previous.content_hash !== data.expectedContentHash
+        || previous.reason !== data.reason || previous.event_evidence.targetStage !== data.targetStage
+        || previous.event_evidence.expectedVersion !== data.expectedVersion
+        || skipped(previous.evidence).length !== NOT_RUN_REPORTS.length
+        || skipped(previous.evidence).some((entry) => entry.reason !== data.notRunReason)) throw new CurriculumAdminError("IDEMPOTENCY_MISMATCH");
+      await client.query("commit"); transactionStarted = false;
+      return { courseVersionId, evidenceVersion: Number(previous.evidence_version), publicationRevision: previous.event_evidence.resultingVersion,
+        replayed: true, notRunReports: skipped(previous.evidence) };
+    }
+    if (Number(version.publication_revision) !== data.expectedVersion) throw new CurriculumAdminError("VERSION_CONFLICT");
+    if (!data.targetStage && !["beta", "verified"].includes(version.stage)) throw new CurriculumAdminError("INVALID_STAGE_TRANSITION");
+    const latest = await client.query<{ version: number }>("select coalesce(max(evidence_version), 0) + 1 as version from curriculum_release_evidence where course_version_id = $1", [courseVersionId]);
+    const evidenceVersion = Number(latest.rows[0]?.version ?? 1);
+    await client.query(`insert into curriculum_release_evidence
+      (course_version_id, submitted_by, request_id, evidence_version, content_hash, evidence, evidence_hash, created_at)
+      values ($1,$2,$3,$4,$5,$6::jsonb,$7,$8)`,
+    [courseVersionId, actorUserId, data.requestId, evidenceVersion, data.expectedContentHash, JSON.stringify(evidence), hashCurriculumValue(evidence), now]);
+    const publicationRevision = data.expectedVersion + (data.targetStage ? 2 : 1);
+    const notRunReports = skipped(evidence);
+    const eventEvidence = { evidenceVersion, expectedVersion: data.expectedVersion, contentHash: data.expectedContentHash, evidenceHash: hashCurriculumValue(evidence),
+      resultingVersion: publicationRevision, ...(data.targetStage ? { targetStage: data.targetStage } : {}), notRunReports };
+    await client.query(`insert into curriculum_publication_event
+      (course_id, course_version_id, actor_user_id, event, request_id, reason, evidence, evidence_hash, occurred_at)
+      values ($1,$2,$3,'evidence_submitted',$4,$5,$6::jsonb,$7,$8)`,
+    [version.course_id, courseVersionId, actorUserId, data.requestId, data.reason, JSON.stringify(eventEvidence), hashCurriculumValue(eventEvidence), now]);
+    await client.query("update course_version set publication_revision = publication_revision + 1, updated_at = $2 where id = $1", [courseVersionId, now]);
+    if (data.targetStage) {
+      await publishCurriculumVersion({ actorUserId, courseVersionId, requestId: randomUUID(), expectedVersion: data.expectedVersion + 1,
+        targetStage: data.targetStage, reason: data.reason, now, transactionClient: client });
+    }
+    await client.query("commit"); transactionStarted = false;
+    return { courseVersionId, evidenceVersion, publicationRevision, replayed: false, notRunReports };
+  } catch (error) {
+    if (transactionStarted) await client.query("rollback").catch(() => undefined);
+    throw error;
+  } finally { client.release(); }
+}
+
 export async function submitCurriculumReleaseEvidence(input: {
   actorUserId: string;
   courseVersionId: string;
@@ -611,14 +718,16 @@ export async function publishCurriculumVersion(input: {
   targetStage: "beta" | "verified";
   reason: string;
   now?: Date;
+  /** Internal composition only: evidence and publication share this transaction. */
+  transactionClient?: PoolClient;
 }) {
   const now = input.now ?? new Date();
   const reason = input.reason.trim();
   validateCommon({ ...input, reason, now });
   if (!UUID_PATTERN.test(input.courseVersionId)) throw new CurriculumAdminError("INVALID_REQUEST");
-  const client = await pool.connect();
+  const client = input.transactionClient ?? await pool.connect();
   try {
-    await client.query("begin");
+    if (!input.transactionClient) await client.query("begin");
     await assertAdmin(client, input.actorUserId);
     await client.query("select pg_advisory_xact_lock(hashtext($1))", [`curriculum-version:${input.courseVersionId}`]);
     const versionResult = await client.query<{
@@ -636,12 +745,15 @@ export async function publishCurriculumVersion(input: {
       // Request ids are unique per course, so the stored event must be for the
       // requested version; another version's event is never a replay of this one.
       if (event.course_version_id !== input.courseVersionId || event.actor_user_id !== input.actorUserId || event.event !== eventName || event.reason !== reason || event.evidence.targetStage !== input.targetStage) throw new CurriculumAdminError("IDEMPOTENCY_MISMATCH");
-      await client.query("commit");
+      if (!input.transactionClient) await client.query("commit");
       return { courseVersionId: input.courseVersionId, stage: input.targetStage, publicationRevision: Number(event.evidence.resultingVersion), replayed: true, gate: event.evidence.gate as PublicationGateReport } as const;
     }
     if (Number(version.publication_revision) !== input.expectedVersion) throw new CurriculumAdminError("VERSION_CONFLICT");
     const gate = await evaluateCurriculumPublicationGate({ courseVersionId: input.courseVersionId, targetStage: input.targetStage, client });
     if (!gate.allowed) throw new CurriculumAdminError("PUBLICATION_GATE_BLOCKED", gate);
+    // Publishing through the older endpoint cannot silently omit evidence.
+    // The generation endpoint supplies acknowledged, computed evidence first.
+    if (gate.warnings?.some((entry) => entry.code === "RELEASE_EVIDENCE_MISSING")) throw new CurriculumAdminError("PUBLICATION_GATE_BLOCKED", gate);
     const resultingVersion = input.expectedVersion + 1;
     const updated = await client.query(
       `update course_version set stage = $2, approved_by = $3, published_at = $4,
@@ -667,13 +779,13 @@ export async function publishCurriculumVersion(input: {
        values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)`,
       [version.course_id, input.courseVersionId, input.actorUserId, eventName, input.requestId, reason, JSON.stringify(eventEvidence), hashCurriculumValue(eventEvidence), now],
     );
-    await client.query("commit");
+    if (!input.transactionClient) await client.query("commit");
     return { courseVersionId: input.courseVersionId, stage: input.targetStage, publicationRevision: resultingVersion, replayed: false, gate } as const;
   } catch (error) {
-    await client.query("rollback").catch(() => undefined);
+    if (!input.transactionClient) await client.query("rollback").catch(() => undefined);
     throw error;
   } finally {
-    client.release();
+    if (!input.transactionClient) client.release();
   }
 }
 

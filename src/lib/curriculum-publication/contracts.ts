@@ -42,6 +42,24 @@ const scopedReportSchema = z.object({
   rationale: z.string().trim().min(20).max(1_000),
 }).strict();
 
+export const notRunReportSchema = z.object({
+  status: z.literal("not_run"),
+  reason: z.string().trim().min(1).max(1_000),
+  acknowledgedBy: z.string().trim().min(1).max(200),
+  acknowledgedAt: z.string().datetime({ offset: true }),
+}).strict();
+
+// Clients request checks, never submit passes or acknowledgement identity/time.
+export const generateReleaseEvidenceRequestSchema = z.object({
+  requestId: z.uuid(),
+  expectedVersion: z.number().int().min(1),
+  expectedContentHash: hash,
+  reason: z.string().trim().min(20).max(500),
+  acknowledgeNotRun: z.literal(true),
+  notRunReason: z.string().trim().min(1).max(1_000),
+  targetStage: z.enum(["beta", "verified"]).optional(),
+}).strict();
+
 export const curriculumReleaseEvidenceSchema = z.object({
   schemaVersion: z.literal(1),
   generatedAt: z.string().datetime({ offset: true }),
@@ -55,15 +73,15 @@ export const curriculumReleaseEvidenceSchema = z.object({
     assessmentBankArtifactKeys: z.array(z.string().trim().min(1)).min(1),
   }).strict(),
   dagMastery: passedReportSchema,
-  codeExecution: passedReportSchema.extend({
+  codeExecution: z.union([notRunReportSchema, passedReportSchema.extend({
     executedItemIds: z.array(z.string().trim().min(1)),
     runtimeImageDigests: z.array(z.string().regex(/^sha256:[0-9a-f]{64}$/)),
-  }).strict(),
-  languageParity: scopedReportSchema.extend({
+  }).strict()]),
+  languageParity: z.union([notRunReportSchema, scopedReportSchema.extend({
     languages: z.array(z.string().trim().min(1)),
-  }).strict(),
-  webAccessibility: scopedReportSchema,
-  security: passedReportSchema,
+  }).strict()]),
+  webAccessibility: z.union([notRunReportSchema, scopedReportSchema]),
+  security: z.union([notRunReportSchema, passedReportSchema]),
   exclusions: z.object({
     reportHash: hash,
     items: z.array(z.string().trim().min(3)),

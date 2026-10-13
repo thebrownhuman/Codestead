@@ -6,7 +6,7 @@
 
 **Architecture:** Keep the existing pre-TX2 race suite as a baseline and add a separate guarded-TX2 suite. Both use one shared PostgreSQL race harness with dedicated controller, participant, and observer clients; exact catalog-observed gates replace timing. A launcher-owned run ID and exact role/database checks authorize destructive setup. Provider HTTP remains fake, while PostgreSQL, migrations, roles, source-authority writers, deletion, retention, sweeper, finalizer, reconciler, watchdog, and child-process failure boundaries are real.
 
-**Tech Stack:** TypeScript, Vitest, Node.js 22.23.1, `pg`, Drizzle migrations, PostgreSQL advisory locks/CAS/xid8, Docker disposable PostgreSQL 17/18.
+**Tech Stack:** TypeScript, Vitest, Node 22 (CI 22.23.1, image 22.23.3), `pg`, Drizzle migrations, PostgreSQL advisory locks/CAS/xid8, Docker disposable PostgreSQL 17/18.
 
 ## Status and precedence
 

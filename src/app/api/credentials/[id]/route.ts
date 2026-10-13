@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { and, eq, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -45,7 +46,9 @@ export async function PATCH(
   return withRateLimit(
     { policy: "credential_write_user", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
-      const body = patchSchema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return jsonBody.response;
+      const body = patchSchema.safeParse(jsonBody.value);
       if (!body.success) return NextResponse.json({ error: "Unknown credential action." }, { status: 400 });
       const { id } = await context.params;
       const mfa = await requireRecentMfa({
@@ -278,7 +281,9 @@ export async function DELETE(
   return withRateLimit(
     { policy: "credential_write_user", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
-      const body = deleteSchema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return jsonBody.response;
+      const body = deleteSchema.safeParse(jsonBody.value);
       if (!body.success) {
         return NextResponse.json(
           { error: "A stable request ID is required." },

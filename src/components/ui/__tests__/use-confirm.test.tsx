@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
@@ -23,6 +23,15 @@ function Harness({ onResult }: { onResult: (value: boolean) => void }) {
 }
 
 describe("useConfirm", () => {
+  it("settles false when unmounted with an open confirmation", async () => {
+    const user = userEvent.setup();
+    const results: boolean[] = [];
+    const view = render(<Harness onResult={(value) => results.push(value)} />);
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    await screen.findByRole("alertdialog");
+    view.unmount();
+    await waitFor(() => expect(results).toEqual([false]));
+  });
   it("resolves true when the confirm button is clicked", async () => {
     const user = userEvent.setup();
     const results: boolean[] = [];
@@ -56,5 +65,16 @@ describe("useConfirm", () => {
     await screen.findByRole("alertdialog");
     await user.keyboard("{Escape}");
     await waitFor(() => expect(results).toEqual([false]));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Open" })).toHaveFocus());
+  });
+  it.each(["popstate", "pagehide"])("settles false on %s navigation", async (event) => {
+    const user = userEvent.setup();
+    const results: boolean[] = [];
+    render(<Harness onResult={(value) => results.push(value)} />);
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    await screen.findByRole("alertdialog", { name: "Discard draft?" });
+    fireEvent(window, new Event(event));
+    await waitFor(() => expect(results).toEqual([false]));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 });

@@ -78,7 +78,7 @@ const mocks = vi.hoisted(() => {
         rows: [{
           id: "existing-run",
           operation: state.claim === "mismatch" ? "export" : "retention",
-          policy_version: "2026-07-25.v5",
+          policy_version: "2026-10-08.v6",
           dry_run: resume
             || state.claim === "replay_degraded"
             || state.claim === "replay_with_unrelated_checkpoint" ? false : true,
@@ -121,7 +121,7 @@ const mocks = vi.hoisted(() => {
             },
           } : {
             runId: "existing-run",
-            policyVersion: "2026-07-25.v5",
+            policyVersion: "2026-10-08.v6",
             dryRun: state.claim === "replay_degraded"
               || state.claim === "replay_with_unrelated_checkpoint"
               ? false : true,
@@ -155,7 +155,7 @@ const mocks = vi.hoisted(() => {
         rows: [{
           id: "existing-run",
           operation: "retention",
-          policy_version: "2026-07-25.v5",
+          policy_version: "2026-10-08.v6",
           dry_run: false,
           cutoff_manifest: { rawChat: "2025-07-11T00:00:00.000Z" },
           status: "failed",
@@ -287,10 +287,27 @@ vi.mock("../file-erasure", () => ({
 }));
 
 import { RetentionRunConflictError, runRetention } from "../retention";
+const retentionAudit = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/security/audit-writer", () => ({ writeAuditEventInTransaction: retentionAudit }));
 
 const now = new Date("2026-07-12T00:00:00.000Z");
 
 describe("retention runtime orchestration", () => {
+  it("reports and checkpoints the latest-ten conversation cap in the existing sweep", async () => {
+    const report = await runRetention({ idempotencyKey: "retention:test:chat-cap", dryRun: false, batchSize: 5, now });
+    expect(report.categories.tutorConversationCap).toMatchObject({ eligible: 2, deleted: 1, retained: 1 });
+    const checkpoint = mocks.query.mock.calls.find(([sql, values]) => String(sql).includes("update data_lifecycle_run set report") && String(values?.[1]).includes("tutorConversationCap"));
+    expect(checkpoint).toBeDefined();
+    expect(retentionAudit).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      action: "retention.deleted", resourceType: "chat_thread", resourceId: "row-1", outcome: "success",
+      metadata: expect.objectContaining({ category: "tutorConversationCap", policyVersion: "2026-10-08.v6" }),
+    }));
+  });
+  it("rolls back retention deletion if its audit cannot be written", async () => {
+    retentionAudit.mockRejectedValueOnce(new Error("Audit unavailable"));
+    await expect(runRetention({ idempotencyKey: "retention:test:chat-audit-failure", dryRun: false, batchSize: 5, now })).rejects.toThrow("Audit unavailable");
+    expect(mocks.query).toHaveBeenCalledWith("rollback");
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.state.claim = "new";

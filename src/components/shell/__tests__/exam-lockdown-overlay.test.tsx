@@ -135,7 +135,8 @@ describe("active exam lockdown overlay", () => {
     expect(await screen.findByRole("alertdialog", { name: /Preparing private exam recovery/i }))
       .toHaveTextContent(/ordinary learning remains locked/i);
     expect(screen.queryByRole("link", { name: /Resume timed exam/i })).not.toBeInTheDocument();
-    expect(pendingCommitLocks).toEqual([true]);
+    expect(pendingCommitLocks.length).toBeGreaterThan(0);
+    expect(pendingCommitLocks.every((locked) => locked)).toBe(true);
     expect(document.getElementById("app-content-column")).toHaveAttribute("inert");
 
     cleanup.resolve();

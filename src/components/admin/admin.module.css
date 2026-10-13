@@ -97,12 +97,12 @@
 .credentialCeremony { display: grid; gap: 11px; margin: 14px 0 0; padding: 13px; border: 1px solid var(--line); border-radius: 15px; background: var(--surface-muted); }
 .credentialCeremony legend { padding: 0 6px; color: var(--ink); font-size: .64rem; font-weight: 800; }
 .credentialCeremony:disabled { opacity: .72; }
-.credentialFields { display: grid; grid-template-columns: minmax(180px, .45fr) minmax(260px, 1fr); gap: 9px; }
+.credentialFields { composes: form from "../ui/form.module.css"; display: grid; grid-template-columns: minmax(180px, .45fr) minmax(260px, 1fr); gap: 9px; }
 .credentialFields label { display: grid; align-content: start; gap: 5px; color: var(--ink-soft); font-size: .57rem; font-weight: 760; }
 .credentialFields label:nth-child(3) { grid-column: 1 / -1; }
 .credentialFields input, .credentialFields textarea { width: 100%; min-height: 38px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 11px; color: var(--ink); background: var(--surface-solid); font-size: .63rem; }
 .credentialFields textarea { min-height: 76px; resize: vertical; }
-.credentialActions { display: flex; flex-wrap: wrap; gap: 7px; }
+.credentialActions { composes: actions from "../ui/form.module.css"; display: flex; flex-wrap: wrap; gap: 7px; }
 .credentialDeleteConfirm { display: flex; align-items: flex-start; gap: 7px; color: var(--danger); font-size: .57rem; font-weight: 740; }
 .credentialDeleteConfirm input { margin-top: 1px; }
 .credentialReveal { display: grid; gap: 10px; margin-top: 12px; padding: 13px; border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--line)); border-radius: 15px; background: color-mix(in srgb, var(--danger) 7%, var(--surface)); }
@@ -180,7 +180,7 @@
 .requestIdentity a { color: var(--brand); font-size: .62rem; font-weight: 760; }
 .requestIdentity small { color: var(--ink-soft); font-size: .56rem; }
 .requestReason { margin: 12px 0 0; color: var(--ink-soft); font-size: .64rem; line-height: 1.55; }
-.approveForm { display: grid; align-content: start; gap: 7px; }
+.approveForm { composes: form from "../ui/form.module.css"; display: grid; align-content: start; gap: 7px; }
 .approveForm label { color: var(--ink-soft); font-size: .56rem; font-weight: 760; }
 .approveForm textarea { min-height: 68px; resize: vertical; }
 .approveForm textarea, .approveForm input, .approveForm select { width: 100%; min-height: 38px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 11px; color: var(--ink); background: var(--surface-solid); font-size: .63rem; }
@@ -188,11 +188,11 @@
 .inlineError, .inlineSuccess { margin: 0; font-size: .57rem; }
 .inlineError { color: var(--danger); }
 .inlineSuccess { color: var(--brand); }
-.curriculumAuth { display: grid; grid-template-columns: minmax(190px, .4fr) minmax(280px, 1fr); gap: 10px; padding: 13px; border: 1px solid var(--line); border-radius: 15px; background: var(--surface); }
+.curriculumAuth { composes: form from "../ui/form.module.css"; display: grid; grid-template-columns: minmax(190px, .4fr) minmax(280px, 1fr); gap: 10px; padding: 13px; border: 1px solid var(--line); border-radius: 15px; background: var(--surface); }
 .curriculumAuth label, .curriculumJson { display: grid; gap: 5px; color: var(--ink-soft); font-size: .57rem; font-weight: 760; }
 .curriculumAuth input, .curriculumAuth textarea, .curriculumJson textarea, .curriculumJson select { width: 100%; min-height: 38px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 11px; color: var(--ink); background: var(--surface-solid); font-size: .63rem; }
 .curriculumAuth textarea { min-height: 54px; resize: vertical; }
-.curriculumJson { margin-top: 10px; }
+.curriculumJson { composes: form from "../ui/form.module.css"; margin-top: 10px; }
 .curriculumJson textarea { min-height: 150px; resize: vertical; font-family: var(--font-mono); }
 .curriculumArtifact { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; margin-top: 6px; padding: 9px; border: 1px solid var(--line); border-radius: 11px; color: var(--ink); background: var(--surface-muted); text-align: left; }
 .reviewBadges { display: flex; align-items: center; gap: 6px; }
@@ -204,7 +204,7 @@
 .curriculumArtifact small { color: var(--ink-soft); font-size: .52rem; }
 .curriculumQueueSummary { display: flex; flex-wrap: wrap; gap: 7px; margin: 10px 0; }
 .curriculumQueueControls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; min-width: 0; }
-.curriculumQueueFilter { display: grid; min-width: 0; gap: 5px; color: var(--ink-soft); font-size: .57rem; font-weight: 760; }
+.curriculumQueueFilter { composes: form from "../ui/form.module.css"; display: grid; min-width: 0; gap: 5px; color: var(--ink-soft); font-size: .57rem; font-weight: 760; }
 .curriculumQueueFilter select, .curriculumQueueFilter input { width: 100%; min-width: 0; min-height: 44px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 11px; color: var(--ink); background: var(--surface-solid); font-size: .63rem; }
 .curriculumQueueFilter select:focus-visible, .curriculumQueueFilter input:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .curriculumReviewQueue { display: grid; max-height: 390px; margin: 11px 0 8px; padding-right: 4px; overflow-y: auto; }
@@ -220,7 +220,7 @@
 .curriculumChecklist label, .curriculumItems label { display: flex; align-items: center; gap: 6px; color: var(--ink-soft); font-size: .56rem; }
 .curriculumChecklist input:not([type="checkbox"]) { width: 100%; min-height: 34px; padding: 7px 8px; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: var(--surface-solid); font-size: .57rem; }
 .curriculumItems { max-height: 220px; overflow-y: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.compactField { display: grid; gap: 3px; color: var(--ink-soft); font-size: .55rem; font-weight: 760; }
+.compactField { composes: form from "../ui/form.module.css"; display: grid; gap: 3px; color: var(--ink-soft); font-size: .55rem; font-weight: 760; }
 .compactField select { min-height: 36px; padding: 0 28px 0 9px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--surface-solid); font-size: .62rem; }
 .appealWorkspace { display: grid; grid-template-columns: minmax(260px, .62fr) minmax(0, 1.55fr); align-items: start; gap: 12px; }
 .appealQueue { position: sticky; top: 150px; display: grid; max-height: calc(100vh - 170px); overflow-y: auto; gap: 7px; padding: 14px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); }
@@ -251,7 +251,7 @@
 .appealTimeline strong { font-size: .64rem; }
 .appealTimeline small, .appealTimeline p { color: var(--ink-soft); font-size: .56rem; }
 .appealTimeline p { margin: 0; line-height: 1.5; }
-.appealDecisionForm { display: grid; gap: 10px; }
+.appealDecisionForm { composes: form from "../ui/form.module.css"; display: grid; gap: 10px; }
 .appealDecisionForm fieldset { display: flex; flex-wrap: wrap; gap: 12px; margin: 0; padding: 10px; border: 1px solid var(--line); border-radius: 12px; }
 .appealDecisionForm legend, .appealDecisionForm label { color: var(--ink-soft); font-size: .57rem; font-weight: 760; }
 .appealDecisionForm label { display: grid; gap: 5px; }
@@ -275,7 +275,7 @@
 .planHistoryRow small { overflow: hidden; color: var(--ink-soft); font-size: .52rem; text-overflow: ellipsis; white-space: nowrap; }
 .planHistoryRow > span:last-child { display: flex; gap: 4px; }
 .planHistoryRow button { padding: 5px 7px; border: 1px solid var(--line); border-radius: 8px; color: var(--brand); background: var(--surface-solid); font-size: .52rem; }
-.planEditor { display: grid; gap: 11px; margin-top: 12px; background: var(--surface); }
+.planEditor { composes: form from "../ui/form.module.css"; display: grid; gap: 11px; margin-top: 12px; background: var(--surface); }
 .planActions { display: flex; justify-content: flex-end; gap: 7px; }
 .planImpact { display: grid; gap: 8px; background: color-mix(in srgb, var(--brand-soft) 48%, var(--surface)); }
 .planImpact > div { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; }
@@ -377,3 +377,6 @@
 .adminRail nav a { min-height: 44px; }
 .curriculumQueue { position: sticky; top: var(--page-header-offset); align-self: start; max-height: calc(100dvh - var(--page-header-offset) - 16px); }
 @media (max-width: 820px) { .curriculumQueue { position: static; max-height: 360px; } }
+
+.formActions { composes: actions from "../ui/form.module.css"; }
+.curriculumChecklist { composes: form from "../ui/form.module.css"; }

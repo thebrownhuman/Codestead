@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { and, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -181,7 +182,9 @@ export async function PATCH(
   const authz = await requireAdmin();
   if (!authz.session) return authz.response;
   const { id } = await context.params;
-  const body = patchSchema.safeParse(await request.json().catch(() => null));
+  const jsonBody = await readBoundedJson(request);
+  if (jsonBody.response?.status === 413) return jsonBody.response;
+  const body = patchSchema.safeParse(jsonBody.value);
   if (!credentialIdSchema.safeParse(id).success || !body.success) {
     await writeAuditEvent({
       actorUserId: authz.session.user.id,
@@ -252,7 +255,9 @@ export async function DELETE(
   const authz = await requireAdmin();
   if (!authz.session) return authz.response;
   const { id } = await context.params;
-  const body = deleteSchema.safeParse(await request.json().catch(() => null));
+  const jsonBody = await readBoundedJson(request);
+  if (jsonBody.response?.status === 413) return jsonBody.response;
+  const body = deleteSchema.safeParse(jsonBody.value);
   if (!credentialIdSchema.safeParse(id).success || !body.success) {
     await writeAuditEvent({
       actorUserId: authz.session.user.id,

@@ -3,9 +3,9 @@
 import {
   Archive,
   Bot,
-  BookOpen,
   BrainCircuit,
   History,
+  ArrowLeft,
   MessageSquarePlus,
   RotateCcw,
   Send,
@@ -129,6 +129,21 @@ async function jsonBody<T>(response: Response): Promise<T> {
 }
 
 export function TutorView() {
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const historyToggle = useRef<HTMLButtonElement>(null);
+  const historyBack = useRef<HTMLButtonElement>(null);
+  const historyWasOpened = useRef(false);
+  useEffect(() => {
+    if (historyOpen) {
+      historyWasOpened.current = true;
+      historyBack.current?.focus();
+    } else if (historyWasOpened.current) {
+      historyToggle.current?.focus();
+    }
+  }, [historyOpen]);
+  function closeHistory() {
+    setHistoryOpen(false);
+  }
   const [messages, setMessages] = useState<Message[]>([WELCOME]);
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
   const [selectedThread, setSelectedThread] = useState<ThreadDetail | null>(null);
@@ -249,6 +264,7 @@ export function TutorView() {
       setSelectedThread(body.thread);
       setMessages(body.messages);
       setMessageCursor(body.nextCursor);
+      closeHistory();
     } catch (cause) {
       if (sequence === readSequence.current) {
         setError(cause instanceof Error ? cause.message : "That tutor thread is unavailable.");
@@ -297,6 +313,7 @@ export function TutorView() {
     setMessageCursor(null);
     setError(null);
     setSanitizationNotice(null);
+    closeHistory();
   }
 
   async function changeThreadStatus() {
@@ -467,12 +484,11 @@ export function TutorView() {
   const threadSelectionLocked = busy || statusBusy || (historyBusy && openingThreadId === null);
 
   return (
-    <div className={styles.page}>
-      <header className={styles.pageHead}>
+    <div className={`${styles.page} ${styles.mentorPage}`}>
+      <header className={styles.mentorHeader}>
         <div>
-          <span className={styles.eyebrow}>Course-grounded help</span>
-          <h1>Codestead mentor.</h1>
-          <p>A friendly tutor that sees bounded learning context, not your entire account. It can explain and coach; it cannot pass exams, set mastery, publish content, or run code.</p>
+          <h1>Codestead mentor</h1>
+          <p>Course-grounded explanations, with bounded learning context.</p>
         </div>
         <span className="pill"><ShieldCheck size={14} /> Your key · bounded context</span>
       </header>
@@ -485,6 +501,90 @@ export function TutorView() {
         </section>
       )}
 
+
+
+      {quotaPopup && <PlatformQuotaDialog onClose={() => setQuotaPopup(false)} />}
+      {consentPopup && <PlatformQuotaDialog consent onClose={() => setConsentPopup(false)} />}
+      <section className={`${styles.tutorLayout} ${styles.mentorLayout} card`} data-history-open={historyOpen}>
+        <aside id="tutor-conversations" className={styles.tutorContext} aria-label="Tutor thread history and context">
+          <button ref={historyBack} type="button" className={`${styles.mobileHistoryButton} button button-secondary`} onClick={closeHistory}><ArrowLeft size={16} aria-hidden="true" /> Back to chat</button>
+          <div className={styles.threadHeading}>
+            <span><History size={15} /><strong>Conversations</strong></span>
+            <button type="button" className={styles.threadIconButton} disabled={interactionLocked} onClick={startNewThread} aria-label="Start a new conversation">
+              <MessageSquarePlus size={16} />
+            </button>
+          </div>
+          <p className={styles.retentionNotice}>Only your last 10 chats are kept</p>
+          <ul className={styles.threadList} aria-label="Your tutor conversations" aria-busy={historyBusy}>
+            {threads.map((thread) => (
+              <li key={thread.id}>
+                <button
+                  type="button"
+                  className={selectedThread?.id === thread.id || openingThreadId === thread.id ? styles.selectedThread : undefined}
+                  aria-current={selectedThread?.id === thread.id ? "page" : undefined}
+                  aria-busy={openingThreadId === thread.id || undefined}
+                  disabled={threadSelectionLocked}
+                  onClick={() => void openThread(thread)}
+                >
+                  <span><strong>{thread.title}</strong>{thread.status === "archived" && <em>Archived</em>}</span>
+                  <small><time dateTime={thread.createdAt}>{new Date(thread.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</time> · {thread.messageCount} messages</small>
+                  <small>{threadProvenance(thread)}</small>
+                </button>
+              </li>
+            ))}
+          </ul>
+          {!historyBusy && threads.length === 0 && <p>No saved conversations yet.</p>}
+          {threadCursor && (
+            <button type="button" className="button button-secondary" disabled={historyBusy} onClick={() => void loadThreads(threadCursor, true)}>
+              Load more conversations
+            </button>
+          )}
+
+          {latestContextManifest && latestContextManifest.included.length > 0 && <details className={styles.contextDetails}>
+            <summary>Context sent this turn</summary>
+            {latestContextManifest ? (
+              <>
+                <p>{latestContextManifest.contextPolicyVersion} · exact categories from the latest provider call</p>
+                {latestContextManifest.included.map((category) => (
+                  <div className={styles.contextItem} key={category}>
+                    <span>{contextCategoryLabel(category)}</span>
+                    <strong>{latestContextManifest.provenance[category] ?? "Server-reviewed bounded projection"}</strong>
+                  </div>
+                ))}
+                <div className={styles.contextItem}>
+                  <span>Hard caps</span>
+                  <strong>{Object.entries(latestContextManifest.caps).map(([key, amount]) => `${key}: ${amount}`).join(" · ")}</strong>
+                </div>
+                <div className={styles.contextItem}>
+                  <span>Explicitly excluded</span>
+                  <strong>{latestContextManifest.explicitlyExcluded.join(" · ")}</strong>
+                </div>
+              </>
+            ) : (
+              <p>No provider call is selected yet. After a response, this panel shows the exact stored categories, provenance, and caps used for that call.</p>
+            )}
+          </details>}
+        </aside>
+
+        <div className={styles.tutorChat}>
+          <header className={styles.tutorChatHead}>
+            <button ref={historyToggle} type="button" className={`${styles.mobileHistoryButton} button button-secondary`} aria-label="Show conversations" aria-expanded={historyOpen} aria-controls="tutor-conversations" onClick={() => setHistoryOpen(true)}><History size={16} aria-hidden="true" /></button>
+            <div className={styles.tutorIdentity}>
+              <span><Bot size={19} /></span>
+              <span><strong>{openingThreadId ? "Loading conversation…" : selectedThread?.title ?? "New conversation"}</strong><small>{provider}</small></span>
+            </div>
+            <div className={styles.threadActions}>
+              {selectedThread && (
+                <button type="button" className="button button-secondary" disabled={interactionLocked} onClick={() => void changeThreadStatus()}>
+                  {archived ? <RotateCcw size={13} /> : <Archive size={13} />}
+                  {statusBusy ? "Updating…" : archived ? "Reopen" : "Archive"}
+                </button>
+              )}
+              <span className="pill"><Sparkles size={12} /> Friendly · Socratic</span>
+            </div>
+          </header>
+
+          <div className={styles.messageList} aria-live="polite" aria-busy={busy || historyBusy}>
       {mentorRecommendation && <section
         aria-label="Personalized daily mentor challenge"
         className={`${styles.mentorRecommendation} card`}
@@ -524,86 +624,6 @@ export function TutorView() {
           <small>No official roadmap change was made.</small>
         </>}
       </section>}
-
-      {quotaPopup && <PlatformQuotaDialog onClose={() => setQuotaPopup(false)} />}
-      {consentPopup && <PlatformQuotaDialog consent onClose={() => setConsentPopup(false)} />}
-      <section className={`${styles.tutorLayout} card`}>
-        <aside className={styles.tutorContext} aria-label="Tutor thread history and context">
-          <div className={styles.threadHeading}>
-            <span><History size={15} /><strong>Conversations</strong></span>
-            <button type="button" className={styles.threadIconButton} disabled={interactionLocked} onClick={startNewThread} aria-label="Start a new conversation">
-              <MessageSquarePlus size={16} />
-            </button>
-          </div>
-          <ul className={styles.threadList} aria-label="Your tutor conversations" aria-busy={historyBusy}>
-            {threads.map((thread) => (
-              <li key={thread.id}>
-                <button
-                  type="button"
-                  className={selectedThread?.id === thread.id || openingThreadId === thread.id ? styles.selectedThread : undefined}
-                  aria-current={selectedThread?.id === thread.id ? "page" : undefined}
-                  aria-busy={openingThreadId === thread.id || undefined}
-                  disabled={threadSelectionLocked}
-                  onClick={() => void openThread(thread)}
-                >
-                  <span><strong>{thread.title}</strong>{thread.status === "archived" && <em>Archived</em>}</span>
-                  <small>{thread.messageCount} messages</small>
-                  <small>{threadProvenance(thread)}</small>
-                </button>
-              </li>
-            ))}
-          </ul>
-          {!historyBusy && threads.length === 0 && <p>No saved conversations yet.</p>}
-          {threadCursor && (
-            <button type="button" className="button button-secondary" disabled={historyBusy} onClick={() => void loadThreads(threadCursor, true)}>
-              Load more conversations
-            </button>
-          )}
-
-          <details className={styles.contextDetails}>
-            <summary>Context sent this turn</summary>
-            {latestContextManifest ? (
-              <>
-                <p>{latestContextManifest.contextPolicyVersion} · exact categories from the latest provider call</p>
-                {latestContextManifest.included.map((category) => (
-                  <div className={styles.contextItem} key={category}>
-                    <span>{contextCategoryLabel(category)}</span>
-                    <strong>{latestContextManifest.provenance[category] ?? "Server-reviewed bounded projection"}</strong>
-                  </div>
-                ))}
-                <div className={styles.contextItem}>
-                  <span>Hard caps</span>
-                  <strong>{Object.entries(latestContextManifest.caps).map(([key, amount]) => `${key}: ${amount}`).join(" · ")}</strong>
-                </div>
-                <div className={styles.contextItem}>
-                  <span>Explicitly excluded</span>
-                  <strong>{latestContextManifest.explicitlyExcluded.join(" · ")}</strong>
-                </div>
-              </>
-            ) : (
-              <p>No provider call is selected yet. After a response, this panel shows the exact stored categories, provenance, and caps used for that call.</p>
-            )}
-          </details>
-        </aside>
-
-        <div className={styles.tutorChat}>
-          <header className={styles.tutorChatHead}>
-            <div className={styles.tutorIdentity}>
-              <span><Bot size={19} /></span>
-              <span><strong>{openingThreadId ? "Loading conversation…" : selectedThread?.title ?? "New conversation"}</strong><small>{provider}</small></span>
-            </div>
-            <div className={styles.threadActions}>
-              {selectedThread && (
-                <button type="button" className="button button-secondary" disabled={interactionLocked} onClick={() => void changeThreadStatus()}>
-                  {archived ? <RotateCcw size={13} /> : <Archive size={13} />}
-                  {statusBusy ? "Updating…" : archived ? "Reopen" : "Archive"}
-                </button>
-              )}
-              <span className="pill"><Sparkles size={12} /> Friendly · Socratic</span>
-            </div>
-          </header>
-
-          <div className={styles.messageList} aria-live="polite" aria-busy={busy || historyBusy}>
             {messageCursor && (
               <button type="button" className="button button-secondary" disabled={historyBusy} onClick={() => void loadOlderMessages()}>
                 Load older messages
@@ -650,11 +670,7 @@ export function TutorView() {
         </div>
       </section>
 
-      <div className={styles.securityExplainer}>
-        <span><strong><BookOpen size={13} /> Authored grounding</strong><small>The course version and skill sources anchor the explanation.</small></span>
-        <span><strong><BrainCircuit size={13} /> Structured memory</strong><small>Relevant summaries and misconceptions, not a raw history dump.</small></span>
-        <span><strong><ShieldCheck size={13} /> No authority</strong><small>Deterministic services own grading, mastery, code, and publication.</small></span>
-      </div>
+      <p className={styles.mentorNotice}>AI can explain and coach. Deterministic services own grading, mastery, code execution, and publication.</p>
     </div>
   );
 }

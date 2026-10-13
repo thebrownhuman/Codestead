@@ -44,18 +44,15 @@ describe("GitHub static reviewer", () => {
     const bodyStarted = new Promise<void>((resolve) => { startBody = resolve; });
     const fetchMock = vi.fn(async (_request: RequestInfo | URL, init?: RequestInit) => {
       signal = init?.signal ?? undefined;
-      return {
-        ok: true,
-        json: () => {
+      return new Response(new ReadableStream({
+        start(controller) {
           startBody();
-          return new Promise<unknown>((_resolve, reject) => {
-            rejectBody = reject;
-            signal?.addEventListener("abort", () => {
-              reject(new DOMException("The request was aborted.", "AbortError"));
-            }, { once: true });
-          });
+          rejectBody = (error) => controller.error(error);
+          signal?.addEventListener("abort", () => {
+            controller.error(new DOMException("The request was aborted.", "AbortError"));
+          }, { once: true });
         },
-      } as Response;
+      }));
     });
     let settled = false;
     const result = reviewPublicRepository("https://github.com/octo/repo", fetchMock as typeof fetch)
@@ -78,7 +75,7 @@ describe("GitHub static reviewer", () => {
         error: { name: "AbortError" },
       });
     } finally {
-      rejectBody(new DOMException("Test cleanup.", "AbortError"));
+      if (!settled) rejectBody(new DOMException("Test cleanup.", "AbortError"));
       await result;
       vi.useRealTimers();
     }
@@ -105,8 +102,8 @@ describe("GitHub static reviewer", () => {
     const result = await reviewPublicRepository("https://github.com/octo/repo", fetchMock as typeof fetch);
     expect(result.commitSha).toBe(sha);
     expect(result).toMatchObject({
-      analyzerVersion: "static-review-v2",
-      rubricVersion: "static-project-review-rubric-v2",
+      analyzerVersion: "static-review-v4",
+      rubricVersion: "static-project-review-rubric-v3",
       provenance: {
         analysisMode: "deterministic_static",
         aiUsed: false,

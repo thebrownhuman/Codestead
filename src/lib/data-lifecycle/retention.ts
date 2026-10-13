@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import type { PoolClient } from "pg";
 
 import { pool } from "@/lib/db/client";
+import { countExcessTutorConversations, deleteExcessTutorConversations } from "./chat-retention";
 
 import {
   enqueueFileErasures,
@@ -942,6 +943,7 @@ export async function runRetention(input: {
       return report;
     }
     const categories: Record<string, RetentionCategoryReport> = {};
+    const excessTutorConversations = await countExcessTutorConversations(client);
     const chatEligible = await count(
       client,
       "select count(*)::text as count from chat_message where created_at < $1",
@@ -1221,6 +1223,7 @@ export async function runRetention(input: {
 
     const objectFiles = { removed: 0, alreadyAbsent: 0, failed: 0 };
     if (input.dryRun) {
+      categories.tutorConversationCap = category(excessTutorConversations, 0, "dry-run; only the latest 10 conversations per user are kept");
       categories.rawChat = category(chatEligible, 0, "dry-run");
       categories.tutorReplayReceipts = category(
         tutorReceiptEligible,
@@ -1310,6 +1313,8 @@ export async function runRetention(input: {
       let relationalCheckpoint: RetentionRelationalCheckpoint | null = null;
       await client.query("begin");
       try {
+        const deletedConversations = await deleteExcessTutorConversations(client, limit, runId);
+        categories.tutorConversationCap = category(excessTutorConversations, deletedConversations, "Hard-deleted excess conversations and cascading messages; latest 10 by creation time per user.");
         const deletedChat = await client.query<IdRow>(
           `delete from chat_message where id in (
              select id from chat_message where created_at < $1

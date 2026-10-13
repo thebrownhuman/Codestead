@@ -49,7 +49,8 @@ test("key pages render and hydrate with fresh nonces and no CSP console errors",
       await expect(page.locator(".monaco-editor").first()).toBeVisible({ timeout: 30_000 });
       // Exercise the JavaScript language worker, rather than merely loading the shell.
       if (route === "/playground") {
-        await page.getByRole("combobox", { name: "Runner language" }).selectOption("javascript");
+        await page.getByRole("combobox", { name: "Runner language" }).click();
+        await page.getByRole("option", { name: "JavaScript", exact: true }).click();
         await expect(page.locator(".monaco-editor").first()).toBeVisible();
       }
     }
@@ -84,5 +85,4 @@ test("Sentry loads and sends browser errors through the same-origin GlitchTip re
   await expect.poll(() => envelope, { timeout: 15_000 }).toContain("csp-relay-verification");
   expect(await page.evaluate(() => window.cspViolations)).toEqual([]);
 });
-
 

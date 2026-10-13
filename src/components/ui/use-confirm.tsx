@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertTriangle } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { ModalDialog } from "./modal-dialog";
 import styles from "./confirm-dialog.module.css";
@@ -17,9 +17,6 @@ export type ConfirmOptions = {
 
 type PendingConfirm = ConfirmOptions & { resolve: (value: boolean) => void };
 
-const TITLE_ID = "confirm-dialog-title";
-const DESCRIPTION_ID = "confirm-dialog-description";
-
 /**
  * Replaces window.confirm with the app's accessible ModalDialog (styled,
  * Escape closes, focus trapped and restored). Render the returned
@@ -28,10 +25,23 @@ const DESCRIPTION_ID = "confirm-dialog-description";
  * block synchronously — it resolves to true/false instead.
  */
 export function useConfirm() {
+  const id = useId();
+  const titleId = `${id}-title`;
+  const descriptionId = `${id}-description`;
   const [pending, setPending] = useState<PendingConfirm | null>(null);
   const pendingRef = useRef<PendingConfirm | null>(null);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      pendingRef.current?.resolve(false);
+      pendingRef.current = null;
+    };
+  }, []);
 
   const confirm = useCallback((options: ConfirmOptions) => {
+    if (!mounted.current) return Promise.resolve(false);
     return new Promise<boolean>((resolve) => {
       // An abandoned prior prompt resolves false rather than hanging forever.
       pendingRef.current?.resolve(false);
@@ -50,16 +60,16 @@ export function useConfirm() {
   const confirmDialog = pending ? (
     <ModalDialog
       backdropClassName={styles.backdrop}
-      describedBy={pending.description ? DESCRIPTION_ID : undefined}
+      describedBy={pending.description ? descriptionId : undefined}
       dialogClassName={styles.dialog}
-      labelledBy={TITLE_ID}
+      labelledBy={titleId}
       onClose={() => settle(false)}
       role="alertdialog"
     >
       <span aria-hidden="true" className={styles.icon}><AlertTriangle size={20} /></span>
       <div className={styles.copy}>
-        <h2 id={TITLE_ID}>{pending.title}</h2>
-        {pending.description && <p id={DESCRIPTION_ID}>{pending.description}</p>}
+        <h2 id={titleId}>{pending.title}</h2>
+        {pending.description && <p id={descriptionId}>{pending.description}</p>}
       </div>
       <div className={styles.actions}>
         <button className="button button-secondary" data-dialog-initial-focus onClick={() => settle(false)} type="button">

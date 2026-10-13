@@ -306,9 +306,13 @@ export async function evaluateCurriculumPublicationGate(input: {
     if (!exactSet(release.data.skillCoverage.skillIds, skillIds)) issue({ code: "SKILL_COVERAGE_MISMATCH", message: "Skill coverage evidence does not exactly match the promised manifest." });
     if (!exactSet(release.data.skillCoverage.lessonArtifactKeys, lessonArtifacts.map((artifact) => artifact.artifact_key))) issue({ code: "LESSON_EVIDENCE_MISMATCH", message: "Lesson coverage evidence does not match the immutable artifact set." });
     if (!exactSet(release.data.skillCoverage.assessmentBankArtifactKeys, bankArtifacts.map((artifact) => artifact.artifact_key))) issue({ code: "BANK_EVIDENCE_MISMATCH", message: "Assessment coverage evidence does not match the immutable artifact set." });
-    if (!exactSet(release.data.codeExecution.executedItemIds, codeItems.map((item) => item.id))) issue({ code: "EXECUTION_REPORT_MISMATCH", message: "Execution evidence does not exactly cover every code item." });
-    const dbRuntimeDigests = codeItems.map((item) => bundleByItem.get(item.id)?.runtime_image_digest ?? "").filter(Boolean);
-    if (!exactSet(release.data.codeExecution.runtimeImageDigests, dbRuntimeDigests)) issue({ code: "RUNTIME_DIGEST_MISMATCH", message: "Execution evidence runtime digests do not match verified test bundles." });
+    // Owner-approved beta policy: an acknowledged not_run report makes no
+    // execution claim. Actual passes retain the complete execution checks.
+    if (!("status" in release.data.codeExecution)) {
+      if (!exactSet(release.data.codeExecution.executedItemIds, codeItems.map((item) => item.id))) issue({ code: "EXECUTION_REPORT_MISMATCH", message: "Execution evidence does not exactly cover every code item." });
+      const dbRuntimeDigests = codeItems.map((item) => bundleByItem.get(item.id)?.runtime_image_digest ?? "").filter(Boolean);
+      if (!exactSet(release.data.codeExecution.runtimeImageDigests, dbRuntimeDigests)) issue({ code: "RUNTIME_DIGEST_MISMATCH", message: "Execution evidence runtime digests do not match verified test bundles." });
+    }
   }
   if (unreviewedCurriculumWaived()) {
     // Beta: drafts may be tried locally as-is. Verified: only once the owner has

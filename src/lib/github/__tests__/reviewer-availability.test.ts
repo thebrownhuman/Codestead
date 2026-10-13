@@ -115,7 +115,7 @@ describe("GitHub review authentication and availability", () => {
       vi.spyOn(console, method as "log").mockImplementation(() => undefined));
     const fetchMock = vi.fn(async () => {
       if (failure === "fetch") throw new Error(`Authorization: Bearer ${token}`);
-      return { ok: true, json: async () => { throw new Error(token); } } as unknown as Response;
+      return new Response(new ReadableStream({ start(controller) { controller.error(new Error(token)); } }));
     });
     const error = await reviewPublicRepository("https://github.com/octo/repo", fetchMock as typeof fetch).catch((error: unknown) => error);
     expect(error).toBeInstanceOf(Error);

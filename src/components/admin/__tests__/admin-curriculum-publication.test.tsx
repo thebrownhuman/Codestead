@@ -1,3 +1,4 @@
+import { selectOption } from "@/test/select-option";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -64,6 +65,28 @@ function detailFor(item: typeof queueItems[number]) {
 }
 
 describe("administrator curriculum editorial queue", () => {
+  it("requires acknowledgement before generating evidence and never sends acknowledgement identity", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/admin/curriculum") return json({ candidates: [{ ...candidates[0], stage: "verified", isCurrent: true, examAvailability: { open: false, reason: "missing release evidence" }, notRunReports: [] }], reviewQueue: { total: 0, courseCount: 0, statusCounts: [], courseCounts: [], items: [] } });
+      if (url.endsWith("/artifacts")) return json({ artifacts: [] });
+      if (url.endsWith("/owner-review")) return json({ reviewedArtifactIds: [] });
+      if (url.endsWith("/evidence") && init?.method === "POST") return json({ report: { evidenceVersion: 1 } });
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup(); render(<AdminCurriculumPublication />);
+    const button = await screen.findByRole("button", { name: "Generate release evidence" });
+    expect(button).toBeDisabled();
+    expect(screen.getByText(/Exams: closed — missing release evidence/)).toBeInTheDocument();
+    await user.click(screen.getByLabelText("I accept these checks were not run for beta"));
+    await user.click(button);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/evidence"), expect.objectContaining({ method: "POST" })));
+    const call = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/evidence"))!;
+    const sent = JSON.parse(String(call[1]?.body));
+    expect(sent.acknowledgeNotRun).toBe(true); expect(sent.expectedContentHash).toBe(candidates[0].contentHash);
+    expect(sent).not.toHaveProperty("acknowledgedBy"); expect(sent).not.toHaveProperty("acknowledgedAt"); expect(sent).not.toHaveProperty("evidence");
+  });
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
@@ -107,7 +130,7 @@ describe("administrator curriculum editorial queue", () => {
     expect(second).toBeInTheDocument();
     expect(screen.getByText("Showing 1–2 of 2 matching artifacts (2 total). Page 1 of 1.")).toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText("Filter editorial queue by status"), "changes_requested");
+    await selectOption(user, screen.getByLabelText("Filter editorial queue by status"), "changes_requested");
     await waitFor(() => expect(within(queue).getAllByRole("button")).toHaveLength(1));
     expect(within(queue).queryByRole("button", { name: /lesson\.python\.variables\.v1/i })).not.toBeInTheDocument();
     expect(screen.getByText("Showing 1–1 of 1 matching artifacts (2 total). Page 1 of 1.")).toBeInTheDocument();
@@ -257,7 +280,7 @@ describe("administrator curriculum editorial queue", () => {
       if (url === `/api/admin/curriculum/versions/${versionDraft}/gate?target=verified`) {
         return json({ gate: { allowed: true, issues: [], warnings: [{ code: "RUNTIME_LESSON_MISSING", artifactKey: "python.variables", message: "Runtime lesson missing." }], reportHash: "hash-ok" } });
       }
-      if (url === `/api/admin/curriculum/versions/${versionDraft}/publish` && method === "POST") return json({ ok: true });
+      if (url === `/api/admin/curriculum/versions/${versionDraft}/evidence` && method === "POST") return json({ ok: true });
       if (url === `/api/admin/curriculum/versions/${versionDraft}/approve` && method === "POST") {
         queue = { ...queue, total: 0, statusCounts: [], items: [] };
         return json({ report: { approvedCount: 1, alreadyApprovedCount: 0 } });
@@ -282,26 +305,27 @@ describe("administrator curriculum editorial queue", () => {
     await user.click(screen.getByRole("button", { name: /Approve all/i }));
     await waitFor(() => expect(screen.getByText("All artifacts in this version are approved.")).toBeInTheDocument());
 
-    await user.selectOptions(screen.getByLabelText("Publication target"), "verified");
+    await selectOption(user, screen.getByLabelText("Publication target"), "verified");
     await user.click(screen.getByRole("button", { name: "Check readiness" }));
     await waitFor(() => expect(screen.getByText("Ready to publish")).toBeInTheDocument());
     expect(screen.getByText(/1 warnings/)).toBeInTheDocument();
     expect(screen.getByText(/Skills: python\.variables/)).toBeInTheDocument();
 
+    await user.click(screen.getByLabelText("I accept these checks were not run for beta"));
     await user.click(screen.getByRole("button", { name: /Approve & publish verified/i }));
     await user.click(await screen.findByRole("button", { name: "Approve & publish" }));
     await waitFor(() => expect(screen.getByText("Approved and published as verified.")).toBeInTheDocument());
-    expect(fetchMock).toHaveBeenCalledWith(`/api/admin/curriculum/versions/${versionDraft}/publish`, expect.objectContaining({ method: "POST" }));
+    expect(fetchMock).toHaveBeenCalledWith(`/api/admin/curriculum/versions/${versionDraft}/evidence`, expect.objectContaining({ method: "POST", body: expect.stringContaining('"targetStage":"verified"') }));
 
     await user.click(screen.getByRole("button", { name: "Retire version" }));
     await waitFor(() => expect(screen.getByText(/retired; its immutable history/)).toBeInTheDocument());
 
     const currentCard = screen.getByRole("button", { name: /Lifecycle v0\.2\.0/i });
     await user.click(currentCard);
-    await user.selectOptions(screen.getByLabelText("Publication target"), "beta");
+    await selectOption(user, screen.getByLabelText("Publication target"), "beta");
     expect(await screen.findByText(/Already published as beta/)).toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText("Rollback target"), versionPrior);
+    await selectOption(user, screen.getByLabelText("Rollback target"), versionPrior);
     await user.click(screen.getByRole("button", { name: "Rollback pointer" }));
     await waitFor(() => expect(screen.getByText(/Catalog pointer rolled back/)).toBeInTheDocument());
   });
@@ -322,6 +346,7 @@ describe("administrator curriculum editorial queue", () => {
 
     render(<AdminCurriculumPublication />);
     await screen.findByText("Editorial review queue");
+    await user.click(screen.getByLabelText("I accept these checks were not run for beta"));
     await user.click(screen.getByRole("button", { name: /Approve & publish beta/i }));
     await user.click(await screen.findByRole("button", { name: "Cancel" }));
 
@@ -422,7 +447,7 @@ describe("administrator curriculum editorial queue", () => {
       await user.paste("Reviewed carefully in detail.");
     }
     await user.click(screen.getByRole("checkbox", { name: "lesson.python.variables.v1" }));
-    await user.selectOptions(screen.getByLabelText("Decision"), "approved");
+    await selectOption(user, screen.getByLabelText("Decision"), "approved");
     await user.click(screen.getByRole("button", { name: "Append review" }));
 
     await waitFor(() => expect(screen.getByText("Human review evidence appended without rewriting content.")).toBeInTheDocument());

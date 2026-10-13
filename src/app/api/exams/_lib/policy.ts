@@ -99,12 +99,7 @@ export function evaluateStartDevice(claim: StartDeviceClaim): StartDeviceDecisio
   return { allowed: true, reason: "supported" };
 }
 
-export function examDurationMinutes(itemCount: number): number {
-  if (!Number.isInteger(itemCount) || itemCount <= 0) {
-    throw new RangeError("itemCount must be a positive integer");
-  }
-  return Math.min(45, Math.max(10, itemCount * 6));
-}
+export { examDurationMinutes } from "@/lib/exams/duration";
 
 export function serverClockOffsetMs(serverNowIso: string, receivedAtMs: number): number {
   const serverNowMs = Date.parse(serverNowIso);

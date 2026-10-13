@@ -144,7 +144,9 @@ function materializePublishedCourse(rows: readonly RuntimeArtifactRow[]): Publis
 }
 
 /** Returns only immutable, pointer-selected, independently reviewed courses. */
-export async function listPublishedExamCourses(): Promise<readonly PublishedExamCourse[]> {
+export async function listPublishedExamCourseAvailability(): Promise<readonly {
+  courseVersionId: string; open: boolean; reason: string | null; publication?: PublishedExamCourse;
+}[]> {
   const result = await pool.query<RuntimeArtifactRow>(`
     select cpp.course_id as pointer_course_id,
            cv.course_id as version_course_id,
@@ -198,13 +200,17 @@ export async function listPublishedExamCourses(): Promise<readonly PublishedExam
   // leave them out of the exam catalog instead of failing every learner page.
   // Single-owner mode publishes without release evidence (gate.ts
   // OWNER_MODE_WARNING_CODES); exams still require it, in every environment.
-  const examReady = versions.filter((rows) => rows[0]?.release_evidence_exists !== false);
-  const publications: PublishedExamCourse[] = [];
-  for (const rows of examReady) {
+  const availability: { courseVersionId: string; open: boolean; reason: string | null; publication?: PublishedExamCourse }[] = [];
+  for (const rows of versions) {
+    if (rows[0]?.release_evidence_exists === false) {
+      availability.push({ courseVersionId: rows[0].course_version_id, open: false, reason: "missing release evidence" });
+      continue;
+    }
     try {
-      publications.push(materializePublishedCourse(rows));
+      availability.push({ courseVersionId: rows[0]!.course_version_id, open: true, reason: null, publication: materializePublishedCourse(rows) });
     } catch (error) {
       if (!(error instanceof PublishedCurriculumRuntimeError)) throw error;
+      availability.push({ courseVersionId: rows[0]!.course_version_id, open: false, reason: error.code });
       // Keep a faulty pointer visible in operator logs without exposing any
       // artifact contents, answer oracles or learner data. Other courses load.
       console.error("Curriculum publication excluded from exams", {
@@ -214,7 +220,11 @@ export async function listPublishedExamCourses(): Promise<readonly PublishedExam
       });
     }
   }
-  return publications;
+  return availability;
+}
+
+export async function listPublishedExamCourses(): Promise<readonly PublishedExamCourse[]> {
+  return (await listPublishedExamCourseAvailability()).flatMap((entry) => entry.publication ? [entry.publication] : []);
 }
 
 export async function loadPublishedExamModule(

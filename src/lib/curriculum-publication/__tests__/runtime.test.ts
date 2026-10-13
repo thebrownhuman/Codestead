@@ -12,6 +12,7 @@ import {
   listPointerSelectedCourseSlugs,
   listPublishedCourseStages,
   listPublishedExamCourses,
+  listPublishedExamCourseAvailability,
   loadPublishedExamModule,
 } from "../runtime";
 
@@ -88,6 +89,14 @@ async function reviewedRows(suffix: string) {
 }
 
 describe("published curriculum runtime fail-closed boundary", () => {
+  it("explains a closed course and opens it after matching release evidence exists", async () => {
+    const rows = await reviewedRows("availability");
+    mocks.query.mockResolvedValue({ rows: rows.map((row) => ({ ...row, release_evidence_exists: false })) });
+    expect(await listPublishedExamCourseAvailability()).toEqual([expect.objectContaining({ open: false, reason: "missing release evidence" })]);
+    mocks.query.mockResolvedValue({ rows });
+    expect(await listPublishedExamCourseAvailability()).toEqual([expect.objectContaining({ open: true, reason: null })]);
+    expect(await listPublishedExamCourses()).toHaveLength(1);
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, "error").mockImplementation(() => undefined);

@@ -45,12 +45,12 @@
 .panelHead { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
 .panelHead > div { display: grid; gap: 3px; }
 .panelHead p,.panel > p { margin: 0; color: var(--ink-soft); font-size: .85rem; line-height: 1.55; }
-.form { display: grid; gap: 14px; }
+.form { composes: form from "../ui/form.module.css"; }
 .form label { display: grid; min-width: 0; gap: 6px; font-size: .82rem; font-weight: 800; }
 .form input,.form textarea,.form select { width: 100%; min-width: 0; min-height: 44px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--surface-solid); }
 .form textarea { min-height: 110px; resize: vertical; line-height: 1.5; }
 .form small { color: var(--ink-soft); font-weight: 500; line-height: 1.45; }
-.fieldGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.fieldGrid { display: grid; grid-template-columns: minmax(0,1fr); gap: 22px; }
 .checkList { display: grid; max-height: 320px; gap: 8px; margin: 0; padding: 10px; overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; }
 .checkList legend { padding: 0 6px; font-size: .82rem; font-weight: 850; }
 .checkRow { display: grid; grid-template-columns: auto minmax(0,1fr); align-items: start; gap: 10px; padding: 10px; border-radius: 10px; background: var(--surface-muted); }
@@ -64,7 +64,7 @@
 .disclosure span { display: grid; gap: 3px; }
 .disclosure strong { font-size: .8rem; }
 .disclosure small { color: var(--ink-soft); font-size: .7rem; }
-.actions { display: flex; flex-wrap: wrap; gap: 9px; }
+.actions { composes: actions from "../ui/form.module.css"; }
 .actions button,.actions a { min-height: 44px; }
 .error,.success { margin: 0; padding: 11px 13px; border-radius: 10px; color: var(--danger); background: color-mix(in srgb,var(--danger) 10%,transparent); font-size: .8rem; }
 .success { color: var(--brand-strong); background: var(--brand-soft); }
@@ -84,7 +84,7 @@
 .certificateCard p,.certificateCard small { color: var(--ink-soft); font-size: .74rem; }
 .verificationId { font-family: var(--font-mono); overflow-wrap: anywhere; }
 .revokeButton { border-color: color-mix(in srgb,var(--danger) 45%,var(--line)) !important; }
-.revocationForm { display: grid !important; grid-column: 1 / -1; gap: 9px !important; padding: 14px; border: 1px solid color-mix(in srgb,var(--danger) 35%,var(--line)); border-radius: 12px; background: color-mix(in srgb,var(--danger) 6%,var(--surface-solid)); }
+.revocationForm { composes: form from "../ui/form.module.css"; display: grid !important; grid-column: 1 / -1; padding: 14px; border: 1px solid color-mix(in srgb,var(--danger) 35%,var(--line)); border-radius: 12px; background: color-mix(in srgb,var(--danger) 6%,var(--surface-solid)); }
 .revocationForm label { font-size: .8rem; font-weight: 850; }
 .revocationForm textarea { min-height: 96px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--surface-solid); resize: vertical; }
 .revocationForm p { margin: 0; color: var(--ink-soft); font-size: .73rem; line-height: 1.5; }
@@ -121,7 +121,7 @@
 .trophyStats svg { color: var(--signal-amber); }
 .trophyStats strong { font-size: 1.25rem; }
 .trophyStats small { color: var(--ink-soft); }
-.trophyGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.trophyGrid { display: grid; grid-template-columns: minmax(0,1fr); gap: 22px; }
 .trophyCard { --trophy: var(--signal-amber); position: relative; display: grid; grid-template-columns: auto minmax(0,1fr); align-content: start; gap: 13px; padding: 18px; overflow: hidden; }
 .trophyCard::before { position: absolute; inset: 0 0 auto; height: 5px; background: var(--trophy); content: ""; }
 .trophyCard[data-status="revoked"] { --trophy: var(--danger); opacity: .78; }

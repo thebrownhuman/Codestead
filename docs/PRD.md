@@ -319,7 +319,8 @@ Qt, NumPy/Pandas, Spring/Spring Boot, and later learner-requested frameworks/dom
 ### Baseline retention
 
 - progress/mastery/projects/achievements: account life;
-- raw ordinary chat/code: 12 months, with durable structured summaries/official evidence as policy permits;
+- tutor chat: latest 10 conversations per learner, including archived conversations, with a 12-month limit on retained messages; the existing audited retention sweep deletes excess conversations and their messages;
+- ordinary code: 12 months, with durable structured summaries/official evidence as policy permits;
 - security and disclosed exam behavior events: 90 days unless held for incident/appeal;
 - provider-call metadata: 12 months, raw prompt/response minimized/shorter;
 - admin audit: 12–24 months;

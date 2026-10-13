@@ -86,6 +86,24 @@ const summaries = [
 ] as const;
 
 describe("TutorView server-owned thread lifecycle", () => {
+  it("shows retention and dated conversations without empty context or footer cards", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input) => String(input).startsWith("/api/credentials")
+      ? response({ credentials: [{ status: "active" }] })
+      : response({ threads: summaries, nextCursor: null })));
+    render(<TutorView />);
+    expect(await screen.findByText("Only your last 10 chats are kept")).toBeInTheDocument();
+    expect(screen.queryByText("Context sent this turn")).not.toBeInTheDocument();
+    expect(screen.queryByText("Authored grounding")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("time")[0]).toHaveAttribute("dateTime", UPDATED);
+    expect(screen.getByRole("button", { name: "Show conversations" })).toHaveAttribute("aria-expanded", "false");
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Show conversations" }));
+    expect(screen.getByRole("button", { name: "Back to chat" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Show conversations" })).toHaveAttribute("aria-expanded", "true");
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("button", { name: "Show conversations" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Show conversations" })).toHaveAttribute("aria-expanded", "false");
+  });
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();

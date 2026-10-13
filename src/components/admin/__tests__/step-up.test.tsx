@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -17,6 +17,103 @@ afterEach(() => {
 });
 
 describe("administrator step-up", () => {
+  it("settles the admin action when the open step-up component unmounts", async () => {
+    const view = render(<AdminStepUpDialog />);
+    const run = vi.fn().mockResolvedValue(json({ error: "FRESH_MFA_REQUIRED" }, 403));
+    const completed = vi.fn();
+    void withStepUp(run).then(completed);
+    await screen.findByRole("dialog");
+    view.unmount();
+    await waitFor(() => expect(completed).toHaveBeenCalled());
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+  it("allows a new generation to prompt after an abandoned global request", async () => {
+    const stale = vi.fn(() => new Promise<boolean>(() => undefined));
+    registerStepUpPrompter(stale);
+    const refusal = () => Promise.resolve(json({ error: "FRESH_MFA_REQUIRED" }, 403));
+    const completed = vi.fn();
+    void withStepUp(refusal).then(completed);
+    await waitFor(() => expect(stale).toHaveBeenCalledTimes(1));
+    registerStepUpPrompter(null);
+    const fresh = vi.fn(async () => false);
+    registerStepUpPrompter(fresh);
+    void withStepUp(refusal).then(completed);
+    await waitFor(() => expect(fresh).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(completed).toHaveBeenCalledTimes(2));
+  });
+  it("ignores stale owner cleanup and completion while the new generation is pending", async () => {
+    let staleRelease: (value: boolean) => void = () => undefined;
+    const stalePrompt = vi.fn(() => new Promise<boolean>((resolve) => { staleRelease = resolve; }));
+    const staleCleanup = registerStepUpPrompter(stalePrompt);
+    const run = () => Promise.resolve(json({ code: "FRESH_MFA_REQUIRED" }, 403));
+    const staleAction = withStepUp(run);
+    await waitFor(() => expect(stalePrompt).toHaveBeenCalledTimes(1));
+    let freshRelease: (value: boolean) => void = () => undefined;
+    const fresh = vi.fn(() => new Promise<boolean>((resolve) => { freshRelease = resolve; }));
+    registerStepUpPrompter(fresh);
+    const first = withStepUp(run);
+    await waitFor(() => expect(fresh).toHaveBeenCalledTimes(1));
+    staleCleanup();
+    staleRelease(true);
+    await expect(staleAction).resolves.toHaveProperty("status", 403);
+    const second = withStepUp(run);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(fresh).toHaveBeenCalledTimes(1);
+    freshRelease(false);
+    await expect(first).resolves.toHaveProperty("status", 403);
+    await expect(second).resolves.toHaveProperty("status", 403);
+  });
+  it.each(["Cancel", "Escape", "navigation"])("settles the refusal on %s without retrying the action", async (dismissal) => {
+    const user = userEvent.setup();
+    render(<AdminStepUpDialog />);
+    const run = vi.fn().mockResolvedValue(json({ error: "FRESH_MFA_REQUIRED" }, 403));
+    const action = withStepUp(run);
+    await screen.findByRole("dialog", { name: "Confirm it's you" });
+    if (dismissal === "Cancel") await user.click(screen.getByRole("button", { name: "Cancel" }));
+    else if (dismissal === "Escape") await user.keyboard("{Escape}");
+    else fireEvent(window, new Event("popstate"));
+    await expect(action).resolves.toHaveProperty("status", 403);
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+  it("traps step-up focus and returns to the action trigger on Escape", async () => {
+    const user = userEvent.setup();
+    const completed = vi.fn();
+    const run = vi.fn().mockResolvedValue(json({ error: "FRESH_MFA_REQUIRED" }, 403));
+    render(<><button onClick={() => { void withStepUp(run).then(completed); }} type="button">Admin action</button><AdminStepUpDialog /></>);
+    const trigger = screen.getByRole("button", { name: "Admin action" });
+    await user.click(trigger);
+    const input = await screen.findByLabelText("Authenticator code");
+    expect(input).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(screen.getByRole("button", { name: "Verify and continue" })).toHaveFocus();
+    await user.tab();
+    expect(input).toHaveFocus();
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(completed).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+  it("does not let an old verification response approve a new prompt", async () => {
+    let release: (response: Response) => void = () => undefined;
+    const fetchMock = vi.fn(() => new Promise<Response>((resolve) => { release = resolve; }));
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    render(<AdminStepUpDialog />);
+    const run = vi.fn(async () => json({ error: "FRESH_MFA_REQUIRED" }, 403));
+    const first = withStepUp(run);
+    await user.type(await screen.findByLabelText("Authenticator code"), "123456");
+    await user.click(screen.getByRole("button", { name: "Verify and continue" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await expect(first).resolves.toHaveProperty("status", 403);
+    const second = withStepUp(run);
+    await screen.findByLabelText("Authenticator code");
+    release(json({ ok: true }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.getByRole("dialog", { name: "Confirm it's you" })).toBeInTheDocument();
+    expect(run).toHaveBeenCalledTimes(2);
+    await user.keyboard("{Escape}");
+    await expect(second).resolves.toHaveProperty("status", 403);
+  });
   it("prompts on FRESH_MFA_REQUIRED and retries the original request once", async () => {
     const run = vi.fn()
       .mockResolvedValueOnce(json({ error: "FRESH_MFA_REQUIRED" }, 403))

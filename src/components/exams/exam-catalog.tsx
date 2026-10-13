@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import {
   AlertTriangle,
   ArrowRight,
@@ -180,16 +182,16 @@ export function ExamCatalog() {
         <div><strong>{visible.length}</strong><span>module exams</span></div>
         <label>
           <span>Course</span>
-          <select value={courseFilter} onChange={(event) => setCourseFilter(event.target.value)}>
+          <Select value={courseFilter} onChange={(event) => setCourseFilter(event.target.value)}>
             <option value="all">All courses</option>
             {courses.map(([id, title]) => <option value={id} key={id}>{title}</option>)}
-          </select>
+          </Select>
         </label>
       </div>
 
       {loading && <div className={styles.loading}><LoaderCircle className={styles.spin} /> Loading exam readiness…</div>}
       {!loading && error && !selected && <div className={styles.inlineError} role="alert">{error}</div>}
-      {!loading && !error && visible.length === 0 && <div className={styles.empty}>No module exams match this course.</div>}
+      {!loading && !error && visible.length === 0 && <div className={styles.empty}>{exams.length === 0 ? "Exams for this course are being prepared." : "No module exams match this course."}</div>}
 
       <section className={styles.examGrid} aria-label="Module exams">
         {visible.map((entry) => {

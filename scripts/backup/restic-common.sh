@@ -17,8 +17,21 @@ readonly RESTIC_IMAGE="restic/restic:0.19.1@sha256:136600b6ff6843d61d355f7f71f46
 # the random hostname of a throwaway container.
 readonly RESTIC_SNAPSHOT_HOST=codestead
 readonly RESTIC_SNAPSHOT_TAG=codestead
-readonly RESTIC_DUMP_PATH=/stage/database.dump
+readonly RESTIC_STAGE_PATH=/stage
 readonly RESTIC_UPLOADS_PATH=/uploads
+# Files written into the staged snapshot directory next to the dump.
+readonly RESTIC_DUMP_NAME=database.dump
+readonly RESTIC_MANIFEST_NAME=objects.manifest
+readonly RESTIC_RECOVERY_POINT_NAME=recovery-point.json
+
+# Retention: the one definition used by restic forget. It must match the
+# disclosed 7 daily / 4 weekly / 12 monthly backup window.
+readonly RESTIC_KEEP_DAILY=7
+readonly RESTIC_KEEP_WEEKLY=4
+readonly RESTIC_KEEP_MONTHLY=12
+
+# stored_object.storage_key is "<64-hex owner segment>/<object id>".
+readonly RESTIC_STORAGE_KEY_PATTERN='^[0-9a-f]{64}/[0-9A-Za-z-]{1,64}$'
 
 restic_log() {
   printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >&2
@@ -55,6 +68,11 @@ restic_load_config() {
   : "${RESTIC_MAX_RESTORE_TEST_AGE_DAYS:=40}"
   : "${RESTIC_METRICS_TEXTFILE_DIR:=}"
   : "${AWS_DEFAULT_REGION:=auto}"
+  # Whether the backup must include uploaded objects. Fail closed: a missing or
+  # symlinked uploads directory is an error unless this is explicitly false.
+  : "${RESTIC_UPLOADS_EXPECTED:=true}"
+  [[ "$RESTIC_UPLOADS_EXPECTED" == true || "$RESTIC_UPLOADS_EXPECTED" == false ]] \
+    || restic_die "RESTIC_UPLOADS_EXPECTED must be literal true or false"
 
   [[ "${RESTIC_REPOSITORY:-}" =~ ^s3:https://[A-Za-z0-9.-]+/[A-Za-z0-9._/-]+$ ]] \
     || restic_die "RESTIC_REPOSITORY must be an s3:https://<endpoint>/<bucket>/<path> URL"
@@ -100,6 +118,43 @@ restic_run() {
 
 restic_compose() {
   docker compose --env-file "$COMPOSE_ENV_FILE" -f "$REPO_ROOT/compose.yaml" "$@"
+}
+
+# Print "<storage_key> <size_bytes> <sha256>" for every live stored_object row
+# in a custom-format dump read on stdin. Reading the dump itself (not the live
+# database) ties the object list to the exact pg_dump snapshot.
+restic_referenced_objects() {
+  restic_compose exec -T postgres pg_restore --data-only --table=stored_object --file=- \
+    | awk -F'\t' '
+      /^COPY [^ ]*stored_object \(/ {
+        header = $0
+        sub(/^[^(]*\(/, "", header)
+        sub(/\) FROM stdin;$/, "", header)
+        count = split(header, columns, /, /)
+        for (i = 1; i <= count; i++) index_of[columns[i]] = i
+        if (!("storage_key" in index_of) || !("size_bytes" in index_of) ||
+            !("sha256" in index_of) || !("deleted_at" in index_of)) exit 3
+        copying = 1
+        next
+      }
+      copying && $0 == "\\." { copying = 0; done = 1; next }
+      copying && $(index_of["deleted_at"]) == "\\N" {
+        print $(index_of["storage_key"]), $(index_of["size_bytes"]), $(index_of["sha256"])
+      }
+      END { if (copying) exit 4 }
+    '
+}
+
+# Verify one object file against its expected size and sha256. Returns 1 when
+# the file is missing, not a regular file, or reached through a symlink, and 2
+# when its bytes differ.
+restic_verify_object() {
+  local root="$1" key="$2" size="$3" sha="$4" file actual_size actual_sha
+  file="$root/$key"
+  [[ -f "$file" && ! -L "$file" && ! -L "$root/${key%%/*}" ]] || return 1
+  actual_size="$(stat -c %s -- "$file")"
+  actual_sha="$(sha256sum -- "$file" | cut -d' ' -f1)"
+  [[ "$actual_size" == "$size" && "$actual_sha" == "$sha" ]] || return 2
 }
 
 # Record a UTC epoch second atomically.

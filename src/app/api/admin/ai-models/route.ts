@@ -1,3 +1,4 @@
+import { readBoundedBody } from "@/lib/http/bounded-json";
 import { NextRequest } from "next/server";
 import { adminJson, secureAdminResponse } from "@/app/api/admin/dashboard/http";
 import { requireAdmin } from "@/lib/http/authz";
@@ -36,18 +37,9 @@ export async function GET() {
   });
 }
 async function boundedBody(request: NextRequest) {
-  const reader = request.body?.getReader();
-  if (!reader) return null;
-  const chunks: Uint8Array[] = [];
-  let bytes = 0;
-  for (;;) {
-    const next = await reader.read();
-    if (next.done) break;
-    bytes += next.value.byteLength;
-    if (bytes > 32768) { await reader.cancel(); return null; }
-    chunks.push(next.value);
-  }
-  try { return JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch { return null; }
+  const body = await readBoundedBody(request, 32768);
+  if (body.response) return null;
+  try { return JSON.parse(Buffer.from(body.value).toString("utf8")); } catch { return null; }
 }
 export async function POST(request: NextRequest) {
   const authz = await requireAdmin();

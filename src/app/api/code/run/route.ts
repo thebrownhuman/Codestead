@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -133,7 +134,9 @@ export async function POST(request: NextRequest) {
       { policy: "code_run_hour", identity: { kind: "user", value: authz.session.user.id } },
     ],
     async () => {
-  const rawBody = await request.json().catch(() => null) as unknown;
+  const jsonBody = await readBoundedJson(request, 1024 * 1024);
+  if (jsonBody.response?.status === 413) return jsonBody.response;
+  const rawBody = jsonBody.value as unknown;
   const body = bodySchema.safeParse(rawBody);
   if (!body.success) {
     const suppliedRequestId = rawBody && typeof rawBody === "object" && !Array.isArray(rawBody)

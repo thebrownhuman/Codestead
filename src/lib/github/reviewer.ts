@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { redactSensitiveText } from "@/lib/security/sensitive-text";
+import { dynamicExecutionLines } from "./execution-analysis";
 
 const repoSchema = z.object({
   private: z.boolean(),
@@ -21,9 +22,57 @@ const treeSchema = z.object({
 });
 const blobSchema = z.object({ content: z.string(), encoding: z.literal("base64"), size: z.number() });
 
+export const PROJECT_REVIEW_DEADLINE_MS = 60_000;
+const MAX_FILE_BYTES = 256 * 1024;
+// GitHub wraps base64 with whitespace and JSON metadata; bound the wire body
+// separately, then enforce the decoded source limit before text analysis.
+const MAX_BLOB_RESPONSE_BYTES = MAX_FILE_BYTES * 2 + 8192;
+const MAX_API_RESPONSE_BYTES = 1024 * 1024;
+const MAX_TREE_RESPONSE_BYTES = 16 * 1024 * 1024;
+class ResponseTooLarge extends Error {}
+class ReviewTimeLimit extends Error {}
+
+async function boundedJson(response: Response, maximum: number, signal: AbortSignal): Promise<unknown> {
+  if (!response.body) throw new Error("Missing GitHub response body.");
+  const reader = response.body.getReader();
+  const cancel = () => { void reader.cancel().catch(() => undefined); };
+  signal.addEventListener("abort", cancel, { once: true });
+  try {
+    const declared = Number(response.headers.get("content-length"));
+    if (declared > maximum) throw new ResponseTooLarge();
+    const chunks: Uint8Array[] = [];
+    let length = 0;
+    while (true) {
+      if (signal.aborted) throw new DOMException("Aborted", "AbortError");
+      const { done, value } = await reader.read();
+      if (signal.aborted) throw new DOMException("Aborted", "AbortError");
+      if (done) break;
+      length += value.byteLength;
+      if (length > maximum) throw new ResponseTooLarge();
+      chunks.push(value);
+    }
+    return JSON.parse(Buffer.concat(chunks, length).toString("utf8")) as unknown;
+  } finally {
+    signal.removeEventListener("abort", cancel);
+    cancel();
+    reader.releaseLock();
+  }
+}
+
+function samplePriority(pathname: string) {
+  const path = pathname.toLowerCase();
+  if (/^(readme)(\.[^/]+)?$/.test(path)) return 0;
+  if (isTestPath(path)) return 1;
+  if (/(^|\/)(main|index|app|server)\.[^/]+$/.test(path)) return 2;
+  return 3;
+}
+function isTestPath(path: string) {
+  return /(^|\/)(test|tests|__tests__)(\/|\.)/.test(path) || /\.test\.[a-z]+$/.test(path);
+}
+
 const sourceExtensions = new Set([
   ".c", ".h", ".cpp", ".cc", ".hpp", ".java", ".py", ".js", ".mjs", ".ts", ".tsx",
-  ".jsx", ".html", ".css", ".json", ".md", ".sql", ".yml", ".yaml", ".toml",
+  ".jsx", ".cjs", ".mts", ".cts", ".html", ".css", ".json", ".md", ".sql", ".yml", ".yaml", ".toml",
 ]);
 const ignoredSegments = new Set(["node_modules", "vendor", "dist", "build", ".next", "coverage", ".git"]);
 
@@ -38,8 +87,8 @@ export interface ReviewFinding {
   evidence: string;
 }
 
-export const PROJECT_REVIEW_ANALYZER_VERSION = "static-review-v2";
-export const PROJECT_REVIEW_RUBRIC_VERSION = "static-project-review-rubric-v2";
+export const PROJECT_REVIEW_ANALYZER_VERSION = "static-review-v4";
+export const PROJECT_REVIEW_RUBRIC_VERSION = "static-project-review-rubric-v3";
 
 export const PROJECT_REVIEW_RUBRIC = Object.freeze([
   { id: "likely-bug", label: "Likely bugs", maximum: 25 },
@@ -52,9 +101,9 @@ export const PROJECT_REVIEW_RUBRIC = Object.freeze([
 export type ProjectReviewCategory = (typeof PROJECT_REVIEW_RUBRIC)[number]["id"];
 
 export const PROJECT_REVIEW_LIMITATIONS = Object.freeze([
-  "This is a bounded static text-pattern review, not proof that the project is correct or secure.",
+  "This is a bounded static syntax and text-pattern review, not proof that the project is correct or secure.",
   "The reviewer does not clone, install dependencies, build, execute code, run tests, or make network calls from repository code.",
-  "Only supported text files in the first 120 eligible tree entries, up to 5 MB total, are inspected.",
+  "Up to 120 supported text files and 5 MB total are inspected, prioritizing README, tests, and entry points; each file is limited to 256 KB.",
   "Scores and findings are deterministic signals for the pinned commit; no model opinion is included.",
 ] as const);
 
@@ -145,6 +194,7 @@ export function scoreDeterministicProjectReview(input: {
   commitSha: string;
   filesReviewed: number;
   findingsCapped?: boolean;
+  limitations?: readonly string[];
 }): ProjectReviewQualityAssessment {
   if (!/^[a-f0-9]{40}$/i.test(input.commitSha)) throw new Error("A pinned 40-character commit is required for scoring.");
   if (!Number.isSafeInteger(input.filesReviewed) || input.filesReviewed < 0 || input.filesReviewed > 120) {
@@ -173,7 +223,7 @@ export function scoreDeterministicProjectReview(input: {
     reviewedCommitSha: input.commitSha.toLowerCase(),
     filesReviewed: input.filesReviewed,
     findingsCapped: input.findingsCapped ?? false,
-    limitations: PROJECT_REVIEW_LIMITATIONS,
+    limitations: input.limitations ?? PROJECT_REVIEW_LIMITATIONS,
   };
 }
 
@@ -210,7 +260,7 @@ export function projectReviewQualityAssessment(value: unknown): ProjectReviewQua
     reviewedCommitSha: parsed.data.reviewedCommitSha,
     filesReviewed: parsed.data.filesReviewed,
     findingsCapped: parsed.data.findingsCapped,
-    limitations: PROJECT_REVIEW_LIMITATIONS,
+    limitations: parsed.data.limitations,
   };
 }
 
@@ -236,7 +286,7 @@ function shouldRead(pathname: string, size: number) {
   const segments = pathname.split("/");
   return (
     size > 0 &&
-    size <= 256 * 1024 &&
+    size <= MAX_FILE_BYTES &&
     !segments.some((segment) => ignoredSegments.has(segment)) &&
     (sourceExtensions.has(extension(pathname)) || ["README", "LICENSE", "Makefile", "Dockerfile"].includes(segments.at(-1) ?? ""))
   );
@@ -256,6 +306,7 @@ function analyzeFile(pathname: string, text: string): ReviewFinding[] {
   const findings: ReviewFinding[] = [];
   const lines = text.split(/\r?\n/);
   const safePath = safeFindingPath(pathname);
+  const executionLines = new Set(dynamicExecutionLines(pathname, text));
   const secretPatterns = [
     /\b(?:nvapi-|sk-|gh[pousr]_)[A-Za-z0-9_-]{12,}/,
     /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
@@ -279,7 +330,7 @@ function analyzeFile(pathname: string, text: string): ReviewFinding[] {
     if (/except\s*:\s*(?:#.*)?$/.test(line) || /catch\s*\([^)]*\)\s*\{\s*\}/.test(line)) {
       findings.push(finding({ ruleId: "likely-bug.swallowed-error", severity: "warning", category: "likely-bug", path: safePath, line: index + 1, message: "A broad or empty exception handler can hide failures; handle the expected error and preserve context.", evidence: "Broad/empty handler structure" }));
     }
-    if (/\beval\s*\(/.test(line) || /\bexec\s*\(/.test(line) || /\bnew\s+Function\s*\(/.test(line)) {
+    if (executionLines.has(index + 1)) {
       findings.push(finding({ ruleId: "security.dynamic-code-evaluation", severity: "warning", category: "security", path: safePath, line: index + 1, message: "Dynamic code evaluation can turn untrusted text into executable code. Remove it or constrain input with a reviewed parser and strict allowlist.", evidence: "Dynamic evaluation call structure; arguments are deliberately not stored." }));
     }
   });
@@ -302,12 +353,16 @@ async function reviewPublicRepositoryReference(
   };
   const token = process.env.GITHUB_TOKEN?.trim();
   if (token) headers.authorization = `Bearer ${token}`;
-  const request = async (pathname: string) => {
+  const deadline = Date.now() + PROJECT_REVIEW_DEADLINE_MS;
+  const request = async (pathname: string, maximum = MAX_API_RESPONSE_BYTES) => {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) throw new ReviewTimeLimit();
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15_000);
+    const timeout = setTimeout(() => controller.abort(), Math.min(15_000, remaining));
     const unavailable = () => {
       // Never propagate fetch/body exceptions or attach their cause: either may
       // contain request headers, including the optional GitHub credential.
+      if (Date.now() >= deadline) return new ReviewTimeLimit();
       const error = new Error("GitHub is temporarily unavailable. Please try again later.");
       if (controller.signal.aborted) error.name = "AbortError";
       return error;
@@ -332,12 +387,13 @@ async function reviewPublicRepositoryReference(
           if (!rateLimited) {
             // GitHub also reports secondary limits as 403 with a JSON message.
             // Inspect it only for classification; never expose or log the body.
-            const body: unknown = await response.json().catch(() => null);
+            const body: unknown = await boundedJson(response, MAX_API_RESPONSE_BYTES, controller.signal).catch(() => null);
             if (controller.signal.aborted) throw unavailable();
             const message = body && typeof body === "object" && "message" in body ? body.message : null;
             rateLimited = typeof message === "string" && /rate limit|abuse detection/i.test(message);
           }
         }
+        void response.body?.cancel().catch(() => undefined);
         if (rateLimited) throw new Error("GitHub review is temporarily rate limited. Please try again later.");
         if (response.status === 401) throw new Error("GitHub authentication failed. Ask an administrator to check the GitHub review token.");
         if (response.status === 403) throw new Error("GitHub denied access to this public repository. Ask an administrator to check the GitHub review configuration.");
@@ -346,8 +402,9 @@ async function reviewPublicRepositoryReference(
         throw new Error(`GitHub API returned ${response.status}.`);
       }
       try {
-        return (await response.json()) as unknown;
-      } catch {
+        return await boundedJson(response, maximum, controller.signal);
+      } catch (error) {
+        if (error instanceof ResponseTooLarge) throw error;
         throw unavailable();
       }
     } finally {
@@ -364,49 +421,82 @@ async function reviewPublicRepositoryReference(
   if (commitReference && commit.sha.toLowerCase() !== commitReference.toLowerCase()) {
     throw new Error("GitHub did not return the exact pinned commit requested for corrective review.");
   }
-  const tree = treeSchema.parse(
-    await request(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${commit.commit.tree.sha}?recursive=1`),
-  );
-  if (tree.truncated) throw new Error("Repository tree is too large for the bounded static reviewer.");
-  const blobs = tree.tree
-    .filter((entry) => entry.type === "blob" && shouldRead(entry.path, entry.size ?? 0))
-    .slice(0, 120);
-  if (blobs.reduce((sum, entry) => sum + (entry.size ?? 0), 0) > 5 * 1024 * 1024) {
-    throw new Error("Selected source exceeds the 5 MB static-review limit.");
-  }
-
   const findings: ReviewFinding[] = [];
-  const seenPaths = new Set<string>();
-  for (const entry of blobs) {
-    const blob = blobSchema.parse(
-      await request(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/blobs/${entry.sha}`),
+  const limitations: string[] = [...PROJECT_REVIEW_LIMITATIONS];
+  let filesReviewed = 0;
+  let tree: z.infer<typeof treeSchema> | null = null;
+  try {
+    tree = treeSchema.parse(
+      await request(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${commit.commit.tree.sha}?recursive=1`, MAX_TREE_RESPONSE_BYTES),
     );
-    const text = Buffer.from(blob.content.replace(/\s/g, ""), "base64").toString("utf8");
-    if (text.includes("\u0000")) continue;
-    seenPaths.add(entry.path.toLowerCase());
-    findings.push(...analyzeFile(entry.path, text));
+    if (tree.truncated) limitations.push("README/tests existence is unknown because the GitHub tree is truncated; no missing-file deductions are applied.");
+    const eligible = tree.tree.filter((entry) => entry.type === "blob" && shouldRead(entry.path, entry.size ?? 0));
+    const prioritized = eligible.sort((a, b) => samplePriority(a.path) - samplePriority(b.path));
+    // Reserve a representative of each key-file category, even when tests
+    // alone would fill all 120 slots; keep ordering stable within categories.
+    const reserved = [0, 1, 2].flatMap((priority) => {
+      const entry = prioritized.find((candidate) => samplePriority(candidate.path) === priority);
+      return entry ? [entry] : [];
+    });
+    const reservedEntries = new Set(reserved);
+    const blobs = [...reserved, ...prioritized.filter((entry) => !reservedEntries.has(entry))].slice(0, 120);
+    if (blobs.reduce((sum, entry) => sum + (entry.size ?? 0), 0) > 5 * 1024 * 1024) {
+      throw new Error("Selected source exceeds the 5 MB static-review limit.");
+    }
+    if (tree.tree.some((entry) => entry.type === "blob" && (entry.size ?? 0) > MAX_FILE_BYTES)) {
+      limitations.push("Skipped files exceeding the 256 KB file limit in the tree listing.");
+    }
+    for (const entry of blobs) {
+      let blob: z.infer<typeof blobSchema>;
+      try {
+        blob = blobSchema.parse(
+          await request(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/blobs/${entry.sha}`, MAX_BLOB_RESPONSE_BYTES),
+        );
+      } catch (error) {
+        if (!(error instanceof ResponseTooLarge)) throw error;
+        limitations.push(`Skipped ${entry.path}: response exceeds the bounded envelope for a 256 KB file.`);
+        continue;
+      }
+      const bytes = Buffer.from(blob.content.replace(/\s/g, ""), "base64");
+      if (blob.size > MAX_FILE_BYTES || bytes.byteLength > MAX_FILE_BYTES) {
+        limitations.push(`Skipped ${entry.path}: exceeds the 256 KB file limit.`);
+        continue;
+      }
+      const text = bytes.toString("utf8");
+      if (text.includes("\u0000")) continue;
+      filesReviewed++;
+      findings.push(...analyzeFile(entry.path, text));
+    }
+  } catch (error) {
+    if (!(error instanceof ReviewTimeLimit)) throw error;
+    limitations.push("incomplete: time limit (60 seconds); only completed files were analyzed.");
+    if (!tree) limitations.push("README/tests existence is unknown because the full tree was not received; no missing-file deductions are applied.");
   }
-  if (![...seenPaths].some((item) => item === "readme.md" || item === "readme")) {
-    findings.push(finding({ ruleId: "documentation.missing-readme", severity: "warning", category: "documentation", message: "Add a README that explains the problem, setup, usage, tests, and known limitations.", evidence: "No root README in reviewed tree" }));
-  }
-  if (![...seenPaths].some((item) => /(^|\/)(test|tests|__tests__)(\/|\.)/.test(item) || /\.test\.[a-z]+$/.test(item))) {
-    findings.push(finding({ ruleId: "testing.missing-tests", severity: "warning", category: "testing", message: "No test files were found in the bounded source review. Add repeatable normal, boundary, and failure checks.", evidence: "No conventional test path" }));
+  if (tree && !tree.truncated) {
+    const paths = tree.tree.filter((entry) => entry.type === "blob").map((entry) => entry.path.toLowerCase());
+    if (!paths.some((path) => path === "readme.md" || path === "readme")) {
+      findings.push(finding({ ruleId: "documentation.missing-readme", severity: "warning", category: "documentation", message: "Add a README that explains the problem, setup, usage, tests, and known limitations.", evidence: "No root README in full repository tree" }));
+    }
+    if (!paths.some(isTestPath)) {
+      findings.push(finding({ ruleId: "testing.missing-tests", severity: "warning", category: "testing", message: "No test files were found in the full repository tree. Add repeatable normal, boundary, and failure checks.", evidence: "No conventional test path in full repository tree" }));
+    }
   }
   const boundedFindings = findings.slice(0, 250);
   const qualityAssessment = scoreDeterministicProjectReview({
     findings: boundedFindings,
     commitSha: commit.sha,
-    filesReviewed: blobs.length,
+    filesReviewed,
     findingsCapped: findings.length > boundedFindings.length,
+    limitations,
   });
   return {
     repositoryUrl: canonicalUrl,
     defaultBranch: metadata.default_branch,
     commitSha: commit.sha.toLowerCase(),
-    filesReviewed: blobs.length,
+    filesReviewed,
     findings: boundedFindings,
     qualityAssessment,
-    limitations: PROJECT_REVIEW_LIMITATIONS,
+    limitations,
     analyzerVersion: PROJECT_REVIEW_ANALYZER_VERSION,
     rubricVersion: PROJECT_REVIEW_RUBRIC_VERSION,
     provenance: {

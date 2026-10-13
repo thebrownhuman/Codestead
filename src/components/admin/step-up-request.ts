@@ -9,17 +9,34 @@
 type Prompter = () => Promise<boolean>;
 
 let prompter: Prompter | null = null;
-let pending: Promise<boolean> | null = null;
+let generation = 0;
+let pending: { generation: number; promise: Promise<boolean>; settle: (value: boolean) => void } | null = null;
 
 export function registerStepUpPrompter(next: Prompter | null) {
+  pending?.settle(false);
+  pending = null;
+  const owner = ++generation;
   prompter = next;
+  return () => {
+    if (generation === owner) registerStepUpPrompter(null);
+  };
 }
 
 async function requestStepUp(): Promise<boolean> {
   if (!prompter) return false;
   // Parallel requests share one dialog.
-  pending ??= prompter().finally(() => { pending = null; });
-  return pending;
+  if (pending?.generation === generation) return pending.promise;
+  let settle: (value: boolean) => void = () => undefined;
+  const promise = new Promise<boolean>((resolve) => { settle = resolve; });
+  const slot = { generation, promise, settle };
+  pending = slot;
+  const complete = (value: boolean) => {
+    slot.settle(value);
+    if (pending === slot) pending = null;
+  };
+  try { void prompter().then(complete, () => complete(false)); }
+  catch { complete(false); }
+  return promise;
 }
 
 export async function isFreshMfaRequired(response: Response): Promise<boolean> {

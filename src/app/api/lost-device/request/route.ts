@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -27,7 +28,9 @@ export async function POST(request: NextRequest) {
       identity: { kind: "ip", value: rateLimitIp(request) },
     },
     async () => {
-      const parsed = requestSchema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return jsonBody.response;
+      const parsed = requestSchema.safeParse(jsonBody.value);
       if (!parsed.success) {
         return NextResponse.json(
           { error: "Enter a valid email address." },

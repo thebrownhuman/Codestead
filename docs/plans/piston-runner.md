@@ -242,7 +242,7 @@ What each item does:
    tests compare all five languages' verdicts and scores using injected process/HTTP outcomes;
    live toolchain equivalence still depends on step 5. Project reviews stay bounded static analysis
    (`repositoryExecution: none`) with provider-independent findings and scores.
-5. Own Piston image on Debian trixie with GCC 14, Java 21 (+ AppCDS), Python 3.14 and Node 22.
+5. Own Piston image on Debian trixie with GCC 14, Java 21 (+ AppCDS), Python 3.14 and Node 22 (CI 22.23.1, image 22.23.3).
    The reviewed inputs and offline build live in `infra/piston`; live tests cover all five
    languages, modern syntax and isolate containment. `infra/piston/pr4b-runtime-handoff.json`
    records the tested image manifest and exact runtime labels for the separate PR4b publication
@@ -260,7 +260,7 @@ always require legacy. Keep both providers configured while either pinned lineag
 ### PR4b: reviewed publication pin revision
 
 `infra/piston/pr4b-publication-pins.json` records revision `piston-pr4b-v1`, the reviewed
-legacy version/digest allowlist and PR5 image reference. The target labels come directly
+legacy version/digest allowlist and PR5 image reference. The image reference is a reference-build record, not a deployment pin. The target labels come directly
 from `infra/piston/pr4b-runtime-handoff.json`; changes outside those exact pin pairs fail
 closed. Runtime label drift or a different configured image manifest blocks new Piston forms.
 
@@ -272,6 +272,8 @@ copies only runtime pins: authored content, tests, hidden answers, scoring, elig
 policy version and persisted publication/review/release records remain unchanged.
 No schema or persisted-artifact mutation is needed, so reviewed migration 0070 and its
 latest-migration pins remain current.
+
+Application runtime: Node 22 (CI 22.23.1, image 22.23.3). The table preserves exact immutable runtime labels, including `Node.js 22.23.3 (Piston)` from the handoff.
 
 | Language | Reviewed legacy label | New form label |
 | --- | --- | --- |

@@ -226,10 +226,27 @@ function fullHappyPathClient() {
     [bundleRow],
     [releaseRow],
   ]);
-  return { client, version, artifacts, manifest, lesson, bank, reviews };
+  return { client, version, artifacts, manifest, lesson, bank, reviews, releaseRow };
 }
 
 describe("evaluateCurriculumPublicationGate", () => {
+  it("accepts acknowledged deferred reports without treating them as execution passes", async () => {
+    const { client, version, releaseRow } = fullHappyPathClient();
+    const notRun = { status: "not_run", reason: "Live checks were not run for beta.", acknowledgedBy: "admin", acknowledgedAt: "2026-10-07T12:00:00Z" };
+    Object.assign(releaseRow.evidence, { codeExecution: notRun, security: notRun, webAccessibility: notRun, languageParity: notRun });
+    releaseRow.evidence_hash = hashCurriculumValue(releaseRow.evidence);
+    const report = await evaluateCurriculumPublicationGate({ courseVersionId: version.id, targetStage: "beta", client });
+    expect(report.allowed).toBe(true);
+    expect(report.issues).toEqual([]);
+  });
+  it("retains execution-manifest validation for a claimed pass", async () => {
+    const { client, version, releaseRow } = fullHappyPathClient();
+    Object.assign(releaseRow.evidence.codeExecution, { executedItemIds: [] });
+    releaseRow.evidence_hash = hashCurriculumValue(releaseRow.evidence);
+    const report = await evaluateCurriculumPublicationGate({ courseVersionId: version.id, targetStage: "beta", client });
+    expect(report.allowed).toBe(false);
+    expect(report.issues.some((issue) => issue.code === "EXECUTION_REPORT_MISMATCH")).toBe(true);
+  });
   it("accepts the immutable draft manifest stage with a complete current hash-bound human approval", async () => {
     const { client, version, manifest } = fullHappyPathClient();
     manifest.publication_stage = "draft";
