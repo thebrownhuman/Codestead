@@ -1,0 +1,52 @@
+name: Interactive runner contracts
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/interactive-runner.yml
+      - services/interactive-runner/**
+      - src/lib/runner/**
+      - src/lib/exams/**
+      - src/lib/privacy/**
+      - src/lib/http/authz.ts
+      - src/lib/security/**
+      - src/app/api/code/**
+      - src/app/api/exams/**
+      - compose*.yaml
+      - package.json
+      - package-lock.json
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/interactive-runner.yml
+      - services/interactive-runner/**
+      - src/lib/runner/**
+      - src/lib/exams/**
+      - src/lib/privacy/**
+      - src/lib/http/authz.ts
+      - src/lib/security/**
+      - src/app/api/code/**
+      - src/app/api/exams/**
+      - compose*.yaml
+      - package.json
+      - package-lock.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Interactive runner transport and admission
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.23.1
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci > install.log 2>&1 || { tail -n 100 install.log; exit 1; }
+      - name: Run transport and admission contracts
+        run: npm run test:interactive-runner > contracts.log 2>&1 || { tail -n 100 contracts.log; exit 1; }
