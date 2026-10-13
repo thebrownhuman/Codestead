@@ -45,7 +45,7 @@
     }
   },
   "environment": {
-    "packageLockHash": "sha256:eaf6030feb8a40ffb2e6034a6fba9368b601f127219864d7cac527168bf39385",
+    "packageLockHash": "sha256:ba9df33cc1fe290fe2cbb9997e664ba98f8447a05e69291043128762580f059d",
     "node": {
       "tag": "learncoding/runtime-javascript:local",
       "manifestDigest": "sha256:4a33b5b91221378dfd948fa3ea4a108ac8c1ebdf17bd795d3306e6b57171b194",

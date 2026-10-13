@@ -1,3 +1,4 @@
+import { selectOption } from "@/test/select-option";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -110,7 +111,9 @@ describe("administrator plan revision manager", () => {
     expect(screen.getByText("Loops")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Revision history" })).toBeInTheDocument();
     expect(screen.getByText(/Initial placement plan/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByLabelText("Operation"));
     expect(screen.getByRole("option", { name: /Record unlock request \(gates enforced\)/i })).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
     expect(screen.queryByRole("button", { name: /set mastery|award mastery/i })).not.toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/password|api.?key|ciphertext/i);
   });
@@ -137,7 +140,7 @@ describe("administrator plan revision manager", () => {
 
     render(<AdminPlanRevisionManager learnerId={learnerId} />);
     await screen.findByText("Variables");
-    await user.selectOptions(screen.getByLabelText("Plan item"), "loops");
+    await selectOption(user, screen.getByLabelText("Plan item"), "loops");
     await user.type(screen.getByLabelText("Operation note"), "Repeat trace practice before assessment.");
     await user.type(screen.getByLabelText("Recorded reason"), "Repeated loop boundary mistakes need remediation.");
     expect(screen.getByRole("button", { name: "Save new revision" })).toBeDisabled();
@@ -189,8 +192,8 @@ describe("administrator plan revision manager", () => {
 
     render(<AdminPlanRevisionManager learnerId={learnerId} />);
     await screen.findByText("Variables");
-    await user.selectOptions(screen.getByLabelText("Operation"), "remove");
-    await user.selectOptions(screen.getByLabelText("Plan item"), "variables");
+    await selectOption(user, screen.getByLabelText("Operation"), "remove");
+    await selectOption(user, screen.getByLabelText("Plan item"), "variables");
     await user.type(screen.getByLabelText("Recorded reason"), "Testing prerequisite impact before removal.");
     await user.click(screen.getByRole("button", { name: "Preview diff and impact" }));
 
@@ -301,12 +304,14 @@ describe("administrator plan revision manager", () => {
 
     render(<AdminPlanRevisionManager learnerId={learnerId} />);
     await screen.findByText("Variables");
-    await user.selectOptions(screen.getByLabelText("Operation"), "add");
-    await user.selectOptions(screen.getByLabelText("Source revision"), "1");
+    await selectOption(user, screen.getByLabelText("Operation"), "add");
+    await selectOption(user, screen.getByLabelText("Source revision"), "1");
     expect(await screen.findByRole("alert")).toHaveTextContent("Historical snapshot unavailable.");
-    await user.selectOptions(screen.getByLabelText("Source revision"), "");
-    await user.selectOptions(screen.getByLabelText("Source revision"), "1");
+    await selectOption(user, screen.getByLabelText("Source revision"), "");
+    await selectOption(user, screen.getByLabelText("Source revision"), "1");
+    await user.click(screen.getByLabelText("Plan item"));
     expect(await screen.findByRole("option", { name: "3. Conditionals" })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
     await user.type(screen.getByLabelText("Recorded reason"), "Restore conditional practice before loops.");
     await user.click(screen.getByRole("button", { name: "Preview diff and impact" }));
     expect(await screen.findByText(/Preview ready/i)).toBeInTheDocument();
@@ -331,11 +336,11 @@ describe("administrator plan revision manager", () => {
 
     render(<AdminPlanRevisionManager learnerId={learnerId} />);
     await screen.findByText("Variables");
-    await user.selectOptions(screen.getByLabelText("Operation"), "move");
+    await selectOption(user, screen.getByLabelText("Operation"), "move");
     await user.type(screen.getByLabelText("Recorded reason"), "Move loops after more foundational practice.");
     await user.click(screen.getByRole("button", { name: "Preview diff and impact" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Choose a plan item.");
-    await user.selectOptions(screen.getByLabelText("Plan item"), "loops");
+    await selectOption(user, screen.getByLabelText("Plan item"), "loops");
     await user.clear(screen.getByLabelText("New position"));
     await user.type(screen.getByLabelText("New position"), "0");
     await user.click(screen.getByRole("button", { name: "Preview diff and impact" }));
@@ -363,8 +368,8 @@ describe("administrator plan revision manager", () => {
 
     render(<AdminPlanRevisionManager learnerId={learnerId} />);
     await screen.findByText("Variables");
-    await user.selectOptions(screen.getByLabelText("Operation"), "override_defer");
-    await user.selectOptions(screen.getByLabelText("Plan item"), "loops");
+    await selectOption(user, screen.getByLabelText("Operation"), "override_defer");
+    await selectOption(user, screen.getByLabelText("Plan item"), "loops");
     await user.type(screen.getByLabelText("Recorded reason"), "Temporarily defer loops for focused review.");
     await user.type(screen.getByLabelText("Operation note"), "short");
     await user.click(screen.getByRole("button", { name: "Preview diff and impact" }));
