@@ -13,6 +13,13 @@ const store: AdminModelsStore = {
   configure: vi.fn(async (_actor: string, change: ConnectionChange) => { row = { ...change, configurationVersion: change.version + 1, operation: "provider_configuration" } as unknown as PolicyRow; }),
   save: vi.fn(async () => {}),
 };
+it("returns only aggregate learner choice counts for each current model", async () => {
+  row = { id: "chosen-policy", provider: "openai", operation: "tutor", enabled: true, model: "chosen", priority: 1 } as PolicyRow;
+  const countedStore = { ...store, learnerChoiceCounts: async () => ({ "chosen-policy": 3 }) };
+  const rows = await listAdminModels(countedStore);
+  expect(rows.find((value) => value.provider === "openai")?.learnerChoiceCount).toBe(3);
+  expect(rows.find((value) => value.provider === "google")?.learnerChoiceCount).toBe(0);
+});
 const deps = { store, request: vi.fn(async (_url: string, _init?: RequestInit) => { void _url; void _init; return new Response(JSON.stringify({ data: [{ id: "model" }] }), { status: 200 }); }),
   resolve: vi.fn(async (url: string) => ({ url: new URL(url), hostname: "api.example.com", addresses: [{ address: "8.8.8.8", family: 4 }] })),
   probe: vi.fn(async () => ({ content: "Hello", latencyMs: 23, httpStatus: 200, model: "model-resolved", provider: "openai" as const, finishReason: "stop", inputTokens: 1, outputTokens: 1, requestId: null })), audit: vi.fn(async () => ({ correlationId: "audit", eventHash: "hash" })) };

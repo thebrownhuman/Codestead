@@ -15,24 +15,24 @@ export const DATABASE_RUNTIME_CAPABILITY_SCHEMA_VERSION: 1;
 
 export const DATABASE_RUNTIME_CAPABILITY_PHASES: Readonly<{
   FOUNDATION: "foundation";
-  CURRENT_0072: "0072-current";
-  EXPAND_PREPARE_0072: "0072-expand-prepare";
-  CONTRACTED_0073: "0073-contracted";
+  CURRENT_0073: "0073-current";
+  EXPAND_PREPARE_0073: "0073-expand-prepare";
+  CONTRACTED_0074: "0074-contracted";
 }>;
 
 export type DatabaseRuntimeCapabilityPhase =
   (typeof DATABASE_RUNTIME_CAPABILITY_PHASES)[keyof typeof DATABASE_RUNTIME_CAPABILITY_PHASES];
 
 export type DatabaseRuntimeCapabilityPolicyPhase =
-  | typeof DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0072
-  | typeof DATABASE_RUNTIME_CAPABILITY_PHASES.CONTRACTED_0073;
+  | typeof DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073
+  | typeof DATABASE_RUNTIME_CAPABILITY_PHASES.CONTRACTED_0074;
 
 export type DatabaseRuntimeCapabilityReconciliationPhase = Exclude<
   DatabaseRuntimeCapabilityPhase,
   typeof DATABASE_RUNTIME_CAPABILITY_PHASES.FOUNDATION
 >;
 
-export const CURRENT_0072_REVIEWED_MIGRATION_TAG: "0072_admin_ai_models";
+export const CURRENT_0073_REVIEWED_MIGRATION_TAG: "0073_learner_ai_model_preference";
 
 export class DatabaseRuntimeCapabilityValidationError extends Error {
   constructor(message: string);
@@ -333,12 +333,12 @@ export interface DatabaseRuntimeCapabilityAuthority {
 export interface DatabaseRuntimeCapabilityCurrentManifest
   extends DatabaseRuntimeCapabilityAuthority {
   readonly schemaVersion: 1;
-  readonly contract: "codestead-database-runtime-capabilities-0072-current-v1";
-  readonly phase: typeof DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0072;
+  readonly contract: "codestead-database-runtime-capabilities-0073-current-v1";
+  readonly phase: typeof DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073;
   readonly available: true;
   readonly ledger: Readonly<{
-    reviewedMigrationTail: "0072_admin_ai_models";
-    requiredMigrationFile: "drizzle/0072_admin_ai_models.sql";
+    reviewedMigrationTail: "0073_learner_ai_model_preference";
+    requiredMigrationFile: "drizzle/0073_learner_ai_model_preference.sql";
     reason: null;
   }>;
 }
@@ -347,10 +347,10 @@ export interface DatabaseRuntimeCapabilityPostContractManifest
   extends DatabaseRuntimeCapabilityAuthority {
   readonly schemaVersion: 1;
   readonly contract: "codestead-database-runtime-capabilities-post-contract-v1";
-  readonly phase: typeof DATABASE_RUNTIME_CAPABILITY_PHASES.CONTRACTED_0073;
+  readonly phase: typeof DATABASE_RUNTIME_CAPABILITY_PHASES.CONTRACTED_0074;
   readonly available: false;
   readonly ledger: Readonly<{
-    reviewedMigrationTail: "0073";
+    reviewedMigrationTail: "0074";
     requiredMigrationFile: null;
     reason: string;
   }>;
@@ -552,10 +552,10 @@ export interface DatabaseRuntimeCapabilityCatalog {
 
 interface DatabaseRuntimeCapabilityAllowanceIdentity {
   readonly schemaVersion: 1;
-  readonly allowance: "codestead-database-runtime-predecessor-0072-v1";
-  readonly phase: typeof DATABASE_RUNTIME_CAPABILITY_PHASES.EXPAND_PREPARE_0072;
-  readonly validOnlyAtMigrationIndex: 72;
-  readonly expiresAtMigrationIndex: 73;
+  readonly allowance: "codestead-database-runtime-predecessor-0073-v1";
+  readonly phase: typeof DATABASE_RUNTIME_CAPABILITY_PHASES.EXPAND_PREPARE_0073;
+  readonly validOnlyAtMigrationIndex: 73;
+  readonly expiresAtMigrationIndex: 74;
 }
 
 export interface DatabaseRuntimeCapabilityAvailableAllowance
@@ -837,17 +837,17 @@ export type DatabaseRuntimeCapabilityResolution =
       ledgerIdentity: DatabaseRuntimeCapabilityLedgerIdentity;
     }>
   | Readonly<{
-      phase: typeof DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0072;
+      phase: typeof DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073;
       policy: DatabaseRuntimeCapabilityCurrentManifest;
       reconcileApplicationAcls: true;
       ledgerIdentity: DatabaseRuntimeCapabilityLedgerIdentity;
     }>;
 
-export const CURRENT_0072_DATABASE_RUNTIME_CAPABILITIES: Readonly<DatabaseRuntimeCapabilityCurrentManifest>;
+export const CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES: Readonly<DatabaseRuntimeCapabilityCurrentManifest>;
 
 export const POST_CONTRACT_DATABASE_RUNTIME_CAPABILITIES: Readonly<DatabaseRuntimeCapabilityPostContractManifest>;
 
-export const PREDECESSOR_0072_DATABASE_RUNTIME_CAPABILITY_ALLOWANCE: Readonly<DatabaseRuntimeCapabilityUnavailableAllowance>;
+export const PREDECESSOR_0073_DATABASE_RUNTIME_CAPABILITY_ALLOWANCE: Readonly<DatabaseRuntimeCapabilityUnavailableAllowance>;
 
 export function canonicalizeDatabaseRuntimeCapabilities(
   value: unknown,

@@ -14,6 +14,7 @@ import {
 } from "../router";
 import { fallbackCostPaise } from "../fallback-budget";
 import { ProviderError, type ProviderResult } from "../types";
+import { prioritizeLearnerModel } from "../learner-model-choice";
 
 const NOW = new Date("2026-07-12T00:00:00.000Z");
 const messages = [{ role: "user" as const, content: "Explain loops." }];
@@ -49,6 +50,16 @@ function result(overrides: Partial<ProviderResult> = {}): ProviderResult {
 
 describe("AI provider isolation and fallback policy", () => {
   beforeEach(() => { mocks.callProvider.mockReset(); });
+  it("uses the selected platform model first, retains fallback, and consumes the same quota only once", async () => {
+    const defaults = candidate({ source: "platform", provider: "nvidia_nim", model: "default" });
+    const chosen = candidate({ source: "platform", provider: "openrouter", model: "chosen", credentialId: "chosen-connection" });
+    const candidates = prioritizeLearnerModel([defaults, chosen], { id: "choice", provider: "openrouter", model: "chosen", enabled: true, operation: "tutor", priority: 2 });
+    mocks.callProvider.mockRejectedValueOnce(new ProviderError("unavailable", "RATE_LIMIT", 429)).mockResolvedValueOnce(result({ model: "default" }));
+    const quota = vi.fn(async () => {});
+    await routeTutorRequest({ learnerId: "learner-1", candidates, allowedProviders, messages, consumePlatformQuota: quota });
+    expect(mocks.callProvider.mock.calls.map(([request]) => request.model)).toEqual(["chosen", "default"]);
+    expect(quota).toHaveBeenCalledExactlyOnceWith("learner-1");
+  });
 
   it("serves a keyless learner through the platform model after consuming one daily request", async () => {
     mocks.callProvider.mockResolvedValue(result());

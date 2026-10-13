@@ -44,6 +44,7 @@ export function defaultBaseUrl(provider: SupportedProvider) {
 }
 export async function listAdminModels(store: AdminModelsStore = adminModelsStore) {
   const rows = await store.list();
+  const counts = await store.learnerChoiceCounts?.() ?? {};
   return modelProviders.map((provider) => {
     const connection = rows.find((row) => row.provider === provider && row.operation === "provider_configuration");
     const policy = rows.find((row) => row.provider === provider && row.operation === "tutor" && row.enabled);
@@ -52,7 +53,7 @@ export async function listAdminModels(store: AdminModelsStore = adminModelsStore
       hasPlatformKey: Boolean(connection?.platformCredential),
       model: policy?.model ?? (provider === "custom_openai_compatible" ? "" : defaultModelForProvider(provider)),
       priority: policy?.priority ?? 100, verification: policy?.verificationStatus ?? "untested", verifiedAt: policy?.verifiedAt ?? null,
-      source: policy ? "admin" : "environment_or_fallback" };
+      source: policy ? "admin" : "environment_or_fallback", learnerChoiceCount: policy ? counts[policy.id] ?? 0 : 0 };
   });
 }
 function assertSafeOutput(text: string, key?: string) {

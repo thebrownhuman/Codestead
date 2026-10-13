@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  CURRENT_0072_DATABASE_RUNTIME_CAPABILITIES,
+  CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES,
   DATABASE_RUNTIME_CAPABILITY_PHASES,
 } from "./database-runtime-capabilities.mjs";
 import {
@@ -22,9 +22,9 @@ import {
   REVIEWED_MIGRATION_LEDGER_SHA256,
 } from "./lib/reviewed-migration-ledger.mjs";
 
-const POLICY = CURRENT_0072_DATABASE_RUNTIME_CAPABILITIES;
+const POLICY = CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES;
 const CURRENT_POLICY_FINGERPRINT =
-  "0c42b0f26a70dd9d5ee37db5d666d97fc3622a1eac994034885d5fcff3baa2f9";
+  "8142c8223614fdb2129ad65d0490e262e57e62981cfaa0d76ffd671285965ad4";
 const POSTGRES_USER = "legacy_bootstrap";
 const POSTGRES_DATABASE = "learncoding";
 const ROLE_OIDS = new Map([
@@ -337,7 +337,7 @@ function ledgerIdentity(appliedCount) {
 
 function currentResolution() {
   return {
-    phase: DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0072,
+    phase: DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073,
     policy: POLICY,
     reconcileApplicationAcls: true,
     ledgerIdentity: ledgerIdentity(REVIEWED_MIGRATION_LEDGER.length),
@@ -680,13 +680,13 @@ function makeOwnershipEffectApplier() {
 test("phase authority comes only from an exact sealed reviewed prefix", async () => {
   assert.doesNotThrow(() =>
     assertBootstrapDatabaseRuntimeCapabilityPhaseRequest(
-      DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0072,
+      DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073,
     ),
   );
   for (const phase of [
     "unknown",
-    DATABASE_RUNTIME_CAPABILITY_PHASES.EXPAND_PREPARE_0072,
-    DATABASE_RUNTIME_CAPABILITY_PHASES.CONTRACTED_0073,
+    DATABASE_RUNTIME_CAPABILITY_PHASES.EXPAND_PREPARE_0073,
+    DATABASE_RUNTIME_CAPABILITY_PHASES.CONTRACTED_0074,
   ]) {
     assert.throws(
       () => assertBootstrapDatabaseRuntimeCapabilityPhaseRequest(phase),
@@ -696,7 +696,7 @@ test("phase authority comes only from an exact sealed reviewed prefix", async ()
 
   const current =
     await resolveBootstrapDatabaseRuntimeCapabilityPhase(makeClient());
-  assert.equal(current.phase, DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0072);
+  assert.equal(current.phase, DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073);
   assert.equal(current.policy, POLICY);
   assert.deepEqual(
     current.ledgerIdentity,
@@ -842,7 +842,7 @@ test("normalizes the complete current catalog with exact physical ordinals", asy
       (count, table) => count + table.columns.length,
       0,
     ),
-    1_496,
+    1_497,
   );
   assert.equal(catalog.grants.length, 3_213);
   assert.equal(catalog.defaultAclRows.length, 7);
@@ -860,7 +860,7 @@ test("reconciliation is zero-mutation for the exact current catalog", async () =
     postgresDatabase: POSTGRES_DATABASE,
     resolution: currentResolution(),
   });
-  assert.equal(result.phase, DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0072);
+  assert.equal(result.phase, DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073);
   assert.equal(result.policyFingerprint, CURRENT_POLICY_FINGERPRINT);
   assert.equal(result.mutationCount, 0);
   assert.deepEqual(client.mutations, []);
@@ -2238,7 +2238,7 @@ test("current verification is read-only and rejects closed-world drift", async (
     postgresDatabase: POSTGRES_DATABASE,
     resolution,
   });
-  assert.equal(result.phase, DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0072);
+  assert.equal(result.phase, DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073);
   assert.deepEqual(exactClient.mutations, []);
 
   const fixture = makeFixture();

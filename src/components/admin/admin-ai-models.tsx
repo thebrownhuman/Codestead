@@ -7,7 +7,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { withStepUp } from "./step-up-request";
 import styles from "./admin-ai-models.module.css";
 
-type ProviderSetting = { provider: string; label: string; baseUrl: string; version: number; hasPlatformKey: boolean; model: string; priority: number; verification: string; verifiedAt?: string | null; source: string };
+type ProviderSetting = { provider: string; label: string; baseUrl: string; version: number; hasPlatformKey: boolean; model: string; priority: number; verification: string; verifiedAt?: string | null; source: string; learnerChoiceCount?: number };
 type Model = { id: string; name: string; free: boolean };
 type TestReply = { content: string; latencyMs: number; httpStatus: number; proof: string; reportedModel: string; reasoningDetected?: boolean };
 type PlatformUsage = { count: number; date: string; dailyLimit: number };
@@ -60,6 +60,7 @@ function ProviderCard({ setting, reload }: { setting: ProviderSetting; reload: (
   }
   return <article className={styles.card}>
     <header><h2>{setting.label}</h2><small>Current default: {setting.model || "Not configured"} · {setting.verification} · {setting.source === "admin" ? "Administrator saved" : "Environment or built-in default"}</small></header>
+    <dl><dt>Learners choosing this model</dt><dd>{setting.learnerChoiceCount ?? 0}</dd></dl>
     <fieldset disabled={busy} className={styles.fields}>
       <label>HTTPS base URL<input type="url" value={baseUrl} onChange={(event) => { setBaseUrl(event.target.value); setReply(null); setVerification("untested"); }} required /></label>
       <label>Platform API key<PasswordInput value={platformKey} autoComplete="off" onChange={(event) => setPlatformKey(event.target.value)} placeholder={setting.hasPlatformKey ? "Stored securely; enter a replacement" : "Optional; enables platform AI for learners"} /></label>

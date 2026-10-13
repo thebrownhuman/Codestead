@@ -325,13 +325,13 @@ async function loadReviewedMigrationLedger() {
 
   const tail = reviewed.REVIEWED_MIGRATION_LEDGER.at(-1);
   if (
-    reviewed.REVIEWED_MIGRATION_LEDGER.length !== 73
-    || tail?.idx !== 72
-    || tail.tag !== "0072_admin_ai_models"
+    reviewed.REVIEWED_MIGRATION_LEDGER.length !== 74
+    || tail?.idx !== 73
+    || tail.tag !== "0073_learner_ai_model_preference"
     || !/^[0-9a-f]{64}$/.test(reviewed.REVIEWED_MIGRATION_LEDGER_SHA256)
     || typeof reviewed.verifyAppliedMigrationLedger !== "function"
   ) {
-    throw new Error("restore migration ledger contract is not the reviewed 0072 contract");
+    throw new Error("restore migration ledger contract is not the reviewed 0073 contract");
   }
   return reviewed;
 }
@@ -1246,14 +1246,14 @@ export async function verifyRestoreLedgerRuntimeAuthority(
       },
     }, { requireComplete: true });
   } catch {
-    throw new Error("restored database migration ledger is not the exact reviewed 0072 ledger");
+    throw new Error("restored database migration ledger is not the exact reviewed 0073 ledger");
   }
   if (
     verification.appliedCount !== reviewed.REVIEWED_MIGRATION_LEDGER.length
     || verification.complete !== true
     || verification.ledgerSha256 !== reviewed.REVIEWED_MIGRATION_LEDGER_SHA256
   ) {
-    throw new Error("restored database migration ledger is not the exact reviewed 0072 ledger");
+    throw new Error("restored database migration ledger is not the exact reviewed 0073 ledger");
   }
   return verification;
 }

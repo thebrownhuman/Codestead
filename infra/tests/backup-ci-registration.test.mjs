@@ -644,16 +644,16 @@ function validatePackageScriptContracts(manifest) {
 function validateHarnessReviewedRestoreFixtureContract(source) {
   for (const [fragment, message] of [
     [
-      "len(entries) != 73",
-      "production E2E does not require the exact 73-row reviewed ledger",
+      "len(entries) != 74",
+      "production E2E does not require the exact 74-row reviewed ledger",
     ],
     [
-      'entries[-1].get("idx") != 72',
-      "production E2E does not require reviewed ledger tail index 72",
+      'entries[-1].get("idx") != 73',
+      "production E2E does not require reviewed ledger tail index 73",
     ],
     [
-      'entries[-1].get("tag") != "0072_admin_ai_models"',
-      "production E2E does not require the reviewed 0072 ledger tail",
+      'entries[-1].get("tag") != "0073_learner_ai_model_preference"',
+      "production E2E does not require the reviewed 0073 ledger tail",
     ],
     [
       "--env REQUIRE_COMPLETE_MIGRATION_LEDGER=false",
@@ -676,8 +676,8 @@ function validateHarnessReviewedRestoreFixtureContract(source) {
       "production E2E omits the full source application-object boundary verifier",
     ],
     [
-      "grep -Fxq 'migration_count=73'",
-      "production E2E does not attest all 72 reviewed migrations",
+      "grep -Fxq 'migration_count=74'",
+      "production E2E does not attest all 73 reviewed migrations",
     ],
   ]) {
     requireHarnessFragment(source, fragment, message);

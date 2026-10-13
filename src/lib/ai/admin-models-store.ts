@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
-import { providerPolicy } from "@/lib/db/schema";
+import { learnerProfile, providerPolicy, user } from "@/lib/db/schema";
 import { writeAuditEventInTransaction } from "@/lib/security/audit-writer";
 import type { SealedCredential } from "@/lib/security/credential-vault";
 import type { SupportedProvider } from "./types";
@@ -11,6 +11,7 @@ export type PolicyRow = typeof providerPolicy.$inferSelect;
 export type ConnectionChange = { id: string; provider: SupportedProvider; baseUrl: string; platformCredential: SealedCredential | null; version: number };
 export interface AdminModelsStore {
   list(): Promise<PolicyRow[]>;
+  learnerChoiceCounts?(): Promise<Record<string, number>>;
   connection(provider: SupportedProvider): Promise<PolicyRow | undefined>;
   configure(actorId: string, change: ConnectionChange): Promise<void>;
   save(actorId: string, input: { provider: SupportedProvider; model: string; priority: number; baseUrl: string; version: number; verified: boolean; reportedModel?: string }): Promise<void>;
@@ -22,6 +23,12 @@ async function assertVersion(tx: Parameters<Parameters<typeof db.transaction>[0]
   if ((current?.configurationVersion ?? 0) !== version) throw new ProviderError("Connection changed. Reload before continuing.", "POLICY", 409);
 }
 export const adminModelsStore: AdminModelsStore = {
+  async learnerChoiceCounts() {
+    const rows = await db.select({ key: learnerProfile.preferredAiModelPolicyId, count: count() })
+      .from(learnerProfile).innerJoin(user, eq(user.id, learnerProfile.userId))
+      .where(eq(user.role, "learner")).groupBy(learnerProfile.preferredAiModelPolicyId);
+    return Object.fromEntries(rows.filter((row) => row.key !== null).map((row) => [row.key, row.count]));
+  },
   list: () => db.select().from(providerPolicy).where(inArray(providerPolicy.operation, ["tutor", "provider_configuration"])).orderBy(asc(providerPolicy.priority)),
   async connection(provider) { return (await db.select().from(providerPolicy).where(connectionWhere(provider)).limit(1))[0]; },
   async configure(actorId, change) {

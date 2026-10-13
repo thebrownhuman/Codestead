@@ -111,13 +111,23 @@ describe("endpoint-wide executable authorization boundary", () => {
     const operations = await protectedOperations("authenticated");
     // Explicit reviewed inventory: additions must update the API matrix and
     // this executable boundary together rather than silently expanding scope.
-    expect(operations).toHaveLength(98);
+    expect(operations).toHaveLength(100);
     for (const [route, method] of [
       ["/api/code/interactive", "POST"],
       ["/api/code/interactive/[sessionId]", "DELETE"],
       ["/api/code/interactive/[sessionId]/authorize", "GET"],
     ]) {
       expect(operations).toContainEqual({ entry: expect.objectContaining({ route, boundary: "authenticated" }), method });
+    }
+    for (const method of ["GET", "PATCH"]) {
+      expect(operations).toContainEqual({
+        entry: expect.objectContaining({
+          file: "src/app/api/settings/ai-model/route.ts",
+          route: "/api/settings/ai-model",
+          boundary: "authenticated",
+        }),
+        method,
+      });
     }
     expect(operations).toContainEqual({
       entry: expect.objectContaining({

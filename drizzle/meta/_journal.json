@@ -512,6 +512,13 @@
       "when": 1791122117336,
       "tag": "0072_admin_ai_models",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1791465167378,
+      "tag": "0073_learner_ai_model_preference",
+      "breakpoints": true
     }
   ]
 }

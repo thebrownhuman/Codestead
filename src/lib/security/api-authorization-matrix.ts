@@ -90,6 +90,8 @@ const SESSION_USER_OPERATIONS = new Set([
   "PUT /api/drafts",
   "GET /api/settings/profile",
   "PATCH /api/settings/profile",
+  "GET /api/settings/ai-model",
+  "PATCH /api/settings/ai-model",
   "GET /api/community/profile",
   "PATCH /api/community/profile",
   "GET /api/community/discussions",

@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
-  "files": 133,
-  "operations": 171,
-  "matrixRows": 171,
+  "files": 134,
+  "operations": 173,
+  "matrixRows": 173,
   "boundaryCounts": {
     "public": 6,
     "auth-handler": 2,
-    "authenticated": 98,
+    "authenticated": 100,
     "admin": 65
   },
   "objectAuthorizationCounts": {
     "public-input": 6,
     "administrator-scope": 65,
-    "session-user": 92,
+    "session-user": 94,
     "auth-provider": 2,
     "no-user-object": 4,
     "consent-projected-cohort": 2
@@ -1069,7 +1069,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by eq(chatThread.userId, authz.session.user.id)",
-      "operationSourceSha256": "bf119d7fa969722d4b5a6e73989964d9a157101c283752e6a55357e293c1f9cf"
+      "operationSourceSha256": "595444f822ab2bec1455e8bf27d568d6fdf1c5de0ed747b69e7159e3209f2b1e"
     },
     {
       "operation": "GET /api/auth/[...all]",
@@ -2333,6 +2333,32 @@
       "operationSourceSha256": "936d1e311f20de1d1ac9c5a7a4f1194462f6fa1deb83e10cb328828252fdc902"
     },
     {
+      "operation": "GET /api/settings/ai-model",
+      "file": "src/app/api/settings/ai-model/route.ts",
+      "route": "/api/settings/ai-model",
+      "method": "GET",
+      "boundary": "authenticated",
+      "anonymous": "authenticated",
+      "learner": "allowed",
+      "admin": "allowed",
+      "objectAuthorization": "session-user",
+      "ownershipProof": "all user context is derived from authz.session.user.id",
+      "operationSourceSha256": "a9d6b794ab4a5f5ec9a968b1898d4337f5c3a9961ab5146b830197748eb6a50b"
+    },
+    {
+      "operation": "PATCH /api/settings/ai-model",
+      "file": "src/app/api/settings/ai-model/route.ts",
+      "route": "/api/settings/ai-model",
+      "method": "PATCH",
+      "boundary": "authenticated",
+      "anonymous": "authenticated",
+      "learner": "allowed",
+      "admin": "allowed",
+      "objectAuthorization": "session-user",
+      "ownershipProof": "all user context is derived from authz.session.user.id",
+      "operationSourceSha256": "8171607b848490c4e0045321def5ae883b1f09901dff2e1298d85cc4493446d8"
+    },
+    {
       "operation": "GET /api/settings/profile",
       "file": "src/app/api/settings/profile/route.ts",
       "route": "/api/settings/profile",
@@ -2378,7 +2404,7 @@
     "guardDecisionTest": "src/lib/http/__tests__/authz.test.ts",
     "representativeObjectAuthorizationTest": "integration/runtime-authorization.integration.test.ts",
     "protectedOperationInvocations": {
-      "anonymousAuthenticated": 98,
+      "anonymousAuthenticated": 100,
       "anonymousAdmin": 65,
       "learnerAdmin": 65
     },

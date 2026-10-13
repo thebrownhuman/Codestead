@@ -1,0 +1,3 @@
+ALTER TABLE "public"."learner_profile" ADD COLUMN "preferred_ai_model_policy_id" uuid;--> statement-breakpoint
+ALTER TABLE "public"."learner_profile" ADD CONSTRAINT "learner_profile_preferred_ai_model_policy_id_provider_policy_id_fk" FOREIGN KEY ("preferred_ai_model_policy_id") REFERENCES "public"."provider_policy"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "learner_profile_preferred_ai_model_policy_idx" ON "public"."learner_profile" USING btree ("preferred_ai_model_policy_id");

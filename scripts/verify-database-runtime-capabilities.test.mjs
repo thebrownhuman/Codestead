@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
-  CURRENT_0072_DATABASE_RUNTIME_CAPABILITIES,
+  CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES,
   DATABASE_RUNTIME_CAPABILITY_PHASES,
 } from "./database-runtime-capabilities.mjs";
 import {
@@ -20,9 +20,9 @@ import {
   REVIEWED_MIGRATION_LEDGER_SHA256,
 } from "./lib/reviewed-migration-ledger.mjs";
 
-const POLICY = CURRENT_0072_DATABASE_RUNTIME_CAPABILITIES;
+const POLICY = CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES;
 const CURRENT_POLICY_FINGERPRINT =
-  "0c42b0f26a70dd9d5ee37db5d666d97fc3622a1eac994034885d5fcff3baa2f9";
+  "8142c8223614fdb2129ad65d0490e262e57e62981cfaa0d76ffd671285965ad4";
 const BOOTSTRAP_USER = "legacy_bootstrap";
 const DATABASE = "learncoding";
 const AUTHENTICATED_ROLES = Object.freeze([
@@ -557,7 +557,7 @@ function ledgerIdentity(appliedCount) {
 
 function currentResolution() {
   return {
-    phase: DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0072,
+    phase: DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073,
     policy: POLICY,
     reconcileApplicationAcls: true,
     ledgerIdentity: ledgerIdentity(REVIEWED_MIGRATION_LEDGER.length),
@@ -584,13 +584,13 @@ const verificationInput = Object.freeze({
 test("resolves only exact current or foundation reviewed phases", async () => {
   assert.doesNotThrow(() =>
     assertVerifierDatabaseRuntimeCapabilityPhaseRequest(
-      DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0072,
+      DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073,
     ),
   );
   for (const phase of [
     "unknown",
-    DATABASE_RUNTIME_CAPABILITY_PHASES.EXPAND_PREPARE_0072,
-    DATABASE_RUNTIME_CAPABILITY_PHASES.CONTRACTED_0073,
+    DATABASE_RUNTIME_CAPABILITY_PHASES.EXPAND_PREPARE_0073,
+    DATABASE_RUNTIME_CAPABILITY_PHASES.CONTRACTED_0074,
   ]) {
     assert.throws(
       () => assertVerifierDatabaseRuntimeCapabilityPhaseRequest(phase),
@@ -848,7 +848,7 @@ test("independently normalizes and accepts the exact current catalog", async () 
     makeClient(),
     verificationInput,
   );
-  assert.equal(result.phase, DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0072);
+  assert.equal(result.phase, DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073);
   assert.equal(result.policyFingerprint, CURRENT_POLICY_FINGERPRINT);
 });
 
@@ -1547,7 +1547,7 @@ test("catalog observers are independent and use PostgreSQL's exact sequence ACL 
     assert.match(source, /from "\.\/database-runtime-capabilities[.]mjs";/u);
     assert.match(
       source,
-      /import\s*\{[\s\S]*?\bCURRENT_0072_DATABASE_RUNTIME_CAPABILITIES\b[\s\S]*?\}\s*from "\.\/database-runtime-capabilities[.]mjs";/u,
+      /import\s*\{[\s\S]*?\bCURRENT_0073_DATABASE_RUNTIME_CAPABILITIES\b[\s\S]*?\}\s*from "\.\/database-runtime-capabilities[.]mjs";/u,
     );
   }
   assert.doesNotMatch(

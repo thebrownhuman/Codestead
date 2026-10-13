@@ -1,4 +1,4 @@
-import { CURRENT_0072_DATABASE_RUNTIME_CAPABILITIES } from "../database-runtime-capabilities.mjs";
+import { CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES } from "../database-runtime-capabilities.mjs";
 
 export const CAPABILITY_TEST_BOOTSTRAP_USER = "legacy_bootstrap";
 export const CAPABILITY_TEST_DATABASE = "learncoding";
@@ -10,7 +10,7 @@ export const CAPABILITY_TEST_AUTHENTICATED_ROLES = Object.freeze([
   "learncoding_backup_reporter",
 ]);
 
-const POLICY = CURRENT_0072_DATABASE_RUNTIME_CAPABILITIES;
+const POLICY = CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES;
 const ROLE_OIDS = new Map([
   [CAPABILITY_TEST_BOOTSTRAP_USER, "1"],
   ...POLICY.roles.map((role, index) => [role.name, String(index + 10)]),

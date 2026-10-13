@@ -27,7 +27,7 @@ const tail = entries.at(-1);
 const ledgerDigest = reviewedMigrationLedgerSha256(entries);
 const file = "scripts/lib/reviewed-migration-ledger.mjs";
 let source = await read(file);
-const pattern = new RegExp(`(tag: "${tail.tag}", breakpoints: (?:true|false), sqlSha256: )"[a-f0-9]{64}"`);
+const pattern = new RegExp(`((?:"tag"|tag)\\s*:\\s*"${tail.tag}",\\s*(?:"breakpoints"|breakpoints)\\s*:\\s*(?:true|false),\\s*(?:"sqlSha256"|sqlSha256)\\s*:\\s*)"[a-f0-9]{64}"`);
 if (!pattern.test(source)) throw new Error("Latest reviewed migration entry is unavailable");
 source = source.replace(pattern, `$1"${tail.sqlSha256}"`).replaceAll(REVIEWED_MIGRATION_LEDGER_SHA256, ledgerDigest);
 const projections = ["scripts/backup/common.sh", "infra/tests/recovery-evidence-verifier.test.sh", "infra/tests/restore-drill-reminder.test.sh", "docs/reviewed-migration-inventory-pins.md"];

@@ -446,6 +446,8 @@ export const learnerProfile = pgTable("learner_profile", {
   learningGoals: jsonb("learning_goals").$type<string[]>().default([]).notNull(),
   selectedTracks: jsonb("selected_tracks").$type<string[]>().default([]).notNull(),
   dsaLanguage: text("dsa_language"),
+  preferredAiModelPolicyId: uuid("preferred_ai_model_policy_id")
+    .references(() => providerPolicy.id, { onDelete: "set null" }),
   storageQuotaBytes: bigint("storage_quota_bytes", { mode: "number" })
     .default(2_147_483_648)
     .notNull(),
@@ -458,7 +460,10 @@ export const learnerProfile = pgTable("learner_profile", {
   profileVisibility: visibilityEnum("profile_visibility").default("private").notNull(),
   rowVersion: bigint("row_version", { mode: "number" }).default(1).notNull(),
   ...timestamps,
-});
+}, (table) => [
+  index("learner_profile_preferred_ai_model_policy_idx")
+    .on(table.preferredAiModelPolicyId),
+]);
 
 /**
  * Append-only record of each learner disclosure/consent decision. Current

@@ -3590,8 +3590,8 @@ test("rejects a bootstrap identity inside the managed role namespace before pool
 
 test("rejects future capability requests before pool checkout", async () => {
   for (const databaseRuntimeCapabilityPhase of [
-    "0072-expand-prepare",
-    "0073-contracted",
+    "0073-expand-prepare",
+    "0074-contracted",
     "unknown",
   ]) {
     let poolCalls = 0;

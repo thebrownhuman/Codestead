@@ -18,6 +18,7 @@ import {
 } from "@/lib/ai/fallback-budget";
 import { AI_PROVIDER_CATALOG, defaultModelForProvider } from "@/lib/ai/provider-catalog";
 import { routeTutorRequest, type ProviderCandidate } from "@/lib/ai/router";
+import { prioritizeLearnerModel } from "@/lib/ai/learner-model-choice";
 import { safeTutorResponse } from "@/lib/ai/response-safety";
 import { buildPlatformCandidates } from "@/lib/ai/platform-credentials";
 import { consumePlatformQuota, isPlatformQuotaError } from "@/lib/ai/platform-quota";
@@ -471,6 +472,10 @@ export async function POST(request: NextRequest) {
       }
       return leftPriority - rightPriority;
     });
+
+    const chosenPolicy = policies.find((policy) => policy.id === profile?.preferredAiModelPolicyId
+      && policy.operation === "tutor" && policy.enabled);
+    candidates.splice(0, candidates.length, ...prioritizeLearnerModel(candidates, chosenPolicy));
 
     const analogyPreference =
       profile?.analogyFrequency === "frequent"
