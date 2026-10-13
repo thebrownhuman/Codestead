@@ -12,6 +12,10 @@ export type RateLimitPolicyName =
   | "auth_sign_in_ip"
   | "auth_sign_up_ip"
   | "auth_totp_ip"
+  | "auth_reset_request_ip"
+  | "auth_reset_password_ip"
+  | "auth_reset_callback_ip"
+  | "auth_backup_code_ip"
   | "admin_ai_models_read"
   | "admin_ai_models_write"
   | "admin_ai_models_test"
@@ -93,6 +97,10 @@ const DEFAULT_POLICIES: Record<RateLimitPolicyName, RateLimitPolicy> = {
   auth_sign_in_ip: policy("auth_sign_in_ip", 8, 60),
   auth_sign_up_ip: policy("auth_sign_up_ip", 3, 600),
   auth_totp_ip: policy("auth_totp_ip", 6, 60),
+  auth_reset_request_ip: policy("auth_reset_request_ip", 3, 600),
+  auth_reset_password_ip: policy("auth_reset_password_ip", 6, 60),
+  auth_reset_callback_ip: policy("auth_reset_callback_ip", 10, 60),
+  auth_backup_code_ip: policy("auth_backup_code_ip", 6, 60),
   admin_ai_models_read: policy("admin_ai_models_read", 60, 60),
   admin_ai_models_write: policy("admin_ai_models_write", 60, 60 * 60),
   admin_ai_models_test: policy("admin_ai_models_test", 10, 60),

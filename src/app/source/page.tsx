@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo/metadata";
 import Link from "next/link";
 
 import { BrandMark } from "@/components/brand-mark";
@@ -7,10 +8,12 @@ import styles from "./source.module.css";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = publicPageMetadata({
+  pathname: "/source",
   title: "License and source",
   description: "Codestead license, warranty notice, and corresponding-source access.",
-};
+  indexable: true,
+});
 
 export default function SourcePage() {
   const sourceUrl = process.env.SOURCE_CODE_URL?.trim();

@@ -19,6 +19,7 @@ describe("public verification page", () => {
     expect(screen.getByText("Chosen Alias")).toBeInTheDocument();
     expect(screen.getByText("Python")).toBeInTheDocument();
     expect(screen.getByText(certificate.verificationId, { exact: false })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Add to LinkedIn/ })).not.toBeInTheDocument();
   });
   it("renders a generic valid statement without a hidden name", async () => {
     mocks.load.mockResolvedValue({ ...certificate, learnerDisplayName: null });

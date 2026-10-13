@@ -1,5 +1,13 @@
+import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo/metadata";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { LostDeviceRecoveryForm } from "@/components/auth/lost-device-recovery-form";
+
+export const metadata: Metadata = publicPageMetadata({
+  pathname: "/lost-device",
+  title: "Recover a lost device",
+  description: "Request administrator-assisted Codestead device recovery after confirming your approved mailbox.",
+});
 
 export default function LostDevicePage() {
   return (

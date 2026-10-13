@@ -2,14 +2,19 @@ import type { MetadataRoute } from "next";
 
 import { SITE_URL } from "@/lib/site";
 
+export const revalidate = 3600;
+
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: "*",
-      allow: ["/", "/request-access"],
+      allow: ["/", "/request-access", "/source"],
       disallow: [
         "/api/",
         "/admin/",
+        "/dashboard/",
+        "/p/",
+        "/health/",
         "/learn/",
         "/career/",
         "/certificates/",
@@ -31,7 +36,7 @@ export default function robots(): MetadataRoute.Robots {
         "/reset-password/",
         "/forgot-password/",
         "/lost-device/",
-      ],
+      ].flatMap((pathname) => pathname === "/p/" ? [pathname] : [pathname.slice(0, -1), pathname]),
     },
     sitemap: `${SITE_URL}/sitemap.xml`,
   };
