@@ -49,7 +49,7 @@ describe("API authorization and IDOR contract matrix", () => {
     const learnerRows = report.rows.filter((row) => row.boundary === "authenticated");
     const selfRows = learnerRows.filter((row) => row.objectAuthorization === "session-user");
 
-    expect(selfRows).toHaveLength(89);
+    expect(selfRows).toHaveLength(91);
     expect(report.identifierOwnershipContracts).toBe(37);
     expect(selfRows.find((row) => row.operation === "GET /api/certificates/[certificateId]/pdf")).toMatchObject({
       objectAuthorization: "session-user",
@@ -70,6 +70,21 @@ describe("API authorization and IDOR contract matrix", () => {
         "POST /api/onboarding/interests/preview",
       ]);
   });
+});
+
+it("binds both AI model preference operations to the authenticated session owner", () => {
+  const rows = report.rows.filter((row) => row.route === "/api/settings/ai-model");
+  expect(rows).toHaveLength(2);
+  expect(rows.map((row) => row.operation).sort()).toEqual([
+    "GET /api/settings/ai-model", "PATCH /api/settings/ai-model",
+  ]);
+  for (const row of rows) {
+    expect(row).toMatchObject({
+      boundary: "authenticated", objectAuthorization: "session-user",
+      anonymous: "authenticated", learner: "allowed",
+      ownershipProof: "all user context is derived from authz.session.user.id",
+    });
+  }
 });
 
 it("binds both password settings operations to the authenticated owner", async () => {
