@@ -1,3 +1,4 @@
+import { selectOption } from "@/test/select-option";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -129,7 +130,7 @@ describe("administrator curriculum editorial queue", () => {
     expect(second).toBeInTheDocument();
     expect(screen.getByText("Showing 1–2 of 2 matching artifacts (2 total). Page 1 of 1.")).toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText("Filter editorial queue by status"), "changes_requested");
+    await selectOption(user, screen.getByLabelText("Filter editorial queue by status"), "changes_requested");
     await waitFor(() => expect(within(queue).getAllByRole("button")).toHaveLength(1));
     expect(within(queue).queryByRole("button", { name: /lesson\.python\.variables\.v1/i })).not.toBeInTheDocument();
     expect(screen.getByText("Showing 1–1 of 1 matching artifacts (2 total). Page 1 of 1.")).toBeInTheDocument();
@@ -304,7 +305,7 @@ describe("administrator curriculum editorial queue", () => {
     await user.click(screen.getByRole("button", { name: /Approve all/i }));
     await waitFor(() => expect(screen.getByText("All artifacts in this version are approved.")).toBeInTheDocument());
 
-    await user.selectOptions(screen.getByLabelText("Publication target"), "verified");
+    await selectOption(user, screen.getByLabelText("Publication target"), "verified");
     await user.click(screen.getByRole("button", { name: "Check readiness" }));
     await waitFor(() => expect(screen.getByText("Ready to publish")).toBeInTheDocument());
     expect(screen.getByText(/1 warnings/)).toBeInTheDocument();
@@ -321,10 +322,10 @@ describe("administrator curriculum editorial queue", () => {
 
     const currentCard = screen.getByRole("button", { name: /Lifecycle v0\.2\.0/i });
     await user.click(currentCard);
-    await user.selectOptions(screen.getByLabelText("Publication target"), "beta");
+    await selectOption(user, screen.getByLabelText("Publication target"), "beta");
     expect(await screen.findByText(/Already published as beta/)).toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText("Rollback target"), versionPrior);
+    await selectOption(user, screen.getByLabelText("Rollback target"), versionPrior);
     await user.click(screen.getByRole("button", { name: "Rollback pointer" }));
     await waitFor(() => expect(screen.getByText(/Catalog pointer rolled back/)).toBeInTheDocument());
   });
@@ -446,7 +447,7 @@ describe("administrator curriculum editorial queue", () => {
       await user.paste("Reviewed carefully in detail.");
     }
     await user.click(screen.getByRole("checkbox", { name: "lesson.python.variables.v1" }));
-    await user.selectOptions(screen.getByLabelText("Decision"), "approved");
+    await selectOption(user, screen.getByLabelText("Decision"), "approved");
     await user.click(screen.getByRole("button", { name: "Append review" }));
 
     await waitFor(() => expect(screen.getByText("Human review evidence appended without rewriting content.")).toBeInTheDocument());

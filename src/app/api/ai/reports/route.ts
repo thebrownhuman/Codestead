@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { and, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -21,7 +22,9 @@ export async function POST(request: NextRequest) {
   return withRateLimit(
     { policy: "learning_request_user", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
-      const body = reportSchema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return jsonBody.response;
+      const body = reportSchema.safeParse(jsonBody.value);
       if (!body.success) {
         return NextResponse.json(
           { error: "Choose a category and describe the problem in at least 20 characters." },

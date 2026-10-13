@@ -1,3 +1,4 @@
+import { selectOption } from "@/test/select-option";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -147,15 +148,17 @@ describe("CodeLab non-authoritative runner client", () => {
     render(<CodeLab allowLanguageSelection courseId="python" skillId="free-playground" />);
 
     const selector = screen.getByRole("combobox", { name: "Runner language" });
-    expect(Array.from(selector.querySelectorAll("option"), (option) => option.textContent)).toEqual([
+    await user.click(selector);
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
       "C",
       "C++",
       "Java",
       "JavaScript",
       "Python",
     ]);
-    await user.selectOptions(selector, language);
-    expect(selector).toHaveValue(language);
+    await user.keyboard("{Escape}");
+    await selectOption(user, selector, language);
+    expect(selector).toHaveAttribute("data-value", language);
     const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     expect(screen.getByText(new RegExp(`${escapedLabel} practice`, "i"))).toBeInTheDocument();
 
@@ -275,12 +278,12 @@ describe("CodeLab non-authoritative runner client", () => {
     expect(screen.getByText(/browser tab storage keeps this Python input through refresh when available.*sign-out.*closing the tab clears it.*sent only when you run/i)).toBeInTheDocument();
     await user.type(stdin, "python input");
 
-    await user.selectOptions(selector, "cpp");
+    await selectOption(user, selector, "cpp");
     fireEvent.click(screen.getByRole("tab", { name: /^Input$/ }));
     stdin = screen.getByRole("textbox", { name: /Program input/i });
     await waitFor(() => expect(stdin).toHaveValue(""));
     await user.type(stdin, "cpp input");
-    await user.selectOptions(selector, "python");
+    await selectOption(user, selector, "python");
     fireEvent.click(screen.getByRole("tab", { name: /^Input$/ }));
     stdin = screen.getByRole("textbox", { name: /Program input/i });
     await waitFor(() => expect(stdin).toHaveValue("python input"));
@@ -294,7 +297,7 @@ describe("CodeLab non-authoritative runner client", () => {
     fireEvent.click(screen.getByRole("tab", { name: /^Input$/ }));
     stdin = screen.getByRole("textbox", { name: /Program input/i });
     await waitFor(() => expect(stdin).toHaveValue("python input"));
-    await user.selectOptions(screen.getByRole("combobox", { name: "Runner language" }), "cpp");
+    await selectOption(user, screen.getByRole("combobox", { name: "Runner language" }), "cpp");
     fireEvent.click(screen.getByRole("tab", { name: /^Input$/ }));
     await waitFor(() => expect(screen.getByRole("textbox", { name: /Program input/i })).toHaveValue("cpp input"));
   });

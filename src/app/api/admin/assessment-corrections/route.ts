@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import type { NextRequest } from "next/server";
 
 import { adminJson, secureAdminResponse } from "@/app/api/admin/dashboard/http";
@@ -26,7 +27,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const authz = await requireAdmin();
   if (!authz.session) return secureAdminResponse(authz.response);
-  const body = createCorrectionSchema.safeParse(await request.json().catch(() => null));
+  const jsonBody = await readBoundedJson(request, 8 * 1024 * 1024);
+  if (jsonBody.response?.status === 413) return secureAdminResponse(jsonBody.response);
+  const body = createCorrectionSchema.safeParse(jsonBody.value);
   if (!body.success) {
     return adminJson({ error: "Exact appeal/item scope, reviewed replacement tests, a new bundle version, and rationale are required." }, 400);
   }

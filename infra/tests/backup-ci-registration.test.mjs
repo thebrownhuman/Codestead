@@ -1143,6 +1143,17 @@ const reviewedJobNames = [
   "auth-browser",
   "browser",
 ];
+const aptTimeoutProjection = [
+  "      - run: |",
+  "          set -Eeuo pipefail",
+  "          printf '%s\\n' 'Acquire::http::Timeout \"20\";' 'Acquire::https::Timeout \"20\";' 'Acquire::Retries \"3\";' | sudo tee /etc/apt/apt.conf.d/99timeouts >/dev/null",
+  "          for source in /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do",
+  "            if [[ -f \"$source\" ]]; then",
+  "              sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/g' \"$source\"",
+  "            fi",
+  "          done",
+];
+
 const checkoutProjection = [
   "      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0",
   "        with:",
@@ -1318,10 +1329,7 @@ const databasePathFilterProjection = [
   "              - vitest.integration.config.ts",
   "              - scripts/**",
   "              - infra/**",
-  "              - src/lib/db/**",
-  "              - src/lib/notifications/**",
-  "              - src/lib/*notifications.ts",
-  ...integrationOnlyCoverageFiles.map((file) => `              - ${file}`),
+  "              - src/**",
 ];
 function requireIntegrationOnlyFilesGateDatabase() {
   const vitestConfig = readFileSync(resolve(repoRoot, "vitest.config.ts"), "utf8");
@@ -1660,6 +1668,7 @@ const reviewedJobContracts = new Map([
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 30",
       "    steps:",
+      ...aptTimeoutProjection,
       ...checkoutProjection,
       `      - run: ${reviewedDockerEngineRun}`,
       ...partitionRuns("docker-build"),
@@ -1685,6 +1694,7 @@ const reviewedJobContracts = new Map([
       "    timeout-minutes: 30",
       ...infraGateLines,
       "    steps:",
+      ...aptTimeoutProjection,
       ...checkoutProjection,
       ...infraShellPrelude,
       ...infraAptRuns.map((command) => `      - run: ${command}`),
@@ -1699,6 +1709,7 @@ const reviewedJobContracts = new Map([
       "    timeout-minutes: 30",
       ...infraGateLines,
       "    steps:",
+      ...aptTimeoutProjection,
       ...applicationCheckoutProjection,
       ...infraShellPrelude,
       ...infraAptRuns.map((command) => `      - run: ${command}`),
@@ -1715,6 +1726,7 @@ const reviewedJobContracts = new Map([
       "    timeout-minutes: 30",
       ...infraGateLines,
       "    steps:",
+      ...aptTimeoutProjection,
       ...checkoutProjection,
       ...infraShellPrelude,
       ...partitionRuns("infra-host").slice(0, 4),
@@ -1732,6 +1744,7 @@ const reviewedJobContracts = new Map([
       "    timeout-minutes: 30",
       ...infraGateLines,
       "    steps:",
+      ...aptTimeoutProjection,
       ...checkoutProjection,
       ...infraShellPrelude,
       ...infraAptRuns.map((command) => `      - run: ${command}`),
@@ -1827,6 +1840,7 @@ const reviewedJobContracts = new Map([
       '      CODESTEAD_DISPOSABLE_DOCKER_DAEMON: "1"',
       '      CODESTEAD_TOPOLOGY_RESTART_DOCKER: "1"',
       "    steps:",
+      ...aptTimeoutProjection,
       ...checkoutProjection,
       ...topologyDockerProjection,
       "      - run: node infra/tests/production-topology-ci-registration.test.mjs",
@@ -1848,6 +1862,7 @@ const reviewedJobContracts = new Map([
       "    needs: changes",
       parkedBackupCondition,
       "    steps:",
+      ...aptTimeoutProjection,
       ...checkoutProjection,
       ...setupNodeProjection,
       ...requiredBackupRuns.map((command) => `      - run: ${command}`),
@@ -1861,6 +1876,7 @@ const reviewedJobContracts = new Map([
       "    needs: changes",
       parkedBackupCondition,
       "    steps:",
+      ...aptTimeoutProjection,
       ...checkoutProjection,
       "      - run: bash infra/tests/install-reviewed-docker-engine.sh",
       `      - run: ${productionE2eRun}`,
@@ -1914,6 +1930,7 @@ const reviewedJobContracts = new Map([
       canonicalPostgresProjection.timeoutLine,
       ...reviewedDatabaseGateLines,
       "    steps:",
+      ...aptTimeoutProjection,
       ...checkoutProjection,
       ...setupNodeProjection,
       "      - run: npm ci",
@@ -1951,6 +1968,7 @@ const reviewedJobContracts = new Map([
       "            | sudo tee /etc/apt/sources.list.d/pgdg.sources >/dev/null",
       "          sudo apt-get update",
       canonicalPostgresProjection.installLine,
+      "        timeout-minutes: 10",
       ...canonicalPostgresProjection.productionPg17Lines,
       ...canonicalPostgresProjection.targetedPg18Lines,
     ],
@@ -2027,6 +2045,7 @@ const reviewedJobContracts = new Map([
       "            apply: web:executable:evidence:apply",
       "            evidence: docs/evidence/web-executable-runtime-*.json",
       "    steps:",
+      ...aptTimeoutProjection,
       ...checkoutProjection,
       ...setupNodeProjection,
       "      - run: npm ci",
@@ -2139,6 +2158,7 @@ const reviewedJobContracts = new Map([
       "    needs: changes",
       "    if: needs.changes.outputs.browser == 'true'",
       "    steps:",
+      ...aptTimeoutProjection,
       ...checkoutProjection,
       ...setupNodeProjection,
       "      - run: npm ci",
@@ -2168,6 +2188,7 @@ const reviewedJobContracts = new Map([
       "      matrix:",
       browserMatrixInclude,
       "    steps:",
+      ...aptTimeoutProjection,
       ...checkoutProjection,
       ...setupNodeProjection,
       "      - run: npm ci",
@@ -2913,7 +2934,7 @@ function runAdversarialSelfTests(document) {
     "      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0";
   const productionCheckout = `${checkoutStep}\n        with:\n          persist-credentials: false`;
   const productionStepsAnchor =
-    "  backup-production-e2e:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n    needs: changes\n" + parkedBackupCondition + "\n    steps:\n";
+    "  backup-production-e2e:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n    needs: changes\n" + parkedBackupCondition + "\n    steps:\n" + aptTimeoutProjection.join("\n") + "\n";
   expectRejected(
     "missing production e2e run",
     replaceExactly(document, `${productionStep}\n`, ""),

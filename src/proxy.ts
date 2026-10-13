@@ -2,8 +2,19 @@ import { type NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 
 import { evaluateRequestOrigin } from "@/lib/security/request-origin-policy";
+import { rateLimitIp, withRateLimit } from "@/lib/security/rate-limit";
 
 export function proxy(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith("/verify/")) {
+    return withRateLimit(
+      { policy: "certificate_verify_ip", identity: { kind: "ip", value: rateLimitIp(request) } },
+      async () => proxyResponse(request),
+    );
+  }
+  return proxyResponse(request);
+}
+
+function proxyResponse(request: NextRequest) {
   const decision = evaluateRequestOrigin({
     method: request.method,
     headers: request.headers,

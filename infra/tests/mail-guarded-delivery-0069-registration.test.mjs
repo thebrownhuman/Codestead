@@ -177,6 +177,18 @@ const releaseRollbackLine =
   `      - run: npm run ${releaseRollbackScript}`;
 
 for (const [mutated, expected] of [
+  [
+    replaceExactly(postgresJob, "        timeout-minutes: 10\n", ""),
+    /install step must have exactly one 10-minute timeout/u,
+  ],
+  [
+    replaceExactly(postgresJob, "        timeout-minutes: 10", "        timeout-minutes: 20"),
+    /install step must have exactly one 10-minute timeout/u,
+  ],
+  [
+    replaceExactly(postgresJob, registrationLine, `${registrationLine}\n        timeout-minutes: 10`),
+    /step-level workflow controls/u,
+  ],
   [replaceExactly(postgresJob, registrationLine, ""), /registration scripts/u],
   [
     replaceExactly(

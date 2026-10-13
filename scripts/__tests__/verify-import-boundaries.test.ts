@@ -143,3 +143,83 @@ describe("import boundary checker", () => {
     expect(result.status).toBe(1);
   });
 });
+
+
+describe("runtime dependency guard", () => {
+  const manifest = JSON.stringify({ dependencies: { zod: "1" }, devDependencies: { typescript: "1", "@scope/tool": "1" } });
+  it("rejects a production entry importing a devDependency with its chain", async () => {
+    const result = await inspect({ "package.json": manifest, "src/app/page.ts": 'import ts from "typescript";' });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("src/app/page.ts -> typescript (devDependency)");
+  });
+  it("allows erased type imports and unrelated test/build imports", async () => {
+    const result = await inspect({ "package.json": manifest,
+      "src/app/page.ts": 'import type { Node } from "typescript"; export { type Node } from "typescript";',
+      "src/lib/__tests__/helper.test.ts": 'import ts from "typescript";',
+      "scripts/build-helper.ts": 'import ts from "typescript";',
+    });
+    expect(result.status).toBe(0);
+  });
+  it("rejects a transitive runtime import through an alias and relative re-export", async () => {
+    const result = await inspect({ "package.json": manifest,
+      "src/app/page.ts": 'import "@/lib/entry";',
+      "src/lib/entry.ts": 'export * from "./helper";',
+      "src/lib/helper.ts": 'const ts = require("typescript");',
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("src/app/page.ts -> src/lib/entry.ts -> src/lib/helper.ts -> typescript (devDependency)");
+  });
+  it("normalizes scoped packages and package subpaths", async () => {
+    const result = await inspect({ "package.json": manifest,
+      "src/app/page.ts": 'import "@scope/tool/subpath"; import("typescript/lib/typescript.js"); import "zod/subpath"; import "fs/promises";',
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("@scope/tool/subpath (devDependency)");
+    expect(result.stderr).toContain("typescript/lib/typescript.js (devDependency)");
+    expect(result.stderr).not.toContain("zod/subpath (");
+    expect(result.stderr).not.toContain("fs/promises (");
+  });
+  it("discovers worker entries from package scripts and deployment inputs", async () => {
+    const result = await inspect({
+      "package.json": JSON.stringify({ devDependencies: { typescript: "1" }, scripts: { "worker:sample": "tsx scripts/worker.ts" } }),
+      "Dockerfile": 'COPY scripts/docker-worker.ts ./scripts/docker-worker.ts',
+      "compose.yaml": 'command: ["node", "/app/scripts/compose-worker.mjs"]',
+      "scripts/worker.ts": 'import "typescript";',
+      "scripts/docker-worker.ts": 'import "typescript";',
+      "scripts/compose-worker.mjs": 'import "typescript";',
+    });
+    expect(result.status).toBe(1);
+    for (const entry of ["worker.ts", "docker-worker.ts", "compose-worker.mjs"]) {
+      expect(result.stderr).toContain(`scripts/${entry} -> typescript (devDependency)`);
+    }
+  });
+  it("uses the runner manifest instead of root production dependencies", async () => {
+    const result = await inspect({
+      "package.json": JSON.stringify({ dependencies: { typescript: "1" } }),
+      "services/runner/package.json": JSON.stringify({ devDependencies: { typescript: "1" }, dependencies: { ajv: "1" } }),
+      "services/runner/src/index.ts": 'import "./worker"; import "ajv/dist/core";',
+      "services/runner/src/worker.ts": 'import "typescript";',
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("services/runner/src/index.ts -> services/runner/src/worker.ts -> typescript (devDependency)");
+    expect(result.stderr).not.toContain("ajv/dist/core (");
+  });
+  it("rejects undeclared packages while allowing a package in both dependency lists", async () => {
+    const result = await inspect({
+      "package.json": JSON.stringify({ dependencies: { typescript: "1" }, devDependencies: { typescript: "1" } }),
+      "src/app/page.ts": 'import "typescript"; import "unknown-package/subpath";',
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("unknown-package/subpath (undeclared dependency)");
+    expect(result.stderr).not.toContain("typescript (devDependency)");
+  });
+  it("ignores test and build configuration files in the app tree", async () => {
+    const result = await inspect({ "package.json": manifest,
+      "src/app/page.ts": 'export {};',
+      "src/app/__tests__/page.test.ts": 'import "typescript";',
+      "src/app/build.config.ts": 'import "typescript";',
+    });
+    expect(result.status).toBe(0);
+  });
+
+});

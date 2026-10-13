@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -55,7 +56,9 @@ export async function PATCH(request: NextRequest) {
       identity: { kind: "user", value: authz.session.user.id },
     },
     async () => {
-      const body = schema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return jsonBody.response;
+      const body = schema.safeParse(jsonBody.value);
       if (!body.success) {
         return NextResponse.json({ error: "INVALID_REMINDER_PREFERENCES" }, { status: 400, headers });
       }

@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import {
   BadgeCheck,
   BookOpenCheck,
@@ -142,7 +144,7 @@ export function ModuleProjectStudio() {
     <aside className={styles.safeNotice}><ShieldCheck size={18} aria-hidden="true" /><span><strong>Evidence first.</strong> Projects unlock only after the exact module is in your plan and its independent mastery exam is passed. Starting or replaying never awards XP, coins, badges, or mastery.</span></aside>
     <div className={styles.controls}>
       <label><Search size={16} aria-hidden="true" /><span className="sr-only">Search module projects</span><input type="search" placeholder="Search a mission or module" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
-      <label><span className="sr-only">Filter by course</span><select value={course} onChange={(event) => setCourse(event.target.value)}><option value="">All enrolled courses</option>{courses.map(([id, title]) => <option key={id} value={id}>{title}</option>)}</select></label>
+      <label><span className="sr-only">Filter by course</span><Select value={course} onChange={(event) => setCourse(event.target.value)}><option value="">All enrolled courses</option>{courses.map(([id, title]) => <option key={id} value={id}>{title}</option>)}</Select></label>
       <button className="button button-secondary" disabled={loading} onClick={() => void load()} type="button"><RefreshCw size={15} aria-hidden="true" /> Refresh</button>
     </div>
     {error ? <p className={styles.error} role="alert">{error}</p> : null}

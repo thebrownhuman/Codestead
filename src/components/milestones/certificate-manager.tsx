@@ -88,7 +88,7 @@ export function CertificateManager() {
           </button>
         </div>
       </header>
-      <aside className={styles.notice}><ShieldCheck aria-hidden="true" size={19} /><span>The public verifier shows only your certificate display name, course, version, issue date, and validity. Scores and mastery details remain private.</span></aside>
+      <aside className={styles.notice}><ShieldCheck aria-hidden="true" size={19} /><span>The public verifier shows the course, version, issue date, and validity. Your chosen portfolio name appears only while your published portfolio links the certificate. Scores and mastery details remain private.</span></aside>
       <div aria-live="polite">{error ? <p className={styles.error}>{error}</p> : null}{message ? <p className={styles.success}>{message}</p> : null}</div>
 
       <section className={`${styles.panel} card`}>
@@ -124,9 +124,12 @@ export function CertificateManager() {
               <small className={styles.verificationId}>{certificate.verificationId}</small>
               {certificate.revocationReason ? <small>Private revocation reason: {certificate.revocationReason}</small> : null}
             </div>
-            <Link className="button button-secondary" href={certificate.verificationPath} target="_blank">
-              Verify / print <ExternalLink aria-hidden="true" size={15} />
-            </Link>
+            <div>
+              <Link className="button button-secondary" href={certificate.verificationPath} target="_blank">
+                Verify <ExternalLink aria-hidden="true" size={15} />
+              </Link>
+              <a className="button button-secondary" href={`/api/certificates/${certificate.id}/pdf`} download>Download PDF</a>
+            </div>
           </article>
         ))}
       </section>
