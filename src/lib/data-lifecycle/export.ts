@@ -1,5 +1,10 @@
+import type { PoolClient } from "pg";
+
 import { pool } from "@/lib/db/client";
 
+import { keysetExportStatement } from "./export-pagination";
+import { ExportDeadlineError, exportDeadline, withinExportDeadline } from "./export-deadline";
+import { checkoutExportClient, openExportSnapshot } from "./export-snapshot";
 import { RETENTION_POLICY_VERSION } from "./policy";
 
 export const EXPORT_SCHEMA_VERSION = 16 as const;
@@ -20,7 +25,7 @@ const DEFAULT_MAX_RECORDS = 5_000;
 const MAX_RECORDS = 10_000;
 const DEFAULT_MAX_BYTES = 10 * 1_024 * 1_024;
 const MAX_BYTES = 20 * 1_024 * 1_024;
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 1_000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type QuerySpec = Readonly<{
@@ -939,7 +944,12 @@ export async function createLearnerExport(input: {
   if (!Number.isFinite(now.getTime())) throw new Error("A valid export timestamp is required.");
   if (!UUID_PATTERN.test(input.requestId)) throw new Error("requestId must be a UUID.");
   const limits = exportBounds(input);
-  const inserted = await pool.query<{ id: string }>(
+  const deadline = exportDeadline();
+  const lease = await checkoutExportClient(deadline.signal).catch((error) => {
+    deadline.dispose();
+    throw error;
+  });
+  const registration = lease.client.query<{ id: string }>(
     `insert into data_lifecycle_run
       (operation, policy_version, idempotency_key, dry_run, status, actor_user_id, target_user_id, started_at)
      select 'export', $1, $2, false, 'running', actor.id, target.id, $5
@@ -956,10 +966,49 @@ export async function createLearnerExport(input: {
       now,
     ],
   );
+  // Even a late registration must not leave a lifecycle run marked running.
+  void registration.then((result) => {
+    const lateRunId = result.rows[0]?.id;
+    if (deadline.signal.aborted && lateRunId) void pool.query(
+      "update data_lifecycle_run set status = 'failed', error_code = 'EXPORT_STREAM_FAILED', completed_at = now(), updated_at = now() where id = $1",
+      [lateRunId],
+    ).catch(() => undefined);
+  }, () => undefined);
+  const inserted = await withinExportDeadline(registration, deadline.signal).catch((error) => {
+    lease.release(true);
+    deadline.dispose();
+    throw error;
+  });
   const runId = inserted.rows[0]?.id;
   if (!runId) {
+    lease.release(false);
+    deadline.dispose();
     throw new Error("Export is not authorized, the learner is unavailable, or this request id was already used.");
   }
+  const snapshot = await openExportSnapshot(input.learnerId, deadline.signal, lease).catch((error) => {
+    if (deadline.signal.aborted || (error && typeof error === "object" && "code" in error
+      && error.code === "EXPORT_ALREADY_IN_PROGRESS")) {
+      deadline.dispose();
+      void pool.query(
+        "update data_lifecycle_run set status = 'failed', error_code = 'EXPORT_START_FAILED', completed_at = now(), updated_at = now() where id = $1",
+        [runId],
+      ).catch(() => undefined);
+      throw error;
+    }
+    // Preserve the stream failure contract for database faults; contention and
+    // deadlines above are rejected before the response is started.
+    return {
+      async *read<T>(
+        produce: (client: PoolClient) => AsyncGenerator<T>,
+        complete?: (client: PoolClient) => Promise<void>,
+      ): AsyncGenerator<T> {
+        void produce;
+        void complete;
+        throw error;
+      },
+      cancel(reason: Error) { void reason; },
+    };
+  });
 
   let resolveCompletion!: (metrics: ExportMetrics) => void;
   let rejectCompletion!: (error: unknown) => void;
@@ -967,109 +1016,138 @@ export async function createLearnerExport(input: {
     resolveCompletion = resolve;
     rejectCompletion = reject;
   });
+  // Consumers can observe completion separately from the response body.
+  void completion.catch(() => undefined);
   const encoder = new TextEncoder();
-  const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      let records = 0;
-      let bytes = 0;
-      let truncated = false;
-      const enqueue = (line: string, reserveBytes = 0) => {
-        const encoded = encoder.encode(line);
-        if (bytes + encoded.byteLength + reserveBytes > limits.maxBytes) return false;
-        controller.enqueue(encoded);
-        bytes += encoded.byteLength;
-        return true;
-      };
-      // Reserve the encoded worst-case footer for this request instead of a
-      // magic allowance. The largest permitted record/byte values and the
-      // longer boolean spelling make this an upper bound for the final footer.
-      const footerReserveBytes = encoder.encode(encodeExportFooter({
-        records: limits.maxRecords,
-        bytesBeforeFooter: limits.maxBytes,
-        truncated: false,
-      })).byteLength;
-      try {
-        if (!enqueue(encodeExportLine({
-          type: "manifest",
-          schemaVersion: EXPORT_SCHEMA_VERSION,
-          policyVersion: RETENTION_POLICY_VERSION,
-          generatedAt: now.toISOString(),
-          learnerId: input.learnerId,
-          limits,
-          excluded: EXPORT_EXCLUDED_DATA,
-          note: "Binary file contents are not embedded; downloadable file metadata is included.",
-        }), footerReserveBytes)) {
-          throw new Error("Export byte limit is too small for its manifest and footer.");
-        }
-        outer: for (let queryIndex = 0; queryIndex < QUERIES.length; queryIndex += 1) {
-          const query = QUERIES[queryIndex]!;
-          let offset = 0;
-          while (records < limits.maxRecords) {
-            const pageLimit = Math.min(PAGE_SIZE, limits.maxRecords - records);
-            const result = await pool.query<{ data: Record<string, unknown> }>(
-              query.statement,
-              query.usesSnapshotTime
-                ? [input.learnerId, pageLimit + 1, offset, now]
-                : [input.learnerId, pageLimit + 1, offset],
-            );
-            if (!result.rows.length) break;
-            const rows = result.rows.slice(0, pageLimit);
-            const hasMoreInQuery = result.rows.length > pageLimit;
-            for (const row of rows) {
-              const line = encodeExportLine({ type: "record", category: query.category, data: row.data });
-              if (!enqueue(line, footerReserveBytes)) {
-                truncated = true;
-                break outer;
-              }
-              records += 1;
-              if (records >= limits.maxRecords) {
-                truncated = hasMoreInQuery;
-                if (!truncated) {
-                  for (const remaining of QUERIES.slice(queryIndex + 1)) {
-                    const probe = await pool.query(
-                      remaining.statement,
-                      remaining.usesSnapshotTime
-                        ? [input.learnerId, 1, 0, now]
-                        : [input.learnerId, 1, 0],
-                    );
-                    if (probe.rows.length) {
-                      truncated = true;
-                      break;
-                    }
-                  }
-                }
-                break outer;
-              }
-            }
-            offset += rows.length;
-            if (!hasMoreInQuery) break;
+  let records = 0;
+  let bytes = 0;
+  let truncated = false;
+  let settled = false;
+  const footerReserveBytes = encoder.encode(encodeExportFooter({
+    records: limits.maxRecords,
+    bytesBeforeFooter: limits.maxBytes,
+    truncated: false,
+  })).byteLength;
+  const encode = (line: string, reserveBytes = 0) => {
+    const encoded = encoder.encode(line);
+    if (bytes + encoded.byteLength + reserveBytes > limits.maxBytes) return null;
+    bytes += encoded.byteLength;
+    return encoded;
+  };
+  const fail = async (error: unknown) => {
+    if (settled) return;
+    settled = true;
+    deadline.dispose();
+    snapshot.cancel(error instanceof Error ? error : new Error("Export failed."));
+    rejectCompletion(error);
+    void pool.query(
+      `update data_lifecycle_run set status = 'failed', error_code = 'EXPORT_STREAM_FAILED',
+         completed_at = $2, updated_at = $2 where id = $1`,
+      [runId, new Date()],
+    ).catch(() => undefined);
+  };
+  async function* produce(client: PoolClient): AsyncGenerator<Uint8Array> {
+    const manifest = encode(encodeExportLine({
+      type: "manifest",
+      schemaVersion: EXPORT_SCHEMA_VERSION,
+      policyVersion: RETENTION_POLICY_VERSION,
+      generatedAt: now.toISOString(),
+      learnerId: input.learnerId,
+      limits,
+      excluded: EXPORT_EXCLUDED_DATA,
+      note: "Binary file contents are not embedded; downloadable file metadata is included.",
+    }), footerReserveBytes);
+    if (!manifest) throw new Error("Export byte limit is too small for its manifest and footer.");
+    yield manifest;
+    const page = (query: QuerySpec, limit: number, cursor: unknown[] | null) => client.query<{
+      data: Record<string, unknown>; export_cursor: unknown[];
+    }>(keysetExportStatement(query.statement, query.category), query.usesSnapshotTime
+      ? [input.learnerId, limit, cursor === null ? null : JSON.stringify(cursor), now]
+      : [input.learnerId, limit, cursor === null ? null : JSON.stringify(cursor)]);
+    outer: for (let queryIndex = 0; queryIndex < QUERIES.length; queryIndex += 1) {
+      const query = QUERIES[queryIndex]!;
+      let cursor: unknown[] | null = null;
+      while (records < limits.maxRecords) {
+        const pageLimit = Math.min(PAGE_SIZE, limits.maxRecords - records);
+        const result = await page(query, pageLimit, cursor);
+        if (!result.rows.length) break;
+        for (const row of result.rows) {
+          const line = encode(encodeExportLine({ type: "record", category: query.category, data: row.data }), footerReserveBytes);
+          if (!line) {
+            truncated = true;
+            break outer;
           }
+          records += 1;
+          yield line;
         }
-        if (!enqueue(encodeExportFooter({
-          records,
-          bytesBeforeFooter: bytes,
-          truncated,
-        }))) {
-          throw new Error("Export footer exceeded its reserved byte budget.");
+        cursor = result.rows.at(-1)!.export_cursor;
+        if (records >= limits.maxRecords) {
+          // Probe in the same snapshot so both the data and truncation flag agree.
+          const remaining = [query, ...QUERIES.slice(queryIndex + 1)];
+          for (const section of remaining) {
+            const probe = await page(section, 1, section === query ? cursor : null);
+            if (probe.rows.length) {
+              truncated = true;
+              break;
+            }
+          }
+          break outer;
         }
-        controller.close();
+        if (result.rows.length < pageLimit) break;
+        if (!Array.isArray(cursor)) throw new Error("Export page has no continuation cursor.");
+      }
+    }
+    const footer = encode(encodeExportFooter({ records, bytesBeforeFooter: bytes, truncated }));
+    if (!footer) throw new Error("Export footer exceeded its reserved byte budget.");
+    yield footer;
+  }
+  async function* generate(): AsyncGenerator<Uint8Array> {
+    try {
+      let completedMetrics: ExportMetrics | undefined;
+      yield* snapshot.read(produce, async (client) => {
         const metrics = { runId, records, bytes, truncated, completed: true } as const;
-        await pool.query(
+        const recorded = await withinExportDeadline(client.query(
           `update data_lifecycle_run set status = 'succeeded', report = $2::jsonb,
-             completed_at = $3, updated_at = $3 where id = $1`,
-          [runId, JSON.stringify(metrics), new Date()],
-        );
-        resolveCompletion(metrics);
+             completed_at = $3, updated_at = $3 where id = $1
+             and status = 'running' and clock_timestamp() < $4`,
+          [runId, JSON.stringify(metrics), new Date(), deadline.expiresAt],
+        ), deadline.signal);
+        if (recorded.rowCount === 0) throw new ExportDeadlineError();
+        completedMetrics = metrics;
+      });
+      if (!completedMetrics) throw new Error("Export completion was not recorded.");
+      settled = true;
+      deadline.dispose();
+      resolveCompletion(completedMetrics);
+    } catch (error) {
+      await fail(error);
+      throw error;
+    }
+  }
+  const iterator = generate();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      deadline.signal.addEventListener("abort", () => {
+        if (settled) return;
+        controller.error(deadline.signal.reason);
+        void fail(deadline.signal.reason);
+        void iterator.return(undefined).catch(() => undefined);
+      }, { once: true });
+    },
+    async pull(controller) {
+      try {
+        const next = await withinExportDeadline(iterator.next(), deadline.signal);
+        if (next.done) controller.close();
+        else controller.enqueue(next.value);
       } catch (error) {
         controller.error(error);
-        await pool.query(
-          `update data_lifecycle_run set status = 'failed', error_code = 'EXPORT_STREAM_FAILED',
-             completed_at = $2, updated_at = $2 where id = $1`,
-          [runId, new Date()],
-        ).catch(() => undefined);
-        rejectCompletion(error);
       }
     },
-  });
+    async cancel() {
+      deadline.abort(new Error("Export stream canceled."));
+      void iterator.return(undefined).catch(() => undefined);
+      await fail(new Error("Export stream canceled."));
+    },
+  }, { highWaterMark: 0 });
   return { stream, completion, runId };
 }

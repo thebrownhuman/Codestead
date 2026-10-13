@@ -109,7 +109,15 @@ describe("endpoint-wide executable authorization boundary", () => {
     const operations = await protectedOperations("authenticated");
     // Explicit reviewed inventory: additions must update the API matrix and
     // this executable boundary together rather than silently expanding scope.
-    expect(operations).toHaveLength(94);
+    expect(operations).toHaveLength(95);
+    expect(operations).toContainEqual({
+      entry: expect.objectContaining({
+        file: "src/app/api/certificates/[certificateId]/pdf/route.ts",
+        route: "/api/certificates/[certificateId]/pdf",
+        boundary: "authenticated",
+      }),
+      method: "GET",
+    });
 
     for (const { entry, method } of operations) {
       mocks.requireAuth.mockClear();

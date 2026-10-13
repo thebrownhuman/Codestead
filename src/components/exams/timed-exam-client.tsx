@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import {
   AlertCircle,
   ArrowLeft,
@@ -306,7 +308,7 @@ function ExamResultPanel({
         )}
         {appealOpen && (
           <div className={styles.appealForm}>
-            <label><span>Review category</span><select value={category} onChange={(event) => setCategory(event.target.value as typeof category)}><option value="scoring">Scoring</option><option value="technical">Technical incident</option><option value="integrity">Integrity record</option><option value="accessibility">Accessibility</option></select></label>
+            <label><span>Review category</span><Select value={category} onChange={(event) => setCategory(event.target.value as typeof category)}><option value="scoring">Scoring</option><option value="technical">Technical incident</option><option value="integrity">Integrity record</option><option value="accessibility">Accessibility</option></Select></label>
             <label><span>What should the reviewer inspect?</span><textarea value={reason} onChange={(event) => setReason(event.target.value)} maxLength={1_000} /></label>
             <div><button className="button button-primary" disabled={sending} onClick={() => void appeal()}>{sending ? "Submitting…" : "Submit appeal"}</button><button className="button button-ghost" disabled={sending} onClick={() => setAppealOpen(false)}>Cancel</button></div>
           </div>

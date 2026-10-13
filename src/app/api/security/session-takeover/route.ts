@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { createOTP } from "@better-auth/utils/otp";
 import { hashPassword, symmetricDecrypt } from "better-auth/crypto";
 import { and, eq, sql } from "drizzle-orm";
@@ -58,7 +59,9 @@ export async function POST(request: NextRequest) {
   if (!origin.allowed) return NextResponse.json({ error: origin.code }, { status: origin.status, headers: noStore });
 
   return withRateLimit({ policy: "session_takeover_ip", identity: { kind: "ip", value: rateLimitIp(request) } }, async () => {
-    const parsed = bodySchema.safeParse(await request.json().catch(() => null));
+    const jsonBody = await readBoundedJson(request);
+    if (jsonBody.response?.status === 413) return jsonBody.response;
+    const parsed = bodySchema.safeParse(jsonBody.value);
     if (!parsed.success) return fail("Enter your email, password, and the current six-digit authenticator code.", 400);
     const { email, password, code } = parsed.data;
     return withRateLimit({ policy: "session_takeover_email", identity: { kind: "email", value: email } }, async () => {

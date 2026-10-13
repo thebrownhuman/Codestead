@@ -37,9 +37,9 @@ describe("Next request-origin proxy", () => {
     }
   });
 
-  it.each(["GET", "HEAD", "OPTIONS"])("leaves %s requests unaffected", (method) => {
+  it.each(["GET", "HEAD", "OPTIONS"])("leaves %s requests unaffected", async (method) => {
     production(null);
-    const response = proxy(new NextRequest(`${CANONICAL_ORIGIN}/api/privacy/consents`, {
+    const response = await proxy(new NextRequest(`${CANONICAL_ORIGIN}/api/privacy/consents`, {
       method,
       headers: { cookie: "learncoding.session_token=opaque", origin: "https://attacker.invalid" },
     }));
@@ -48,9 +48,9 @@ describe("Next request-origin proxy", () => {
 
   it.each(["/api/access-requests", "/api/auth/sign-in/email"])(
     "keeps the unsafe no-cookie route %s reachable",
-    (route) => {
+    async (route) => {
       production(null);
-      const response = proxy(new NextRequest(`${CANONICAL_ORIGIN}${route}`, {
+      const response = await proxy(new NextRequest(`${CANONICAL_ORIGIN}${route}`, {
         method: "POST",
         headers: { "content-type": "application/json", "sec-fetch-site": "cross-site" },
         body: "{}",
@@ -61,7 +61,7 @@ describe("Next request-origin proxy", () => {
 
   it("rejects the exact hostile sibling text/plain cookie mutation before routing", async () => {
     production();
-    const response = proxy(new NextRequest(`${CANONICAL_ORIGIN}/api/privacy/consents`, {
+    const response = await proxy(new NextRequest(`${CANONICAL_ORIGIN}/api/privacy/consents`, {
       method: "POST",
       headers: {
         cookie: "learncoding.session_token=opaque",
@@ -83,7 +83,7 @@ describe("Next request-origin proxy", () => {
 
   it("returns a no-store 503 when production APP_URL is unavailable", async () => {
     production(null);
-    const response = proxy(new NextRequest(`${CANONICAL_ORIGIN}/api/drafts`, {
+    const response = await proxy(new NextRequest(`${CANONICAL_ORIGIN}/api/drafts`, {
       method: "PUT",
       headers: { cookie: "learncoding.session_token=opaque", origin: CANONICAL_ORIGIN },
       body: "{}",
@@ -94,9 +94,9 @@ describe("Next request-origin proxy", () => {
     await expect(response.json()).resolves.toEqual({ error: "CANONICAL_ORIGIN_UNAVAILABLE" });
   });
 
-  it("uses only literal Origin authority, never the request URL or forwarding headers", () => {
+  it("uses only literal Origin authority, never the request URL or forwarding headers", async () => {
     production();
-    const response = proxy(new NextRequest("https://attacker.invalid/api/drafts", {
+    const response = await proxy(new NextRequest("https://attacker.invalid/api/drafts", {
       method: "PUT",
       headers: {
         cookie: "learncoding.session_token=opaque",

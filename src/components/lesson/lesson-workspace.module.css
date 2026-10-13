@@ -110,10 +110,10 @@
 .codeLab, .visualizer, .game { min-width: 0; max-width: 100%; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: var(--surface-solid); box-shadow: var(--shadow-small); }
 .codeLanguageSelector { display: flex; min-height: 62px; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 9px 12px; border-bottom: 1px solid var(--line); background: color-mix(in srgb,var(--brand) 4%,var(--surface-solid)); }
 .codeLanguageSelector label { display: flex; min-width: 0; align-items: center; flex-wrap: wrap; gap: 9px; color: var(--ink); font-size: .875rem; font-weight: 800; }
-.codeLanguageSelector select { min-width: 150px; max-width: 100%; min-height: 45px; padding: 8px 34px 8px 11px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--surface); font-family: inherit; font-size: 1rem; cursor: pointer; }
-.codeLanguageSelector select:disabled { cursor: not-allowed; opacity: .55; }
+.codeLanguageSelector select, .codeLanguageSelector [role="combobox"] { min-width: 150px; max-width: 100%; min-height: 45px; padding: 8px 34px 8px 11px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--surface); font-family: inherit; font-size: 1rem; cursor: pointer; }
+.codeLanguageSelector select:disabled, .codeLanguageSelector [role="combobox"]:disabled { cursor: not-allowed; opacity: .55; }
 .codeLanguageSelector small { color: var(--ink-soft); font-size: var(--text-xs,.75rem); }
-.codeLanguageSelector select:focus-visible { outline: 3px solid color-mix(in srgb,var(--brand) 42%,transparent); outline-offset: 2px; }
+.codeLanguageSelector select:focus-visible, .codeLanguageSelector [role="combobox"]:focus-visible { outline: 3px solid color-mix(in srgb,var(--brand) 42%,transparent); outline-offset: 2px; }
 .codeToolbar, .visualTop { display: flex; min-height: 48px; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--line); }
 .codeToolbar > span, .visualTop > span { display: flex; min-width: 0; align-items: center; gap: 6px; font-size: .8rem; font-weight: 800; line-height: 1.35; }
 .codeToolbar div, .visualTop div { display: flex; gap: 6px; }
@@ -124,6 +124,7 @@
 .codeToolbar button:disabled { cursor: not-allowed; opacity: .55; }
 .draftSync { display: flex; min-height: 48px; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--brand) 4%, var(--surface-solid)); }
 .draftSync > span { display: grid; gap: 2px; }
+.draftSync[data-draft-status="synced"] { min-height: 28px; padding-block: 4px; }
 .draftSync strong { color: var(--ink); font-size: .68rem; text-transform: capitalize; }
 .draftSync small { color: var(--ink-soft); font-size: .75rem; }
 .draftSync > div { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -137,7 +138,7 @@
 .editorFallback textarea { width: 100%; min-height: 0; padding: 14px; border: 0; outline: 0; color: #d8e4d8; background: #141a15; font: 14px/1.55 var(--font-mono); resize: none; }
 .editorFallback textarea:read-only { cursor: wait; opacity: .72; }
 .editorFallback textarea:focus-visible { box-shadow: inset 0 0 0 3px color-mix(in srgb,var(--brand) 70%,transparent); }
-.stdinPanel { display: grid; grid-template-columns: minmax(180px,.65fr) minmax(260px,1.35fr) auto; align-items: center; gap: 12px; padding: 10px 12px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: color-mix(in srgb,var(--brand) 3%,var(--surface-solid)); }
+.stdinPanel { display: grid; grid-template-columns: minmax(0,1fr); align-items: center; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--line); background: color-mix(in srgb,var(--brand) 3%,var(--surface-solid)); }
 .stdinPanel label { display: grid; gap: 2px; min-width: 0; }
 .stdinPanel label > span { color: var(--ink); font-size: .76rem; font-weight: 800; }
 .stdinPanel label i { color: var(--ink-soft); font-family: var(--font-mono); font-size: .68rem; font-style: normal; font-weight: 600; }
@@ -303,7 +304,7 @@
 
 @media (max-width: 640px) { .workspace { margin: 0 -20px; } }
 @media (max-width: 720px) { .stdinPanel { grid-template-columns: 1fr; align-items: stretch; } .stdinPanel label > span, .codeLanguageSelector label { font-size: 1rem; } .stdinPanel > small { text-align: left; } }
-@media (max-width: 520px) { .codeLanguageSelector,.codeToolbar,.draftSync { align-items: stretch; flex-direction: column; } .codeLanguageSelector label { align-items: stretch; flex-direction: column; } .codeLanguageSelector select { width: 100%; } .codeToolbar > div, .draftSync > div { width: 100%; } .codeToolbar button { flex: 1; justify-content: center; } .console > span { min-height: 44px; } .runFeedback { padding: 12px 10px; } .runFeedback button { width: 100%; } }
+@media (max-width: 520px) { .codeLanguageSelector,.codeToolbar,.draftSync { align-items: stretch; flex-direction: column; } .codeLanguageSelector label { align-items: stretch; flex-direction: column; } .codeLanguageSelector select, .codeLanguageSelector [role="combobox"] { width: 100%; } .codeToolbar > div, .draftSync > div { width: 100%; } .codeToolbar button { flex: 1; justify-content: center; } .console > span { min-height: 44px; } .runFeedback { padding: 12px 10px; } .runFeedback button { width: 100%; } }
 @media (max-width: 520px) { .resetBackdrop { padding: 12px; } .resetDialog { grid-template-columns: 1fr; padding: 20px; } .resetDialogActions { grid-column: 1; flex-direction: column-reverse; } .resetDialogActions button { width: 100%; } }
 @media (max-width: 800px) { .workspace { margin: 0 -20px; } .header { grid-template-columns: 1fr auto; } .lessonTitle { text-align: left; } .headerProgress, .header > a { display: none; } .body { grid-template-columns: 1fr; } .outline { display: none; } .content { width: min(100% - 20px,940px); padding-bottom: 24px; } .modeTabs { overflow-x: auto; } .modeTabs button { white-space: nowrap; } .exampleGrid, .scopeGrid, .authoredExamples, .practiceGrid { grid-template-columns: 1fr; } }
 @media (max-width: 640px) { .workspace { margin: -22px 0; } }

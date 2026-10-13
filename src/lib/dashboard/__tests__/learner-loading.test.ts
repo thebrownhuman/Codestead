@@ -2,14 +2,14 @@ import { getTableName } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ select: vi.fn(), recommendNext: vi.fn(), initializePlans: vi.fn(), rewards: vi.fn(), listCourses: vi.fn(), getSkillLocation: vi.fn() }));
-vi.mock("@/lib/db/client", () => ({ db: { select: mocks.select } }));
+const mocks = vi.hoisted(() => ({ select: vi.fn(), selectDistinctOn: vi.fn(), execute: vi.fn(), recommendNext: vi.fn(), initializePlans: vi.fn(), rewards: vi.fn(), listCourses: vi.fn(), getSkillLocation: vi.fn() }));
+vi.mock("@/lib/db/client", () => ({ db: { select: mocks.select, selectDistinctOn: mocks.selectDistinctOn, execute: mocks.execute } }));
 vi.mock("@/lib/learning-service/runtime", () => ({ learningService: mocks }));
 vi.mock("@/lib/rewards/service", () => ({ loadRewardProgress: mocks.rewards }));
 vi.mock("@/lib/content", () => ({ createContentRepository: () => mocks }));
 import * as schema from "@/lib/db/schema";
 import { LESSON_COMPLETION_AUTHORITY } from "@/lib/learning-service/types";
-import { createUnavailableDashboardData, ensureLearnerRoadmapInitialized, loadAuthoritativeDashboard } from "../learner";
+import { createUnavailableDashboardData, deriveActivityProjection, ensureLearnerRoadmapInitialized, loadAuthoritativeDashboard } from "../learner";
 
 const now = new Date("2026-10-01T12:00:00Z");
 const lessonId = "11111111-1111-4111-8111-111111111111";
@@ -34,9 +34,29 @@ beforeEach(() => {
     };
     return query;
   });
+  mocks.selectDistinctOn.mockImplementation((_columns, fields) => mocks.select(fields));
+  mocks.execute.mockImplementation(() => {
+    const events = (rows.get(getTableName(schema.sessionEvent)) ?? []) as Array<{ type: string; occurredAt: Date; subjectType: string | null; subjectId: string | null; metadata: Record<string, unknown> }>;
+    const attempts = (rows.get(getTableName(schema.attempt)) ?? []) as Array<{ id: string; occurredAt: Date | null }>;
+    const lessons = (rows.get(getTableName(schema.lesson)) ?? []) as Array<{ id: string }>;
+    return Promise.resolve({ rows: [deriveActivityProjection([
+      ...events.map((row) => ({ ...row, authoritative: row.metadata.authority === LESSON_COMPLETION_AUTHORITY })),
+      ...attempts.flatMap((row) => row.occurredAt ? [{ type: "attempt_submitted", occurredAt: row.occurredAt, subjectType: "attempt", subjectId: row.id, authoritative: true }] : []),
+    ], now, new Set(lessons.map((row) => row.id)), "UTC")] });
+  });
 });
 
 describe("authoritative dashboard loading", () => {
+  it("loads one SQL activity summary and latest plans without loading event/attempt history", async () => {
+    seed(schema.enrollment, [{ enrollmentId: "e1", courseId: "python", courseTitle: "Python", contentVersion: "1.0.0", stage: "verified", status: "active", startedAt: now, createdAt: now }]);
+    const result = await loadAuthoritativeDashboard("owner", "Ada", now);
+    expect(result.degraded).toBe(false);
+    expect(mocks.execute).toHaveBeenCalledTimes(1);
+    expect(mocks.selectDistinctOn).toHaveBeenCalledWith([schema.planRevision.enrollmentId], expect.any(Object));
+    expect(filters.map((filter) => filter.table)).not.toContain(getTableName(schema.sessionEvent));
+    expect(filters.map((filter) => filter.table)).not.toContain(getTableName(schema.attempt));
+    expect(filters.map((filter) => filter.table)).not.toContain(getTableName(schema.lesson));
+  });
   it("hydrates verified mastery, deduplicated lessons, reviews and the newest plan revision", async () => {
     seed(schema.conceptMastery, [
       { enrollmentId: "e1", conceptId: "loops", skillId: "loops", title: "Loops", score: 1, confidence: 0.9, status: "mastered", lastEvidenceAt: now },
@@ -72,8 +92,7 @@ describe("authoritative dashboard loading", () => {
     expect(result.reviews.map((review) => review.confidence)).toEqual([60, 0]);
     expect(result.roadmap).toMatchObject({ state: "ready", selectedTrackIds: ["python", "missing"] });
     expect(mocks.rewards).toHaveBeenCalledWith("owner", now);
-    const eventFilter = filters.find((filter) => filter.table === getTableName(schema.sessionEvent))!;
-    expect(new PgDialect().sqlToQuery(eventFilter.filter).params).toContain("owner");
+    expect(new PgDialect().sqlToQuery(mocks.execute.mock.calls[0][0]).params).toContain("owner");
   });
 
   it("returns empty verified projections and an initialization prompt for a new published track", async () => {

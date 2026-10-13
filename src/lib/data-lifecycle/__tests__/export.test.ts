@@ -2,7 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ query: vi.fn() }));
 
-vi.mock("@/lib/db/client", () => ({ pool: { query: mocks.query } }));
+vi.mock("@/lib/db/client", () => ({ pool: { query: mocks.query, connect: async () => ({
+  query: (statement: string | { text: string }, values: unknown[]) => {
+    const text = typeof statement === "string" ? statement : statement.text;
+    if (/^(begin|commit|rollback)\b/.test(text)) return Promise.resolve({ rows: [] });
+    return mocks.query(text, values);
+  },
+  release: () => undefined,
+}) } }));
 
 import {
   createLearnerExport,
@@ -188,7 +195,7 @@ describe("bounded safe export contract", () => {
     expect(battleSubmissionCalls).toHaveLength(1);
     expect(battleSubmissionCalls[0]?.statement).toContain("battle.reveal_at <= $4::timestamptz");
     expect(battleSubmissionCalls[0]?.statement).not.toContain("now()");
-    expect(battleSubmissionCalls[0]?.parameters).toEqual(["learner-1", 11, 0, snapshot]);
+    expect(battleSubmissionCalls[0]?.parameters).toEqual(["learner-1", 10, null, snapshot]);
   });
 
   it("exports explicit smart-reminder choices and owner-bound dispatch evidence", async () => {

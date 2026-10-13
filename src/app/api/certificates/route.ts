@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -29,7 +30,9 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const authz = await requireAuth();
   if (!authz.session) return authz.response;
-  const parsed = issueSchema.safeParse(await request.json().catch(() => null));
+  const jsonBody = await readBoundedJson(request);
+  if (jsonBody.response?.status === 413) return jsonBody.response;
+  const parsed = issueSchema.safeParse(jsonBody.value);
   if (!parsed.success) return NextResponse.json({ error: "INVALID_REQUEST" }, { status: 400, headers: noStore });
   return withRateLimit(
     { policy: "certificate_issue_user", identity: { kind: "user", value: authz.session.user.id } },

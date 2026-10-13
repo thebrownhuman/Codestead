@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -48,7 +49,9 @@ export async function POST(
     },
     async () => {
       const parsedParams = paramsSchema.safeParse(await params);
-      const body = bodySchema.safeParse(await request.json().catch(() => null));
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return jsonBody.response;
+      const body = bodySchema.safeParse(jsonBody.value);
       if (!parsedParams.success || !body.success) {
         return NextResponse.json(
           { error: "Give a concise reason for this stored project-review appeal.", code: "INVALID_APPEAL" },

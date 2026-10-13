@@ -1,3 +1,4 @@
+import { readBoundedJson } from "@/lib/http/bounded-json";
 import { and, eq, notInArray } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -32,8 +33,10 @@ export async function POST(
   if (!origin.allowed) return NextResponse.json({ error: origin.code }, { status: origin.status });
   const { id } = await context.params;
   if (!z.uuid().safeParse(id).success) return NextResponse.json({ error: "Invalid request identifier." }, { status: 400 });
-  const raw = await request.json().catch(() => null);
-  if (raw?.decision === "fixed") {
+  const jsonBody = await readBoundedJson(request);
+  if (jsonBody.response?.status === 413) return jsonBody.response;
+  const raw = jsonBody.value;
+  if (raw && typeof raw === "object" && "decision" in raw && raw.decision === "fixed") {
     const fixed = fixedSchema.safeParse(raw);
     if (!fixed.success) return NextResponse.json({ error: "Provide an optional reply up to 500 characters without credentials." }, { status: 400 });
     try {
