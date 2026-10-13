@@ -49,13 +49,16 @@ describe("API authorization and IDOR contract matrix", () => {
     const learnerRows = report.rows.filter((row) => row.boundary === "authenticated");
     const selfRows = learnerRows.filter((row) => row.objectAuthorization === "session-user");
 
-    expect(selfRows).toHaveLength(89);
-    expect(report.identifierOwnershipContracts).toBe(37);
+    expect(selfRows).toHaveLength(92);
+    expect(report.identifierOwnershipContracts).toBe(39);
     expect(selfRows.find((row) => row.operation === "GET /api/certificates/[certificateId]/pdf")).toMatchObject({
       objectAuthorization: "session-user",
       ownershipProof: "identifier bound by loadOwnCertificate((await params).certificateId, authz.session!.user.id)",
     });
-    expect(report.supportingOwnershipProofs).toHaveLength(19);
+    expect(report.supportingOwnershipProofs).toHaveLength(21);
+    for (const operation of ["POST /api/code/interactive", "DELETE /api/code/interactive/[sessionId]", "GET /api/code/interactive/[sessionId]/authorize"]) {
+      expect(selfRows.find(row => row.operation === operation)).toMatchObject({ objectAuthorization: "session-user", anonymous: "authenticated" });
+    }
     expect(report.supportingOwnershipProofs.every((proof) => proof.anchors > 0)).toBe(true);
     expect(report.supportingOwnershipProofs.every((proof) => /^[0-9a-f]{64}$/.test(proof.sourceSha256))).toBe(true);
     expect(selfRows.every((row) => row.ownershipProof.length > 20)).toBe(true);

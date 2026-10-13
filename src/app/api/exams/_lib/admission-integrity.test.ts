@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 
 import { BLUEPRINT_RESPONSE_KEY } from "@/app/api/exams/_lib/contracts";
 
@@ -28,7 +30,10 @@ const mocks = vi.hoisted(() => ({
   buildEquivalentExamForm: vi.fn(),
   buildTargetedMasteryRecheckForm: vi.fn(),
   verifyEquivalentFormParity: vi.fn(),
+  cancelInteractive: vi.fn(),
 }));
+
+vi.mock("@/lib/runner/interactive-control", () => ({ cancelInteractiveForExam: mocks.cancelInteractive }));
 
 vi.mock("@/lib/db/client", async () => {
   const { getTableName, is, Table } = await import("drizzle-orm");
@@ -75,7 +80,7 @@ vi.mock("@/lib/db/client", async () => {
     insert: (table: unknown) => chain({ kind: "insert", table: tableName(table) }),
     update: (table: unknown) => chain({ kind: "update", table: tableName(table) }),
     delete: (table: unknown) => chain({ kind: "delete", table: tableName(table) }),
-    execute: () => chain({ kind: "execute", table: null }),
+    execute: (statement: unknown) => chain({ kind: "execute", table: null, values: statement }),
   };
   
   
@@ -160,6 +165,14 @@ beforeEach(() => {
   state.operations.length = 0;
   state.route = () => [];
   vi.clearAllMocks();
+  mocks.cancelInteractive.mockImplementation(async (actor: string) => {
+    expect(actor).toBe(userId);
+    expect(anyWrites()).toEqual([]);
+    const latest = state.operations.filter(operation => operation.kind === "execute").at(-1);
+    const query = new PgDialect().sqlToQuery(latest!.values as SQL);
+    expect(query.sql).toContain("pg_advisory_xact_lock");
+    expect(query.params).toEqual([`user-authority:${userId}`]);
+  });
   mocks.createContentRepository.mockReturnValue(filesystemRepository());
   mocks.listPublishedExamCourses.mockResolvedValue([]);
   mocks.listPointerSelectedCourseSlugs.mockResolvedValue(new Set());
@@ -364,6 +377,15 @@ describe("N03: formal attempts bind the learner's enrollment for the assessed ve
     const enrollmentRead = state.operations.find((operation) =>
       operation.kind === "select" && operation.table === "enrollment");
     expect(enrollmentRead?.locked).toBe(true);
+    expect(mocks.cancelInteractive).toHaveBeenCalledOnce();
+  });
+
+  it("does not create an exam if interactive cleanup cannot be confirmed", async () => {
+    state.route = publishedAdmissionRoute([{ id: enrollmentId }]);
+    mocks.cancelInteractive.mockRejectedValueOnce(new Error("CANCELLATION_UNCONFIRMED"));
+    await expect(startExam(userId, { moduleId, integrityDisclosureAccepted: true, readinessAcknowledged: true, device }, now))
+      .rejects.toMatchObject({ status: 503, code: "INTERACTIVE_CANCELLATION_REQUIRED" });
+    expect(anyWrites()).toEqual([]);
   });
 
   it("leaves the attempt unbound when the learner has no enrollment for that version", async () => {
@@ -416,5 +438,6 @@ describe("N03: formal attempts bind the learner's enrollment for the assessed ve
       moduleId, integrityDisclosureAccepted: true, readinessAcknowledged: true, device,
     }, now)).rejects.toMatchObject({ code: "EXAM_NOT_FOUND" });
     expect(writes("attempt")[0]?.values).toMatchObject({ kind: "mastery_check", enrollmentId });
+    expect(mocks.cancelInteractive).toHaveBeenCalledOnce();
   });
 });

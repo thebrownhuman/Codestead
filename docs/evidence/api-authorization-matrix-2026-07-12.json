@@ -1,24 +1,36 @@
 {
   "schemaVersion": 1,
-  "files": 130,
-  "operations": 168,
-  "matrixRows": 168,
+  "files": 133,
+  "operations": 171,
+  "matrixRows": 171,
   "boundaryCounts": {
     "public": 6,
     "auth-handler": 2,
-    "authenticated": 95,
+    "authenticated": 98,
     "admin": 65
   },
   "objectAuthorizationCounts": {
     "public-input": 6,
     "administrator-scope": 65,
-    "session-user": 89,
+    "session-user": 92,
     "auth-provider": 2,
     "no-user-object": 4,
     "consent-projected-cohort": 2
   },
-  "identifierOwnershipContracts": 37,
+  "identifierOwnershipContracts": 39,
   "supportingOwnershipProofs": [
+    {
+      "file": "src/lib/runner/interactive-control.ts",
+      "purpose": "owner-bound durable login, account/MFA, consent and closed-book revalidation under shared exam authority",
+      "anchors": 6,
+      "sourceSha256": "397dda4e3389f551955474e3da951cb6e68370fb4781a223681a204155b178f0"
+    },
+    {
+      "file": "services/interactive-runner/server.mjs",
+      "purpose": "single-use grant and durable-login owner binding with independent admission and fail-closed cleanup",
+      "anchors": 11,
+      "sourceSha256": "a0be4cb1cc7b016a64e2bcb38d27cbd934460e2bdda8b291cafd91f5ad09a9cf"
+    },
     {
       "file": "src/lib/learning-requests/support-service.ts",
       "purpose": "session-owned support receipts and open-request dedupe",
@@ -41,7 +53,7 @@
       "file": "src/app/api/exams/_lib/service.ts",
       "purpose": "exam sessions and answers",
       "anchors": 4,
-      "sourceSha256": "d0bae20cb71fd44c5fd23dcb93adb92b1f477dabf260614f83c48df1c2f84b08"
+      "sourceSha256": "39c485ec06b3437d80e7275f16ad2f10caca329f875997fcc9b35553e07e0045"
     },
     {
       "file": "src/lib/learning-service/drizzle-store.ts",
@@ -1190,6 +1202,45 @@
       "operationSourceSha256": "1dbd583a2275bedc3d54426d40a303e7a85029994cf5a8dfcb84bc21b1585b2d"
     },
     {
+      "operation": "GET /api/code/interactive/[sessionId]/authorize",
+      "file": "src/app/api/code/interactive/[sessionId]/authorize/route.ts",
+      "route": "/api/code/interactive/[sessionId]/authorize",
+      "method": "GET",
+      "boundary": "authenticated",
+      "anonymous": "authenticated",
+      "learner": "allowed",
+      "admin": "allowed",
+      "objectAuthorization": "session-user",
+      "ownershipProof": "identifier bound by proof.userId !== authz.session.user.id",
+      "operationSourceSha256": "f7189179a688c56e11b614959cf08f2c441aba6044a59f12096743d5530e522d"
+    },
+    {
+      "operation": "DELETE /api/code/interactive/[sessionId]",
+      "file": "src/app/api/code/interactive/[sessionId]/route.ts",
+      "route": "/api/code/interactive/[sessionId]",
+      "method": "DELETE",
+      "boundary": "authenticated",
+      "anonymous": "authenticated",
+      "learner": "allowed",
+      "admin": "allowed",
+      "objectAuthorization": "session-user",
+      "ownershipProof": "identifier bound by sessionId, userId: authz.session.user.id, authSessionId: authz.session.session.id",
+      "operationSourceSha256": "903e7d25017e0eef283edaefe9712c2209df6e98db281a840ac3b6498a9229ba"
+    },
+    {
+      "operation": "POST /api/code/interactive",
+      "file": "src/app/api/code/interactive/route.ts",
+      "route": "/api/code/interactive",
+      "method": "POST",
+      "boundary": "authenticated",
+      "anonymous": "authenticated",
+      "learner": "allowed",
+      "admin": "allowed",
+      "objectAuthorization": "session-user",
+      "ownershipProof": "all user context is derived from authz.session.user.id",
+      "operationSourceSha256": "89c0ced78e5e3dfd39ea9e8901041a41f3413265c91e02f84d21fddcc3c7a6ec"
+    },
+    {
       "operation": "GET /api/code/run",
       "file": "src/app/api/code/run/route.ts",
       "route": "/api/code/run",
@@ -2327,7 +2378,7 @@
     "guardDecisionTest": "src/lib/http/__tests__/authz.test.ts",
     "representativeObjectAuthorizationTest": "integration/runtime-authorization.integration.test.ts",
     "protectedOperationInvocations": {
-      "anonymousAuthenticated": 95,
+      "anonymousAuthenticated": 98,
       "anonymousAdmin": 65,
       "learnerAdmin": 65
     },

@@ -57,6 +57,7 @@ import {
 import { configuredExamRunnerClient } from "@/lib/runner/exam-client";
 import { publishedExamPinRevision, retainEquivalentExamRuntimePins } from "@/lib/exams/piston-publication-pins";
 import { lockUserAuthority } from "@/lib/security/user-authority-lock";
+import { cancelInteractiveForExam } from "@/lib/runner/interactive-control";
 
 import {
   examFinalizationRunnerSeed,
@@ -149,6 +150,14 @@ export class ExamServiceError extends Error {
   ) {
     super(message);
     this.name = "ExamServiceError";
+  }
+}
+
+async function cancelPracticeBeforeExam(userId: string) {
+  try { await cancelInteractiveForExam(userId); }
+  catch {
+    throw new ExamServiceError("The practice terminal could not be stopped safely. Retry before starting the exam.",
+      503, "INTERACTIVE_CANCELLATION_REQUIRED");
   }
 }
 
@@ -676,6 +685,8 @@ export async function startExam(
   let createdSessionId = "";
   const admit = () => db.transaction(async (tx) => {
     await tx.execute(sql`set transaction isolation level serializable`);
+    await lockUserAuthority(tx, userId);
+    await cancelPracticeBeforeExam(userId);
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`exam:${userId}:${input.moduleId}`}))`);
     const existing = await tx
       .select({ sessionId: examSession.id, answer: examResponse.answer })
@@ -998,6 +1009,8 @@ export async function startMasteryRecheck(
   let createdSessionId = "";
   await db.transaction(async (tx) => {
     await tx.execute(sql`set transaction isolation level serializable`);
+    await lockUserAuthority(tx, userId);
+    await cancelPracticeBeforeExam(userId);
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`exam-recheck:${userId}:${recheckId}`}))`);
     const [locked] = await tx
       .select()

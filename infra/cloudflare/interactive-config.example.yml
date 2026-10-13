@@ -1,0 +1,16 @@
+# Optional owner-applied example. Same hostname/origin; socket path only.
+tunnel: 00000000-0000-0000-0000-000000000000
+credentials-file: /run/secrets/cloudflare_tunnel_credentials
+originRequest:
+  connectTimeout: 10s
+  tcpKeepAlive: 30s
+  noHappyEyeballs: false
+ingress:
+  - hostname: learn.example.com
+    path: ^/api/code/interactive/[a-f0-9-]{36}/socket$
+    service: http://interactive-runner:3100
+    originRequest: { httpHostHeader: learn.example.com }
+  - hostname: learn.example.com
+    service: http://app:3000
+    originRequest: { httpHostHeader: learn.example.com }
+  - service: http_status:404

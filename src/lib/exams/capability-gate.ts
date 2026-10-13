@@ -32,9 +32,10 @@ export type ExamCapabilityDecision =
 export async function gateClosedBookCapability(
   userId: string,
   capability: ClosedBookCapability,
+  database: Pick<typeof db, "select" | "insert"> = db,
 ): Promise<ExamCapabilityDecision> {
   try {
-    const [active] = await db
+    const [active] = await database
       .select({ id: examSession.id, status: examSession.status })
       .from(examSession)
       .where(and(
@@ -47,7 +48,7 @@ export async function gateClosedBookCapability(
     // This preserves useful evidence without making the evidence table an
     // authenticated write-amplification target before route rate limits run.
     const minuteBucket = Math.floor(Date.now() / 60_000);
-    await db
+    await database
       .insert(examEvent)
       .values({
         examSessionId: active.id,

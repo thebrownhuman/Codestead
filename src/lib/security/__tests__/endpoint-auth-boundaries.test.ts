@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { auditApiSurface } from "../api-surface";
 
@@ -93,7 +93,9 @@ async function invoke(file: string, route: string, method: string) {
 }
 
 describe("endpoint-wide executable authorization boundary", () => {
+  afterEach(() => { vi.unstubAllEnvs(); });
   beforeEach(() => {
+    vi.stubEnv("INTERACTIVE_RUNNER_ENABLED", "true");
     vi.clearAllMocks();
     mocks.requireAuth.mockResolvedValue({
       session: null,
@@ -109,7 +111,14 @@ describe("endpoint-wide executable authorization boundary", () => {
     const operations = await protectedOperations("authenticated");
     // Explicit reviewed inventory: additions must update the API matrix and
     // this executable boundary together rather than silently expanding scope.
-    expect(operations).toHaveLength(95);
+    expect(operations).toHaveLength(98);
+    for (const [route, method] of [
+      ["/api/code/interactive", "POST"],
+      ["/api/code/interactive/[sessionId]", "DELETE"],
+      ["/api/code/interactive/[sessionId]/authorize", "GET"],
+    ]) {
+      expect(operations).toContainEqual({ entry: expect.objectContaining({ route, boundary: "authenticated" }), method });
+    }
     expect(operations).toContainEqual({
       entry: expect.objectContaining({
         file: "src/app/api/certificates/[certificateId]/pdf/route.ts",

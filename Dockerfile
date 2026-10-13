@@ -54,6 +54,17 @@ FROM base AS source
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 
+# Optional standalone upgrade broker. It shares no grading process/slot pool.
+FROM final-base AS interactive-runner
+ENV NODE_ENV=production
+COPY --from=production-dependencies --chown=node:node /app/node_modules/ws ./node_modules/ws
+COPY --chown=node:node services/interactive-runner/server.mjs ./services/interactive-runner/server.mjs
+COPY --chown=node:node src/lib/runner/interactive-protocol.mjs ./src/lib/runner/interactive-protocol.mjs
+COPY --chown=node:node infra/piston/image-inputs.lock.json ./infra/piston/image-inputs.lock.json
+USER node
+EXPOSE 3100
+CMD ["node", "/app/services/interactive-runner/server.mjs"]
+
 FROM source AS builder
 ENV NODE_ENV=production
 RUN mkdir -p public && npm run content:validate

@@ -1,0 +1,39 @@
+# Optional PR 1b addon: merge explicitly with compose.yaml and the Piston addon.
+# The owner supplies immutable locally built image refs and the secret file.
+services:
+  app:
+    environment:
+      INTERACTIVE_RUNNER_ENABLED: ${INTERACTIVE_RUNNER_ENABLED:-false}
+      INTERACTIVE_BROKER_URL: http://interactive-runner:3100
+      INTERACTIVE_BROKER_SECRET_FILE: /run/secrets/interactive_broker_secret
+    secrets:
+      - interactive_broker_secret
+  interactive-runner:
+    profiles: ["piston-interactive"]
+    platform: linux/amd64
+    image: ${INTERACTIVE_RUNNER_IMAGE:?Set the reviewed locally-built broker image digest}
+    pull_policy: never
+    restart: unless-stopped
+    stop_grace_period: 15s
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    networks: ["frontend", "piston-interactive"]
+    environment:
+      NODE_ENV: production
+      APP_URL: ${APP_URL:?Set the canonical HTTPS application origin}
+      INTERACTIVE_RUNNER_ENABLED: ${INTERACTIVE_RUNNER_ENABLED:-false}
+      INTERACTIVE_BROKER_SECRET_FILE: /run/secrets/interactive_broker_secret
+    secrets:
+      - interactive_broker_secret
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=8m
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 64
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+secrets:
+  interactive_broker_secret:
+    file: ${INTERACTIVE_BROKER_SECRET_PATH:?Set the owner-provisioned broker secret file path}

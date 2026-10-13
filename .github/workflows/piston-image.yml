@@ -8,6 +8,10 @@ on:
       - infra/piston-interactive/**
       - compose.piston-interactive.yaml
       - src/lib/runner/**
+      - services/interactive-runner/**
+      - src/app/api/code/interactive/**
+      - package.json
+      - package-lock.json
   push:
     branches: [main]
     paths:
@@ -16,6 +20,10 @@ on:
       - infra/piston-interactive/**
       - compose.piston-interactive.yaml
       - src/lib/runner/**
+      - services/interactive-runner/**
+      - src/app/api/code/interactive/**
+      - package.json
+      - package-lock.json
   workflow_dispatch:
 
 permissions:
@@ -80,6 +88,10 @@ jobs:
         run: |
           node infra/piston-interactive/test-image.mjs codestead-piston-interactive:ci > interactive-live.log 2>&1 || { tail -n 120 interactive-live.log; exit 1; }
           rm interactive-live.log
+      - name: Verify broker against real interactive and independent batch images
+        run: |
+          node --import tsx services/interactive-runner/test-image.mjs codestead-piston-interactive:ci codestead-piston:ci > broker-live.log 2>&1 || { tail -n 100 broker-live.log; exit 1; }
+          rm broker-live.log
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: piston-image-runtime-handoff

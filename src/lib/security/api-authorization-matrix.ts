@@ -79,6 +79,9 @@ const SESSION_USER_OPERATIONS = new Set([
   "GET /api/battles/[battleId]",
   "POST /api/battles/[battleId]",
   "POST /api/code/run",
+  "POST /api/code/interactive",
+  "DELETE /api/code/interactive/[sessionId]",
+  "GET /api/code/interactive/[sessionId]/authorize",
   "GET /api/career",
   "GET /api/certificates",
   "POST /api/certificates",
@@ -165,6 +168,8 @@ const SESSION_USER_OPERATIONS = new Set([
  * service whose first/input user id is session-derived.
  */
 const IDENTIFIER_OWNERSHIP_ANCHORS = new Map<string, string>([
+  ["DELETE /api/code/interactive/[sessionId]", "sessionId, userId: authz.session.user.id, authSessionId: authz.session.session.id"],
+  ["GET /api/code/interactive/[sessionId]/authorize", "proof.userId !== authz.session.user.id"],
   ["POST /api/ai/reports", "eq(modelCall.userId, authz.session.user.id)"],
   ["POST /api/ai/tutor", "eq(chatThread.userId, authz.session.user.id)"],
   ["GET /api/battles/[battleId]", "getBattle({ actorUserId: authz.session!.user.id, battleId })"],
@@ -205,6 +210,35 @@ const IDENTIFIER_OWNERSHIP_ANCHORS = new Map<string, string>([
 ]);
 
 const SUPPORTING_OWNER_CONTRACTS = [
+  {
+    file: "src/lib/runner/interactive-control.ts",
+    purpose: "owner-bound durable login, account/MFA, consent and closed-book revalidation under shared exam authority",
+    anchors: [
+      "await lockUserAuthority(tx, userId)",
+      "eq(session.id, authSessionId), eq(session.userId, userId)",
+      "current.revokedAt !== null",
+      "set transaction isolation level read committed",
+      "gateClosedBookCapability(userId, \"general_code_runner\", tx)",
+      "getCurrentConsentsFrom(tx, userId)",
+    ],
+  },
+  {
+    file: "services/interactive-runner/server.mjs",
+    purpose: "single-use grant and durable-login owner binding with independent admission and fail-closed cleanup",
+    anchors: [
+      "entry.userId !== payload.userId || entry.authSessionId !== payload.authSessionId",
+      "entry.state !== 'pending'",
+      "sameOrigin(request.headers, canonical)",
+      "entry.state = 'claimed'",
+      "entry.grantHash = undefined",
+      "await cancel(entry, 'EXAM_STARTED')",
+      "verifyEnvelope(secret, 'control', request.headers['x-interactive-proof'], now())",
+      "proof.bodyHash !== bodyHash(body)",
+      "nonces.has(proof.nonce)",
+      "await authorize(entry, entry.cookie, 'activate')",
+      "entry.state !== 'authorized'",
+    ],
+  },
   {
     file: "src/lib/learning-requests/support-service.ts",
     purpose: "session-owned support receipts and open-request dedupe",

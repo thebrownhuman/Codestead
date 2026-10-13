@@ -135,6 +135,8 @@ jobs:
       - run: if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then node --test scripts/ci/gitleaks.test.mjs; fi
       - run: if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then GITLEAKS_BASE_SHA="$(node -p 'require(process.env.GITHUB_EVENT_PATH).pull_request.base.sha')" GITLEAKS_HEAD_SHA="$(node -p 'require(process.env.GITHUB_EVENT_PATH).pull_request.head.sha')" bash scripts/ci/scan-gitleaks.sh; fi
       - run: npm ci
+      - name: Interactive runner transport and admission contracts
+        run: npm run test:interactive-runner > interactive-contracts.log 2>&1 || { tail -n 100 interactive-contracts.log; exit 1; }
       - run: node infra/tests/backup-ci-registration.test.mjs
       - run: npm run test:github-runner-context:registration
       - run: npm run test:mail-guarded-delivery-0069:release-rollback
