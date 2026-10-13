@@ -52,7 +52,9 @@ export function AdminDataLifecycleControls({ learnerId }: { readonly learnerId: 
         const body = (await response.json()) as { error?: string };
         throw new Error(body.error ?? "The export could not be created.");
       }
-      const blob = await response.blob();
+      const blob = await response.blob().catch(() => {
+        throw new Error("The export failed or exceeded its deadline. No file was saved. Please retry.");
+      });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;

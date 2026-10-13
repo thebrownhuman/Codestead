@@ -680,7 +680,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "5420793618325f41121fc0d823f29b2bc3536da89cc0a1d9e84a2336852f960a"
+      "operationSourceSha256": "2b7ac951427086f5a14fb3bc4d5f3b1aae952c235982a1dd30e80243b5abdf8a"
     },
     {
       "operation": "POST /api/admin/learners/[learnerId]/delete-account",

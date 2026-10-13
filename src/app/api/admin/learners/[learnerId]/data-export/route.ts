@@ -101,13 +101,19 @@ export async function POST(
         outcome: "allowed",
         metadata: { phase: "pre_stream", requestId: body.data.requestId },
       });
+      let exportStartCode: string | undefined;
       const exportResult = await createLearnerExport({
         learnerId,
         actorUserId: authz.session.user.id,
         requestId: body.data.requestId,
         maxRecords: body.data.maxRecords,
         maxBytes: body.data.maxBytes,
-      }).catch(() => null);
+      }).catch((error: unknown) => {
+        if (error && typeof error === "object" && "code" in error && typeof error.code === "string") {
+          exportStartCode = error.code;
+        }
+        return null;
+      });
       if (!exportResult) {
         await writeAuditEvent({
           actorUserId: authz.session.user.id,
@@ -120,8 +126,13 @@ export async function POST(
           metadata: { errorCode: "EXPORT_START_FAILED" },
         });
         return NextResponse.json(
-          { error: "Export could not start or the request id was already used." },
-          { status: 409, headers: noStoreJsonHeaders },
+          { error: exportStartCode === "EXPORT_ALREADY_IN_PROGRESS"
+            ? "An export is already in progress for this user."
+            : exportStartCode === "EXPORT_DEADLINE_EXCEEDED"
+              ? "The export exceeded its 120-second deadline. No file was saved. Please retry."
+              : "Export could not start or the request id was already used." },
+          { status: exportStartCode === "EXPORT_ALREADY_IN_PROGRESS" ? 429
+            : exportStartCode === "EXPORT_DEADLINE_EXCEEDED" ? 504 : 409, headers: noStoreJsonHeaders },
         );
       }
       void exportResult.completion.then(async (metrics) => {
