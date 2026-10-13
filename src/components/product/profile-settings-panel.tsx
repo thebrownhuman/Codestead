@@ -1,4 +1,6 @@
 "use client";
+import { Select } from "@/components/ui/select";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { LearningProfile } from "@/lib/preferences/profile-settings-values";
@@ -80,12 +82,12 @@ export function ProfileSettingsPanel() {
         </section>
         <section role="group" aria-labelledby="profile-learning" className={formStyles.section}>
           <h3 id="profile-learning">Learning</h3>
-          <Field id="profile-analogy" label="Analogy preference"><select id="profile-analogy" value={profile.analogyFrequency} onChange={(event) => { setSuccess(false); setProfile({ ...profile, analogyFrequency: event.target.value as LearningProfile["analogyFrequency"] }); }}><option value="helpful">When helpful</option><option value="frequent">Frequent</option><option value="neutral">Neutral only</option></select></Field>
+          <Field id="profile-analogy" label="Analogy preference"><Select id="profile-analogy" value={profile.analogyFrequency} onChange={(event) => { setSuccess(false); setProfile({ ...profile, analogyFrequency: event.target.value as LearningProfile["analogyFrequency"] }); }}><option value="helpful">When helpful</option><option value="frequent">Frequent</option><option value="neutral">Neutral only</option></Select></Field>
           <div><h4>Interests</h4><p>Saved during onboarding · read-only</p>{interestsError ? <p>Interests could not be loaded.</p> : interests === null ? <p>Loading interests…</p> : interests.length ? <ul className={formStyles.interests}>{interests.map((interest, index) => <li key={`${interest}-${index}`}>{interest}</li>)}</ul> : <p>No saved interests.</p>}</div>
         </section>
         <section role="group" aria-labelledby="profile-community" className={formStyles.section}>
           <h3 id="profile-community">Community</h3>
-          <Field id="profile-cohort" label="Public cohort fields" help={<>{profile.cohortAlias ? `Cohort alias: ${profile.cohortAlias}. ` : ""}Select badges and projects in Community. Accept cohort sharing in Privacy &amp; consent before publishing.</>}><select id="profile-cohort" aria-describedby="profile-cohort-help" value={profile.cohortVisibility} onChange={(event) => { setSuccess(false); setProfile({ ...profile, cohortVisibility: event.target.value as LearningProfile["cohortVisibility"] }); }}><option value="selected" disabled={!profile.cohortConsent}>Alias, selected badges, streak, projects</option><option value="alias" disabled={!profile.cohortConsent}>Alias only</option><option value="hidden">Hidden profile</option></select></Field>
+          <Field id="profile-cohort" label="Public cohort fields" help={<>{profile.cohortAlias ? `Cohort alias: ${profile.cohortAlias}. ` : ""}Select badges and projects in Community. Accept cohort sharing in Privacy &amp; consent before publishing.</>}><Select id="profile-cohort" aria-describedby="profile-cohort-help" value={profile.cohortVisibility} onChange={(event) => { setSuccess(false); setProfile({ ...profile, cohortVisibility: event.target.value as LearningProfile["cohortVisibility"] }); }}><option value="selected" disabled={!profile.cohortConsent}>Alias, selected badges, streak, projects</option><option value="alias" disabled={!profile.cohortConsent}>Alias only</option><option value="hidden">Hidden profile</option></Select></Field>
         </section>
         <div className={formStyles.actions}>
           {error ? <p className={formStyles.error} role="alert">{error}</p> : success ? <p className={formStyles.success} role="status"><span>Saved</span> · <span>Profile saved.</span></p> : null}

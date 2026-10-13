@@ -34,6 +34,15 @@ async function interactiveTargetFailures(page: Page) {
       // focus inside the navigation trap. They are deliberately screen-reader
       // sized and are not pointer/touch targets.
       if (element.matches("[data-focus-guard]")) return [];
+      // Styled selects retain a clipped native field for form submission and
+      // validation. Exempt that mirror only when its actual pointer/keyboard
+      // control is rendered and enabled; the trigger remains in this scan.
+      if (element instanceof HTMLSelectElement && element.getAttribute("aria-hidden") === "true"
+        && element.tabIndex === -1 && getComputedStyle(element).clipPath === "inset(50%)") {
+        const trigger = element.parentElement?.querySelector<HTMLButtonElement>("button[role='combobox']");
+        if (trigger && rendered(trigger) && !trigger.disabled && trigger.tabIndex >= 0
+          && trigger.getAttribute("aria-disabled") !== "true") return [];
+      }
       if (element.tagName === "A" && getComputedStyle(element).display === "inline" && element.closest("p, li")) return [];
 
       const box = element.getBoundingClientRect();
@@ -87,6 +96,33 @@ async function expectRoadmapBadgeContrast(page: Page) {
 test.describe("critical control accessibility", () => {
   test.beforeEach(({}, testInfo) => {
     test.skip(testInfo.project.name !== "chromium", "focused geometry and Axe coverage runs once in Chromium");
+  });
+
+  test("native select mirrors keep their visible trigger subject to target checks", async ({ page }) => {
+    await page.setContent(`<span>
+      <button role="combobox" aria-label="Course" style="width:44px;height:44px">Course</button>
+      <select aria-hidden="true" tabindex="-1" style="position:absolute;width:1px;height:1px;clip-path:inset(50%)"><option>Course</option></select>
+    </span>`);
+    expect(await interactiveTargetFailures(page)).toEqual([]);
+
+    await page.locator("button").evaluate((button) => { button.style.width = "20px"; button.style.height = "20px"; });
+    expect(await interactiveTargetFailures(page)).toEqual([
+      expect.objectContaining({ tag: "button", width: 20, height: 20 }),
+    ]);
+
+    await page.locator("button").evaluate((button) => { button.style.width = "44px"; button.style.height = "44px"; });
+    await page.locator("select").evaluate((select) => { select.tabIndex = 0; });
+    expect(await interactiveTargetFailures(page)).toEqual([expect.objectContaining({ tag: "select" })]);
+
+    await page.locator("select").evaluate((select) => { select.tabIndex = -1; select.removeAttribute("aria-hidden"); });
+    expect(await interactiveTargetFailures(page)).toEqual([expect.objectContaining({ tag: "select" })]);
+
+    await page.locator("select").evaluate((select) => { select.setAttribute("aria-hidden", "true"); select.style.clipPath = "none"; });
+    expect(await interactiveTargetFailures(page)).toEqual([expect.objectContaining({ tag: "select" })]);
+
+    await page.locator("select").evaluate((select) => { select.style.clipPath = "inset(50%)"; });
+    await page.locator("button").evaluate((button) => { button.remove(); });
+    expect(await interactiveTargetFailures(page)).toEqual([expect.objectContaining({ tag: "select" })]);
   });
 
   for (const target of targets) {

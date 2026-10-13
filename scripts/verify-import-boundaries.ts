@@ -2,6 +2,8 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { builtinModules } from "node:module";
 import ts from "typescript";
+import { createImportResolver, runtimeImports } from "./lib/import-analysis";
+import { verifyRuntimeDependencies } from "./lib/runtime-dependencies";
 
 import { verifyOrApplyDeterministicEvidence } from "./lib/deterministic-evidence";
 
@@ -42,22 +44,7 @@ function isNodeImport(specifier: string) {
   return specifier.startsWith("node:") || builtinModules.includes(specifier);
 }
 
-const resolutionOptions: ts.CompilerOptions = {
-  moduleResolution: ts.ModuleResolutionKind.Bundler,
-  baseUrl: root,
-  paths: { "@/*": ["src/*"] },
-  allowJs: true,
-  jsx: ts.JsxEmit.Preserve,
-};
-const resolutionCache = ts.createModuleResolutionCache(root, (file) => file, resolutionOptions);
-
-function resolveImport(file: string, specifier: string): string {
-  const resolved = ts.resolveModuleName(specifier, path.join(root, file), resolutionOptions, ts.sys, resolutionCache).resolvedModule;
-  if (resolved && !resolved.isExternalLibraryImport) return normalized(resolved.resolvedFileName);
-  if (specifier.startsWith("@/")) return normalized(path.join(sourceRoot, specifier.slice(2)));
-  if (specifier.startsWith("./") || specifier.startsWith("../")) return normalized(path.resolve(root, path.dirname(file), specifier));
-  return specifier;
-}
+const resolveImport = createImportResolver(root);
 
 function isModulePath(target: string, module: string) {
   return target === module || target.startsWith(`${module}/`)
@@ -70,34 +57,6 @@ function hasClientDirective(source: ts.SourceFile): boolean {
     if (statement.expression.text === "use client") return true;
   }
   return false;
-}
-
-function runtimeImports(source: ts.SourceFile): Set<string> {
-  const imports = new Set<string>();
-  function visit(node: ts.Node) {
-    if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
-      const clause = node.importClause;
-      const bindings = clause?.namedBindings;
-      const onlyTypes = clause?.isTypeOnly || (clause && !clause.name && bindings && ts.isNamedImports(bindings)
-        && bindings.elements.length > 0 && bindings.elements.every((element) => element.isTypeOnly));
-      if (!onlyTypes) imports.add(node.moduleSpecifier.text);
-    } else if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
-      const clause = node.exportClause;
-      const onlyTypes = node.isTypeOnly || (clause && ts.isNamedExports(clause)
-        && clause.elements.length > 0 && clause.elements.every((element) => element.isTypeOnly));
-      if (!onlyTypes) imports.add(node.moduleSpecifier.text);
-    } else if (ts.isImportEqualsDeclaration(node) && !node.isTypeOnly && ts.isExternalModuleReference(node.moduleReference)
-      && node.moduleReference.expression && ts.isStringLiteral(node.moduleReference.expression)) {
-      imports.add(node.moduleReference.expression.text);
-    } else if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword
-      || (ts.isIdentifier(node.expression) && node.expression.text === "require"))) {
-      const argument = node.arguments[0];
-      if (argument && ts.isStringLiteral(argument)) imports.add(argument.text);
-    }
-    ts.forEachChild(node, visit);
-  }
-  visit(source);
-  return imports;
 }
 
 function isServerRuntime(target: string) {
@@ -138,6 +97,10 @@ function boundaryRule(file: string, target: string, client: boolean): string | n
 }
 
 async function main() {
+  const runtime = await verifyRuntimeDependencies(root);
+  for (const issue of runtime.violations) console.error(`${issue.chain.join(" -> ")} (${issue.kind})`);
+  if (runtime.violations.length > 0) process.exitCode = 1;
+  console.log(`Runtime dependencies: ${runtime.entries.length} entries, ${runtime.files} reachable files, ${runtime.violations.length} violations.`);
   const files = (await sourceFiles(sourceRoot)).sort();
   const violations: Violation[] = [];
   const usedExceptions: Exception[] = [];
