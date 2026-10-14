@@ -1,6 +1,6 @@
 [Unit]
 Description=Apply LearnCoding versioned data-retention policy
-Documentation=/opt/learncoding/docs/runbooks/data-lifecycle.md
+Documentation=file:/opt/learncoding/docs/runbooks/data-lifecycle.md
 After=learncoding-compose.service
 Requires=learncoding-compose.service
 OnFailure=learncoding-alert@%n.service
