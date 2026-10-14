@@ -1,0 +1,11 @@
+.lesson { display: grid; gap: 20px; max-width: 1000px; margin: 0 auto; padding: 24px; }
+.exercise { display: grid; gap: 16px; min-width: 0; padding: 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface-solid); }
+.tabs, .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.lesson button { min-height: 44px; padding: 8px 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); cursor: pointer; }
+.lesson button[aria-pressed="true"] { border-color: var(--brand); background: var(--brand-soft); }
+.lesson button:disabled { opacity: .6; cursor: wait; }
+.exercise pre { overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.results { overflow: auto; }
+.results table { width: 100%; border-collapse: collapse; }
+.results th, .results td { border: 1px solid var(--line); padding: 8px 12px; text-align: left; white-space: pre-wrap; }
+.error { color: var(--danger, #c0392b); white-space: pre-wrap; overflow-wrap: anywhere; }
