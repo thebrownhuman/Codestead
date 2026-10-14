@@ -20,12 +20,17 @@ describe("provider-aware playground", () => {
     expect(screen.getByText("2")).toBeInTheDocument();
   });
 
-  it.each(["legacy", ""])("preserves legacy copy for provider %s", (provider) => {
-    vi.stubEnv("CODE_RUNNER_PROVIDER", provider);
+  it("uses Piston presentation when the provider is unset", () => {
+    vi.stubEnv("CODE_RUNNER_PROVIDER", "");
     render(<PlaygroundPage />);
-    expect(screen.getByText("5 sec")).toBeInTheDocument();
-    expect(screen.getByText(/two-slot NUC runner/)).toBeInTheDocument();
-    expect(screen.getByTestId("code-lab")).toHaveTextContent("isolated NUC runner");
+    expect(screen.getByText("3 sec")).toBeInTheDocument();
+    expect(screen.getByTestId("code-lab")).toHaveTextContent("isolated Piston runner");
+    expect(screen.queryByText(/two-slot NUC/)).not.toBeInTheDocument();
+  });
+
+  it("rejects legacy presentation rather than advertising a usable native runner", () => {
+    vi.stubEnv("CODE_RUNNER_PROVIDER", "legacy");
+    expect(() => render(<PlaygroundPage />)).toThrow("legacy runner is retired");
   });
 
   it("keeps shared Piston limits aligned with deployment", async () => {

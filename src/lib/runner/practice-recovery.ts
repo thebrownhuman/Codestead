@@ -20,6 +20,8 @@ import {
   validatePracticeDispatchSnapshot,
 } from "./practice-dispatch";
 
+import { PISTON_RUNTIMES } from "./piston-client";
+
 export const PRACTICE_RECOVERY_STALE_MS = 2 * 60_000;
 
 type ActiveStatus = "queued" | "leased" | "running";
@@ -171,6 +173,9 @@ async function reconcileRow(input: {
     if (error instanceof PracticeDispatchSnapshotError) return "corrupt";
     throw error;
   }
+  // Never reinterpret a persisted legacy request as a Piston request.
+  // Quarantine it for the existing attested administrator resolution path.
+  if (request.runtimeVersion !== PISTON_RUNTIMES[request.language].label) return "corrupt";
   const admission = admissionFrom(row);
   // A persisted leased/running row is exactly the crash ambiguity: POST may
   // have happened even when no remote id made it back into PostgreSQL.

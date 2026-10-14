@@ -398,11 +398,13 @@ describe("Piston practice runner client", () => {
 });
 
 describe("practice runner provider selection", () => {
-  it("defaults to the legacy runner", () => {
+  it("defaults to Piston and never uses the configured legacy endpoint", () => {
     vi.stubEnv("CODE_RUNNER_PROVIDER", "");
     vi.stubEnv("RUNNER_BASE_URL", "http://runner:4100");
     vi.stubEnv("RUNNER_SHARED_SECRET", "s".repeat(40));
-    expect(configuredPracticeRunnerClient()).toBeInstanceOf(RunnerClient);
+    vi.stubEnv("PISTON_URL", "http://piston:2000");
+    vi.stubEnv("PISTON_IMAGE", IMAGE);
+    expect(configuredPracticeRunnerClient()).toBeInstanceOf(PistonRunnerClient);
   });
 
   it("selects Piston only when explicitly configured", () => {
@@ -421,8 +423,8 @@ describe("practice runner provider selection", () => {
     expect(() => configuredPracticeRunnerClient()).toThrow(/Piston/);
   });
 
-  it("rejects an unknown provider", () => {
-    vi.stubEnv("CODE_RUNNER_PROVIDER", "judge0");
+  it.each(["legacy", "judge0"])("rejects unsupported provider %s", (provider) => {
+    vi.stubEnv("CODE_RUNNER_PROVIDER", provider);
     expect(() => configuredPracticeRunnerClient()).toThrow(/CODE_RUNNER_PROVIDER/);
   });
 });

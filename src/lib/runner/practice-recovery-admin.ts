@@ -5,6 +5,8 @@ import { db } from "@/lib/db/client";
 import { codeSubmission, notification, runnerJob, user } from "@/lib/db/schema";
 import { writeAuditEventInTransaction } from "@/lib/security/audit-writer";
 import { lockUserAuthority } from "@/lib/security/user-authority-lock";
+import { runtimeByLanguage, type RunnerLanguage } from "./client";
+import { configuredCodeRunnerProvider } from "./provider-config";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ACTIVE_STATUSES = ["queued", "leased", "running"] as const;
@@ -17,6 +19,7 @@ export type PracticeRecoveryAdminErrorCode =
   | "RUNNER_JOB_NOT_FOUND"
   | "LEARNER_NOT_ACTIVE"
   | "NOT_PRACTICE_JOB"
+  | "NOT_RETIRED_RUNTIME"
   | "NOT_QUARANTINED"
   | "STATUS_CONFLICT"
   | "IDEMPOTENCY_CONFLICT"
@@ -56,6 +59,7 @@ function hashResolutionRequest(input: {
   reason: string;
   isolatedRunnerRestarted: boolean;
   journalReconciled: boolean;
+  retireLegacyRunner?: true;
 }) {
   return createHash("sha256").update(JSON.stringify({
     schemaVersion: 1,
@@ -64,6 +68,7 @@ function hashResolutionRequest(input: {
     reason: input.reason,
     isolatedRunnerRestarted: input.isolatedRunnerRestarted,
     journalReconciled: input.journalReconciled,
+    ...(input.retireLegacyRunner ? { retireLegacyRunner: true } : {}),
   })).digest("hex");
 }
 
@@ -74,6 +79,7 @@ function validateInput(input: {
   reason: string;
   isolatedRunnerRestarted: boolean;
   journalReconciled: boolean;
+  retireLegacyRunner?: true;
   now: Date;
 }) {
   if (
@@ -95,7 +101,9 @@ function validateInput(input: {
  * This action is intentionally unavailable to learners and cannot be used for
  * exams or correction regrades. The operator must first stop/restart the
  * isolated runner and reconcile its durable journal, so no remote execution can
- * still race the local cancellation.
+ * still race the local cancellation. The explicit retirement option also
+ * accepts ready/retry-wait practice jobs whose stored label is a recognized
+ * native runtime. Both operator attestations and all authority locks remain.
  */
 export async function resolveQuarantinedPracticeRunnerJob(input: {
   readonly actorUserId: string;
@@ -104,6 +112,7 @@ export async function resolveQuarantinedPracticeRunnerJob(input: {
   readonly reason: string;
   readonly isolatedRunnerRestarted: boolean;
   readonly journalReconciled: boolean;
+  readonly retireLegacyRunner?: true;
   readonly now?: Date;
 }): Promise<PracticeQuarantineResolution> {
   const normalized = {
@@ -113,6 +122,7 @@ export async function resolveQuarantinedPracticeRunnerJob(input: {
   };
   validateInput(normalized);
   const requestHash = hashResolutionRequest(normalized);
+  if (normalized.retireLegacyRunner) configuredCodeRunnerProvider();
 
   // This read chooses the global authority-lock key only. Every mutable fact is
   // re-read after that lock, so deletion or reassignment cannot race the write.
@@ -153,6 +163,8 @@ export async function resolveQuarantinedPracticeRunnerJob(input: {
         recoveryLastErrorCode: runnerJob.recoveryLastErrorCode,
         remoteRunnerJobId: runnerJob.leaseOwner,
         result: runnerJob.result,
+        dispatchRequest: runnerJob.dispatchRequest,
+        language: codeSubmission.language,
         submissionId: codeSubmission.id,
         submissionStatus: codeSubmission.status,
         submissionType: codeSubmission.submissionType,
@@ -192,11 +204,26 @@ export async function resolveQuarantinedPracticeRunnerJob(input: {
         replayed: true,
       };
     }
-    if (current.recoveryState !== "quarantined") {
+    if (normalized.retireLegacyRunner) {
+      const snapshot = current.dispatchRequest;
+      const language = current.language as RunnerLanguage;
+      // An absent digest is never permission to cancel a Piston job. Bind the
+      // stored request to a recognized native label and the submission language.
+      if (!Object.hasOwn(runtimeByLanguage, language)
+        || !snapshot || snapshot.language !== language
+        || snapshot.runtimeVersion !== runtimeByLanguage[language].version) {
+        throw new PracticeRecoveryAdminError("NOT_RETIRED_RUNTIME");
+      }
+      if (!current.recoveryState
+        || !["ready", "retry_wait", "quarantined"].includes(current.recoveryState)) {
+        throw new PracticeRecoveryAdminError("NOT_QUARANTINED");
+      }
+    } else if (current.recoveryState !== "quarantined") {
       throw new PracticeRecoveryAdminError("NOT_QUARANTINED");
     }
+    const resolutionCode = normalized.retireLegacyRunner ? "PRACTICE_RUNNER_RETIRED" : RESOLUTION_CODE;
     const result = {
-      error: RESOLUTION_CODE,
+      error: resolutionCode,
       retryable: true,
       officialEvidenceChanged: false,
       resolutionRequestId: normalized.requestId,
@@ -216,11 +243,11 @@ export async function resolveQuarantinedPracticeRunnerJob(input: {
         recoveryNextAttemptAt: null,
         recoveryLastErrorCode: current.recoveryLastErrorCode === "PRACTICE_LEGACY_DISPATCH_SNAPSHOT_MISSING"
           ? current.recoveryLastErrorCode
-          : RESOLUTION_CODE,
+          : resolutionCode,
       })
       .where(and(
         eq(runnerJob.id, current.runnerJobId),
-        eq(runnerJob.recoveryState, "quarantined"),
+        eq(runnerJob.recoveryState, current.recoveryState!),
         eq(runnerJob.status, current.runnerStatus),
       ))
       .returning({ id: runnerJob.id });
@@ -228,7 +255,7 @@ export async function resolveQuarantinedPracticeRunnerJob(input: {
       .update(codeSubmission)
       .set({
         status: "cancelled",
-        runtimeImageDigest: "practice-quarantine-operator-resolved",
+        runtimeImageDigest: normalized.retireLegacyRunner ? "practice-runner-retired" : "practice-quarantine-operator-resolved",
       })
       .where(and(
         eq(codeSubmission.id, current.submissionId),
@@ -243,8 +270,10 @@ export async function resolveQuarantinedPracticeRunnerJob(input: {
     await tx.insert(notification).values({
       userId: current.learnerUserId,
       type: "practice-runner-recovery-resolved",
-      title: "Practice run recovery completed",
-      body: "An administrator safely closed an indeterminate practice run after reconciling the isolated runner. Retry the exercise with a new request if you still need the result.",
+      title: normalized.retireLegacyRunner ? "Practice runner retired — please run again" : "Practice run recovery completed",
+      body: normalized.retireLegacyRunner
+        ? "The old runner was retired. An administrator safely closed your stuck practice run. Please run the exercise again with a new request; your official mastery was not changed."
+        : "An administrator safely closed an indeterminate practice run after reconciling the isolated runner. Retry the exercise with a new request if you still need the result.",
       actionUrl: "/learn",
       createdAt: normalized.now,
     });
@@ -269,6 +298,7 @@ export async function resolveQuarantinedPracticeRunnerJob(input: {
         isolatedRunnerRestarted: true,
         journalReconciled: true,
         resolutionRequestHash: requestHash,
+        ...(normalized.retireLegacyRunner ? { retireLegacyRunner: true, resolutionCode, priorRuntimeVersion: current.dispatchRequest?.runtimeVersion } : {}),
         officialEvidenceChanged: false,
       },
     });

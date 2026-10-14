@@ -39,12 +39,14 @@ async function createPracticeDispatch(input: {
   admittedStdin?: string;
   dispatchedStdin?: string;
   begin?: boolean;
+  runtimeVersion?: string;
   submissionType?: "server_run" | "server_compile" | "exam_final_test";
 }) {
   const source = input.sourceCode ?? sourceCode;
   const sourceHash = createHash("sha256").update(source).digest("hex");
   const submissionType = input.submissionType ?? "server_run";
   const mode = submissionType === "server_compile" ? "compile" : "quick_run";
+  const runtimeVersion = input.runtimeVersion ?? "Python 3.14.8 (Piston)";
   const admission = await admitRunnerJob({
     userId: LEARNER_ID,
     language: "python",
@@ -60,7 +62,7 @@ async function createPracticeDispatch(input: {
       sourceHash,
       stdin: input.admittedStdin ?? null,
       mode,
-      runtimeVersion: "Python 3.14",
+      runtimeVersion,
       entrypoint: "main.py",
       submissionType,
       limits: PRACTICE_LIMITS,
@@ -71,7 +73,7 @@ async function createPracticeDispatch(input: {
   const request = buildPracticeRunnerRequest({
     admission,
     language: "python",
-    runtimeVersion: "Python 3.14",
+    runtimeVersion,
     entrypoint: "main.py",
     sourceCode: source,
     ...(input.dispatchedStdin === undefined ? {} : { stdin: input.dispatchedStdin }),
@@ -95,7 +97,7 @@ function successfulRunner() {
       result: {
         status: "ACCEPTED",
         imageDigest: `sha256:${"c".repeat(64)}`,
-        runtimeVersion: "Python 3.14",
+        runtimeVersion: "Python 3.14.8 (Piston)",
         compile: { status: "OK", stdout: "", stderr: "", exitCode: 0 },
         run: { stdout: "ok\n", stderr: "", exitCode: 0, wallTimeMs: 2 },
         tests: [],
@@ -151,7 +153,7 @@ describe("durable practice runner recovery in PostgreSQL", () => {
         sourceHash,
         stdin: null,
         mode: "quick_run",
-        runtimeVersion: "Python 3.14",
+        runtimeVersion: "Python 3.14.8 (Piston)",
         entrypoint: "main.py",
         submissionType: "server_run",
         limits: PRACTICE_LIMITS,
@@ -162,7 +164,7 @@ describe("durable practice runner recovery in PostgreSQL", () => {
     const request = buildPracticeRunnerRequest({
       admission,
       language: "python",
-      runtimeVersion: "Python 3.14",
+      runtimeVersion: "Python 3.14.8 (Piston)",
       entrypoint: "main.py",
       sourceCode,
       mode: "quick_run",
@@ -219,7 +221,7 @@ describe("durable practice runner recovery in PostgreSQL", () => {
           result: {
             status: "ACCEPTED",
             imageDigest: `sha256:${"b".repeat(64)}`,
-            runtimeVersion: "Python 3.14",
+            runtimeVersion: "Python 3.14.8 (Piston)",
             compile: { status: "OK", stdout: "", stderr: "", exitCode: 0 },
             run: { stdout: "recovered after app crash\n", stderr: "", exitCode: 0, wallTimeMs: 2 },
             tests: [],

@@ -31,7 +31,8 @@ import { buildPracticeRunnerRequest, practiceAdmissionRequestHash } from "../pra
 import { processPracticeRunnerRecoveryBatch } from "../practice-recovery";
 import type { RunnerAdmission } from "../admission";
 import { runtimeByLanguage } from "../client";
-import { languages, transport, type Outcome } from "../../../../scripts/lib/provider-parity-fixtures";
+import { PISTON_RUNTIMES } from "../piston-client";
+import { languages, transport, nativePracticeBaseline, type Outcome } from "../../../../scripts/lib/provider-parity-fixtures";
 
 const sourceCode = "print('durable')\n";
 const admission: RunnerAdmission = {
@@ -45,7 +46,7 @@ const admission: RunnerAdmission = {
     language: "python",
     sourceHash: createHash("sha256").update(sourceCode).digest("hex"),
     mode: "quick_run",
-    runtimeVersion: "Python 3.14",
+    runtimeVersion: "Python 3.14.8 (Piston)",
     entrypoint: "main.py",
     submissionType: "server_run",
   }),
@@ -60,7 +61,7 @@ const admission: RunnerAdmission = {
 const snapshot = buildPracticeRunnerRequest({
   admission,
   language: "python",
-  runtimeVersion: "Python 3.14",
+  runtimeVersion: "Python 3.14.8 (Piston)",
   entrypoint: "main.py",
   sourceCode,
   mode: "quick_run",
@@ -90,7 +91,7 @@ const row = {
 const runnerResult = {
   status: "ACCEPTED",
   imageDigest: `sha256:${"b".repeat(64)}`,
-  runtimeVersion: "Python 3.14",
+  runtimeVersion: "Python 3.14.8 (Piston)",
   compile: { status: "OK", stdout: "", stderr: "", exitCode: 0 },
   run: { stdout: "durable\n", stderr: "", exitCode: 0, wallTimeMs: 2 },
   tests: [],
@@ -139,7 +140,7 @@ describe("practice runner crash recovery", () => {
   for (const language of languages) {
     it.each(["accepted", "compile_error", "runtime_error", "timeout", "memory_limit", "output_limit"] as const)(
       `${language} %s recovery keeps the legacy verdict through the selected provider`, async (outcome: Outcome) => {
-        const runtime = runtimeByLanguage[language];
+        const runtime = { ...runtimeByLanguage[language], version: PISTON_RUNTIMES[language].label };
         const sourceHash = createHash("sha256").update(sourceCode).digest("hex");
         const requestHash = practiceAdmissionRequestHash({ userId: admission.userId, requestId: admission.requestId,
           language, sourceHash, mode: "quick_run", runtimeVersion: runtime.version,
@@ -150,8 +151,11 @@ describe("practice runner crash recovery", () => {
         mocks.guardQuery.mockImplementation(async (statement: string) => statement.includes("from runner_job j")
           ? { rows: [{ ...row, language, request_hash: requestHash, dispatch_request: request }] }
           : baseQuery(statement));
-        const observed = [];
-        for (const provider of ["legacy", "piston"]) {
+        const original = await nativePracticeBaseline({ ...request, runtimeVersion: runtimeByLanguage[language].version }, outcome);
+        const observed = [{ status: "succeeded", verdict: original.status,
+          compile: original.compile.status, stdout: original.run?.stdout,
+          exitCode: original.run?.exitCode, totals: original.totals }];
+        for (const provider of ["piston"]) {
           const fetch = transport(provider, outcome);
           const report = await processPracticeRunnerRecoveryBatch({ clock: () => new Date("2026-10-01T00:00:00Z") });
           expect(report).toMatchObject({ reconciled: 1, indeterminate: 0 });
@@ -167,7 +171,7 @@ describe("practice runner crash recovery", () => {
     );
   }
 
-  it.each(["legacy", "piston"])("%s resumes the persisted remote job through the selected client", async (provider) => {
+  it.each(["piston"])("%s resumes the persisted remote job through the selected client", async (provider) => {
     const remoteJobId = provider === "piston" ? "piston:known" : "legacy-known";
     const baseQuery = mocks.guardQuery.getMockImplementation()!;
     mocks.guardQuery.mockImplementation(async (statement: string) => statement.includes("from runner_job j")
@@ -183,7 +187,7 @@ describe("practice runner crash recovery", () => {
     if (provider === "legacy") expect(fetch.mock.calls[0]?.[1]?.method).toBe("GET");
   });
 
-  it.each(["legacy", "piston"])("%s transport outage keeps recovery indeterminate without fallback", async (provider) => {
+  it.each(["piston"])("%s transport outage keeps recovery indeterminate without fallback", async (provider) => {
     transport(provider, "accepted");
     const fetch = vi.fn().mockRejectedValue(new Error("offline"));
     vi.stubGlobal("fetch", fetch);

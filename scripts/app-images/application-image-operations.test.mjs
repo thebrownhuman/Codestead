@@ -380,7 +380,7 @@ test("publication durably commits the env projection before the canonical JSON m
 
 test("the official maintained SPDX schema remains the validation source", () => {
   const provenance = JSON.parse(readFileSync(
-    new URL("../../services/runner/runtime/schema/spdx-2.3.schema.provenance.json", import.meta.url),
+    new URL("../lib/image-security/schema/spdx-2.3.schema.provenance.json", import.meta.url),
     "utf8",
   ));
   assert.equal(provenance.commit, "6cb525045cf86fa173d093cdf0b2e7ad4faee42f");

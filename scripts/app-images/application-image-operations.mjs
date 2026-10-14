@@ -8,7 +8,7 @@ import {
   validateScannerEvidence,
   validateSlsaProvenanceStatement,
   validateSpdxDocument,
-} from "../../services/runner/runtime/runtime-operations.mjs";
+} from "../lib/image-security/runtime-operations.mjs";
 
 export const APPLICATION_IMAGE_TARGETS = Object.freeze([
   Object.freeze({ target: "runtime", variable: "APP_RUNTIME_IMAGE", repository: "runtime" }),

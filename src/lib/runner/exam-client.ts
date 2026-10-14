@@ -1,4 +1,5 @@
-import { configuredRunnerClient, runtimeByLanguage, type RunnerLanguage } from "./client";
+import { RunnerClientError, type RunnerLanguage } from "./client";
+import { configuredCodeRunnerProvider } from "./provider-config";
 import { PistonRunnerClient, PISTON_RUNTIMES } from "./piston-client";
 
 export function pinnedPistonImageDigest(image: string): string {
@@ -15,8 +16,9 @@ export function configuredExamRunnerClient(input: {
   readonly language: RunnerLanguage;
   readonly expectedRuntimeVersion?: string;
 }) {
-  const version = input.expectedRuntimeVersion ?? runtimeByLanguage[input.language].version;
+  const version = input.expectedRuntimeVersion;
   if (version === PISTON_RUNTIMES[input.language].label) {
+    configuredCodeRunnerProvider();
     const url = process.env.PISTON_URL;
     const image = process.env.PISTON_IMAGE;
     if (!url || !image) throw new Error("Pinned Piston exam runner is not configured.");
@@ -24,6 +26,7 @@ export function configuredExamRunnerClient(input: {
     // snapshots bind the OCI manifest digest. Preserve exact digest comparison.
     return new PistonRunnerClient(url, pinnedPistonImageDigest(image));
   }
-  if (version.includes("(Piston)")) throw new Error("Unrecognized pinned Piston exam runtime.");
-  return configuredRunnerClient();
+  const error = new RunnerClientError("RUNNER_RUNTIME_RETIRED", false, 409);
+  error.message = "This historical exam runtime is unsupported or retired. It cannot be executed on Piston; request an administrator review.";
+  throw error;
 }

@@ -262,15 +262,13 @@ case "${UPLOADS_ENABLED:-}" in
 esac
 
 # Piston (learner code runner) runs only under Kata, behind the piston profile.
-# Practice runs use it only when CODE_RUNNER_PROVIDER=piston; the default and
-# empty value keep the legacy runner. Selecting piston without the profile
-# would fail closed in the app, so it is rejected here before startup.
-case "${CODE_RUNNER_PROVIDER:-}" in
-  ""|legacy) ;;
+# Application routing is Piston-only. Reject a missing service profile before
+# startup rather than allowing an application with no execution backend.
+case "${CODE_RUNNER_PROVIDER:-piston}" in
   piston)
     [[ "$profile_piston" == true ]] || fatal "CODE_RUNNER_PROVIDER=piston requires the piston profile"
     ;;
-  *) fatal "CODE_RUNNER_PROVIDER must be empty, legacy, or piston" ;;
+  *) fatal "CODE_RUNNER_PROVIDER must be piston; the legacy runner is retired" ;;
 esac
 if [[ "$profile_piston" == true ]]; then
   image_is_digest_pinned "${PISTON_IMAGE:-}" || {
@@ -590,6 +588,8 @@ runner_subnet_seen=false
 runner_bridge_seen=false
 declare -A rendered_piston_members=()
 declare -A rendered_piston_urls=()
+declare -A rendered_piston_images=()
+declare -A rendered_piston_providers=()
 piston_runtime_seen=false
 piston_network_internal_seen=false
 postgres_fsync_seen=false
@@ -721,16 +721,30 @@ while IFS= read -r line; do
       }
       piston_runtime_seen=true
     fi
+    if [[ "$line" =~ ^[[:space:]]{6}CODE_RUNNER_PROVIDER:[[:space:]]+([^[:space:]]+)$ ]]; then
+      is_runner_client "$current_service" && [[ "${BASH_REMATCH[1]}" == piston ]] || {
+        fatal "only reviewed execution clients may configure CODE_RUNNER_PROVIDER and it must be piston"
+      }
+      [[ -z "${rendered_piston_providers[$current_service]:-}" ]] || fatal "rendered Piston provider must be unique"
+      rendered_piston_providers["$current_service"]=1
+    fi
+    if [[ "$line" =~ ^[[:space:]]{6}PISTON_IMAGE:[[:space:]]+([^[:space:]]+)$ ]]; then
+      is_runner_client "$current_service" && [[ "${BASH_REMATCH[1]}" == "$PISTON_IMAGE" ]] || {
+        fatal "reviewed execution clients must use the exact deployed PISTON_IMAGE digest"
+      }
+      [[ -z "${rendered_piston_images[$current_service]:-}" ]] || fatal "rendered Piston image must be unique"
+      rendered_piston_images["$current_service"]=1
+    fi
     if [[ "$line" =~ ^[[:space:]]{6}PISTON_URL:[[:space:]]+([^[:space:]]+)$ ]]; then
-      [[ "$current_service" == app && "${BASH_REMATCH[1]}" == "http://piston:2000" ]] || {
-        fatal "PISTON_URL must be exactly http://piston:2000 and only on app"
+      is_runner_client "$current_service" && [[ "${BASH_REMATCH[1]}" == "http://piston:2000" ]] || {
+        fatal "PISTON_URL must be exactly http://piston:2000 and only on reviewed execution clients"
       }
       [[ -z "${rendered_piston_urls[$current_service]:-}" ]] || fatal "rendered PISTON_URL must be unique"
       rendered_piston_urls["$current_service"]=1
     fi
     if [[ "$line" =~ ^[[:space:]]{6}(-[[:space:]]+piston|piston:([[:space:]]+null)?)$ ]]; then
-      [[ "$current_service" == app || "$current_service" == piston ]] || {
-        fatal "only app and piston may attach to the piston network"
+      is_runner_client "$current_service" || [[ "$current_service" == piston ]] || {
+        fatal "only reviewed execution clients and piston may attach to the piston network"
       }
       [[ -z "${rendered_piston_members[$current_service]:-}" ]] || fatal "rendered piston membership must be unique per service"
       rendered_piston_members["$current_service"]=1
@@ -833,10 +847,13 @@ for service in app regrade-worker exam-finalization-worker practice-runner-recov
   [[ -n "${rendered_runner_client_members[$service]:-}" ]] || fatal "every runner client must attach to runner-client"
 done
 [[ -n "${rendered_runner_client_members[runner-egress-gateway]:-}" ]] || fatal "runner gateway must attach to runner-client"
-# app always joins the internal piston network; Piston itself renders only
-# with the piston profile and only under Kata.
-[[ -n "${rendered_piston_members[app]:-}" ]] || fatal "app must attach to the piston network"
-[[ -n "${rendered_piston_urls[app]:-}" ]] || fatal "PISTON_URL must be exactly http://piston:2000 and only on app"
+# Every execution consumer must use the reviewed internal backend and digest.
+for service in app regrade-worker exam-finalization-worker practice-runner-recovery-worker; do
+  [[ -n "${rendered_piston_members[$service]:-}" ]] || fatal "every execution client must attach to the piston network"
+  [[ -n "${rendered_piston_urls[$service]:-}" ]] || fatal "every execution client must use the reviewed PISTON_URL"
+  [[ -n "${rendered_piston_images[$service]:-}" ]] || fatal "every execution client must use the deployed PISTON_IMAGE digest"
+  [[ -n "${rendered_piston_providers[$service]:-}" ]] || fatal "every execution client must select Piston"
+done
 [[ "$piston_network_internal_seen" == true ]] || fatal "piston network must be internal"
 if [[ "$profile_piston" == true ]]; then
   [[ -n "${rendered_services[piston]:-}" ]] || fatal "piston profile must render the piston service"

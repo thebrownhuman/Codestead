@@ -323,9 +323,8 @@ services:
       RUNNER_BASE_URL: http://runner-egress-gateway:4100
       RUNNER_SHARED_SECRET_FILE: /run/secrets/runner_shared_secret
       RUNNER_MAX_CONCURRENCY: "2"
-      # Practice-run provider (docs/plans/piston-runner.md). legacy unless set to
-      # piston; piston also needs the piston profile and fails closed without it.
-      CODE_RUNNER_PROVIDER: ${CODE_RUNNER_PROVIDER:-legacy}
+      # Piston-only application routing; the legacy service remains until 6b.
+      CODE_RUNNER_PROVIDER: ${CODE_RUNNER_PROVIDER:-piston}
       PISTON_URL: http://piston:2000
       PISTON_IMAGE: ${PISTON_IMAGE:-}
       UPLOADS_ENABLED: ${UPLOADS_ENABLED:-false}
@@ -545,6 +544,9 @@ services:
       APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
       RUNNER_BASE_URL: http://runner-egress-gateway:4100
       RUNNER_SHARED_SECRET_FILE: /run/secrets/runner_shared_secret
+      CODE_RUNNER_PROVIDER: ${CODE_RUNNER_PROVIDER:-piston}
+      PISTON_URL: http://piston:2000
+      PISTON_IMAGE: ${PISTON_IMAGE:-}
       REGRADE_POLL_SECONDS: ${REGRADE_POLL_SECONDS:-10}
       REGRADE_BATCH_SIZE: ${REGRADE_BATCH_SIZE:-2}
       LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -569,6 +571,8 @@ services:
         interface_name: data
       runner-client:
         interface_name: runner-client
+      piston:
+        interface_name: piston
     <<: [*hardened, *codestead-managed]
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m
@@ -598,6 +602,9 @@ services:
       APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
       RUNNER_BASE_URL: http://runner-egress-gateway:4100
       RUNNER_SHARED_SECRET_FILE: /run/secrets/runner_shared_secret
+      CODE_RUNNER_PROVIDER: ${CODE_RUNNER_PROVIDER:-piston}
+      PISTON_URL: http://piston:2000
+      PISTON_IMAGE: ${PISTON_IMAGE:-}
       EXAM_FINALIZATION_POLL_SECONDS: ${EXAM_FINALIZATION_POLL_SECONDS:-5}
       EXAM_FINALIZATION_BATCH_SIZE: ${EXAM_FINALIZATION_BATCH_SIZE:-2}
       LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -622,6 +629,8 @@ services:
         interface_name: data
       runner-client:
         interface_name: runner-client
+      piston:
+        interface_name: piston
     <<: [*hardened, *codestead-managed]
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m
@@ -650,6 +659,9 @@ services:
       DATABASE_URL_FILE: /run/secrets/database_url
       RUNNER_BASE_URL: http://runner-egress-gateway:4100
       RUNNER_SHARED_SECRET_FILE: /run/secrets/runner_shared_secret
+      CODE_RUNNER_PROVIDER: ${CODE_RUNNER_PROVIDER:-piston}
+      PISTON_URL: http://piston:2000
+      PISTON_IMAGE: ${PISTON_IMAGE:-}
       PRACTICE_RECOVERY_POLL_SECONDS: ${PRACTICE_RECOVERY_POLL_SECONDS:-5}
       PRACTICE_RECOVERY_BATCH_SIZE: ${PRACTICE_RECOVERY_BATCH_SIZE:-2}
       LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -674,6 +686,8 @@ services:
         interface_name: data
       runner-client:
         interface_name: runner-client
+      piston:
+        interface_name: piston
     <<: [*hardened, *codestead-managed]
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m

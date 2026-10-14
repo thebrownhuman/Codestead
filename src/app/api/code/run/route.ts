@@ -31,6 +31,7 @@ import {
   holdRunnerDispatchForPowerRehearsal,
   RunnerPowerRehearsalError,
 } from "@/lib/runner/power-rehearsal-hold";
+import { PISTON_RUNTIMES } from "@/lib/runner/piston-client";
 
 const bodySchema = z.object({
   language: z.enum(["c", "cpp", "java", "python", "javascript"]),
@@ -72,6 +73,19 @@ function storedPracticeResult(admission: RunnerAdmission) {
     });
   }
   const savedError = result && typeof result.error === "string" ? result.error : null;
+  if (savedError === "PRACTICE_RUNNER_RETIRED") {
+    return NextResponse.json({
+      requestId: admission.requestId,
+      submissionId: admission.submissionId,
+      status: "infrastructure_error",
+      code: savedError,
+      retryable: true,
+      indeterminate: false,
+      error: "The old runner was retired. Please run the exercise again with a new request.",
+      replayed: true,
+      ...practiceOnlyEvidence,
+    }, { status: 409 });
+  }
   if (["RUNNER_OFFLINE", "RUNNER_UNHEALTHY", "RUNNER_NOT_CONFIGURED"].includes(savedError ?? "")) {
     const offline = savedError === "RUNNER_OFFLINE";
     return NextResponse.json({
@@ -159,7 +173,7 @@ export async function POST(request: NextRequest) {
   }
 
   const language = body.data.language as RunnerLanguage;
-  const runtime = runtimeByLanguage[language];
+  const runtime = { ...runtimeByLanguage[language], version: PISTON_RUNTIMES[language].label };
   const sourceHash = createHash("sha256").update(body.data.source).digest("hex");
   const submissionType = body.data.mode === "compile" ? "server_compile" : "server_run";
   const requestHash = practiceAdmissionRequestHash({

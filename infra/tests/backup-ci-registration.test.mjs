@@ -1568,6 +1568,7 @@ const reviewedJobContracts = new Map([
       "              - Dockerfile",
       "              - .dockerignore",
       "              - scripts/app-images/**",
+      "              - scripts/lib/image-security/**",
       "              - infra/docker/**",
       "              - next.config.*",
       "            backup-paths:",
