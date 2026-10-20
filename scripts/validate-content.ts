@@ -12,6 +12,7 @@ import {
   createBeginnerQualityContext,
 } from "../src/lib/content/beginner-quality";
 import type { CourseManifest } from "../src/lib/content/types";
+import { sqlPracticeLessonSchema } from "../src/lib/content/sql-practice";
 
 type Manifest = CourseManifest;
 
@@ -74,6 +75,11 @@ function findCycles(graph: Map<string, readonly string[]>) {
 }
 
 async function main() {
+  for (const file of (await readdir(path.join(contentDir, "sql-practice"))).filter((file) => file.endsWith(".json"))) {
+    const value: unknown = JSON.parse(await readFile(path.join(contentDir, "sql-practice", file), "utf8"));
+    const parsed = sqlPracticeLessonSchema.safeParse(value);
+    if (!parsed.success) report(`sql-practice/${file}: ${parsed.error.message}`);
+  }
   const schema = JSON.parse(
     await readFile(path.join(contentDir, "schema", "course.schema.json"), "utf8"),
   ) as object;

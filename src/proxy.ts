@@ -27,14 +27,17 @@ function proxyResponse(request: NextRequest) {
   if (decision.allowed) {
     const nonce = randomBytes(32).toString("base64");
     const production = process.env.NODE_ENV === "production";
+    const sqlPractice = request.nextUrl.pathname === "/learn" &&
+      request.nextUrl.searchParams.get("practice") === "sql";
     const csp = [
       "default-src 'self'",
       "base-uri 'self'",
       "frame-ancestors 'none'",
       "object-src 'none'",
       // React's development build uses eval for debugging (Next.js CSP guide);
-      // production and test never allow it.
-      `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
+      // production and test never allow JS eval. PGlite needs WASM compilation
+      // only on the SQL practice document, reached through a full navigation.
+      `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${sqlPractice ? " 'wasm-unsafe-eval'" : ""}${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
       "script-src-attr 'none'",
       // Monaco and the application's inline style properties need this.
       "style-src 'self' 'unsafe-inline'",

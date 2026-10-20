@@ -5,6 +5,16 @@ import { config, proxy } from "../../../proxy";
 
 afterEach(() => vi.unstubAllEnvs());
 describe("nonce Content-Security-Policy", () => {
+  it.each(["production", "test"])("permits WASM only on the SQL practice document in %s", async (environment) => {
+    vi.stubEnv("NODE_ENV", environment);
+    for (const [path, allowed] of [["/learn?practice=sql", true], ["/learn", false], ["/learn?practice=other", false], ["/login?practice=sql", false]] as const) {
+      const response = await proxy(new NextRequest(`https://codestead.test${path}`));
+      const csp = response.headers.get("content-security-policy")!;
+      expect(csp.includes("'wasm-unsafe-eval'")).toBe(allowed);
+      expect(csp).not.toContain("'unsafe-eval'");
+      expect(csp).toContain("connect-src 'self'");
+    }
+  });
   it.each(["/health/live", "/health/ready", "/health/runner"])("exempts JSON health route %s from the document proxy", (url) => {
     expect(unstable_doesMiddlewareMatch({ config, url })).toBe(false);
   });
