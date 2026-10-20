@@ -10,7 +10,7 @@ docker_bin="${POSTGRES_CHECK_DOCKER:-docker}"
 timeout_seconds="${POSTGRES_CHECK_TIMEOUT_SECONDS:-20}"
 
 if timeout --signal=KILL "${timeout_seconds}s" \
-  "$docker_bin" compose --env-file "$compose_env" -f "$compose_file" \
+  "$docker_bin" compose -p "${POSTGRES_CHECK_COMPOSE_PROJECT:-learncoding}" --env-file "$compose_env" -f "$compose_file" \
   exec -T postgres sh -c 'pg_isready -q -h /run/learncoding-postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   >/dev/null 2>&1; then
   exit 0

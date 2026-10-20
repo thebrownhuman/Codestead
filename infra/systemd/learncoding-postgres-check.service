@@ -1,6 +1,6 @@
 [Unit]
 Description=Check LearnCoding PostgreSQL accepts connections
-Documentation=/opt/learncoding/docs/runbooks/logs-and-monitoring.md
+Documentation=file:/opt/learncoding/docs/runbooks/logs-and-monitoring.md
 OnFailure=learncoding-alert@%n.service
 
 [Service]

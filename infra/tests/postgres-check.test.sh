@@ -17,6 +17,8 @@ chmod 0755 "$work/docker"
 export POSTGRES_CHECK_DOCKER="$work/docker" STUB_ARGS="$work/args"
 
 STUB_EXIT=0 bash "$checker" >/dev/null 2>&1 || fail "healthy postgres reported down"
+grep -q 'compose -p learncoding ' "$work/args" || fail "checker does not pin compose project"
+grep -qx 'Documentation=file:/opt/learncoding/docs/runbooks/logs-and-monitoring.md' "$unit" || fail "Documentation must be a file: URI"
 grep -q 'exec -T postgres' "$work/args" || fail "checker does not exec into postgres service"
 grep -q 'pg_isready' "$work/args" || fail "checker does not use pg_isready"
 
