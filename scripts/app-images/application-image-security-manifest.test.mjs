@@ -15,7 +15,10 @@ const digest = (value) => `sha256:${createHash("sha256").update(value).digest("h
 const RISK_ACCEPTANCE = operations.parseApplicationLocalRiskAcceptance({
   acceptanceText: readFileSync(
     new URL("../../infra/security/application-image-local-risk-acceptance.json", import.meta.url), "utf8",
-  ),
+  )
+    // Pin the fixture window so artifact renewals do not invalidate July-dated fixtures.
+    .replace(/"approvedAt": "[^"]+"/, '"approvedAt": "2026-07-19T00:00:00Z"')
+    .replace(/"expiresAt": "[^"]+"/, '"expiresAt": "2026-10-17T00:00:00Z"'),
   validatedAt: GENERATED_AT,
 });
 

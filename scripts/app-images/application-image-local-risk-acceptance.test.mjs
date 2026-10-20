@@ -13,7 +13,13 @@ const acceptanceText = readFileSync(
   new URL("../../infra/security/application-image-local-risk-acceptance.json", import.meta.url),
   "utf8",
 );
-const sourceRepository = "https://github.com/thebrownhuman/Codestead";
+// Derived from the artifact so renewals do not require editing fixture dates.
+const acceptanceWindow = JSON.parse(acceptanceText);
+const IN_WINDOW_AT = new Date(Date.parse(acceptanceWindow.approvedAt) + 12 * 60 * 60 * 1000)
+  .toISOString().replace(".000Z", "Z");
+const AFTER_EXPIRY_AT = new Date(Date.parse(acceptanceWindow.expiresAt) + 1000)
+  .toISOString().replace(".000Z", "Z");
+const sourceRepository ="https://github.com/thebrownhuman/Codestead";
 const sourceRevision = "a".repeat(40);
 const sourceTree = "b".repeat(40);
 const sourceContextSha256 = "c".repeat(64);
@@ -41,7 +47,7 @@ function inputs() {
 test("unsigned local images require one canonical accountable unexpired acceptance artifact", () => {
   const acceptance = parseApplicationLocalRiskAcceptance({
     acceptanceText,
-    validatedAt: "2026-07-19T12:00:00Z",
+    validatedAt: IN_WINDOW_AT,
   });
   assert.equal(acceptance.artifact.schemaVersion, 1);
   assert.match(acceptance.artifact.owner, /thebrownhuman/);
@@ -51,7 +57,7 @@ test("unsigned local images require one canonical accountable unexpired acceptan
   assert.equal(acceptance.sha256, createHash("sha256").update(acceptanceText).digest("hex"));
 
   const evidence = createApplicationLocalProvenance({
-    generatedAt: "2026-07-19T12:00:00Z",
+    generatedAt: IN_WINDOW_AT,
     riskAcceptance: acceptance,
     identity: identity(),
     baseReference: `node:22.23.1-alpine3.23@${digest("base")}`,
@@ -75,24 +81,24 @@ test("unsigned local images require one canonical accountable unexpired acceptan
 test("risk acceptance rejects expiry, noncanonical bytes, unknown fields, and missing reassessment ownership", () => {
   assert.throws(() => parseApplicationLocalRiskAcceptance({
     acceptanceText,
-    validatedAt: "2026-10-17T00:00:01Z",
+    validatedAt: AFTER_EXPIRY_AT,
   }), /expired/i);
   assert.throws(() => parseApplicationLocalRiskAcceptance({
     acceptanceText: JSON.stringify(JSON.parse(acceptanceText)),
-    validatedAt: "2026-07-19T12:00:00Z",
+    validatedAt: IN_WINDOW_AT,
   }), /canonical/i);
 
   const unknown = JSON.parse(acceptanceText);
   unknown.unreviewed = true;
   assert.throws(() => parseApplicationLocalRiskAcceptance({
     acceptanceText: `${JSON.stringify(unknown, null, 2)}\n`,
-    validatedAt: "2026-07-19T12:00:00Z",
+    validatedAt: IN_WINDOW_AT,
   }), /schema|unreviewed/i);
 
   const ownerless = JSON.parse(acceptanceText);
   ownerless.owner = "";
   assert.throws(() => parseApplicationLocalRiskAcceptance({
     acceptanceText: `${JSON.stringify(ownerless, null, 2)}\n`,
-    validatedAt: "2026-07-19T12:00:00Z",
+    validatedAt: IN_WINDOW_AT,
   }), /owner/i);
 });
