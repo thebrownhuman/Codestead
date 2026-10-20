@@ -921,6 +921,7 @@ const expectedApplicationRuns = [
   "sudo env PYTHONDONTWRITEBYTECODE=1 bash infra/tests/power-evidence.test.sh",
   "sudo env PYTHONDONTWRITEBYTECODE=1 bash infra/tests/power-recovery-check.test.sh",
   "sudo bash infra/tests/systemd-recovery.test.sh",
+  "bash infra/tests/postgres-check.test.sh",
   "bash infra/ops/install-compose-ci.sh",
   "bash infra/tests/smoke-production.test.sh",
   releaseProductionRun,
@@ -1044,6 +1045,7 @@ const applicationPartition = new Map([
       "sudo env PYTHONDONTWRITEBYTECODE=1 bash infra/tests/power-evidence.test.sh",
       "sudo env PYTHONDONTWRITEBYTECODE=1 bash infra/tests/power-recovery-check.test.sh",
       "sudo bash infra/tests/systemd-recovery.test.sh",
+      "bash infra/tests/postgres-check.test.sh",
     ],
   ],
   [
