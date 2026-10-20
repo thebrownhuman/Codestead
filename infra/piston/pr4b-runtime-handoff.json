@@ -84,7 +84,7 @@
     ".dockerignore": "bd52ce28ab83c8b81157e33384229ea4b0360ae1523e0fb2e7121f6d05535875"
   },
   "testInputSha256": {
-    "src/lib/runner/client.ts": "191abbbff6b498611abad4156e8af7cf7a40ef77cdc7604c92ac0cc9ad79e078",
+    "src/lib/runner/client.ts": "932f396c8b88345d0ca16a787e71db83a9664328e8c47fdd8e2cc60fbcbebc7f",
     "src/lib/runner/piston-client.ts": "66190d8a08e6678e150ee18521351b1f8ffccab16e4dea287ca2cd0b4c73c371",
     "src/lib/runner/__tests__/piston-client.integration.test.ts": "1e5be550f43270408f2b9afb8f13c599333e9a15dc10fba14285a07bdcdae474",
     "infra/piston/test-image.mjs": "e2808817a6802104351bb44ca27bf2ee4021c28c23838ca439430668095f1a6c"

@@ -69,6 +69,9 @@ import type {
 } from "@/lib/learning-service/types";
 import { LESSON_COMPLETION_AUTHORITY } from "@/lib/learning-service/types";
 import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
+import { usePistonRuntimeEnvironment } from "./support/piston-runtime-environment";
+
+usePistonRuntimeEnvironment();
 
 const ADMIN_ID = "journey-integration-admin";
 const LEARNER_ID = "journey-integration-learner";
