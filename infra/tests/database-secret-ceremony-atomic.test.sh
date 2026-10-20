@@ -11,6 +11,7 @@ secret_names=(
   database_url
   database_migrator_url
   database_worker_url
+  database_mail_worker_url
   database_ops_url
   database_backup_reporter_url
 )
@@ -64,7 +65,8 @@ assert_inventory() {
     "$directory/database_migrator_url" \
     "$directory/database_worker_url" \
     "$directory/database_ops_url" \
-    "$directory/database_backup_reporter_url" >/dev/null 2>&1 ||
+    "$directory/database_backup_reporter_url" \
+    "$directory/database_mail_worker_url" >/dev/null 2>&1 ||
     fail 'published inventory failed the production validator'
 }
 
@@ -208,7 +210,8 @@ if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
     "$root_dir/database_migrator_url" \
     "$root_dir/database_worker_url" \
     "$root_dir/database_ops_url" \
-    "$root_dir/database_backup_reporter_url" >/dev/null 2>&1 ||
+    "$root_dir/database_backup_reporter_url" \
+    "$root_dir/database_mail_worker_url" >/dev/null 2>&1 ||
     fail 'root fixture inventory failed the production validator'
   [[ "$(sudo -n stat -c '%a %u:%g' "$root_dir")" == '750 0:0' ]] ||
     fail 'root fixture directory metadata drifted'

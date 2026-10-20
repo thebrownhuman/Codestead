@@ -1,3 +1,4 @@
+import { registerMailWorkerResources } from "@/lib/notifications/mail-worker-role";
 import path from "node:path";
 import { access, mkdir, mkdtemp, readdir, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -134,6 +135,7 @@ import {
 } from "@/lib/appeals/admin-service";
 import {
   acquireValidatedDisposableRoleClient,
+  validatedDisposableMailWorkerDatabaseUrl,
   DISPOSABLE_INTEGRATION_POOL_BOUNDS,
   endDisposableIntegrationPoolWithinDeadline,
   runWithBoundedDisposableIntegrationPool,
@@ -244,11 +246,12 @@ async function seedTerminalEmailOutboxFixtures(old: Date) {
 
   await runWithValidatedRetentionOpsEnvironment(
     process.env,
-    async ({ databaseWorkerUrl, databaseOwnerTarget }) => {
+    async ({ databaseOwnerTarget }) => {
+      const databaseMailWorkerUrl = validatedDisposableMailWorkerDatabaseUrl(process.env);
       const workerPool = new PgPool({
         application_name: "codestead_integration_retention_worker_fixture",
         ...DISPOSABLE_INTEGRATION_POOL_BOUNDS,
-        connectionString: databaseWorkerUrl,
+        connectionString: databaseMailWorkerUrl,
         max: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolMaximumConnections,
         connectionTimeoutMillis:
           MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolAcquireTimeoutMs,
@@ -256,6 +259,7 @@ async function seedTerminalEmailOutboxFixtures(old: Date) {
           MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolIdleTimeoutMs,
       });
       await runWithBoundedDisposableIntegrationPool(workerPool, async () => {
+        registerMailWorkerResources(workerPool, {}, databaseMailWorkerUrl);
         const inspection = await inspectMailDispatchRuntime(workerPool);
         const applicationOrigin =
           captureMailDispatchApplicationOrigin(inspection);

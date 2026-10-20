@@ -50,6 +50,7 @@ for variable in \
   DATABASE_APP_URL \
   DATABASE_MIGRATOR_URL \
   DATABASE_WORKER_URL \
+  DATABASE_MAIL_WORKER_URL \
   DATABASE_OPS_URL \
   DATABASE_BACKUP_REPORTER_URL \
   BOOTSTRAP_ADMIN_PASSWORD \
@@ -76,7 +77,7 @@ if [ "${NODE_ENV:-}" = "production" ]; then
   fi
   if [ -n "${DATABASE_BOOTSTRAP_URL:-}" ]; then
     if [ "$restore_ledger_authority_installer" = 1 ]; then
-      for variable in DATABASE_URL DATABASE_APP_URL DATABASE_MIGRATOR_URL DATABASE_WORKER_URL DATABASE_OPS_URL DATABASE_BACKUP_REPORTER_URL; do
+      for variable in DATABASE_URL DATABASE_APP_URL DATABASE_MIGRATOR_URL DATABASE_WORKER_URL DATABASE_MAIL_WORKER_URL DATABASE_OPS_URL DATABASE_BACKUP_REPORTER_URL; do
         eval "value=\${$variable-}"
         if [ -n "$value" ]; then
           echo "fatal: restore ledger authority installer accepts only the bootstrap credential" >&2
@@ -93,7 +94,7 @@ if [ "${NODE_ENV:-}" = "production" ]; then
         exit 64
       fi
     else
-      for variable in DATABASE_APP_URL DATABASE_MIGRATOR_URL DATABASE_WORKER_URL DATABASE_OPS_URL DATABASE_BACKUP_REPORTER_URL; do
+      for variable in DATABASE_APP_URL DATABASE_MIGRATOR_URL DATABASE_WORKER_URL DATABASE_MAIL_WORKER_URL DATABASE_OPS_URL DATABASE_BACKUP_REPORTER_URL; do
         eval "value=\${$variable-}"
         if [ -z "$value" ]; then
           echo "fatal: the complete database role credential set is required" >&2

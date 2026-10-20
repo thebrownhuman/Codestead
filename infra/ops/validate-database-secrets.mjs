@@ -9,6 +9,7 @@ const FIXED_USERS = Object.freeze({
   app: "learncoding_app",
   migrator: "learncoding_migrator",
   worker: "learncoding_worker",
+  mailWorker: "learncoding_mail_worker",
   ops: "learncoding_ops",
   backupReporter: "learncoding_backup_reporter",
 });
@@ -91,7 +92,7 @@ function readSecret(path) {
 }
 
 function main(argv) {
-  if (argv.length !== 9) throw invalid();
+  if (argv.length !== 10) throw invalid();
   const [
     postgresUser,
     postgresDatabase,
@@ -102,6 +103,7 @@ function main(argv) {
     databaseWorkerUrlPath,
     databaseOpsUrlPath,
     databaseBackupReporterUrlPath,
+    databaseMailWorkerUrlPath,
   ] = argv;
   validateDatabaseSecretValues({
     postgresUser,
@@ -113,14 +115,15 @@ function main(argv) {
     databaseWorkerUrl: readSecret(databaseWorkerUrlPath),
     databaseOpsUrl: readSecret(databaseOpsUrlPath),
     databaseBackupReporterUrl: readSecret(databaseBackupReporterUrlPath),
+    databaseMailWorkerUrl: readSecret(databaseMailWorkerUrlPath),
   });
-  process.stdout.write("database secret topology valid\n");
 }
 
 const entrypoint = process.argv[1];
 if (entrypoint && import.meta.url === pathToFileURL(entrypoint).href) {
   try {
     main(process.argv.slice(2));
+    process.stdout.write("database secret topology valid\n");
   } catch {
     process.stderr.write(`${INVALID_MESSAGE}\n`);
     process.exitCode = 1;

@@ -22,6 +22,7 @@ secret_names=(
   database_url
   database_migrator_url
   database_worker_url
+  database_mail_worker_url
   database_ops_url
   database_backup_reporter_url
 )
@@ -29,6 +30,7 @@ postgres_password=''
 app_password=''
 migrator_password=''
 worker_password=''
+mail_worker_password=''
 ops_password=''
 backup_reporter_password=''
 
@@ -57,7 +59,7 @@ cleanup() {
   [[ -z "$staging_dir" ]] || rm -rf -- "$staging_dir" || true
   [[ -z "$lock_dir" ]] || rmdir -- "$lock_dir" || true
   unset postgres_password app_password migrator_password worker_password ops_password
-  unset backup_reporter_password
+  unset backup_reporter_password mail_worker_password
   unset name final staged created_finals secret_names success staging_dir lock_dir lock_candidate
   unset validator script_dir current_uid target_group test_group secrets_dir default_secrets_dir
   unset CODESTEAD_SECRETS_DIR CODESTEAD_SECRETS_TEST_GROUP
@@ -123,6 +125,7 @@ postgres_password="$(generate_password)"
 app_password="$(generate_password)"
 migrator_password="$(generate_password)"
 worker_password="$(generate_password)"
+mail_worker_password="$(generate_password)"
 ops_password="$(generate_password)"
 backup_reporter_password="$(generate_password)"
 
@@ -151,6 +154,8 @@ write_secret database_migrator_url \
   "postgresql://learncoding_migrator:$migrator_password@postgres:5432/learncoding"
 write_secret database_worker_url \
   "postgresql://learncoding_worker:$worker_password@postgres:5432/learncoding"
+write_secret database_mail_worker_url \
+  "postgresql://learncoding_mail_worker:$mail_worker_password@postgres:5432/learncoding"
 write_secret database_ops_url \
   "postgresql://learncoding_ops:$ops_password@postgres:5432/learncoding"
 write_secret database_backup_reporter_url \
@@ -175,7 +180,8 @@ validator="$script_dir/validate-database-secrets.mjs"
   "$staging_dir/database_migrator_url" \
   "$staging_dir/database_worker_url" \
   "$staging_dir/database_ops_url" \
-  "$staging_dir/database_backup_reporter_url"
+  "$staging_dir/database_backup_reporter_url" \
+  "$staging_dir/database_mail_worker_url"
 
 for name in "${secret_names[@]}"; do
   staged="$staging_dir/$name"

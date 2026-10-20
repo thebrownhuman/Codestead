@@ -14,6 +14,8 @@ const values = {
     "postgresql://learncoding_migrator:Migrator-Fake-C-00000000000000000@postgres:5432/learncoding",
   databaseWorkerUrl:
     "postgresql://learncoding_worker:Worker-Fake-D-0000000000000000000@postgres:5432/learncoding",
+  databaseMailWorkerUrl:
+    "postgresql://learncoding_mail_worker:mail-Worker-Fake-D-0000000000000000000@postgres:5432/learncoding",
   databaseOpsUrl:
     "postgresql://learncoding_ops:Ops-Fake-E-000000000000000000000@postgres:5432/learncoding",
   databaseBackupReporterUrl:
@@ -29,6 +31,7 @@ describe("host database secret contract", () => {
         "learncoding_app",
         "learncoding_migrator",
         "learncoding_worker",
+        "learncoding_mail_worker",
         "learncoding_ops",
         "learncoding_backup_reporter",
       ],

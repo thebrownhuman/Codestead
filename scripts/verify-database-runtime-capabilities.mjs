@@ -1,6 +1,6 @@
 import {
   BOOTSTRAP_SESSION_AUTHORITY,
-  CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES,
+  CURRENT_0074_DATABASE_RUNTIME_CAPABILITIES,
   DATABASE_RUNTIME_CAPABILITY_PHASES,
   DatabaseRuntimeCapabilityPhaseError,
   canonicalDatabaseRuntimeCapabilitiesJson,
@@ -26,9 +26,18 @@ const EXPECTED_ROLES = Object.freeze([
   "learncoding_migrator",
   "learncoding_app",
   "learncoding_worker",
+  "learncoding_mail_worker",
   "learncoding_ops",
   "learncoding_backup_reporter",
 ]);
+
+export const FOUNDATION_0074_ROLE_POLICY = Object.freeze({
+  roles: Object.freeze(CURRENT_0074_DATABASE_RUNTIME_CAPABILITIES.roles.map(role =>
+    Object.freeze(role.name === "learncoding_mail_worker"
+      ? { ...role, login: false, credential: "none" }
+      : role),
+  )),
+});
 
 export class VerifierDatabaseRuntimeCapabilityError extends Error {
   constructor(section) {
@@ -419,8 +428,8 @@ export function assertVerifierDatabaseRuntimeCapabilityPhaseRequest(
     );
   }
   if (
-    requestedPhase === DATABASE_RUNTIME_CAPABILITY_PHASES.EXPAND_PREPARE_0073 ||
-    requestedPhase === DATABASE_RUNTIME_CAPABILITY_PHASES.CONTRACTED_0074
+    requestedPhase === DATABASE_RUNTIME_CAPABILITY_PHASES.EXPAND_PREPARE_0074 ||
+    requestedPhase === DATABASE_RUNTIME_CAPABILITY_PHASES.CONTRACTED_0075
   ) {
     throw new DatabaseRuntimeCapabilityPhaseError(
       `${requestedPhase} is unavailable until its reviewed migration exists`,
@@ -1525,7 +1534,9 @@ function normalizeVerifierFoundationRoleTopology({
       [...authenticatedRoles].toSorted(),
     ) !==
     canonicalDatabaseRuntimeCapabilitiesJson(
-      EXPECTED_ROLES.filter((role) => role !== "learncoding_owner"),
+      EXPECTED_ROLES.filter((role) =>
+        role !== "learncoding_owner" && role !== "learncoding_mail_worker",
+      ),
     )
   ) {
     fail("foundation-authenticated-role-set");
@@ -1540,7 +1551,7 @@ function normalizeVerifierFoundationRoleTopology({
   const credentialsByRole = validateVerifierCredentialEvidence(
     credentialEvidence,
     {
-      policy: CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES,
+      policy: FOUNDATION_0074_ROLE_POLICY,
       postgresDatabase,
       bootstrapUser,
       roleRows,
@@ -1762,7 +1773,7 @@ function normalizeVerifierFoundationDefaultAcls(
 }
 
 function expectedVerifierFoundationEnvelope(schemaNames) {
-  const policy = CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES;
+  const policy = CURRENT_0074_DATABASE_RUNTIME_CAPABILITIES;
   const owner = "learncoding_owner";
   const loginRoles = EXPECTED_ROLES.filter((role) => role !== owner);
   const objects = [
@@ -1813,7 +1824,7 @@ function expectedVerifierFoundationEnvelope(schemaNames) {
         entry.creator?.kind === BOOTSTRAP_SESSION_AUTHORITY.kind),
   );
   return {
-    roles: sortedVerifierFoundationCollection(policy.roles),
+    roles: sortedVerifierFoundationCollection(FOUNDATION_0074_ROLE_POLICY.roles),
     memberships: sortedVerifierFoundationCollection(policy.memberships),
     authority: {
       objects: sortedVerifierFoundationCollection(objects),
@@ -1842,7 +1853,7 @@ export async function observeVerifierDatabaseRuntimeCredentialEvidence(
   {
     postgresDatabase,
     postgresUser,
-    policy = CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES,
+    policy = CURRENT_0074_DATABASE_RUNTIME_CAPABILITIES,
   },
 ) {
   postgresUser = validateVerifierBootstrapUser(postgresUser);
@@ -2113,7 +2124,7 @@ export async function verifyDatabaseRuntimeCapabilityCatalog(
     });
   }
   if (
-    resolution.phase !== DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073 ||
+    resolution.phase !== DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0074 ||
     resolution.reconcileApplicationAcls !== true ||
     resolution.policy === null
   ) {

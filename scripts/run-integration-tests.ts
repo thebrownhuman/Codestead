@@ -45,6 +45,7 @@ type RoleBootstrapRunner = (options: {
   readonly databaseAppUrl: string;
   readonly databaseMigratorUrl: string;
   readonly databaseWorkerUrl: string;
+  readonly databaseMailWorkerUrl: string;
   readonly databaseOpsUrl: string;
   readonly databaseBackupReporterUrl: string;
   readonly lockTimeoutMs: number;
@@ -76,6 +77,7 @@ type RoleBoundaryVerifier = (options: {
   readonly databaseAppUrl: string;
   readonly databaseMigratorUrl: string;
   readonly databaseWorkerUrl: string;
+  readonly databaseMailWorkerUrl: string;
   readonly databaseOpsUrl: string;
   readonly databaseBackupReporterUrl: string;
   readonly requireApplicationObjects: boolean;
@@ -92,6 +94,7 @@ type DisposableRoleCredentials = Readonly<{
   app: string;
   migrator: string;
   worker: string;
+  mailWorker: string;
   ops: string;
   backupReporter: string;
 }>;
@@ -230,6 +233,7 @@ function disposableRoleUrls(
     app: loopback("learncoding_app", credentials.app),
     migrator: loopback("learncoding_migrator", credentials.migrator),
     worker: loopback("learncoding_worker", credentials.worker),
+    mailWorker: loopback("learncoding_mail_worker", credentials.mailWorker),
     ops: loopback("learncoding_ops", credentials.ops),
     backupReporter: loopback(
       "learncoding_backup_reporter",
@@ -296,6 +300,7 @@ async function reconcileDisposableIntegrationRoles(input: {
       "learncoding_worker",
       input.credentials.worker,
     ),
+    databaseMailWorkerUrl: canonical("learncoding_mail_worker", input.credentials.mailWorker),
     databaseOpsUrl: canonical("learncoding_ops", input.credentials.ops),
     databaseBackupReporterUrl: canonical(
       "learncoding_backup_reporter",
@@ -493,6 +498,7 @@ async function main() {
     app: generatedPassword(),
     migrator: generatedPassword(),
     worker: generatedPassword(),
+    mailWorker: generatedPassword(),
     ops: generatedPassword(),
     backupReporter: generatedPassword(),
   });
@@ -575,6 +581,7 @@ async function main() {
         databaseAppUrl: roleUrls.app,
         databaseMigratorUrl: roleUrls.migrator,
         databaseWorkerUrl: roleUrls.worker,
+        databaseMailWorkerUrl: roleUrls.mailWorker,
         databaseOpsUrl: roleUrls.ops,
         databaseBackupReporterUrl: roleUrls.backupReporter,
         databaseOwnerUrl: ownerDatabaseUrl,
@@ -609,6 +616,32 @@ async function main() {
         }));
       },
     });
+
+    // Exercise the real SECURITY INVOKER actor guards as both worker logins,
+    // app, and privileged SET ROLE sessions on the disposable administrator
+    // connection. Fixture grants are removed before application tests run.
+    failureReporter.enter("mail-role-guards");
+    const guardPool = new Pool({ connectionString: databaseUrl, max: 1 });
+    const guardClient = await guardPool.connect();
+    try {
+      const modulePath = "../infra/tests/mail-worker-0074-guards.integration.mjs";
+      const { verifyMailWorkerInvokerGuards } = await import(modulePath) as {
+        verifyMailWorkerInvokerGuards(client: PoolClient): Promise<{ assertions: number }>;
+      };
+      const result = await verifyMailWorkerInvokerGuards(guardClient);
+      if (result.assertions !== 17) throw new Error("Mail role guard coverage is incomplete.");
+      const inventoryModulePath = "./generate-mail-worker-0074-inventory.mjs";
+      const { collectMailWorker0074Inventory } = await import(inventoryModulePath) as {
+        collectMailWorker0074Inventory(client: PoolClient): Promise<{ sha256: string }>;
+      };
+      const replayed = await collectMailWorker0074Inventory(guardClient);
+      if (replayed.sha256 !== "9a0a41cd2c2bbc9c366a517c69e321f0ec58128bb7cca7f74b36bdad68143912") {
+        throw new Error("Mail role replay inventory differs from the reviewed artifact.");
+      }
+    } finally {
+      guardClient.release();
+      await guardPool.end();
+    }
 
     const resetInstallerPool = new Pool({
       connectionString: databaseUrl,

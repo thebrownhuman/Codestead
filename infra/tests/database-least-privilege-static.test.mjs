@@ -10,7 +10,7 @@ import {
 } from "../../scripts/bootstrap-database-roles.mjs";
 
 import {
-  CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES,
+  CURRENT_0074_DATABASE_RUNTIME_CAPABILITIES,
   DATABASE_RUNTIME_CAPABILITY_PHASES,
   planDatabaseRuntimeCapabilityReconciliation,
 } from "../../scripts/database-runtime-capabilities.mjs";
@@ -42,6 +42,7 @@ function databaseSecretTargets(block) {
     "database_url",
     "database_migrator_url",
     "database_worker_url",
+    "database_mail_worker_url",
     "database_ops_url",
     "database_backup_reporter_url",
     "postgres_password",
@@ -70,6 +71,7 @@ test("Compose mounts the exact database credential matrix", () => {
       "database_url:database_app_url",
       "database_migrator_url:database_migrator_url",
       "database_worker_url:database_worker_url",
+      "database_mail_worker_url:database_mail_worker_url",
       "database_ops_url:database_ops_url",
       "database_backup_reporter_url:database_backup_reporter_url",
     ],
@@ -78,6 +80,7 @@ test("Compose mounts the exact database credential matrix", () => {
       "database_url:database_app_url",
       "database_migrator_url:database_migrator_url",
       "database_worker_url:database_worker_url",
+      "database_mail_worker_url:database_mail_worker_url",
       "database_ops_url:database_ops_url",
       "database_backup_reporter_url:database_backup_reporter_url",
     ],
@@ -86,12 +89,13 @@ test("Compose mounts the exact database credential matrix", () => {
       "database_url:database_app_url",
       "database_migrator_url:database_migrator_url",
       "database_worker_url:database_worker_url",
+      "database_mail_worker_url:database_mail_worker_url",
       "database_ops_url:database_ops_url",
       "database_backup_reporter_url:database_backup_reporter_url",
     ],
     migrate: ["database_migrator_url:database_url"],
     app: ["database_url:database_url"],
-    "mail-worker": ["database_worker_url:database_url"],
+    "mail-worker": ["database_mail_worker_url:database_url"],
     "reward-worker": ["database_worker_url:database_url"],
     "regrade-worker": ["database_worker_url:database_url"],
     "exam-finalization-worker": ["database_worker_url:database_url"],
@@ -236,10 +240,10 @@ test("bootstrap and migration share the administration lock without broad reassi
 });
 
 test("manifest reconciliation is behaviorally exact and fail-closed", () => {
-  const policy = CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES;
+  const policy = CURRENT_0074_DATABASE_RUNTIME_CAPABILITIES;
   const exactCatalog = structuredClone(policy);
   const exactPlan = planDatabaseRuntimeCapabilityReconciliation({
-    phase: DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073,
+    phase: DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0074,
     policy,
     catalog: exactCatalog,
   });
@@ -259,7 +263,7 @@ test("manifest reconciliation is behaviorally exact and fail-closed", () => {
     (entry) => JSON.stringify(entry) !== JSON.stringify(missing),
   );
   const repairPlan = planDatabaseRuntimeCapabilityReconciliation({
-    phase: DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073,
+    phase: DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0074,
     policy,
     catalog: missingCatalog,
   });
@@ -277,7 +281,7 @@ test("manifest reconciliation is behaviorally exact and fail-closed", () => {
   assert.throws(
     () =>
       planDatabaseRuntimeCapabilityReconciliation({
-        phase: DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073,
+        phase: DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0074,
         policy,
         catalog: malformedCatalog,
       }),

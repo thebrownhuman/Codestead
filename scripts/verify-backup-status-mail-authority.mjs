@@ -1,3 +1,5 @@
+import mailRuntime0074 from "../drizzle/meta/0074_mail_runtime.json" with { type: "json" };
+
 const ZERO_UUID = "00000000-0000-0000-0000-000000000000";
 
 function exactColumn(name, type, notNull, defaultExpression = null) {
@@ -444,10 +446,24 @@ export const BACKUP_STATUS_AUTHORITY_0069_CONTRACT = Object.freeze({
   guardState: BACKUP_STATUS_AUTHORITY_GUARD_STATE,
 });
 
+export const BACKUP_STATUS_AUTHORITY_0074_CONTRACT = Object.freeze({
+  ...BACKUP_STATUS_AUTHORITY_0069_CONTRACT,
+  phase: 74,
+  routines: Object.freeze(BACKUP_STATUS_AUTHORITY_0069_CONTRACT.routines.map(previous => {
+    const replayed = mailRuntime0074.routines.find(row => row.signature === previous.signature);
+    return replayed ? Object.freeze({
+      ...previous,
+      bodySha256: replayed.bodySha256,
+      definitionSha256: replayed.definitionSha256,
+    }) : previous;
+  })),
+});
+
 const CANONICAL_BACKUP_STATUS_AUTHORITY_CONTRACTS = new Map([
   [65, BACKUP_STATUS_AUTHORITY_0065_CONTRACT],
   [67, BACKUP_STATUS_AUTHORITY_0067_CONTRACT],
   [69, BACKUP_STATUS_AUTHORITY_0069_CONTRACT],
+  [74, BACKUP_STATUS_AUTHORITY_0074_CONTRACT],
 ]);
 
 export class BackupStatusMailAuthorityContractError extends Error {

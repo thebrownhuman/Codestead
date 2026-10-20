@@ -111,17 +111,17 @@ async function fixtureRoot() {
 }
 
 describe("restore smoke verifier", () => {
-  it("validates the exact 0073 ledger and required authority relations without trusting row data", async () => {
+  it("validates the exact 0074 ledger and required authority relations without trusting row data", async () => {
     const queries: string[] = [];
     const ledgerRows = await exactAppliedLedgerRows();
     const {
       REVIEWED_MIGRATION_LEDGER,
       REVIEWED_MIGRATION_LEDGER_SHA256,
     } = await reviewedLedger();
-    expect(REVIEWED_MIGRATION_LEDGER).toHaveLength(74);
+    expect(REVIEWED_MIGRATION_LEDGER).toHaveLength(75);
     expect(REVIEWED_MIGRATION_LEDGER.at(-1)).toMatchObject({
-      idx: 73,
-      tag: "0073_learner_ai_model_preference",
+      idx: 74,
+      tag: "0074_mail_worker_role",
     });
     const client = {
       async query(sql: string) {
@@ -147,7 +147,7 @@ describe("restore smoke verifier", () => {
     };
 
     await expect(verifyDatabaseSchema(client)).resolves.toEqual({
-      appliedMigrationCount: 74,
+      appliedMigrationCount: 75,
       migrationLedgerSha256: REVIEWED_MIGRATION_LEDGER_SHA256,
       publicTableCount: 18,
     });
@@ -267,7 +267,7 @@ describe("restore smoke verifier", () => {
     ["not-a-count", "restored table count is invalid"],
     ["-1", "restored table count is invalid"],
     ["4", "restored database contains too few public tables"],
-    ["9007499254740992", "restored database contains too few public tables"],
+    ["9007599254740992", "restored database contains too few public tables"],
   ])("rejects corrupt public table count %j", async (count, message) => {
     const client = {
       async query() { return { rows: [{ count }] }; },

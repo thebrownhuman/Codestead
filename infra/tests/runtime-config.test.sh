@@ -926,7 +926,7 @@ set -Eeuo pipefail
 if [[ "$#" == 2 && "$1" == --check && "$2" == "$FAKE_EXPECTED_OBJECT_PREPARER" ]]; then
   exit "$FAKE_NODE_OBJECT_CHECK_STATUS"
 fi
-if [[ "$#" == 10 && "$1" == "$FAKE_EXPECTED_DATABASE_VALIDATOR" && \
+if [[ "$#" == 11 && "$1" == "$FAKE_EXPECTED_DATABASE_VALIDATOR" && \
   "$2" == learncoding && "$3" == learncoding && \
   "$4" == "$FAKE_EXPECTED_SECRETS_DIR/postgres_password" && \
   "$5" == "$FAKE_EXPECTED_SECRETS_DIR/database_bootstrap_url" && \
@@ -934,7 +934,8 @@ if [[ "$#" == 10 && "$1" == "$FAKE_EXPECTED_DATABASE_VALIDATOR" && \
   "$7" == "$FAKE_EXPECTED_SECRETS_DIR/database_migrator_url" && \
   "$8" == "$FAKE_EXPECTED_SECRETS_DIR/database_worker_url" && \
   "$9" == "$FAKE_EXPECTED_SECRETS_DIR/database_ops_url" && \
-  "${10}" == "$FAKE_EXPECTED_SECRETS_DIR/database_backup_reporter_url" ]]; then
+  "${10}" == "$FAKE_EXPECTED_SECRETS_DIR/database_backup_reporter_url" && \
+  "${11}" == "$FAKE_EXPECTED_SECRETS_DIR/database_mail_worker_url" ]]; then
   printf '%s\n' 'database secret topology valid'
   exit 0
 fi
@@ -1167,6 +1168,7 @@ EOF
   printf '%s' "postgresql://learncoding_app:app-$database_canary@postgres/learncoding" >"$secrets/database_url"
   printf '%s' "postgresql://learncoding_migrator:migrator-$database_canary@postgres/learncoding" >"$secrets/database_migrator_url"
   printf '%s' "postgresql://learncoding_worker:worker-$database_canary@postgres/learncoding" >"$secrets/database_worker_url"
+  printf '%s' "postgresql://learncoding_mail_worker:mail-worker-$database_canary@postgres/learncoding" >"$secrets/database_mail_worker_url"
   printf '%s' "postgresql://learncoding_ops:ops-$database_canary@postgres/learncoding" >"$secrets/database_ops_url"
   printf '%s' "postgresql://learncoding_backup_reporter:backup-reporter-$database_canary@postgres/learncoding" >"$secrets/database_backup_reporter_url"
   printf '%s' 'better-auth-secret-at-least-thirty-two-bytes' >"$secrets/better_auth_secret"

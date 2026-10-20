@@ -3,6 +3,7 @@ import { performance } from "node:perf_hooks";
 import { pathToFileURL } from "node:url";
 
 import { Pool } from "pg";
+import mailRuntime0074 from "../drizzle/meta/0074_mail_runtime.json" with { type: "json" };
 import {
   MAIL_APP_OUTBOX_INSERT_COLUMNS,
   MAIL_APP_OUTBOX_PRE_REPLAY_INSERT_COLUMNS,
@@ -30,6 +31,7 @@ import {
   assertSameVerifierDatabaseRuntimeCapabilityPhase,
   assertVerifierDatabaseRuntimeCapabilityPhaseRequest,
   observeVerifierDatabaseRuntimeCredentialEvidence,
+  FOUNDATION_0074_ROLE_POLICY,
   resolveVerifierDatabaseRuntimeCapabilityPhase,
   verifyDatabaseRuntimeCapabilityCatalog,
 } from "./verify-database-runtime-capabilities.mjs";
@@ -44,6 +46,7 @@ const ROLE_SPECS = Object.freeze([
   ["app", "databaseAppUrl", "learncoding_app"],
   ["migrator", "databaseMigratorUrl", "learncoding_migrator"],
   ["worker", "databaseWorkerUrl", "learncoding_worker"],
+  ["mailWorker", "databaseMailWorkerUrl", "learncoding_mail_worker"],
   ["ops", "databaseOpsUrl", "learncoding_ops"],
   [
     "backupReporter",
@@ -54,6 +57,18 @@ const ROLE_SPECS = Object.freeze([
 const RESTRICTED_ROLE_NAMES = Object.freeze(
   ROLE_SPECS.map(([, , role]) => role),
 );
+
+function reviewedMailWorkerColumnGrants(enabled) {
+  if (typeof enabled !== "boolean") fail("mail-worker-role-phase");
+  if (!enabled) return [];
+  return mailRuntime0074.grants.filter(row => row.objectKind === "column")
+    .map(row => ({
+      relation_name: row.objectIdentity.split(".").slice(0, 2).join("."),
+      column_name: row.objectIdentity.split(".")[2],
+      privilege_type: row.privilege,
+      grantee_name: "learncoding_mail_worker",
+    }));
+}
 const RUNTIME_ROLES = new Set([
   "learncoding_app",
   "learncoding_worker",
@@ -939,6 +954,7 @@ async function verifyMailReplayAuthorityTableContractInternal(
   client,
   {
     requiresGuardedDelivery = false,
+    requiresMailWorkerRole = false,
     expectedAppInsertColumns,
     expectedWorkerUpdateColumns,
   } = {},
@@ -959,6 +975,8 @@ async function verifyMailReplayAuthorityTableContractInternal(
     : MAIL_WORKER_OUTBOX_PRE_REQUEST_UPDATE_COLUMNS;
   if (
     typeof requiresGuardedDelivery !== "boolean" ||
+    typeof requiresMailWorkerRole !== "boolean" ||
+    (requiresMailWorkerRole && !requiresGuardedDelivery) ||
     expectedAppInsertColumns !== MAIL_APP_OUTBOX_INSERT_COLUMNS ||
     expectedWorkerUpdateColumns !== canonicalWorkerUpdateColumns
   )
@@ -1486,6 +1504,10 @@ async function verifyMailReplayAuthorityTableContractInternal(
                       'learncoding_worker'::text
                  from pg_catalog.unnest($75::text[])
                       reviewed(column_name)
+               union all
+               select relation_name, column_name, privilege_type, grantee_name
+                 from pg_catalog.jsonb_to_recordset($76::jsonb)
+                   reviewed(relation_name text,column_name text,privilege_type text,grantee_name text)
              ), expected_column_acl(
                relation_oid,
                column_name,
@@ -2480,6 +2502,7 @@ async function verifyMailReplayAuthorityTableContractInternal(
       expectedInboundAuthorityForeignKeyCount,
       expectedAppInsertColumns,
       expectedReceiptWorkerSelectColumns,
+      JSON.stringify(reviewedMailWorkerColumnGrants(requiresMailWorkerRole)),
     ],
   );
 
@@ -2544,6 +2567,7 @@ async function verifyMailWorkerOutboxContractInternal(
     requiresReplayAuthority = false,
     requiresProviderRequest = false,
     requiresGuardedDelivery = false,
+    requiresMailWorkerRole = false,
   } = {},
   verificationMode = undefined,
 ) {
@@ -2561,6 +2585,8 @@ async function verifyMailWorkerOutboxContractInternal(
     typeof requiresReplayAuthority !== "boolean" ||
     typeof requiresProviderRequest !== "boolean" ||
     typeof requiresGuardedDelivery !== "boolean" ||
+    typeof requiresMailWorkerRole !== "boolean" ||
+    (requiresMailWorkerRole && !requiresGuardedDelivery) ||
     (requiresProviderEvidence && !requiresDispatchBinding) ||
     (requiresReplayAuthority && !requiresProviderEvidence) ||
     (requiresProviderRequest && !requiresReplayAuthority) ||
@@ -3169,6 +3195,7 @@ async function verifyMailWorkerOutboxContractInternal(
       client,
       {
         requiresGuardedDelivery,
+        requiresMailWorkerRole,
         expectedAppInsertColumns,
         expectedWorkerUpdateColumns: expectedUpdateColumns,
       },
@@ -3186,6 +3213,7 @@ async function verifyMailWorkerOutboxContractInternal(
       expectedWorkerInsertColumns: expectedInsertColumns,
       expectedWorkerUpdateColumns: expectedUpdateColumns,
       requiresGuardedDelivery,
+      requiresMailWorkerRole,
     });
   }
   return 1;
@@ -3510,6 +3538,7 @@ export async function verifyMailGuardedDeliveryAclContract(
     expectedWorkerInsertColumns,
     expectedWorkerUpdateColumns,
     requiresGuardedDelivery = false,
+    requiresMailWorkerRole = false,
   },
 ) {
   const vectors = [
@@ -3540,7 +3569,9 @@ export async function verifyMailGuardedDeliveryAclContract(
         expectedWorkerUpdateColumns.includes(column),
     ) ||
     MAIL_DELIVERY_RELEASE_RECEIPT_WORKER_SELECT_COLUMNS.length !== 7 ||
-    typeof requiresGuardedDelivery !== "boolean"
+    typeof requiresGuardedDelivery !== "boolean" ||
+    typeof requiresMailWorkerRole !== "boolean" ||
+    (requiresMailWorkerRole && !requiresGuardedDelivery)
   )
     fail("mail-guarded-delivery-acl-manifest");
 
@@ -3561,7 +3592,8 @@ export async function verifyMailGuardedDeliveryAclContract(
               'learncoding_worker',
               'learncoding_ops',
               'learncoding_backup_reporter'
-            ]::text[]
+            ]::text[] || case when jsonb_array_length($7::jsonb)>0
+              then array['learncoding_mail_worker']::text[] else array[]::text[] end
           )
        ), runtime_roles(role_name, role_oid) as (
          select role_name, role_oid
@@ -3571,7 +3603,8 @@ export async function verifyMailGuardedDeliveryAclContract(
               'learncoding_app',
               'learncoding_worker',
               'learncoding_ops'
-            ]::text[]
+            ]::text[] || case when jsonb_array_length($7::jsonb)>0
+              then array['learncoding_mail_worker']::text[] else array[]::text[] end
           )
        ), outbox as (
          select relation.oid, relation.relowner
@@ -3643,6 +3676,10 @@ export async function verifyMailGuardedDeliveryAclContract(
          union all
          select 'learncoding_worker'::text, column_name, 'UPDATE'::text
            from pg_catalog.unnest($3::text[]) column_name
+         union all select grantee_name,column_name,privilege_type
+           from pg_catalog.jsonb_to_recordset($7::jsonb)
+             reviewed(relation_name text,column_name text,privilege_type text,grantee_name text)
+          where relation_name='public.email_outbox'
        ), observed_outbox_column_acl(
          attname, grantor, grantee, privilege_type, is_grantable
        ) as (
@@ -3700,6 +3737,11 @@ export async function verifyMailGuardedDeliveryAclContract(
            cross join receipt
            join runtime_roles worker
              on worker.role_name = 'learncoding_worker'
+         union all select reviewed.column_name,receipt.relowner,role.role_oid,reviewed.privilege_type,false
+           from pg_catalog.jsonb_to_recordset($7::jsonb)
+             reviewed(relation_name text,column_name text,privilege_type text,grantee_name text)
+           cross join receipt join managed_roles role on role.role_name=reviewed.grantee_name
+          where reviewed.relation_name='public.mail_delivery_release_receipt'
        ), runtime_membership_closure(root_oid, role_oid) as (
          select role_oid, role_oid
            from runtime_roles
@@ -3794,6 +3836,12 @@ export async function verifyMailGuardedDeliveryAclContract(
                     or (role.role_name = 'learncoding_worker'
                         and privilege.privilege_type = 'UPDATE'
                         and attribute.attname = any($3::text[]))
+                    or exists(select 1 from pg_catalog.jsonb_to_recordset($7::jsonb)
+                      reviewed(relation_name text,column_name text,privilege_type text,grantee_name text)
+                      where reviewed.relation_name='public.email_outbox'
+                        and reviewed.grantee_name=role.role_name
+                        and reviewed.column_name=attribute.attname
+                        and reviewed.privilege_type=privilege.privilege_type)
                   )
          ) outbox_runtime_effective_acl_exact,
          not exists (
@@ -3864,6 +3912,12 @@ export async function verifyMailGuardedDeliveryAclContract(
                       role.role_name = 'learncoding_worker'
                       and privilege.privilege_type = 'SELECT'
                       and attribute.attname = any($5::text[])
+                      or exists(select 1 from pg_catalog.jsonb_to_recordset($7::jsonb)
+                        reviewed(relation_name text,column_name text,privilege_type text,grantee_name text)
+                        where reviewed.relation_name='public.mail_delivery_release_receipt'
+                          and reviewed.grantee_name=role.role_name
+                          and reviewed.column_name=attribute.attname
+                          and reviewed.privilege_type=privilege.privilege_type)
                     )
            )
          end receipt_effective_acl_exact,
@@ -3879,6 +3933,7 @@ export async function verifyMailGuardedDeliveryAclContract(
       MAIL_DELIVERY_RELEASE_INSERT_MARKER_COLUMNS,
       MAIL_DELIVERY_RELEASE_RECEIPT_WORKER_SELECT_COLUMNS,
       requiresGuardedDelivery,
+      JSON.stringify(reviewedMailWorkerColumnGrants(requiresMailWorkerRole)),
     ],
   );
   const expected = {
@@ -4080,6 +4135,7 @@ export async function verifyRestoredNoAclMailAuthorityStructure(
       requiresReplayAuthority: canonicalPhase.requiresReplayAuthority,
       requiresProviderRequest: canonicalPhase.requiresGuardedDelivery,
       requiresGuardedDelivery: canonicalPhase.requiresGuardedDelivery,
+    requiresMailWorkerRole: canonicalPhase.index === 74,
     },
     RESTORED_NO_ACL_STRUCTURE,
   );
@@ -4114,6 +4170,7 @@ export async function verifyReviewedMailAuthorityCatalogContracts(
     requiresReplayAuthority: canonicalPhase.requiresReplayAuthority,
     requiresProviderRequest: canonicalPhase.requiresGuardedDelivery,
     requiresGuardedDelivery: canonicalPhase.requiresGuardedDelivery,
+    requiresMailWorkerRole: canonicalPhase.index === 74,
   });
   return {
     routinesVerified,
@@ -4188,7 +4245,7 @@ async function verifyAuthenticatedGuardedDeliveryPrivileges(client) {
         where pg_catalog.has_column_privilege(
           current_user, receipt.oid, attribute.attnum, privilege.privilege_type
         ) is distinct from (
-          current_user = 'learncoding_worker'
+          current_user in ('learncoding_worker','learncoding_mail_worker')
           and privilege.privilege_type = 'SELECT'
           and attribute.attnum between 1 and 7
         )
@@ -4241,6 +4298,13 @@ async function verifyAuthenticatedGuardedDeliveryPrivileges(client) {
             and attribute.attname = any(array[
               'provider_request_body_sha256',
               'provider_request_body_length'
+            ]::text[])
+          )
+          or (
+            current_user = 'learncoding_mail_worker'
+            and privilege.privilege_type in ('SELECT','UPDATE')
+            and attribute.attname = any(array[
+              'provider_request_body_sha256','provider_request_body_length'
             ]::text[])
           )
         )
@@ -4489,8 +4553,15 @@ export async function verifyDatabaseRoleBoundaries(options) {
     }
     const postLockAuthenticationDeadline =
       performance.now() + authenticationTimeoutMs;
+    const activeRoleSpecs = ROLE_SPECS.filter(([name]) =>
+      name !== "mailWorker" || preLockSeal.capability.reconcileApplicationAcls,
+    );
+    const authenticatedRoleNames = activeRoleSpecs.map(([, , role]) => role);
+    const credentialPolicy = preLockSeal.capability.reconcileApplicationAcls
+      ? preLockSeal.capability.policy
+      : FOUNDATION_0074_ROLE_POLICY;
     const authenticationResults = await Promise.allSettled(
-      ROLE_SPECS.map(([name]) =>
+      activeRoleSpecs.map(([name]) =>
         checkoutRoleClientBeforeDeadline(
           resources.get(name),
           postLockAuthenticationDeadline,
@@ -4509,6 +4580,7 @@ export async function verifyDatabaseRoleBoundaries(options) {
         observeVerifierDatabaseRuntimeCredentialEvidence(client, {
           postgresDatabase: options.postgresDatabase,
           postgresUser,
+          policy: credentialPolicy,
         }),
       { onRollbackFailure: onBootstrapRollbackFailure },
     );
@@ -4529,7 +4601,7 @@ export async function verifyDatabaseRoleBoundaries(options) {
         const catalog = await verifyDatabaseRuntimeCapabilityCatalog(client, {
           postgresDatabase: options.postgresDatabase,
           bootstrapUser: postgresUser,
-          authenticatedRoles: RESTRICTED_ROLE_NAMES,
+          authenticatedRoles: authenticatedRoleNames,
           credentialEvidence: lockedCredentialEvidence,
           resolution: seal.capability,
         });
@@ -4556,7 +4628,7 @@ export async function verifyDatabaseRoleBoundaries(options) {
         reviewedPhase.backupStatusAuthority,
       );
     }
-    for (const [name] of ROLE_SPECS) {
+    for (const [name] of activeRoleSpecs) {
       const role = parsed[name];
       const result = await verifyRole({
         client: resources.get(name).client,
@@ -4597,6 +4669,7 @@ export async function verifyDatabaseRoleBoundaries(options) {
             observeVerifierDatabaseRuntimeCredentialEvidence(bootstrapClient, {
               postgresDatabase: options.postgresDatabase,
               postgresUser,
+              policy: credentialPolicy,
             }),
           { onRollbackFailure: onBootstrapRollbackFailure },
         );
@@ -4611,7 +4684,7 @@ export async function verifyDatabaseRoleBoundaries(options) {
           {
             postgresDatabase: options.postgresDatabase,
             bootstrapUser: postgresUser,
-            authenticatedRoles: RESTRICTED_ROLE_NAMES,
+            authenticatedRoles: authenticatedRoleNames,
             credentialEvidence: finalCredentialEvidence,
             resolution: finalSeal.capability,
           },
@@ -4702,6 +4775,7 @@ async function main() {
     databaseAppUrl: process.env.DATABASE_APP_URL ?? "",
     databaseMigratorUrl: process.env.DATABASE_MIGRATOR_URL ?? "",
     databaseWorkerUrl: process.env.DATABASE_WORKER_URL ?? "",
+    databaseMailWorkerUrl: process.env.DATABASE_MAIL_WORKER_URL ?? "",
     databaseOpsUrl: process.env.DATABASE_OPS_URL ?? "",
     databaseBackupReporterUrl: process.env.DATABASE_BACKUP_REPORTER_URL ?? "",
     requireApplicationObjects,

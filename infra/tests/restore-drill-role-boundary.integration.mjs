@@ -1058,6 +1058,7 @@ function rolePasswords() {
     app: password(),
     migrator: password(),
     worker: password(),
+    mailWorker: password(),
     ops: password(),
     backupReporter: password(),
   });
@@ -1087,6 +1088,7 @@ function roleConfiguration(database, passwords) {
       password: passwords.worker,
       username: "learncoding_worker",
     }),
+    databaseMailWorkerUrl: canonicalRoleUrl({ database,password:passwords.mailWorker,username:"learncoding_mail_worker" }),
     databaseOpsUrl: canonicalRoleUrl({
       database,
       password: passwords.ops,

@@ -1,3 +1,4 @@
+import { inheritMailWorkerRole, usesMailWorkerRole, lockMailWorkerSource, mailWorkerReleaseRoutine } from "./mail-worker-role";
 import type { Pool, PoolClient } from "pg";
 
 import { pool } from "@/lib/db/client";
@@ -170,7 +171,7 @@ async function persistEmail(
     }>(
       `select released.outbox_id::text as outbox_id,
               released.operation_id::text as operation_id
-         from public.release_email_outbox_delivery(
+         from ${mailWorkerReleaseRoutine(client)}(
         $1::uuid,
         $2::uuid,
         $3::text,
@@ -204,6 +205,10 @@ async function loadCandidateIds(client: PoolClient) {
 }
 
 async function loadCandidate(client: PoolClient, userId: string) {
+  if (usesMailWorkerRole(client) &&
+    !await lockMailWorkerSource(client, "user", userId, "update")) {
+    return { rows: [] };
+  }
   return client.query<Candidate>(
     `select
        u.id as user_id, u.name, u.email, u.timezone,
@@ -227,7 +232,7 @@ async function loadCandidate(client: PoolClient, userId: string) {
        limit 1
      ) consent on true
      where u.id = $1 and u.role = 'learner' and u.status = 'active' and u.banned = false
-     for update of u`,
+     ${usesMailWorkerRole(client) ? "" : "for update of u"}`,
     [userId],
   );
 }
@@ -271,6 +276,7 @@ export async function scheduleInactivityReminders(
 ): Promise<InactivityScheduleResult> {
   validDate(now);
   const client = await schedulerPool.connect();
+  inheritMailWorkerRole(schedulerPool, client);
   const result: InactivityScheduleResult = {
     opened: 0,
     closed: 0,

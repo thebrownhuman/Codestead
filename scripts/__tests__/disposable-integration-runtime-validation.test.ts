@@ -17,6 +17,7 @@ const PASSWORDS = Object.freeze({
   app: "app-password",
   migrator: "migrator-password",
   worker: "worker-password",
+  mailWorker: "mail-worker-password",
   ops: "ops-password",
   backupReporter: "backup-reporter-password",
 });
@@ -33,6 +34,9 @@ function validInput(): RuntimeInput {
     databaseMigratorUrl: migrator,
     databaseWorkerUrl:
       `postgresql://learncoding_worker:${PASSWORDS.worker}`
+      + `@127.0.0.1:${PORT}/${DATABASE}`,
+    databaseMailWorkerUrl:
+      `postgresql://learncoding_mail_worker:${PASSWORDS.mailWorker}`
       + `@127.0.0.1:${PORT}/${DATABASE}`,
     databaseOpsUrl:
       `postgresql://learncoding_ops:${PASSWORDS.ops}`

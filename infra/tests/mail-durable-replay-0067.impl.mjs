@@ -8066,6 +8066,7 @@ async function reconcileReviewedPrivileges(
       ),
       databaseOpsUrl: credentialUrl("learncoding_ops", "ops"),
       databaseWorkerUrl: credentialUrl("learncoding_worker", "worker"),
+      databaseMailWorkerUrl: credentialUrl("learncoding_mail_worker", "mail-worker"),
       lockTimeoutMs: 30_000,
       pool: bootstrapPool,
       clusterAdministrationPool,

@@ -1,3 +1,4 @@
+import { registerMailWorkerResources } from "./mail-worker-role";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool, type PoolConfig } from "pg";
 
@@ -59,6 +60,8 @@ export function createMailDispatchBootstrapResources(
   });
   observeIdleMailDispatchPoolErrors(pool);
   const database = dependencies.createDatabase(pool);
+  registerMailWorkerResources(pool, database,
+    process.env.DATABASE_URL ?? DEVELOPMENT_DATABASE_URL);
 
   return Object.freeze({
     pool,
@@ -89,6 +92,8 @@ export function createMailDispatchDatabaseResources(
   });
   observeIdleMailDispatchPoolErrors(pool);
   const database = dependencies.createDatabase(pool);
+  registerMailWorkerResources(pool, database,
+    process.env.DATABASE_URL ?? DEVELOPMENT_DATABASE_URL);
 
   return Object.freeze({
     pool,

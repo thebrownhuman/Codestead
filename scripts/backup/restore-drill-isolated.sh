@@ -152,7 +152,7 @@ unset verifier_contract_provenance
   && "$reviewed_migration_tail_idx" == "$RESTORE_REPORT_REVIEWED_MIGRATION_TAIL_IDX" \
   && "$reviewed_migration_tail_tag" == "$RESTORE_REPORT_REVIEWED_MIGRATION_TAIL_TAG" \
   && "$reviewed_migration_ledger_sha256" == "$RESTORE_REPORT_REVIEWED_MIGRATION_LEDGER_SHA256" ]] \
-  || die "restore verifier image does not contain the exact reviewed 0073 contract"
+  || die "restore verifier image does not contain the exact reviewed 0074 contract"
 
 restore_secret_root="$work/database-secrets"
 install -d -m 0750 -o 0 -g "$restore_secrets_gid" "$restore_secret_root"
@@ -161,13 +161,14 @@ restore_database_bootstrap_url_file="$restore_secret_root/database_bootstrap_url
 restore_database_app_url_file="$restore_secret_root/database_url"
 restore_database_migrator_url_file="$restore_secret_root/database_migrator_url"
 restore_database_worker_url_file="$restore_secret_root/database_worker_url"
+restore_database_mail_worker_url_file="$restore_secret_root/database_mail_worker_url"
 restore_database_ops_url_file="$restore_secret_root/database_ops_url"
 restore_database_backup_reporter_url_file="$restore_secret_root/database_backup_reporter_url"
 
 mapfile -t restore_passwords < <(
-  python3 -c 'import secrets; [print(secrets.token_urlsafe(48)) for _ in range(6)]'
+  python3 -c 'import secrets; [print(secrets.token_urlsafe(48)) for _ in range(7)]'
 )
-[[ ${#restore_passwords[@]} -eq 6 ]] || die "restore database credential generation failed"
+[[ ${#restore_passwords[@]} -eq 7 ]] || die "restore database credential generation failed"
 declare -A restore_password_set=()
 for restore_password in "${restore_passwords[@]}"; do
   [[ "$restore_password" =~ ^[A-Za-z0-9_-]{48,}$ \
@@ -199,6 +200,8 @@ write_restore_secret "$restore_database_ops_url_file" \
   "postgresql://learncoding_ops:${restore_passwords[4]}@postgres:5432/learncoding_restore"
 write_restore_secret "$restore_database_backup_reporter_url_file" \
   "postgresql://learncoding_backup_reporter:${restore_passwords[5]}@postgres:5432/learncoding_restore"
+write_restore_secret "$restore_database_mail_worker_url_file" \
+  "postgresql://learncoding_mail_worker:${restore_passwords[6]}@postgres:5432/learncoding_restore"
 unset restore_password restore_passwords restore_password_set restore_postgres_password
 
 archive_name=unknown
@@ -247,6 +250,7 @@ restore_compose() {
   RESTORE_DATABASE_APP_URL_FILE="$restore_database_app_url_file" \
   RESTORE_DATABASE_MIGRATOR_URL_FILE="$restore_database_migrator_url_file" \
   RESTORE_DATABASE_WORKER_URL_FILE="$restore_database_worker_url_file" \
+  RESTORE_DATABASE_MAIL_WORKER_URL_FILE="$restore_database_mail_worker_url_file" \
   RESTORE_DATABASE_OPS_URL_FILE="$restore_database_ops_url_file" \
   RESTORE_DATABASE_BACKUP_REPORTER_URL_FILE="$restore_database_backup_reporter_url_file" \
   RESTORE_EXTRACTED_ROOT="$extracted" \
@@ -408,7 +412,7 @@ _valid_compact_utc_timestamp "$snapshot_utc" \
   && "$migration_last_id" =~ ^[0-9]{1,20}$ \
   && "$migration_last_created_at" == "$RESTORE_REPORT_REVIEWED_MIGRATION_TAIL_CREATED_AT" \
   && "$migration_state_sha256" =~ ^[0-9a-f]{64}$ ]] \
-  || die "restored backup migration provenance is not the reviewed 0073 ledger"
+  || die "restored backup migration provenance is not the reviewed 0074 ledger"
 preflight_ok=0
 preflight_metrics=""
 if preflight_metrics="$(bash "$SCRIPT_DIR/validate-restore-metrics.sh" preflight \

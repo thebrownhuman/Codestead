@@ -12,6 +12,7 @@ import {
   runWithBoundedDisposableIntegrationPool,
   runWithValidatedRetentionOpsEnvironment,
   validatedDisposableApplicationDatabaseUrl,
+  validatedDisposableMailWorkerDatabaseUrl,
   validatedDisposableBackupReporterEnvironment,
 } from "../lib/disposable-integration-environment";
 
@@ -38,6 +39,28 @@ const validEnvironment = () => ({
 });
 
 describe("disposable integration environment", () => {
+  it("admits only the mail principal on the same disposable database", () => {
+    const base = validEnvironment();
+    const mail = new URL(base.DATABASE_APP_URL);
+    mail.username = "learncoding_mail_worker";
+    const environment = { ...base, DATABASE_MAIL_WORKER_URL: mail.href };
+    expect(validatedDisposableMailWorkerDatabaseUrl(environment)).toBe(mail.href);
+    for (const modify of [
+      (url: URL) => { url.username = "learncoding_worker"; },
+      (url: URL) => { url.hostname = "wrong.invalid"; },
+      (url: URL) => { url.port = "49153"; },
+      (url: URL) => { url.pathname = "/other"; },
+      (url: URL) => { url.searchParams.set("options", "-c role=learncoding_owner"); },
+    ]) {
+      const invalid = new URL(mail);
+      modify(invalid);
+      expect(() => validatedDisposableMailWorkerDatabaseUrl({ ...environment,
+        DATABASE_MAIL_WORKER_URL: invalid.href })).toThrow("disposable integration environment validation failed");
+    }
+    expect(() => validatedDisposableMailWorkerDatabaseUrl(base))
+      .toThrow("disposable integration environment validation failed");
+  });
+
   it("admits exact lower roles and returns one frozen owner/app target", async () => {
     const environment = validEnvironment();
     const operation = vi.fn(async (urls: Readonly<{
