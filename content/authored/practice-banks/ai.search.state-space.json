@@ -1,0 +1,134 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "practice.ai.search.state-space.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.search",
+  "skillId": "ai.search.state-space",
+  "title": "States, actions, goals and costs practice draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "claude-assisted-practice",
+      "displayName": "Claude-assisted practice draft",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-10-21T00:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Draft practice-only items for the ai.search practice quiz; owner content review required before learners see them."
+  },
+  "sourceRefs": [
+    "cs2023-ai"
+  ],
+  "items": [
+    {
+      "id": "ai.search.state-space.practice.successor",
+      "skillId": "ai.search.state-space",
+      "title": "What a successor function returns",
+      "kind": "mcq",
+      "prompt": "In a state-space search problem, what does the successor (transition) function return for a given state?",
+      "points": 2,
+      "evidenceLevel": "interpret",
+      "pool": "practice",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "Practice-pool item: never exam-eligible by design; kept separate from the exam pool to protect exam integrity."
+      },
+      "hints": [
+        "Rule out each option that contradicts the definition, then check what is left."
+      ],
+      "feedback": {
+        "correct": "Correct. The successor function lists the states one legal action away and what each step costs. The goal test is a separate function.",
+        "incorrect": "Not quite. The successor function lists the states one legal action away and what each step costs. The goal test is a separate function."
+      },
+      "rubric": {
+        "passPoints": 2,
+        "criteria": [
+          {
+            "id": "choice",
+            "description": "Selects the option consistent with the definition.",
+            "points": 2,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Owner content review: check wording, correctness and distractor quality."
+      ],
+      "options": [
+        {
+          "id": "next-states",
+          "text": "The states reachable from it by one legal action, with each action's cost"
+        },
+        {
+          "id": "goal",
+          "text": "Whether the state is a goal"
+        },
+        {
+          "id": "all-states",
+          "text": "Every state in the problem"
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "next-states"
+        ],
+        "explanation": "The successor function lists the states one legal action away and what each step costs. The goal test is a separate function."
+      }
+    },
+    {
+      "id": "ai.search.state-space.practice.goal-test",
+      "skillId": "ai.search.state-space",
+      "title": "Name the stopping check",
+      "kind": "fill-gap",
+      "prompt": "Fill in the missing term.",
+      "points": 2,
+      "evidenceLevel": "recall",
+      "pool": "practice",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "Practice-pool item: never exam-eligible by design; kept separate from the exam pool to protect exam integrity."
+      },
+      "hints": [
+        "Think of the single standard term for this idea."
+      ],
+      "feedback": {
+        "correct": "Correct. The goal test checks whether a state is a solution.",
+        "incorrect": "Not quite. The goal test checks whether a state is a solution."
+      },
+      "rubric": {
+        "passPoints": 2,
+        "criteria": [
+          {
+            "id": "term",
+            "description": "Supplies the standard term.",
+            "points": 2,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Owner content review: confirm every accepted spelling is listed."
+      ],
+      "template": "The {{term}} test decides whether a state solves the problem.",
+      "gaps": [
+        {
+          "id": "term",
+          "label": "Missing term"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "term": [
+            "goal"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "The goal test checks whether a state is a solution."
+      }
+    }
+  ]
+}

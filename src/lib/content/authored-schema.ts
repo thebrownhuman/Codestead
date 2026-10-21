@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   ASSESSMENT_ITEM_KINDS,
+  ASSESSMENT_ITEM_POOLS,
   AUTHORED_CONTENT_SCHEMA_VERSION,
   PUBLICATION_STAGES,
   type AssessmentBank,
@@ -191,6 +192,7 @@ const baseItemShape = {
   prompt: meaningful,
   points: z.number().int().positive(),
   evidenceLevel: z.enum(["recall", "interpret", "apply", "transfer"]),
+  pool: z.enum(ASSESSMENT_ITEM_POOLS).optional(),
   examEligibility: examEligibilitySchema,
   hints: z.array(meaningful).min(1),
   feedback: feedbackSchema,
@@ -307,6 +309,13 @@ const assessmentItemSchema = z.discriminatedUnion("kind", [
       code: "custom",
       path: ["rubric"],
       message: "Rubric criteria must total item points and passPoints cannot exceed item points.",
+    });
+  }
+  if (item.pool === "practice" && item.examEligibility.eligible) {
+    context.addIssue({
+      code: "custom",
+      path: ["examEligibility", "eligible"],
+      message: "Practice-pool items can never be exam-eligible.",
     });
   }
   const misconceptionMappings = item.misconceptionMappings ?? [];

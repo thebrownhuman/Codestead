@@ -121,6 +121,9 @@ export interface AuthoredLesson {
 export const ASSESSMENT_ITEM_KINDS = ["mcq", "trace", "fill-gap", "code"] as const;
 export type AssessmentItemKind = (typeof ASSESSMENT_ITEM_KINDS)[number];
 export type AssessmentEvidenceLevel = "recall" | "interpret" | "apply" | "transfer";
+export const ASSESSMENT_ITEM_POOLS = ["exam", "practice"] as const;
+/** Which item pool an item belongs to. Practice items never enter formal exams; a missing pool means exam. */
+export type AssessmentItemPool = (typeof ASSESSMENT_ITEM_POOLS)[number];
 
 export interface AssessmentRubric {
   readonly passPoints: number;
@@ -149,6 +152,7 @@ interface AssessmentItemBase {
   readonly prompt: string;
   readonly points: number;
   readonly evidenceLevel: AssessmentEvidenceLevel;
+  readonly pool?: AssessmentItemPool;
   readonly examEligibility: {
     readonly eligible: boolean;
     readonly rationale: string;

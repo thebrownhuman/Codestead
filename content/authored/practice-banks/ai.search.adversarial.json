@@ -1,0 +1,81 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "practice.ai.search.adversarial.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.search",
+  "skillId": "ai.search.adversarial",
+  "title": "Minimax and alpha-beta practice draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "claude-assisted-practice",
+      "displayName": "Claude-assisted practice draft",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-10-21T00:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Draft practice-only items for the ai.search practice quiz; owner content review required before learners see them."
+  },
+  "sourceRefs": [
+    "cs2023-ai"
+  ],
+  "items": [
+    {
+      "id": "ai.search.adversarial.practice.pruning",
+      "skillId": "ai.search.adversarial",
+      "title": "Name the pruning method",
+      "kind": "fill-gap",
+      "prompt": "Fill in the missing term.",
+      "points": 2,
+      "evidenceLevel": "recall",
+      "pool": "practice",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "Practice-pool item: never exam-eligible by design; kept separate from the exam pool to protect exam integrity."
+      },
+      "hints": [
+        "Think of the single standard term for this idea."
+      ],
+      "feedback": {
+        "correct": "Correct. Alpha-beta pruning gives the same decision as plain minimax while exploring fewer nodes.",
+        "incorrect": "Not quite. Alpha-beta pruning gives the same decision as plain minimax while exploring fewer nodes."
+      },
+      "rubric": {
+        "passPoints": 2,
+        "criteria": [
+          {
+            "id": "term",
+            "description": "Supplies the standard term.",
+            "points": 2,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Owner content review: confirm every accepted spelling is listed."
+      ],
+      "template": "{{term}} pruning skips branches of a minimax tree that cannot change the final decision.",
+      "gaps": [
+        {
+          "id": "term",
+          "label": "Missing term"
+        }
+      ],
+      "answer": {
+        "acceptedByGap": {
+          "term": [
+            "alpha-beta",
+            "alpha beta",
+            "alphabeta"
+          ]
+        },
+        "caseSensitive": false,
+        "explanation": "Alpha-beta pruning gives the same decision as plain minimax while exploring fewer nodes."
+      }
+    }
+  ]
+}
