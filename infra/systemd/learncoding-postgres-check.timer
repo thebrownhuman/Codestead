@@ -1,0 +1,10 @@
+[Unit]
+Description=Check LearnCoding PostgreSQL every two minutes
+
+[Timer]
+OnBootSec=5m
+OnUnitActiveSec=2m
+Unit=learncoding-postgres-check.service
+
+[Install]
+WantedBy=timers.target
