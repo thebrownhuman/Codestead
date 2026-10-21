@@ -20,6 +20,7 @@ export function SecuritySettingsPanel() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -37,14 +38,21 @@ export function SecuritySettingsPanel() {
     }).catch(() => { if (!controller.signal.aborted) setLoadError(true); });
     return () => controller.abort();
   }, []);
-  function clearSecrets() { setCurrentPassword(""); setNewPassword(""); setConfirmation(""); }
+  function clearSecrets() { setCurrentPassword(""); setNewPassword(""); setConfirmation(""); setMfaCode(""); }
   async function submit(event: React.FormEvent) {
     event.preventDefault(); if (mutation.current) return;
     if (newPassword !== confirmation) { setError("New passwords must match."); return; }
     mutation.current = true; setBusy(true); setError(null); setMessage(null);
     try {
+      const code = mfaCode.replace(/\s/g, "");
+      if (code) {
+        if (!/^\d{6}$/.test(code)) throw new Error("Enter the current six-digit authenticator code.");
+        const verified = await fetch("/api/security/fresh-mfa", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }) });
+        if (!verified.ok) throw new Error("The authenticator code was not accepted.");
+      }
       const response = await fetch("/api/security/change-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPassword, newPassword }) });
       const body = await response.json();
+      if (body.code === "FRESH_MFA_REQUIRED") throw new Error("Enter your current authenticator code to change your password.");
       if (!response.ok || body.ok !== true) throw new Error(typeof body.error === "string" ? body.error : "Password change could not be completed.");
       setOpen(false); setMessage("Password changed. Other sessions were revoked.");
     } catch (failure) { setError(failure instanceof Error ? failure.message : "Password change could not be completed."); }
@@ -65,6 +73,7 @@ export function SecuritySettingsPanel() {
             <Field id="current-password" label="Current password"><PasswordInput id="current-password" autoComplete="current-password" required maxLength={128} value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} disabled={busy} /></Field>
             <Field id="new-password" label="New password" help="Use 12 to 128 characters. Compromised passwords are rejected."><PasswordInput id="new-password" aria-describedby="new-password-help" autoComplete="new-password" required minLength={12} maxLength={128} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} disabled={busy} /></Field>
             <Field id="confirm-new-password" label="Confirm new password"><PasswordInput id="confirm-new-password" autoComplete="new-password" required minLength={12} maxLength={128} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} disabled={busy} /></Field>
+            <Field id="password-mfa-code" label="Authenticator code" help="The current six-digit code from your authenticator app."><input id="password-mfa-code" aria-describedby="password-mfa-code-help" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]*" maxLength={7} value={mfaCode} onChange={(event) => setMfaCode(event.target.value)} disabled={busy} /></Field>
             <div className={formStyles.actions}>
             {error && <p className={formStyles.error} role="alert">{error}</p>}
             <button type="submit" className="button button-primary" disabled={busy}>{busy ? "Saving…" : "Save password"}</button>

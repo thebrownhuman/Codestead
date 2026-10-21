@@ -178,13 +178,13 @@ describe("0067 final replay taxonomy", () => {
     );
   });
 
-  it("binds the logical producer registry to 30 native templates and one database-owned backup source map", () => {
+  it("binds the logical producer registry to 31 native templates and one database-owned backup source map", () => {
     const reviewedTemplates = [
       ...SOURCE_MAP_POLICY_TEMPLATES,
       ...Object.keys(RETAINED_TEMPLATE_VERSIONS),
     ];
     expect(new Set(reviewedTemplates).size).toBe(29);
-    const currentTemplates = [...reviewedTemplates, "support-request-admin", "support-request-fixed"];
+    const currentTemplates = [...reviewedTemplates, "support-request-admin", "support-request-fixed", "password-changed"];
     expect([...PRODUCTION_EMAIL_TEMPLATES].sort()).toEqual(
       [...currentTemplates].sort(),
     );
@@ -227,7 +227,7 @@ describe("0067 final replay taxonomy", () => {
     expect(actualManifest).toEqual(expectedManifest);
     expect(Object.values(actualManifest).filter(
       (version) => version === "event-v1-native",
-    )).toHaveLength(30);
+    )).toHaveLength(31);
     expect(Object.values(actualManifest).filter(
       (version) => version === "event-v1-source-map",
     )).toEqual(["event-v1-source-map"]);

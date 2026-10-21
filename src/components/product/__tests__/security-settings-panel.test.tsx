@@ -30,3 +30,24 @@ it("shows retry on a failed status read instead of assuming a Google-only accoun
  render(<SecuritySettingsPanel />); await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Account security settings could not be loaded."));
  expect(screen.getByRole("button", { name: "Try again" })).toBeEnabled();
 });
+it("verifies a fresh authenticator code before rotating the password", async () => {
+ const fetcher = vi.fn().mockResolvedValueOnce(reply({ hasPassword: true })).mockResolvedValueOnce(reply({ ok: true })).mockResolvedValueOnce(reply({ ok: true })); vi.stubGlobal("fetch", fetcher);
+ render(<SecuritySettingsPanel />); fireEvent.click(await screen.findByRole("button", { name: "Change password" }));
+ fireEvent.change(screen.getByLabelText("Current password"), { target: { value: "current-password" } });
+ fireEvent.change(screen.getByLabelText("New password"), { target: { value: "new-long-password" } });
+ fireEvent.change(screen.getByLabelText("Confirm new password"), { target: { value: "new-long-password" } });
+ fireEvent.change(screen.getByLabelText("Authenticator code"), { target: { value: "123 456" } });
+ fireEvent.click(screen.getByRole("button", { name: "Save password" }));
+ await screen.findByText("Password changed. Other sessions were revoked.");
+ expect(fetcher.mock.calls.map(([url]) => url)).toEqual(["/api/security/password-status", "/api/security/fresh-mfa", "/api/security/change-password"]);
+ expect(JSON.parse(fetcher.mock.calls[1][1].body)).toEqual({ code: "123456" });
+});
+it("asks for the authenticator code when the server requires fresh MFA", async () => {
+ const fetcher = vi.fn().mockResolvedValueOnce(reply({ hasPassword: true })).mockResolvedValueOnce(reply({ code: "FRESH_MFA_REQUIRED", error: "Verify your authenticator before changing your password." }, false)); vi.stubGlobal("fetch", fetcher);
+ render(<SecuritySettingsPanel />); fireEvent.click(await screen.findByRole("button", { name: "Change password" }));
+ fireEvent.change(screen.getByLabelText("Current password"), { target: { value: "current-password" } });
+ fireEvent.change(screen.getByLabelText("New password"), { target: { value: "new-long-password" } });
+ fireEvent.change(screen.getByLabelText("Confirm new password"), { target: { value: "new-long-password" } });
+ fireEvent.click(screen.getByRole("button", { name: "Save password" }));
+ expect(await screen.findByRole("alert")).toHaveTextContent("Enter your current authenticator code to change your password.");
+});

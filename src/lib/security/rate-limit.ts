@@ -13,6 +13,7 @@ export type RateLimitPolicyName =
   | "auth_sign_up_ip"
   | "auth_totp_ip"
   | "auth_reset_request_ip"
+  | "auth_reset_request_email"
   | "auth_reset_password_ip"
   | "auth_reset_callback_ip"
   | "auth_backup_code_ip"
@@ -38,6 +39,7 @@ export type RateLimitPolicyName =
   | "plan_revision_admin"
   | "onboarding_complete_user"
   | "forced_password_change_user"
+  | "password_change_user"
   | "privacy_consent_user"
   | "social_profile_user"
   | "portfolio_mutation_user"
@@ -98,6 +100,7 @@ const DEFAULT_POLICIES: Record<RateLimitPolicyName, RateLimitPolicy> = {
   auth_sign_up_ip: policy("auth_sign_up_ip", 3, 600),
   auth_totp_ip: policy("auth_totp_ip", 6, 60),
   auth_reset_request_ip: policy("auth_reset_request_ip", 3, 600),
+  auth_reset_request_email: policy("auth_reset_request_email", 5, 24 * 60 * 60),
   auth_reset_password_ip: policy("auth_reset_password_ip", 6, 60),
   auth_reset_callback_ip: policy("auth_reset_callback_ip", 10, 60),
   auth_backup_code_ip: policy("auth_backup_code_ip", 6, 60),
@@ -123,6 +126,7 @@ const DEFAULT_POLICIES: Record<RateLimitPolicyName, RateLimitPolicy> = {
   plan_revision_admin: policy("plan_revision_admin", 30, 60 * 60),
   onboarding_complete_user: policy("onboarding_complete_user", 10, 60 * 60),
   forced_password_change_user: policy("forced_password_change_user", 6, 60),
+  password_change_user: policy("password_change_user", 5, 15 * 60),
   privacy_consent_user: policy("privacy_consent_user", 30, 60 * 60),
   social_profile_user: policy("social_profile_user", 30, 60 * 60),
   portfolio_mutation_user: policy("portfolio_mutation_user", 30, 60 * 60),
