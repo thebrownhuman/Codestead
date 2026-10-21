@@ -418,9 +418,51 @@ async function verifyEvidence(
     return commit;
   }
 
+  // One `ls-tree` per anchor commit instead of a `cat-file -e` spawn per pin:
+  // records carry dozens of pins, and per-pin process spawns made verification
+  // take seconds per record on Windows.
+  const commitTrees = new Map<string, Promise<Map<string, { type: string; oid: string }>>>();
+  const blobs = new Map<string, Promise<Buffer>>();
+
+  function treeOf(commit: string) {
+    let tree = commitTrees.get(commit);
+    if (!tree) {
+      tree = git(root, ["ls-tree", "-r", "-t", "-z", "--full-tree", commit]).then(({ stdout }) => {
+        const entries = new Map<string, { type: string; oid: string }>();
+        for (const line of stdout.toString("utf8").split(" ")) {
+          const tab = line.indexOf("	");
+          if (tab < 0) continue;
+          const [, type, oid] = line.slice(0, tab).split(" ");
+          entries.set(line.slice(tab + 1), { type: type!, oid: oid! });
+        }
+        return entries;
+      });
+      commitTrees.set(commit, tree);
+    }
+    return tree;
+  }
+
+  // Only plain blobs and trees are answered from the listing. Anything else
+  // (a gitlink) takes the original per-path `cat-file` route so its result is
+  // unchanged; a tree still makes `cat-file blob` fail where bytes are required.
+  async function anchoredPresent(commit: string, candidate: string) {
+    const entry = (await treeOf(commit)).get(candidate.replace(/\/+$/, ""));
+    if (entry?.type === "blob" || entry?.type === "tree") return true;
+    return gitSucceeds(root, ["cat-file", "-e", `${commit}:${candidate}`]);
+  }
+
   async function anchoredBlob(commit: string, candidate: string) {
-    if (!await gitSucceeds(root, ["cat-file", "-e", `${commit}:${candidate}`])) return null;
-    return (await git(root, ["cat-file", "blob", `${commit}:${candidate}`])).stdout;
+    const entry = (await treeOf(commit)).get(candidate.replace(/\/+$/, ""));
+    if (entry?.type !== "blob") {
+      if (!await gitSucceeds(root, ["cat-file", "-e", `${commit}:${candidate}`])) return null;
+      return (await git(root, ["cat-file", "blob", `${commit}:${candidate}`])).stdout;
+    }
+    let blob = blobs.get(entry.oid);
+    if (!blob) {
+      blob = git(root, ["cat-file", "blob", entry.oid]).then(({ stdout }) => stdout);
+      blobs.set(entry.oid, blob);
+    }
+    return blob;
   }
 
   async function checkPath(source: string, value: string, commit: string | null) {
@@ -431,7 +473,7 @@ async function verifyEvidence(
     if (checkedPaths.has(key)) return;
     checkedPaths.add(key);
     const present = commit
-      ? await gitSucceeds(root, ["cat-file", "-e", `${commit}:${candidate}`])
+      ? await anchoredPresent(commit, candidate)
       : await exists(path.join(root, candidate));
     if (!present) {
       issues.push({ kind: "MISSING_EVIDENCE_PATH", source, detail: commit ? `${candidate}@${commit}` : candidate });
