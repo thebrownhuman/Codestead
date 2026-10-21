@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import "./runtime-validator-piston-fixture.test.mjs";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";

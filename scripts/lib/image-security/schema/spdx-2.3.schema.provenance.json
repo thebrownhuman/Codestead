@@ -1,0 +1,17 @@
+{
+  "schema": "SPDX 2.3.1 JSON Schema",
+  "repository": "https://github.com/spdx/spdx-spec",
+  "branch": "support/2.3.1",
+  "commit": "6cb525045cf86fa173d093cdf0b2e7ad4faee42f",
+  "path": "schemas/spdx-schema.json",
+  "gitBlob": "d4d608e3e4502fd024bf62bfb860ac03599fe156",
+  "source": "https://raw.githubusercontent.com/spdx/spdx-spec/6cb525045cf86fa173d093cdf0b2e7ad4faee42f/schemas/spdx-schema.json",
+  "sha256": "09d75bdff0adfa1f50fd7544351c96a0c8e934ecc1721221772dc5f081600a59",
+  "bytes": 47308,
+  "license": {
+    "name": "Creative Commons Attribution 3.0 Unported",
+    "gitBlob": "44a22d370bba8d13c7dd7449d71b40ea8842788e",
+    "source": "https://raw.githubusercontent.com/spdx/spdx-spec/6cb525045cf86fa173d093cdf0b2e7ad4faee42f/LICENSE",
+    "sha256": "017e38491cccbd2bdb6da0a32a33db9ec245b5dab30fdcd09f2c742c975e5b35"
+  }
+}

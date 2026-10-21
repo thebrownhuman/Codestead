@@ -44,7 +44,7 @@ test("the manager exposes build, inspect, scan, and atomic record gates for exac
 
 test("package scripts execute application image product tests and all release phases", () => {
   const pkg = JSON.parse(read("package.json"));
-  assert.equal(pkg.scripts["app-images:test"], "node --test scripts/app-images/*.test.mjs");
+  assert.equal(pkg.scripts["app-images:test"], "node --test scripts/app-images/*.test.mjs scripts/lib/image-security/*.test.mjs");
   for (const phase of ["build", "inspect", "sign", "scan", "record"]) {
     assert.equal(
       pkg.scripts[`app-images:${phase}`],

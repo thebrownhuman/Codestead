@@ -23,6 +23,7 @@ const bodySchema = z.object({
   reason: z.string().trim().min(20).max(500),
   isolatedRunnerRestarted: z.literal(true),
   journalReconciled: z.literal(true),
+  retireLegacyRunner: z.literal(true).optional(),
 }).strict();
 
 async function auditDenied(input: {
@@ -52,6 +53,7 @@ function errorResponse(error: PracticeRecoveryAdminError) {
     case "ATTESTATION_REQUIRED":
     case "INVALID_INPUT": return adminJson({ error: "Valid recovery attestations, reason, and identifiers are required.", code: error.code }, 400);
     case "NOT_PRACTICE_JOB": return adminJson({ error: "Official exam and regrade jobs cannot use practice recovery resolution.", code: error.code }, 409);
+    case "NOT_RETIRED_RUNTIME": return adminJson({ error: "Only a recoverable practice job pinned to a recognized retired runner can be retired.", code: error.code }, 409);
     case "NOT_QUARANTINED": return adminJson({ error: "This practice job is not quarantined.", code: error.code }, 409);
     case "LEARNER_NOT_ACTIVE": return adminJson({ error: "The learner is not eligible for recovery resolution.", code: error.code }, 409);
     case "STATUS_CONFLICT": return adminJson({ error: "The runner state changed. Refresh the audited evidence before retrying.", code: error.code }, 409);

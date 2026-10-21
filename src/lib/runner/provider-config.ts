@@ -7,8 +7,8 @@ export const PISTON_LIMITS = Object.freeze({
   concurrentJobs: 2,
 });
 
-export function configuredCodeRunnerProvider(): "legacy" | "piston" {
-  const provider = process.env.CODE_RUNNER_PROVIDER || "legacy";
-  if (provider === "legacy" || provider === "piston") return provider;
-  throw new Error("CODE_RUNNER_PROVIDER must be legacy or piston.");
+export function configuredCodeRunnerProvider(): "piston" {
+  const provider = process.env.CODE_RUNNER_PROVIDER || "piston";
+  if (provider === "piston") return provider;
+  throw new Error("CODE_RUNNER_PROVIDER must be piston; the legacy runner is retired.");
 }

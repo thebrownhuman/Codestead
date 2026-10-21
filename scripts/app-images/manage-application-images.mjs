@@ -28,7 +28,7 @@ import {
   extractAttestedSpdxFromMembers,
   ociImageIdentityFromMembers,
   resolveCommandEnvironment,
-} from "../../services/runner/runtime/runtime-operations.mjs";
+} from "../lib/image-security/runtime-operations.mjs";
 import {
   APPLICATION_IMAGE_TARGETS,
   createApplicationBuildPlan,

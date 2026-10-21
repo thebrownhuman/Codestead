@@ -82,6 +82,18 @@ describe("administrator practice quarantine resolution route", () => {
     expect(mocks.resolve).not.toHaveBeenCalled();
   });
 
+  it("uses the existing MFA-gated route for explicitly attested legacy retirement", async () => {
+    const response = await POST(request({ ...body, retireLegacyRunner: true }), context());
+    expect(response.status).toBe(200);
+    expect(mocks.resolve).toHaveBeenCalledWith(expect.objectContaining({
+      actorUserId: "admin-1", runnerJobId: JOB_ID, retireLegacyRunner: true,
+      isolatedRunnerRestarted: true, journalReconciled: true,
+    }));
+    expect(mocks.authorizePrivilegedAction).toHaveBeenCalledWith(expect.objectContaining({
+      action: "runner.practice.quarantine.resolve",
+    }));
+  });
+
   it.each([
     ["missing restart attestation", { ...body, isolatedRunnerRestarted: false }],
     ["missing journal attestation", { ...body, journalReconciled: false }],

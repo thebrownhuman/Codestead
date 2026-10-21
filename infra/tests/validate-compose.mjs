@@ -311,9 +311,9 @@ const expectedNetworks = {
   app: ["data", "frontend", "runner-client", "glitchtip-ingest", "piston"],
   "mail-worker": ["data", "mail-egress", "glitchtip-ingest"],
   "reward-worker": ["data", "glitchtip-ingest"],
-  "regrade-worker": ["data", "runner-client", "glitchtip-ingest"],
-  "exam-finalization-worker": ["data", "runner-client", "glitchtip-ingest"],
-  "practice-runner-recovery-worker": ["data", "runner-client", "glitchtip-ingest"],
+  "regrade-worker": ["data", "runner-client", "glitchtip-ingest", "piston"],
+  "exam-finalization-worker": ["data", "runner-client", "glitchtip-ingest", "piston"],
+  "practice-runner-recovery-worker": ["data", "runner-client", "glitchtip-ingest", "piston"],
   "runner-egress-gateway": ["runner-client", "runner-egress"],
   "project-review-correction-worker": ["data", "github-egress", "glitchtip-ingest"],
   clamav: ["scanner", "signature-egress"],
@@ -684,13 +684,17 @@ for (const [key, value] of Object.entries({
   expect(piston?.environment?.[key] === value, `piston ${key} must be ${value}`);
 }
 for (const [name, service] of Object.entries(config.services ?? {})) {
-  if (name === "piston" || name === "app") continue;
+  if (["piston", "app", "regrade-worker", "exam-finalization-worker", "practice-runner-recovery-worker"].includes(name)) continue;
   expect(!keys(service.networks).includes("piston"), `${name} must not join the piston network`);
 }
 expect(config.networks?.piston?.internal === true, "piston network must be internal");
-expect(config.services?.app?.environment?.CODE_RUNNER_PROVIDER === "legacy", "app CODE_RUNNER_PROVIDER must default to legacy");
-expect(config.services?.app?.environment?.PISTON_URL === "http://piston:2000", "app PISTON_URL must be http://piston:2000");
-expect(config.services?.app?.environment?.PISTON_IMAGE === pistonImage, "app PISTON_IMAGE must come from PISTON_IMAGE");
+for (const name of ["app", "regrade-worker", "exam-finalization-worker", "practice-runner-recovery-worker"]) {
+  const service = config.services?.[name];
+  expect(service?.environment?.CODE_RUNNER_PROVIDER === "piston", `${name} must select Piston`);
+  expect(service?.environment?.PISTON_URL === "http://piston:2000", `${name} must use the internal Piston URL`);
+  expect(service?.environment?.PISTON_IMAGE === pistonImage, `${name} must receive the pinned Piston image`);
+  expect(keys(service?.networks).includes("piston"), `${name} must join the internal Piston network`);
+}
 
 const operationCommands = {
   "database-role-bootstrap": ["node", "/app/scripts/bootstrap-database-roles.mjs"],

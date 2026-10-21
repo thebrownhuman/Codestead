@@ -4,6 +4,8 @@ import os from "node:os";
 import path from "node:path";
 
 import { vi } from "vitest";
+import * as examRunner from "@/lib/runner/exam-client";
+import { RunnerClient } from "@/lib/runner/client";
 
 import { DockerJobExecutor } from "../../services/runner/src/docker-executor";
 import { processResult, testConfig } from "../../services/runner/src/__tests__/fixtures";
@@ -108,4 +110,19 @@ export function score(result: ExamRunnerResult, language: RunnerLanguage) {
 
 export function verdict(result: ExamRunnerResult) {
   return { status: result.status, compile: result.compile.status, tests: result.tests, totals: result.totals };
+}
+
+/** Test-only oracle retained until 6b; never enables native production routing. */
+export async function withNativeRunnerBaseline<T>(operation: () => Promise<T>): Promise<T> {
+  const baseline = vi.spyOn(examRunner, "configuredExamRunnerClient")
+    .mockImplementationOnce(() => new RunnerClient("http://legacy:4100", SECRET) as unknown as ReturnType<typeof examRunner.configuredExamRunnerClient>);
+  try { return await operation(); }
+  finally { baseline.mockRestore(); }
+}
+
+export async function nativePracticeBaseline(request: RunnerRequest, outcome: Outcome) {
+  transport("legacy", outcome);
+  const job = await new RunnerClient("http://legacy:4100", SECRET).submit(request, "native-baseline");
+  if (!job.result) throw new Error("Missing native baseline result");
+  return job.result;
 }

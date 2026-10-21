@@ -1694,6 +1694,16 @@ export async function executeExamCode(input: {
     );
   }
   const requestedRuntimeVersion = input.expectedRuntimeVersion ?? runtime.version;
+  // Historical evidence stays immutable; a retired pin cannot create new work.
+  let client;
+  try {
+    client = configuredExamRunnerClient(input);
+  } catch (error) {
+    if (error instanceof RunnerClientError && error.code === "RUNNER_RUNTIME_RETIRED") {
+      throw new ExamServiceError(error.message, 409, error.code);
+    }
+    throw new ExamServiceError("The Piston runner is not configured.", 503, "RUNNER_UNAVAILABLE");
+  }
   const sourceHash = createHash("sha256").update(input.sourceCode).digest("hex");
   const runnerSubmissionId = stableRunnerId("exam-submission", input.idempotencySeed);
   const correlationId = stableRunnerId("exam-correlation", `${input.sessionId}:${input.itemId}`);
@@ -1786,7 +1796,6 @@ export async function executeExamCode(input: {
     requireFreshRunnerMutation(dispatchBoundary);
     immutableRemoteJobId = dispatchBoundary.remoteJobId ?? admission.remoteJobId;
     remoteJobId = immutableRemoteJobId;
-    const client = configuredExamRunnerClient(input);
     let completed: RunnerJobResponse;
     if (immutableRemoteJobId !== null) {
       completed = await client.waitForJob(immutableRemoteJobId, request);

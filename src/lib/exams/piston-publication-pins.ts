@@ -2,6 +2,7 @@
 // this projection against the reviewed infra handoff and publication manifest.
 import runtimePins from "./piston-runtime-pins.json";
 import type { RunnerLanguage } from "@/lib/runner/client";
+import { configuredCodeRunnerProvider } from "@/lib/runner/provider-config";
 import { PISTON_RUNTIMES } from "@/lib/runner/piston-client";
 import { pinnedPistonImageDigest } from "@/lib/runner/exam-client";
 
@@ -21,9 +22,7 @@ export function pistonExamImageDigest(): string {
 }
 
 export function publishedExamPinRevision(): typeof PISTON_EXAM_PIN_REVISION | undefined {
-  const provider = process.env.CODE_RUNNER_PROVIDER || "legacy";
-  if (provider === "legacy") return undefined;
-  if (provider !== "piston") throw new Error("Unknown code runner provider.");
+  configuredCodeRunnerProvider();
   validateHandoff();
   if (!process.env.PISTON_URL) throw new Error("Piston exam publication requires the configured endpoint.");
   pistonExamImageDigest();
