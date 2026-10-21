@@ -172,10 +172,24 @@ sudo tail -c1 /etc/learncoding/secrets/database_mail_worker_url | od -c | head -
 Expect `root:codestead-secrets 440`, and the last byte must not be `\n`.
 
 B2. **[OWNER]** Build and pin the reviewed `SHA_B` images without migrating
-(needs the `--no-migrate` option from [#211](https://github.com/thebrownhuman/Codestead/pull/211)), then stop the mail worker
-at once. Never use plain `docker compose build` in production. Until B4 the
-mail worker would fail to log in; app and other workers keep the shared
-worker role and run normally on the 0073 schema.
+(needs the `--no-migrate` option from [#211](https://github.com/thebrownhuman/Codestead/pull/211)). **Stop the mail worker
+immediately after the script finishes, before the bootstrap.** Never use plain
+`docker compose build` in production. Until B4 the mail worker cannot log in
+(role is NOLOGIN), so it claims nothing; the outbox is durable and mail waits.
+
+Why this is safe: on #203's branch every use of 0074 objects
+(`mail_worker_*` functions, the `learncoding_mail_worker` role) is behind
+`usesMailWorkerRole(executor)`, which is true only for pools registered by
+`src/lib/notifications/mail-dispatch-pool.ts`. That pool is used only by
+`scripts/process-outbox.ts` (mail worker) and `scripts/reconcile-gmail-outbox.ts`
+(manual operator tool). App and non-mail workers take the old 0073 code paths
+on the shared worker role.
+
+Note the time before running the script (used in the B5 check):
+
+```bash
+B_START="$(date -u +%Y-%m-%dT%H:%M:%SZ)"; echo "$B_START"
+```
 
 ```bash
 sudo git -C /opt/learncoding checkout --detach "$SHA_B"
@@ -204,6 +218,18 @@ B5. **[OWNER]** Start the mail worker on its new secret and confirm health:
 $DC up -d --no-deps --force-recreate mail-worker
 $DC ps mail-worker
 ```
+
+Then confirm no mail was marked failed or dead-lettered during the window, and
+that the backlog drains:
+
+```bash
+$DC exec -T postgres psql -U learncoding -d learncoding -c "select status, count(*) from email_outbox where updated_at >= '$B_START' group by status order by status;"
+$DC logs --since "$B_START" mail-worker | grep -iE 'failed|dead_letter|password authentication|permission denied' || echo "no mail errors"
+```
+
+Expect no `failed` or `dead_letter` rows since `B_START`, and `pending` going
+to `sent` over a few minutes. Any `failed`/`dead_letter` row: stop the mail
+worker and report before retrying.
 
 **Rollback B** **[OWNER]**: the rollback is **stop the mail worker**. If B3,
 B4 or B5 fails, keep (or put) `mail-worker` stopped and stop there. Do not
