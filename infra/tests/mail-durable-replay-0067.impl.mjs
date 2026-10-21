@@ -10249,6 +10249,7 @@ export async function main() {
         CREATE ROLE learncoding_migrator LOGIN NOINHERIT;
         CREATE ROLE learncoding_app LOGIN NOINHERIT;
         CREATE ROLE learncoding_worker LOGIN NOINHERIT;
+        CREATE ROLE learncoding_mail_worker LOGIN NOINHERIT;
         CREATE ROLE learncoding_ops LOGIN NOINHERIT;
         CREATE ROLE learncoding_backup_reporter LOGIN NOINHERIT;
         CREATE ROLE mail_default_grantee NOLOGIN NOINHERIT;
