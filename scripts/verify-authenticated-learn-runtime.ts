@@ -147,7 +147,7 @@ function assertDistinctDatabaseCredentials(
 ): void {
   const values = Object.values(credentials);
   if (
-    values.length !== 6
+    values.length !== 7
     || values.some((value) => Buffer.byteLength(value, "utf8") < 32)
     || new Set(values).size !== values.length
   ) {

@@ -258,6 +258,7 @@ printf '%s' 'postgresql://learncoding:TopologyFixturePostgresPassword-00000001@p
 printf '%s' 'postgresql://learncoding_app:TopologyFixtureApplicationPassword-00000002@postgres:5432/learncoding' >"$secrets_dir/database_url"
 printf '%s' 'postgresql://learncoding_migrator:TopologyFixtureMigratorPassword-00000003@postgres:5432/learncoding' >"$secrets_dir/database_migrator_url"
 printf '%s' 'postgresql://learncoding_worker:TopologyFixtureWorkerPassword-0000000004@postgres:5432/learncoding' >"$secrets_dir/database_worker_url"
+printf '%s' 'postgresql://learncoding_mail_worker:TopologyFixtureMailWorkerPassword-000000007@postgres:5432/learncoding' >"$secrets_dir/database_mail_worker_url"
 printf '%s' 'postgresql://learncoding_ops:TopologyFixtureOperationsPassword-00000005@postgres:5432/learncoding' >"$secrets_dir/database_ops_url"
 printf '%s' 'postgresql://learncoding_backup_reporter:TopologyFixtureBackupReporterPassword-000000006@postgres:5432/learncoding' >"$secrets_dir/database_backup_reporter_url"
 printf '%s' 'topology-better-auth-secret-000000000000000000000000' >"$secrets_dir/better_auth_secret"

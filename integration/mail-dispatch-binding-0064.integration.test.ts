@@ -45,6 +45,7 @@ function requiredEnvironment(name: string): string {
 
 type DisposableDatabaseTopology = Readonly<{
   applicationUrl: string;
+  mailWorkerUrl: string;
   opsUrl: string;
   ownerTarget: Readonly<{
     databaseApplicationUrl: string;
@@ -125,6 +126,7 @@ function validateDisposableDatabaseTopology(): DisposableDatabaseTopology {
   }
   return Object.freeze({
     applicationUrl,
+    mailWorkerUrl: validatedDisposableMailWorkerDatabaseUrl(process.env),
     opsUrl,
     ownerTarget: Object.freeze({
       databaseApplicationUrl: applicationUrl,
@@ -230,9 +232,8 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
       MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolAcquireTimeoutMs,
     idleTimeoutMillis: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolIdleTimeoutMs,
   });
-  const mailUrl = validatedDisposableMailWorkerDatabaseUrl(process.env);
   const mailWorker = new Pool({
-    connectionString: mailUrl,
+    connectionString: DISPOSABLE_DATABASES.mailWorkerUrl,
     max: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolMaximumConnections,
     connectionTimeoutMillis: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolAcquireTimeoutMs,
     idleTimeoutMillis: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolIdleTimeoutMs,
@@ -361,7 +362,7 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
       effective_role: "learncoding_app",
       session_role: "learncoding_app",
     });
-    registerMailWorkerResources(mailWorker, {}, mailUrl);
+    registerMailWorkerResources(mailWorker, {}, DISPOSABLE_DATABASES.mailWorkerUrl);
     const inspection = await inspectMailDispatchRuntime(mailWorker);
     const applicationOrigin = captureMailDispatchApplicationOrigin(inspection);
     preparedApplicationUrl = mailDispatchApplicationUrl(applicationOrigin);

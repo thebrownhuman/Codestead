@@ -921,6 +921,21 @@ function staticStrings(
   }
   if (ts.isCallExpression(current)) {
     if (
+      propertyName(current.expression) === "raw"
+      && ts.isPropertyAccessExpression(current.expression)
+      && ts.isIdentifier(current.expression.expression)
+      && current.expression.expression.text === "sql"
+      && current.arguments.length === 1
+    ) {
+      return staticStrings(
+        current.arguments[0],
+        bindings,
+        usage,
+        new Set(seen),
+        depth + 1,
+      );
+    }
+    if (
       propertyName(current.expression) === "join"
       && (
         ts.isPropertyAccessExpression(current.expression)
@@ -1720,6 +1735,28 @@ function exactRowField(expression, resultName, aliases) {
   return rowsZeroResultName(receiver) === resultName ? field : null;
 }
 
+// The dedicated mail-worker role releases through its own reviewed wrapper,
+// so a release may select between exactly these two static routine names.
+const REVIEWED_RELEASE_ROUTINES = Object.freeze([
+  "public.mail_worker_release_email_outbox_delivery",
+  "public.release_email_outbox_delivery",
+]);
+
+function isReviewedReleaseRoutineName(expression) {
+  const node = unwrap(expression);
+  if (
+    !ts.isCallExpression(node)
+    || propertyName(node.expression) !== "raw"
+  )
+    return false;
+  const resolved = staticStrings(node, new Map(), node);
+  return (
+    !resolved.unknown
+    && resolved.values.length > 0
+    && resolved.values.every((value) => REVIEWED_RELEASE_ROUTINES.includes(value))
+  );
+}
+
 function releaseArgumentExpressions(call) {
   const method = propertyName(unwrap(call.expression));
   if (method === "query") {
@@ -1729,7 +1766,9 @@ function releaseArgumentExpressions(call) {
   if (method === "execute") {
     const statement = unwrap(call.arguments[0]);
     return ts.isTaggedTemplateExpression(statement) && ts.isTemplateExpression(statement.template)
-      ? statement.template.templateSpans.map(({ expression }) => expression)
+      ? statement.template.templateSpans
+        .map(({ expression }) => expression)
+        .filter((expression) => !isReviewedReleaseRoutineName(expression))
       : [];
   }
   return [];

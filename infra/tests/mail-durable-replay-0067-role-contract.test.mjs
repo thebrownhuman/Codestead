@@ -840,7 +840,7 @@ test("0067 trigger and constraint manifests freeze the live PG17/PG18 catalogs",
 test("0067 phase and replay authority reconciliation are exact and contiguous", () => {
   assert.deepEqual(
     REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.map(({ index }) => index),
-    [62, 63, 64, 65, 66, 67, 68, 69],
+    [62, 63, 64, 65, 66, 67, 68, 69, 74],
   );
   assert.equal(
     REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(({ index }) => index === 66)

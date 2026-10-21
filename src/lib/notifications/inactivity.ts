@@ -1,4 +1,4 @@
-import { inheritMailWorkerRole, usesMailWorkerRole, lockMailWorkerSource, mailWorkerReleaseRoutine } from "./mail-worker-role";
+import { inheritMailWorkerRole, usesMailWorkerRole, lockMailWorkerSource } from "./mail-worker-role";
 import type { Pool, PoolClient } from "pg";
 
 import { pool } from "@/lib/db/client";
@@ -171,7 +171,9 @@ async function persistEmail(
     }>(
       `select released.outbox_id::text as outbox_id,
               released.operation_id::text as operation_id
-         from ${mailWorkerReleaseRoutine(client)}(
+         from ${usesMailWorkerRole(client)
+           ? "public.mail_worker_release_email_outbox_delivery"
+           : "public.release_email_outbox_delivery"}(
         $1::uuid,
         $2::uuid,
         $3::text,

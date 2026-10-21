@@ -220,7 +220,7 @@ test("0066 exact routine, trigger, constraint, and phase are frozen in the verif
 
   assert.deepEqual(
     REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.map(({ index }) => index),
-    [62, 63, 64, 65, 66, 67, 68, 69],
+    [62, 63, 64, 65, 66, 67, 68, 69, 74],
   );
   const phase0065 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(
     ({ index }) => index === 65,
