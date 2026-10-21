@@ -10,7 +10,7 @@ import { useConfirm } from "@/components/ui/use-confirm";
 import { REVIEW_DIMENSIONS, type CurriculumReviewChecklist } from "@/lib/curriculum-publication/contracts";
 import { approvedLabel } from "@/lib/curriculum-publication/review-approval-labels";
 
-import { humanize, requestAdminJson } from "./admin-utils";
+import { AdminApiError, humanize, requestAdminJson } from "./admin-utils";
 import styles from "./admin.module.css";
 import { StatusPill } from "./status-pill";
 
@@ -87,6 +87,30 @@ const REVIEW_QUEUE_PAGE_SIZE = 25;
  * docs/APP_STATUS.md, "Simple review flow".
  */
 const DETAILED_REVIEW_CHECKLIST_ENABLED = false;
+
+const RELEASE_CHECK_MESSAGES: Record<string, string> = {
+  MANIFEST_CARDINALITY: "the version must contain exactly one course manifest",
+  UNKNOWN_ARTIFACT_TYPE: "the version contains an artifact of an unknown type",
+  SKILL_COVERAGE_MISSING: "every skill needs exactly one lesson and one assessment bank",
+  SOURCE_COVERAGE_MISSING: "a skill's source references are not cited by its lesson or bank",
+  ARTIFACT_IDENTITY_MISMATCH: "an artifact's course or skill does not match the manifest",
+  EXAM_FORM_INVALID: "an exam form for a module could not be built",
+  DAG_MASTERY_INVALID: "the prerequisite graph or mastery policy check failed",
+  UNKNOWN: "an authored file failed validation",
+};
+
+/** Turns API error codes into text an admin can act on. */
+export function describeCurriculumError(cause: unknown, fallback = "Operation failed safely."): string {
+  const message = cause instanceof Error ? cause.message : fallback;
+  if (message === "FRESH_MFA_REQUIRED") return "Enter your six-digit authenticator code once; it stays valid for 24 hours on this session.";
+  if (message === "RELEASE_CHECKS_FAILED") {
+    const check = cause instanceof AdminApiError ? cause.check : undefined;
+    const detail = check ? RELEASE_CHECK_MESSAGES[check] ?? humanize(check) : null;
+    return `Release checks failed${detail ? `: ${detail}` : ""}${check ? ` (${check})` : ""}. Fix the content, restage, and try again.`;
+  }
+  if (message === "CONTENT_HASH_MISMATCH") return "The version's content changed since it was loaded. Refresh and try again.";
+  return message;
+}
 
 // One gate code often repeats for every artifact; show each code once with a count.
 function groupGateIssues(issues: readonly { code: string; message: string }[]) {
@@ -253,10 +277,7 @@ export function AdminCurriculumPublication({
     setBusy(true); setError(null); setNotice(null);
     try { await mfa(); await action(); requestRef.current = null; setTotp(""); setGate(null); setNotice(success); await Promise.all([loadCurriculum(), refreshSelection()]); }
     catch (cause) {
-      const message = cause instanceof Error ? cause.message : "Operation failed safely.";
-      setError(message === "FRESH_MFA_REQUIRED"
-        ? "Enter your six-digit authenticator code once; it stays valid for 24 hours on this session."
-        : message);
+      setError(describeCurriculumError(cause));
       // The error and the code/reason inputs live at the top of a long page.
       document.getElementById("curriculum-auth")?.scrollIntoView({ behavior: "smooth", block: "center" });
     }
