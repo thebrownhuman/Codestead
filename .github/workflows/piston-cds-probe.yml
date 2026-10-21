@@ -27,7 +27,8 @@ jobs:
         run: node infra/piston/build.mjs codestead-piston:ci > build.log 2>&1 || { tail -n 120 build.log; exit 1; }
       - name: Digest and file hashes
         run: |
-          nproc; free -m | head -2
+          nproc; grep -m1 'model name' /proc/cpuinfo; grep MemTotal /proc/meminfo
+          docker run --rm --entrypoint /bin/sh codestead-piston:ci -c 'cd /tmp && printf "public class H{public static void main(String[] a){System.out.println(1);}}" > H.java && /usr/local/jdk/bin/java -Xms8m -Xmx64m -XX:MaxMetaspaceSize=48m -XX:ReservedCodeCacheSize=16m -XX:+UseSerialGC -XX:ActiveProcessorCount=1 -Djava.io.tmpdir=/tmp -XX:SharedArchiveFile=/usr/local/jdk/lib/codestead.jsa -Xshare:auto -Xlog:cds -m jdk.compiler/com.sun.tools.javac.Main -d . H.java' 2>&1 | grep -iE "mapped|disabl|unable|fail" | head -20
           jq -r '"DIGEST " + .["containerimage.digest"]' infra/piston/build-metadata.json
           docker run --rm --entrypoint /bin/sh codestead-piston:ci -c \
             'find /etc -xdev \( -type f -o -type l \) -print0 | sort -z | xargs -0 ls -l --time-style=+%s; find /etc -type f -print0 | sort -z | xargs -0 sha256sum; sha256sum /usr/local/jdk/lib/codestead.jsa' > hashes.txt
