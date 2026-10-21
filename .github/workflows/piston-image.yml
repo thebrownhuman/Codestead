@@ -57,6 +57,16 @@ jobs:
           sudo install -m 0644 daemon.json /etc/docker/daemon.json && rm daemon.json
           sudo systemctl restart docker
           docker info --format '{{json .DriverStatus}}' | grep -F io.containerd.snapshotter.v1
+      # build.mjs uses the docker driver; the buildx client version is part of
+      # the reproducible builder. Runner image ubuntu24/20261012.334 moved buildx
+      # 0.37.2 -> 0.38.0 and changed the batch manifest digest, so pin the plugin
+      # that produced the reviewed pin, verified by its release checksum.
+      - name: Pin the buildx plugin
+        run: |
+          curl -fsSL -o docker-buildx https://github.com/docker/buildx/releases/download/v0.37.2/buildx-v0.37.2.linux-amd64
+          echo '982ca20490b45ed1ec8d99795974d3d874a358f75938c9c237305010e6b7e548  docker-buildx' | sha256sum -c -
+          mkdir -p ~/.docker/cli-plugins && install -m 0755 docker-buildx ~/.docker/cli-plugins/docker-buildx && rm docker-buildx
+          docker buildx version | grep -F ' v0.37.2 '
       - name: Build twice without network access
         run: |
           node infra/piston/build.mjs codestead-piston:ci > build.log 2>&1 || { tail -n 120 build.log; exit 1; }
