@@ -52,6 +52,7 @@ vi.mock("@/lib/runner/power-rehearsal-hold", async (importOriginal) => {
 
 import { GET, POST } from "../route";
 import { RunnerAdmissionError } from "@/lib/runner/admission";
+import { PISTON_RUNTIMES } from "@/lib/runner/piston-client";
 import { RunnerIndeterminateError, runtimeByLanguage } from "@/lib/runner/client";
 import { PistonRunnerClient } from "@/lib/runner/piston-client";
 import { practiceAdmissionRequestHash } from "@/lib/runner/practice-dispatch";
@@ -72,7 +73,7 @@ const ADMISSION = {
     sourceHash: SOURCE_HASH,
     stdin: "Ada\n",
     mode: "quick_run",
-    runtimeVersion: runtimeByLanguage.python.version,
+    runtimeVersion: PISTON_RUNTIMES.python.label,
     entrypoint: runtimeByLanguage.python.entrypoint,
     submissionType: "server_run",
   }),
@@ -88,7 +89,7 @@ const ADMISSION = {
 const result = {
   status: "ACCEPTED",
   imageDigest: "sha256:python-image",
-  runtimeVersion: "Python 3.14",
+  runtimeVersion: "Python 3.14.8 (Piston)",
   compile: { status: "OK", stdout: "", stderr: "", exitCode: 0 },
   run: { stdout: "Hello, Ada!\n", stderr: "", exitCode: 0, wallTimeMs: 12 },
   tests: [],
@@ -361,7 +362,7 @@ describe("general practice code runner route", () => {
       submissionId: ADMISSION.submissionId,
       correlationId: expect.any(String),
       language: "python",
-      runtimeVersion: "Python 3.14",
+      runtimeVersion: "Python 3.14.8 (Piston)",
       mode: "RUN",
       sourceFiles: [{ path: "main.py", content: SOURCE }],
       entrypoint: "main.py",
@@ -381,7 +382,7 @@ describe("general practice code runner route", () => {
         submissionId: ADMISSION.submissionId,
         correlationId: expect.any(String),
         language: "python",
-        runtimeVersion: "Python 3.14",
+        runtimeVersion: "Python 3.14.8 (Piston)",
         mode: "RUN",
         sourceFiles: [{ path: "main.py", content: SOURCE }],
         entrypoint: "main.py",
@@ -406,7 +407,7 @@ describe("general practice code runner route", () => {
       submissionId: ADMISSION.submissionId,
       status: "accepted",
       stdout: "Hello, Ada!\n",
-      runtimeVersion: "Python 3.14",
+      runtimeVersion: "Python 3.14.8 (Piston)",
       imageDigest: "sha256:python-image",
       queue: { initialState: "completed", position: null },
       officialMasteryEvidence: false,
@@ -509,6 +510,31 @@ describe("general practice code runner route", () => {
     });
     expect(mocks.configuredPracticeRunnerClient).not.toHaveBeenCalled();
     expect(mocks.beginRunnerDispatch).not.toHaveBeenCalled();
+  });
+
+  it("replays a retired practice result as a retryable 409 without dispatch", async () => {
+    mocks.admitRunnerJob.mockResolvedValueOnce({
+      ...ADMISSION,
+      duplicate: true,
+      status: "cancelled",
+      result: { error: "PRACTICE_RUNNER_RETIRED" },
+    });
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      status: "infrastructure_error",
+      code: "PRACTICE_RUNNER_RETIRED",
+      retryable: true,
+      indeterminate: false,
+      error: "The old runner was retired. Please run the exercise again with a new request.",
+      replayed: true,
+      officialMasteryEvidence: false,
+    });
+    expect(mocks.configuredPracticeRunnerClient).not.toHaveBeenCalled();
+    expect(mocks.beginRunnerDispatch).not.toHaveBeenCalled();
+    expect(mocks.settleRunnerJob).not.toHaveBeenCalled();
   });
 
   it("preserves an active duplicate admission when readiness is offline", async () => {
@@ -932,7 +958,7 @@ describe("practice route contract parity: legacy runner vs Piston", () => {
             sourceHash: SOURCE_HASH,
             stdin: "Ada\n",
             mode: "quick_run",
-            runtimeVersion: runtimeByLanguage[language].version,
+            runtimeVersion: PISTON_RUNTIMES[language].label,
             entrypoint: runtimeByLanguage[language].entrypoint,
             submissionType: "server_run",
           }),

@@ -51,6 +51,7 @@ export class AssessmentCorrectionError extends Error {
       | "INVALID_STATE"
       | "LEARNER_NOT_ACTIVE"
       | "RETRY_LIMIT_EXHAUSTED"
+      | "RUNNER_RUNTIME_RETIRED"
       | "RUNNER_CAPACITY_BUSY"
       | "RUNNER_INDETERMINATE"
       | "RUNNER_INFRASTRUCTURE_FAILURE"

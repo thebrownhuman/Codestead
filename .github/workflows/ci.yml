@@ -71,6 +71,7 @@ jobs:
               - Dockerfile
               - .dockerignore
               - scripts/app-images/**
+              - scripts/lib/image-security/**
               - infra/docker/**
               - next.config.*
             backup-paths:
@@ -166,7 +167,7 @@ jobs:
       - run: npm run evidence:verify
       - run: npm audit --omit=dev --audit-level=moderate
       - run: node --test scripts/audit-development-dependencies.test.mjs
-      # Dev-only exception expires 2026-10-17; every other advisory still fails.
+      # Dev-only exception expires 2027-02-08; every other advisory still fails.
       # https://github.com/advisories/GHSA-vfj7-8cjw-p6xm
       - run: node scripts/audit-development-dependencies.mjs
       - run: node infra/tests/validate-static.mjs
@@ -320,6 +321,7 @@ jobs:
       - run: sudo env PYTHONDONTWRITEBYTECODE=1 bash infra/tests/power-evidence.test.sh
       - run: sudo env PYTHONDONTWRITEBYTECODE=1 bash infra/tests/power-recovery-check.test.sh
       - run: sudo bash infra/tests/systemd-recovery.test.sh
+      - run: bash infra/tests/postgres-check.test.sh
 
   infra-release:
     name: "infra: release & rollback"

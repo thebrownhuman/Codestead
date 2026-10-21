@@ -4,13 +4,13 @@ import { createRunnerHealth } from "../health";
 
 const inventory = Object.values(PISTON_RUNTIMES).map(({ language, version }) => ({ language, version }));
 describe("bounded runner health", () => {
-  beforeEach(() => { vi.useFakeTimers(); vi.stubEnv("CODE_RUNNER_PROVIDER", "piston"); vi.stubEnv("PISTON_URL", "http://piston:2000"); vi.stubEnv("PISTON_IMAGE", "test-image"); });
+  beforeEach(() => { vi.useFakeTimers(); vi.stubEnv("CODE_RUNNER_PROVIDER", "piston"); vi.stubEnv("PISTON_URL", "http://piston:2000"); vi.stubEnv("PISTON_IMAGE", `codestead-piston@sha256:${"a".repeat(64)}`); });
   afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
   function fixture() {
     const request = vi.fn<typeof fetch>().mockImplementation(async () => Response.json(inventory));
     const legacy = vi.fn().mockResolvedValue({ available: true });
     const warn = vi.fn();
-    return { request, legacy, warn, health: createRunnerHealth({ request, legacy, warn }) };
+    return { request, legacy, warn, health: createRunnerHealth({ request, warn }) };
   }
   it("probes runtimes without executing code and exposes only status and latency", async () => {
     const f = fixture();
@@ -63,14 +63,14 @@ describe("bounded runner health", () => {
     const f = fixture(); vi.stubEnv("PISTON_URL", url);
     expect((await f.health()).status).toBe("unavailable"); expect(f.request).not.toHaveBeenCalled();
   });
-  it("uses the legacy availability check only in legacy mode", async () => {
+  it("rejects legacy mode without making any request", async () => {
     const f = fixture(); vi.stubEnv("CODE_RUNNER_PROVIDER", "legacy");
-    expect((await f.health()).status).toBe("ready"); expect(f.legacy).toHaveBeenCalledOnce(); expect(f.request).not.toHaveBeenCalled();
+    expect((await f.health()).status).toBe("unavailable"); expect(f.legacy).not.toHaveBeenCalled(); expect(f.request).not.toHaveBeenCalled();
   });
   it("does not fall back after an invalid provider or offline legacy runner", async () => {
     const f = fixture(); vi.stubEnv("CODE_RUNNER_PROVIDER", "unknown"); expect((await f.health()).status).toBe("unavailable");
     const second = fixture(); vi.stubEnv("CODE_RUNNER_PROVIDER", "legacy"); second.legacy.mockResolvedValue({ available: false });
-    expect((await second.health()).status).toBe("unavailable"); expect(f.request).not.toHaveBeenCalled();
+    expect((await second.health()).status).toBe("unavailable"); expect(f.request).not.toHaveBeenCalled(); expect(second.legacy).not.toHaveBeenCalled();
   });
   it("limits requests globally without attacker-controlled buckets", async () => {
     const f = fixture(); for (let i = 0; i < 120; i++) await f.health();

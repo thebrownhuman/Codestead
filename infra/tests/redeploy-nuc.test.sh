@@ -213,6 +213,15 @@ for stored_release in "" "previous-release"; do
   [[ "$(<"$DEPLOY_STATE_FILE")" == "$head_sha" ]] || fail "deploy did not record the resolved commit"
 done
 
+# --- --no-migrate never runs migrate, even when the migration set changed --
+: >"$TEST_COMPOSE_TRACE"
+rm -f "$DEPLOY_STATE_FILE"
+deploy_output="$(PATH="$fake_bin:$PATH" REPO_ROOT="$fake_repo" BUILD_ROOT="$work/build"   "$script" --no-scan --no-migrate "${head_sha:0:7}" 2>&1)" || fail "--no-migrate deploy failed:
+$deploy_output"
+grep -qF -- "--no-migrate: NOT running migrate" <<<"$deploy_output"   || fail "--no-migrate did not say it skipped migrate"
+! grep -qF -- '--exit-code-from migrate migrate' "$TEST_COMPOSE_TRACE"   || fail "--no-migrate still ran migrate"
+grep -qF -- 'up -d --no-build --pull never --no-deps runner-egress-gateway app' "$TEST_COMPOSE_TRACE"   || fail "--no-migrate did not restart the app services"
+
 # --- the piston profile adds the piston runner to the restarted services ----
 printf '%s
 ' 'COMPOSE_PROFILES=uploads,piston' >>"$fake_compose_env"

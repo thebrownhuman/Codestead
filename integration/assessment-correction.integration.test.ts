@@ -33,6 +33,8 @@ import {
 } from "@/lib/notifications/deletion-notice-capability";
 import { accountMailEventIdempotencyKey } from "@/lib/notifications/idempotency-authority";
 import { admitRunnerJob, hashRunnerAdmissionRequest } from "@/lib/runner/admission";
+import { RunnerClient } from "@/lib/runner/client";
+import * as examRunner from "@/lib/runner/exam-client";
 import { userAuthorityLockKey } from "@/lib/security/user-authority-lock";
 import { computeAndPersistLeaderboardScore } from "@/lib/social/leaderboard-service";
 import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
@@ -52,6 +54,17 @@ const RUNTIME_DIGEST = `sha256:${"a".repeat(64)}`;
 const ORIGINAL_PYTHON_DIGEST = `sha256:${"b".repeat(64)}`;
 const ORIGINAL_JAVA_DIGEST = `sha256:${"c".repeat(64)}`;
 const RUNNER_SHARED_SECRET = "assessment-correction-runner-secret-at-least-32-bytes";
+
+/** Stub runner for crash-reconciliation tests: application routing is
+ * Piston-only, so these legacy-pinned fixtures dispatch through a signed
+ * protocol stub that the stubbed fetch answers. Never reaches a real runner.
+ */
+function stubSignedProtocolRunner() {
+  return vi.spyOn(examRunner, "configuredExamRunnerClient").mockImplementation(
+    () => new RunnerClient("http://correction-runner.integration", RUNNER_SHARED_SECRET) as unknown as
+      ReturnType<typeof examRunner.configuredExamRunnerClient>,
+  );
+}
 const RUNNER_LIMITS = Object.freeze({
   wallTimeMs: 5_000,
   memoryMb: 128,
@@ -1583,6 +1596,7 @@ describe("real PostgreSQL assessment correction and regrading", () => {
       return signedCompletedRunnerResponse(init, rawRequest);
     });
     vi.stubGlobal("fetch", fetchMock);
+    const runnerStub = stubSignedProtocolRunner();
     try {
       await expect(configuredRegradeExecutor.execute(crashInput)).rejects.toMatchObject({
         code: "RUNNER_INDETERMINATE",
@@ -1703,6 +1717,7 @@ describe("real PostgreSQL assessment correction and regrading", () => {
         objectStorageRoot: "C:/tmp/assessment-correction-crash-recovery-empty",
       })).resolves.toMatchObject({ primaryStoreDeletionComplete: true });
     } finally {
+      runnerStub.mockRestore();
       vi.unstubAllGlobals();
       if (previousRunnerUrl === undefined) delete process.env.RUNNER_BASE_URL;
       else process.env.RUNNER_BASE_URL = previousRunnerUrl;
@@ -1739,6 +1754,7 @@ describe("real PostgreSQL assessment correction and regrading", () => {
       remoteBodies.push(rawRequest);
       return signedCompletedRunnerResponse(init, rawRequest);
     }));
+    const runnerStub = stubSignedProtocolRunner();
     let releaseStale!: () => void;
     let signalStale!: () => void;
     const staleGate = new Promise<void>((resolve) => { releaseStale = resolve; });
@@ -1820,6 +1836,7 @@ describe("real PostgreSQL assessment correction and regrading", () => {
     } finally {
       releaseStale();
       await stale?.catch(() => undefined);
+      runnerStub.mockRestore();
       vi.unstubAllGlobals();
       if (previousRunnerUrl === undefined) delete process.env.RUNNER_BASE_URL;
       else process.env.RUNNER_BASE_URL = previousRunnerUrl;

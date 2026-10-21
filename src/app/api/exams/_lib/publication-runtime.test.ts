@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ContentRepository, type CourseManifest } from "@/lib/content";
 import { getTableName } from "drizzle-orm";
@@ -221,7 +221,14 @@ function examPersistence(skillId: string) {
 }
 
 describe("N01 staged publication runtime regressions", () => {
-  beforeEach(() => { vi.clearAllMocks(); vi.spyOn(console, "error").mockImplementation(() => undefined); });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubEnv("CODE_RUNNER_PROVIDER", "piston");
+    vi.stubEnv("PISTON_URL", "http://piston:2000");
+    vi.stubEnv("PISTON_IMAGE", `codestead-piston@sha256:${"a".repeat(64)}`);
+  });
+  afterEach(() => vi.unstubAllEnvs());
 
   it.each(["beta", "verified"] as const)("loads the catalog and starts a supported human-approved %s publication without changing immutable artifacts", async (stage) => {
     const fixture = await stagedPublication(stage);

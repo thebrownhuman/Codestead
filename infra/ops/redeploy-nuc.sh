@@ -14,7 +14,7 @@ fatal() {
 
 usage() {
   cat >&2 <<'EOF'
-usage: redeploy-nuc.sh [--scan|--no-scan] [--dry-run] <git-sha>
+usage: redeploy-nuc.sh [--scan|--no-scan] [--no-migrate] [--dry-run] <git-sha>
 
 Redeploys the pilot NUC deployment to <git-sha>: fetches and checks out the
 commit, builds the seven reviewed application images from a clean clone,
@@ -29,6 +29,9 @@ never written into compose.env.
                 pinned container (the NUC has no host packages) with the
                 Docker socket and Trivy's cache mounted in.
   --no-scan     Skip Trivy for a quick beta deploy.
+  --no-migrate  Never run migrate, even if the migration set changed. For
+                migrations with their own ordered steps (e.g. a fenced role
+                bootstrap) that the operator runs by hand around this script.
   --dry-run     Print every command instead of running it. No mutation.
 
 Environment overrides (all optional, defaults match the NUC pilot):
@@ -55,6 +58,7 @@ EOF
 # --- argument parsing -------------------------------------------------------
 
 scan=true
+migrate_allowed=true
 dry_run=false
 target_sha=""
 
@@ -66,6 +70,10 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     --no-scan)
       scan=false
+      shift
+      ;;
+    --no-migrate)
+      migrate_allowed=false
       shift
       ;;
     --dry-run)
@@ -406,7 +414,10 @@ else
   [[ -n "$migration_diff" ]] && run_migrate=true
 fi
 
-if [[ "$run_migrate" == true ]]; then
+if [[ "$run_migrate" == true && "$migrate_allowed" != true ]]; then
+  [[ -n "$migration_diff" ]] && { echo "-- migration set changed since $previous_sha --"; echo "$migration_diff"; }
+  echo "-- --no-migrate: NOT running migrate; the operator must apply these migrations by hand --"
+elif [[ "$run_migrate" == true ]]; then
   [[ -n "$migration_diff" ]] && { echo "-- migration set changed since $previous_sha, running migrate --"; echo "$migration_diff"; }
   compose --profile operations up --no-deps --no-build --pull never \
     --force-recreate --exit-code-from migrate migrate

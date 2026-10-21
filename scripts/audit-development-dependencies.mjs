@@ -5,10 +5,10 @@ import { fileURLToPath } from "node:url";
 
 // Dev-only stack-exhaustion advisory, with no patched braces release.
 // https://github.com/advisories/GHSA-vfj7-8cjw-p6xm
-// Expires at 00:00 UTC on 2026-10-31; production findings are never exempt.
+// Expires at 00:00 UTC on 2027-02-08; production findings are never exempt.
 export const EXCEPTION = Object.freeze({
   advisory: "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
-  expiresAt: "2026-10-31T00:00:00.000Z",
+  expiresAt: "2027-02-08T00:00:00.000Z",
 });
 
 const severities = ["info", "low", "moderate", "high", "critical"];

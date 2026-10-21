@@ -10,7 +10,7 @@ vi.mock("@/lib/runner/admission", async (original) => ({
 
 import { executeExamCode } from "./service";
 import type { RunnerRequest } from "@/lib/runner/client";
-import { IMAGE, languages, outcomes, score, tests, transport, verdict, version } from "../../../../../scripts/lib/provider-parity-fixtures";
+import { IMAGE, languages, outcomes, score, tests, transport, withNativeRunnerBaseline, verdict, version } from "../../../../../scripts/lib/provider-parity-fixtures";
 
 const admission = { submissionId: "submission", runnerJobId: "job", userId: "learner",
   requestId: "request", requestHash: "a".repeat(64), submissionType: "exam_final_test", status: "queued",
@@ -38,7 +38,7 @@ describe("official exam provider parity", () => {
   for (const language of languages) {
     it.each(outcomes)(`${language} %s retains verdict, score and critical gates`, async (outcome) => {
       transport("legacy", outcome);
-      const legacy = await executeExamCode(input("legacy", language));
+      const legacy = await withNativeRunnerBaseline(() => executeExamCode(input("legacy", language)));
       const fetch = transport("piston", outcome);
       const piston = await executeExamCode(input("piston", language));
       expect(verdict(piston)).toEqual(verdict(legacy));
@@ -51,11 +51,11 @@ describe("official exam provider parity", () => {
     });
   }
 
-  it("keeps legacy-pinned attempts on legacy after the global Piston switch", async () => {
+  it("rejects unsupported legacy attempts explicitly before admission or HTTP", async () => {
     const fetch = transport("piston", "accepted");
-    const result = await executeExamCode(input("legacy", "c"));
-    expect(result.runtimeVersion).toBe(version("legacy", "c"));
-    expect(fetch.mock.calls.every(([url]) => String(url).startsWith("http://legacy:"))).toBe(true);
+    await expect(executeExamCode(input("legacy", "c"))).rejects.toMatchObject({ code: "RUNNER_RUNTIME_RETIRED" });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(mocks.admit).not.toHaveBeenCalled();
   });
 
   it.each(["legacy", "piston"])("%s cannot grade a missing runtime pin", async (provider) => {
@@ -65,30 +65,25 @@ describe("official exam provider parity", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it.each(["legacy", "piston"])("%s still rejects evidence for a different image digest", async (provider) => {
+  it.each(["piston"])("%s still rejects evidence for a different image digest", async (provider) => {
     transport(provider, "accepted");
     await expect(executeExamCode({ ...input(provider, "c"), expectedRuntimeImageDigest: `sha256:${"f".repeat(64)}` }))
       .rejects.toMatchObject({ code: "RUNNER_RUNTIME_MISMATCH" });
     expect(mocks.settle).toHaveBeenCalledWith(expect.objectContaining({ status: "failed", runtimeImageDigest: "runner-runtime-mismatch" }));
   });
 
-  it("never switches a pinned Piston attempt to legacy when rollout is reversed", async () => {
+  it("rejects legacy configuration rather than switching a Piston attempt to native", async () => {
     const fetch = transport("legacy", "accepted");
-    await executeExamCode(input("piston", "python"));
-    expect(fetch.mock.calls.every(([url]) => String(url).startsWith("http://piston:"))).toBe(true);
+    await expect(executeExamCode(input("piston", "python"))).rejects.toMatchObject({ code: "RUNNER_UNAVAILABLE" });
+    expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("recovers the existing legacy remote job after switching the rollout flag", async () => {
-    const firstFetch = transport("legacy", "accepted");
-    const original = await executeExamCode(input("legacy", "python"));
-    const request = JSON.parse(String(firstFetch.mock.calls[0]![1]!.body)) as RunnerRequest;
+  it("does not resume a persisted native remote job on Piston", async () => {
     mocks.begin.mockResolvedValue({ replayed: false, remoteJobId: "legacy-job" });
-    const recoveryFetch = transport("piston", "accepted", request);
-    const recovered = await executeExamCode(input("legacy", "python"));
-    expect(verdict(recovered)).toEqual(verdict(original));
-    expect(recoveryFetch.mock.calls).toHaveLength(1);
-    expect(String(recoveryFetch.mock.calls[0]![0])).toBe("http://legacy:4100/v1/jobs/legacy-job");
-    expect(recoveryFetch.mock.calls[0]![1]!.method).toBe("GET");
+    const fetch = transport("piston", "accepted");
+    await expect(executeExamCode(input("legacy", "python"))).rejects.toMatchObject({ code: "RUNNER_RUNTIME_RETIRED" });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(mocks.begin).not.toHaveBeenCalled();
   });
 
   it.each(["legacy", "piston"])("%s compile failure cannot bypass the exact manifest trust gate", async (provider) => {
@@ -100,7 +95,7 @@ describe("official exam provider parity", () => {
   it.each(["unknown", "piston"])("%s configuration failure never falls back", async (provider) => {
     const fetch = transport(provider, "accepted");
     vi.stubEnv(provider === "piston" ? "PISTON_URL" : "RUNNER_BASE_URL", "");
-    await expect(executeExamCode(input(provider, "c"))).rejects.toMatchObject({ code: "RUNNER_UNAVAILABLE" });
+    await expect(executeExamCode(input(provider, "c"))).rejects.toMatchObject({ code: provider === "unknown" ? "RUNNER_RUNTIME_RETIRED" : "RUNNER_UNAVAILABLE" });
     expect(fetch).not.toHaveBeenCalled();
   });
 });
