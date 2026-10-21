@@ -42,7 +42,7 @@ Beta rule: simplicity first. Quizzes are low-stakes, retries are unlimited, and 
 
 ## 3. Scoring and retries
 - Score = points earned / points possible, using each item's `points` from the bank.
-- Feedback is shown per item right after submit: correct or incorrect, plus the bank's
+- Feedback is shown per item right after submit: correct or incorrect, the correct option for a wrong MCQ, plus the bank's
   explanation/rationale where it exists.
 - Unlimited retries, no cooldown, no timer.
 - Best score and latest score are both shown. Pass mark display: 70% gets a "nice work" badge only
@@ -169,6 +169,11 @@ runner on the server.
 5. **`feat(practice-quiz): code items`** (optional): runner-graded code items when the runner is
    enabled.
 
-## Open questions for owner
-- Show the correct answer on a wrong MCQ, or only the explanation? (Plan: explanation + correct option.)
-- Should quiz completion count toward course completion % later? (Plan: no for beta.)
+## Owner decisions (2026-10-21)
+- **Wrong MCQ feedback:** show the correct option plus the explanation. This is safe because the
+  practice and exam pools are strictly separate (section 1).
+- **Course completion:** quizzes do **not** count toward course completion % in beta.
+- **Exam integrity:** approved as specified in section 1 (explicit `pool` marker, disjoint pools,
+  server-side filter, `test:practice-pool` validator).
+- **Sequencing:** the migration PR (0076) waits until 0074 (#203) and 0075 (passkeys) merge. The
+  pool, selector and grader PR (no DB) goes first.
