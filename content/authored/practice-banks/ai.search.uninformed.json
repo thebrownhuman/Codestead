@@ -1,0 +1,138 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "practice.ai.search.uninformed.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.search",
+  "skillId": "ai.search.uninformed",
+  "title": "Uninformed search practice draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "claude-assisted-practice",
+      "displayName": "Claude-assisted practice draft",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-10-21T00:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Draft practice-only items for the ai.search practice quiz; owner content review required before learners see them."
+  },
+  "sourceRefs": [
+    "cs2023-ai"
+  ],
+  "items": [
+    {
+      "id": "ai.search.uninformed.practice.bfs-optimal",
+      "skillId": "ai.search.uninformed",
+      "title": "When BFS finds the cheapest path",
+      "kind": "mcq",
+      "prompt": "Breadth-first search is guaranteed to return a least-cost path when:",
+      "points": 2,
+      "evidenceLevel": "interpret",
+      "pool": "practice",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "Practice-pool item: never exam-eligible by design; kept separate from the exam pool to protect exam integrity."
+      },
+      "hints": [
+        "Rule out each option that contradicts the definition, then check what is left."
+      ],
+      "feedback": {
+        "correct": "Correct. BFS finds the shallowest goal, which is the cheapest only when all steps cost the same. With varied costs, use uniform-cost search.",
+        "incorrect": "Not quite. BFS finds the shallowest goal, which is the cheapest only when all steps cost the same. With varied costs, use uniform-cost search."
+      },
+      "rubric": {
+        "passPoints": 2,
+        "criteria": [
+          {
+            "id": "choice",
+            "description": "Selects the option consistent with the definition.",
+            "points": 2,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Owner content review: check wording, correctness and distractor quality."
+      ],
+      "options": [
+        {
+          "id": "unit-cost",
+          "text": "Every action has the same cost"
+        },
+        {
+          "id": "any-cost",
+          "text": "Action costs are any positive numbers"
+        },
+        {
+          "id": "deep",
+          "text": "The goal is very deep"
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "unit-cost"
+        ],
+        "explanation": "BFS finds the shallowest goal, which is the cheapest only when all steps cost the same. With varied costs, use uniform-cost search."
+      }
+    },
+    {
+      "id": "ai.search.uninformed.practice.dfs-memory",
+      "skillId": "ai.search.uninformed",
+      "title": "Why pick depth-first search",
+      "kind": "mcq",
+      "prompt": "What is the main advantage of depth-first search over breadth-first search?",
+      "points": 2,
+      "evidenceLevel": "interpret",
+      "pool": "practice",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "Practice-pool item: never exam-eligible by design; kept separate from the exam pool to protect exam integrity."
+      },
+      "hints": [
+        "Rule out each option that contradicts the definition, then check what is left."
+      ],
+      "feedback": {
+        "correct": "Correct. DFS keeps only the current path plus siblings, so memory grows with depth. It is neither optimal nor complete on infinite graphs.",
+        "incorrect": "Not quite. DFS keeps only the current path plus siblings, so memory grows with depth. It is neither optimal nor complete on infinite graphs."
+      },
+      "rubric": {
+        "passPoints": 2,
+        "criteria": [
+          {
+            "id": "choice",
+            "description": "Selects the option consistent with the definition.",
+            "points": 2,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Owner content review: check wording, correctness and distractor quality."
+      ],
+      "options": [
+        {
+          "id": "memory",
+          "text": "It needs much less memory, roughly proportional to depth"
+        },
+        {
+          "id": "optimal",
+          "text": "It always finds the shortest path"
+        },
+        {
+          "id": "complete",
+          "text": "It is complete on infinite graphs"
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "memory"
+        ],
+        "explanation": "DFS keeps only the current path plus siblings, so memory grows with depth. It is neither optimal nor complete on infinite graphs."
+      }
+    }
+  ]
+}

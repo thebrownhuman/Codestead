@@ -1,6 +1,7 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { configuredPistonRunnerClient, type PistonRunnerClient } from "./piston-client";
+import { configuredCodeRunnerProvider } from "./provider-config";
 
 export type RunnerLanguage = "c" | "cpp" | "java" | "python" | "javascript";
 
@@ -582,18 +583,15 @@ export function isTrustedRunnerJob(job: unknown, request: RunnerRequest): job is
 
 /**
  * Runner for code execution, including official assessment and recovery.
- * CODE_RUNNER_PROVIDER picks
- * the backend: "legacy" (default) or "piston". A selected provider that is not
- * configured throws; it never falls back to the other provider.
+ * Piston is the only application backend. Native transport remains available
+ * to its isolated implementation tests until stage 6b, never as a fallback.
  */
-export function configuredCodeRunnerClient(): RunnerClient | PistonRunnerClient {
-  const provider = process.env.CODE_RUNNER_PROVIDER || "legacy";
-  if (provider === "legacy") return configuredRunnerClient();
-  if (provider === "piston") return configuredPistonRunnerClient();
-  throw new Error("CODE_RUNNER_PROVIDER must be legacy or piston.");
+export function configuredCodeRunnerClient(): PistonRunnerClient {
+  configuredCodeRunnerProvider();
+  return configuredPistonRunnerClient();
 }
 
 /** Kept for the existing practice route and its caller contract. */
-export function configuredPracticeRunnerClient(): RunnerClient | PistonRunnerClient {
+export function configuredPracticeRunnerClient(): PistonRunnerClient {
   return configuredCodeRunnerClient();
 }

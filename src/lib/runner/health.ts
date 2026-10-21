@@ -1,11 +1,11 @@
 import { RateLimiterMemory } from "rate-limiter-flexible";
-import { configuredRunnerClient } from "./client";
+import { configuredCodeRunnerProvider } from "./provider-config";
+import { pinnedPistonImageDigest } from "./exam-client";
 import { PISTON_RUNTIMES } from "./piston-client";
 
 type Health = { status: "ready" | "unavailable"; latencyMs: number; limited?: true };
 type Dependencies = {
   request: typeof fetch;
-  legacy: () => Promise<{ available: boolean }>;
   warn: (message: string) => void;
 };
 const CACHE_MS = 30_000;
@@ -36,7 +36,6 @@ async function runtimeInventory(response: Response) {
 /** Per application process: one in-flight probe, cached failures, and one fixed limiter bucket. */
 export function createRunnerHealth(deps: Dependencies = {
   request: fetch,
-  legacy: () => configuredRunnerClient().checkAvailability(),
   warn: (message) => console.warn(message),
 }) {
   const limiter = new RateLimiterMemory({ points: 120, duration: 60 });
@@ -49,9 +48,9 @@ export function createRunnerHealth(deps: Dependencies = {
     try {
       const available = await Promise.race([
         (async () => {
-          const provider = process.env.CODE_RUNNER_PROVIDER || "legacy";
-          if (provider === "legacy") return (await deps.legacy()).available;
-          if (provider !== "piston" || !process.env.PISTON_URL || !process.env.PISTON_IMAGE) return false;
+          configuredCodeRunnerProvider();
+          if (!process.env.PISTON_URL || !process.env.PISTON_IMAGE) return false;
+          pinnedPistonImageDigest(process.env.PISTON_IMAGE);
           const url = new URL(process.env.PISTON_URL);
           if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash || url.pathname !== "/") return false;
           const response = await deps.request(`${url.origin}/api/v2/runtimes`, {

@@ -107,6 +107,37 @@ describe("commit-anchored evidence", () => {
     }
   });
 
+  it("never accepts a tree where an anchored blob is required", async () => {
+    const { root, proofCommit } = await repository();
+    await anchored(root, proofCommit, sha256(original), "src/lib");
+    // Fails closed exactly as before the ls-tree cache: `cat-file blob` refuses a non-blob.
+    expect((await verify(root)).issues).toEqual([
+      expect.objectContaining({ kind: "INVALID_JSON", source: evidencePath, detail: expect.stringContaining("cat-file blob") }),
+    ]);
+  });
+
+  it("never accepts a gitlink where an anchored blob is required", async () => {
+    const { root, proofCommit } = await repository();
+    git(root, "update-index", "--add", "--cacheinfo", `160000,${proofCommit},src/lib/vendored`);
+    git(root, "commit", "--quiet", "-m", "gitlink");
+    const gitlinkCommit = git(root, "rev-parse", "HEAD");
+    await anchored(root, gitlinkCommit, sha256(original), "src/lib/vendored");
+    // Fails closed exactly as before the ls-tree cache: `cat-file blob` refuses a non-blob.
+    expect((await verify(root)).issues).toEqual([
+      expect.objectContaining({ kind: "INVALID_JSON", source: evidencePath, detail: expect.stringContaining("cat-file blob") }),
+    ]);
+  });
+
+  it("reports an anchored path missing at its commit even when it exists in the working tree", async () => {
+    const { root, proofCommit } = await repository();
+    await write(root, "src/lib/untracked.ts", original);
+    await anchored(root, proofCommit, sha256(original), "src/lib/untracked.ts");
+    const report = await verify(root);
+    expect(report.issues).toContainEqual({
+      kind: "MISSING_EVIDENCE_PATH", source: evidencePath, detail: `src/lib/untracked.ts@${proofCommit}`,
+    });
+  });
+
   it("fails closed on a malformed source commit", async () => {
     const { root, proofCommit } = await repository();
     for (const value of [proofCommit.slice(0, 12), proofCommit.toUpperCase(), "HEAD", 42]) {

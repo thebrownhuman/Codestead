@@ -352,7 +352,8 @@ async function seedFixture(
        )`,
       [
         fixture.verificationId,
-        `reset-password:${fixture.token}`,
+        // Better Auth stores reset identifiers hashed (see src/lib/auth.ts).
+        createHash("sha256").update(`reset-password:${fixture.token}`).digest("base64url"),
         fixture.userId,
       ],
     );

@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "imageReference": "codestead-piston-interactive:worker-a@sha256:2da692eef96326d5311d8037c46b40f11c82ddb688980af36e31ccdd0cc59215",
-  "imageConfigDigest": "sha256:bedd89b587aa344c933cbb9b104aa222527dbb62c858b24b5e973f8c51d322b8",
+  "imageReference": "codestead-piston-interactive:worker-a@sha256:7e534a28371757988e25e6a606072eaa573b1982fb9b280af6fa4008108bd0f3",
+  "imageConfigDigest": "sha256:972fe9962004c9f499227046b36ba9c23caf64bd11b83fd97e6e171ddb665bfe",
   "baseImage": {
-    "imageReference": "codestead-piston@sha256:2fc2e55122fbdc25c6100a0ee7d8f29a31282b9e0202655e206b644985ed8ef6",
-    "imageConfigDigest": "sha256:fcd0ba23c9d8e65558ac27298f270f5eaff5cb2c54fd504183b404dc97037722",
+    "imageReference": "codestead-piston@sha256:e6449b397403616afe005f7d1f76a4123a70ff63e075e92a0a7953decc59176c",
+    "imageConfigDigest": "sha256:67ca7ce878a0c19ed41c95f95158652b385d0794d8882fc77c790884ba0c32b4",
     "pistonCommit": "de2b365ac759670a3a0d13ea208a0869a92c7e64",
     "sourceDateEpoch": 1790812800
   },
@@ -55,8 +55,8 @@
     ".dockerignore": "351bcb2d688b150c2ecc65590294cd9c032901314769b77a0e0e4d6a43a7a37a",
     "patch.mjs": "341d7055c73537110edd9b6dea2d6efb6894db109e28c92e38448479695a408f",
     "connection.mjs": "50fcb3a7d29fe64d560a228dabafd086d8593d6cc812e75bb0a6af292b6e4253",
-    "base-image.json": "028cb1eaa27ca18d7cb99e6f4ba8ceb923a5c5b75960d40f43a212668a587a24",
-    "base-inputs.sha256": "aacf579597c48c71ae058d61545a3717f78eaf1eee114cded82f2831bbf377bc"
+    "base-image.json": "ad2a9dade17630b33fef18b1bdd6798cf2420c9860f680f10205cbe044aff25c",
+    "base-inputs.sha256": "7c0bb4097cda343af8c44e4adb4a05039d1756cf02b0989cb45988f192a84569"
   },
   "testInputSha256": {
     "build.mjs": "e9c571d5d417a762d766805dacb896202d7ecbe28c1b40860b6ff63b1d971221",

@@ -53,7 +53,7 @@
       "file": "src/app/api/exams/_lib/service.ts",
       "purpose": "exam sessions and answers",
       "anchors": 4,
-      "sourceSha256": "39c485ec06b3437d80e7275f16ad2f10caca329f875997fcc9b35553e07e0045"
+      "sourceSha256": "d75f7087c5d7c21e348fd9eb33c6cbbc90325704e5c024028920eb3c43584425"
     },
     {
       "file": "src/lib/learning-service/drizzle-store.ts",
@@ -1264,7 +1264,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "f1f942d06c87be3556c2c78f97447aa48512ed9bbd0dcf31099342e097e7cfdd"
+      "operationSourceSha256": "509832b403b3b4199b1c6eebca692016b3131f2b3d01f2eb00f83f0407fb2081"
     },
     {
       "operation": "GET /api/community/discussions",

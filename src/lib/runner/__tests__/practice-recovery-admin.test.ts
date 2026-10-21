@@ -403,4 +403,52 @@ describe("administrator practice quarantine resolution", () => {
     await resolveQuarantinedPracticeRunnerJob(base);
     expect(mocks.tx.insert).toHaveBeenCalledWith(notification);
   });
+
+  it.each(["ready", "retry_wait", "quarantined"])(
+    "retires only a legacy-pinned %s practice job, with an audit and retry notification",
+    async (recoveryState) => {
+      vi.stubEnv("CODE_RUNNER_PROVIDER", "piston");
+      arrangeTransaction({ current: [current({
+        recoveryState,
+        language: "python",
+        dispatchRequest: { language: "python", runtimeVersion: "Python 3.14" },
+      })] });
+      try {
+        await resolveQuarantinedPracticeRunnerJob({ ...base, retireLegacyRunner: true });
+        expect(mocks.txSet).toHaveBeenNthCalledWith(1, expect.objectContaining({
+          status: "cancelled",
+          result: expect.objectContaining({ error: "PRACTICE_RUNNER_RETIRED", retryable: true, officialEvidenceChanged: false }),
+        }));
+        expect(mocks.txSet).toHaveBeenNthCalledWith(2, { status: "cancelled", runtimeImageDigest: "practice-runner-retired" });
+        expect(mocks.txValues).toHaveBeenCalledWith(expect.objectContaining({
+          title: "Practice runner retired — please run again",
+          body: expect.stringContaining("Please run the exercise again with a new request"),
+        }));
+        expect(mocks.writeAuditEventInTransaction).toHaveBeenCalledWith(mocks.tx, expect.objectContaining({
+          action: "runner.practice.quarantine.resolve",
+          metadata: expect.objectContaining({ retireLegacyRunner: true, resolutionCode: "PRACTICE_RUNNER_RETIRED", officialEvidenceChanged: false }),
+        }));
+        expect(mocks.lockUserAuthority).toHaveBeenCalledWith(mocks.tx, LEARNER_ID);
+      } finally { vi.unstubAllEnvs(); }
+    },
+  );
+
+  it.each([
+    null,
+    { language: "python", runtimeVersion: "Python 3.14.8 (Piston)" },
+    { language: "python", runtimeVersion: "unrecognized" },
+    { language: "java", runtimeVersion: "Python 3.14" },
+  ])("refuses retirement of missing, unsupported or Piston pins %#", async (dispatchRequest) => {
+    arrangeTransaction({ current: [current({ language: "python", dispatchRequest })] });
+    await expectCode(resolveQuarantinedPracticeRunnerJob({ ...base, retireLegacyRunner: true }), "NOT_RETIRED_RUNTIME");
+    expect(mocks.txSet).not.toHaveBeenCalled();
+    expect(mocks.txValues).not.toHaveBeenCalled();
+  });
+
+  it("retirement still requires both remote-execution attestations", async () => {
+    await expectCode(resolveQuarantinedPracticeRunnerJob({
+      ...base, retireLegacyRunner: true, journalReconciled: false,
+    }), "ATTESTATION_REQUIRED");
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
 });

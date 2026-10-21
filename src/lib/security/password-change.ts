@@ -1,20 +1,50 @@
+import { and, eq } from "drizzle-orm";
+
 import { auth } from "@/lib/auth";
+import { db } from "@/lib/db/client";
+import { session } from "@/lib/db/schema";
 import type { CurrentAuth } from "@/lib/http/authz";
 import { hasCredentialPassword, preservePasswordChangeSession } from "./password-settings";
 import { writeAuditEvent } from "./audit-writer";
 import { BREACHED_PASSWORD_MESSAGE, isBreachedPasswordError } from "./breached-passwords";
+import { clearTrustedDevices, recordPasswordChanged } from "./password-security-events";
+import { isFreshMfa } from "./privileged-access";
+import { withRateLimit } from "./rate-limit";
+
+/** Same window the fresh-MFA route promises in its `validUntil`. */
+export const PASSWORD_CHANGE_MFA_MS = 5 * 60_000;
 
 const noStore = { "Cache-Control": "private, no-store" };
 function failure(status: number, error = "Password change could not be completed.") {
   return Response.json({ error }, { status, headers: noStore });
 }
 
-/** Own password rotation, audit admission, and preservation of session authority. */
-export async function changeAccountPassword(input: {
+type ChangeAccountPasswordInput = {
   current: CurrentAuth;
   headers: Headers;
   passwords: { currentPassword: string; newPassword: string };
-}): Promise<Response> {
+};
+
+/**
+ * Own password rotation, audit admission, and preservation of session authority.
+ * Has its own per-user budget (separate from the forced-change route's) because
+ * each attempt is a current-password guess by whoever holds the session.
+ */
+export async function changeAccountPassword(input: ChangeAccountPasswordInput): Promise<Response> {
+  return withRateLimit(
+    { policy: "password_change_user", identity: { kind: "user", value: input.current.user.id } },
+    () => rotateAccountPassword(input),
+  );
+}
+
+/** Durable re-read: the cookie/session payload is not freshness authority. */
+async function hasFreshPasswordChangeMfa(current: CurrentAuth) {
+  const [record] = await db.select({ mfaVerifiedAt: session.mfaVerifiedAt }).from(session)
+    .where(and(eq(session.id, current.session.id), eq(session.userId, current.user.id))).limit(1);
+  return isFreshMfa(record?.mfaVerifiedAt, new Date(), PASSWORD_CHANGE_MFA_MS);
+}
+
+async function rotateAccountPassword(input: ChangeAccountPasswordInput): Promise<Response> {
   const current = input.current;
   const userId = current.user.id;
   let changed = false;
@@ -25,11 +55,15 @@ export async function changeAccountPassword(input: {
       await audit("denied");
       return failure(403, "Signed in with Google; manage your password at Google.");
     }
+    if (current.user.twoFactorEnabled && !await hasFreshPasswordChangeMfa(current)) {
+      await writeAuditEvent({ actorUserId: userId, action: "account.password_change", resourceType: "user", resourceId: userId, outcome: "denied", metadata: { denialCode: "FRESH_MFA_REQUIRED" } });
+      return Response.json({ code: "FRESH_MFA_REQUIRED", error: "Verify your authenticator before changing your password." }, { status: 403, headers: noStore });
+    }
     // Fail closed before mutation if no durable audit trail can be written.
     try { await audit("allowed"); } catch { return failure(503); }
     // This endpoint executes inside Better Auth's context: its password hash
     // runs the configured HIBP plugin. Current password verification is fresh
-    // proof in this request; a cached MFA timestamp is never a substitute.
+    // proof of the password; MFA freshness is checked separately above.
     const result = await auth.api.changePassword({ headers: input.headers, body: { ...input.passwords, revokeOtherSessions: true }, asResponse: true });
     if (!result.ok) {
       await audit("denied");
@@ -43,6 +77,13 @@ export async function changeAccountPassword(input: {
     if (typeof body.token !== "string" || !body.token) throw new Error("No replacement session.");
     await preservePasswordChangeSession(current, body.token);
     await audit("success");
+    try {
+      await clearTrustedDevices(userId);
+    } catch {
+      console.error("password_change_trusted_device_clear_failed");
+    }
+    // The success audit row is written above; this adds only the notice.
+    await recordPasswordChanged({ userId, kind: "change", audit: false });
     const response = Response.json({ ok: true }, { headers: noStore });
     for (const cookie of replacementCookies) response.headers.append("Set-Cookie", cookie);
     return response;

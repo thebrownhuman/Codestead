@@ -11,7 +11,7 @@ sha256_bin=/usr/bin/sha256sum
 perl_bin=/usr/bin/perl
 validator="$repo_root/infra/ops/validate-runtime.sh"
 validator_shebang='#!/usr/bin/env bash'
-validator_reviewed_sha256='7fd72f537ade57c439aa624e44b2308ef30dc0505e883434c04d1c7e3ebc67f1'
+validator_reviewed_sha256='585d8ba94adcf692a5723d6a8ea8643f39df60a65109edf4b505a3cc0be395bd'
 
 if [[ "$(/usr/bin/uname -s 2>/dev/null || true)" != Linux ]]; then
   echo 'FAIL: authoritative runtime contract requires Linux Bubblewrap containment' >&2
@@ -738,6 +738,25 @@ value_for() {
   fi
 }
 
+emit_piston_environment() {
+  local service="$1"
+  local field value
+  for field in piston-url piston-image piston-provider; do
+    case "$field" in
+      piston-url) value=http://piston:2000 ;;
+      piston-image) value="$piston_image" ;;
+      piston-provider) value="$piston_provider" ;;
+    esac
+    value="$(value_for "$service" "$field" "$value")"
+    [[ -n "$value" ]] || continue
+    case "$field" in
+      piston-url) printf '      PISTON_URL: %s\n' "$value" ;;
+      piston-image) printf '      PISTON_IMAGE: %s\n' "$value" ;;
+      piston-provider) printf '      CODE_RUNNER_PROVIDER: %s\n' "$value" ;;
+    esac
+  done
+}
+
 emit_host_port() {
   local service="$1"
   if [[ "$FAKE_HOST_PORT" == true && "$service" == app ]] ||
@@ -758,6 +777,14 @@ if [[ "${1:-}" == "compose" ]]; then
   else
     exit 64
   fi
+  piston_image=
+  piston_provider=piston
+  while IFS= read -r env_line; do
+    case "$env_line" in
+      PISTON_IMAGE=*) piston_image="${env_line#PISTON_IMAGE=}" ;;
+      CODE_RUNNER_PROVIDER=*) piston_provider="${env_line#CODE_RUNNER_PROVIDER=}"; piston_provider="${piston_provider:-piston}" ;;
+    esac
+  done <"$FAKE_EXPECTED_COMPOSE_ENV"
   postgres_image="$(value_for postgres image 'registry.example.test/postgres@sha256:2222222222222222222222222222222222222222222222222222222222222222')"
   postgres_restart="$(value_for postgres restart unless-stopped)"
   postgres_stop="$(value_for postgres stop-grace 2m)"
@@ -784,9 +811,9 @@ if [[ "${1:-}" == "compose" ]]; then
     "    restart: $app_restart" \
     "    stop_grace_period: $app_stop" \
     '    environment:' \
-    "      RUNNER_BASE_URL: $FAKE_RUNNER_CLIENT_URL" \
-    "      PISTON_URL: $(value_for app piston-url http://piston:2000)" \
-    '    networks:' \
+    "      RUNNER_BASE_URL: $FAKE_RUNNER_CLIENT_URL"
+  emit_piston_environment app
+  printf '%s\n' '    networks:' \
     '      - data' \
     '      - frontend' \
     '      - runner-client'
@@ -825,10 +852,17 @@ if [[ "${1:-}" == "compose" ]]; then
       regrade-worker|exam-finalization-worker|practice-runner-recovery-worker)
         printf '%s\n' \
           '    environment:' \
-          "      RUNNER_BASE_URL: $FAKE_RUNNER_CLIENT_URL" \
-          '    networks:' \
-          '      - data' \
-          '      - runner-client'
+          "      RUNNER_BASE_URL: $FAKE_RUNNER_CLIENT_URL"
+        emit_piston_environment "$service"
+        printf '%s\n' '    networks:' '      - data' '      - runner-client'
+        [[ "$(value_for "$service" piston-network true)" != true ]] || printf '%s\n' '      - piston'
+        ;;
+      *)
+        if [[ "$FAKE_MUTATE_SERVICE" == "$service" && "$FAKE_MUTATE_FIELD" == unlisted-piston-client ]]; then
+          printf '%s\n' '    environment:'
+          emit_piston_environment "$service"
+          printf '%s\n' '    networks:' '      - piston'
+        fi
         ;;
     esac
   done
@@ -1138,15 +1172,15 @@ APP_SCANNER_WORKER_IMAGE=registry.example.test/codestead/scanner-worker@sha256:$
 APP_OPERATIONS_IMAGE=registry.example.test/codestead/operations@sha256:$digest_1
 DEPLOY_PLATFORM=linux/amd64
 UPLOADS_ENABLED=false
-COMPOSE_PROFILES=
+COMPOSE_PROFILES=piston
 SECRETS_GID=$secrets_gid
 POSTGRES_IMAGE=postgres:17-bookworm@sha256:$digest_2
 POSTGRES_UID=999
 POSTGRES_GID=999
 CLOUDFLARED_IMAGE=cloudflare/cloudflared:2026.1.0@sha256:$digest_3
 CLAMAV_IMAGE=$pilot_clamav
-CODE_RUNNER_PROVIDER=legacy
-PISTON_IMAGE=
+CODE_RUNNER_PROVIDER=piston
+PISTON_IMAGE=codestead-piston@sha256:$digest_c
 REQUIRE_BOOTSTRAP_ADMIN_SECRET=false
 MAIL_ADAPTER=console
 MAIL_FROM=
@@ -2341,7 +2375,7 @@ operations_render_count="$(grep -Fxc -- "$expected_operations_render_event" "$fa
 
 make_fixture valid-uploads
 set_config UPLOADS_ENABLED true
-set_config COMPOSE_PROFILES uploads
+set_config COMPOSE_PROFILES uploads,piston
 set_config CLAMAV_IMAGE "clamav/clamav:1.4.3_base@sha256:$digest_c"
 expect_success 'uploads profile accepts an immutable ClamAV digest without operations validation'
 
@@ -2361,13 +2395,19 @@ set_piston_profile uploads,piston
 set_config CLAMAV_IMAGE "clamav/clamav:1.4.3_base@sha256:$digest_c"
 expect_success 'uploads,piston enables both reviewed profiles'
 
-make_fixture valid-piston-profile-legacy-provider
+make_fixture invalid-legacy-provider
 set_piston_profile piston
-expect_success 'piston can run before the provider flag is flipped'
+set_config CODE_RUNNER_PROVIDER legacy
+expect_failure 'legacy provider cannot use application routing' \
+  'fatal: CODE_RUNNER_PROVIDER must be piston; the legacy runner is retired'
 
 make_fixture valid-empty-provider
 set_config CODE_RUNNER_PROVIDER ''
-expect_success 'empty provider keeps the legacy runner'
+expect_success 'empty provider resolves to Piston'
+
+make_fixture valid-unset-provider
+sed -i '/^CODE_RUNNER_PROVIDER=/d' "$config"
+expect_success 'unset provider resolves to Piston'
 
 make_fixture piston-reversed-profile
 set_piston_profile piston,uploads
@@ -2376,6 +2416,7 @@ expect_failure \
   'fatal: COMPOSE_PROFILES must be exactly empty, uploads, piston, or uploads,piston'
 
 make_fixture piston-provider-without-profile
+set_config COMPOSE_PROFILES ""
 set_config CODE_RUNNER_PROVIDER piston
 expect_failure \
   'piston provider without the piston profile' \
@@ -2385,7 +2426,7 @@ make_fixture unknown-provider
 set_config CODE_RUNNER_PROVIDER firecracker
 expect_failure \
   'unknown runner provider' \
-  'fatal: CODE_RUNNER_PROVIDER must be empty, legacy, or piston'
+  'fatal: CODE_RUNNER_PROVIDER must be piston; the legacy runner is retired'
 
 make_fixture piston-without-digest
 set_config COMPOSE_PROFILES piston
@@ -2413,10 +2454,11 @@ expect_failure \
   'fatal: piston must run under the io.containerd.kata.v2 runtime'
 
 make_fixture piston-rendered-without-profile
+set_config COMPOSE_PROFILES ""
 fake_mutate_field=piston-without-profile
 expect_failure \
   'piston rendered without its profile' \
-  'fatal: piston must not render without the piston profile'
+  'fatal: CODE_RUNNER_PROVIDER=piston requires the piston profile'
 
 make_fixture app-off-piston-network
 fake_mutate_service=app
@@ -2424,7 +2466,7 @@ fake_mutate_field=piston-network
 fake_mutate_value=false
 expect_failure \
   'app must always attach to the piston network' \
-  'fatal: app must attach to the piston network'
+  'fatal: every execution client must attach to the piston network'
 
 make_fixture piston-network-egress
 fake_mutate_service=piston-network
@@ -2440,7 +2482,51 @@ fake_mutate_field=piston-url
 fake_mutate_value=http://attacker.invalid:2000
 expect_failure \
   'app PISTON_URL off the internal service' \
-  'fatal: PISTON_URL must be exactly http://piston:2000 and only on app'
+  'fatal: PISTON_URL must be exactly http://piston:2000 and only on reviewed execution clients'
+
+
+# Every application consumer independently requires endpoint, image, provider
+# and network membership. Removing a field must not silently select native.
+for service in app regrade-worker exam-finalization-worker practice-runner-recovery-worker; do
+  for missing in piston-url piston-image piston-provider piston-network; do
+    make_fixture "$service-missing-$missing"
+    fake_mutate_service="$service"
+    fake_mutate_field="$missing"
+    fake_mutate_value=
+    case "$missing" in
+      piston-url) diagnostic='fatal: every execution client must use the reviewed PISTON_URL' ;;
+      piston-image) diagnostic='fatal: every execution client must use the deployed PISTON_IMAGE digest' ;;
+      piston-provider) diagnostic='fatal: every execution client must select Piston' ;;
+      piston-network) diagnostic='fatal: every execution client must attach to the piston network' ;;
+    esac
+    expect_failure "$service without $missing" "$diagnostic"
+  done
+
+  make_fixture "$service-without-profile"
+  set_config COMPOSE_PROFILES ''
+  expect_failure "$service requires the Piston profile" \
+    'fatal: CODE_RUNNER_PROVIDER=piston requires the piston profile'
+
+  make_fixture "$service-wrong-provider"
+  fake_mutate_service="$service"
+  fake_mutate_field=piston-provider
+  fake_mutate_value=legacy
+  expect_failure "$service rendered with legacy provider" \
+    'fatal: only reviewed execution clients may configure CODE_RUNNER_PROVIDER and it must be piston'
+
+  make_fixture "$service-unpinned-image"
+  fake_mutate_service="$service"
+  fake_mutate_field=piston-image
+  fake_mutate_value=codestead-piston:latest
+  expect_failure "$service rendered with an unpinned image" \
+    'fatal: reviewed execution clients must use the exact deployed PISTON_IMAGE digest'
+done
+
+make_fixture unlisted-piston-consumer
+fake_mutate_service=mail-worker
+fake_mutate_field=unlisted-piston-client
+expect_failure 'a fifth service cannot use Piston' \
+  'fatal: PISTON_URL must be exactly http://piston:2000 and only on reviewed execution clients'
 
 make_fixture forbidden-operations-profile
 set_config COMPOSE_PROFILES operations
@@ -2627,14 +2713,14 @@ expect_failure \
   'fatal: UPLOADS_ENABLED=true requires the uploads profile'
 
 make_fixture disabled-with-uploads-profile
-set_config COMPOSE_PROFILES uploads
+set_config COMPOSE_PROFILES uploads,piston
 expect_failure \
   'uploads profile while uploads are disabled' \
   'fatal: UPLOADS_ENABLED=false requires COMPOSE_PROFILES without uploads'
 
 make_fixture uploads-without-digest
 set_config UPLOADS_ENABLED true
-set_config COMPOSE_PROFILES uploads
+set_config COMPOSE_PROFILES uploads,piston
 expect_failure \
   'uploads profile without immutable ClamAV digest' \
   'fatal: CLAMAV_IMAGE must be pinned by sha256 digest when uploads are enabled'

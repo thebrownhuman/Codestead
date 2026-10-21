@@ -165,6 +165,15 @@ async function reconcileAfterRegradePersistenceAmbiguity(admission: RunnerAdmiss
 export const configuredRegradeExecutor: RegradeExecutor = {
   async execute(input) {
     const runtime = runtimeByLanguage[input.language];
+    let client;
+    try {
+      client = configuredExamRunnerClient(input);
+    } catch (error) {
+      if (error instanceof RunnerClientError && error.code === "RUNNER_RUNTIME_RETIRED") {
+        throw new AssessmentCorrectionError("RUNNER_RUNTIME_RETIRED");
+      }
+      throw new AssessmentCorrectionError("RUNNER_INFRASTRUCTURE_FAILURE");
+    }
     const sourceHash = createHash("sha256").update(input.sourceCode).digest("hex");
     const queuedAt = new Date();
     const attemptKey = regradeRunnerAttemptKey(input);
@@ -233,7 +242,6 @@ export const configuredRegradeExecutor: RegradeExecutor = {
     let trustedRemoteResponseReceived = false;
     let trustedTerminalResponseReceived = false;
     try {
-      const client = configuredExamRunnerClient(input);
       const idempotencyKey = stableId("correction-idempotency", attemptKey);
       const dispatchBoundary = await beginRunnerDispatch({ admission });
       if (dispatchBoundary.replayed) return reconcileRegradeRunnerResult(admission);

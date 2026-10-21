@@ -41,7 +41,6 @@ export function computeReleaseEvidence(input: {
   if (artifacts.length !== 1 + lessonRows.length + bankRows.length) throw new Error("UNKNOWN_ARTIFACT_TYPE");
   const lessons = lessonRows.map((row) => parseAuthoredLesson(row.content, row.artifact_key));
   const banks = bankRows.map((row) => parseAssessmentBank(row.content, row.artifact_key));
-  if (banks.some((bank) => bank.items.some((item) => !item.examEligibility.eligible))) throw new Error("EXAM_ITEM_INELIGIBLE");
   validateAuthoredContentSet({ lessons, assessmentBanks: banks }, index);
   const skills = course.modules.flatMap((entry) => entry.skills);
   for (const skill of skills) {
@@ -57,13 +56,16 @@ export function computeReleaseEvidence(input: {
     if (entries.some((entry, position) => entry.courseId !== course.id || rows[position].skill_key !== entry.skillId)) throw new Error("ARTIFACT_IDENTITY_MISMATCH");
   }
   // This builds the actual deterministic forms; it does not execute their code.
+  // Course-content release does not require exam eligibility: form building only
+  // selects eligible items, and exams refuse publications with ineligible banks
+  // or unreviewed grading evidence (runtime.ts, blueprint.ts).
   const forms = course.modules.map((module) => buildEquivalentExamForm({
     course, module, catalogVersion: `published:${contentHash}`, now: input.now,
     seed: `release-evidence:${contentHash}:${module.id}`,
     formId: `release-evidence:${module.id}`,
     assessmentBanks: banks.filter((bank) => bank.moduleId === module.id),
   }));
-  if (forms.some((form) => form.items.length === 0 || form.items.some((item) => item.gradingEvidence.kind === "pending-review"))) throw new Error("EXAM_FORM_INVALID");
+  if (forms.some((form) => form.items.length === 0)) throw new Error("EXAM_FORM_INVALID");
   const graph = new ContentGraph(snapshot.catalog, index);
   const graphChecks = skills.map((skill) => {
     const empty = graph.evaluateNodeEligibility(skill.id, []);
