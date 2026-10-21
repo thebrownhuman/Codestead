@@ -11,7 +11,7 @@ sha256_bin=/usr/bin/sha256sum
 perl_bin=/usr/bin/perl
 validator="$repo_root/infra/ops/validate-runtime.sh"
 validator_shebang='#!/usr/bin/env bash'
-validator_reviewed_sha256='7fd72f537ade57c439aa624e44b2308ef30dc0505e883434c04d1c7e3ebc67f1'
+validator_reviewed_sha256='a856db6b225af7187cfa774f55f653f8d52e2f553c003b671234d72465b2898c'
 
 if [[ "$(/usr/bin/uname -s 2>/dev/null || true)" != Linux ]]; then
   echo 'FAIL: authoritative runtime contract requires Linux Bubblewrap containment' >&2
