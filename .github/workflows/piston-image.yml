@@ -75,6 +75,18 @@ jobs:
           rm build.log
       - name: Require identical digests from both builds
         run: node infra/piston/verify-digest.mjs first-build-metadata.json infra/piston/build-metadata.json
+      - name: DIAG layer and file hashes
+        if: always()
+        run: |
+          docker image inspect codestead-piston:ci --format '{{json .RootFS.Layers}}' | tr ',' '\n'
+          docker run --rm --network=none --entrypoint sh codestead-piston:ci -c 'for d in /usr /lib /etc /var /piston_api /piston /usr/local/jdk /usr/local/python /usr/local/node; do echo "$(find $d -xdev -type f -exec sha256sum {} + 2>/dev/null | LC_ALL=C sort | sha256sum) $d"; done; sha256sum /usr/local/jdk/lib/codestead.jsa /usr/local/jdk/lib/server/classes*.jsa 2>/dev/null; nproc; grep MemTotal /proc/meminfo; grep -m1 "model name" /proc/cpuinfo; grep -m1 flags /proc/cpuinfo | sha256sum'
+          docker run --rm --network=none --entrypoint sh codestead-piston:ci -c 'find / -xdev -type f -newer /etc/hostname -o -xdev -type f -size +0 -exec sha256sum {} + 2>/dev/null | LC_ALL=C sort -k2 | sha256sum' || true
+          docker run --rm --network=none --entrypoint sh codestead-piston:ci -c 'find /usr /lib /etc /var /piston_api /piston -xdev -type f -exec sha256sum {} + 2>/dev/null | LC_ALL=C sort -k2' | gzip -9 | base64 -w0 > filehashes.b64; wc -c filehashes.b64
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: diag-filehashes-${{ github.run_attempt }}
+          path: filehashes.b64
       - name: Assert the reproducible CI batch parent pin
         run: |
           node --input-type=module -e "import assert from 'node:assert/strict'; import { readFileSync } from 'node:fs'; const metadata = JSON.parse(readFileSync('infra/piston/build-metadata.json')); assert.equal(metadata['containerimage.digest'], 'sha256:6dc2d85a7b5b5fa15f1fae8f1232b43837eb912831bc23fc24c0dc0e0b5b0e3a', 'CI batch parent differs from the reviewed reproducible pin');"
