@@ -65,13 +65,30 @@ describe("computed release reports", () => {
     });
     expect(() => compute(rows)).toThrow();
   });
-  it("refuses exam-ineligible items even when deferred live checks are acknowledged", () => {
+  it("publishes course content whose banks are all exam-ineligible", () => {
     const rows = artifacts.map((row) => {
       if (row.artifact_type !== "assessment_bank") return row;
       const bank = row.content as { items: Array<{ examEligibility: object }> };
       const content = { ...bank, items: bank.items.map((item) => ({ ...item, examEligibility: { ...item.examEligibility, eligible: false } })) };
       return { ...row, content, content_hash: hashCurriculumValue(content) };
     });
-    expect(() => compute(rows)).toThrow("EXAM_ITEM_INELIGIBLE");
+    const result = compute(rows);
+    expect(result.skillCoverage.passed).toBe(true);
+    expect(result.dagMastery.passed).toBe(true);
+  });
+  it("still builds exam forms only from eligible items", async () => {
+    const { buildEquivalentExamForm } = await import("@/lib/exams/blueprint");
+    const { parseCourseManifest } = await import("@/lib/content/schema");
+    const course = parseCourseManifest(artifacts[0].content, artifacts[0].artifact_key);
+    const banks = artifacts.filter((row) => row.artifact_type === "assessment_bank").map((row) => {
+      const bank = row.content as { moduleId: string; items: Array<{ id: string; examEligibility: object }> };
+      return { ...bank, items: bank.items.map((item) => ({ ...item, examEligibility: { ...item.examEligibility, eligible: false } })) };
+    });
+    const ineligibleIds = new Set(banks.flatMap((bank) => bank.items.map((item) => item.id)));
+    const courseModule = course.modules[0];
+    const form = buildEquivalentExamForm({ course, module: courseModule, catalogVersion: "published:test", now, seed: "s", formId: "f",
+      assessmentBanks: banks.filter((bank) => bank.moduleId === courseModule.id) as never });
+    expect(form.items.every((item) => item.gradingEvidence.kind === "pending-review")).toBe(true);
+    expect(form.items.some((item) => ineligibleIds.has(item.id))).toBe(false);
   });
 });

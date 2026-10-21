@@ -157,6 +157,7 @@ jobs:
       - run: npm run test:auth-boundary
       - run: npm run content:brand:check
       - run: npm run content:validate
+      - run: npm run test:practice-pool
       - run: npm run projects:catalog:validate
       - run: npm run dsa:parity:check
       - run: npm run c-cpp:executable:check

@@ -5,8 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { REVIEW_DIMENSIONS } from "@/lib/curriculum-publication/contracts";
 
-import { humanize } from "../admin-utils";
-import { AdminCurriculumPublication } from "../admin-curriculum-publication";
+import { AdminApiError, humanize } from "../admin-utils";
+import { AdminCurriculumPublication, describeCurriculumError } from "../admin-curriculum-publication";
 
 function json(body: unknown) {
   return new Response(JSON.stringify(body), {
@@ -467,5 +467,14 @@ describe("administrator curriculum editorial queue", () => {
     render(<AdminCurriculumPublication />);
 
     expect(await screen.findByText("No staged candidates.")).toBeInTheDocument();
+  });
+});
+
+describe("describeCurriculumError", () => {
+  it("names the failed release check instead of the raw code", () => {
+    const text = describeCurriculumError(new AdminApiError("RELEASE_CHECKS_FAILED", 409, "SKILL_COVERAGE_MISSING"));
+    expect(text).toContain("Release checks failed: every skill needs exactly one lesson and one assessment bank");
+    expect(text).not.toMatch(/^RELEASE_CHECKS_FAILED$/);
+    expect(describeCurriculumError(new AdminApiError("RELEASE_CHECKS_FAILED", 409))).toMatch(/^Release checks failed\./);
   });
 });

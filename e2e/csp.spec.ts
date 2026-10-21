@@ -86,3 +86,45 @@ test("Sentry loads and sends browser errors through the same-origin GlitchTip re
   expect(await page.evaluate(() => window.cspViolations)).toEqual([]);
 });
 
+
+async function expectSqlPracticeRuns(page: import("@playwright/test").Page, response: import("@playwright/test").Response | null) {
+  expect(response?.status()).toBe(200);
+  const scriptSrc = response!.headers()["content-security-policy"].split(";").find((directive) => directive.trim().startsWith("script-src "))!;
+  expect(scriptSrc).toContain("'wasm-unsafe-eval'");
+  expect(scriptSrc.replaceAll("'wasm-unsafe-eval'", "")).not.toContain("unsafe-eval");
+  const run = page.getByRole("button", { name: "Run (Ctrl+Enter)" });
+  await expect(run).toBeEnabled({ timeout: 30_000 });
+  await run.click();
+  await expect(page.getByRole("table", { name: "Query result" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("section[aria-labelledby=sql-task-title] [role=alert]")).toHaveCount(0);
+  expect(await page.evaluate(() => window.cspViolations)).toEqual([]);
+}
+
+test.describe("SQL practice WASM CSP", () => {
+  const errors: string[] = [];
+  test.beforeEach(async ({ page }) => {
+    errors.length = 0;
+    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("console", (message) => {
+      if (message.type() === "error" && /content.security.policy|violates|refused to|unsafe-eval|WebAssembly/i.test(message.text())) errors.push(message.text());
+    });
+    expect(process.env.CSP_SESSION_COOKIE, "Run npm run test:csp for the disposable authenticated fixture").toBeTruthy();
+    await page.context().addCookies([{ name: "__Secure-learncoding.session_token", value: process.env.CSP_SESSION_COOKIE!, domain: "localhost", path: "/", secure: true, httpOnly: true, sameSite: "Lax" }]);
+  });
+  test.afterEach(() => { expect(errors).toEqual([]); });
+
+  test("direct load compiles PGlite and renders a query result", async ({ page }) => {
+    await expectSqlPracticeRuns(page, await page.goto("/learn?practice=sql"));
+  });
+
+  test("in-app link from /learn performs a document navigation that receives the WASM CSP", async ({ page }) => {
+    const learn = await page.goto("/learn");
+    expect(learn!.headers()["content-security-policy"]).not.toContain("wasm-unsafe-eval");
+    const [document] = await Promise.all([
+      page.waitForResponse((response) => response.request().resourceType() === "document" && new URL(response.url()).search === "?practice=sql"),
+      page.getByRole("link", { name: /SQL practice/ }).click(),
+    ]);
+    await expect(page).toHaveURL(/\/learn\?practice=sql$/);
+    await expectSqlPracticeRuns(page, document);
+  });
+});

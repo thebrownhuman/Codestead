@@ -115,6 +115,7 @@
         "prompt": { "$ref": "#/$defs/meaningful" },
         "points": { "type": "integer", "minimum": 1 },
         "evidenceLevel": { "enum": ["recall", "interpret", "apply", "transfer"] },
+        "pool": { "enum": ["exam", "practice"] },
         "examEligibility": { "$ref": "#/$defs/eligibility" },
         "hints": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/meaningful" } },
         "feedback": { "$ref": "#/$defs/feedback" },

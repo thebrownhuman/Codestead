@@ -145,7 +145,8 @@ export function isExamEligibleItem(
   bank: AssessmentBank,
   item: DeterministicAssessmentItem,
 ): boolean {
-  return item.examEligibility.eligible &&
+  return item.pool !== "practice" &&
+    item.examEligibility.eligible &&
     (bank.publication.stage === "approved" || bank.publication.stage === "published") &&
     hasHumanReview(bank.publication);
 }
