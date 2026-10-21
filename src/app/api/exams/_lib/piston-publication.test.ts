@@ -203,3 +203,22 @@ describe("reviewed published exam pin migration", () => {
       .toThrow("Unrecognized pinned Piston");
   });
 });
+
+describe("legacy java pin digests", () => {
+  const OLD_JAVA = "sha256:3b68fbdc7a2ab29e3d6b7268fab497622f1afcf4bec3ce71df40754136d7beb9";
+  const NEW_JAVA = "sha256:785eb431d768b45f67056a8948c62c1cf4dc18498fb8513d48d5fc5bd1d00b83";
+  function javaBank(imageDigest: string): AssessmentBank {
+    const source = reviewedBank("java");
+    return { ...source, items: source.items.map((item) => item.kind === "code" && item.runtime.engine === "isolated-runner"
+      ? { ...item, runtime: { ...item.runtime, imageDigest } } : item) };
+  }
+
+  it.each([OLD_JAVA, NEW_JAVA])("accepts reviewed java legacy digest %s", (digest) => {
+    expect(form(javaBank(digest), true).items[0]!.runtime?.imageDigest).toBe(DEPLOYED);
+  });
+
+  it("rejects an unknown java digest", () => {
+    expect(() => form(javaBank(`sha256:${"e".repeat(64)}`), true))
+      .toThrow("Published code item is outside the reviewed runtime pin migration.");
+  });
+});
