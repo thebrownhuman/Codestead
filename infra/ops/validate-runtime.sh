@@ -428,7 +428,6 @@ readonly -a required_secrets=(
   lost_device_proof_key
   deletion_tombstone_key
   credential_master_key
-  runner_shared_secret
   cloudflare_tunnel_credentials.json
 )
 readonly -a provider_placeholder_secrets=(
@@ -506,7 +505,7 @@ secret_non_whitespace_count() {
   tr -d '[:space:]' <"$file" | wc -c
 }
 
-for name in better_auth_secret lost_device_proof_key deletion_tombstone_key runner_shared_secret; do
+for name in better_auth_secret lost_device_proof_key deletion_tombstone_key; do
   meaningful_characters="$(secret_non_whitespace_count "$secrets_dir/$name")"
   [[ "$meaningful_characters" -ge 32 ]] || {
     fatal "$name must contain at least 32 non-whitespace characters"
@@ -577,15 +576,6 @@ declare -A rendered_stop_periods=()
 current_section=
 current_service=
 current_network=
-declare -A rendered_runner_urls=()
-declare -A rendered_runner_client_members=()
-runner_gateway_upstream_seen=false
-runner_gateway_egress_seen=false
-runner_gateway_source_seen=false
-runner_client_subnet_seen=false
-runner_client_internal_seen=false
-runner_subnet_seen=false
-runner_bridge_seen=false
 declare -A rendered_piston_members=()
 declare -A rendered_piston_urls=()
 declare -A rendered_piston_images=()
@@ -614,14 +604,14 @@ fi
 
 is_known_service() {
   case "$1" in
-    postgres|app|mail-worker|reward-worker|regrade-worker|exam-finalization-worker|practice-runner-recovery-worker|project-review-correction-worker|file-erasure-worker|scan-worker|cloudflared|runner-egress-gateway|database-role-bootstrap|database-negative-probes|database-boundary-verifier|backup-status-reporter|migrate|lifecycle|platform-seed|admin-bootstrap|clamav|piston) return 0 ;;
+    postgres|app|mail-worker|reward-worker|regrade-worker|exam-finalization-worker|practice-runner-recovery-worker|project-review-correction-worker|file-erasure-worker|scan-worker|cloudflared|database-role-bootstrap|database-negative-probes|database-boundary-verifier|backup-status-reporter|migrate|lifecycle|platform-seed|admin-bootstrap|clamav|piston) return 0 ;;
     *) return 1 ;;
   esac
 }
 
 is_long_running_service() {
   case "$1" in
-    postgres|app|mail-worker|reward-worker|regrade-worker|exam-finalization-worker|practice-runner-recovery-worker|project-review-correction-worker|scan-worker|file-erasure-worker|cloudflared|runner-egress-gateway|clamav|piston) return 0 ;;
+    postgres|app|mail-worker|reward-worker|regrade-worker|exam-finalization-worker|practice-runner-recovery-worker|project-review-correction-worker|scan-worker|file-erasure-worker|cloudflared|clamav|piston) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -691,26 +681,12 @@ while IFS= read -r line; do
     if [[ "$line" =~ ^[[:space:]]{4}stop_grace_period:[[:space:]]+([^[:space:]]+)$ ]]; then
       rendered_stop_periods["$current_service"]="${BASH_REMATCH[1]}"
     fi
-    if [[ "$line" =~ ^[[:space:]]{6}RUNNER_BASE_URL:[[:space:]]+([^[:space:]]+)$ ]]; then
-      is_runner_client "$current_service" && [[ "${BASH_REMATCH[1]}" == "http://runner-egress-gateway:4100" ]] || {
-        fatal "runner client URL must be exactly http://runner-egress-gateway:4100"
-      }
-      [[ -z "${rendered_runner_urls[$current_service]:-}" ]] || fatal "rendered runner client URL must be unique per service"
-      rendered_runner_urls["$current_service"]=1
+    # The legacy native runner and its VM gateway are retired; Piston is the only backend.
+    if [[ "$line" =~ ^[[:space:]]{6}RUNNER_(BASE_URL|SHARED_SECRET|SHARED_SECRET_FILE|GATEWAY_UPSTREAM): ]]; then
+      fatal "retired legacy runner configuration must not be rendered"
     fi
-    if [[ "$line" =~ ^[[:space:]]{6}RUNNER_GATEWAY_UPSTREAM:[[:space:]]+([^[:space:]]+)$ ]]; then
-      [[ "$current_service" == runner-egress-gateway && "${BASH_REMATCH[1]}" == "http://192.168.122.12:4100" ]] || {
-        fatal "runner gateway upstream must be exactly http://192.168.122.12:4100"
-      }
-      [[ "$runner_gateway_upstream_seen" == false ]] || fatal "runner gateway upstream must be unique"
-      runner_gateway_upstream_seen=true
-    fi
-    if [[ "$line" =~ ^[[:space:]]{6}(-[[:space:]]+runner-client|runner-client:([[:space:]]+null)?)$ ]]; then
-      if [[ "$current_service" != runner-egress-gateway ]]; then
-        is_runner_client "$current_service" || fatal "rendered runner-client consumers exceed the reviewed allowlist"
-      fi
-      [[ -z "${rendered_runner_client_members[$current_service]:-}" ]] || fatal "rendered runner-client membership must be unique per service"
-      rendered_runner_client_members["$current_service"]=1
+    if [[ "$line" =~ ^[[:space:]]{6}(-[[:space:]]+)?(runner-client|runner-egress)(:.*)?$ ]]; then
+      fatal "retired legacy runner networks must not be attached"
     fi
     if [[ "$line" =~ ^[[:space:]]{4}privileged:[[:space:]]+true$ ]]; then
       fatal "trusted Compose stack must not run privileged containers"
@@ -749,18 +725,6 @@ while IFS= read -r line; do
       [[ -z "${rendered_piston_members[$current_service]:-}" ]] || fatal "rendered piston membership must be unique per service"
       rendered_piston_members["$current_service"]=1
     fi
-    if [[ "$line" =~ ^[[:space:]]{6}(-[[:space:]]+runner-egress|runner-egress:([[:space:]]+null)?)$ ]]; then
-      [[ "$current_service" == runner-egress-gateway ]] || fatal "runner-egress must be attached only to runner-egress-gateway"
-      [[ "$runner_gateway_egress_seen" == false ]] || fatal "runner gateway egress membership must be unique"
-      runner_gateway_egress_seen=true
-    fi
-    if [[ "$current_service" == runner-egress-gateway && "$line" =~ ^[[:space:]]{8}ipv4_address:[[:space:]]+([^[:space:]]+)$ ]]; then
-      case "${BASH_REMATCH[1]}" in
-        172.29.41.2) ;;
-        172.29.40.2) runner_gateway_source_seen=true ;;
-        *) fatal "runner gateway fixed addresses must be exactly 172.29.41.2 and 172.29.40.2" ;;
-      esac
-    fi
     if [[ "$current_service" == cloudflared && "$line" == "      - source: cloudflare_tunnel_credentials" ]]; then
       [[ "$cloudflared_secret_source_seen" == false ]] || {
         fatal "rendered cloudflared credentials secret must be unique"
@@ -779,17 +743,8 @@ while IFS= read -r line; do
     fi
   fi
 
-  if [[ "$current_section" == networks && "$current_network" == runner-egress ]]; then
-    if [[ "$line" =~ ^[[:space:]]{6}com\.docker\.network\.bridge\.name:[[:space:]]+([^[:space:]]+)$ ]]; then
-      [[ "${BASH_REMATCH[1]}" == cdst-run0 ]] || fatal "runner-egress bridge must be exactly cdst-run0"
-      runner_bridge_seen=true
-    fi
-    if [[ "$line" =~ ^[[:space:]]{8}-[[:space:]]+subnet:[[:space:]]+([^[:space:]]+)$ ]]; then
-      [[ "${BASH_REMATCH[1]}" == "172.29.40.0/24" ]] || {
-        fatal "runner-egress subnet must be exactly 172.29.40.0/24"
-      }
-      runner_subnet_seen=true
-    fi
+  if [[ "$current_section" == networks && ( "$current_network" == runner-egress || "$current_network" == runner-client ) ]]; then
+    fatal "retired legacy runner networks must not be rendered"
   fi
 
   if [[ "$current_section" == networks && "$current_network" == piston ]]; then
@@ -799,20 +754,10 @@ while IFS= read -r line; do
     fi
   fi
 
-  if [[ "$current_section" == networks && "$current_network" == runner-client ]]; then
-    if [[ "$line" =~ ^[[:space:]]{4}internal:[[:space:]]+([^[:space:]]+)$ ]]; then
-      [[ "${BASH_REMATCH[1]}" == true ]] || fatal "runner-client network must be internal"
-      runner_client_internal_seen=true
-    fi
-    if [[ "$line" =~ ^[[:space:]]{8}-[[:space:]]+subnet:[[:space:]]+([^[:space:]]+)$ ]]; then
-      [[ "${BASH_REMATCH[1]}" == "172.29.41.0/24" ]] || fatal "runner-client subnet must be exactly 172.29.41.0/24"
-      runner_client_subnet_seen=true
-    fi
-  fi
 done <<<"$rendered_content"
 
 for service in postgres app mail-worker reward-worker regrade-worker exam-finalization-worker \
-  practice-runner-recovery-worker project-review-correction-worker file-erasure-worker cloudflared runner-egress-gateway; do
+  practice-runner-recovery-worker project-review-correction-worker file-erasure-worker cloudflared; do
   [[ -n "${rendered_services[$service]:-}" ]] || fatal "rendered Compose pilot service inventory is incomplete"
 done
 
@@ -842,11 +787,6 @@ for service in "${!rendered_services[@]}"; do
   fi
 done
 
-for service in app regrade-worker exam-finalization-worker practice-runner-recovery-worker; do
-  [[ -n "${rendered_runner_urls[$service]:-}" ]] || fatal "runner client URL must be exactly http://runner-egress-gateway:4100"
-  [[ -n "${rendered_runner_client_members[$service]:-}" ]] || fatal "every runner client must attach to runner-client"
-done
-[[ -n "${rendered_runner_client_members[runner-egress-gateway]:-}" ]] || fatal "runner gateway must attach to runner-client"
 # Every execution consumer must use the reviewed internal backend and digest.
 for service in app regrade-worker exam-finalization-worker practice-runner-recovery-worker; do
   [[ -n "${rendered_piston_members[$service]:-}" ]] || fatal "every execution client must attach to the piston network"
@@ -862,13 +802,6 @@ if [[ "$profile_piston" == true ]]; then
 else
   [[ -z "${rendered_services[piston]:-}" ]] || fatal "piston must not render without the piston profile"
 fi
-[[ "$runner_gateway_upstream_seen" == true ]] || fatal "runner gateway upstream must be exactly http://192.168.122.12:4100"
-[[ "$runner_gateway_egress_seen" == true ]] || fatal "runner gateway must be the sole runner-egress consumer"
-[[ "$runner_gateway_source_seen" == true ]] || fatal "runner gateway runner-egress address must be exactly 172.29.40.2"
-[[ "$runner_client_subnet_seen" == true ]] || fatal "runner-client subnet must be exactly 172.29.41.0/24"
-[[ "$runner_client_internal_seen" == true ]] || fatal "runner-client network must be internal"
-[[ "$runner_subnet_seen" == true ]] || fatal "runner-egress subnet must be exactly 172.29.40.0/24"
-[[ "$runner_bridge_seen" == true ]] || fatal "runner-egress bridge must be exactly cdst-run0"
 [[ "$postgres_fsync_seen" == true && "$postgres_synchronous_commit_seen" == true && "$postgres_full_page_writes_seen" == true ]] || {
   fatal "rendered PostgreSQL command must enforce fsync=on, synchronous_commit=on, and full_page_writes=on"
 }
@@ -894,9 +827,6 @@ case "${rendered_stop_periods[mail-worker]:-}" in
 esac
 [[ "${rendered_stop_periods[cloudflared]:-}" == 30s ]] || {
   fatal "rendered cloudflared stop budget must be exactly thirty seconds"
-}
-[[ "${rendered_stop_periods[runner-egress-gateway]:-}" == 15s ]] || {
-  fatal "rendered runner gateway stop budget must be exactly fifteen seconds"
 }
 
 

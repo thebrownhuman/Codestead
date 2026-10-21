@@ -216,12 +216,6 @@ test("workflow jobs initialize runner-local paths only at step runtime", () => {
     },
     {
       workflow: ci,
-      jobName: "runner",
-      variable: "RUNTIME_TRIVY_CACHE_DIR",
-      suffix: "trivy-cache",
-    },
-    {
-      workflow: ci,
       jobName: "curriculum-runtime",
       variable: "RUNTIME_TRIVY_CACHE_DIR",
       suffix: "trivy-cache",

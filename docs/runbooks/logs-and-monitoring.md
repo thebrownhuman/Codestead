@@ -15,7 +15,7 @@ sudo journalctl -u learncoding-backup.service -u learncoding-backup-check.servic
 df -h /srv/learncoding /mnt/learncoding-backups
 ```
 
-The pilot inventory contains exactly eleven long-running services, all of which must be `running`: `app`, `cloudflared`, `exam-finalization-worker`, `file-erasure-worker`, `mail-worker`, `postgres`, `practice-runner-recovery-worker`, `project-review-correction-worker`, `regrade-worker`, `reward-worker`, and `runner-egress-gateway`. Successful one-shots are removed after the release record captures them. `clamav` and `scan-worker` must not appear in the pilot inventory; their presence means the uploads profile was activated unexpectedly.
+The pilot inventory contains exactly ten long-running services, all of which must be `running`: `app`, `cloudflared`, `exam-finalization-worker`, `file-erasure-worker`, `mail-worker`, `postgres`, `practice-runner-recovery-worker`, `project-review-correction-worker`, `regrade-worker`, and `reward-worker`. Successful one-shots are removed after the release record captures them. `clamav` and `scan-worker` must not appear in the pilot inventory; their presence means the uploads profile was activated unexpectedly.
 
 The bounded smoke command above checks that inventory, migration completion, app readiness, `UPLOADS_ENABLED=false`, PostgreSQL durability, and tunnel health. Success stdout is exactly `production smoke passed`; any other result is a failed startup gate. The timeout is a startup deadline, not permission to continue waiting manually after a failure.
 

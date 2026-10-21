@@ -282,7 +282,7 @@ run_with_deadline 120 "$bash_bin" "$postgres_preparer" || fatal 'PostgreSQL cont
 run_with_deadline 120 "$bash_bin" "$validator" || fatal 'full runtime validation failed or startup deadline exhausted'
 
 readonly -a internal_services=(
-  postgres app runner-egress-gateway mail-worker reward-worker regrade-worker
+  postgres app mail-worker reward-worker regrade-worker
   exam-finalization-worker practice-runner-recovery-worker
   project-review-correction-worker file-erasure-worker
 )

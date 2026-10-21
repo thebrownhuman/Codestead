@@ -288,7 +288,7 @@ assert value["phase"] == "pre"
 assert value["eventId"] == "healthy"
 assert value["runner"]["representativeJobPassed"] is True
 assert value["runner"]["address"] == "192.168.122.12/24"
-assert len(value["containers"]) == 11  # one per recovery-evidence PILOT_SERVICES entry
+assert len(value["containers"]) == 10  # one per recovery-evidence PILOT_SERVICES entry
 assert value["backup"]["archive"] == marker["SUCCESS_ARCHIVE"]
 assert value["backup"]["sha256"] == marker["SUCCESS_SHA256"]
 assert value["filesystems"]["backup"]["target"] == "/mnt/learncoding-backups"

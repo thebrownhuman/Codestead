@@ -30,25 +30,25 @@ function matchingFiIndex(startIndex) {
   assert.fail(`unterminated shell if beginning on validator line ${startIndex + 1}`);
 }
 
-const runnerEgressIndex = uniqueLineIndex(
-  'if [[ "$current_section" == networks && "$current_network" == runner-egress ]]; then',
+const retiredRunnerNetworkIndex = uniqueLineIndex(
+  'if [[ "$current_section" == networks && ( "$current_network" == runner-egress || "$current_network" == runner-client ) ]]; then',
 );
-const runnerClientIndex = uniqueLineIndex(
-  'if [[ "$current_section" == networks && "$current_network" == runner-client ]]; then',
+const pistonNetworkIndex = uniqueLineIndex(
+  'if [[ "$current_section" == networks && "$current_network" == piston ]]; then',
 );
 assert.ok(
-  matchingFiIndex(runnerEgressIndex) < runnerClientIndex,
-  "runner-client parsing must be a sibling after the complete runner-egress parser, never nested inside it",
+  matchingFiIndex(retiredRunnerNetworkIndex) < pistonNetworkIndex,
+  "the retired runner network rejection must be a sibling before the piston network parser, never nested around it",
 );
 
-const gatewayGraceIndex = uniqueLineIndex('rendered_stop_periods[runner-egress-gateway]');
+const cloudflaredGraceIndex = uniqueLineIndex('rendered_stop_periods[cloudflared]');
 const postStartIndex = uniqueLineIndex('if [[ "$post_start" == true ]]; then');
 const postgresStartIndex = uniqueLineIndex('postgres_settings="$(');
 const postgresEndIndex = uniqueLineIndex(')" || fatal "bounded live PostgreSQL durability probe failed"');
 
 assert.ok(
-  gatewayGraceIndex < postStartIndex && postStartIndex < postgresStartIndex,
-  "runner gateway stop-grace validation must finish before the post-start PostgreSQL probe begins",
+  cloudflaredGraceIndex < postStartIndex && postStartIndex < postgresStartIndex,
+  "stop-grace validation must finish before the post-start PostgreSQL probe begins",
 );
 assert.ok(postgresEndIndex > postgresStartIndex, "PostgreSQL probe command substitution must close after it opens");
 

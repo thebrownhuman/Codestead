@@ -54,7 +54,7 @@ export async function productionEntries(root: string, manifest: Manifest): Promi
     const contents = await optionalText(path.join(root, file)) ?? "";
     for (const line of contents.split("\n")) {
       if (line.trimStart().startsWith("#")) continue;
-      for (const match of line.matchAll(/(?:\/app\/)?((?:scripts|infra\/runner-gateway)\/[\w./-]+\.[cm]?[jt]sx?)/g)) entries.add(match[1]);
+      for (const match of line.matchAll(/(?:\/app\/)?(scripts\/[\w./-]+\.[cm]?[jt]sx?)/g)) entries.add(match[1]);
       for (const match of line.matchAll(/(?:\/app\/)?(src\/[\w./-]+\.mjs)/g)) entries.add(match[1]);
     }
   }

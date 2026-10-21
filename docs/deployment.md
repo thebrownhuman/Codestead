@@ -9,11 +9,12 @@ browser -> Cloudflare -> outbound Tunnel -> Next.js app -> PostgreSQL
                                          |                  ^
                                          |                  | scan worker (read-only objects)
                                          |                  +-> internal clamd -> signature-only egress
-                                         +-> internal runner-client -> secretless runner-egress-gateway -> runner-egress -> runner VM:4100 -> no-network job containers
+                                         +-> internal piston network -> Piston (Kata) -> no-network job sandboxes
 ```
 
 - `frontend` is the app/tunnel Compose network. It has outbound connectivity.
-- `data` is an internal Compose network shared only by the app, migration job, outbox worker, regrade coordinators, practice recovery, upload scan worker, and PostgreSQL. The app, regrade, exam-finalization, and practice-recovery services use the internal runner-client network and receive the runner HMAC secret; only the secretless `runner-egress-gateway` bridges that network to `runner-egress` and the runner VM. These runner-capable clients receive no Gmail, AI-provider, object-storage, or unrelated Better Auth secret.
+- `data` is an internal Compose network shared only by the app, migration job, outbox worker, regrade coordinators, practice recovery, upload scan worker, and PostgreSQL. The app, regrade, exam-finalization, and practice-recovery services reach Piston only over the internal, egress-free `piston` network. These execution clients receive no Gmail, AI-provider, object-storage, or unrelated Better Auth secret.
+- The legacy native runner, its `runner-egress-gateway`, and the `runner-client`/`runner-egress` networks are retired (PR6 stage 6b). Do not recreate them; the runtime validator rejects any remnant.
 - PostgreSQL has a persistent bind mount and no host port.
 - Uploaded objects are unavailable until the scan worker streams them to clamd. The worker has read-only object access; clamd has no object-storage or database access and only its signature updater has outbound connectivity.
 - The runner is not in `compose.yaml`. Docker access is root-equivalent, so it belongs on an independently disposable VM with no database, OAuth, backup, Cloudflare, or learner-credential secrets.
@@ -148,7 +149,6 @@ openssl rand -base64 48 | tr -d '\n' > /etc/learncoding/secrets/better_auth_secr
 openssl rand -base64 48 | tr -d '\n' > /etc/learncoding/secrets/lost_device_proof_key
 openssl rand -base64 48 | tr -d '\n' > /etc/learncoding/secrets/deletion_tombstone_key
 openssl rand -base64 32 | tr -d '\n' > /etc/learncoding/secrets/credential_master_key
-openssl rand -base64 48 | tr -d '\n' > /etc/learncoding/secrets/runner_shared_secret
 : > /etc/learncoding/secrets/google_client_secret
 : > /etc/learncoding/secrets/gmail_client_id
 : > /etc/learncoding/secrets/gmail_client_secret
@@ -158,7 +158,7 @@ chmod 0440 /etc/learncoding/secrets/*
 exit
 ```
 
-Copy `runner_shared_secret` once over a secure admin channel to `/etc/learncoding/runner-shared-secret` on the runner VM, then remove any transfer artifact. Never reuse it as an auth or encryption key.
+Do not provision a new legacy runner VM or `runner_shared_secret`. An existing runner VM and its secret stay untouched only until stage 6c removes the host recovery checker's VM checks; Compose no longer uses either.
 
 If Google login is enabled, set the OAuth client ID in `compose.env`, place only the client secret in `google_client_secret`, and register the exact production callback origin in Google Cloud. If it is disabled, keep both the client ID and secret empty.
 
@@ -312,7 +312,7 @@ Then verify login, onboarding, one lesson read, one quiz submission, and one cod
 
 Every long-running worker retains a `service_healthy` PostgreSQL dependency for Compose startup. Docker restart policies bypass that ordering after a host or daemon reboot, so the shared entrypoint also checks connectivity with the worker's file-backed database credential before executing its command. Individual probes are capped at five seconds; transient connection/recovery failures back off from one second to a maximum of five seconds within a 90-second startup budget. Authentication, authorization, missing-database, and unknown failures exit immediately. Exhaustion emits only a fixed error code and exits nonzero. This initial readiness wait does not retry worker batches, change health thresholds, or run migrations; the release transaction still completes migrations and role reconciliation before starting the runtime services.
 
-The independent `production-topology` CI job exercises the real production Compose graph on a disposable GitHub-hosted Linux runner. It builds the runtime, tooling, operations, and worker targets; starts real PostgreSQL; proves the production migration service waits on its advisory lock and that a second run is idempotent; runs the platform seed; and creates the only administrator through the actual `admin-bootstrap` one-shot with a file-backed temporary password. The default pilot stack then starts with `UPLOADS_ENABLED=false`, an isolated runner stub behind the real egress gateway, and a fake in-project tunnel process. No real provider credentials, provider network calls, host ports, ClamAV, or scanner worker are used; the dedicated erasure worker is still exercised in the pilot graph.
+The independent `production-topology` CI job exercises the real production Compose graph on a disposable GitHub-hosted Linux runner. It builds the runtime, tooling, operations, and worker targets; starts real PostgreSQL; proves the production migration service waits on its advisory lock and that a second run is idempotent; runs the platform seed; and creates the only administrator through the actual `admin-bootstrap` one-shot with a file-backed temporary password. The default pilot stack then starts with `UPLOADS_ENABLED=false`, and a fake in-project tunnel process. No real provider credentials, provider network calls, host ports, ClamAV, or scanner worker are used; the dedicated erasure worker is still exercised in the pilot graph.
 
 That gate starts from a cluster where the restricted roles do not yet exist, runs the real role bootstrap before the first migration, and replays the bootstrap while proving it shares the database-administration lock with migration. This clean-cluster proof covers role-referencing migrations such as 0061. Its migration replay is not a substitute for the explicit release transaction's guaranteed post-migration reconciliation and application-object boundary verification.
 
@@ -344,7 +344,7 @@ Repository checks establish only the interim trusted-stack boot seam. Before lea
 
 The eventual rehearsal must preserve every acknowledged server record marked `Saved to Codestead` and create no duplicate XP, mail, or evidence. Before learner invitations, offline lesson drafts and exam answers must use a browser-durable outbox that persists locally before displaying `Saved locally`; evidence must prove they survive browser close/reopen and synchronize exactly once after recovery. Logout, session revocation, exam finalization, and administrator deletion must purge the scoped local records. Without a UPS, the system cannot truthfully guarantee the final keystroke before browser persistence, an unacknowledged network request, or a hardware write falsely reported as durable; the server guarantee begins only at `Saved to Codestead`.
 
-Before capturing evidence, mount the dedicated backup filesystem at `/mnt/learncoding-backups` with `rw,nodev,nosuid,noexec`; it must resolve through `lsblk` to a different physical disk from `/srv/learncoding`. A bind mount or second partition on the application disk is rejected. Confirm the current backup created `/mnt/learncoding-backups/state/local-last-success.env`, and confirm the latest successful release atomically published root-owned, non-group-writable `/etc/learncoding/active-release.env`, `/etc/learncoding/managed-containers.<MANAGED_INVENTORY_SHA256>.tsv`, and `/etc/learncoding/application-images.<APPLICATION_IMAGE_RECORD_SHA256>.json`. The two hash-addressed evidence files are immutable, are durably published first, and are selected only by the hashes in `active-release.env`; that manifest is the sole mutable commit marker. Together they bind the exact Git commit and tree, exact verified application-image-record bytes, release manifest, host firewall policy, eleven managed Compose container/image identities, and runner runtime record. Recovery must derive both evidence paths from the validated active manifest. Never hand-edit any of these files.
+Before capturing evidence, mount the dedicated backup filesystem at `/mnt/learncoding-backups` with `rw,nodev,nosuid,noexec`; it must resolve through `lsblk` to a different physical disk from `/srv/learncoding`. A bind mount or second partition on the application disk is rejected. Confirm the current backup created `/mnt/learncoding-backups/state/local-last-success.env`, and confirm the latest successful release atomically published root-owned, non-group-writable `/etc/learncoding/active-release.env`, `/etc/learncoding/managed-containers.<MANAGED_INVENTORY_SHA256>.tsv`, and `/etc/learncoding/application-images.<APPLICATION_IMAGE_RECORD_SHA256>.json`. The two hash-addressed evidence files are immutable, are durably published first, and are selected only by the hashes in `active-release.env`; that manifest is the sole mutable commit marker. Together they bind the exact Git commit and tree, exact verified application-image-record bytes, release manifest, host firewall policy, ten managed Compose container/image identities, and runner runtime record. Recovery must derive both evidence paths from the validated active manifest. Never hand-edit any of these files.
 
 Use one event ID for the pre/post pair. The pre-capture must finish before the supervised power cut; the post-capture must occur after a different boot ID is observed:
 
@@ -393,9 +393,8 @@ No email export, mailbox archive, `.eml`, `.mbox`, `.pst`, or `.ost` file belong
 
 ## Runner handoff
 
-Build `services/runner` on its dedicated VM, install [the example unit](../infra/runner/learncoding-runner.service.example), and follow [Runner isolation](runbooks/runner-isolation.md). Do not copy the app's `.env`, database URL, OAuth secrets, credential master key, Cloudflare credentials, backup identity, or rclone configuration to that VM.
 
-The deployment-level `RUNNER_BASE_URL` in `/etc/learncoding/compose.env` is the private runner VM upstream and is passed only to `runner-egress-gateway` as `RUNNER_GATEWAY_UPSTREAM`. The effective container `RUNNER_BASE_URL` for the app and runner-consuming workers is fixed to `http://runner-egress-gateway:4100`; never route those clients directly to the VM. Firewall port 4100 so only the trusted gateway source on the NUC can connect. The runner must bind that private interface rather than `0.0.0.0` or a public interface. Keep `RUNNER_STATE_ROOT=/var/lib/learncoding-runner`, backed by the example unit's mode-`0700` systemd `StateDirectory`; its mode-`0600` recovery journal remains on the disposable runner VM and is not part of trusted-host backups.
+`RUNNER_BASE_URL` in `/etc/learncoding/compose.env` is no longer passed to any container. Only the host recovery checker's legacy VM checks read it, until stage 6c retires the runner VM. Rollback across this removal is refused; to run the legacy runner again, redeploy from the `legacy-runner-final` tag.
 
 ## Backups and ongoing operations
 

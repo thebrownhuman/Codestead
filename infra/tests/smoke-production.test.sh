@@ -39,23 +39,27 @@ phase="${FAKE_SMOKE_PHASE:?}"
 if [[ "$#" == 2 && "$1" == "config" && "$2" == "--services" ]]; then
   case "$scenario" in
     missing-file-erasure)
-      printf '%s\n' reward-worker app postgres cloudflared mail-worker regrade-worker runner-egress-gateway \
+      printf '%s\n' reward-worker app postgres cloudflared mail-worker regrade-worker \
         exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker
       ;;
     missing-reward)
-      printf '%s\n' file-erasure-worker app postgres cloudflared mail-worker regrade-worker runner-egress-gateway \
+      printf '%s\n' file-erasure-worker app postgres cloudflared mail-worker regrade-worker \
         exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker
       ;;
     forbidden-clamav)
-      printf '%s\n' reward-worker file-erasure-worker app postgres cloudflared mail-worker regrade-worker runner-egress-gateway \
+      printf '%s\n' reward-worker file-erasure-worker app postgres cloudflared mail-worker regrade-worker \
         exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker clamav
       ;;
+    retired-runner-gateway)
+      printf '%s\n' reward-worker file-erasure-worker app postgres cloudflared mail-worker regrade-worker \
+        exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker runner-egress-gateway
+      ;;
     forbidden-scan-worker)
-      printf '%s\n' reward-worker file-erasure-worker app postgres cloudflared mail-worker regrade-worker runner-egress-gateway \
+      printf '%s\n' reward-worker file-erasure-worker app postgres cloudflared mail-worker regrade-worker \
         exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker scan-worker
       ;;
     *)
-      printf '%s\n' reward-worker file-erasure-worker app postgres cloudflared mail-worker regrade-worker runner-egress-gateway \
+      printf '%s\n' reward-worker file-erasure-worker app postgres cloudflared mail-worker regrade-worker \
         exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker
       ;;
   esac
@@ -63,7 +67,7 @@ if [[ "$#" == 2 && "$1" == "config" && "$2" == "--services" ]]; then
 fi
 
 if [[ "$#" == 3 && "$1" == "ps" && "$2" == "--all" && "$3" == "--services" ]]; then
-  printf '%s\n' reward-worker file-erasure-worker app postgres cloudflared mail-worker regrade-worker runner-egress-gateway \
+  printf '%s\n' reward-worker file-erasure-worker app postgres cloudflared mail-worker regrade-worker \
     exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker
   case "$scenario" in
     stopped-clamav) printf '%s\n' clamav ;;
@@ -75,16 +79,16 @@ fi
 
 if [[ "$#" == 4 && "$1" == "ps" && "$2" == "--services" && "$3" == "--status" && "$4" == "running" ]]; then
   if [[ "$scenario" == "stopped-reward" ]]; then
-    printf '%s\n' cloudflared file-erasure-worker postgres app mail-worker regrade-worker runner-egress-gateway \
+    printf '%s\n' cloudflared file-erasure-worker postgres app mail-worker regrade-worker \
       exam-finalization-worker project-review-correction-worker practice-runner-recovery-worker
   elif [[ "$scenario" == "stopped-file-erasure" ]]; then
-    printf '%s\n' cloudflared reward-worker postgres app mail-worker regrade-worker runner-egress-gateway \
+    printf '%s\n' cloudflared reward-worker postgres app mail-worker regrade-worker \
       exam-finalization-worker project-review-correction-worker practice-runner-recovery-worker
   elif [[ "$phase" == "internal" ]]; then
-    printf '%s\n' reward-worker file-erasure-worker postgres app mail-worker regrade-worker runner-egress-gateway \
+    printf '%s\n' reward-worker file-erasure-worker postgres app mail-worker regrade-worker \
       exam-finalization-worker project-review-correction-worker practice-runner-recovery-worker
   else
-    printf '%s\n' cloudflared reward-worker file-erasure-worker postgres app mail-worker regrade-worker runner-egress-gateway \
+    printf '%s\n' cloudflared reward-worker file-erasure-worker postgres app mail-worker regrade-worker \
       exam-finalization-worker project-review-correction-worker practice-runner-recovery-worker
   fi
   exit 0
@@ -108,27 +112,6 @@ if [[ "$#" -ge 5 && "$1" == "ps" && "$2" == "--all" && "$3" == "--format" && \
     printf '%s\n' 'unexpected-worker|healthy'
   fi
   exit 0
-fi
-
-if [[ "$#" == 8 && "$1" == "exec" && "$2" == "-T" && "$4" == "ip" && \
-  "$5" == "-4" && "$6" == "route" && "$7" == "get" ]]; then
-  if [[ "$3" == "app" && "$8" == "172.29.41.2" ]]; then
-    if [[ "$scenario" == "app-route-drift" ]]; then
-      printf '%s\n' '172.29.41.2 via 172.29.10.1 dev frontend src 172.29.10.10'
-    else
-      printf '%s\n' '172.29.41.2 dev runner-client src 172.29.41.3'
-    fi
-    exit 0
-  fi
-  if [[ "$3" == "runner-egress-gateway" && "$8" == "192.168.122.12" ]]; then
-    if [[ "$scenario" == "gateway-route-drift" ]]; then
-      printf '%s\n' '192.168.122.12 via 172.29.41.1 dev runner-client src 172.29.41.2'
-    else
-      printf '%s\n' '192.168.122.12 via 172.29.40.1 dev runner-egress src 172.29.40.2'
-    fi
-    exit 0
-  fi
-  unknown
 fi
 
 if [[ "$#" == 6 && "$1" == "exec" && "$2" == "-T" && "$3" == "app" && \
@@ -257,17 +240,8 @@ grep -Fq $'config\t--services' "$work/docker.log" || fail "pilot inventory was n
 grep -Fq $'ps\t--services\t--status\trunning' "$work/docker.log" || fail "running services were not checked"
 grep -Fq $'ps\t--all\t--format\t{{.Service}}|{{.Health}}' "$work/docker.log" \
   || fail "recent worker health was not checked"
-grep -Fq $'exec\t-T\tapp\tip\t-4\troute\tget\t172.29.41.2' "$work/docker.log" \
-  || fail "app-to-gateway route was not proved"
-grep -Fq $'exec\t-T\trunner-egress-gateway\tip\t-4\troute\tget\t192.168.122.12' "$work/docker.log" \
-  || fail "gateway-to-runner route was not proved"
-app_route_line="$(grep -Fn -m1 $'exec\t-T\tapp\tip\t-4\troute\tget\t172.29.41.2' "$work/docker.log" | cut -d: -f1)"
-gateway_route_line="$(grep -Fn -m1 $'exec\t-T\trunner-egress-gateway\tip\t-4\troute\tget\t192.168.122.12' "$work/docker.log" | cut -d: -f1)"
-authenticated_line="$(grep -n -m1 $'exec\t-T\tapp\tnode\t-$' "$work/docker.log" | cut -d: -f1)"
-[[ -n "$app_route_line" && -n "$gateway_route_line" && -n "$authenticated_line" ]] || \
-  fail "runner-route ordering evidence is incomplete"
-(( app_route_line < gateway_route_line && gateway_route_line < authenticated_line )) || \
-  fail "runner route was not proved before the authenticated runner smoke"
+! grep -Fq $'	ip	-4	route	get	' "$work/docker.log" \
+  || fail "smoke must not probe the retired legacy runner route"
 grep -Fq '/health/ready' "$work/docker.log" || fail "readiness endpoint was not checked inside app"
 grep -Fq 'process.env.UPLOADS_ENABLED' "$work/docker.log" || fail "pilot upload flag was not checked"
 for required in \
@@ -355,8 +329,7 @@ expect_failure worker-unhealthy "unhealthy worker heartbeat"
 expect_failure worker-starting "worker without a successful cycle"
 expect_failure worker-missing-health "missing worker heartbeat"
 expect_failure worker-extra-health "unexpected worker heartbeat"
-expect_failure app-route-drift "app route bypassing the runner gateway" internal
-expect_failure gateway-route-drift "runner gateway route bypassing runner-egress" internal
+expect_failure retired-runner-gateway "retired legacy runner gateway in the pilot inventory"
 expect_failure authenticated-smoke-failure "failed authenticated application smoke" internal
 expect_failure public-origin-failure "wrong public origin or headers" public
 

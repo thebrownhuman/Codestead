@@ -74,7 +74,6 @@ readonly -a pilot_services=(
   project-review-correction-worker
   regrade-worker
   reward-worker
-  runner-egress-gateway
 )
 readonly -a internal_running_services=(
   app
@@ -86,7 +85,6 @@ readonly -a internal_running_services=(
   project-review-correction-worker
   regrade-worker
   reward-worker
-  runner-egress-gateway
 )
 readonly -a public_running_services=(
   "${internal_running_services[@]}"
@@ -398,25 +396,6 @@ if (probeFailed) {
 NODE
 }
 
-run_runner_route_probe() {
-  local app_route
-  local gateway_route
-
-  app_route="$(run_compose exec -T app ip -4 route get 172.29.41.2 2>/dev/null)" || return 1
-  app_route="$(printf '%s\n' "$app_route" | tr -d '\r' | sed -e 's/[[:space:]]\+/ /g' -e 's/^ //' -e 's/ $//')"
-  [[ "$app_route" =~ ^172\.29\.41\.2[[:space:]]+dev[[:space:]]+runner-client[[:space:]]+src[[:space:]]+172\.29\.41\.[0-9]+([[:space:]]|$) ]] || {
-    return 1
-  }
-
-  gateway_route="$(run_compose exec -T runner-egress-gateway ip -4 route get 192.168.122.12 2>/dev/null)" || {
-    return 1
-  }
-  gateway_route="$(printf '%s\n' "$gateway_route" | tr -d '\r' | sed -e 's/[[:space:]]\+/ /g' -e 's/^ //' -e 's/ $//')"
-  [[ "$gateway_route" =~ ^192\.168\.122\.12[[:space:]]+via[[:space:]]+172\.29\.40\.1[[:space:]]+dev[[:space:]]+runner-egress[[:space:]]+src[[:space:]]+172\.29\.40\.2([[:space:]]|$) ]] || {
-    return 1
-  }
-}
-
 run_public_probe() {
   run_compose exec -T app node - >/dev/null 2>&1 <<'NODE'
 const publicUrl = new URL(process.env.APP_URL ?? "");
@@ -509,7 +488,6 @@ done
 
 [[ "$infrastructure_ready" == "true" ]] || fatal "production smoke failed before the startup deadline"
 
-run_runner_route_probe || fatal "runner route proof failed"
 
 if [[ "$phase" == "internal" || "$phase" == "full" ]]; then
   run_authenticated_probe || fatal "authenticated application smoke failed"

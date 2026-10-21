@@ -198,18 +198,6 @@ readonly regrade_image="codestead-topology-regrade:$run_id"
 readonly project_review_image="codestead-topology-project-review:$run_id"
 readonly operations_image="codestead-topology-operations:$run_id"
 readonly image_label="io.codestead.fixture=production-topology-v1"
-bridge_suffix="$(printf '%s' "$run_id" | sha256sum | cut -c1-8)"
-readonly bridge_suffix
-network_octet=$((16#${bridge_suffix:0:2}))
-readonly network_octet
-export TOPOLOGY_RUNNER_CLIENT_SUBNET="172.29.41.0/24"
-export TOPOLOGY_RUNNER_CLIENT_RANGE="172.29.41.128/25"
-export TOPOLOGY_RUNNER_CLIENT_GATEWAY="172.29.41.1"
-export TOPOLOGY_RUNNER_CLIENT_IP="172.29.41.2"
-export TOPOLOGY_RUNNER_EGRESS_SUBNET="10.251.$network_octet.0/24"
-export TOPOLOGY_RUNNER_EGRESS_RANGE="10.251.$network_octet.128/25"
-export TOPOLOGY_RUNNER_EGRESS_GATEWAY="10.251.$network_octet.1"
-export TOPOLOGY_RUNNER_EGRESS_IP="10.251.$network_octet.2"
 
 
 export APP_NAME="Codestead topology test"
@@ -235,7 +223,6 @@ export LEARN_DATA_ROOT="$object_data_root"
 export CLOUDFLARE_CONFIG_FILE="$cloudflare_config"
 export POSTGRES_DB=learncoding
 export POSTGRES_USER=learncoding
-export RUNNER_BASE_URL="http://192.168.122.12:4100"
 export BOOTSTRAP_ADMIN_EMAIL="topology-admin@example.invalid"
 export MAIL_ADAPTER=console
 export MAIL_FROM="Codestead topology <noreply@example.invalid>"
@@ -246,7 +233,6 @@ export TOPOLOGY_POSTGRES_DIR="$data_root/postgres"
 export TOPOLOGY_POSTGRES_SOCKET_DIR="$postgres_socket_dir"
 export TOPOLOGY_NEXT_CACHE_DIR="$data_root/next-cache"
 export TOPOLOGY_APP_DATA_DIR="$data_root/app-data"
-export TOPOLOGY_RUNNER_BRIDGE="cdstt$bridge_suffix"
 
 # No real provider credentials are read or passed to any fixture container.
 unset NVIDIA_API_KEY NVIDIA_NIM_API_KEY OPENAI_API_KEY ANTHROPIC_API_KEY \
@@ -265,7 +251,6 @@ printf '%s' 'TopologyBootstrapPassword-Only-For-CI-42' >"$secrets_dir/bootstrap_
 printf '%s' 'topology-lost-device-proof-0000000000000000000000' >"$secrets_dir/lost_device_proof_key"
 printf '%s' 'topology-deletion-tombstone-000000000000000000000' >"$secrets_dir/deletion_tombstone_key"
 printf '%s' 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' >"$secrets_dir/credential_master_key"
-printf '%s' 'topology-runner-shared-secret-00000000000000000000' >"$secrets_dir/runner_shared_secret"
 : >"$secrets_dir/google_client_secret"
 : >"$secrets_dir/gmail_client_id"
 : >"$secrets_dir/gmail_client_secret"
@@ -282,8 +267,8 @@ chmod 0444 "$cloudflare_config"
 
 compose=(docker compose --project-name "$COMPOSE_PROJECT_NAME" -f "$repo_root/compose.yaml" -f "$overlay")
 images=("$runtime_image" "$tooling_image" "$worker_image" "$regrade_image" "$project_review_image" "$operations_image")
-long_running_services=(postgres app runner-stub runner-egress-gateway mail-worker reward-worker regrade-worker exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker file-erasure-worker cloudflared)
-policy_recovered_services=(postgres app runner-stub runner-egress-gateway mail-worker reward-worker regrade-worker exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker file-erasure-worker)
+long_running_services=(postgres app mail-worker reward-worker regrade-worker exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker file-erasure-worker cloudflared)
+policy_recovered_services=(postgres app mail-worker reward-worker regrade-worker exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker file-erasure-worker)
 declare -A daemon_container_before=()
 declare -A daemon_started_before=()
 
@@ -357,8 +342,6 @@ assert_cloudflared_generation_changed_after_guarded_recovery() {
 }
 
 cleanup_started=0
-readonly runner_client_network="${COMPOSE_PROJECT_NAME}_runner-client"
-runner_client_reserved=0
 # compose.yaml joins the GlitchTip stack's external glitchtip-ingest network.
 # The disposable host has no GlitchTip, so create the same internal network
 # (mirroring infra/observability/glitchtip/compose.yaml) and remove it again,
@@ -373,26 +356,6 @@ project_resources() {
     docker network ls -q --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME"
     docker volume ls -q --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME"
   } | sed '/^$/d'
-}
-
-reserve_runner_client_network() {
-  local compose_version
-  compose_version="$(docker compose version --short)"
-  if ! timeout 30 docker network create \
-    --driver bridge \
-    --internal \
-    --subnet "$TOPOLOGY_RUNNER_CLIENT_SUBNET" \
-    --gateway "$TOPOLOGY_RUNNER_CLIENT_GATEWAY" \
-    --ip-range "$TOPOLOGY_RUNNER_CLIENT_RANGE" \
-    --label "com.docker.compose.project=$COMPOSE_PROJECT_NAME" \
-    --label "com.docker.compose.network=runner-client" \
-    --label "com.docker.compose.version=$compose_version" \
-    --label "io.codestead.fixture=production-topology-v1" \
-    "$runner_client_network" >/dev/null; then
-    echo "Unable to reserve the reviewed runner-client subnet before image builds." >&2
-    return 1
-  fi
-  runner_client_reserved=1
 }
 
 reserve_glitchtip_ingest_network() {
@@ -415,7 +378,7 @@ reserve_glitchtip_ingest_network() {
 
 cleanup() {
   status=$?
-  local cleanup_failed=0 diagnostic_log fixture_images glitchtip_labels image remnants runner_labels
+  local cleanup_failed=0 diagnostic_log fixture_images glitchtip_labels image remnants
   trap - EXIT
   set +e
   if (( cleanup_started == 0 )); then
@@ -434,19 +397,6 @@ cleanup() {
       echo "Disposable Compose teardown failed." >&2
       cleanup_failed=1
     fi
-    if (( runner_client_reserved == 1 )); then
-      if docker network inspect "$runner_client_network" >/dev/null 2>&1; then
-        runner_labels="$(docker network inspect --format '{{index .Labels "com.docker.compose.project"}} {{index .Labels "io.codestead.fixture"}}' "$runner_client_network" 2>/dev/null)"
-        if [[ "$runner_labels" != "$COMPOSE_PROJECT_NAME production-topology-v1" ]]; then
-          echo "Refusing to remove an unowned fallback network: $runner_client_network" >&2
-          cleanup_failed=1
-        elif ! docker network rm "$runner_client_network" >/dev/null 2>&1; then
-          echo "Unable to remove fallback network: $runner_client_network" >&2
-          cleanup_failed=1
-        fi
-      fi
-    fi
-
     if (( glitchtip_ingest_created == 1 )) \
       && docker network inspect "$glitchtip_ingest_network" >/dev/null 2>&1; then
       glitchtip_labels="$(docker network inspect --format '{{index .Labels "io.codestead.fixture"}} {{index .Labels "io.codestead.fixture-run"}}' "$glitchtip_ingest_network" 2>/dev/null)"
@@ -732,7 +682,6 @@ assert_pilot_inventory() {
 wait_for_stack() {
   timeout 360 "${compose[@]}" up --detach --no-build --wait --wait-timeout 330
   probe_http "$(network_name frontend)" 'http://app:3000/health/ready' 200
-  probe_http "$(network_name runner-client)" 'http://runner-egress-gateway:4100/health' 200
   assert_pilot_inventory
 }
 wait_for_policy_recovered_stack() {
@@ -754,7 +703,6 @@ wait_for_policy_recovered_stack() {
     done
     if (( ready == 1 )); then
       probe_http "$(network_name frontend)" 'http://app:3000/health/ready' 200
-      probe_http "$(network_name runner-client)" 'http://runner-egress-gateway:4100/health' 200
       assert_pilot_inventory
       return 0
     fi
@@ -782,7 +730,6 @@ wait_for_existing_stack() {
     done
     if (( ready == 1 )); then
       probe_http "$(network_name frontend)" 'http://app:3000/health/ready' 200
-      probe_http "$(network_name runner-client)" 'http://runner-egress-gateway:4100/health' 200
       assert_pilot_inventory
       return 0
     fi
@@ -812,7 +759,6 @@ for image in "${images[@]}"; do
     exit 73
   fi
 done
-reserve_runner_client_network
 reserve_glitchtip_ingest_network
 
 timeout 300 docker pull "$postgres_image" >/dev/null

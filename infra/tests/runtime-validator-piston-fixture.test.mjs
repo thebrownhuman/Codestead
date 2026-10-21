@@ -18,7 +18,7 @@ const providerRule = section('case "${CODE_RUNNER_PROVIDER:-piston}" in', "\nraw
 const clientRule = section("is_runner_client() {", "\nwhile IFS= read -r line; do");
 const fieldRules = section(
   '    if [[ "$line" =~ ^[[:space:]]{6}CODE_RUNNER_PROVIDER:',
-  '    if [[ "$line" =~ ^[[:space:]]{6}(-[[:space:]]+runner-egress',
+  '    if [[ "$current_service" == cloudflared && "$line" == "      - source: cloudflare_tunnel_credentials" ]]; then',
 );
 const requiredFields = section(
   "# Every execution consumer must use the reviewed internal backend and digest.",

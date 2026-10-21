@@ -13,9 +13,10 @@ const reviewedSha256 = harness.match(/^validator_reviewed_sha256='([0-9a-f]{64})
 
 assert.equal(reviewedSha256, actualSha256, "runtime harness must pin the exact current validator SHA-256");
 for (const [label, diagnostic] of [
-  ["wrong-runner-client-subnet", "fatal: runner-client subnet must be exactly 172.29.41.0/24"],
-  ["non-internal-runner-client", "fatal: runner-client network must be internal"],
-  ["wrong-runner-gateway-stop-grace", "fatal: rendered runner gateway stop budget must be exactly fifteen seconds"],
+  ["legacy-runner-gateway-service", "fatal: rendered Compose contains an unexpected service"],
+  ["legacy-runner-client-url", "fatal: retired legacy runner configuration must not be rendered"],
+  ["legacy-runner-client-network", "fatal: retired legacy runner networks must not be attached"],
+  ["legacy-runner-egress-network", "fatal: retired legacy runner networks must not be rendered"],
 ]) {
   assert.ok(harness.includes(`make_fixture ${label}`), `runtime harness must retain the ${label} negative fixture`);
   assert.ok(harness.includes(diagnostic), `${label} must assert its exact fail-closed diagnostic`);
@@ -33,13 +34,8 @@ assert.ok(
 );
 assert.match(
   harness,
-  /fake_runner_client_internal='true'[\s\S]*?FAKE_RUNNER_CLIENT_INTERNAL="\$fake_runner_client_internal"/u,
-  "runtime harness must propagate its runner-client internal-network fixture value",
-);
-assert.match(
-  harness,
-  /"    internal: \$FAKE_RUNNER_CLIENT_INTERNAL"/u,
-  "fake Compose rendering must expose the mutable runner-client internal flag",
+  /fake_legacy_runner=none[\s\S]*?FAKE_LEGACY_RUNNER="\$fake_legacy_runner"/u,
+  "runtime harness must propagate its retired legacy-runner fixture selector",
 );
 
 console.log("runtime-validator-harness-contract-tests-ok");

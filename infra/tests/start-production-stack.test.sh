@@ -152,7 +152,7 @@ run_subject() {
 assert_line() { grep -Fxq -- "$1" "$work/trace" || fail "missing trace: $1"; }
 assert_last() { [[ "$(tail -n 1 "$work/trace")" == "$1" ]] || fail "last trace is not $1"; }
 
-internal='postgres app runner-egress-gateway mail-worker reward-worker regrade-worker exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker file-erasure-worker'
+internal='postgres app mail-worker reward-worker regrade-worker exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker file-erasure-worker'
 run_subject
 (( result == 0 )) || fail "canonical start failed: $(<"$work/stderr")"
 expected="$(printf '%s\n' flock:acquired docker:stop:cloudflared docker:compose-stop:cloudflared control:status validate:pre-privileged prepare:objects prepare:postgres validate:full "docker:up:internal:$internal" smoke:internal control:status docker:up:cloudflared:no-deps smoke:public)"

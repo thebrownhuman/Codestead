@@ -46,7 +46,6 @@ APPLICATION_IMAGE_SERVICES = frozenset(
         "project-review-correction-worker",
         "regrade-worker",
         "reward-worker",
-        "runner-egress-gateway",
         "scan-worker",
     }
 )

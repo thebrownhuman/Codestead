@@ -28,7 +28,7 @@ test("daemon restart is restricted to an empty local system Docker socket and re
   assert.match(scope, /if ! container_ids="\$\(docker ps -aq\)"; then/u);
   assert.doesNotMatch(scope, /done < <\(docker ps -aq\)/u);
   assert.match(scope, /com\.docker\.compose\.project/u);
-  assert.match(harness, /assert_disposable_daemon_scope empty[\s\S]*reserve_runner_client_network/u);
+  assert.match(harness, /assert_disposable_daemon_scope empty[\s\S]*reserve_glitchtip_ingest_network/u);
   assert.match(
     harness,
     /capture_daemon_restart_baseline\n  assert_disposable_daemon_scope project-only\n  sudo -n systemctl restart docker\.service/u,
@@ -47,7 +47,7 @@ test("daemon restart separates policy-recovered internals from guarded ingress r
       .split(/\s+/u)
       .filter(Boolean);
   const internalServices = [
-    "postgres", "app", "runner-stub", "runner-egress-gateway", "mail-worker",
+    "postgres", "app", "mail-worker",
     "reward-worker", "regrade-worker", "exam-finalization-worker",
     "practice-runner-recovery-worker", "project-review-correction-worker",
     "file-erasure-worker",
@@ -90,7 +90,7 @@ test("daemon restart separates policy-recovered internals from guarded ingress r
 
 test("cleanup proves fallback network, Compose resources, images, and workdir are absent", () => {
   const cleanup = functionBlock("cleanup");
-  const fallbackRemoval = cleanup.indexOf('docker network rm "$runner_client_network"');
+  const fallbackRemoval = cleanup.indexOf('docker network rm "$glitchtip_ingest_network"');
   const remnantRecheck = cleanup.indexOf('remnants="$(project_resources)"');
   assert.ok(fallbackRemoval >= 0 && remnantRecheck > fallbackRemoval);
   assert.match(cleanup, /for image in "\$\{images\[@\]\}"/u);

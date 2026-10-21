@@ -1,6 +1,6 @@
 # Disposable Linux CI overlay for the real production Compose topology.
-# It replaces only external runner/tunnel dependencies with isolated in-project
-# stubs and binds every persistent path to a trap-cleaned temporary directory.
+# It replaces only the external tunnel dependency with an isolated in-project
+# stub and binds every persistent path to a trap-cleaned temporary directory.
 services:
   postgres:
     pull_policy: never
@@ -60,76 +60,6 @@ services:
       timeout: 3s
       retries: 40
       start_period: 10s
-
-  runner-stub:
-    image: ${APP_RUNTIME_IMAGE:?Set APP_RUNTIME_IMAGE}
-    pull_policy: never
-    entrypoint: []
-    command:
-      - node
-      - -e
-      - |
-        const http = require('node:http');
-        const server = http.createServer((request, response) => {
-          const body = JSON.stringify({ ok: true, fixture: 'isolated-runner' });
-          response.writeHead(200, {
-            'content-type': 'application/json',
-            'content-length': Buffer.byteLength(body),
-            'cache-control': 'no-store'
-          });
-          response.end(body);
-        });
-        server.listen(4100, '192.168.122.12');
-        const stop = () => server.close(() => process.exit(0));
-        process.once('SIGINT', stop);
-        process.once('SIGTERM', stop);
-    user: "1000:1000"
-    restart: unless-stopped
-    stop_grace_period: 10s
-    read_only: true
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
-    tmpfs:
-      - /tmp:rw,noexec,nosuid,nodev,size=4m
-    networks:
-      runner-stub-net:
-        ipv4_address: 192.168.122.12
-    healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://192.168.122.12:4100/health').then((r) => { if (r.status !== 200) process.exit(1); }).catch(() => process.exit(1));"]
-      interval: 2s
-      timeout: 2s
-      retries: 20
-      start_period: 2s
-    mem_limit: 96m
-    cpus: 0.20
-    pids_limit: 32
-    labels:
-      com.centurylinklabs.watchtower.enable: "false"
-      io.codestead.fixture: production-topology-v1
-
-  runner-egress-gateway:
-    pull_policy: never
-    environment:
-      RUNNER_GATEWAY_LISTEN_HOST: ${TOPOLOGY_RUNNER_CLIENT_IP:?Set TOPOLOGY_RUNNER_CLIENT_IP}
-    depends_on:
-      runner-stub:
-        condition: service_healthy
-    networks:
-      runner-client:
-        interface_name: runner-client
-        ipv4_address: ${TOPOLOGY_RUNNER_CLIENT_IP:?Set TOPOLOGY_RUNNER_CLIENT_IP}
-      runner-egress:
-        interface_name: runner-egress
-        ipv4_address: ${TOPOLOGY_RUNNER_EGRESS_IP:?Set TOPOLOGY_RUNNER_EGRESS_IP}
-        gw_priority: 100
-      runner-stub-net:
-        interface_name: runner-stub
-    healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://${TOPOLOGY_RUNNER_CLIENT_IP:?Set TOPOLOGY_RUNNER_CLIENT_IP}:4100/__codestead_runner_gateway_health', { redirect: 'manual' }).then((response) => { if (response.status !== 204) process.exit(1); }).catch(() => process.exit(1));"]
-      interval: 2s
-      timeout: 2s
-      retries: 20
-      start_period: 2s
 
   mail-worker:
     pull_policy: never
@@ -206,30 +136,5 @@ networks:
     internal: true
   github-egress:
     internal: true
-  runner-client:
-    driver: bridge
-    internal: true
-    ipam: !override
-      config:
-        - subnet: ${TOPOLOGY_RUNNER_CLIENT_SUBNET:?Set TOPOLOGY_RUNNER_CLIENT_SUBNET}
-          gateway: ${TOPOLOGY_RUNNER_CLIENT_GATEWAY:?Set TOPOLOGY_RUNNER_CLIENT_GATEWAY}
-          ip_range: ${TOPOLOGY_RUNNER_CLIENT_RANGE:?Set TOPOLOGY_RUNNER_CLIENT_RANGE}
-  runner-egress:
-    driver: bridge
-    internal: true
-    driver_opts:
-      com.docker.network.bridge.name: ${TOPOLOGY_RUNNER_BRIDGE:?Set TOPOLOGY_RUNNER_BRIDGE}
-    ipam: !override
-      config:
-        - subnet: ${TOPOLOGY_RUNNER_EGRESS_SUBNET:?Set TOPOLOGY_RUNNER_EGRESS_SUBNET}
-          gateway: ${TOPOLOGY_RUNNER_EGRESS_GATEWAY:?Set TOPOLOGY_RUNNER_EGRESS_GATEWAY}
-          ip_range: ${TOPOLOGY_RUNNER_EGRESS_RANGE:?Set TOPOLOGY_RUNNER_EGRESS_RANGE}
   signature-egress:
     internal: true
-  runner-stub-net:
-    driver: bridge
-    internal: true
-    ipam:
-      config:
-        - subnet: 192.168.122.0/24
-          gateway: 192.168.122.1

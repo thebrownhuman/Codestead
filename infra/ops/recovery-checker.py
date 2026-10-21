@@ -74,7 +74,6 @@ MAXIMUM_PROC_STAT_BYTES: Final = 4_096
 EXPECTED_COMPOSE_SERVICES: Final[dict[str, str]] = {
     "postgres": "healthy",
     "app": "healthy",
-    "runner-egress-gateway": "healthy",
     "mail-worker": "healthy",
     "reward-worker": "healthy",
     "regrade-worker": "healthy",

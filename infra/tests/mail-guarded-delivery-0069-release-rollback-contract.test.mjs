@@ -109,7 +109,6 @@ const pythonTuple = (source, name) => {
 test("release and rollback share the complete reviewed runtime inventories", () => {
   const restorable = [
     "app",
-    "runner-egress-gateway",
     "mail-worker",
     "reward-worker",
     "regrade-worker",
@@ -130,7 +129,6 @@ test("release and rollback share the complete reviewed runtime inventories", () 
     "project-review-correction-worker",
     "regrade-worker",
     "reward-worker",
-    "runner-egress-gateway",
   ];
   const internalStart = [
     "app",
@@ -141,7 +139,6 @@ test("release and rollback share the complete reviewed runtime inventories", () 
     "file-erasure-worker",
     "practice-runner-recovery-worker",
     "project-review-correction-worker",
-    "runner-egress-gateway",
   ];
 
   assert.deepEqual(

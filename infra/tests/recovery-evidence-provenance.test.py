@@ -92,7 +92,6 @@ SERVICES = (
     "project-review-correction-worker",
     "regrade-worker",
     "reward-worker",
-    "runner-egress-gateway",
 )
 
 
