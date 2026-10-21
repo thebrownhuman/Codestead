@@ -37,7 +37,7 @@ terminal; do not add them to this deploy.
 automatic migrate. Deploy in two stages:
 
 - **Stage A**: last `main` commit *before* #203 (includes #198, #200, 0073). Normal script deploy.
-- **Stage B**: the #203 merge commit. Manual 0074 ceremony, then the script.
+- **Stage B**: the #203 merge commit. `redeploy-nuc.sh --no-migrate` builds and pins the reviewed images, then the manual 0074 steps run with them.
 
 Write the two SHAs down before starting:
 
@@ -171,11 +171,15 @@ sudo tail -c1 /etc/learncoding/secrets/database_mail_worker_url | od -c | head -
 
 Expect `root:codestead-secrets 440`, and the last byte must not be `\n`.
 
-B2. **[OWNER]** Check out `SHA_B` and build the new images (see open question 1):
+B2. **[OWNER]** Build and pin the reviewed `SHA_B` images without migrating
+(needs the `--no-migrate` option from [#211](https://github.com/thebrownhuman/Codestead/pull/211)), then stop the mail worker
+at once. Never use plain `docker compose build` in production. Until B4 the
+mail worker would fail to log in; app and other workers keep the shared
+worker role and run normally on the 0073 schema.
 
 ```bash
 sudo git -C /opt/learncoding checkout --detach "$SHA_B"
-$DC --profile operations build database-role-bootstrap migrate mail-worker
+sudo bash /opt/learncoding/infra/ops/redeploy-nuc.sh --no-migrate "$SHA_B"
 $DC stop mail-worker
 ```
 
@@ -194,21 +198,21 @@ $DC --profile operations run --rm database-negative-probes
 $DC --profile operations run --rm database-boundary-verifier
 ```
 
-B5. **[OWNER]** Normal script deploy at `SHA_B` (rebuilds reviewed images; its
-migrate is a no-op now because 0074 is applied), then confirm mail worker health:
+B5. **[OWNER]** Start the mail worker on its new secret and confirm health:
 
 ```bash
-sudo bash /opt/learncoding/infra/ops/redeploy-nuc.sh "$SHA_B"
+$DC up -d --no-deps --force-recreate mail-worker
 $DC ps mail-worker
 ```
 
-**Rollback B** **[OWNER]**: if B3 or B4 fails, keep `mail-worker` stopped and
-stop. Do not grant table-wide privileges, enable the role by hand, or point
-mail at `database_worker_url`. To get mail back while debugging, return to
-`SHA_A` images (`git checkout --detach "$SHA_A"` then
-`redeploy-nuc.sh "$SHA_A"`) only if 0074 did **not** apply; once 0074 has
-applied, ask before rolling back (see open question 2). Rolling back never
-reverses a migration.
+**Rollback B** **[OWNER]**: the rollback is **stop the mail worker**. If B3,
+B4 or B5 fails, keep (or put) `mail-worker` stopped and stop there. Do not
+grant table-wide privileges, enable the role by hand, or point mail at
+`database_worker_url`. Outbox rows wait and send once mail is back. Stage A
+images also work on a database with 0074 applied (0074 only adds a role,
+grants and guarded functions; they keep using the shared worker role), so a
+full image rollback is `git checkout --detach "$SHA_A"` then
+`redeploy-nuc.sh "$SHA_A"`. Rolling back never reverses a migration.
 
 ## 6. Post-deploy verification (after A, again after B)
 
@@ -229,17 +233,8 @@ reverses a migration.
 Record old and new SHAs, image refs, migrations (0073, 0074), and result in the
 deploy log (`docs/runbooks/updates-and-rollback.md`).
 
-## Open questions
+## Notes
 
-1. **Stage B images.** #203's steps use `docker compose build`, while
-   `redeploy-nuc.sh` builds reviewed images from a clean clone and pins them in
-   `compose.env`. Should B2 instead build the reviewed operations/worker images
-   first (e.g. `redeploy-nuc.sh` with a "no migrate" option, which it does not
-   have today)? Until answered, B2 follows the PR body.
-2. **Rollback after 0074.** Can `SHA_A` images run against a database with 0074
-   applied (mail worker on the old shared secret)? The PR says never fall back
-   to the shared secret, so this runbook treats "mail stopped" as the safe state.
-3. **Last deploy SHA.** Memory and notes say `7a0dda4` (2026-10-05). If the NUC
-   was redeployed later, check `/var/lib/learncoding/redeploy-nuc/deployed-revision`.
-4. **#203 is a draft.** If it is not ready, ship stage A alone; it is complete
-   without stage B.
+- **Last deploy SHA.** Notes say `7a0dda4` (2026-10-05). **[OWNER]** confirm
+  before step 4: `sudo cat /var/lib/learncoding/redeploy-nuc/deployed-revision`.
+- **#203 not ready?** Ship stage A alone; it is complete without stage B.
