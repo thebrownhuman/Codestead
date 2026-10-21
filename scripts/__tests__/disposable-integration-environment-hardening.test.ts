@@ -14,6 +14,7 @@ type EnvironmentHardeningModule = Readonly<{
       databaseWorkerUrl: string;
       databaseOpsUrl: string;
       databaseBackupReporterUrl: string;
+      databaseMailWorkerUrl: string;
       databaseOwnerUrl: string;
       betterAuthSecret: string;
     }>,
@@ -146,6 +147,8 @@ describe("disposable integration environment hardening", () => {
       databaseBackupReporterUrl:
         "postgresql://learncoding_backup_reporter:backup-reporter-password"
         + "@127.0.0.1:49152/learncoding_integration",
+      databaseMailWorkerUrl: "postgresql://learncoding_mail_worker:" + "m".repeat(48)
+        + "@127.0.0.1:49152/learncoding_integration",
       databaseOwnerUrl:
         `${migratorUrl}?options=-c+role%3Dlearncoding_owner`,
       betterAuthSecret: "explicit-integration-auth-secret",
@@ -165,6 +168,7 @@ describe("disposable integration environment hardening", () => {
       DATABASE_WORKER_URL: explicit.databaseWorkerUrl,
       DATABASE_OPS_URL: explicit.databaseOpsUrl,
       DATABASE_BACKUP_REPORTER_URL: explicit.databaseBackupReporterUrl,
+      DATABASE_MAIL_WORKER_URL: explicit.databaseMailWorkerUrl,
       DATABASE_OWNER_URL: explicit.databaseOwnerUrl,
       DATABASE_URL: explicit.databaseAppUrl,
       DATABASE_POOL_SIZE: "8",

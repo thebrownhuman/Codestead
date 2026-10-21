@@ -391,3 +391,7 @@ Production pilot is ready only when all of the following are true:
 - Sudden AC-loss recovery preserves every acknowledged test marker, restarts the full trusted stack and runner automatically, creates no duplicate evidence, and restores public readiness within 15 minutes.
 - Rollback to the previous application image is rehearsed or mechanically verified.
 - The deployment evidence log records exact versions, image digests, Git commit, test results, backup ID, and unresolved risks.
+
+### Mail worker role (0074)
+
+The mail worker uses the independent `database_mail_worker_url` secret for `learncoding_mail_worker`; operations receive it through `DATABASE_MAIL_WORKER_URL_FILE`. Existing installations create only this new secret and retain the shared worker secret for other workers. Follow [the ordered 0074 deployment steps](../../drafts/mail-worker-0074-nuc-deploy.md) before migrating and restarting mail.

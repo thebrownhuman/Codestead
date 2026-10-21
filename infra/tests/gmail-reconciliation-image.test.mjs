@@ -217,7 +217,7 @@ test("the production runbook invokes the image entrypoint with a one-session gat
   );
   const secretTargets = composeSecretTargets(workerService);
   for (const [source, target] of [
-    ["database_worker_url", "database_url"],
+    ["database_mail_worker_url", "database_url"],
     ["deletion_tombstone_key", "deletion_tombstone_key"],
     ["gmail_client_id", "gmail_client_id"],
     ["gmail_client_secret", "gmail_client_secret"],

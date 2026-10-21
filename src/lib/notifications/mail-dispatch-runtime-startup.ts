@@ -1,3 +1,5 @@
+import { usesMailWorkerRole } from "./mail-worker-role";
+import { requireMailWorkerRoleRuntime } from "./mail-worker-role-runtime";
 import {
   MAIL_DISPATCH_RUNTIME_BOOTSTRAP,
   MAIL_DISPATCH_RUNTIME_DEFAULTS,
@@ -127,6 +129,7 @@ export async function requireMailDispatchPostgresRuntime(
  */
 export async function requireMailDeliveryAuthorityRuntime(
   database: PostgresRuntimeQueryable,
+  mailWorkerRole = false,
 ): Promise<MailDeliveryAuthorityRuntimeVerdict> {
   try {
     const result = await database.query(`
@@ -156,7 +159,7 @@ export async function requireMailDeliveryAuthorityRuntime(
       ),
       migration_lineage AS (
         SELECT attested.*
-          FROM public.attest_email_outbox_delivery_release_lineage(
+          FROM ${mailWorkerRole ? "public.mail_worker_attest_email_outbox_delivery_release_lineage" : "public.attest_email_outbox_delivery_release_lineage"}(
           '${GUARDED_DELIVERY_MIGRATION_SHA256}'
         ) AS attested
       ),
@@ -231,14 +234,21 @@ export async function requireMailDeliveryAuthorityRuntime(
             AND attestor.prorows = 1000
             AND attestor.probin IS NULL
             AND attestor.prosqlbody IS NULL
+            ${mailWorkerRole ? `AND pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
+              attestor.prosrc, 'UTF8'
+            )), 'hex') =
+              '4edfdc27d9f07ffbf27a12b99c6f55a6174041481612917422e6936dd8ef1884'
             AND pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
+              pg_catalog.pg_get_functiondef(attestor.oid), 'UTF8'
+            )), 'hex') =
+              '542b5a6484c043ed1acb2fcd7831a11c70e49ddda3b2480b9286384dc74169ad'` : `AND pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
               attestor.prosrc, 'UTF8'
             )), 'hex') =
               'ef2bcb7f6642b27b9e30fd0c91a9d3d031f8d5a5e0f3647a9f7a57cab7bdc57a'
             AND pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
               pg_catalog.pg_get_functiondef(attestor.oid), 'UTF8'
             )), 'hex') =
-              '57e575a169040050c389d00c766cc35e32e0b32fae9c4f369e598f506aceb21d'
+              '57e575a169040050c389d00c766cc35e32e0b32fae9c4f369e598f506aceb21d'`}
             AND (
               SELECT pg_catalog.count(*)
                 FROM pg_catalog.pg_proc AS overload
@@ -777,6 +787,7 @@ export async function requireMailDeliveryAuthorityRuntime(
               FROM pg_catalog.aclexplode(attribute.attacl) AS access
             ), ARRAY[]::pg_catalog.text[]) = CASE
               WHEN attribute.attnum BETWEEN 1 AND 7 THEN ARRAY[
+                ${mailWorkerRole ? "'learncoding_mail_worker|learncoding_owner|select|false'," : ""}
                 'learncoding_worker|learncoding_owner|select|false'
               ]::pg_catalog.text[]
               ELSE ARRAY[]::pg_catalog.text[]
@@ -966,14 +977,21 @@ export async function requireMailDeliveryAuthorityRuntime(
               'pg_catalog.text'::pg_catalog.regtype::pg_catalog.oid,
               'pg_catalog.text'::pg_catalog.regtype::pg_catalog.oid
             ]::pg_catalog.oid[]
+            ${mailWorkerRole ? `AND pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
+              issuer.prosrc, 'UTF8'
+            )), 'hex') =
+              '251f78108e9bb36431c346a3bd21622ea9918c5056ba869152d7a43d27b35e44'
             AND pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
+              pg_catalog.pg_get_functiondef(issuer.oid), 'UTF8'
+            )), 'hex') =
+              'b6cc548755523a37183df40b5bcdb7f1cf3862a820d094532d192204ad15a926'` : `AND pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
               issuer.prosrc, 'UTF8'
             )), 'hex') =
               'b90df49087aa1ca69e80fc18a4963d5fc724d91db8612b338c2d2b98f2a3db0f'
             AND pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
               pg_catalog.pg_get_functiondef(issuer.oid), 'UTF8'
             )), 'hex') =
-              '9516f96ef9133bdf61f6db352422d521cf4616c6bd5b365888f1c614670ed409'
+              '9516f96ef9133bdf61f6db352422d521cf4616c6bd5b365888f1c614670ed409'`}
           ), FALSE) AS structure_exact,
           COALESCE(pg_catalog.bool_and(
             COALESCE((
@@ -1205,8 +1223,15 @@ export async function requireMailDeliveryAuthorityRuntime(
                 'provider_request_body_sha256',
                 'provider_request_body_length'
               ) THEN ARRAY[
+                ${mailWorkerRole ? `'learncoding_mail_worker|learncoding_owner|select|false', 'learncoding_mail_worker|learncoding_owner|update|false',
                 'learncoding_worker|learncoding_owner|update|false'
               ]::pg_catalog.text[]
+              WHEN attribute.attname = 'delivery_hold_version' THEN ARRAY[
+                'learncoding_mail_worker|learncoding_owner|select|false'
+              ]::pg_catalog.text[]` : `'learncoding_worker|learncoding_owner|update|false'
+              ]::pg_catalog.text[]
+              WHEN attribute.attname = 'delivery_hold_version' THEN ARRAY[
+              ]::pg_catalog.text[]`}
               ELSE ARRAY[]::pg_catalog.text[]
             END
             AND pg_catalog.has_table_privilege(
@@ -1507,9 +1532,14 @@ export async function inspectMailDispatchRuntime(
     }
 
     stage = "authority";
+    if (usesMailWorkerRole(pool)) {
+      await requireMailWorkerRoleRuntime({
+        query: async (queryText) => query(queryText),
+      });
+    }
     const deliveryAuthority = await requireMailDeliveryAuthorityRuntime({
       query: async (queryText) => query(queryText),
-    });
+    }, usesMailWorkerRole(pool));
     if (
       !deliveryAuthority.holdCatalogExact ||
       !deliveryAuthority.deliveryReleaseCapabilityExact

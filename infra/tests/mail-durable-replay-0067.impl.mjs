@@ -8070,6 +8070,7 @@ async function reconcileReviewedPrivileges(
       ),
       databaseOpsUrl: credentialUrl("learncoding_ops", "ops"),
       databaseWorkerUrl: credentialUrl("learncoding_worker", "worker"),
+      databaseMailWorkerUrl: credentialUrl("learncoding_mail_worker", "mail-worker"),
       lockTimeoutMs: 30_000,
       pool: bootstrapPool,
       clusterAdministrationPool,
@@ -10252,6 +10253,7 @@ export async function main() {
         CREATE ROLE learncoding_migrator LOGIN NOINHERIT;
         CREATE ROLE learncoding_app LOGIN NOINHERIT;
         CREATE ROLE learncoding_worker LOGIN NOINHERIT;
+        CREATE ROLE learncoding_mail_worker LOGIN NOINHERIT;
         CREATE ROLE learncoding_ops LOGIN NOINHERIT;
         CREATE ROLE learncoding_backup_reporter LOGIN NOINHERIT;
         CREATE ROLE mail_default_grantee NOLOGIN NOINHERIT;

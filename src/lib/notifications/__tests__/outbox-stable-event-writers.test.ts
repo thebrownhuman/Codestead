@@ -90,9 +90,13 @@ describe("production email stable-event writer inventory", () => {
         expect(writer.source, writer.relativePath)
           .not.toContain("idempotencyOriginalPayloadSha256:");
       }
-      expect(writer.source, writer.relativePath).toContain(
-        "release_email_outbox_delivery",
-      );
+      if (writer.relativePath.endsWith("inactivity.ts") || writer.relativePath.endsWith("outbox.ts")) {
+        expect(writer.source, writer.relativePath).toMatch(/usesMailWorkerRole\((?:client|tx)\)/u);
+        expect(writer.source, writer.relativePath).toContain('"public.mail_worker_release_email_outbox_delivery"');
+        expect(writer.source, writer.relativePath).toContain('"public.release_email_outbox_delivery"');
+      } else {
+        expect(writer.source, writer.relativePath).toContain("release_email_outbox_delivery");
+      }
       for (const field of [
         "operation_id",
         "idempotency_authority_sha256",

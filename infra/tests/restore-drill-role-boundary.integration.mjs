@@ -1058,6 +1058,7 @@ function rolePasswords() {
     app: password(),
     migrator: password(),
     worker: password(),
+    mailWorker: password(),
     ops: password(),
     backupReporter: password(),
   });
@@ -1087,6 +1088,7 @@ function roleConfiguration(database, passwords) {
       password: passwords.worker,
       username: "learncoding_worker",
     }),
+    databaseMailWorkerUrl: canonicalRoleUrl({ database,password:passwords.mailWorker,username:"learncoding_mail_worker" }),
     databaseOpsUrl: canonicalRoleUrl({
       database,
       password: passwords.ops,
@@ -1138,6 +1140,12 @@ function actualRoleUrls(database, passwords, port) {
       port,
       username: "learncoding_backup_reporter",
     }),
+    mailWorker: databaseUrl({
+      database,
+      password: passwords.mailWorker,
+      port,
+      username: "learncoding_mail_worker",
+    }),
   });
 }
 
@@ -1147,6 +1155,7 @@ export function createBoundedRolePoolFactory(actualUrls) {
     [RESTORE_BOOTSTRAP_IDENTITY]: "bootstrap",
     learncoding_app: "app",
     learncoding_backup_reporter: "backupReporter",
+    learncoding_mail_worker: "mailWorker",
     learncoding_migrator: "migrator",
     learncoding_ops: "ops",
     learncoding_worker: "worker",

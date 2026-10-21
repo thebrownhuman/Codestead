@@ -80,6 +80,7 @@ type AuthenticatedLearnDatabaseCredentials = Readonly<{
   app: string;
   migrator: string;
   worker: string;
+  mailWorker: string;
   ops: string;
   backupReporter: string;
 }>;
@@ -95,6 +96,7 @@ type RoleBootstrapRunner = (options: Readonly<{
   databaseAppUrl: string;
   databaseMigratorUrl: string;
   databaseWorkerUrl: string;
+  databaseMailWorkerUrl: string;
   databaseOpsUrl: string;
   databaseBackupReporterUrl: string;
   requireCompleteMigrationLedger: boolean;
@@ -116,6 +118,7 @@ type RoleBoundaryVerifier = (options: Readonly<{
   databaseAppUrl: string;
   databaseMigratorUrl: string;
   databaseWorkerUrl: string;
+  databaseMailWorkerUrl: string;
   databaseOpsUrl: string;
   databaseBackupReporterUrl: string;
   requireApplicationObjects: boolean;
@@ -144,7 +147,7 @@ function assertDistinctDatabaseCredentials(
 ): void {
   const values = Object.values(credentials);
   if (
-    values.length !== 6
+    values.length !== 7
     || values.some((value) => Buffer.byteLength(value, "utf8") < 32)
     || new Set(values).size !== values.length
   ) {
@@ -184,6 +187,7 @@ function authenticatedLearnDatabaseUrls(
     app: loopback("learncoding_app", credentials.app),
     migrator: loopback("learncoding_migrator", credentials.migrator),
     worker: loopback("learncoding_worker", credentials.worker),
+    mailWorker: loopback("learncoding_mail_worker", credentials.mailWorker),
     ops: loopback("learncoding_ops", credentials.ops),
     backupReporter: loopback(
       "learncoding_backup_reporter",
@@ -228,6 +232,7 @@ async function reconcileAuthenticatedLearnDatabaseRoles(input: Readonly<{
       input.roleUrls.migrator,
     ),
     databaseWorkerUrl: canonicalContainerDatabaseUrl(input.roleUrls.worker),
+    databaseMailWorkerUrl: canonicalContainerDatabaseUrl(input.roleUrls.mailWorker),
     databaseOpsUrl: canonicalContainerDatabaseUrl(input.roleUrls.ops),
     databaseBackupReporterUrl: canonicalContainerDatabaseUrl(
       input.roleUrls.backupReporter,
@@ -2344,6 +2349,7 @@ async function main() {
       app: generatedDatabasePassword(),
       migrator: generatedDatabasePassword(),
       worker: generatedDatabasePassword(),
+      mailWorker: generatedDatabasePassword(),
       ops: generatedDatabasePassword(),
       backupReporter: generatedDatabasePassword(),
     });

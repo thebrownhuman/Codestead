@@ -1,3 +1,4 @@
+import { usesMailWorkerRole } from "./mail-worker-role";
 import { randomUUID } from "node:crypto";
 
 import { sql } from "drizzle-orm";
@@ -336,7 +337,9 @@ async function persistQueuedEmail(
   }>`
     SELECT released.outbox_id::pg_catalog.text AS outbox_id,
            released.operation_id::pg_catalog.text AS operation_id
-      FROM public.release_email_outbox_delivery(
+      FROM ${sql.raw(usesMailWorkerRole(tx)
+        ? "public.mail_worker_release_email_outbox_delivery"
+        : "public.release_email_outbox_delivery")}(
         ${release.id}::pg_catalog.uuid,
         ${release.operation_id}::pg_catalog.uuid,
         ${release.idempotency_authority_sha256}::pg_catalog.text,

@@ -1,3 +1,5 @@
+import { inheritMailWorkerRole, usesMailWorkerRole, mailWorkerCallableQuery, lockMailWorkerSource } from "./mail-worker-role";
+import { lockMailWorkerRevocableSources } from "./mail-worker-source-locks";
 import { createHash } from "node:crypto";
 
 import {
@@ -980,6 +982,8 @@ async function transaction<T>(
     budgetMs: runtime.startupInspection.plan.timeouts.tx1Ms,
   });
   const client = deadlineBoundClient(lease, transactionDeadline);
+  inheritMailWorkerRole(inspectedStorePool(store), client);
+  inheritMailWorkerRole(inspectedStorePool(store), lease.client);
   let began = false;
   let commitAttempted = false;
   let destroy = false;
@@ -1048,7 +1052,7 @@ function deadlineBoundClient(
   lease: MailDispatchDbClientLease<OutboxPgClient>,
   deadline: MailDispatchDbDeadline,
 ): OutboxPgClient {
-  return {
+  const client: OutboxPgClient = {
     query<Row extends Record<string, unknown> = Record<string, unknown>>(
       text: string,
       values?: unknown[],
@@ -1056,7 +1060,7 @@ function deadlineBoundClient(
       return queryMailDispatchDbWithin<Row, OutboxPgClient>({
         lease,
         deadline,
-        text,
+        text: mailWorkerCallableQuery(client, text),
         ...(values === undefined ? {} : { values }),
       });
     },
@@ -1066,6 +1070,7 @@ function deadlineBoundClient(
       );
     },
   };
+  return client;
 }
 
 async function queryRetainingLiveTx2<
@@ -1084,7 +1089,9 @@ async function queryRetainingLiveTx2<
 
   let query: Promise<QueryResult<Row>>;
   try {
-    query = Promise.resolve(input.client.query<Row>(input.text, input.values));
+    query = Promise.resolve(input.client.query<Row>(
+      mailWorkerCallableQuery(input.client, input.text), input.values,
+    ));
   } catch (error) {
     throw error;
   }
@@ -1405,7 +1412,9 @@ async function queryAfterProviderWithin<
   let query: Promise<QueryResult<Row>>;
   try {
     query = Promise.resolve(
-      input.state.client.query<Row>(input.text, input.values),
+      input.state.client.query<Row>(
+        mailWorkerCallableQuery(input.state.client, input.text), input.values,
+      ),
     );
   } catch (error) {
     if (input.deadline.isExpired()) return failDeadline();
@@ -2213,8 +2222,41 @@ async function lockRevocableSourceAuthority(
       outboxId: claim.id,
     });
   if (!query) return false;
-  const authority = await client.query(query.text, [...query.values]);
+  const lockedQuery = await lockMailWorkerRevocableSources(client, claim.payload.userId, query);
+  if (!lockedQuery) return false;
+  const authority = await client.query(lockedQuery.text, [...lockedQuery.values]);
   return authority.rows.length === 1;
+}
+
+async function lockMailWorkerBoundarySources(
+  client: OutboxPgClient,
+  claim: OutboxClaim<EmailOutboxPayload>,
+) {
+  if (!usesMailWorkerRole(client)) return true;
+  if (claim.payload.userId) {
+    const present = await lockMailWorkerSource(client, "user", claim.payload.userId);
+    // A deletion notice intentionally survives removal of the account row.
+    if (!present && claim.payload.template !== DELETION_NOTICE_TEMPLATE_AUTHORITY.template) return false;
+  }
+  const variables = claim.payload.variables;
+  const sourceId = variables._mailSourceId;
+  const template = claim.payload.template;
+  if (!["access-request-admin", "invitation", "access-rejected"].includes(template)) return true;
+  if (typeof sourceId !== "string" || !UUID.test(sourceId)) return false;
+  if (template === "access-request-admin") {
+    const audienceId = variables._mailAudienceId;
+    if (typeof audienceId !== "string" ||
+      !await lockMailWorkerSource(client, "user", audienceId)) return false;
+  }
+  if (template === "invitation") {
+    if (!await lockMailWorkerSource(client, "invitation", sourceId)) return false;
+    const invitation = await client.query<{ access_request_id: string }>(
+      "select access_request_id::text from public.invitation where id=$1::uuid", [sourceId],
+    );
+    if (invitation.rows.length !== 1) return false;
+    return lockMailWorkerSource(client, "access_request", invitation.rows[0]!.access_request_id);
+  }
+  return lockMailWorkerSource(client, "access_request", sourceId);
 }
 
 async function providerBoundaryDecisionAfterBoundary(
@@ -2229,15 +2271,16 @@ async function providerBoundaryDecisionAfterBoundary(
     applicationUrl,
   );
   const adminAccessUrl = canonicalAdminAccessUrl(claim, applicationUrl);
-  const accountAuthoritySql = accountMailAuthorityPredicate(
+  const authorityRowsLocked = await lockMailWorkerBoundarySources(client, claim);
+  const accountAuthoritySql = authorityRowsLocked ? accountMailAuthorityPredicate(
     "outbox",
-    "for share of account_user",
-  );
-  const systemAuthoritySql = systemMailAuthorityPredicate("outbox", {
+    usesMailWorkerRole(client) ? "" : "for share of account_user",
+  ) : "FALSE";
+  const systemAuthoritySql = authorityRowsLocked ? systemMailAuthorityPredicate("outbox", {
     approvedInvitationTokenHashParameter: 26,
     adminAccessUrlParameter: 27,
-    lockAuthorityRows: true,
-  });
+    lockAuthorityRows: !usesMailWorkerRole(client),
+  }) : "FALSE";
   const deletionAuthoritySql = deletionNoticeCapabilityPredicate("outbox", {
     recipientHmacParameter: 23,
     payloadDigestParameter: 24,
@@ -2248,7 +2291,7 @@ async function providerBoundaryDecisionAfterBoundary(
     select case
       when ${systemAuthoritySql} then 'allowed'
       when outbox.user_id is null then 'SYSTEM_EMAIL_AUTHORITY_INVALID'
-      when ${BACKUP_STATUS_MAIL_AUTHORITY_SQL} then 'allowed'
+      when ${authorityRowsLocked ? BACKUP_STATUS_MAIL_AUTHORITY_SQL : "FALSE"} then 'allowed'
       when outbox.template = ${BACKUP_STATUS_TEMPLATE_SQL}
         then 'BACKUP_STATUS_MAIL_AUTHORITY_INVALID'
       when outbox.template not in (
@@ -2333,22 +2376,23 @@ async function providerBoundaryDecision(
   adminAccessUrl: string | null,
   lockAuthorityRows: boolean,
 ): Promise<BoundaryDecision | null> {
-  const accountAuthoritySql = accountMailAuthorityPredicate(
+  const authorityRowsLocked = !lockAuthorityRows || await lockMailWorkerBoundarySources(client, claim);
+  const accountAuthoritySql = authorityRowsLocked ? accountMailAuthorityPredicate(
     "outbox",
-    lockAuthorityRows ? "for share of account_user" : "",
-  );
-  const systemAuthoritySql = systemMailAuthorityPredicate("outbox", {
+    lockAuthorityRows && !usesMailWorkerRole(client) ? "for share of account_user" : "",
+  ) : "FALSE";
+  const systemAuthoritySql = authorityRowsLocked ? systemMailAuthorityPredicate("outbox", {
     approvedInvitationTokenHashParameter: 15,
     adminAccessUrlParameter: 16,
-    lockAuthorityRows,
-  });
+    lockAuthorityRows: lockAuthorityRows && !usesMailWorkerRole(client),
+  }) : "FALSE";
 
   const result = await client.query<{ decision: BoundaryDecision }>(
     `
     select case
       when ${systemAuthoritySql} then 'allowed'
       when outbox.user_id is null then 'SYSTEM_EMAIL_AUTHORITY_INVALID'
-      when ${BACKUP_STATUS_MAIL_AUTHORITY_SQL} then 'allowed'
+      when ${authorityRowsLocked ? BACKUP_STATUS_MAIL_AUTHORITY_SQL : "FALSE"} then 'allowed'
       when outbox.template = ${BACKUP_STATUS_TEMPLATE_SQL}
         then 'BACKUP_STATUS_MAIL_AUTHORITY_INVALID'
       when outbox.template not in (
@@ -3848,6 +3892,8 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         runtime.startupInspection.plan.timeouts.preProviderTx2PhaseBudgetMs,
     });
     const client = deadlineBoundClient(lease, preProviderDeadline);
+    inheritMailWorkerRole(inspectedStorePool(this), client);
+    inheritMailWorkerRole(inspectedStorePool(this), lease.client);
     let began = false;
     let claim: OutboxClaim<EmailOutboxPayload> | null = null;
     let transactionId: string | null = null;

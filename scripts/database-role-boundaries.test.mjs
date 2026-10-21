@@ -139,6 +139,7 @@ const validInput = () => ({
   databaseAppUrl: `postgresql://learncoding_app:${password("a")}@postgres:5432/learncoding`,
   databaseMigratorUrl: `postgresql://learncoding_migrator:${password("m")}@postgres:5432/learncoding`,
   databaseWorkerUrl: `postgresql://learncoding_worker:${password("w")}@postgres:5432/learncoding`,
+  databaseMailWorkerUrl: `postgresql://learncoding_mail_worker:${password("q")}@postgres:5432/learncoding`,
   databaseOpsUrl: `postgresql://learncoding_ops:${password("o")}@postgres:5432/learncoding`,
   databaseBackupReporterUrl: `postgresql://learncoding_backup_reporter:${password("r")}@postgres:5432/learncoding`,
 });
@@ -598,7 +599,8 @@ test("runs exact outbox ACL verification for every reviewed phase", async () => 
       sql.includes("guarded_delivery_presence_exact"),
     );
     assert.notEqual(index, -1);
-    assert.equal(client.queryParameters[index].at(-1), expected);
+    assert.equal(client.queryParameters[index][5], expected);
+    assert.deepEqual(JSON.parse(client.queryParameters[index].at(-1)), []);
   }
 });
 test("rejects historical app and ops outbox ACL drift", async () => {
@@ -1780,13 +1782,14 @@ test("keeps every phase-specific exact-ACL relation out of coarse full-CRUD scan
   );
 });
 
-test("accepts only the bootstrap and exact five distinct restricted-role URLs", () => {
+test("accepts only the bootstrap and exact six distinct restricted-role URLs", () => {
   const parsed = validateDatabaseRoleBoundaryUrls(validInput());
   assert.deepEqual(Object.keys(parsed), [
     "bootstrap",
     "app",
     "migrator",
     "worker",
+    "mailWorker",
     "ops",
     "backupReporter",
   ]);
@@ -1889,6 +1892,14 @@ function makeClient(role, database, options, generation = 1) {
       runtimeCapabilityFixture = makeDatabaseRuntimeCapabilityCatalogFixture();
       runtimeCapabilityFixture.foundationMode =
         runtimeCapabilityAppliedCount < REVIEWED_MIGRATION_LEDGER.length;
+      if (runtimeCapabilityFixture.foundationMode) {
+        const mail = runtimeCapabilityFixture.roleRows.find(row => row.role_name === "learncoding_mail_worker");
+        mail.can_login = false;
+        const credential = runtimeCapabilityFixture.credentialRows.find(row => row.role_name === "learncoding_mail_worker");
+        credential.can_login = false;
+        credential.password_is_null = true;
+        credential.password_is_scram = false;
+      }
       options.runtimeCapabilityFixtureMutator?.(runtimeCapabilityFixture);
     }
     return runtimeCapabilityFixture;
@@ -3524,9 +3535,9 @@ test("executes the exact current capability catalog twice under a sealed lock", 
     lockTimeoutMs: 50,
   });
   assert.deepEqual(result, {
-    rolesAuthenticated: 5,
-    positiveChecks: 16,
-    negativeChecks: 19,
+    rolesAuthenticated: 6,
+    positiveChecks: 19,
+    negativeChecks: 23,
   });
   const allMigratorQueries = harness.clientGenerations
     .get("learncoding_migrator")
@@ -3590,8 +3601,8 @@ test("rejects a bootstrap identity inside the managed role namespace before pool
 
 test("rejects future capability requests before pool checkout", async () => {
   for (const databaseRuntimeCapabilityPhase of [
-    "0073-expand-prepare",
-    "0074-contracted",
+    "0074-expand-prepare",
+    "0075-contracted",
     "unknown",
   ]) {
     let poolCalls = 0;
@@ -4085,6 +4096,7 @@ test("requires the exact reviewed 0062 through 0069 routine contracts in applica
     "learncoding_app",
     "learncoding_migrator",
     "learncoding_worker",
+    "learncoding_mail_worker",
     "learncoding_ops",
     "learncoding_backup_reporter",
   ];

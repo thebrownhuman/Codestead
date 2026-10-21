@@ -652,8 +652,8 @@ function validateHarnessReviewedRestoreFixtureContract(source) {
       "production E2E does not require reviewed ledger tail index 73",
     ],
     [
-      'entries[-1].get("tag") != "0073_learner_ai_model_preference"',
-      "production E2E does not require the reviewed 0073 ledger tail",
+      'entries[-1].get("tag") != "0074_mail_worker_role"',
+      "production E2E does not require the reviewed 0074 ledger tail",
     ],
     [
       "--env REQUIRE_COMPLETE_MIGRATION_LEDGER=false",
