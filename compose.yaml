@@ -329,10 +329,7 @@ services:
       GOOGLE_CLIENT_SECRET_FILE: /run/secrets/google_client_secret
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
-      RUNNER_BASE_URL: http://runner-egress-gateway:4100
-      RUNNER_SHARED_SECRET_FILE: /run/secrets/runner_shared_secret
-      RUNNER_MAX_CONCURRENCY: "2"
-      # Piston-only application routing; the legacy service remains until 6b.
+      # Piston is the only code-runner backend.
       CODE_RUNNER_PROVIDER: ${CODE_RUNNER_PROVIDER:-piston}
       PISTON_URL: http://piston:2000
       PISTON_IMAGE: ${PISTON_IMAGE:-}
@@ -353,7 +350,6 @@ services:
       - deletion_tombstone_key
       - credential_master_key
       - google_client_secret
-      - runner_shared_secret
     group_add:
       - $SECRETS_GID
     volumes:
@@ -367,8 +363,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      runner-egress-gateway:
-        condition: service_healthy
     networks:
       glitchtip-ingest: {}
       frontend:
@@ -376,8 +370,6 @@ services:
         gw_priority: 100
       data:
         interface_name: data
-      runner-client:
-        interface_name: runner-client
       # Always attached: internal, no egress, empty unless the piston profile is on.
       piston:
         interface_name: piston
@@ -393,40 +385,6 @@ services:
     mem_limit: 4g
     cpus: 2.0
     pids_limit: 256
-    logging: *default-logging
-
-  runner-egress-gateway:
-    platform: ${DEPLOY_PLATFORM:-linux/amd64}
-    image: ${APP_RUNTIME_IMAGE:?Set APP_RUNTIME_IMAGE to a reviewed immutable runtime image digest}
-    entrypoint: []
-    command: ["node", "/app/runner-gateway/server.mjs"]
-    user: "1000:1000"
-    restart: unless-stopped
-    stop_grace_period: 15s
-    environment:
-      RUNNER_GATEWAY_UPSTREAM: ${RUNNER_BASE_URL:?Set RUNNER_BASE_URL to the isolated runner VM private URL}
-      RUNNER_GATEWAY_LISTEN_HOST: "172.29.41.2"
-      RUNNER_GATEWAY_LISTEN_PORT: "4100"
-    networks:
-      runner-client:
-        interface_name: runner-client
-        ipv4_address: 172.29.41.2
-      runner-egress:
-        interface_name: runner-egress
-        ipv4_address: 172.29.40.2
-        gw_priority: 100
-    <<: [*hardened, *codestead-managed]
-    tmpfs:
-      - /tmp:rw,noexec,nosuid,nodev,size=8m
-    healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://172.29.41.2:4100/__codestead_runner_gateway_health', { redirect: 'manual' }).then((response) => { if (response.status !== 204) process.exit(1); }).catch(() => process.exit(1));"]
-      interval: 30s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    mem_limit: 128m
-    cpus: 0.25
-    pids_limit: 32
     logging: *default-logging
 
   mail-worker:
@@ -551,8 +509,6 @@ services:
       NODE_ENV: production
       DATABASE_URL_FILE: /run/secrets/database_url
       APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
-      RUNNER_BASE_URL: http://runner-egress-gateway:4100
-      RUNNER_SHARED_SECRET_FILE: /run/secrets/runner_shared_secret
       CODE_RUNNER_PROVIDER: ${CODE_RUNNER_PROVIDER:-piston}
       PISTON_URL: http://piston:2000
       PISTON_IMAGE: ${PISTON_IMAGE:-}
@@ -568,7 +524,6 @@ services:
     secrets:
       - source: database_worker_url
         target: database_url
-      - runner_shared_secret
     group_add:
       - $SECRETS_GID
     depends_on:
@@ -578,8 +533,6 @@ services:
       glitchtip-ingest: {}
       data:
         interface_name: data
-      runner-client:
-        interface_name: runner-client
       piston:
         interface_name: piston
     <<: [*hardened, *codestead-managed]
@@ -609,8 +562,6 @@ services:
       NODE_ENV: production
       DATABASE_URL_FILE: /run/secrets/database_url
       APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
-      RUNNER_BASE_URL: http://runner-egress-gateway:4100
-      RUNNER_SHARED_SECRET_FILE: /run/secrets/runner_shared_secret
       CODE_RUNNER_PROVIDER: ${CODE_RUNNER_PROVIDER:-piston}
       PISTON_URL: http://piston:2000
       PISTON_IMAGE: ${PISTON_IMAGE:-}
@@ -626,7 +577,6 @@ services:
     secrets:
       - source: database_worker_url
         target: database_url
-      - runner_shared_secret
     group_add:
       - $SECRETS_GID
     depends_on:
@@ -636,8 +586,6 @@ services:
       glitchtip-ingest: {}
       data:
         interface_name: data
-      runner-client:
-        interface_name: runner-client
       piston:
         interface_name: piston
     <<: [*hardened, *codestead-managed]
@@ -666,8 +614,6 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL_FILE: /run/secrets/database_url
-      RUNNER_BASE_URL: http://runner-egress-gateway:4100
-      RUNNER_SHARED_SECRET_FILE: /run/secrets/runner_shared_secret
       CODE_RUNNER_PROVIDER: ${CODE_RUNNER_PROVIDER:-piston}
       PISTON_URL: http://piston:2000
       PISTON_IMAGE: ${PISTON_IMAGE:-}
@@ -683,7 +629,6 @@ services:
     secrets:
       - source: database_worker_url
         target: database_url
-      - runner_shared_secret
     group_add:
       - $SECRETS_GID
     depends_on:
@@ -693,8 +638,6 @@ services:
       glitchtip-ingest: {}
       data:
         interface_name: data
-      runner-client:
-        interface_name: runner-client
       piston:
         interface_name: piston
     <<: [*hardened, *codestead-managed]
@@ -1136,23 +1079,6 @@ networks:
     driver: bridge
   mail-egress:
     driver: bridge
-  runner-client:
-    driver: bridge
-    internal: true
-    ipam:
-      config:
-        - subnet: 172.29.41.0/24
-          gateway: 172.29.41.1
-          ip_range: 172.29.41.128/25
-  runner-egress:
-    driver: bridge
-    driver_opts:
-      com.docker.network.bridge.name: cdst-run0
-    ipam:
-      config:
-        - subnet: 172.29.40.0/24
-          gateway: 172.29.40.1
-          ip_range: 172.29.40.128/25
   github-egress:
     driver: bridge
   data:
@@ -1206,8 +1132,6 @@ secrets:
     file: ${SECRETS_DIR:-/etc/learncoding/secrets}/credential_master_key
   google_client_secret:
     file: ${SECRETS_DIR:-/etc/learncoding/secrets}/google_client_secret
-  runner_shared_secret:
-    file: ${SECRETS_DIR:-/etc/learncoding/secrets}/runner_shared_secret
   gmail_client_id:
     file: ${SECRETS_DIR:-/etc/learncoding/secrets}/gmail_client_id
   gmail_client_secret:

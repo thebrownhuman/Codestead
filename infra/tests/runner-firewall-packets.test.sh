@@ -18,7 +18,6 @@ done
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 command -v node >/dev/null || fail 'node is required'
 command -v docker >/dev/null || fail 'docker is required'
-node "$repo_root/infra/tests/runner-egress-gateway.test.mjs"
 node "$repo_root/infra/tests/runner-route-topology.test.mjs"
 
 host_policy="$repo_root/infra/runner-vm/host-runner.nft"

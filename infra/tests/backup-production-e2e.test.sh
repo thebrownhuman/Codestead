@@ -9,10 +9,10 @@ readonly PRODUCTION_COMPOSE_PROJECT="learncoding"
 readonly -a REQUIRED_SERVICES=(
   app cloudflared exam-finalization-worker mail-worker migrate postgres
   practice-runner-recovery-worker project-review-correction-worker
-  regrade-worker reward-worker runner-egress-gateway file-erasure-worker
+  regrade-worker reward-worker file-erasure-worker
 )
 readonly -a REQUIRED_NETWORKS=(
-  frontend mail-egress runner-client runner-egress github-egress data scanner
+  frontend mail-egress github-egress data scanner
   signature-egress
 )
 
@@ -827,8 +827,6 @@ run_inner() {
   printf '%s\n' "$credential_master_key" >"$secrets_root/credential_master_key"
   write_random_hex_file 32 "$secrets_root/google_client_secret" \
     || fail "secret fixture generation failed"
-  write_random_hex_file 32 "$secrets_root/runner_shared_secret" \
-    || fail "secret fixture generation failed"
   write_random_hex_file 16 "$secrets_root/gmail_client_id" \
     || fail "secret fixture generation failed"
   write_random_hex_file 32 "$secrets_root/gmail_client_secret" \
@@ -895,7 +893,6 @@ POSTGRES_DB=learncoding
 POSTGRES_USER=learncoding
 POSTGRES_UID=999
 POSTGRES_GID=999
-RUNNER_BASE_URL=http://127.0.0.1:4100
 GOOGLE_CLIENT_ID=
 BOOTSTRAP_ADMIN_EMAIL=
 MAIL_ADAPTER=console

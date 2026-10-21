@@ -97,8 +97,6 @@ const parseServiceInventory = (name) =>
 const policyRecoveredServices = [
   "postgres",
   "app",
-  "runner-stub",
-  "runner-egress-gateway",
   "mail-worker",
   "reward-worker",
   "regrade-worker",
@@ -132,24 +130,6 @@ assert.match(
   /recover_ingress_after_daemon_restart[\s\S]*up --detach --no-build --pull never --no-deps cloudflared/u,
   "the daemon-restart tranche must model the guarded ingress authority with the reviewed no-build/no-pull activation",
 );
-const reservationCallIndex = harness.indexOf("\nreserve_runner_client_network\n");
-const firstImageBuildIndex = harness.indexOf("build_image runtime");
-assert.ok(
-  reservationCallIndex >= 0 && reservationCallIndex < firstImageBuildIndex,
-  "the reviewed runner-client subnet must be reserved before expensive image builds",
-);
-assert.match(
-  harness,
-  /docker network create[\s\S]*--internal[\s\S]*--subnet "\$TOPOLOGY_RUNNER_CLIENT_SUBNET"[\s\S]*--ip-range "\$TOPOLOGY_RUNNER_CLIENT_RANGE"/u,
-  "the early reservation must preserve the reviewed isolated IPAM",
-);
-assert.match(harness, /--label "com\.docker\.compose\.project=\$COMPOSE_PROJECT_NAME"/u);
-assert.match(harness, /--label "com\.docker\.compose\.network=runner-client"/u);
-assert.match(
-  harness,
-  /--label "io\.codestead\.fixture=production-topology-v1"/u,
-
-);
 const postgresStartIndex = harness.indexOf('up --detach --no-build --wait --wait-timeout 150 postgres');
 const targetDatabaseReadyIndex = harness.indexOf('wait_for_query 1 "select 1;"');
 const migrationLockIndex = harness.indexOf("# Hold the shared database-administration lock");
@@ -171,24 +151,14 @@ assert.match(
 );
 
 
-for (const service of ["runner-stub", "runner-egress-gateway", "cloudflared", "app"])
+for (const service of ["cloudflared", "app"])
   assert.match(overlay, new RegExp(`^  ${service}:`, "mu"));
-const productionNetwork = (name) =>
-  productionCompose.match(
-    new RegExp(`^  ${name}:\\r?\\n[\\s\\S]*?(?=^  [a-z][a-z0-9-]*:\\r?$|^volumes:)`, "mu"),
-  )?.[0] ?? "";
-for (const [name, subnet, gateway, range] of [
-  ["runner-client", "172.29.41.0/24", "172.29.41.1", "172.29.41.128/25"],
-  ["runner-egress", "172.29.40.0/24", "172.29.40.1", "172.29.40.128/25"],
-]) {
-  const block = productionNetwork(name);
-  assert.ok(block.includes(`subnet: ${subnet}`), `${name} must retain its declared subnet`);
-  assert.ok(block.includes(`gateway: ${gateway}`), `${name} must retain its declared bridge gateway`);
-  assert.ok(
-    block.includes(`ip_range: ${range}`),
-    `${name} must reserve the static .2 gateway outside Docker's dynamic allocation pool`,
-  );
+// The legacy native runner, its VM gateway and its networks are retired.
+for (const retired of ["runner-stub", "runner-egress-gateway", "runner-client", "runner-egress", "runner-stub-net"]) {
+  assert.doesNotMatch(overlay, new RegExp(`^  ${retired}:`, "mu"), `${retired} must not return to the fixture`);
+  assert.doesNotMatch(productionCompose, new RegExp(`^  ${retired}:`, "mu"), `${retired} must not return to production Compose`);
 }
+assert.doesNotMatch(harness, /TOPOLOGY_RUNNER_|runner_shared_secret/u, "the harness must not provision retired runner topology");
 
 assert.match(overlay, /UPLOADS_ENABLED: "false"/u);
 assert.doesNotMatch(overlay, /ports:/u);
@@ -206,31 +176,6 @@ for (const variable of [
     `${variable} must respect the worker's minimum supported poll interval`,
   );
 }
-for (const variable of [
-  "TOPOLOGY_RUNNER_CLIENT_SUBNET",
-  "TOPOLOGY_RUNNER_CLIENT_RANGE",
-  "TOPOLOGY_RUNNER_CLIENT_IP",
-  "TOPOLOGY_RUNNER_EGRESS_SUBNET",
-  "TOPOLOGY_RUNNER_EGRESS_RANGE",
-  "TOPOLOGY_RUNNER_EGRESS_IP",
-]) assert.match(harness, new RegExp(variable, "u"));
-assert.match(
-  harness,
-  /TOPOLOGY_RUNNER_CLIENT_SUBNET="172\.29\.41\.0\/24"[\s\S]*TOPOLOGY_RUNNER_CLIENT_RANGE="172\.29\.41\.128\/25"[\s\S]*TOPOLOGY_RUNNER_CLIENT_IP="172\.29\.41\.2"/u,
-  "the fixture must exercise the gateway entrypoint's exact reviewed runner-client address",
-);
-assert.match(
-  harness,
-  /TOPOLOGY_RUNNER_EGRESS_SUBNET="10\.251\.\$network_octet\.0\/24"[\s\S]*TOPOLOGY_RUNNER_EGRESS_RANGE="10\.251\.\$network_octet\.128\/25"/u,
-  "the disposable egress network should remain collision-resistant",
-);
-assert.doesNotMatch(
-  harness,
-  /RUNNER_GATEWAY_LISTEN_HOST=.*10\.250/u,
-  "the fixture must not bypass the gateway entrypoint's reviewed configuration",
-);
-assert.equal(overlay.match(/ipam: !override/gu)?.length, 2);
-assert.equal(overlay.match(/ip_range:/gu)?.length, 2, "dynamic IPAM must exclude each static gateway IP");
 assert.doesNotMatch(overlay, /172\.29\.4[01]\./u, "fixture IPAM must not collide with production networks");
 assert.match(
   overlay,

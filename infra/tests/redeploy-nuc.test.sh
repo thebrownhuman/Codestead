@@ -202,7 +202,7 @@ for stored_release in "" "previous-release"; do
   while IFS=$'\t' read -r release command; do
     [[ "$release" == "$head_sha" ]] || fail "Compose received '$release' instead of resolved SHA '$head_sha'"
   done <"$TEST_COMPOSE_TRACE"
-  grep -qF -- 'up -d --no-build --pull never --no-deps runner-egress-gateway app mail-worker reward-worker regrade-worker exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker file-erasure-worker' "$TEST_COMPOSE_TRACE" \
+  grep -qF -- 'up -d --no-build --pull never --no-deps app mail-worker reward-worker regrade-worker exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker file-erasure-worker' "$TEST_COMPOSE_TRACE" \
     || fail "deploy did not restart the app and every pilot worker"
   ! grep -qF -- 'file-erasure-worker piston' "$TEST_COMPOSE_TRACE" || fail "deploy restarted piston without its profile"
   grep -qF -- '--exit-code-from migrate migrate' "$TEST_COMPOSE_TRACE" || fail "migration invocation was not exercised"
@@ -220,7 +220,7 @@ deploy_output="$(PATH="$fake_bin:$PATH" REPO_ROOT="$fake_repo" BUILD_ROOT="$work
 $deploy_output"
 grep -qF -- "--no-migrate: NOT running migrate" <<<"$deploy_output"   || fail "--no-migrate did not say it skipped migrate"
 ! grep -qF -- '--exit-code-from migrate migrate' "$TEST_COMPOSE_TRACE"   || fail "--no-migrate still ran migrate"
-grep -qF -- 'up -d --no-build --pull never --no-deps runner-egress-gateway app' "$TEST_COMPOSE_TRACE"   || fail "--no-migrate did not restart the app services"
+grep -qF -- 'up -d --no-build --pull never --no-deps app' "$TEST_COMPOSE_TRACE"   || fail "--no-migrate did not restart the app services"
 
 # --- the piston profile adds the piston runner to the restarted services ----
 printf '%s
@@ -229,6 +229,6 @@ printf '%s
 rm -f "$DEPLOY_STATE_FILE"
 deploy_output="$(PATH="$fake_bin:$PATH" REPO_ROOT="$fake_repo" BUILD_ROOT="$work/build"   "$script" --no-scan "${head_sha:0:7}" 2>&1)" || fail "piston-profile deploy failed:
 $deploy_output"
-grep -qF -- '--no-deps runner-egress-gateway app mail-worker reward-worker regrade-worker exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker file-erasure-worker piston' "$TEST_COMPOSE_TRACE"   || fail "piston-profile deploy did not restart piston"
+grep -qF -- '--no-deps app mail-worker reward-worker regrade-worker exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker file-erasure-worker piston' "$TEST_COMPOSE_TRACE"   || fail "piston-profile deploy did not restart piston"
 
 echo "redeploy-nuc-ok"

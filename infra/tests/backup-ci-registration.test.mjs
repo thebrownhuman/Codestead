@@ -888,7 +888,6 @@ const expectedApplicationRuns = [
   "node --test infra/tests/ingress-control-ci-registration.test.mjs infra/tests/ingress-systemd.test.mjs",
   "node infra/tests/runtime-validator-structure.test.mjs",
   "node infra/tests/runtime-validator-harness-contract.test.mjs",
-  "node --test infra/tests/runner-egress-gateway.test.mjs infra/tests/runner-egress-gateway-stream-failures.test.mjs",
   "sudo apt-get update",
   "sudo apt-get install --yes bubblewrap nftables shellcheck",
   "shellcheck --severity=warning infra/ops/capture-recovery-evidence.sh infra/ops/create-database-secrets.sh infra/ops/install-compose-ci.sh infra/ops/release-production.sh infra/ops/rollback-production.sh infra/ops/smoke-production.sh infra/ops/validate-production-load-fixture-runtime.sh infra/ops/validate-production-load-test-control-runtime.sh infra/runner-vm/install-guest.sh infra/tests/compose-release-cli-contract.test.sh infra/tests/power-evidence.test.sh infra/tests/production-load-disposable-sandbox.test.sh infra/tests/production-load-fixture-lifecycle.test.sh infra/tests/production-load-peer-credentials.test.sh infra/tests/production-load-test-control-runtime.test.sh infra/tests/recovery-evidence-entry.test.sh infra/tests/recovery-evidence-main.test.sh infra/tests/release-production.test.sh infra/tests/rollback-production.test.sh infra/tests/runner-firewall.test.sh infra/tests/runner-firewall-packets.test.sh infra/tests/runner-guest-installer.test.sh infra/tests/runner-vm-provision.test.sh infra/tests/smoke-production.test.sh",
@@ -1013,7 +1012,6 @@ const applicationPartition = new Map([
       "node --test infra/tests/ingress-control-ci-registration.test.mjs infra/tests/ingress-systemd.test.mjs",
       "node infra/tests/runtime-validator-structure.test.mjs",
       "node infra/tests/runtime-validator-harness-contract.test.mjs",
-      "node --test infra/tests/runner-egress-gateway.test.mjs infra/tests/runner-egress-gateway-stream-failures.test.mjs",
     ],
   ],
   ["unit", []],
@@ -1138,7 +1136,6 @@ const reviewedJobNames = [
   "production-topology",
   "backup-safety",
   "backup-production-e2e",
-  "runner",
   "postgres-integration",
   "postgres-integration-shards",
   "integration-mail-races",
@@ -1460,7 +1457,6 @@ const ciOkNeeds = [
   "application-images",
   "backup-safety",
   "backup-production-e2e",
-  "runner",
   "postgres-integration",
   "postgres-integration-shards",
   "integration-mail-races",
@@ -1479,7 +1475,6 @@ const ciOkScript = [
   "              infra-recovery|infra-release|infra-host|infra-sandbox) echo infra ;;",
   "              production-topology) echo topology ;;",
   "              application-images) echo images ;;",
-  "              runner) echo runner ;;",
   "              curriculum-runtime|curriculum-verify|curriculum-dsa-parity|curriculum-dsa-parity-merge) echo curriculum ;;",
   "              auth-browser|browser) echo browser ;;",
   "              postgres-integration|postgres-integration-shards|integration-mail-races) echo database ;;",
@@ -1530,7 +1525,6 @@ const reviewedJobContracts = new Map([
       "      pull-requests: read",
       "    outputs:",
       "      browser: ${{ github.event_name != 'pull_request' || steps.filter.outputs['browser-paths'] == 'true' }}",
-      "      runner: ${{ github.event_name != 'pull_request' || steps.filter.outputs['runner-paths'] == 'true' }}",
       "      curriculum: ${{ github.event_name != 'pull_request' || steps.filter.outputs['curriculum-paths'] == 'true' }}",
       "      images: ${{ github.event_name != 'pull_request' || steps.filter.outputs['images-paths'] == 'true' }}",
       "      backup: ${{ github.event_name != 'pull_request' || steps.filter.outputs['backup-paths'] == 'true' }}",
@@ -1555,9 +1549,6 @@ const reviewedJobContracts = new Map([
       "              - next.config.*",
       "              - playwright.config.*",
       "              - tsconfig.json",
-      "            runner-paths:",
-      "              - .github/workflows/ci.yml",
-      "              - services/runner/**",
       "            curriculum-paths:",
       "              - .github/workflows/ci.yml",
       "              - package.json",
@@ -1887,47 +1878,6 @@ const reviewedJobContracts = new Map([
       ...checkoutProjection,
       "      - run: bash infra/tests/install-reviewed-docker-engine.sh",
       `      - run: ${productionE2eRun}`,
-    ],
-  ],
-  [
-    "runner",
-    [
-      "    runs-on: ubuntu-24.04",
-      "    timeout-minutes: 35",
-      "    needs: changes",
-      "    if: needs.changes.outputs.runner == 'true'",
-      "    env:",
-      "      RUNTIME_LOCAL_RISK_ACCEPTANCE: accept-unsigned-local-buildkit-provenance-v1",
-      "      RUNTIME_SOURCE_REPOSITORY: ${{ github.server_url }}/${{ github.repository }}",
-      "      RUNTIME_SOURCE_REVISION: ${{ github.sha }}",
-      "    defaults:",
-      "      run:",
-      "        working-directory: services/runner",
-      "    steps:",
-      ...checkoutProjection,
-      ...runnerCacheInitializationProjection(
-        "RUNTIME_TRIVY_CACHE_DIR",
-        "trivy-cache",
-      ),
-      "      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0",
-      "        with:",
-      "          node-version: 22.23.1",
-      "          cache: npm",
-      "          cache-dependency-path: services/runner/package-lock.json",
-      "      - run: npm ci",
-      "      - run: npm run typecheck",
-      "      - run: npm test",
-      "      - run: npm run build",
-      ...dockerSetupProjection,
-      "      - run: npm run runtime:build",
-      "      - run: npm run runtime:inspect",
-      "      - run: npm run runtime:test",
-      ...trivyCacheProjection("trivy-cache"),
-      ...trivySetupProjection,
-      "      - run: npm run runtime:scan",
-      "      - run: npm run runtime:record",
-      "      - run: npm audit --audit-level=high",
-      ...runtimeEvidenceUploadProjection("runner-runtime-release-evidence"),
     ],
   ],
   [
@@ -2736,14 +2686,9 @@ function withApplicationStepProperty(document, property) {
   return replaceExactly(document, anchor, `${anchor}        ${property}\n`);
 }
 
-function withRunnerRun(document, command) {
-  const anchor =
-    "      - run: npm run runtime:build\n      - run: npm run runtime:inspect\n";
-  return replaceExactly(
-    document,
-    anchor,
-    `      - run: npm run runtime:build\n      - run: ${command}\n      - run: npm run runtime:inspect\n`,
-  );
+function withPostgresIntegrationRun(document, command) {
+  const anchor = "      - run: npm run test:mail-dispatch-binding-0064:roles\n";
+  return replaceExactly(document, anchor, `      - run: ${command}\n${anchor}`);
 }
 
 function withProductionE2eJobLine(document, line) {
@@ -2762,8 +2707,8 @@ function runAdversarialSelfTests(document) {
       replaceExactly(
         replaceExactly(
           document,
-          "      - run: npm run build\n      - name: Set up Docker with containerd image store\n",
-          "      - run: npm run build\n      - name: Prepare isolated runtime engine\n",
+          "      - name: Upload curriculum runtime evidence\n",
+          "      - name: Preserve curriculum runtime evidence\n",
         ),
         "      - run: npm run lint\n",
         "      - name: Lint application\n        run: npm run lint\n",
@@ -2771,8 +2716,8 @@ function runAdversarialSelfTests(document) {
       "  backup-production-e2e:\n",
       "  backup-production-e2e:\n    # This comment does not change gate execution.\n",
     ),
-    "  runner:\n",
-    "  runner:\n    # Human-readable comments do not change executable behavior.\n",
+    "  postgres-integration:\n",
+    "  postgres-integration:\n    # Human-readable comments do not change executable behavior.\n",
   );
   expectAccepted("workflow comments and step-name edits", harmlessPresentation);
   expectRejected(
@@ -3032,8 +2977,8 @@ function runAdversarialSelfTests(document) {
     "production e2e acknowledgement in another job",
     replaceExactly(
       document,
-      "  runner:\n",
-      "  runner:\n    env:\n      CODESTEAD_DISPOSABLE_HOST: 1\n",
+      "  postgres-integration:\n",
+      "  postgres-integration:\n    env:\n      CODESTEAD_DISPOSABLE_HOST: 1\n",
     ),
   );
   const reviewerSplitCarrier = [
@@ -3047,18 +2992,18 @@ function runAdversarialSelfTests(document) {
     "reviewer split self-hosted carrier",
     replaceExactly(
       document,
-      "  runner:\n",
-      `${reviewerSplitCarrier}  runner:\n`,
+      "  postgres-integration:\n",
+      `${reviewerSplitCarrier}  postgres-integration:\n`,
     ),
     "workflow job set is outside the reviewed executable allowlist",
   );
   expectRejectedWithMessage(
-    "fully fragmented carrier in reviewed runner job",
-    withRunnerRun(
+    "fully fragmented carrier in reviewed postgres-integration job",
+    withPostgresIntegrationRun(
       document,
       'p=infra/tests/; s=backup-production-; e=e2e.test.sh; k=CODESTEAD_; d=DISPOSABLE; env "${k}${d}_HOST=1" bash "$p$s$e"',
     ),
-    "runner executable contract changed",
+    "postgres-integration executable contract changed",
   );
   expectRejectedWithMessage(
     "self-hosted postgres integration runner",
@@ -3125,13 +3070,13 @@ function runAdversarialSelfTests(document) {
   ]) {
     expectRejected(
       `production e2e hidden carrier ${command}`,
-      withRunnerRun(document, command),
+      withPostgresIntegrationRun(document, command),
     );
   }
   for (const indicator of ["|", "|-", "|+", ">", ">-", ">+"]) {
     expectRejected(
       `production e2e hidden ${indicator} run carrier`,
-      withRunnerRun(
+      withPostgresIntegrationRun(
         document,
         `${indicator} # must be rejected\n          bash infra/tests/backup-*.test.sh`,
       ),

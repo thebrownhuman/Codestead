@@ -15,7 +15,7 @@ checker_helper="$repo_root/infra/ops/recovery-checker.py"
 checker_baseline_module="$repo_root/infra/ops/existing_container_baseline.py"
 checker_shebang='#!/usr/bin/env bash'
 checker_reviewed_sha256='a686429336e44304b024b75adf3ab42b5a0f95a0a642bda5995e664e6c872668'
-checker_helper_reviewed_sha256='6a41fedb360b27b9afd2cb8b8e2e82c470be65b2cf180c969b21104fb4c7eb52'
+checker_helper_reviewed_sha256='990e7770997fd4784f6bd1fb961d106fec7f35cbecbf7306a62e882b5b9a0dd4'
 checker_baseline_module_reviewed_sha256='62be75b9e8be5f2b5baf002eb57133d152135ad95c3c3f952f22af317dc045d2'
 tmp_base="$(cd /tmp && pwd -P)"
 work="$(mktemp -d "$tmp_base/power-recovery-check.XXXXXX")"
@@ -107,7 +107,6 @@ expected = helper.EXPECTED_COMPOSE_SERVICES
 assert list(expected.items()) == [
     ("postgres", "healthy"),
     ("app", "healthy"),
-    ("runner-egress-gateway", "healthy"),
     ("mail-worker", "healthy"),
     ("reward-worker", "healthy"),
     ("regrade-worker", "healthy"),
@@ -1270,7 +1269,7 @@ PY
 }
 
 emit_compose_services() {
-  local -a services=(postgres app runner-egress-gateway mail-worker reward-worker regrade-worker \
+  local -a services=(postgres app mail-worker reward-worker regrade-worker \
     exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker \
     file-erasure-worker cloudflared)
   local service
@@ -1317,7 +1316,7 @@ PY
 
 emit_compose_status() {
   local service state health project name emitted_service ignored compose_object
-  local -a services=(postgres app runner-egress-gateway mail-worker reward-worker regrade-worker \
+  local -a services=(postgres app mail-worker reward-worker regrade-worker \
     exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker \
     file-erasure-worker cloudflared)
   for service in "${services[@]}"; do
@@ -1332,7 +1331,7 @@ emit_compose_status() {
     emitted_service="$service"
     ignored=fixture
     case "$service" in
-      postgres|app|runner-egress-gateway|mail-worker|reward-worker|regrade-worker|exam-finalization-worker|practice-runner-recovery-worker|project-review-correction-worker|file-erasure-worker|cloudflared) health=healthy ;;
+      postgres|app|mail-worker|reward-worker|regrade-worker|exam-finalization-worker|practice-runner-recovery-worker|project-review-correction-worker|file-erasure-worker|cloudflared) health=healthy ;;
     esac
     [[ "$scenario" != app-malformed || "$service" != app ]] || state=mystery
     [[ "$scenario" != worker-malformed || "$service" != mail-worker ]] || state=mystery
@@ -1638,7 +1637,7 @@ os.replace(staged, path)' "$FAKE_CLOCK_FILE" "$next"
       [[ "$delayed" == false ]] || { printf '%s\n' legacy-alpha; exit 0; }
       printf '%s\n' legacy-alpha
       [[ "$scenario" == existing-stopped ]] || printf '%s\n' legacy-bravo
-      printf '%s\n' learncoding-postgres learncoding-app learncoding-runner-egress-gateway learncoding-mail-worker learncoding-reward-worker \
+      printf '%s\n' learncoding-postgres learncoding-app learncoding-mail-worker learncoding-reward-worker \
         learncoding-regrade-worker learncoding-exam-finalization-worker learncoding-practice-runner-recovery-worker \
         learncoding-project-review-correction-worker learncoding-file-erasure-worker learncoding-cloudflared
       exit 0

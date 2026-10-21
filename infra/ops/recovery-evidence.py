@@ -170,7 +170,6 @@ PILOT_SERVICES: Final = (
     "project-review-correction-worker",
     "regrade-worker",
     "reward-worker",
-    "runner-egress-gateway",
 )
 HEX_SHA256_PATTERN: Final = re.compile(r"[0-9a-f]{64}")
 GIT_PATTERN: Final = re.compile(r"[0-9a-f]{40}(?:[0-9a-f]{24})?")

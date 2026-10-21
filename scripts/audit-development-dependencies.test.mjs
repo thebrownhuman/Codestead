@@ -105,11 +105,10 @@ test("network failures, truncated JSON, abnormal exits and contradictory statuse
   assert.deepEqual(checkAuditProcess({ status: 0, stdout: JSON.stringify(clean().report) }, lock, now), []);
 });
 
-test("CI retains strict production and dev gates and the separate runner audit", () => {
+test("CI retains strict production and dev gates", () => {
   const workflow = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
   assert.match(workflow, /npm audit --omit=dev --audit-level=moderate/);
   assert.match(workflow, /node --test scripts\/audit-development-dependencies\.test\.mjs/);
   assert.match(workflow, /node scripts\/audit-development-dependencies\.mjs/);
-  assert.match(workflow, /npm audit --audit-level=high/);
   assert.doesNotMatch(workflow, /npm audit[^\n]*(?:\|\| true|continue-on-error)/);
 });

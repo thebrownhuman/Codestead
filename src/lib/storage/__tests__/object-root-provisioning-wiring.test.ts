@@ -88,7 +88,7 @@ describe("production durable object-root provisioning", () => {
 
   it("pins the dedicated objects source with service-specific least privilege", () => {
     const compose = source("compose.yaml");
-    const app = composeService(compose, "app", "runner-egress-gateway");
+    const app = composeService(compose, "app", "mail-worker");
     const scanner = composeService(compose, "scan-worker", "file-erasure-worker");
     const erasure = composeService(compose, "file-erasure-worker", "lifecycle");
     const lifecycle = composeService(compose, "lifecycle", "platform-seed");

@@ -11,7 +11,7 @@ sha256_bin=/usr/bin/sha256sum
 perl_bin=/usr/bin/perl
 validator="$repo_root/infra/ops/validate-runtime.sh"
 validator_shebang='#!/usr/bin/env bash'
-validator_reviewed_sha256='ea9c69765c82bdaa6a6d5d1f09d550710fe354e23ffe2acdcf420265f753b572'
+validator_reviewed_sha256='b216ae7d8d33bd18125ebda81472facba51d70ef61827b2cd604cd2542c3254b'
 
 if [[ "$(/usr/bin/uname -s 2>/dev/null || true)" != Linux ]]; then
   echo 'FAIL: authoritative runtime contract requires Linux Bubblewrap containment' >&2
@@ -576,12 +576,7 @@ case_dir=
 config=
 secrets=
 fake_stat_target=
-fake_runner_url=
-fake_runner_client_url=
-fake_runner_client_subnet=
-fake_runner_gateway_source=
-fake_runner_subnet=
-fake_runner_bridge=
+fake_legacy_runner=
 fake_app_image=
 fake_long_restart=
 fake_cloudflared_restart=
@@ -619,13 +614,7 @@ make_fixture() {
   config="$case_dir/compose.env"
   secrets="$case_dir/secrets"
   fake_stat_target=
-  fake_runner_url='http://192.168.122.12:4100'
-  fake_runner_client_url='http://runner-egress-gateway:4100'
-  fake_runner_client_subnet='172.29.41.0/24'
-  fake_runner_client_internal='true'
-  fake_runner_gateway_source='172.29.40.2'
-  fake_runner_subnet='172.29.40.0/24'
-  fake_runner_bridge='cdst-run0'
+  fake_legacy_runner=none
   fake_app_image="registry.example.test/codestead/runtime@sha256:$digest_a"
   fake_long_restart='unless-stopped'
   fake_cloudflared_restart='on-failure:5'
@@ -810,13 +799,13 @@ if [[ "${1:-}" == "compose" ]]; then
     "    image: $app_image" \
     "    restart: $app_restart" \
     "    stop_grace_period: $app_stop" \
-    '    environment:' \
-    "      RUNNER_BASE_URL: $FAKE_RUNNER_CLIENT_URL"
+    '    environment:'
+  [[ "$FAKE_LEGACY_RUNNER" != env ]] || printf '%s\n' '      RUNNER_BASE_URL: http://runner-egress-gateway:4100'
   emit_piston_environment app
   printf '%s\n' '    networks:' \
     '      - data' \
-    '      - frontend' \
-    '      - runner-client'
+    '      - frontend'
+  [[ "$FAKE_LEGACY_RUNNER" != client-network ]] || printf '%s\n' '      - runner-client'
   [[ "$(value_for app piston-network true)" != true ]] || printf '%s\n' '      - piston'
   emit_host_port app
   # Compose reads COMPOSE_PROFILES from the env file; mirror the piston token.
@@ -850,11 +839,9 @@ if [[ "${1:-}" == "compose" ]]; then
     emit_host_port "$service"
     case "$service" in
       regrade-worker|exam-finalization-worker|practice-runner-recovery-worker)
-        printf '%s\n' \
-          '    environment:' \
-          "      RUNNER_BASE_URL: $FAKE_RUNNER_CLIENT_URL"
+        printf '%s\n' '    environment:'
         emit_piston_environment "$service"
-        printf '%s\n' '    networks:' '      - data' '      - runner-client'
+        printf '%s\n' '    networks:' '      - data'
         [[ "$(value_for "$service" piston-network true)" != true ]] || printf '%s\n' '      - piston'
         ;;
       *)
@@ -892,40 +879,20 @@ if [[ "${1:-}" == "compose" ]]; then
       emit_host_port "$service"
     done
   fi
-  gateway_image="$(value_for runner-egress-gateway image "$FAKE_APP_IMAGE")"
-  gateway_restart="$(value_for runner-egress-gateway restart unless-stopped)"
-  gateway_stop="$(value_for runner-egress-gateway stop-grace 15s)"
+  if [[ "$FAKE_LEGACY_RUNNER" == service ]]; then
+    printf '%s\n' \
+      '  runner-egress-gateway:' \
+      "    image: $FAKE_APP_IMAGE" \
+      '    restart: unless-stopped' \
+      '    stop_grace_period: 15s'
+  fi
+  printf '%s\n' 'networks:'
+  if [[ "$FAKE_LEGACY_RUNNER" == network ]]; then
+    printf '%s\n' \
+      '  runner-egress:' \
+      '    driver: bridge'
+  fi
   printf '%s\n' \
-    '  runner-egress-gateway:' \
-    "    image: $gateway_image" \
-    "    restart: $gateway_restart" \
-    "    stop_grace_period: $gateway_stop" \
-    '    environment:' \
-    "      RUNNER_GATEWAY_UPSTREAM: $FAKE_RUNNER_URL" \
-    '    networks:' \
-    '      runner-client:' \
-    '        ipv4_address: 172.29.41.2' \
-    '        interface_name: runner-client' \
-    '      runner-egress:' \
-    '        gw_priority: 100' \
-    '        interface_name: runner-egress' \
-    "        ipv4_address: $FAKE_RUNNER_GATEWAY_SOURCE"
-  emit_host_port runner-egress-gateway
-  printf '%s\n' \
-    'networks:' \
-    '  runner-client:' \
-    '    driver: bridge' \
-    "    internal: $FAKE_RUNNER_CLIENT_INTERNAL" \
-    '    ipam:' \
-    '      config:' \
-    "        - subnet: $FAKE_RUNNER_CLIENT_SUBNET" \
-    '  runner-egress:' \
-    '    driver: bridge' \
-    '    driver_opts:' \
-    "      com.docker.network.bridge.name: $FAKE_RUNNER_BRIDGE" \
-    '    ipam:' \
-    '      config:' \
-    "        - subnet: $FAKE_RUNNER_SUBNET" \
     '  piston:' \
     "    internal: $(value_for piston-network internal true)"
   exit 0
@@ -1192,7 +1159,6 @@ SECRETS_DIR=$secrets
 CLOUDFLARE_CONFIG_FILE=$case_dir/cloudflare.yml
 LEARN_DATA_ROOT=$case_dir/data
 VALIDATION_MODE=pilot
-RUNNER_BASE_URL=http://192.168.122.12:4100
 EOF
   chown 0:0 "$config"
   chmod 0640 "$config"
@@ -1209,7 +1175,6 @@ EOF
   printf '%s' 'lost-device-proof-key-at-least-thirty-two-bytes' >"$secrets/lost_device_proof_key"
   printf '%s' 'deletion-tombstone-key-at-least-thirty-two-bytes' >"$secrets/deletion_tombstone_key"
   printf '%s' 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=' >"$secrets/credential_master_key"
-  printf '%s' 'runner-shared-secret-at-least-thirty-two-bytes' >"$secrets/runner_shared_secret"
   printf '%s' '{"AccountTag":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","TunnelSecret":"MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=","TunnelID":"11111111-1111-4111-8111-111111111111"}' >"$secrets/cloudflare_tunnel_credentials.json"
   : >"$secrets/google_client_secret"
   : >"$secrets/gmail_client_id"
@@ -1721,13 +1686,7 @@ run_validator() {
     FAKE_TMPDIR="$case_dir/tmp" \
     FAKE_EXPECTED_COMPOSE_ENV="$config" \
     FAKE_EXPECTED_COMPOSE_FILE="$case_repo/compose.yaml" \
-    FAKE_RUNNER_URL="$fake_runner_url" \
-    FAKE_RUNNER_CLIENT_URL="$fake_runner_client_url" \
-    FAKE_RUNNER_CLIENT_SUBNET="$fake_runner_client_subnet" \
-    FAKE_RUNNER_CLIENT_INTERNAL="$fake_runner_client_internal" \
-    FAKE_RUNNER_GATEWAY_SOURCE="$fake_runner_gateway_source" \
-    FAKE_RUNNER_SUBNET="$fake_runner_subnet" \
-    FAKE_RUNNER_BRIDGE="$fake_runner_bridge" \
+    FAKE_LEGACY_RUNNER="$fake_legacy_runner" \
     FAKE_APP_IMAGE="$fake_app_image" \
     FAKE_LONG_RESTART="$fake_long_restart" \
     FAKE_CLOUDFLARED_RESTART="$fake_cloudflared_restart" \
@@ -2020,38 +1979,30 @@ if grep -Eq '(^|[[:space:]])exec([[:space:]]|$)' "$fake_docker_log"; then
   exit 1
 fi
 
-while IFS='|' read -r label alternate_url; do
-  make_fixture "runner-url-$label"
-  fake_runner_url="$alternate_url"
-  expect_failure \
-    "runner URL $label" \
-    'fatal: runner gateway upstream must be exactly http://192.168.122.12:4100'
-done <<'EOF'
-other-rfc1918|http://10.20.0.13:4100
-other-rfc1918-172|http://172.29.40.12:4100
-other-rfc1918-192|http://192.168.1.12:4100
-localhost|http://127.0.0.1:4100
-wildcard|http://0.0.0.0:4100
-hostname|http://runner.internal:4100
-public-https|https://runner.example.test
-wrong-port|http://192.168.122.12:4101
-userinfo|http://operator@192.168.122.12:4100
-path|http://192.168.122.12:4100/healthz
-query|http://192.168.122.12:4100?verbose=true
-fragment|http://192.168.122.12:4100#runner
-EOF
-
-make_fixture wrong-runner-client-subnet
-fake_runner_client_subnet='172.29.44.0/24'
+# The legacy native runner and its VM gateway are retired; any remnant fails closed.
+make_fixture legacy-runner-gateway-service
+fake_legacy_runner=service
 expect_failure \
-  'wrong runner-client subnet' \
-  'fatal: runner-client subnet must be exactly 172.29.41.0/24'
+  'retired legacy runner gateway service' \
+  'fatal: rendered Compose contains an unexpected service'
 
-make_fixture non-internal-runner-client
-fake_runner_client_internal='false'
+make_fixture legacy-runner-client-url
+fake_legacy_runner=env
 expect_failure \
-  'non-internal runner-client network' \
-  'fatal: runner-client network must be internal'
+  'retired legacy runner client URL' \
+  'fatal: retired legacy runner configuration must not be rendered'
+
+make_fixture legacy-runner-client-network
+fake_legacy_runner=client-network
+expect_failure \
+  'retired legacy runner-client attachment' \
+  'fatal: retired legacy runner networks must not be attached'
+
+make_fixture legacy-runner-egress-network
+fake_legacy_runner=network
+expect_failure \
+  'retired legacy runner-egress network' \
+  'fatal: retired legacy runner networks must not be rendered'
 
 while IFS='|' read -r label stop_period; do
   make_fixture "mail-worker-stop-$label"
@@ -2067,39 +2018,14 @@ shorter|119s
 longer|136s
 EOF
 
-make_fixture wrong-runner-gateway-stop-grace
-fake_mutate_service=runner-egress-gateway
-fake_mutate_field=stop-grace
-fake_mutate_value=30s
-expect_failure \
-  'wrong runner gateway stop grace period' \
-  'fatal: rendered runner gateway stop budget must be exactly fifteen seconds'
-
-make_fixture wrong-runner-subnet
-fake_runner_subnet='172.29.41.0/24'
-expect_failure \
-  'wrong runner-egress subnet' \
-  'fatal: runner-egress subnet must be exactly 172.29.40.0/24'
-
-make_fixture wrong-runner-bridge
-fake_runner_bridge='bridge0'
-expect_failure \
-  'wrong runner-egress bridge' \
-  'fatal: runner-egress bridge must be exactly cdst-run0'
-
-make_fixture wrong-runner-client-url
-fake_runner_client_url='http://192.168.122.12:4100'
-expect_failure \
-  'runner client bypass URL' \
-  'fatal: runner client URL must be exactly http://runner-egress-gateway:4100'
 
 pilot_rendered_services=(
   postgres app mail-worker reward-worker regrade-worker exam-finalization-worker
-  practice-runner-recovery-worker project-review-correction-worker file-erasure-worker scan-worker cloudflared runner-egress-gateway
+  practice-runner-recovery-worker project-review-correction-worker file-erasure-worker scan-worker cloudflared
 )
 internal_long_running_services=(
   postgres app mail-worker reward-worker regrade-worker exam-finalization-worker
-  practice-runner-recovery-worker project-review-correction-worker file-erasure-worker scan-worker runner-egress-gateway
+  practice-runner-recovery-worker project-review-correction-worker file-erasure-worker scan-worker
 )
 operations_services=(
   database-role-bootstrap database-negative-probes database-boundary-verifier

@@ -926,40 +926,9 @@ previous_release_id="$(<"$previous_release_file")"
 previous_git_commit="$(<"$previous_git_file")"
 [[ "$previous_release_id" =~ ^[0-9]{8}T[0-9]{6}Z-[1-9][0-9]*$ ]] || fatal "rollback has no retained prior release id"
 [[ "$previous_git_commit" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || fatal "rollback has no valid prior Git commit"
-legacy_transition=false
-retained_gateway_image=""
-retained_gateway_identity=""
+# Pre-gateway transition records belong to releases before the legacy runner removal.
 if [[ -e "$transition_file" || -L "$transition_file" ]]; then
-  safe_path "$transition_file" "previous runtime transition evidence"
-  [[ -f "$transition_file" && ! -L "$transition_file" ]] || {
-    fatal "previous runtime transition evidence must be a regular non-symlink file"
-  }
-  [[ "$($stat_bin -Lc '%a' -- "$transition_file")" == 600 ]] || {
-    fatal "previous runtime transition evidence must have mode 0600"
-  }
-  assert_trusted_not_writable "$transition_file" "previous runtime transition evidence"
-  mapfile -t transition_lines <"$transition_file"
-  [[ "${#transition_lines[@]}" == 8 \
-    && "${transition_lines[0]:-}" == SCHEMA_VERSION=1 \
-    && "${transition_lines[1]:-}" == MODE=legacy_pre_gateway \
-    && "${transition_lines[2]:-}" == "PREVIOUS_RELEASE_ID=$previous_release_id" \
-    && "${transition_lines[3]:-}" == "SOURCE_RELEASE_ID=$record_release_id" \
-    && "${transition_lines[5]:-}" == RETAINED_SERVICE=runner-egress-gateway ]] || {
-    fatal "previous runtime transition evidence is malformed or not bound to this rollback"
-  }
-  transition_source_commit="${transition_lines[4]#SOURCE_GIT_COMMIT=}"
-  retained_gateway_image="${transition_lines[6]#RETAINED_IMAGE=}"
-  retained_gateway_identity="${transition_lines[7]#RETAINED_IDENTITY=}"
-  [[ "${transition_lines[4]}" == "SOURCE_GIT_COMMIT=$transition_source_commit" \
-    && "$transition_source_commit" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ \
-    && "$transition_source_commit" == "$(<"$record_git_file")" \
-    && "${transition_lines[6]}" == "RETAINED_IMAGE=$retained_gateway_image" \
-    && "$retained_gateway_image" =~ ^[^@[:space:]]+@sha256:[0-9a-f]{64}$ \
-    && "${transition_lines[7]}" == "RETAINED_IDENTITY=$retained_gateway_identity" \
-    && "$retained_gateway_identity" =~ ^sha256:[0-9a-f]{64}$ ]] || {
-    fatal "previous runtime transition gateway identity is invalid"
-  }
-  legacy_transition=true
+  fatal "rollback target predates the legacy runner removal (PR6 stage 6b); redeploy from the legacy-runner-final tag instead"
 fi
 previous_record="$release_record_root/$previous_release_id"
 safe_path "$previous_record" "previous release record"
@@ -997,7 +966,6 @@ previous_application_record_sha256="$(<"$previous_application_sha_file")"
 
 readonly -a restorable_services=(
   app
-  runner-egress-gateway
   mail-worker
   reward-worker
   regrade-worker
@@ -1018,7 +986,6 @@ readonly -a managed_runtime_services=(
   project-review-correction-worker
   regrade-worker
   reward-worker
-  runner-egress-gateway
 )
 readonly -a previous_core=(
   app
@@ -1029,7 +996,6 @@ readonly -a previous_core=(
   file-erasure-worker
   practice-runner-recovery-worker
   project-review-correction-worker
-  runner-egress-gateway
 )
 
 declare -A recorded_images=()
@@ -1039,7 +1005,8 @@ while IFS=$'\t' read -r service image identity extra; do
   ((recorded_line_count += 1))
   [[ -n "$service" && -z "$extra" ]] || fatal "recorded runtime image evidence is malformed"
   case "$service" in
-    app|mail-worker|reward-worker|regrade-worker|exam-finalization-worker|file-erasure-worker|practice-runner-recovery-worker|project-review-correction-worker|cloudflared|runner-egress-gateway) ;;
+    runner-egress-gateway) fatal "rollback target predates the legacy runner removal (PR6 stage 6b); redeploy from the legacy-runner-final tag instead" ;;
+    app|mail-worker|reward-worker|regrade-worker|exam-finalization-worker|file-erasure-worker|practice-runner-recovery-worker|project-review-correction-worker|cloudflared) ;;
     *) fatal "recorded runtime image evidence names an unexpected service" ;;
   esac
   [[ ! ${recorded_images[$service]+present} ]] || fatal "recorded runtime image evidence contains a duplicate service"
@@ -1048,18 +1015,9 @@ while IFS=$'\t' read -r service image identity extra; do
   recorded_images[$service]="$image"
   recorded_identities[$service]="$identity"
 done <"$previous_images_file"
-if [[ "$legacy_transition" == true ]]; then
-  [[ "$recorded_line_count" == "$(( ${#restorable_services[@]} - 1 ))" \
-    && -z "${recorded_images[runner-egress-gateway]+present}" ]] || {
-    fatal "recorded pre-gateway runtime image evidence is incomplete"
-  }
-  recorded_images[runner-egress-gateway]="$retained_gateway_image"
-  recorded_identities[runner-egress-gateway]="$retained_gateway_identity"
-else
   [[ "$recorded_line_count" == "${#restorable_services[@]}" ]] || {
     fatal "recorded runtime image evidence is incomplete"
   }
-fi
 for service in "${restorable_services[@]}"; do
   [[ ${recorded_images[$service]+present} ]] || fatal "recorded runtime image evidence is incomplete"
 done
@@ -1071,7 +1029,8 @@ while IFS=$'\t' read -r service image identity extra; do
   ((reviewed_line_count += 1))
   [[ -n "$service" && -z "$extra" ]] || fatal "previous deployed image evidence is malformed"
   case "$service" in
-    app|mail-worker|reward-worker|regrade-worker|exam-finalization-worker|file-erasure-worker|practice-runner-recovery-worker|project-review-correction-worker|cloudflared|runner-egress-gateway) ;;
+    runner-egress-gateway) fatal "rollback target predates the legacy runner removal (PR6 stage 6b); redeploy from the legacy-runner-final tag instead" ;;
+    app|mail-worker|reward-worker|regrade-worker|exam-finalization-worker|file-erasure-worker|practice-runner-recovery-worker|project-review-correction-worker|cloudflared) ;;
     *) fatal "previous deployed image evidence names an unexpected service" ;;
   esac
   [[ ! ${reviewed_images[$service]+present} ]] || {
@@ -1086,18 +1045,9 @@ while IFS=$'\t' read -r service image identity extra; do
   reviewed_images[$service]="$image"
   reviewed_identities[$service]="$identity"
 done <"$previous_deployed_images_file"
-if [[ "$legacy_transition" == true ]]; then
-  [[ "$reviewed_line_count" == "$(( ${#restorable_services[@]} - 1 ))" \
-    && -z "${reviewed_images[runner-egress-gateway]+present}" ]] || {
-    fatal "previous pre-gateway deployed image evidence is incomplete"
-  }
-  reviewed_images[runner-egress-gateway]="$retained_gateway_image"
-  reviewed_identities[runner-egress-gateway]="$retained_gateway_identity"
-else
   [[ "$reviewed_line_count" == "${#restorable_services[@]}" ]] || {
     fatal "previous deployed image evidence is incomplete"
   }
-fi
 for service in "${restorable_services[@]}"; do
   [[ "${recorded_images[$service]:-}" == "${reviewed_images[$service]:-}" \
     && "${recorded_identities[$service]:-}" == "${reviewed_identities[$service]:-}" ]] || {
@@ -1177,9 +1127,6 @@ done <"$record_status_file"
 [[ "$record_result" == completed || "$record_result" == failed ]] || fatal "release status result is not rollback-eligible"
 
 rollback_result="previous_runtime_restored"
-if [[ "$legacy_transition" == true ]]; then
-  rollback_result="previous_runtime_restored_legacy_gateway_retained"
-fi
 rollback_finalization_present=false
 rollback_finalization_id=""
 rollback_finalization_started_at=""

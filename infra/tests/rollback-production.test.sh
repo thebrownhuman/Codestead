@@ -695,7 +695,7 @@ write_current_runtime_state() {
         "$service" "learncoding-$service-1" "$service" 7 8
     done
     printf 'postgres\tlearncoding-postgres-1\tregistry.example.test/codestead/postgres:17-bookworm@sha256:%064d\tsha256:%064d\n' 6 6
-    for service in practice-runner-recovery-worker project-review-correction-worker regrade-worker reward-worker runner-egress-gateway; do
+    for service in practice-runner-recovery-worker project-review-correction-worker regrade-worker reward-worker; do
       printf '%s\t%s\tregistry.example.test/codestead/previous-%s@sha256:%064d\tsha256:%064d\n' \
         "$service" "learncoding-$service-1" "$service" 7 8
     done
@@ -753,21 +753,21 @@ printf '%s\n' 'release_id=20260719T000000Z-2' "git_commit=$candidate_commit" >"$
 chmod 0600 "$work/records/current-release.env" "$work/records/latest-candidate.env"
 {
   printf 'services:\n'
-  for service in app runner-egress-gateway mail-worker reward-worker regrade-worker \
+  for service in app mail-worker reward-worker regrade-worker \
     exam-finalization-worker file-erasure-worker practice-runner-recovery-worker project-review-correction-worker cloudflared; do
     printf '  %s:\n' "$service"
     printf '    image: "registry.example.test/codestead/previous-%s@sha256:%064d"\n' "$service" 7
   done
 } >"$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
 {
-  for service in app runner-egress-gateway mail-worker reward-worker regrade-worker \
+  for service in app mail-worker reward-worker regrade-worker \
     exam-finalization-worker file-erasure-worker practice-runner-recovery-worker project-review-correction-worker cloudflared; do
     printf '%s\tregistry.example.test/codestead/previous-%s@sha256:%064d\tsha256:%064d\n' \
       "$service" "$service" 7 8
   done
 } >"$work/records/20260719T000000Z-2/previous-running-images.tsv"
 {
-  for service in app runner-egress-gateway mail-worker reward-worker regrade-worker \
+  for service in app mail-worker reward-worker regrade-worker \
     exam-finalization-worker file-erasure-worker practice-runner-recovery-worker project-review-correction-worker cloudflared; do
     printf '%s\tregistry.example.test/codestead/previous-%s@sha256:%064d\tsha256:%064d\n' \
       "$service" "$service" 7 8
@@ -835,14 +835,9 @@ if [[ "${1:-}" == "inspect" && "${2:-}" == "--format" && "$#" == 4 \
   service="${4#restored-}"
   service="${service%-container}"
   case "$service" in
-    app|cloudflared|exam-finalization-worker|file-erasure-worker|mail-worker|practice-runner-recovery-worker|project-review-correction-worker|regrade-worker|reward-worker|runner-egress-gateway)
-      if [[ "${FAKE_SCENARIO:-}" == legacy-gateway-transition && "$service" == runner-egress-gateway ]]; then
-        printf '%s\t/learncoding-%s-1\tregistry.example.test/codestead/gateway@sha256:%064d\tsha256:%064d\n' \
-          "$service" "$service" 9 8
-      else
-        printf '%s\t/learncoding-%s-1\tregistry.example.test/codestead/previous-%s@sha256:%064d\tsha256:%064d\n' \
-          "$service" "$service" "$service" 7 8
-      fi
+    app|cloudflared|exam-finalization-worker|file-erasure-worker|mail-worker|practice-runner-recovery-worker|project-review-correction-worker|regrade-worker|reward-worker)
+      printf '%s\t/learncoding-%s-1\tregistry.example.test/codestead/previous-%s@sha256:%064d\tsha256:%064d\n' \
+        "$service" "$service" "$service" 7 8
       ;;
     postgres)
       postgres_reference_digit=6
@@ -924,7 +919,7 @@ fi
 if [[ "$1" == "up" ]]; then
   [[ " $* " == *" --no-build "* && " $* " == *" --pull never "* ]] || exit 64
   case "$*" in
-    'up -d --no-build --pull never --remove-orphans app mail-worker reward-worker regrade-worker exam-finalization-worker file-erasure-worker practice-runner-recovery-worker project-review-correction-worker runner-egress-gateway')
+    'up -d --no-build --pull never --remove-orphans app mail-worker reward-worker regrade-worker exam-finalization-worker file-erasure-worker practice-runner-recovery-worker project-review-correction-worker')
       printf '%s\n' core-started >"$FAKE_CORE_MARKER"
       ;;
     'up -d --no-deps --no-build --pull never cloudflared') ;;
@@ -1085,7 +1080,7 @@ assert_only_quarantine_stops() {
 assert_finalization_runtime_reverified() {
   local label="$1" service
   local expected_core expected_tunnel
-  printf -v expected_core 'compose\t--env-file\t%s\t-f\t%s\t-f\t%s\tup\t-d\t--no-build\t--pull\tnever\t--remove-orphans\tapp\tmail-worker\treward-worker\tregrade-worker\texam-finalization-worker\tfile-erasure-worker\tpractice-runner-recovery-worker\tproject-review-correction-worker\trunner-egress-gateway' \
+  printf -v expected_core 'compose\t--env-file\t%s\t-f\t%s\t-f\t%s\tup\t-d\t--no-build\t--pull\tnever\t--remove-orphans\tapp\tmail-worker\treward-worker\tregrade-worker\texam-finalization-worker\tfile-erasure-worker\tpractice-runner-recovery-worker\tproject-review-correction-worker' \
     "$work/compose.env" "$ROLLBACK_REPO_ROOT_USED/compose.yaml" \
     "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
   printf -v expected_tunnel 'compose\t--env-file\t%s\t-f\t%s\t-f\t%s\tup\t-d\t--no-deps\t--no-build\t--pull\tnever\tcloudflared' \
@@ -1102,8 +1097,7 @@ assert_finalization_runtime_reverified() {
     fail "$label did not rerun the exact immutable rollback tunnel"
   }
   for service in app cloudflared exam-finalization-worker file-erasure-worker mail-worker postgres \
-    practice-runner-recovery-worker project-review-correction-worker regrade-worker reward-worker \
-    runner-egress-gateway; do
+    practice-runner-recovery-worker project-review-correction-worker regrade-worker reward-worker; do
     grep -Fq $'\tps\t-q\t'"$service" "$ROLLBACK_CASE/docker.log" || {
       fail "$label did not reinspect restored service $service"
     }
@@ -2730,7 +2724,7 @@ cmp -s "$active_state" "$work/records/20260719T000000Z-2/rollback-active-release
 mapfile -t rollback_services < <(cut -f1 "$managed_state")
 expected_rollback_services=(
   app cloudflared exam-finalization-worker file-erasure-worker mail-worker postgres
-  practice-runner-recovery-worker project-review-correction-worker regrade-worker reward-worker runner-egress-gateway
+  practice-runner-recovery-worker project-review-correction-worker regrade-worker reward-worker
 )
 [[ "${rollback_services[*]}" == "${expected_rollback_services[*]}" ]] || fail "rollback inventory coverage is invalid"
 while IFS=$'\t' read -r service container _image _identity extra; do
@@ -2849,67 +2843,31 @@ printf '%s\n' 'release_id=20260719T000000Z-1' "git_commit=$previous_commit" \
 printf '%s\n' 'release_id=20260719T000000Z-2' "git_commit=$candidate_commit" \
   >"$work/records/latest-candidate.env"
 write_current_runtime_state "$previous_commit" "$previous_tree"
-grep -v '^runner-egress-gateway' "$work/records/20260719T000000Z-2/previous-running-images.tsv" \
-  >"$work/legacy-previous-running-images.tsv"
-mv "$work/legacy-previous-running-images.tsv" \
-  "$work/records/20260719T000000Z-2/previous-running-images.tsv"
-grep -v '^runner-egress-gateway' "$work/records/20260719T000000Z-1/deployed-service-images.tsv" \
-  >"$work/legacy-deployed-service-images.tsv"
-mv "$work/legacy-deployed-service-images.tsv" \
-  "$work/records/20260719T000000Z-1/deployed-service-images.tsv"
-{
-  printf 'services:\n'
-  for service in app runner-egress-gateway mail-worker reward-worker regrade-worker \
-    exam-finalization-worker file-erasure-worker practice-runner-recovery-worker project-review-correction-worker cloudflared; do
-    printf '  %s:\n' "$service"
-    if [[ "$service" == runner-egress-gateway ]]; then
-      printf '    image: "registry.example.test/codestead/gateway@sha256:%064d"\n' 9
-    else
-      printf '    image: "registry.example.test/codestead/previous-%s@sha256:%064d"\n' "$service" 7
-    fi
-  done
-} >"$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
-chmod 0600 "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
-{
-  printf '%s\n' \
-    'SCHEMA_VERSION=1' \
-    'MODE=legacy_pre_gateway' \
-    'PREVIOUS_RELEASE_ID=20260719T000000Z-1' \
-    'SOURCE_RELEASE_ID=20260719T000000Z-2' \
-    "SOURCE_GIT_COMMIT=$candidate_commit" \
-    'RETAINED_SERVICE=runner-egress-gateway' \
-    "RETAINED_IMAGE=registry.example.test/codestead/gateway@sha256:$(printf '%064d' 9)" \
-    "RETAINED_IDENTITY=sha256:$(printf '%064d' 8)"
-} >"$work/records/20260719T000000Z-2/previous-runtime-transition.env"
-chmod 0600 "$work/records/20260719T000000Z-2/previous-runtime-transition.env"
+# Rollback across the legacy runner removal is refused before any mutation; the
+# operator redeploys from the legacy-runner-final tag instead.
+expect_pre_removal_refusal() {
+  local label="$1"
+  run_rollback "$label" --schema-backward-compatible
+  [[ "$ROLLBACK_STATUS" != 0 ]] || fail "rollback accepted $label"
+  assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "$label"
+  grep -Fq 'legacy-runner-final' "$ROLLBACK_CASE/stderr" || {
+    fail "$label refusal did not name the legacy-runner-final tag"
+  }
+}
 transition_path="$work/records/20260719T000000Z-2/previous-runtime-transition.env"
-cp "$transition_path" "$work/valid-previous-runtime-transition.env"
-sed -i "s/SOURCE_GIT_COMMIT=$candidate_commit/SOURCE_GIT_COMMIT=4444444444444444444444444444444444444444/" "$transition_path"
-run_rollback tampered-legacy-transition --schema-backward-compatible
-[[ "$ROLLBACK_STATUS" != 0 ]] || fail "rollback accepted transition evidence bound to another candidate"
-assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "unbound transition evidence"
-grep -Fqi 'transition' "$ROLLBACK_CASE/stderr" || {
-  fail "unbound transition evidence rejection was not explicit"
-}
-mv "$work/valid-previous-runtime-transition.env" "$transition_path"
+printf '%s\n' 'SCHEMA_VERSION=1' 'MODE=legacy_pre_gateway' >"$transition_path"
 chmod 0600 "$transition_path"
-echo "ok - rollback rejects unbound pre-gateway transition evidence before rollback mutation"
-
-
-run_rollback legacy-gateway-transition --schema-backward-compatible
-[[ "$ROLLBACK_STATUS" == 0 ]] || {
-  cat "$ROLLBACK_CASE/stderr" >&2
-  fail "rollback rejected the exact versioned pre-gateway transition"
-}
-legacy_active="$work/runtime-state/active-release.env"
-legacy_managed_sha="$(sed -n 's/^MANAGED_INVENTORY_SHA256=//p' "$legacy_active")"
-legacy_managed="$work/runtime-state/managed-containers.${legacy_managed_sha}.tsv"
-grep -Fq $'runner-egress-gateway\tlearncoding-runner-egress-gateway-1\tregistry.example.test/codestead/gateway@sha256:' \
-  "$legacy_managed" || fail "legacy rollback inventory does not expose the retained gateway version"
-grep -Fq 'previous_runtime_restored_legacy_gateway_retained' \
-  "$work/records/20260719T000000Z-2/rollback-executions.tsv" || {
-  fail "legacy rollback audit does not name the mixed transition"
-}
-echo "ok - rollback restores pre-gateway services while retaining the reviewed gateway with explicit evidence"
+expect_pre_removal_refusal pre-removal-transition-evidence
+rm -f -- "$transition_path"
+for evidence in \
+  "$work/records/20260719T000000Z-2/previous-running-images.tsv" \
+  "$work/records/20260719T000000Z-1/deployed-service-images.tsv"; do
+  cp "$evidence" "$work/pre-removal.good.tsv"
+  printf 'runner-egress-gateway\tregistry.example.test/codestead/gateway@sha256:%064d\tsha256:%064d\n' 9 8 >>"$evidence"
+  expect_pre_removal_refusal "pre-removal-gateway-$(basename "$evidence" .tsv)"
+  mv "$work/pre-removal.good.tsv" "$evidence"
+  chmod 0600 "$evidence"
+done
+echo "ok - rollback refuses pre-removal gateway records and points the operator at legacy-runner-final"
 
 echo "rollback-production-tests-ok"

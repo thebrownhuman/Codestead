@@ -59,7 +59,6 @@ for variable in \
   DELETION_TOMBSTONE_KEY \
   CREDENTIAL_MASTER_KEY \
   GOOGLE_CLIENT_SECRET \
-  RUNNER_SHARED_SECRET \
   GMAIL_CLIENT_ID \
   GMAIL_CLIENT_SECRET \
   GMAIL_REFRESH_TOKEN
@@ -117,17 +116,12 @@ if [ "${NODE_ENV:-}" = "production" ]; then
   if [ "${REQUIRE_APP_SECRETS:-0}" = "1" ]; then
     auth_secret="${BETTER_AUTH_SECRET:-}"
     lost_device_proof_key="${LOST_DEVICE_PROOF_KEY:-}"
-    runner_secret="${RUNNER_SHARED_SECRET:-}"
     if [ "${#auth_secret}" -lt 32 ]; then
       echo "fatal: BETTER_AUTH_SECRET must be at least 32 characters" >&2
       exit 64
     fi
     if [ "${#lost_device_proof_key}" -lt 32 ]; then
       echo "fatal: LOST_DEVICE_PROOF_KEY must be at least 32 characters" >&2
-      exit 64
-    fi
-    if [ "${#runner_secret}" -lt 32 ]; then
-      echo "fatal: RUNNER_SHARED_SECRET must be at least 32 characters" >&2
       exit 64
     fi
     if [ -z "${CREDENTIAL_MASTER_KEY:-}" ]; then

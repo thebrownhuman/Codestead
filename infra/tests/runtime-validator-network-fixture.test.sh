@@ -6,22 +6,26 @@ validator="$repo_root/infra/ops/validate-runtime.sh"
 
 parser_block="$(
   awk '
-    /^  if \[\[ "\$current_section" == networks && "\$current_network" == runner-egress \]\]; then$/ { capture = 1 }
+    /^  if \[\[ "\$current_section" == networks && \( "\$current_network" == runner-egress \|\| "\$current_network" == runner-client \) \]\]; then$/ { capture = 1 }
     capture && /^done <<<"\$rendered_content"$/ { exit }
     capture { print }
   ' "$validator"
 )"
 
 [[ -n "$parser_block" ]] || {
-  echo 'FAIL: rendered runner-network parser could not be extracted' >&2
+  echo 'FAIL: rendered network parser could not be extracted' >&2
   exit 1
 }
 [[ "$(grep -Fc '"$current_network" == runner-egress' <<<"$parser_block")" == 1 ]] || {
-  echo 'FAIL: focused parser must contain exactly one runner-egress branch' >&2
+  echo 'FAIL: focused parser must contain exactly one retired runner-egress branch' >&2
   exit 1
 }
 [[ "$(grep -Fc '"$current_network" == runner-client' <<<"$parser_block")" == 1 ]] || {
-  echo 'FAIL: focused parser must contain exactly one runner-client branch' >&2
+  echo 'FAIL: focused parser must contain exactly one retired runner-client branch' >&2
+  exit 1
+}
+[[ "$(grep -Fc '"$current_network" == piston' <<<"$parser_block")" == 1 ]] || {
+  echo 'FAIL: focused parser must contain exactly one piston branch' >&2
   exit 1
 }
 
@@ -30,10 +34,7 @@ run_fixture() (
   local rendered_content="$1"
   current_section=
   current_network=
-  runner_client_internal_seen=false
-  runner_client_subnet_seen=false
-  runner_subnet_seen=false
-  runner_bridge_seen=false
+  piston_network_internal_seen=false
 
   fatal() {
     echo "fatal: $*" >&2
@@ -55,29 +56,16 @@ run_fixture() (
     eval "$parser_block"
   done <<<"$rendered_content"
 
-  [[ "$runner_client_internal_seen" == true ]] || fatal 'runner-client network must be internal'
-  [[ "$runner_client_subnet_seen" == true ]] || fatal 'runner-client subnet must be exactly 172.29.41.0/24'
-  [[ "$runner_subnet_seen" == true ]] || fatal 'runner-egress subnet must be exactly 172.29.40.0/24'
-  [[ "$runner_bridge_seen" == true ]] || fatal 'runner-egress bridge must be exactly cdst-run0'
+  [[ "$piston_network_internal_seen" == true ]] || fatal 'piston network must be internal'
 )
 
 valid_fixture='networks:
-  runner-client:
+  piston:
     driver: bridge
-    internal: true
-    ipam:
-      config:
-        - subnet: 172.29.41.0/24
-  runner-egress:
-    driver: bridge
-    driver_opts:
-      com.docker.network.bridge.name: cdst-run0
-    ipam:
-      config:
-        - subnet: 172.29.40.0/24'
+    internal: true'
 
 run_fixture "$valid_fixture" || {
-  echo 'FAIL: the real validator parser rejected the canonical runner network fixture' >&2
+  echo 'FAIL: the real validator parser rejected the canonical piston network fixture' >&2
   exit 1
 }
 
@@ -97,20 +85,17 @@ expect_rejected() {
 }
 
 expect_rejected \
-  'non-internal runner-client' \
-  'fatal: runner-client network must be internal' \
+  'non-internal piston' \
+  'fatal: piston network must be internal' \
   "${valid_fixture/internal: true/internal: false}"
-expect_rejected \
-  'wrong runner-client subnet' \
-  'fatal: runner-client subnet must be exactly 172.29.41.0/24' \
-  "${valid_fixture/172.29.41.0\/24/172.29.44.0\/24}"
-expect_rejected \
-  'wrong runner-egress bridge' \
-  'fatal: runner-egress bridge must be exactly cdst-run0' \
-  "${valid_fixture/cdst-run0/cdst-run9}"
-expect_rejected \
-  'wrong runner-egress subnet' \
-  'fatal: runner-egress subnet must be exactly 172.29.40.0/24' \
-  "${valid_fixture/172.29.40.0\/24/172.29.45.0\/24}"
+# The legacy native runner networks are retired; any remnant fails closed.
+for retired in runner-client runner-egress; do
+  expect_rejected \
+    "retired $retired" \
+    'fatal: retired legacy runner networks must not be rendered' \
+    "$valid_fixture
+  $retired:
+    driver: bridge"
+done
 
 echo 'runtime-validator-network-fixture-tests-ok'

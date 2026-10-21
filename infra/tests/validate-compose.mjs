@@ -46,7 +46,6 @@ const pilotServices = [
   "project-review-correction-worker",
   "regrade-worker",
   "reward-worker",
-  "runner-egress-gateway",
   "file-erasure-worker",
 ];
 const operationServices = [
@@ -308,13 +307,12 @@ const expectedNetworks = {
   "backup-status-reporter": ["data"],
   "database-negative-probes": ["data"],
   "database-boundary-verifier": ["data"],
-  app: ["data", "frontend", "runner-client", "glitchtip-ingest", "piston"],
+  app: ["data", "frontend", "glitchtip-ingest", "piston"],
   "mail-worker": ["data", "mail-egress", "glitchtip-ingest"],
   "reward-worker": ["data", "glitchtip-ingest"],
-  "regrade-worker": ["data", "runner-client", "glitchtip-ingest", "piston"],
-  "exam-finalization-worker": ["data", "runner-client", "glitchtip-ingest", "piston"],
-  "practice-runner-recovery-worker": ["data", "runner-client", "glitchtip-ingest", "piston"],
-  "runner-egress-gateway": ["runner-client", "runner-egress"],
+  "regrade-worker": ["data", "glitchtip-ingest", "piston"],
+  "exam-finalization-worker": ["data", "glitchtip-ingest", "piston"],
+  "practice-runner-recovery-worker": ["data", "glitchtip-ingest", "piston"],
   "project-review-correction-worker": ["data", "github-egress", "glitchtip-ingest"],
   clamav: ["scanner", "signature-egress"],
   "scan-worker": ["data", "scanner", "glitchtip-ingest"],
@@ -336,8 +334,6 @@ expect(
     "glitchtip-ingest",
     "mail-egress",
     "piston",
-    "runner-client",
-    "runner-egress",
     "scanner",
     "signature-egress",
   ]),
@@ -357,76 +353,18 @@ expect(
   "glitchtip-ingest must be the external network owned by the GlitchTip stack",
 );
 expect(config.networks?.scanner?.internal === true, "scanner network must be internal");
-expect(config.networks?.["runner-client"]?.internal === true, "runner client network must be internal");
-expect(
-  same(
-    (config.networks?.["runner-client"]?.ipam?.config ?? []).map((entry) => entry.subnet),
-    ["172.29.41.0/24"],
-  ),
-  "runner-client must have only the reviewed 172.29.41.0/24 subnet",
-);
-expect(config.networks?.["runner-egress"]?.driver === "bridge", "runner-egress must use the bridge driver");
-expect(
-  same(
-    (config.networks?.["runner-egress"]?.ipam?.config ?? []).map((entry) => entry.subnet),
-    ["172.29.40.0/24"],
-  ),
-  "runner-egress must have only the reviewed 172.29.40.0/24 subnet",
-);
-expect(
-  config.networks?.["runner-egress"]?.driver_opts?.["com.docker.network.bridge.name"] === "cdst-run0",
-  "runner-egress must request Linux bridge cdst-run0",
-);
-const actualRunnerConsumers = Object.entries(config.services ?? {})
-  .filter(([, service]) => Object.hasOwn(service.networks ?? {}, "runner-egress"))
-  .map(([name]) => name);
-expect(
-  same(actualRunnerConsumers, [
-    "runner-egress-gateway",
-  ]),
-  "runner-egress must be attached only to the secretless runner gateway",
-);
-const actualRunnerClientConsumers = Object.entries(config.services ?? {})
-  .filter(([, service]) => Object.hasOwn(service.networks ?? {}, "runner-client"))
-  .map(([name]) => name);
-expect(
-  same(actualRunnerClientConsumers, [
-    "app",
-    "exam-finalization-worker",
-    "practice-runner-recovery-worker",
-    "regrade-worker",
-    "runner-egress-gateway",
-  ]),
-  "runner-client consumers must be limited to the four runner clients and their gateway",
-);
-for (const name of [
-  "app",
-  "exam-finalization-worker",
-  "practice-runner-recovery-worker",
-  "regrade-worker",
-]) {
-  expect(
-    config.services?.[name]?.environment?.RUNNER_BASE_URL === "http://runner-egress-gateway:4100",
-    `${name} must address the internal runner gateway`,
-  );
+// The legacy native runner, its VM gateway and its networks are retired.
+expect(!Object.hasOwn(config.services ?? {}, "runner-egress-gateway"), "the retired runner gateway must not be a service");
+for (const [name, service] of Object.entries(config.services ?? {})) {
+  for (const retired of ["runner-client", "runner-egress"]) {
+    expect(!Object.hasOwn(service.networks ?? {}, retired), `${name} must not attach the retired ${retired} network`);
+  }
+  for (const variable of ["RUNNER_BASE_URL", "RUNNER_SHARED_SECRET_FILE", "RUNNER_GATEWAY_UPSTREAM", "RUNNER_MAX_CONCURRENCY"]) {
+    expect(!Object.hasOwn(service.environment ?? {}, variable), `${name} must not configure the retired ${variable}`);
+  }
 }
-const gateway = config.services?.["runner-egress-gateway"];
-expect(
-  gateway?.environment?.RUNNER_GATEWAY_UPSTREAM === "http://192.168.122.12:4100",
-  "runner gateway must target only the fixed private runner address",
-);
-expect((gateway?.secrets ?? []).length === 0, "runner gateway must receive no secrets");
-expect(gateway?.image === applicationImages.APP_RUNTIME_IMAGE, "runner gateway must reuse the reviewed runtime image");
-expect(gateway?.user === "1000:1000", "runner gateway must run as the unprivileged node identity");
-expect(Array.isArray(gateway?.entrypoint) && gateway.entrypoint.length === 0, "runner gateway must clear the app-only secret-loading entrypoint");
-expect(gateway?.networks?.["runner-egress"]?.ipv4_address === "172.29.40.2", "runner gateway must use its reviewed fixed egress address");
-expect(gateway?.networks?.["runner-egress"]?.interface_name === "runner-egress", "runner gateway egress interface must be deterministic");
-expect(gateway?.networks?.["runner-egress"]?.gw_priority === 100, "runner gateway must use runner-egress as its only default egress");
-expect(gateway?.networks?.["runner-client"]?.ipv4_address === "172.29.41.2", "runner gateway must use its reviewed fixed client address");
-expect(gateway?.networks?.["runner-client"]?.interface_name === "runner-client", "runner gateway client interface must be deterministic");
 expect(config.services?.app?.networks?.frontend?.interface_name === "frontend", "app frontend interface must be deterministic");
 expect(config.services?.app?.networks?.frontend?.gw_priority === 100, "app provider/default egress must remain on frontend");
-expect(config.services?.app?.networks?.["runner-client"]?.interface_name === "runner-client", "app runner-client interface must be deterministic");
 
 const expectedSecretSources = {
   postgres: ["postgres_password"],
@@ -466,7 +404,6 @@ const expectedSecretSources = {
     "deletion_tombstone_key",
     "google_client_secret",
     "lost_device_proof_key",
-    "runner_shared_secret",
   ],
   "mail-worker": [
     "database_mail_worker_url",
@@ -477,9 +414,9 @@ const expectedSecretSources = {
     "lost_device_proof_key",
   ],
   "reward-worker": ["database_worker_url"],
-  "regrade-worker": ["database_worker_url", "runner_shared_secret"],
-  "exam-finalization-worker": ["database_worker_url", "runner_shared_secret"],
-  "practice-runner-recovery-worker": ["database_worker_url", "runner_shared_secret"],
+  "regrade-worker": ["database_worker_url"],
+  "exam-finalization-worker": ["database_worker_url"],
+  "practice-runner-recovery-worker": ["database_worker_url"],
   "project-review-correction-worker": ["database_worker_url"],
   clamav: [],
   "scan-worker": ["database_worker_url"],
@@ -513,7 +450,6 @@ expect(
     "google_client_secret",
     "lost_device_proof_key",
     "postgres_password",
-    "runner_shared_secret",
   ]),
   "Compose secret inventory drifted",
 );
@@ -592,8 +528,7 @@ const expectedDependencies = {
   "database-negative-probes": ["postgres:service_healthy"],
   "database-boundary-verifier": ["postgres:service_healthy"],
   "backup-status-reporter": ["migrate:service_completed_successfully"],
-  app: ["postgres:service_healthy", "runner-egress-gateway:service_healthy"],
-  "runner-egress-gateway": [],
+  app: ["postgres:service_healthy"],
   "mail-worker": ["postgres:service_healthy"],
   "reward-worker": ["postgres:service_healthy"],
   "regrade-worker": ["postgres:service_healthy"],

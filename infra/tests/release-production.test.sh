@@ -406,7 +406,6 @@ if [[ "${1:-}" == "inspect" && "${2:-}" == "--format" && "$#" == 4 \
   service="${service%-container}"
   case "$service" in
     app) digit=1 ;;
-    runner-egress-gateway) digit=1 ;;
     cloudflared) digit=8 ;;
     file-erasure-worker) digit=3 ;;
     exam-finalization-worker) digit=5 ;;
@@ -440,7 +439,6 @@ if [[ "${1:-}" == "inspect" && "${2:-}" == "--format" && "$#" == 4 ]]; then
     service="${service%-container}"
     case "$service" in
       app) digit=1 ;;
-      runner-egress-gateway) digit=1 ;;
       mail-worker) digit=2 ;;
       file-erasure-worker) digit=3 ;;
       reward-worker) digit=3 ;;
@@ -466,7 +464,6 @@ if [[ "${1:-}" == "inspect" && "${2:-}" == "--format" && "$#" == 4 ]]; then
     service="${service%-container}"
     case "$service" in
       app) digit=1 ;;
-      runner-egress-gateway) digit=1 ;;
       mail-worker) digit=2 ;;
       file-erasure-worker) digit=3 ;;
       reward-worker) digit=3 ;;
@@ -492,7 +489,7 @@ if [[ "${1:-}" == "inspect" && "${2:-}" == "--format" && "$#" == 4 ]]; then
     exit 0
   fi
   if [[ "$4" == "old-app-container" && "${FAKE_SCENARIO:-}" != restorable-* \
-    && "${FAKE_SCENARIO:-}" != "legacy-gateway-transition" ]]; then
+    && "${FAKE_SCENARIO:-}" != legacy-post-gateway* ]]; then
     printf 'app\tregistry.example.test/codestead/runtime@sha256:%064d\tsha256:%064d\n' 1 2
     exit 0
   fi
@@ -542,19 +539,19 @@ if [[ "$#" == 4 && "$1" == "--profile" && "$2" == "operations" && "$3" == "confi
 fi
 
 if [[ "$#" == 2 && "$1" == "ps" && "$2" == "-q" ]]; then
-  if [[ "${FAKE_SCENARIO:-}" == "legacy-gateway-transition" ]]; then
+  if [[ "${FAKE_SCENARIO:-}" == legacy-post-gateway* ]]; then
     for service in app mail-worker reward-worker regrade-worker exam-finalization-worker \
-      file-erasure-worker practice-runner-recovery-worker project-review-correction-worker cloudflared; do
+      file-erasure-worker practice-runner-recovery-worker project-review-correction-worker cloudflared runner-egress-gateway; do
       printf 'old-%s-container\n' "$service"
     done
   elif [[ "${FAKE_SCENARIO:-}" == "restorable-bound-public-smoke-failure" ]]; then
     for service in app mail-worker reward-worker regrade-worker exam-finalization-worker \
-      file-erasure-worker practice-runner-recovery-worker project-review-correction-worker cloudflared runner-egress-gateway; do
+      file-erasure-worker practice-runner-recovery-worker project-review-correction-worker cloudflared; do
       printf 'old-deployed-%s-container\n' "$service"
     done
   elif [[ "${FAKE_SCENARIO:-}" == restorable-* ]]; then
     for service in app mail-worker reward-worker regrade-worker exam-finalization-worker \
-      file-erasure-worker practice-runner-recovery-worker project-review-correction-worker cloudflared runner-egress-gateway; do
+      file-erasure-worker practice-runner-recovery-worker project-review-correction-worker cloudflared; do
       printf 'old-%s-container\n' "$service"
     done
   elif [[ "${FAKE_SCENARIO:-}" == "pointer-second" \
@@ -569,7 +566,7 @@ if [[ "$#" == 2 && "$1" == "ps" && "$2" == "-q" ]]; then
     || "${FAKE_SCENARIO:-}" == "post-current-pointer-target-fsync-failure" \
     || "${FAKE_SCENARIO:-}" == "post-current-pointer-directory-fsync-failure" ]]; then
     for service in app mail-worker reward-worker regrade-worker exam-finalization-worker \
-      file-erasure-worker practice-runner-recovery-worker project-review-correction-worker cloudflared runner-egress-gateway; do
+      file-erasure-worker practice-runner-recovery-worker project-review-correction-worker cloudflared; do
       printf 'old-deployed-%s-container\n' "$service"
     done
   else
@@ -1861,9 +1858,9 @@ grep -Fq -- "$RELEASE_CASE_DIR/records/latest-candidate.env" "$RELEASE_CASE_DIR/
   fail "latest candidate pointer was not fsynced"
 }
 grep -Fq -- "$record" "$RELEASE_CASE_DIR/sync.log" || fail "release record directory was not fsynced"
-[[ "$(wc -l <"$record/deployed-service-images.tsv")" == 10 ]] || fail "deployed per-service image evidence is incomplete"
+[[ "$(wc -l <"$record/deployed-service-images.tsv")" == 9 ]] || fail "deployed per-service image evidence is incomplete"
 for service in app mail-worker reward-worker regrade-worker exam-finalization-worker \
-  file-erasure-worker practice-runner-recovery-worker project-review-correction-worker cloudflared runner-egress-gateway; do
+  file-erasure-worker practice-runner-recovery-worker project-review-correction-worker cloudflared; do
   [[ "$(grep -c "^${service}"$'\t' "$record/deployed-service-images.tsv")" == 1 ]] || fail "deployed evidence omitted or duplicated $service"
 done
 
@@ -1886,7 +1883,7 @@ cmp -s "$application_state" "$record/application-image-record.json" || fail "pub
 mapfile -t managed_services < <(cut -f1 "$managed_state")
 expected_managed_services=(
   app cloudflared exam-finalization-worker file-erasure-worker mail-worker postgres
-  practice-runner-recovery-worker project-review-correction-worker regrade-worker reward-worker runner-egress-gateway
+  practice-runner-recovery-worker project-review-correction-worker regrade-worker reward-worker
 )
 [[ "${managed_services[*]}" == "${expected_managed_services[*]}" ]] || fail "managed inventory order or coverage is invalid"
 while IFS=$'\t' read -r service container image identity extra; do
@@ -1949,7 +1946,7 @@ negative_line="$(line_number $'\t--exit-code-from\tdatabase-negative-probes\tdat
 migrate_line="$(line_number $'\t--exit-code-from\tmigrate\tmigrate' "$trace")"
 seed_line="$(line_number $'\t--exit-code-from\tplatform-seed\tplatform-seed' "$trace")"
 boundary_line="$(line_number $'\t--exit-code-from\tdatabase-boundary-verifier\tdatabase-boundary-verifier' "$trace")"
-pilot_line="$(line_number $'\tup\t-d\t--no-build\t--pull\tnever\t--remove-orphans\tpostgres\tapp\trunner-egress-gateway\tmail-worker' "$trace")"
+pilot_line="$(line_number $'\tup\t-d\t--no-build\t--pull\tnever\t--remove-orphans\tpostgres\tapp\tmail-worker' "$trace")"
 internal_smoke_line="$(line_number $'smoke\t--phase internal' "$trace")"
 tunnel_start_line="$(line_number $'\tup\t-d\t--no-deps\t--no-build\t--pull\tnever\tcloudflared' "$trace")"
 [[ -n "$pre_validator_line" && -n "$postgres_prep_line" && -n "$object_prep_line" \
@@ -1986,7 +1983,7 @@ tunnel_start_line="$(line_number $'\tup\t-d\t--no-deps\t--no-build\t--pull\tneve
 }
 if grep -Fq $'\tadmin-bootstrap' "$log"; then fail "bootstrap ran without the explicit flag"; fi
 if grep -Fq $'\tlifecycle' "$log"; then fail "scheduled lifecycle ran during release"; fi
-pilot_command="$(grep -m1 -F -- $'\tup\t-d\t--no-build\t--pull\tnever\t--remove-orphans\tpostgres\tapp\trunner-egress-gateway\tmail-worker' "$log")"
+pilot_command="$(grep -m1 -F -- $'\tup\t-d\t--no-build\t--pull\tnever\t--remove-orphans\tpostgres\tapp\tmail-worker' "$log")"
 [[ "$pilot_command" != *$'\tcloudflared'* ]] || fail "candidate tunnel started before internal smoke"
 if grep -Fq $'pull\tregistry.example.test' "$log"; then
   fail "default release silently pulled images"
@@ -2468,59 +2465,67 @@ grep -Fxq 'schema_rollback=previous_runtime_restored' "$record/status.env" || {
 }
 echo "ok - prior runtime restore requires explicit schema compatibility and remains fail closed"
 
-legacy_records="$work/legacy-gateway-records"
-legacy_previous_id="20260718T000000Z-1"
-legacy_previous_commit="1111111111111111111111111111111111111111"
-legacy_previous_tree="2222222222222222222222222222222222222222"
-legacy_previous_record="$legacy_records/$legacy_previous_id"
-mkdir -p "$legacy_previous_record"
-printf '%s\n' 'result=completed' >"$legacy_previous_record/status.env"
-printf '%s\n' "$legacy_previous_commit" >"$legacy_previous_record/git-commit.txt"
-printf '%s\n' "$legacy_previous_tree" >"$legacy_previous_record/git-tree.txt"
-chmod 0600 "$legacy_previous_record/status.env" \
-  "$legacy_previous_record/git-commit.txt" "$legacy_previous_record/git-tree.txt"
-{
-  for service in app mail-worker reward-worker regrade-worker exam-finalization-worker \
-    file-erasure-worker practice-runner-recovery-worker project-review-correction-worker cloudflared; do
-    printf '%s\tregistry.example.test/codestead/previous-%s@sha256:%064d\tsha256:%064d\n' \
-      "$service" "$service" 7 8
-  done
-} >"$legacy_previous_record/deployed-service-images.tsv"
-printf '%s\n' "release_id=$legacy_previous_id" "git_commit=$legacy_previous_commit" \
-  >"$legacy_records/current-release.env"
-chmod 0600 "$legacy_records/current-release.env"
+# The first release after the legacy runner removal follows a release that also
+# recorded its VM gateway. Exactly that one retired extra is accepted and never
+# restored; any other extra or a duplicate still fails closed.
+write_post_gateway_records() {
+  local root="$1" extra="${2:-}"
+  local previous_id="20260718T000000Z-1"
+  local previous_commit="1111111111111111111111111111111111111111"
+  local previous_record="$root/$previous_id"
+  mkdir -p "$previous_record"
+  printf '%s\n' 'result=completed' >"$previous_record/status.env"
+  printf '%s\n' "$previous_commit" >"$previous_record/git-commit.txt"
+  printf '%s\n' "2222222222222222222222222222222222222222" >"$previous_record/git-tree.txt"
+  chmod 0600 "$previous_record/status.env" \
+    "$previous_record/git-commit.txt" "$previous_record/git-tree.txt"
+  {
+    for service in app mail-worker reward-worker regrade-worker exam-finalization-worker \
+      file-erasure-worker practice-runner-recovery-worker project-review-correction-worker cloudflared \
+      runner-egress-gateway $extra; do
+      printf '%s\tregistry.example.test/codestead/previous-%s@sha256:%064d\tsha256:%064d\n' \
+        "$service" "$service" 7 8
+    done
+  } >"$previous_record/deployed-service-images.tsv"
+  printf '%s\n' "release_id=$previous_id" "git_commit=$previous_commit" >"$root/current-release.env"
+  chmod 0600 "$root/current-release.env"
+}
 
-RUN_RECORD_ROOT="$legacy_records" run_release legacy-gateway-transition
+legacy_records="$work/legacy-post-gateway-records"
+write_post_gateway_records "$legacy_records"
+RUN_RECORD_ROOT="$legacy_records" run_release legacy-post-gateway
 unset RUN_RECORD_ROOT
 [[ "$RELEASE_STATUS" == 0 ]] || {
   cat "$RELEASE_CASE_DIR/stderr" >&2
-  fail "first gateway release rejected an exact pre-gateway release inventory"
+  fail "first post-removal release rejected a previous release that recorded only the retired gateway extra"
 }
 legacy_candidate_id="$(sed -n 's/^release_id=//p' "$legacy_records/current-release.env")"
 legacy_candidate_record="$legacy_records/$legacy_candidate_id"
-legacy_candidate_commit="$(git -C "$work/repo" rev-parse --verify HEAD)"
-[[ "$(wc -l <"$legacy_candidate_record/previous-running-images.tsv")" == 9 ]] || {
-  fail "legacy transition rewrote the captured pre-gateway inventory"
+[[ ! -e "$legacy_candidate_record/previous-runtime-transition.env" ]] || {
+  fail "post-removal release wrote retired gateway transition evidence"
 }
-! grep -q '^runner-egress-gateway' "$legacy_candidate_record/previous-running-images.tsv" || {
-  fail "legacy transition invented a previously running gateway container"
+! grep -Fq 'runner-egress-gateway' "$legacy_candidate_record/previous-runtime.override.yaml" || {
+  fail "post-removal restore override would restore the retired gateway"
 }
-expected_transition="$(printf '%s\n' \
-  'SCHEMA_VERSION=1' 'MODE=legacy_pre_gateway' \
-  "PREVIOUS_RELEASE_ID=$legacy_previous_id" "SOURCE_RELEASE_ID=$legacy_candidate_id" \
-  "SOURCE_GIT_COMMIT=$legacy_candidate_commit" 'RETAINED_SERVICE=runner-egress-gateway' \
-  "RETAINED_IMAGE=registry.example.test/codestead/image1@sha256:$(printf '%064d' 1)" \
-  "RETAINED_IDENTITY=sha256:$(printf '%064d' 9)")"
-[[ "$(cat "$legacy_candidate_record/previous-runtime-transition.env")" == "$expected_transition" ]] || {
-  fail "legacy transition evidence is missing, malformed, or not bound to the candidate gateway"
+! grep -q '^runner-egress-gateway' "$legacy_candidate_record/deployed-service-images.tsv" || {
+  fail "post-removal release recorded the retired gateway as deployed"
 }
-grep -Fq '  runner-egress-gateway:' "$legacy_candidate_record/previous-runtime.override.yaml" || {
-  fail "legacy transition override omitted the retained gateway"
+grep -Fq 'legacy_post_gateway' "$legacy_candidate_record/stages.tsv" || {
+  fail "retired gateway extra was not explicit in release stage evidence"
 }
-grep -Fq 'legacy_gateway_transition' "$legacy_candidate_record/stages.tsv" || {
-  fail "legacy gateway transition was not explicit in release stage evidence"
-}
-echo "ok - first gateway release retains a reviewed candidate gateway for exact pre-gateway restore"
+echo "ok - first post-removal release ignores exactly the retired gateway in the previous release"
+
+for invalid in "stale-worker" "runner-egress-gateway"; do
+  invalid_records="$work/legacy-post-gateway-invalid-$invalid"
+  write_post_gateway_records "$invalid_records" "$invalid"
+  RUN_RECORD_ROOT="$invalid_records" run_release "legacy-post-gateway-$invalid"
+  unset RUN_RECORD_ROOT
+  [[ "$RELEASE_STATUS" != 0 ]] || fail "release accepted a previous release with the retired gateway plus $invalid"
+  grep -Fq 'previous deployed image evidence' "$RELEASE_CASE_DIR/stderr" || {
+    fail "retired gateway plus $invalid was not rejected by the previous-release evidence check"
+  }
+done
+echo "ok - the retired gateway extra stays exact: another extra or a duplicate still fails closed"
 for failure_case in \
   pre-privileged-failure \
   prepare-postgres-failure \

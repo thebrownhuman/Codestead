@@ -28,12 +28,12 @@ describe("production dependency traversal", () => {
       "src/app/types.d.ts": "", "src/instrumentation.ts": "", "src/instrumentation-client.ts": "",
       "src/proxy.ts": "", "services/runner/src/index.ts": "",
       "Dockerfile": "# COPY scripts/ignored.ts ./\nCOPY scripts/ops.ts ./\nCOPY src/task.mjs ./",
-      "compose.yaml": 'command: ["node", "/app/infra/runner-gateway/entry.mjs"]',
+      "compose.yaml": 'command: ["node", "/app/scripts/entry.mjs"]',
     });
     expect(await productionEntries(root, { scripts: {
       "worker:task": "tsx scripts/task.ts", build: "tsx scripts/build.ts", "worker:test": "tsx scripts/task.test.ts",
     } })).toEqual([
-      "infra/runner-gateway/entry.mjs", "scripts/ops.ts", "scripts/task.ts", "services/runner/src/index.ts",
+      "scripts/entry.mjs", "scripts/ops.ts", "scripts/task.ts", "services/runner/src/index.ts",
       "src/app/nested/page.tsx", "src/instrumentation-client.ts", "src/instrumentation.ts", "src/proxy.ts", "src/task.mjs",
     ]);
   });

@@ -139,7 +139,6 @@ readonly application_image_vars=(
 # (see memory/homelab-nuc.md "REDEPLOY STEPS"). postgres and the system
 # cloudflared unit are intentionally never touched here.
 app_services=(
-  runner-egress-gateway
   app
   mail-worker
   reward-worker

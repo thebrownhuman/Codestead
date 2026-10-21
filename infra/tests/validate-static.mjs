@@ -689,15 +689,11 @@ expect(
   "PostgreSQL must explicitly enable fsync, synchronous_commit, and full_page_writes",
 );
 expect(/internal: true/.test(compose), "database network must be internal");
-expect(
-  /runner-client:\s*\r?\n\s*driver: bridge\s*\r?\n\s*internal: true\s*\r?\n\s*ipam:\s*\r?\n\s*config:\s*\r?\n\s*- subnet: 172\.29\.41\.0\/24\s*\r?\n\s*gateway: 172\.29\.41\.1\s*\r?\n\s*ip_range: 172\.29\.41\.128\/25/.test(
-    compose,
-  ) &&
-    /runner-egress:\s*\r?\n\s*driver: bridge[\s\S]*?subnet: 172\.29\.40\.0\/24\s*\r?\n\s*gateway: 172\.29\.40\.1\s*\r?\n\s*ip_range: 172\.29\.40\.128\/25/.test(
-      compose,
-    ),
-  "runner network dynamic pools must reserve each static .2 gateway address",
-);
+// The legacy native runner, its VM gateway, networks and shared secret are retired.
+for (const retired of ["runner-egress-gateway", "runner-client", "runner-egress", "runner_shared_secret"]) {
+  expect(!new RegExp(`^  ${retired}:`, "m").test(compose), `retired legacy runner ${retired} must not be declared in Compose`);
+}
+expect(!/RUNNER_(?:BASE_URL|SHARED_SECRET_FILE|GATEWAY_UPSTREAM|MAX_CONCURRENCY):/.test(compose), "Compose must not configure the retired legacy runner");
 expect(/condition: service_healthy/.test(compose), "migration must wait for PostgreSQL health");
 const migrateService = composeService("migrate");
 expect(/profiles:\s*\["operations"\]/.test(migrateService), "migrate must be isolated behind the operations profile");
@@ -751,10 +747,10 @@ expect(
   "file-erasure worker must be profile-independent, scanner-independent, and limited to the dedicated writable object root",
 );
 expect(/^  regrade-worker:/m.test(compose), "dedicated assessment regrade worker service is required");
-expect(/regrade-worker:[\s\S]*?target: regrade-worker[\s\S]*?RUNNER_SHARED_SECRET_FILE: \/run\/secrets\/runner_shared_secret[\s\S]*?REGRADE_BATCH_SIZE: \$\{REGRADE_BATCH_SIZE:-2\}/.test(compose), "regrade worker must use the dedicated target, runner secret, and two-job batch cap");
-expect(/regrade-worker:[\s\S]*?networks:[\s\S]*?data:[\s\S]*?runner-client:/.test(compose), "regrade worker must have only database and runner-client network paths");
+expect(/regrade-worker:[\s\S]*?target: regrade-worker[\s\S]*?PISTON_URL: http:\/\/piston:2000[\s\S]*?REGRADE_BATCH_SIZE: \$\{REGRADE_BATCH_SIZE:-2\}/.test(compose), "regrade worker must use the dedicated target, Piston, and two-job batch cap");
+expect(/regrade-worker:[\s\S]*?networks:[\s\S]*?data:[\s\S]*?piston:/.test(compose), "regrade worker must have only database and piston network paths");
 expect(/^  practice-runner-recovery-worker:/m.test(compose), "dedicated stale practice runner recovery is required");
-expect(/practice-runner-recovery-worker:[\s\S]*?process-practice-runner-recoveries\.ts[\s\S]*?RUNNER_SHARED_SECRET_FILE: \/run\/secrets\/runner_shared_secret[\s\S]*?PRACTICE_RECOVERY_BATCH_SIZE: \$\{PRACTICE_RECOVERY_BATCH_SIZE:-2\}/.test(compose), "practice recovery must use the exact-request worker, runner secret, and bounded batch");
+expect(/practice-runner-recovery-worker:[\s\S]*?process-practice-runner-recoveries\.ts[\s\S]*?PISTON_URL: http:\/\/piston:2000[\s\S]*?PRACTICE_RECOVERY_BATCH_SIZE: \$\{PRACTICE_RECOVERY_BATCH_SIZE:-2\}/.test(compose), "practice recovery must use the exact-request worker, Piston, and bounded batch");
 expect(/scanner:\s*\n\s*driver: bridge\s*\n\s*internal: true/.test(compose), "scanner transport network must be internal");
 expect(/clamav-signatures:\s*$/m.test(compose), "ClamAV signatures need a persistent cache volume");
 expect((compose.match(/read_only: true/g) ?? []).length >= 1, "hardened services must use read-only roots");
@@ -1535,13 +1531,10 @@ expect(/SOURCE_CODE_URL must be an HTTPS URL/.test(runtimeValidation), "runtime 
 expect(
   /--post-start/.test(runtimeValidation) &&
     /\btimeout\b/.test(runtimeValidation) &&
-    /runner client URL must be exactly http:\/\/runner-egress-gateway:4100/.test(runtimeValidation) &&
-    /runner gateway upstream must be exactly http:\/\/192\.168\.122\.12:4100/.test(runtimeValidation) &&
-    /172\.29\.41\.0\/24/.test(runtimeValidation) &&
-    /172\.29\.40\.0\/24/.test(runtimeValidation) &&
-    /172\.29\.40\.2/.test(runtimeValidation) &&
-    /cdst-run0/.test(runtimeValidation),
-  "runtime validation must expose only the post-start selector and require the exact gateway URLs, networks, and source",
+    /retired legacy runner configuration must not be rendered/.test(runtimeValidation) &&
+    /retired legacy runner networks must not be attached/.test(runtimeValidation) &&
+    /retired legacy runner networks must not be rendered/.test(runtimeValidation),
+  "runtime validation must expose only the post-start selector and reject every retired legacy runner remnant",
 );
 
 if (runnerNetworkXml) {
@@ -2007,9 +2000,9 @@ for (const required of [
 
 expect(/compose\.yaml ps --all/.test(monitoringRunbook), "monitoring must include one-shot services in Compose status checks");
 expect(
-  /exactly eleven long-running services[^\n]*must be `running`/i.test(monitoringRunbook) &&
+  /exactly ten long-running services[^\n]*must be `running`/i.test(monitoringRunbook) &&
     /file-erasure-worker/i.test(monitoringRunbook),
-  "monitoring must describe all eleven running pilot services including durable erasure",
+  "monitoring must describe all ten running pilot services including durable erasure",
 );
 expect(
   /`clamav` and `scan-worker` must not appear[^\n]*pilot/i.test(monitoringRunbook),
@@ -2219,17 +2212,11 @@ expect(
   "runner rollout instructions must not retain the superseded custom-network topology",
 );
 expect(
-  /internal runner-client.*secretless `runner-egress-gateway`.*`runner-egress`.*runner VM/s.test(
-    deploymentGuide,
-  ) &&
-    /deployment-level `RUNNER_BASE_URL`.*private runner VM upstream/s.test(deploymentGuide) &&
-    /effective container `RUNNER_BASE_URL`.*`http:\/\/runner-egress-gateway:4100`/s.test(
-      deploymentGuide,
-    ) &&
-    /eleven managed Compose container\/image identities/.test(deploymentGuide) &&
-    !/workers also join `runner-egress`/.test(deploymentGuide) &&
-    !/app's `RUNNER_BASE_URL` must be a private RFC 1918 address/.test(deploymentGuide),
-  "deployment guide must document the secretless runner gateway, distinguish deployment and container URLs, and count all eleven managed services",
+  /legacy native runner, its `runner-egress-gateway`, and the `runner-client`\/`runner-egress` networks are retired/.test(deploymentGuide) &&
+    /`legacy-runner-final` tag/.test(deploymentGuide) &&
+    /ten managed Compose container\/image identities/.test(deploymentGuide) &&
+    !/effective container `RUNNER_BASE_URL`/.test(deploymentGuide),
+  "deployment guide must document the legacy runner retirement, the rollback tag, and count all ten managed services",
 );
 expect(
   /effective container `RUNNER_BASE_URL`.*`http:\/\/runner-egress-gateway:4100`/s.test(

@@ -968,7 +968,6 @@ readonly -a required_image_services=(
   app cloudflared exam-finalization-worker file-erasure-worker mail-worker
   migrate postgres practice-runner-recovery-worker
   project-review-correction-worker regrade-worker reward-worker
-  runner-egress-gateway
 )
 
 write_full_manifest() {
@@ -1609,7 +1608,7 @@ service_for_container_id() {
   local candidate="$1" service expected
   for service in app cloudflared exam-finalization-worker mail-worker migrate \
     practice-runner-recovery-worker project-review-correction-worker \
-    regrade-worker reward-worker runner-egress-gateway file-erasure-worker \
+    regrade-worker reward-worker file-erasure-worker \
     clamav scan-worker lifecycle platform-seed admin-bootstrap unknown-stopped-service; do
     expected="$(container_id_for_service "$service")"
     if [[ "$expected" == "$candidate"* || "$candidate" == "$expected"* ]]; then
@@ -2335,7 +2334,7 @@ case "$command" in
       fi
       for service in app cloudflared exam-finalization-worker mail-worker migrate postgres \
         practice-runner-recovery-worker project-review-correction-worker regrade-worker reward-worker \
-        runner-egress-gateway file-erasure-worker; do
+        file-erasure-worker; do
         if [[ "$service" == postgres ]]; then
           postgres_state=healthy
           [[ -z "${TEST_POSTGRES_STATE_FILE:-}" \
