@@ -6,8 +6,8 @@
     "hiddenTestCount": 240,
     "examEligibleItemCount": 0,
     "imageDigests": {
-      "c": "sha256:d7c380a5503525ee45c36dc7fc8d68552ab0de218ff7cdc0fb974f4b718f67ad",
-      "cpp": "sha256:a2e77836bf601f9940e267957521b78c0997d0eef21c12c49c888eb665dbe7dc",
+      "c": "sha256:9504396a512d645832b46bc0dce121300035649da837ad6150f3143cf2304c11",
+      "cpp": "sha256:29330bf1dfe1a154b46dd6a4e4ebb2d0690515e55cd1e2755d5ec845b92ff47a",
       "java": "sha256:785eb431d768b45f67056a8948c62c1cf4dc18498fb8513d48d5fc5bd1d00b83",
       "python": "sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb"
     }
@@ -22,7 +22,7 @@
   "imageEvidence": {
     "c": {
       "tag": "learncoding/runtime-c:local",
-      "manifestDigest": "sha256:d7c380a5503525ee45c36dc7fc8d68552ab0de218ff7cdc0fb974f4b718f67ad",
+      "manifestDigest": "sha256:9504396a512d645832b46bc0dce121300035649da837ad6150f3143cf2304c11",
       "configDigest": null,
       "immutableReference": null,
       "tagDescriptorDigest": null,
@@ -33,7 +33,7 @@
     },
     "cpp": {
       "tag": "learncoding/runtime-cpp:local",
-      "manifestDigest": "sha256:a2e77836bf601f9940e267957521b78c0997d0eef21c12c49c888eb665dbe7dc",
+      "manifestDigest": "sha256:29330bf1dfe1a154b46dd6a4e4ebb2d0690515e55cd1e2755d5ec845b92ff47a",
       "configDigest": null,
       "immutableReference": null,
       "tagDescriptorDigest": null,

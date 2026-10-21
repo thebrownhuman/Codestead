@@ -170,7 +170,7 @@
         "engine": "isolated-runner",
         "language": "cpp",
         "version": "C++20 / G++ 14.2.0",
-        "imageDigest": "sha256:a2e77836bf601f9940e267957521b78c0997d0eef21c12c49c888eb665dbe7dc",
+        "imageDigest": "sha256:29330bf1dfe1a154b46dd6a4e4ebb2d0690515e55cd1e2755d5ec845b92ff47a",
         "entrypoint": "main.cpp",
         "timeLimitMs": 2000,
         "memoryLimitMb": 128

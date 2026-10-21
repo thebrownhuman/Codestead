@@ -4,14 +4,14 @@
     {
       "language": "c",
       "tag": "learncoding/runtime-c:local",
-      "digest": "sha256:d7c380a5503525ee45c36dc7fc8d68552ab0de218ff7cdc0fb974f4b718f67ad",
-      "reference": "learncoding/runtime-c@sha256:d7c380a5503525ee45c36dc7fc8d68552ab0de218ff7cdc0fb974f4b718f67ad"
+      "digest": "sha256:9504396a512d645832b46bc0dce121300035649da837ad6150f3143cf2304c11",
+      "reference": "learncoding/runtime-c@sha256:9504396a512d645832b46bc0dce121300035649da837ad6150f3143cf2304c11"
     },
     {
       "language": "cpp",
       "tag": "learncoding/runtime-cpp:local",
-      "digest": "sha256:a2e77836bf601f9940e267957521b78c0997d0eef21c12c49c888eb665dbe7dc",
-      "reference": "learncoding/runtime-cpp@sha256:a2e77836bf601f9940e267957521b78c0997d0eef21c12c49c888eb665dbe7dc"
+      "digest": "sha256:29330bf1dfe1a154b46dd6a4e4ebb2d0690515e55cd1e2755d5ec845b92ff47a",
+      "reference": "learncoding/runtime-cpp@sha256:29330bf1dfe1a154b46dd6a4e4ebb2d0690515e55cd1e2755d5ec845b92ff47a"
     },
     {
       "language": "java",
