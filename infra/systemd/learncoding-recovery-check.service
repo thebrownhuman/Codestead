@@ -1,6 +1,6 @@
 [Unit]
 Description=Codestead bounded post-boot recovery verification
-Documentation=/opt/learncoding/docs/runbooks/power-loss-recovery.md
+Documentation=file:/opt/learncoding/docs/runbooks/power-loss-recovery.md
 After=learncoding-compose.service
 Wants=learncoding-compose.service
 OnFailure=learncoding-alert@%n.service
