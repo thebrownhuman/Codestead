@@ -46,6 +46,21 @@ The scanner emits only event names, aggregate outcome counts, duration, and stab
 
 On the runner VM, query only its unit and Docker daemon logs. The runner should log IDs, outcomes, timing, limits, and image digests—not full submitted source or shared-secret headers.
 
+## PostgreSQL down alert
+
+`learncoding-postgres-check.timer` runs `infra/ops/check-postgres.sh` every two minutes (first run five minutes after boot). The script runs `pg_isready` inside the `postgres` Compose container with a 20-second deadline. When PostgreSQL does not accept connections, or the container is missing or stopped, the unit fails, logs `postgres_down` to journald (tag `learncoding-postgres-check`), and its `OnFailure=` hook runs `learncoding-alert@learncoding-postgres-check.service.service`. That uses the normal alert path below: journald tag `learncoding-alert` plus `/etc/learncoding/alert-hook` (`critical service_failed ...`) when installed. It fires every two minutes while the database stays down. It reads no secrets and prints no database values.
+
+NUC install (after the release tree containing these files is at `/opt/learncoding`):
+
+```bash
+sudo install -o root -g root -m 0644 /opt/learncoding/infra/systemd/learncoding-postgres-check.service /opt/learncoding/infra/systemd/learncoding-postgres-check.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now learncoding-postgres-check.timer
+sudo systemctl start learncoding-postgres-check.service && systemctl status --no-pager learncoding-postgres-check.service
+```
+
+To test the alert without stopping production, run the alert hook test below. To disable: `sudo systemctl disable --now learncoding-postgres-check.timer`.
+
 ## Backup and capacity alerts
 
 `learncoding-backup-check.timer` runs every six hours. It alerts when:

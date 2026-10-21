@@ -320,6 +320,7 @@ jobs:
       - run: sudo env PYTHONDONTWRITEBYTECODE=1 bash infra/tests/power-evidence.test.sh
       - run: sudo env PYTHONDONTWRITEBYTECODE=1 bash infra/tests/power-recovery-check.test.sh
       - run: sudo bash infra/tests/systemd-recovery.test.sh
+      - run: bash infra/tests/postgres-check.test.sh
 
   infra-release:
     name: "infra: release & rollback"
