@@ -130,11 +130,13 @@ export function formatRelativeTime(value: string | null, now = Date.now()): stri
 
 export class AdminApiError extends Error {
   readonly status: number;
+  readonly check?: string;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, check?: string) {
     super(message);
     this.name = "AdminApiError";
     this.status = status;
+    this.check = check;
   }
 }
 
@@ -150,9 +152,10 @@ export async function requestAdminJson<T>(
       ...init?.headers,
     },
   }));
-  const body = (await response.json().catch(() => null)) as { error?: string } | null;
+  const body = (await response.json().catch(() => null)) as { error?: string; check?: string } | null;
   if (!response.ok) {
-    throw new AdminApiError(body?.error ?? "The administrator service did not respond.", response.status);
+    throw new AdminApiError(body?.error ?? "The administrator service did not respond.", response.status,
+      typeof body?.check === "string" ? body.check : undefined);
   }
   return body as T;
 }

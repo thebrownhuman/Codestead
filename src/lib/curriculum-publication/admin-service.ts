@@ -38,6 +38,8 @@ export class CurriculumAdminError extends Error {
       | "CONTENT_HASH_MISMATCH"
       | "RELEASE_CHECKS_FAILED",
     public readonly gate?: PublicationGateReport,
+    /** Which release check failed (for RELEASE_CHECKS_FAILED). */
+    public readonly check?: string,
   ) {
     super(code);
   }
@@ -580,7 +582,8 @@ export async function generateCurriculumReleaseEvidence(input: {
         snapshot: await new FileSystemContentLoader().loadSnapshot(), actorUserId, now, notRunReason: data.notRunReason });
     } catch (error) {
       if (error instanceof Error && error.message === "CONTENT_HASH_MISMATCH") throw new CurriculumAdminError("CONTENT_HASH_MISMATCH");
-      throw new CurriculumAdminError("RELEASE_CHECKS_FAILED");
+      throw new CurriculumAdminError("RELEASE_CHECKS_FAILED", undefined,
+        error instanceof Error && /^[A-Z_]+$/.test(error.message) ? error.message : "UNKNOWN");
     }
     await client.query("begin"); transactionStarted = true;
     await assertAdmin(client, actorUserId);
