@@ -1,3 +1,5 @@
+import { registerMailWorkerResources } from "@/lib/notifications/mail-worker-role";
+import { validatedDisposableMailWorkerDatabaseUrl } from "../scripts/lib/disposable-integration-environment";
 import { createHash } from "node:crypto";
 import pg from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -43,6 +45,7 @@ function requiredEnvironment(name: string): string {
 
 type DisposableDatabaseTopology = Readonly<{
   applicationUrl: string;
+  mailWorkerUrl: string;
   opsUrl: string;
   ownerTarget: Readonly<{
     databaseApplicationUrl: string;
@@ -123,6 +126,7 @@ function validateDisposableDatabaseTopology(): DisposableDatabaseTopology {
   }
   return Object.freeze({
     applicationUrl,
+    mailWorkerUrl: validatedDisposableMailWorkerDatabaseUrl(process.env),
     opsUrl,
     ownerTarget: Object.freeze({
       databaseApplicationUrl: applicationUrl,
@@ -226,6 +230,12 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
     max: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolMaximumConnections,
     connectionTimeoutMillis:
       MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolAcquireTimeoutMs,
+    idleTimeoutMillis: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolIdleTimeoutMs,
+  });
+  const mailWorker = new Pool({
+    connectionString: DISPOSABLE_DATABASES.mailWorkerUrl,
+    max: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolMaximumConnections,
+    connectionTimeoutMillis: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolAcquireTimeoutMs,
     idleTimeoutMillis: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolIdleTimeoutMs,
   });
   const application = new Pool({
@@ -352,11 +362,12 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
       effective_role: "learncoding_app",
       session_role: "learncoding_app",
     });
-    const inspection = await inspectMailDispatchRuntime(worker);
+    registerMailWorkerResources(mailWorker, {}, DISPOSABLE_DATABASES.mailWorkerUrl);
+    const inspection = await inspectMailDispatchRuntime(mailWorker);
     const applicationOrigin = captureMailDispatchApplicationOrigin(inspection);
     preparedApplicationUrl = mailDispatchApplicationUrl(applicationOrigin);
     outboxStore = new PostgresOutboxStore(
-      worker,
+      mailWorker,
       inspection,
       applicationOrigin,
     );
@@ -370,6 +381,7 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
     vi.unstubAllEnvs();
     await Promise.all([
       worker.end(),
+      mailWorker.end(),
       application.end(),
       ops.end(),
     ]);
@@ -499,28 +511,16 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
          )
        ORDER BY name, grantee, privilege_type, is_grantable
     `);
-    expect(columns.rows).toEqual([
-      {
-        name: "dispatch_binding_sha256",
-        type: "text",
-        not_null: false,
-        generated: "",
-        default_expression: null,
-        grantee: "learncoding_worker",
-        privilege_type: "UPDATE",
-        is_grantable: false,
-      },
-      {
-        name: "dispatch_binding_version",
-        type: "text",
-        not_null: false,
-        generated: "",
-        default_expression: null,
-        grantee: "learncoding_worker",
-        privilege_type: "UPDATE",
-        is_grantable: false,
-      },
-    ]);
+    expect(columns.rows).toEqual(
+      ["dispatch_binding_sha256", "dispatch_binding_version"].flatMap(name => [
+        ["learncoding_mail_worker", "SELECT"],
+        ["learncoding_mail_worker", "UPDATE"],
+        ["learncoding_worker", "UPDATE"],
+      ].map(([grantee, privilege_type]) => ({
+        name, type: "text", not_null: false, generated: "", default_expression: null,
+        grantee, privilege_type, is_grantable: false,
+      }))),
+    );
 
     const trigger = await application.query<{
       tgenabled: string;

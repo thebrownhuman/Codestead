@@ -43,6 +43,7 @@ import {
   waitForAdvisoryWaiters,
   waitForBlockedBackendBy,
   within,
+  workerPool,
   zeroErasureDependencies,
 } from "./fixtures/mail-delivery-races-harness";
 
@@ -53,7 +54,11 @@ describe("real PostgreSQL mail delivery races", () => {
   it("finalizes a definite rejection from the released sweeper successor without another provider call", async () => {
     const { claim, permit } = await expiredPermit();
 
-    await expect((await store()).quarantineAbandoned({ limit: 10 })).resolves.toBe(1);
+    await expect((await store()).quarantineAbandoned({ limit: 10 }).catch(error => {
+      console.error(JSON.stringify({ event: "mail.integration.sweep_failed",
+        total: workerPool.totalCount, idle: workerPool.idleCount, waiting: workerPool.waitingCount }));
+      throw error;
+    })).resolves.toBe(1);
     await expect((await store()).finishAfterProvider(permit, {
       kind: "failed",
       code: "PROVIDER_DEFINITELY_REJECTED",
@@ -357,11 +362,15 @@ describe("real PostgreSQL mail delivery races", () => {
         },
       }),
     );
-    await within(finalOutboxDelete.reached, "final outbox deletion", 10_000);
-
+    // Attach rejection handling before waiting at the barrier, and always
+    // release it on timeout so a failed race cannot poison the next reset.
+    const deletionOutcome = deletion.then(
+      value => ({ value }), reason => ({ reason }),
+    );
     let observed: unknown;
     let attemptError: unknown = null;
     try {
+      await within(finalOutboxDelete.reached, "final outbox deletion", 10_000);
       observed = await within(
         enqueueEmail({
           to: LEARNER_EMAIL,
@@ -378,8 +387,9 @@ describe("real PostgreSQL mail delivery races", () => {
     } finally {
       finalOutboxDelete.release();
     }
-    await deletion;
+    const completed = await deletionOutcome;
     if (attemptError) throw attemptError;
+    if ("reason" in completed) throw completed.reason;
     expect(observed).toMatchObject({
       name: "EmailOutboxPersistenceError",
       code: "EMAIL_OUTBOX_PERSISTENCE_FAILED",

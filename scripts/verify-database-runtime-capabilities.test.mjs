@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
-  CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES,
+  CURRENT_0074_DATABASE_RUNTIME_CAPABILITIES,
   DATABASE_RUNTIME_CAPABILITY_PHASES,
 } from "./database-runtime-capabilities.mjs";
 import {
@@ -20,15 +20,16 @@ import {
   REVIEWED_MIGRATION_LEDGER_SHA256,
 } from "./lib/reviewed-migration-ledger.mjs";
 
-const POLICY = CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES;
+const POLICY = CURRENT_0074_DATABASE_RUNTIME_CAPABILITIES;
 const CURRENT_POLICY_FINGERPRINT =
-  "8142c8223614fdb2129ad65d0490e262e57e62981cfaa0d76ffd671285965ad4";
+  "f0213482c2c6103b3010354ebbf6ba2bc53b0c176cd19f542660b79e4faddc3e";
 const BOOTSTRAP_USER = "legacy_bootstrap";
 const DATABASE = "learncoding";
 const AUTHENTICATED_ROLES = Object.freeze([
   "learncoding_app",
   "learncoding_migrator",
   "learncoding_worker",
+  "learncoding_mail_worker",
   "learncoding_ops",
   "learncoding_backup_reporter",
 ]);
@@ -274,6 +275,12 @@ function exactCredentialEvidence() {
   });
 }
 
+function exactFoundationCredentialEvidence() {
+  const value=clone(exactCredentialEvidence());
+  value.roles.find(row=>row.roleName === "learncoding_mail_worker").credential="none";
+  return value;
+}
+
 function makeCredentialClient(
   rows = credentialRows(),
   context = {
@@ -324,6 +331,8 @@ function makeCredentialClient(
 
 function makeFoundationFixture({ includeDrizzle = true } = {}) {
   const base = makeFixture();
+  const pendingMail = base.roleRows.find(row => row.role_name === "learncoding_mail_worker");
+  pendingMail.can_login = false;
   const schemas = includeDrizzle ? ["drizzle", "public"] : ["public"];
   const owner = "learncoding_owner";
   const loginRoles = POLICY.roles
@@ -557,7 +566,7 @@ function ledgerIdentity(appliedCount) {
 
 function currentResolution() {
   return {
-    phase: DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073,
+    phase: DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0074,
     policy: POLICY,
     reconcileApplicationAcls: true,
     ledgerIdentity: ledgerIdentity(REVIEWED_MIGRATION_LEDGER.length),
@@ -584,13 +593,13 @@ const verificationInput = Object.freeze({
 test("resolves only exact current or foundation reviewed phases", async () => {
   assert.doesNotThrow(() =>
     assertVerifierDatabaseRuntimeCapabilityPhaseRequest(
-      DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073,
+      DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0074,
     ),
   );
   for (const phase of [
     "unknown",
-    DATABASE_RUNTIME_CAPABILITY_PHASES.EXPAND_PREPARE_0073,
-    DATABASE_RUNTIME_CAPABILITY_PHASES.CONTRACTED_0074,
+    DATABASE_RUNTIME_CAPABILITY_PHASES.EXPAND_PREPARE_0074,
+    DATABASE_RUNTIME_CAPABILITY_PHASES.CONTRACTED_0075,
   ]) {
     assert.throws(
       () => assertVerifierDatabaseRuntimeCapabilityPhaseRequest(phase),
@@ -841,14 +850,14 @@ test("independently normalizes and accepts the exact current catalog", async () 
     },
   );
   assert.equal(catalog.inventory.tables.length, 128);
-  assert.equal(catalog.grants.length, 3_213);
+  assert.equal(catalog.grants.length, 3_431);
   assert.equal(catalog.defaultAclRows.length, 7);
   assert.equal(catalog.defaultAcls.length, 28);
   const result = await verifyDatabaseRuntimeCapabilityCatalog(
     makeClient(),
     verificationInput,
   );
-  assert.equal(result.phase, DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073);
+  assert.equal(result.phase, DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0074);
   assert.equal(result.policyFingerprint, CURRENT_POLICY_FINGERPRINT);
 });
 
@@ -861,8 +870,8 @@ test("independently verifies the exact foundation envelope with optional drizzle
     const result = await verifyDatabaseRuntimeCapabilityCatalog(client, {
       postgresDatabase: DATABASE,
       bootstrapUser: BOOTSTRAP_USER,
-      authenticatedRoles: AUTHENTICATED_ROLES,
-      credentialEvidence: exactCredentialEvidence(),
+      authenticatedRoles: AUTHENTICATED_ROLES.filter(role => role !== "learncoding_mail_worker"),
+      credentialEvidence: exactFoundationCredentialEvidence(),
       resolution: foundationResolution(),
     });
     assert.deepEqual(result, {
@@ -896,8 +905,8 @@ test("independently verifies the exact foundation envelope with optional drizzle
       {
         postgresDatabase: DATABASE,
         bootstrapUser: BOOTSTRAP_USER,
-        authenticatedRoles: AUTHENTICATED_ROLES,
-        credentialEvidence: exactCredentialEvidence(),
+        authenticatedRoles: AUTHENTICATED_ROLES.filter(role => role !== "learncoding_mail_worker"),
+        credentialEvidence: exactFoundationCredentialEvidence(),
         resolution: foundationResolution(1),
       },
     ),
@@ -1060,8 +1069,8 @@ test("foundation verification rejects topology, authority, and default ACL drift
       verifyDatabaseRuntimeCapabilityCatalog(client, {
         postgresDatabase: DATABASE,
         bootstrapUser: BOOTSTRAP_USER,
-        authenticatedRoles: AUTHENTICATED_ROLES,
-        credentialEvidence: exactCredentialEvidence(),
+        authenticatedRoles: AUTHENTICATED_ROLES.filter(role => role !== "learncoding_mail_worker"),
+        credentialEvidence: exactFoundationCredentialEvidence(),
         resolution: foundationResolution(),
       }),
       VerifierDatabaseRuntimeCapabilityError,
@@ -1547,7 +1556,7 @@ test("catalog observers are independent and use PostgreSQL's exact sequence ACL 
     assert.match(source, /from "\.\/database-runtime-capabilities[.]mjs";/u);
     assert.match(
       source,
-      /import\s*\{[\s\S]*?\bCURRENT_0073_DATABASE_RUNTIME_CAPABILITIES\b[\s\S]*?\}\s*from "\.\/database-runtime-capabilities[.]mjs";/u,
+      /import\s*\{[\s\S]*?\bCURRENT_0074_DATABASE_RUNTIME_CAPABILITIES\b[\s\S]*?\}\s*from "\.\/database-runtime-capabilities[.]mjs";/u,
     );
   }
   assert.doesNotMatch(

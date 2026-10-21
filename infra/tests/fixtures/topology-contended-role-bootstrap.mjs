@@ -25,6 +25,7 @@ try {
     databaseAppUrl: process.env.DATABASE_APP_URL ?? "",
     databaseMigratorUrl: process.env.DATABASE_MIGRATOR_URL ?? "",
     databaseWorkerUrl: process.env.DATABASE_WORKER_URL ?? "",
+    databaseMailWorkerUrl: process.env.DATABASE_MAIL_WORKER_URL ?? "",
     databaseOpsUrl: process.env.DATABASE_OPS_URL ?? "",
     databaseBackupReporterUrl: process.env.DATABASE_BACKUP_REPORTER_URL ?? "",
     bootstrapMode: "strict",

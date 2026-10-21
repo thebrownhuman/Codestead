@@ -11,6 +11,8 @@ const roleUrls = {
     "postgresql://learncoding_migrator:migrator-password-0002@127.0.0.1:49152/learncoding_integration",
   worker:
     "postgresql://learncoding_worker:worker-password-0003@127.0.0.1:49152/learncoding_integration",
+  mailWorker:
+    "postgresql://learncoding_mail_worker:mail-worker-password-0006@127.0.0.1:49152/learncoding_integration",
   ops: "postgresql://learncoding_ops:ops-password-0004@127.0.0.1:49152/learncoding_integration",
   backupReporter:
     "postgresql://learncoding_backup_reporter:backup-password-0005@127.0.0.1:49152/learncoding_integration",
@@ -69,6 +71,7 @@ describe("disposable role-boundary adapter", () => {
       "databaseAppUrl",
       "databaseBackupReporterUrl",
       "databaseBootstrapUrl",
+      "databaseMailWorkerUrl",
       "databaseMigratorUrl",
       "databaseOpsUrl",
       "databaseWorkerUrl",

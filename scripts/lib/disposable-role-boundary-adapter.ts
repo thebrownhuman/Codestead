@@ -3,6 +3,7 @@ export type DisposableRoleUrls = Readonly<{
   app: string;
   migrator: string;
   worker: string;
+  mailWorker: string;
   ops: string;
   backupReporter: string;
 }>;
@@ -29,6 +30,7 @@ type RoleBoundaryVerifierOptions<Pool> = Readonly<{
   databaseAppUrl: string;
   databaseMigratorUrl: string;
   databaseWorkerUrl: string;
+  databaseMailWorkerUrl: string;
   databaseOpsUrl: string;
   databaseBackupReporterUrl: string;
   requireApplicationObjects: boolean;
@@ -40,6 +42,7 @@ const ROLE_URL_KEY_BY_DATABASE_ROLE = Object.freeze({
   learncoding_app: "app",
   learncoding_migrator: "migrator",
   learncoding_worker: "worker",
+  learncoding_mail_worker: "mailWorker",
   learncoding_ops: "ops",
   learncoding_backup_reporter: "backupReporter",
 } as const);
@@ -70,6 +73,7 @@ export async function verifyDisposableIntegrationRoleBoundaries<Pool>(
     databaseAppUrl: canonicalDatabaseRoleUrl(input.roleUrls.app),
     databaseMigratorUrl: canonicalDatabaseRoleUrl(input.roleUrls.migrator),
     databaseWorkerUrl: canonicalDatabaseRoleUrl(input.roleUrls.worker),
+    databaseMailWorkerUrl: canonicalDatabaseRoleUrl(input.roleUrls.mailWorker),
     databaseOpsUrl: canonicalDatabaseRoleUrl(input.roleUrls.ops),
     databaseBackupReporterUrl: canonicalDatabaseRoleUrl(
       input.roleUrls.backupReporter,

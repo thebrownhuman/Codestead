@@ -422,6 +422,7 @@ readonly -a required_secrets=(
   database_bootstrap_url
   database_migrator_url
   database_worker_url
+  database_mail_worker_url
   database_ops_url
   database_backup_reporter_url
   better_auth_secret
@@ -471,7 +472,8 @@ database_secret_result="$(
     "$secrets_dir/database_migrator_url" \
     "$secrets_dir/database_worker_url" \
     "$secrets_dir/database_ops_url" \
-    "$secrets_dir/database_backup_reporter_url"
+    "$secrets_dir/database_backup_reporter_url" \
+    "$secrets_dir/database_mail_worker_url"
 )" || fatal "database secret topology validation failed"
 [[ "$database_secret_result" == "database secret topology valid" ]] \
   || fatal "database secret validator returned a non-canonical result"

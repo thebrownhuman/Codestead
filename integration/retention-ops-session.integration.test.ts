@@ -1,8 +1,9 @@
+import { registerMailWorkerResources } from "@/lib/notifications/mail-worker-role";
 import { createHash } from "node:crypto";
 
 import { describe, expect, it } from "vitest";
 
-import { runWithValidatedRetentionOpsEnvironment } from
+import { runWithValidatedRetentionOpsEnvironment, validatedDisposableMailWorkerDatabaseUrl } from
   "../scripts/lib/disposable-integration-environment";
 import {
   captureMailDispatchApplicationOrigin,
@@ -156,7 +157,6 @@ describe("retention ops-session integration", () => {
       async ({
         databaseAppUrl,
         databaseOwnerTarget,
-        databaseWorkerUrl,
         databaseOpsUrl,
       }) => {
         const [{ Pool: PgPool }, retention] = await Promise.all([
@@ -170,7 +170,7 @@ describe("retention ops-session integration", () => {
         });
         const workerPool = new PgPool({
           application_name: "codestead_integration_retention_abort_worker",
-          connectionString: databaseWorkerUrl,
+          connectionString: validatedDisposableMailWorkerDatabaseUrl(process.env),
           max: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolMaximumConnections,
           connectionTimeoutMillis:
             MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolAcquireTimeoutMs,
@@ -306,6 +306,7 @@ describe("retention ops-session integration", () => {
             appClient.release();
           }
 
+          registerMailWorkerResources(workerPool, {}, validatedDisposableMailWorkerDatabaseUrl(process.env));
           const inspection = await inspectMailDispatchRuntime(workerPool);
           const applicationOrigin = captureMailDispatchApplicationOrigin(
             inspection,

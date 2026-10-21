@@ -1,6 +1,6 @@
 import {
   BOOTSTRAP_SESSION_AUTHORITY,
-  CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES,
+  CURRENT_0074_DATABASE_RUNTIME_CAPABILITIES,
   DATABASE_RUNTIME_CAPABILITY_PHASES,
   DatabaseRuntimeCapabilityPhaseError,
   canonicalDatabaseRuntimeCapabilitiesJson,
@@ -19,6 +19,7 @@ const MANAGED_ROLE_NAMES = Object.freeze([
   "learncoding_migrator",
   "learncoding_app",
   "learncoding_worker",
+  "learncoding_mail_worker",
   "learncoding_ops",
   "learncoding_backup_reporter",
 ]);
@@ -405,8 +406,8 @@ export function assertBootstrapDatabaseRuntimeCapabilityPhaseRequest(
     );
   }
   if (
-    requestedPhase === DATABASE_RUNTIME_CAPABILITY_PHASES.EXPAND_PREPARE_0073 ||
-    requestedPhase === DATABASE_RUNTIME_CAPABILITY_PHASES.CONTRACTED_0074
+    requestedPhase === DATABASE_RUNTIME_CAPABILITY_PHASES.EXPAND_PREPARE_0074 ||
+    requestedPhase === DATABASE_RUNTIME_CAPABILITY_PHASES.CONTRACTED_0075
   ) {
     throw new DatabaseRuntimeCapabilityPhaseError(
       `${requestedPhase} is unavailable until its reviewed migration exists`,
@@ -1873,7 +1874,7 @@ function expectedFoundationEnvelope(schemaNames) {
     ),
   ];
   const defaultRows =
-    CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES.defaultAclRows.filter(
+    CURRENT_0074_DATABASE_RUNTIME_CAPABILITIES.defaultAclRows.filter(
       (entry) =>
         entry.schema === null &&
         ["routine", "type"].includes(entry.objectKind) &&
@@ -1881,7 +1882,7 @@ function expectedFoundationEnvelope(schemaNames) {
           entry.creator?.kind === BOOTSTRAP_SESSION_AUTHORITY.kind),
     );
   const defaultAcls =
-    CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES.defaultAcls.filter(
+    CURRENT_0074_DATABASE_RUNTIME_CAPABILITIES.defaultAcls.filter(
       (entry) =>
         entry.schema === null &&
         ["routine", "type"].includes(entry.objectKind) &&
@@ -1890,10 +1891,14 @@ function expectedFoundationEnvelope(schemaNames) {
     );
   return {
     roles: sortedFoundationCollection(
-      CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES.roles,
+      CURRENT_0074_DATABASE_RUNTIME_CAPABILITIES.roles.map(role =>
+        role.name === "learncoding_mail_worker"
+          ? { ...role, login: false, credential: "none" }
+          : role,
+      ),
     ),
     memberships: sortedFoundationCollection(
-      CURRENT_0073_DATABASE_RUNTIME_CAPABILITIES.memberships,
+      CURRENT_0074_DATABASE_RUNTIME_CAPABILITIES.memberships,
     ),
     authority: {
       objects: sortedFoundationCollection(objects),
@@ -2727,7 +2732,7 @@ export async function verifyBootstrapDatabaseRuntimeCapabilities(
   { postgresUser, postgresDatabase, resolution },
 ) {
   if (
-    resolution.phase !== DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073 ||
+    resolution.phase !== DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0074 ||
     resolution.reconcileApplicationAcls !== true ||
     resolution.policy === null
   ) {
@@ -2763,7 +2768,7 @@ export async function reconcileBootstrapDatabaseRuntimeCapabilities(
   { postgresUser, postgresDatabase, resolution },
 ) {
   if (
-    resolution.phase !== DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0073 ||
+    resolution.phase !== DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0074 ||
     resolution.reconcileApplicationAcls !== true ||
     resolution.policy === null
   ) {

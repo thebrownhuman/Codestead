@@ -1,3 +1,4 @@
+import { inheritMailWorkerRole, usesMailWorkerRole } from "./mail-worker-role";
 import { sql } from "drizzle-orm";
 
 import { db, type Database } from "@/lib/db/client";
@@ -233,19 +234,26 @@ async function loadCandidates(
 
 async function dispatch(database: SmartReminderDatabase, candidate: Candidate, kind: SmartReminderKind, periodKey: string, now: Date) {
   return database.transaction(async (tx) => {
+    inheritMailWorkerRole(database, tx);
     // The scan is only a hint. Lock account and preference in canonical order,
     // then re-read the complete due decision. Account/preference writers using
     // the same order serialize here; source evidence is re-evaluated at this
     // boundary. Keep each relation in its own statement so PostgreSQL's planner
     // cannot choose a different tuple-lock order for a joined query.
-    const userLock = await tx.execute(sql<{ id: string }>`
+    const userLock = await tx.execute(usesMailWorkerRole(tx)
+      ? sql<{ id: string }>`select ${candidate.id}::text as id
+          where public.mail_worker_lock_source_v1('user',${candidate.id},'update')`
+      : sql<{ id: string }>`
       select u.id
         from "user" u
        where u.id=${candidate.id}
        for update of u
     `);
     if (!userLock.rows[0]) return false;
-    const preferenceLock = await tx.execute(sql<{ user_id: string }>`
+    const preferenceLock = await tx.execute(usesMailWorkerRole(tx)
+      ? sql<{ user_id: string }>`select ${candidate.id}::text as user_id
+          where public.mail_worker_lock_source_v1('notification_preference',${candidate.id},'update')`
+      : sql<{ user_id: string }>`
       select p.user_id
         from notification_preference p
        where p.user_id=${candidate.id}
@@ -286,20 +294,32 @@ async function dispatch(database: SmartReminderDatabase, candidate: Candidate, k
       (item) => item.kind === kind && item.periodKey === periodKey,
     );
     if (!stillDue) return false;
-    const [receipt] = await tx
+    const evidence = {
+      policyVersion: SMART_REMINDER_POLICY_VERSION,
+      reviewDue: kind === "revision",
+      activePlan: kind === "goal",
+      upcomingBattle: kind === "challenge",
+      noMeaningfulActivityToday: kind === "daily_study",
+    };
+    // Drizzle's insert builder includes DEFAULT columns in the target list.
+    // The dedicated role can insert only these seven inventoried columns;
+    // omit the generated primary key so PostgreSQL supplies its default.
+    const [receipt] = usesMailWorkerRole(tx)
+      ? (await tx.execute<{ id: string }>(sql`
+          insert into public.smart_reminder_dispatch
+            (user_id,kind,local_period_key,timezone,evidence,scheduled_for,dispatched_at)
+          values (${current.id},${kind},${periodKey},${current.timezone},
+            ${JSON.stringify(evidence)}::jsonb,${now},${now})
+          on conflict do nothing returning id
+        `)).rows
+      : await tx
       .insert(smartReminderDispatch)
       .values({
         userId: current.id,
         kind,
         localPeriodKey: periodKey,
         timezone: current.timezone,
-        evidence: {
-          policyVersion: SMART_REMINDER_POLICY_VERSION,
-          reviewDue: kind === "revision",
-          activePlan: kind === "goal",
-          upcomingBattle: kind === "challenge",
-          noMeaningfulActivityToday: kind === "daily_study",
-        },
+        evidence,
         scheduledFor: now,
         dispatchedAt: now,
       })
@@ -307,7 +327,13 @@ async function dispatch(database: SmartReminderDatabase, candidate: Candidate, k
       .returning({ id: smartReminderDispatch.id });
     if (!receipt) return false;
     const item = copy[kind];
-    await tx.insert(notification).values({
+    if (usesMailWorkerRole(tx)) {
+      // Leave id/read_at to their defaults without requesting INSERT on them.
+      await tx.execute(sql`insert into public.notification
+        (user_id,type,title,body,action_url,created_at)
+        values (${current.id},${`smart_reminder.${kind}`},${item.title},
+          ${item.body},${item.actionUrl},${now})`);
+    } else await tx.insert(notification).values({
       userId: current.id,
       type: `smart_reminder.${kind}`,
       title: item.title,

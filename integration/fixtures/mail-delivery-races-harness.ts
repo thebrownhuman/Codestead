@@ -1,3 +1,4 @@
+import { registerMailWorkerResources } from "@/lib/notifications/mail-worker-role";
 // Shared real-PostgreSQL harness for the mail delivery race suites. The race
 // tests were split across three files so CI can run them in parallel; each
 // file calls registerMailDeliveryRaceHarness() to register the same hooks.
@@ -458,7 +459,7 @@ export function faultInjectableDeletionDependencies(
 
 
 export const workerPool = new Pool({
-  connectionString: process.env.DATABASE_WORKER_URL,
+  connectionString: process.env.DATABASE_MAIL_WORKER_URL,
   max: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolMaximumConnections,
   connectionTimeoutMillis: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolAcquireTimeoutMs,
   idleTimeoutMillis: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolIdleTimeoutMs,
@@ -483,6 +484,7 @@ export async function store(outboxPool: InstrumentedPool = liveOutboxPool) {
   let selected = outboxStores.get(outboxPool);
   if (!selected) {
     selected = (async () => {
+      registerMailWorkerResources(outboxPool, {}, requireDisposableDatabaseUrl("DATABASE_MAIL_WORKER_URL").href);
       const inspection = await inspectMailDispatchRuntime(outboxPool);
       const applicationOrigin = captureMailDispatchApplicationOrigin(inspection);
       return new PostgresOutboxStore(
@@ -500,14 +502,14 @@ export async function store(outboxPool: InstrumentedPool = liveOutboxPool) {
 export type DisposableDatabaseUrlName =
   | "DATABASE_URL"
   | "DATABASE_APP_URL"
-  | "DATABASE_WORKER_URL"
+  | "DATABASE_MAIL_WORKER_URL"
   | "DATABASE_OPS_URL";
 
 
 export const DISPOSABLE_DATABASE_ROLE = Object.freeze({
   DATABASE_URL: "learncoding_app",
   DATABASE_APP_URL: "learncoding_app",
-  DATABASE_WORKER_URL: "learncoding_worker",
+  DATABASE_MAIL_WORKER_URL: "learncoding_mail_worker",
   DATABASE_OPS_URL: "learncoding_ops",
 } satisfies Record<DisposableDatabaseUrlName, string>);
 
@@ -547,7 +549,7 @@ export function assertDisposableDatabase() {
   const application = requireDisposableDatabaseUrl("DATABASE_URL");
   const explicitApplication =
     requireDisposableDatabaseUrl("DATABASE_APP_URL");
-  const worker = requireDisposableDatabaseUrl("DATABASE_WORKER_URL");
+  const worker = requireDisposableDatabaseUrl("DATABASE_MAIL_WORKER_URL");
   const operations = requireDisposableDatabaseUrl("DATABASE_OPS_URL");
   if (application.href !== explicitApplication.href) {
     throw new Error("DATABASE_URL must be the exact disposable app-role URL.");
@@ -1248,8 +1250,8 @@ export function registerMailDeliveryRaceHarness() {
       session_role: "learncoding_app",
     });
     expect(workerIdentity.rows[0]).toEqual({
-      effective_role: "learncoding_worker",
-      session_role: "learncoding_worker",
+      effective_role: "learncoding_mail_worker",
+      session_role: "learncoding_mail_worker",
     });
     await store();
   });

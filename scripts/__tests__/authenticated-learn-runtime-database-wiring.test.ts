@@ -74,7 +74,7 @@ describe("authenticated learn runtime database wiring", () => {
     );
   });
 
-  it("uses six distinct secrets, all five restricted URLs, and only the app URL at runtime", () => {
+  it("uses seven distinct secrets, all six restricted URLs, and only the app URL at runtime", () => {
     for (const credential of [
       "bootstrap",
       "app",
@@ -82,6 +82,7 @@ describe("authenticated learn runtime database wiring", () => {
       "worker",
       "ops",
       "backupReporter",
+      "mailWorker",
     ]) {
       expect(source).toMatch(
         new RegExp(
@@ -92,7 +93,7 @@ describe("authenticated learn runtime database wiring", () => {
     }
     expect(
       source.match(/:\s*generatedDatabasePassword\(\),/gu) ?? [],
-    ).toHaveLength(6);
+    ).toHaveLength(7);
     for (const [credential, role] of Object.entries({
       bootstrap: "codestead_ui",
       app: "learncoding_app",
@@ -100,6 +101,7 @@ describe("authenticated learn runtime database wiring", () => {
       worker: "learncoding_worker",
       ops: "learncoding_ops",
       backupReporter: "learncoding_backup_reporter",
+      mailWorker: "learncoding_mail_worker",
     })) {
       expect(source).toMatch(
         new RegExp(
@@ -114,6 +116,7 @@ describe("authenticated learn runtime database wiring", () => {
       "learncoding_worker",
       "learncoding_ops",
       "learncoding_backup_reporter",
+      "learncoding_mail_worker",
     ]) {
       expect(source).toContain(role);
     }

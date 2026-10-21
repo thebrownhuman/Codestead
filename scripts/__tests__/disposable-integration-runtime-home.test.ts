@@ -32,6 +32,9 @@ describe("disposable integration runtime home", () => {
       databaseWorkerUrl:
         "postgresql://learncoding_worker:worker-password"
         + "@127.0.0.1:49152/learncoding_integration",
+      databaseMailWorkerUrl:
+        "postgresql://learncoding_mail_worker:mail-worker-password"
+        + "@127.0.0.1:49152/learncoding_integration",
       databaseOpsUrl:
         "postgresql://learncoding_ops:ops-password"
         + "@127.0.0.1:49152/learncoding_integration",

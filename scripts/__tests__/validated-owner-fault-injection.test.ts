@@ -598,11 +598,11 @@ function validateReadOnlyOwnerTopologySource(sourceText: string, fileName: strin
     errors.push("topology validation must complete before Pool construction");
   }
   if (
-    poolConnections.length !== 3
+    poolConnections.length !== 4
     || [...poolConnections].sort().join(",")
-      !== "applicationUrl,opsUrl,workerUrl"
+      !== "applicationUrl,mailWorkerUrl,opsUrl,workerUrl"
   ) {
-    errors.push("only app, worker, and ops URLs may reach Pool");
+    errors.push("only app, worker, mail-worker, and ops URLs may reach Pool");
   }
   if (
     !sourceText.includes("ownerTarget: Object.freeze({")

@@ -1,0 +1,1744 @@
+{
+  "schemaVersion": 1,
+  "contract": "codestead-mail-worker-runtime-0074-v1",
+  "reviewedMigrationLedgerSha256": "57d3a04f8da6f7101a9c20840e6105c83a189d08cf8dd8ecc5a571b9b9c59742",
+  "routines": [
+    {
+      "signature": "public.attest_email_outbox_delivery_release_lineage(text)",
+      "owner": "learncoding_owner",
+      "securityDefiner": true,
+      "configuration": [
+        "search_path=pg_catalog, pg_temp"
+      ],
+      "language": "plpgsql",
+      "kind": "f",
+      "volatility": "s",
+      "strict": false,
+      "parallel": "u",
+      "leakproof": false,
+      "argumentNames": [
+        "candidate_migration_sha256",
+        "phase_0066_count",
+        "phase_0067_count",
+        "phase_0068_count",
+        "phase_0069_count",
+        "candidate_hash_count",
+        "lineage_window_count"
+      ],
+      "argumentModes": [
+        "i",
+        "t",
+        "t",
+        "t",
+        "t",
+        "t",
+        "t"
+      ],
+      "argumentTypes": [
+        "text",
+        "integer",
+        "integer",
+        "integer",
+        "integer",
+        "integer",
+        "integer"
+      ],
+      "inputArgumentCount": 1,
+      "argumentDefaultCount": 0,
+      "returnType": "record",
+      "returnsSet": true,
+      "variadic": false,
+      "cost": 100,
+      "rows": 1000,
+      "bodySha256": "4edfdc27d9f07ffbf27a12b99c6f55a6174041481612917422e6936dd8ef1884",
+      "definitionSha256": "542b5a6484c043ed1acb2fcd7831a11c70e49ddda3b2480b9286384dc74169ad"
+    },
+    {
+      "signature": "public.backup_status_mail_authorized(uuid)",
+      "owner": "learncoding_owner",
+      "securityDefiner": true,
+      "configuration": [
+        "search_path=pg_catalog"
+      ],
+      "language": "plpgsql",
+      "kind": "f",
+      "volatility": "v",
+      "strict": false,
+      "parallel": "u",
+      "leakproof": false,
+      "argumentNames": [
+        "p_candidate_outbox_id"
+      ],
+      "argumentModes": [],
+      "argumentTypes": [
+        "uuid"
+      ],
+      "inputArgumentCount": 1,
+      "argumentDefaultCount": 0,
+      "returnType": "boolean",
+      "returnsSet": false,
+      "variadic": false,
+      "cost": 100,
+      "rows": 0,
+      "bodySha256": "8a5306131ab339d40c9ce801ea5d41f2a85c87394b29231d34271f6273adf364",
+      "definitionSha256": "9f09171cbd85e3dd4f2029879cf468e54c7cb45ce825bfb277ec88cb0e9d33b4"
+    },
+    {
+      "signature": "public.enforce_email_outbox_delivery_hold()",
+      "owner": "learncoding_owner",
+      "securityDefiner": true,
+      "configuration": [
+        "search_path=pg_catalog, pg_temp"
+      ],
+      "language": "plpgsql",
+      "kind": "f",
+      "volatility": "v",
+      "strict": false,
+      "parallel": "u",
+      "leakproof": false,
+      "argumentNames": [],
+      "argumentModes": [],
+      "argumentTypes": [],
+      "inputArgumentCount": 0,
+      "argumentDefaultCount": 0,
+      "returnType": "trigger",
+      "returnsSet": false,
+      "variadic": false,
+      "cost": 100,
+      "rows": 0,
+      "bodySha256": "7569495560ff7ddba9000cc75e2e0cf71cdb7642cf8607f9e610bad1f670d4f6",
+      "definitionSha256": "e561d12eb06997ccee8c148c5da97f5c94b442c4a37711f9ed1d908c6961bb74"
+    },
+    {
+      "signature": "public.enforce_email_outbox_delivery_release_insert_xid()",
+      "owner": "learncoding_owner",
+      "securityDefiner": true,
+      "configuration": [
+        "search_path=pg_catalog, pg_temp"
+      ],
+      "language": "plpgsql",
+      "kind": "f",
+      "volatility": "v",
+      "strict": false,
+      "parallel": "u",
+      "leakproof": false,
+      "argumentNames": [],
+      "argumentModes": [],
+      "argumentTypes": [],
+      "inputArgumentCount": 0,
+      "argumentDefaultCount": 0,
+      "returnType": "trigger",
+      "returnsSet": false,
+      "variadic": false,
+      "cost": 100,
+      "rows": 0,
+      "bodySha256": "9eade96c7535c6a5ebfd0229557552b5b58815a69ab1b6ccdbea1ce32bd32ee8",
+      "definitionSha256": "10456c8d0552d0abe6de8951acefe6bdd7d34e4f86e8e0eca805b42a9d2dc25b"
+    },
+    {
+      "signature": "public.enforce_email_outbox_dispatch_binding()",
+      "owner": "learncoding_owner",
+      "securityDefiner": false,
+      "configuration": [
+        "search_path=pg_catalog"
+      ],
+      "language": "plpgsql",
+      "kind": "f",
+      "volatility": "v",
+      "strict": false,
+      "parallel": "u",
+      "leakproof": false,
+      "argumentNames": [],
+      "argumentModes": [],
+      "argumentTypes": [],
+      "inputArgumentCount": 0,
+      "argumentDefaultCount": 0,
+      "returnType": "trigger",
+      "returnsSet": false,
+      "variadic": false,
+      "cost": 100,
+      "rows": 0,
+      "bodySha256": "d665c8be3974d79b6acc0f99c3b92b716572ff05f54309a959ce24c5ba999233",
+      "definitionSha256": "bab86af7c72fd6073ac63d234c7c0ab6828addf15e0b74f2dd83dba2276af1d5"
+    },
+    {
+      "signature": "public.enforce_email_outbox_provider_correlation_evidence()",
+      "owner": "learncoding_owner",
+      "securityDefiner": false,
+      "configuration": [
+        "search_path=pg_catalog"
+      ],
+      "language": "plpgsql",
+      "kind": "f",
+      "volatility": "v",
+      "strict": false,
+      "parallel": "u",
+      "leakproof": false,
+      "argumentNames": [],
+      "argumentModes": [],
+      "argumentTypes": [],
+      "inputArgumentCount": 0,
+      "argumentDefaultCount": 0,
+      "returnType": "trigger",
+      "returnsSet": false,
+      "variadic": false,
+      "cost": 100,
+      "rows": 0,
+      "bodySha256": "f2ff0f5ce06a001a9d5c425549679cc6cbb2ccc5e679f177833579b664ea96d3",
+      "definitionSha256": "972f20deca2754990e68f96cb9b2138a7a779515f4a6e8170838a88a62a58a56"
+    },
+    {
+      "signature": "public.enforce_email_outbox_provider_request_body_immutable()",
+      "owner": "learncoding_owner",
+      "securityDefiner": true,
+      "configuration": [
+        "search_path=pg_catalog, pg_temp"
+      ],
+      "language": "plpgsql",
+      "kind": "f",
+      "volatility": "v",
+      "strict": false,
+      "parallel": "u",
+      "leakproof": false,
+      "argumentNames": [],
+      "argumentModes": [],
+      "argumentTypes": [],
+      "inputArgumentCount": 0,
+      "argumentDefaultCount": 0,
+      "returnType": "trigger",
+      "returnsSet": false,
+      "variadic": false,
+      "cost": 100,
+      "rows": 0,
+      "bodySha256": "28371928ffa89f2fc77f1a19baf3c6980ba824fbea1d8352aa664a38e57d96d3",
+      "definitionSha256": "631d91019bc9f3ed9ffb454b38c07a9b090f0db860f61abb3ce1732bf07ba5de"
+    },
+    {
+      "signature": "public.enforce_mail_delivery_release_receipt_insert()",
+      "owner": "learncoding_owner",
+      "securityDefiner": false,
+      "configuration": [
+        "search_path=pg_catalog, pg_temp"
+      ],
+      "language": "plpgsql",
+      "kind": "f",
+      "volatility": "v",
+      "strict": false,
+      "parallel": "u",
+      "leakproof": false,
+      "argumentNames": [],
+      "argumentModes": [],
+      "argumentTypes": [],
+      "inputArgumentCount": 0,
+      "argumentDefaultCount": 0,
+      "returnType": "trigger",
+      "returnsSet": false,
+      "variadic": false,
+      "cost": 100,
+      "rows": 0,
+      "bodySha256": "59fbe9a3962076192c68106d44c3d13cf46db5cd5be249b4c835fc1ac6c44f8b",
+      "definitionSha256": "b9f38f1e273b5ae799d7254adf0e689207b49cf4843d8492dc55ca16bdea6f08"
+    },
+    {
+      "signature": "public.mail_worker_attest_email_outbox_delivery_release_lineage(text)",
+      "owner": "learncoding_owner",
+      "securityDefiner": true,
+      "configuration": [
+        "search_path=pg_catalog, pg_temp"
+      ],
+      "language": "plpgsql",
+      "kind": "f",
+      "volatility": "v",
+      "strict": false,
+      "parallel": "u",
+      "leakproof": false,
+      "argumentNames": [
+        "arg1",
+        "phase_0066_count",
+        "phase_0067_count",
+        "phase_0068_count",
+        "phase_0069_count",
+        "candidate_hash_count",
+        "lineage_window_count"
+      ],
+      "argumentModes": [
+        "i",
+        "t",
+        "t",
+        "t",
+        "t",
+        "t",
+        "t"
+      ],
+      "argumentTypes": [
+        "text",
+        "integer",
+        "integer",
+        "integer",
+        "integer",
+        "integer",
+        "integer"
+      ],
+      "inputArgumentCount": 1,
+      "argumentDefaultCount": 0,
+      "returnType": "record",
+      "returnsSet": true,
+      "variadic": false,
+      "cost": 100,
+      "rows": 1000,
+      "bodySha256": "43d3ecc2c5d133e07566cada2c82da463433cc010bb9d58cfc02dbd2286c7224",
+      "definitionSha256": "c796e90259bf8cbb68bcdd2fcf33a575f113067dc2c4d06259826f12bb02f567",
+      "allowedRoles": [
+        "learncoding_mail_worker"
+      ]
+    },
+    {
+      "signature": "public.mail_worker_backup_status_mail_authorized(uuid)",
+      "owner": "learncoding_owner",
+      "securityDefiner": true,
+      "configuration": [
+        "search_path=pg_catalog, pg_temp"
+      ],
+      "language": "plpgsql",
+      "kind": "f",
+      "volatility": "v",
+      "strict": false,
+      "parallel": "u",
+      "leakproof": false,
+      "argumentNames": [
+        "arg1"
+      ],
+      "argumentModes": [],
+      "argumentTypes": [
+        "uuid"
+      ],
+      "inputArgumentCount": 1,
+      "argumentDefaultCount": 0,
+      "returnType": "boolean",
+      "returnsSet": false,
+      "variadic": false,
+      "cost": 100,
+      "rows": 0,
+      "bodySha256": "ee3a624151aa0f625d37414bbddd2fa3f1c72182efbff840e76a7428c42f9a56",
+      "definitionSha256": "fc3182cf195346d330438d96160e7ecd1b68b58716c4a0dd5ebc96b526d78803",
+      "allowedRoles": [
+        "learncoding_mail_worker"
+      ]
+    },
+    {
+      "signature": "public.mail_worker_lock_source_v1(text,text,text)",
+      "owner": "learncoding_owner",
+      "securityDefiner": true,
+      "configuration": [
+        "search_path=pg_catalog, pg_temp"
+      ],
+      "language": "plpgsql",
+      "kind": "f",
+      "volatility": "v",
+      "strict": false,
+      "parallel": "u",
+      "leakproof": false,
+      "argumentNames": [
+        "source_kind",
+        "source_id",
+        "lock_mode"
+      ],
+      "argumentModes": [],
+      "argumentTypes": [
+        "text",
+        "text",
+        "text"
+      ],
+      "inputArgumentCount": 3,
+      "argumentDefaultCount": 0,
+      "returnType": "boolean",
+      "returnsSet": false,
+      "variadic": false,
+      "cost": 100,
+      "rows": 0,
+      "bodySha256": "2c476e43287b5fa34f46c70fcc551a1dd237ded23788dd0561047b55b7c6cc8a",
+      "definitionSha256": "0e3024efa3b1443b1a5ab4abe4595324ade18bdc2eb17cb1f730a533b3b275e8",
+      "allowedRoles": [
+        "learncoding_mail_worker"
+      ]
+    },
+    {
+      "signature": "public.mail_worker_mail_delivery_release_receipt_sha256(uuid,uuid,text,text,text,text)",
+      "owner": "learncoding_owner",
+      "securityDefiner": true,
+      "configuration": [
+        "search_path=pg_catalog, pg_temp"
+      ],
+      "language": "plpgsql",
+      "kind": "f",
+      "volatility": "v",
+      "strict": false,
+      "parallel": "u",
+      "leakproof": false,
+      "argumentNames": [
+        "arg1",
+        "arg2",
+        "arg3",
+        "arg4",
+        "arg5",
+        "arg6"
+      ],
+      "argumentModes": [],
+      "argumentTypes": [
+        "uuid",
+        "uuid",
+        "text",
+        "text",
+        "text",
+        "text"
+      ],
+      "inputArgumentCount": 6,
+      "argumentDefaultCount": 0,
+      "returnType": "text",
+      "returnsSet": false,
+      "variadic": false,
+      "cost": 100,
+      "rows": 0,
+      "bodySha256": "dc9a279471f101c0cfaae257046666e25260d3cf9a51cda8a7c73ebdc6c4eb53",
+      "definitionSha256": "b423da44ef7dada5404f0ec4a23647e99b42380c90c681ed4afc25daf2609244",
+      "allowedRoles": [
+        "learncoding_mail_worker"
+      ]
+    },
+    {
+      "signature": "public.mail_worker_release_email_outbox_delivery(uuid,uuid,text,text,text)",
+      "owner": "learncoding_owner",
+      "securityDefiner": true,
+      "configuration": [
+        "search_path=pg_catalog, pg_temp"
+      ],
+      "language": "plpgsql",
+      "kind": "f",
+      "volatility": "v",
+      "strict": false,
+      "parallel": "u",
+      "leakproof": false,
+      "argumentNames": [
+        "arg1",
+        "arg2",
+        "arg3",
+        "arg4",
+        "arg5",
+        "outbox_id",
+        "operation_id"
+      ],
+      "argumentModes": [
+        "i",
+        "i",
+        "i",
+        "i",
+        "i",
+        "t",
+        "t"
+      ],
+      "argumentTypes": [
+        "uuid",
+        "uuid",
+        "text",
+        "text",
+        "text",
+        "uuid",
+        "uuid"
+      ],
+      "inputArgumentCount": 5,
+      "argumentDefaultCount": 0,
+      "returnType": "record",
+      "returnsSet": true,
+      "variadic": false,
+      "cost": 100,
+      "rows": 1000,
+      "bodySha256": "c1c6fea0b721f7cec2b897c31464db2dc6578940b05f02849c237e4b36f2c4a6",
+      "definitionSha256": "f62410fa1b6bee6698f963612b8dfbbac4468e925be2cdeb4d4949285684a574",
+      "allowedRoles": [
+        "learncoding_mail_worker"
+      ]
+    },
+    {
+      "signature": "public.release_email_outbox_delivery(uuid,uuid,text,text,text)",
+      "owner": "learncoding_owner",
+      "securityDefiner": true,
+      "configuration": [
+        "search_path=pg_catalog, pg_temp"
+      ],
+      "language": "plpgsql",
+      "kind": "f",
+      "volatility": "v",
+      "strict": false,
+      "parallel": "u",
+      "leakproof": false,
+      "argumentNames": [
+        "requested_outbox_id",
+        "requested_operation_id",
+        "requested_authority_sha256",
+        "requested_original_payload_sha256",
+        "requested_release_version"
+      ],
+      "argumentModes": [],
+      "argumentTypes": [
+        "uuid",
+        "uuid",
+        "text",
+        "text",
+        "text"
+      ],
+      "inputArgumentCount": 5,
+      "argumentDefaultCount": 0,
+      "returnType": "public.mail_delivery_release_receipt",
+      "returnsSet": false,
+      "variadic": false,
+      "cost": 100,
+      "rows": 0,
+      "bodySha256": "251f78108e9bb36431c346a3bd21622ea9918c5056ba869152d7a43d27b35e44",
+      "definitionSha256": "b6cc548755523a37183df40b5bcdb7f1cf3862a820d094532d192204ad15a926"
+    }
+  ],
+  "grants": [
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.access_request.adult_confirmed_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.access_request.decided_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.access_request.decided_by",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.access_request.decision_reason",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.access_request.email",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.access_request.id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.access_request.name",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.access_request.status",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.account_deletion_tombstone.id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.account_deletion_tombstone.primary_deletion_completed_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.account_deletion_tombstone.report",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.account_deletion_tombstone.user_id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.coding_battle.id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.coding_battle.starts_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.coding_battle.status",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.coding_battle_participant.battle_id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.coding_battle_participant.user_id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.consent_record.created_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.consent_record.decision",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.consent_record.id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.consent_record.occurred_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.consent_record.policy_version",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.consent_record.purpose",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.consent_record.user_id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.data_lifecycle_run.completed_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.data_lifecycle_run.id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.data_lifecycle_run.operation",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.data_lifecycle_run.report",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.data_lifecycle_run.status",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.data_lifecycle_run.target_user_id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.adapter",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.adapter",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.attempt_count",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.attempt_count",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.claim_owner",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.claim_owner",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.claim_token",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.claim_token",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.claim_version",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.claim_version",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.created_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.delivery_hold_version",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.delivery_scope_key",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.delivery_scope_key",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.dispatch_binding_sha256",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.dispatch_binding_sha256",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.dispatch_binding_version",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.dispatch_binding_version",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.idempotency_authority_sha256",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.idempotency_authority_version",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.idempotency_authority_version",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.idempotency_key",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.idempotency_key",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.idempotency_original_payload_sha256",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.last_error_code",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.last_error_code",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.lease_expires_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.lease_expires_at",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.next_attempt_at",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.next_attempt_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.next_attempt_at",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.operation_id",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.operation_id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.provider_call_started",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.provider_call_started",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.provider_correlation_version",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.provider_correlation_version",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.provider_evidence_sha256",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.provider_evidence_sha256",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.provider_evidence_version",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.provider_evidence_version",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.provider_message_id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.provider_message_id",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.provider_request_body_length",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.provider_request_body_length",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.provider_request_body_sha256",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.provider_request_body_sha256",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.quarantined_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.quarantined_at",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.sent_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.sent_at",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.status",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.status",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.status",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.template",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.template",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.template_version",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.template_version",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.to_email",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.to_email",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.updated_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.updated_at",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.user_id",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.user_id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.variables",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.email_outbox.variables",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.enrollment.id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.enrollment.status",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.enrollment.user_id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.admin_notice_queued_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.admin_notice_queued_at",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.closed_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.closed_at",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.created_at",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.eligible_at",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.eligible_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.last_activity_at",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.last_activity_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.learner_first_queued_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.learner_first_queued_at",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.learner_second_queued_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.learner_second_queued_at",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.opened_at",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.policy_version",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.policy_version",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.reminder_sent_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.reminder_sent_at",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.second_eligible_at",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.second_eligible_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.updated_at",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.updated_at",
+      "privilege": "UPDATE",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.user_id",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.inactivity_episode.user_id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.invitation.access_request_id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.invitation.consumed_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.invitation.created_by",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.invitation.email",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.invitation.expires_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.invitation.id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.invitation.token_hash",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.learner_profile.onboarding_completed_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.learner_profile.user_id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.lost_device_proof.consumed_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.lost_device_proof.expires_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.lost_device_proof.id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.lost_device_proof.proof_hash",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.lost_device_proof.session_id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.lost_device_proof.user_id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.mail_delivery_release_receipt.idempotency_authority_sha256",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.mail_delivery_release_receipt.idempotency_authority_version",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.mail_delivery_release_receipt.idempotency_original_payload_sha256",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.mail_delivery_release_receipt.operation_id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.mail_delivery_release_receipt.outbox_id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.mail_delivery_release_receipt.release_receipt_sha256",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.mail_delivery_release_receipt.release_version",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.notification.action_url",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.notification.body",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.notification.created_at",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.notification.title",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.notification.type",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.notification.user_id",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.notification_preference.challenge_enabled",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.notification_preference.daily_study_enabled",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.notification_preference.daily_study_minute",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.notification_preference.goal_enabled",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.notification_preference.inactivity_paused_until",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.notification_preference.learning_email_enabled",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.notification_preference.quiet_end_minute",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.notification_preference.quiet_hours_enabled",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.notification_preference.quiet_start_minute",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.notification_preference.revision_enabled",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.notification_preference.revision_minute",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.notification_preference.timezone",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.notification_preference.user_id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.notification_preference.weekly_summary_enabled",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.review_schedule.due_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.review_schedule.enrollment_id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.review_schedule.status",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.session.expires_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.session.id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.session.revoked_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.session.user_id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.session_revocation_request.id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.session_revocation_request.status",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.session_revocation_request.user_id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.smart_reminder_dispatch.dispatched_at",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.smart_reminder_dispatch.dispatched_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.smart_reminder_dispatch.evidence",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.smart_reminder_dispatch.evidence",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.smart_reminder_dispatch.id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.smart_reminder_dispatch.kind",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.smart_reminder_dispatch.kind",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.smart_reminder_dispatch.local_period_key",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.smart_reminder_dispatch.local_period_key",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.smart_reminder_dispatch.scheduled_for",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.smart_reminder_dispatch.scheduled_for",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.smart_reminder_dispatch.timezone",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.smart_reminder_dispatch.timezone",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.smart_reminder_dispatch.user_id",
+      "privilege": "INSERT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.smart_reminder_dispatch.user_id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.user.banned",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.user.created_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.user.email",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.user.email_verified",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.user.id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.user.last_meaningful_activity_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.user.name",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.user.role",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.user.status",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.user.timezone",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.verification.expires_at",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.verification.id",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.verification.identifier",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "column",
+      "objectIdentity": "public.verification.value",
+      "privilege": "SELECT",
+      "grantable": false
+    },
+    {
+      "objectKind": "schema",
+      "objectIdentity": "public",
+      "privilege": "USAGE",
+      "grantable": false
+    }
+  ]
+}

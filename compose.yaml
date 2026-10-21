@@ -93,6 +93,7 @@ services:
       DATABASE_APP_URL_FILE: /run/secrets/database_app_url
       DATABASE_MIGRATOR_URL_FILE: /run/secrets/database_migrator_url
       DATABASE_WORKER_URL_FILE: /run/secrets/database_worker_url
+      DATABASE_MAIL_WORKER_URL_FILE: /run/secrets/database_mail_worker_url
       DATABASE_OPS_URL_FILE: /run/secrets/database_ops_url
       DATABASE_BACKUP_REPORTER_URL_FILE: /run/secrets/database_backup_reporter_url
     secrets:
@@ -104,6 +105,8 @@ services:
         target: database_migrator_url
       - source: database_worker_url
         target: database_worker_url
+      - source: database_mail_worker_url
+        target: database_mail_worker_url
       - source: database_ops_url
         target: database_ops_url
       - source: database_backup_reporter_url
@@ -139,6 +142,7 @@ services:
       DATABASE_APP_URL_FILE: /run/secrets/database_app_url
       DATABASE_MIGRATOR_URL_FILE: /run/secrets/database_migrator_url
       DATABASE_WORKER_URL_FILE: /run/secrets/database_worker_url
+      DATABASE_MAIL_WORKER_URL_FILE: /run/secrets/database_mail_worker_url
       DATABASE_OPS_URL_FILE: /run/secrets/database_ops_url
       DATABASE_BACKUP_REPORTER_URL_FILE: /run/secrets/database_backup_reporter_url
     secrets:
@@ -150,6 +154,8 @@ services:
         target: database_migrator_url
       - source: database_worker_url
         target: database_worker_url
+      - source: database_mail_worker_url
+        target: database_mail_worker_url
       - source: database_ops_url
         target: database_ops_url
       - source: database_backup_reporter_url
@@ -185,6 +191,7 @@ services:
       DATABASE_APP_URL_FILE: /run/secrets/database_app_url
       DATABASE_MIGRATOR_URL_FILE: /run/secrets/database_migrator_url
       DATABASE_WORKER_URL_FILE: /run/secrets/database_worker_url
+      DATABASE_MAIL_WORKER_URL_FILE: /run/secrets/database_mail_worker_url
       DATABASE_OPS_URL_FILE: /run/secrets/database_ops_url
       DATABASE_BACKUP_REPORTER_URL_FILE: /run/secrets/database_backup_reporter_url
     secrets:
@@ -196,6 +203,8 @@ services:
         target: database_migrator_url
       - source: database_worker_url
         target: database_worker_url
+      - source: database_mail_worker_url
+        target: database_mail_worker_url
       - source: database_ops_url
         target: database_ops_url
       - source: database_backup_reporter_url
@@ -412,7 +421,7 @@ services:
       WORKER_HEALTH_MAX_AGE_SECONDS: "600"
       WORKER_HEALTH_MAX_FAILURES: "2"
     secrets:
-      - source: database_worker_url
+      - source: database_mail_worker_url
         target: database_url
       - lost_device_proof_key
       - deletion_tombstone_key
@@ -1103,6 +1112,8 @@ secrets:
     file: ${SECRETS_DIR:-/etc/learncoding/secrets}/database_bootstrap_url
   database_migrator_url:
     file: ${SECRETS_DIR:-/etc/learncoding/secrets}/database_migrator_url
+  database_mail_worker_url:
+    file: ${SECRETS_DIR:-/etc/learncoding/secrets}/database_mail_worker_url
   database_worker_url:
     file: ${SECRETS_DIR:-/etc/learncoding/secrets}/database_worker_url
   database_ops_url:

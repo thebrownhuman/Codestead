@@ -55,6 +55,7 @@ function validateRuntimeDatabaseTopology(input: Readonly<{
   databaseAppUrl: string;
   databaseMigratorUrl: string;
   databaseWorkerUrl: string;
+  databaseMailWorkerUrl: string;
   databaseOpsUrl: string;
   databaseBackupReporterUrl: string;
   databaseOwnerUrl: string;
@@ -64,6 +65,7 @@ function validateRuntimeDatabaseTopology(input: Readonly<{
     [input.databaseAppUrl, "learncoding_app", false],
     [input.databaseMigratorUrl, "learncoding_migrator", false],
     [input.databaseWorkerUrl, "learncoding_worker", false],
+    [input.databaseMailWorkerUrl, "learncoding_mail_worker", false],
     [input.databaseOpsUrl, "learncoding_ops", false],
     [
       input.databaseBackupReporterUrl,
@@ -100,6 +102,7 @@ export function buildDisposableIntegrationRuntimeEnvironment(
     databaseAppUrl: string;
     databaseMigratorUrl: string;
     databaseWorkerUrl: string;
+    databaseMailWorkerUrl: string;
     databaseOpsUrl: string;
     databaseBackupReporterUrl: string;
     databaseOwnerUrl: string;
@@ -115,6 +118,7 @@ export function buildDisposableIntegrationRuntimeEnvironment(
     DATABASE_APP_URL: input.databaseAppUrl,
     DATABASE_MIGRATOR_URL: input.databaseMigratorUrl,
     DATABASE_WORKER_URL: input.databaseWorkerUrl,
+    DATABASE_MAIL_WORKER_URL: input.databaseMailWorkerUrl,
     DATABASE_OPS_URL: input.databaseOpsUrl,
     DATABASE_BACKUP_REPORTER_URL: input.databaseBackupReporterUrl,
     DATABASE_OWNER_URL: input.databaseOwnerUrl,
@@ -146,6 +150,7 @@ const INTEGRATION_FAILURE_REASONS = Object.freeze({
   "replay-verification": "topology_verification_failed",
   "reset-capability-install": "reset_capability_install_failed",
   "application-tests": "application_tests_failed",
+  "mail-role-guards": "mail_role_guard_tests_failed",
   "reset-capability-teardown": "reset_capability_teardown_failed",
   "harness-cleanup": "harness_cleanup_failed",
 } as const);

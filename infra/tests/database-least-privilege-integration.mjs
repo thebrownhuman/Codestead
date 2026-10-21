@@ -44,6 +44,7 @@ function options(database, generation) {
       secret("worker", generation),
       database,
     ),
+    databaseMailWorkerUrl: url("learncoding_mail_worker", secret("mail-worker", generation), database),
     databaseOpsUrl: url("learncoding_ops", secret("ops", generation), database),
     databaseBackupReporterUrl: url(
       "learncoding_backup_reporter",

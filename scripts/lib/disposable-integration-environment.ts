@@ -3,6 +3,7 @@ export type DisposableIntegrationEnvironmentSource =
 type Environment = DisposableIntegrationEnvironmentSource;
 export type DisposableIntegrationRole =
   | "learncoding_app"
+  | "learncoding_mail_worker"
   | "learncoding_worker"
   | "learncoding_ops"
   | "learncoding_backup_reporter";
@@ -180,6 +181,17 @@ export function validatedDisposableOwnerDatabaseTarget(
     databaseApplicationUrl: databaseApplicationUrl!,
     databaseOwnerUrl: databaseOwnerUrl!,
   });
+}
+
+export function validatedDisposableMailWorkerDatabaseUrl(environment: Environment): string {
+  const applicationUrl = validatedDisposableApplicationDatabaseUrl(environment);
+  const app = parseDatabaseUrl(applicationUrl, "learncoding_app");
+  const value = environment.DATABASE_MAIL_WORKER_URL;
+  const mail = parseDatabaseUrl(value, "learncoding_mail_worker");
+  if (mail.hostname !== app.hostname || mail.port !== app.port || mail.pathname !== app.pathname) {
+    failValidation();
+  }
+  return value!;
 }
 
 export function validatedDisposableRetentionOpsEnvironment(

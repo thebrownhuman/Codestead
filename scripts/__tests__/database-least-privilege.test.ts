@@ -72,6 +72,7 @@ type DatabaseRoleModule = {
     databaseAppUrl: string;
     databaseMigratorUrl: string;
     databaseWorkerUrl: string;
+    databaseMailWorkerUrl: string;
     databaseOpsUrl: string;
     databaseBackupReporterUrl: string;
   }) => Record<
@@ -291,6 +292,7 @@ type DatabaseRoleModule = {
     databaseAppUrl: string;
     databaseMigratorUrl: string;
     databaseWorkerUrl: string;
+    databaseMailWorkerUrl: string;
     databaseOpsUrl: string;
     databaseBackupReporterUrl: string;
     cleanupTimeoutMs?: number;
@@ -346,6 +348,7 @@ const urls = {
     "postgresql://learncoding_migrator:migrator-Fake-C-00000000000000000@postgres:5432/learncoding",
   databaseWorkerUrl:
     "postgresql://learncoding_worker:worker-Fake-D-0000000000000000000@postgres:5432/learncoding",
+  databaseMailWorkerUrl: "postgresql://learncoding_mail_worker:mail-worker-Fake-D-0000000000000000000@postgres:5432/learncoding",
   databaseOpsUrl:
     "postgresql://learncoding_ops:ops-Fake-E-000000000000000000000@postgres:5432/learncoding",
   databaseBackupReporterUrl:
@@ -1554,6 +1557,7 @@ describe("database least-privilege bootstrap", () => {
       app: ["learncoding_app", "postgres", "learncoding"],
       migrator: ["learncoding_migrator", "postgres", "learncoding"],
       worker: ["learncoding_worker", "postgres", "learncoding"],
+      mailWorker: ["learncoding_mail_worker", "postgres", "learncoding"],
       ops: ["learncoding_ops", "postgres", "learncoding"],
       backupReporter: [
         "learncoding_backup_reporter",
@@ -1880,6 +1884,7 @@ describe("database least-privilege bootstrap", () => {
               "learncoding_migrator",
               "learncoding_app",
               "learncoding_worker",
+              "learncoding_mail_worker",
               "learncoding_ops",
               "learncoding_backup_reporter",
             ],
@@ -2248,6 +2253,20 @@ describe("database least-privilege bootstrap", () => {
         rolconnlimit: -1,
       },
     ];
+    expectedRoleRows.push({
+        rolname: "learncoding_mail_worker",
+        rolcanlogin: false,
+        password_is_null: true,
+        password_is_scram: false,
+        rolsuper: false,
+        rolcreatedb: false,
+        rolcreaterole: false,
+        rolinherit: false,
+        rolreplication: false,
+        rolbypassrls: false,
+        rolconnlimit: -1,
+      });
+    expectedRoleRows.sort((a,b)=>a.rolname.localeCompare(b.rolname));
     const client = {
       query: vi.fn(async (sql: string, parameters?: unknown[]) => {
         queries.push({ sql, parameters });
@@ -2300,6 +2319,7 @@ describe("database least-privilege bootstrap", () => {
       "learncoding_migrator",
       "learncoding_app",
       "learncoding_worker",
+      "learncoding_mail_worker",
       "learncoding_ops",
       "learncoding_backup_reporter",
     ]) {
@@ -2363,6 +2383,7 @@ describe("database least-privilege bootstrap", () => {
             rows: [
               "learncoding_app",
               "learncoding_backup_reporter",
+              "learncoding_mail_worker",
               "learncoding_migrator",
               "learncoding_ops",
               "learncoding_owner",
@@ -2873,6 +2894,7 @@ describe("database least-privilege bootstrap", () => {
         "learncoding_migrator",
         "learncoding_app",
         "learncoding_worker",
+        "learncoding_mail_worker",
         "learncoding_ops",
         "learncoding_backup_reporter",
       ]).map((roles) => [roles]),
@@ -3005,7 +3027,7 @@ describe("database least-privilege bootstrap", () => {
       finalBegin,
     );
     const enableRoles = run.indexOf(
-      "await installManagedLoginRolePasswordsAndEnable(client, rolePasswords)",
+      "await installManagedLoginRolePasswordsAndEnable(client, rolePasswords, {",
       resetRoles,
     );
     const finalCommit = run.indexOf(
@@ -3024,7 +3046,7 @@ describe("database least-privilege bootstrap", () => {
       "codestead.role_password",
     );
     expect(run.slice(finalBegin, finalCommit)).toContain(
-      "installManagedLoginRolePasswordsAndEnable(client, rolePasswords)",
+      "installManagedLoginRolePasswordsAndEnable(client, rolePasswords, {",
     );
     expect(run.slice(finalBegin, enableRoles)).not.toMatch(
       /\balter role\b[\s\S]*\blogin\b/u,
@@ -3056,7 +3078,7 @@ describe("database least-privilege bootstrap", () => {
       finalBegin,
     );
     const enableRoles = run.indexOf(
-      "await installManagedLoginRolePasswordsAndEnable(client, rolePasswords)",
+      "await installManagedLoginRolePasswordsAndEnable(client, rolePasswords, {",
       resetRoles,
     );
     const reconcile = run.indexOf(

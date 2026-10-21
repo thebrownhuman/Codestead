@@ -16,6 +16,7 @@ Secret inventory:
 - `database_url`: the least-privilege application URL for fixed user `learncoding_app` with an independent password.
 - `database_migrator_url`: the migration URL for fixed user `learncoding_migrator` with an independent password.
 - `database_worker_url`: the worker URL for fixed user `learncoding_worker` with an independent password.
+- `database_mail_worker_url`: the mail worker URL for fixed user `learncoding_mail_worker` with an independent password. Only mail uses this login; bootstrap and verifiers receive it through `DATABASE_MAIL_WORKER_URL_FILE`. Existing installations must create this one new file before the 0074 bootstrap; keep all existing secrets. Follow [the 0074 deployment order](../../docs/drafts/mail-worker-0074-nuc-deploy.md).
 - `database_ops_url`: the operations URL for fixed user `learncoding_ops` with an independent password.
 - `database_backup_reporter_url`: the backup-status enqueue URL for fixed user `learncoding_backup_reporter`; it can execute only the reviewed enqueue routine and has no table or sequence rights.
 - `better_auth_secret`: at least 32 random bytes.
@@ -39,7 +40,7 @@ sudo chown root:codestead-secrets /etc/learncoding/secrets/*
 sudo chmod 0440 /etc/learncoding/secrets/*
 ```
 
-Initial creation only: create the seven database files with `sudo -H bash /opt/learncoding/infra/ops/create-database-secrets.sh`. The ceremony locks the directory, refuses any pre-existing final, stages and validates all seven files before publication, and removes every final created by a failed run. It generates six distinct hexadecimal passwords, writes every database secret without a trailing newline, whitespace, or control byte, never prints a value, unsets its temporary variables, and sets the directory to `root:codestead-secrets` mode `0750` and the seven files to `root:codestead-secrets` mode `0440`. Use a separate reviewed rotation procedure for live credentials.
+Initial creation only: create the eight database files with `sudo -H bash /opt/learncoding/infra/ops/create-database-secrets.sh`. The ceremony locks the directory, refuses any pre-existing final, stages and validates all eight files before publication, and removes every final created by a failed run. It generates seven distinct hexadecimal passwords, writes every database secret without a trailing newline, whitespace, or control byte, never prints a value, unsets its temporary variables, and sets the directory to `root:codestead-secrets` mode `0750` and the eight files to `root:codestead-secrets` mode `0440`. Use a separate reviewed rotation procedure for live credentials.
 
 Generate all other values independently; do not reuse the database, auth, credential-encryption, or runner secrets. Generate typical random text with `openssl rand -base64 48` piped through `tr -d '\n'` so the file receives no trailing newline. Commands must write directly to root-owned files without echoing values to a terminal or shell history. Never include secret files, OAuth tokens, private `age` identities, or email exports in backups.
 

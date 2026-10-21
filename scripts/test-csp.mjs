@@ -9,7 +9,7 @@ import { runProductionMigration } from "./migrate-production.mjs";
 // independent of developer databases, credentials and stored release evidence.
 const container = `codestead-csp-${randomUUID()}`;
 const secret = "local-csp-verification-only-secret-32-bytes";
-const credentials = Object.fromEntries(["bootstrap", "app", "migrator", "worker", "ops", "backupReporter"].map((role) => [role, randomBytes(32).toString("hex")]));
+const credentials = Object.fromEntries(["bootstrap", "app", "migrator", "worker", "mailWorker", "ops", "backupReporter"].map((role) => [role, randomBytes(32).toString("hex")]));
 function docker(args, env = process.env) {
   const result = spawnSync("docker", args, { encoding: "utf8", env, windowsHide: true });
   if (result.status !== 0) throw new Error(`CSP fixture Docker command failed: ${args[0]}`);
@@ -40,7 +40,7 @@ try {
   docker(["run", "--detach", "--rm", "--name", container, "--publish", "127.0.0.1::5432", "--tmpfs", "/var/lib/postgresql/data:rw,nosuid,nodev,size=512m", "--env", "POSTGRES_DB=learncoding_integration", "--env", "POSTGRES_USER=codestead_ui", "--env", "POSTGRES_PASSWORD", "postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193"], { ...process.env, POSTGRES_PASSWORD: credentials.bootstrap });
   started = true;
   const port = docker(["port", container, "5432/tcp"]).split(":").at(-1);
-  const names = { bootstrap: "codestead_ui", app: "learncoding_app", migrator: "learncoding_migrator", worker: "learncoding_worker", ops: "learncoding_ops", backupReporter: "learncoding_backup_reporter" };
+  const names = { bootstrap: "codestead_ui", app: "learncoding_app", migrator: "learncoding_migrator", worker: "learncoding_worker", mailWorker: "learncoding_mail_worker", ops: "learncoding_ops", backupReporter: "learncoding_backup_reporter" };
   const urls = Object.fromEntries(Object.entries(names).map(([role, name]) => [role, `postgresql://${name}:${credentials[role]}@127.0.0.1:${port}/learncoding_integration`]));
   for (let attempt = 0; ; attempt++) {
     const client = new pg.Client({ connectionString: urls.bootstrap });
@@ -52,7 +52,7 @@ try {
     await runDatabaseRoleBootstrap({
       postgresUser: "codestead_ui", postgresDatabase: "learncoding_integration",
       databaseBootstrapUrl: containerUrl(urls.bootstrap), databaseAppUrl: containerUrl(urls.app),
-      databaseMigratorUrl: containerUrl(urls.migrator), databaseWorkerUrl: containerUrl(urls.worker),
+      databaseMigratorUrl: containerUrl(urls.migrator), databaseWorkerUrl: containerUrl(urls.worker), databaseMailWorkerUrl: containerUrl(urls.mailWorker),
       databaseOpsUrl: containerUrl(urls.ops), databaseBackupReporterUrl: containerUrl(urls.backupReporter),
       requireCompleteMigrationLedger: complete, lockTimeoutMs: 10_000, cleanupTimeoutMs: 5_000,
       pool: new pg.Pool({ connectionString: urls.bootstrap, max: 1 }),

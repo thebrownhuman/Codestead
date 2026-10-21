@@ -85,6 +85,7 @@ CMD ["node", "/app/scripts/migrate-production.mjs"]
 
 FROM final-base AS worker
 ENV NODE_ENV=production
+COPY --chown=node:node drizzle/meta/0074_mail_runtime.json ./drizzle/meta/0074_mail_runtime.json
 COPY --from=production-dependencies --chown=node:node /app/node_modules ./node_modules
 COPY --chown=node:node tsconfig.json ./tsconfig.json
 COPY --chown=node:node src ./src
@@ -106,8 +107,9 @@ CMD ["node", "--import", "tsx", "/app/scripts/process-outbox.ts"]
 FROM worker AS operations
 COPY --chown=node:node content ./content
 COPY --chown=node:node drizzle/meta/_journal.json ./drizzle/meta/_journal.json
-COPY --chown=node:node drizzle/meta/0073_public_column_attnums.json ./drizzle/meta/0073_public_column_attnums.json
-COPY --chown=node:node drizzle/meta/0073_snapshot.json ./drizzle/meta/0073_snapshot.json
+COPY --chown=node:node drizzle/meta/0074_public_column_attnums.json ./drizzle/meta/0074_public_column_attnums.json
+COPY --chown=node:node drizzle/meta/0074_snapshot.json ./drizzle/meta/0074_snapshot.json
+COPY --chown=node:node drizzle/meta/0074_mail_runtime.json ./drizzle/meta/0074_mail_runtime.json
 COPY --chown=node:node scripts/bootstrap-admin.ts ./scripts/bootstrap-admin.ts
 COPY --chown=node:node scripts/bootstrap-database-roles.mjs ./scripts/bootstrap-database-roles.mjs
 COPY --chown=node:node scripts/bootstrap-database-runtime-capabilities.mjs ./scripts/bootstrap-database-runtime-capabilities.mjs

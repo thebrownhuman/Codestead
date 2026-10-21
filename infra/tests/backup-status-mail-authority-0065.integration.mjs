@@ -349,6 +349,7 @@ async function main() {
       CREATE ROLE learncoding_migrator NOLOGIN NOINHERIT;
       CREATE ROLE learncoding_app LOGIN NOINHERIT;
       CREATE ROLE learncoding_worker LOGIN NOINHERIT;
+      CREATE ROLE learncoding_mail_worker LOGIN NOINHERIT;
       CREATE ROLE learncoding_ops LOGIN NOINHERIT;
       CREATE ROLE learncoding_backup_reporter LOGIN NOINHERIT;
       CREATE ROLE backup_status_acl_probe NOLOGIN;

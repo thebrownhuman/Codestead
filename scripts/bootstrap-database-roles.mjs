@@ -4,6 +4,7 @@ import { performance } from "node:perf_hooks";
 import { pathToFileURL } from "node:url";
 
 import { Pool } from "pg";
+import mailRuntime0074 from "../drizzle/meta/0074_mail_runtime.json" with { type: "json" };
 
 import {
   assertBootstrapDatabaseRuntimeCapabilityPhaseRequest,
@@ -21,6 +22,7 @@ import {
   verifyBackupStatusMailAuthorityObjects,
   verifyRestoredBackupStatusMailAuthorityStructuralObjects,
   BACKUP_STATUS_AUTHORITY_0069_CONTRACT,
+  BACKUP_STATUS_AUTHORITY_0074_CONTRACT,
 } from "./verify-backup-status-mail-authority.mjs";
 import { verifyAppliedMigrationLedger as verifyAppliedMigrationLedgerContract } from "./lib/reviewed-migration-ledger.mjs";
 
@@ -31,12 +33,14 @@ const OWNER_ROLE = "learncoding_owner";
 const MIGRATOR_ROLE = "learncoding_migrator";
 const APP_ROLE = "learncoding_app";
 const WORKER_ROLE = "learncoding_worker";
+const MAIL_WORKER_ROLE = "learncoding_mail_worker";
 const OPS_ROLE = "learncoding_ops";
 const BACKUP_REPORTER_ROLE = "learncoding_backup_reporter";
 const LOGIN_ROLES = [
   MIGRATOR_ROLE,
   APP_ROLE,
   WORKER_ROLE,
+  MAIL_WORKER_ROLE,
   OPS_ROLE,
   BACKUP_REPORTER_ROLE,
 ];
@@ -1746,6 +1750,30 @@ export const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES = Object.freeze([
     requiresGuardedDelivery: true,
     backupStatusAuthority: REVIEWED_0069_BACKUP_STATUS_AUTHORITY,
   }),
+  reviewedCatalogPhase({
+    index: 74,
+    createdAt: "1791920317388",
+    migrationFile: "0074_mail_worker_role.sql",
+    migrationSha256:
+      "06fe67ed067d22116bb02518d39c5f42925a70e93f0620097329379c2643f3b9",
+    routines: Object.freeze([
+      ...REVIEWED_0069_APPLICATION_FUNCTIONS.map(previous => {
+        const replayed = mailRuntime0074.routines.find(row => row.signature === previous.signature);
+        return replayed
+          ? reviewedRoutine({ ...previous, ...replayed, allowedRoles: previous.allowedRoles })
+          : previous;
+      }),
+      ...mailRuntime0074.routines
+        .filter(row => row.signature.startsWith("public.mail_worker_"))
+        .map(row => reviewedRoutine({ ...row, migrationFile: "0074_mail_worker_role.sql" })),
+    ]),
+    triggers: REVIEWED_0069_APPLICATION_TRIGGERS,
+    requiresWorkerContract: true,
+    requiresProviderEvidence: true,
+    requiresReplayAuthority: true,
+    requiresGuardedDelivery: true,
+    backupStatusAuthority: BACKUP_STATUS_AUTHORITY_0074_CONTRACT,
+  }),
 ]);
 const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASE_BY_INDEX = new Map(
   REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.map((phase) => [phase.index, phase]),
@@ -2661,6 +2689,7 @@ const ROLE_SPECS = [
   ["app", "databaseAppUrl", APP_ROLE],
   ["migrator", "databaseMigratorUrl", MIGRATOR_ROLE],
   ["worker", "databaseWorkerUrl", WORKER_ROLE],
+  ["mailWorker", "databaseMailWorkerUrl", MAIL_WORKER_ROLE],
   ["ops", "databaseOpsUrl", OPS_ROLE],
   ["backupReporter", "databaseBackupReporterUrl", BACKUP_REPORTER_ROLE],
 ];
@@ -2814,6 +2843,7 @@ export function validateOwnershipInventory(input) {
     ...allowedDefaultGrantees,
     MIGRATOR_ROLE,
     BACKUP_REPORTER_ROLE,
+    MAIL_WORKER_ROLE,
     "pg_database_owner",
   ]);
   const unsafeDefaultAcl = (input.defaultAcls ?? []).some((entry) => {
@@ -3194,6 +3224,9 @@ async function ensureManagedRolesExist(client) {
       if not exists (select 1 from pg_roles where rolname = 'learncoding_worker') then
         create role learncoding_worker nologin;
       end if;
+      if not exists (select 1 from pg_roles where rolname = 'learncoding_mail_worker') then
+        create role learncoding_mail_worker nologin;
+      end if;
       if not exists (select 1 from pg_roles where rolname = 'learncoding_ops') then
         create role learncoding_ops nologin;
       end if;
@@ -3213,6 +3246,8 @@ async function createAndResetRoles(client) {
       noinherit noreplication nobypassrls connection limit -1 valid until 'infinity';
     alter role learncoding_app nologin nosuperuser nocreatedb nocreaterole
       noinherit noreplication nobypassrls connection limit -1 valid until 'infinity';
+    alter role learncoding_mail_worker nologin nosuperuser nocreatedb nocreaterole
+      noinherit noreplication nobypassrls connection limit -1 valid until 'infinity';
     alter role learncoding_worker nologin nosuperuser nocreatedb nocreaterole
       noinherit noreplication nobypassrls connection limit -1 valid until 'infinity';
     alter role learncoding_ops nologin nosuperuser nocreatedb nocreaterole
@@ -3223,6 +3258,7 @@ async function createAndResetRoles(client) {
     alter role learncoding_migrator reset all;
     alter role learncoding_app reset all;
     alter role learncoding_worker reset all;
+    alter role learncoding_mail_worker reset all;
     alter role learncoding_ops reset all;
     alter role learncoding_backup_reporter reset all`);
 
@@ -3237,7 +3273,7 @@ async function createAndResetRoles(client) {
           join pg_database databases on databases.oid = configured.setdatabase
          where roles.rolname in (
            'learncoding_owner', 'learncoding_migrator', 'learncoding_app',
-           'learncoding_worker', 'learncoding_ops', 'learncoding_backup_reporter'
+           'learncoding_worker', 'learncoding_mail_worker', 'learncoding_ops', 'learncoding_backup_reporter'
          )
       loop
         execute format(
@@ -3260,11 +3296,11 @@ async function createAndResetRoles(client) {
           join pg_roles member on member.oid = memberships.member
          where member.rolname in (
            'learncoding_owner', 'learncoding_migrator', 'learncoding_app',
-           'learncoding_worker', 'learncoding_ops', 'learncoding_backup_reporter'
+           'learncoding_worker', 'learncoding_mail_worker', 'learncoding_ops', 'learncoding_backup_reporter'
          )
             or granted.rolname in (
               'learncoding_owner', 'learncoding_migrator', 'learncoding_app',
-              'learncoding_worker', 'learncoding_ops', 'learncoding_backup_reporter'
+              'learncoding_worker', 'learncoding_mail_worker', 'learncoding_ops', 'learncoding_backup_reporter'
             )
       loop
         execute format('revoke %I from %I', membership.granted_role, membership.member_role);
@@ -3284,6 +3320,8 @@ async function createAndQuarantineManagedRoles(client) {
     alter role learncoding_migrator nologin nosuperuser nocreatedb nocreaterole
       noinherit noreplication nobypassrls connection limit -1 password null valid until 'infinity';
     alter role learncoding_app nologin nosuperuser nocreatedb nocreaterole
+      noinherit noreplication nobypassrls connection limit -1 password null valid until 'infinity';
+    alter role learncoding_mail_worker nologin nosuperuser nocreatedb nocreaterole
       noinherit noreplication nobypassrls connection limit -1 password null valid until 'infinity';
     alter role learncoding_worker nologin nosuperuser nocreatedb nocreaterole
       noinherit noreplication nobypassrls connection limit -1 password null valid until 'infinity';
@@ -3972,8 +4010,12 @@ export async function exhaustManagedRoleAuthenticationFence(
 export async function installManagedLoginRolePasswordsAndEnable(
   client,
   rolePasswords,
+  { activateMailWorker = false } = {},
 ) {
-  for (const role of LOGIN_ROLES) {
+  const activatingRoles = LOGIN_ROLES.filter(role =>
+    role !== MAIL_WORKER_ROLE || activateMailWorker,
+  );
+  for (const role of activatingRoles) {
     if (typeof rolePasswords?.[role]?.password !== "string") {
       throw invalidCredentialConfiguration();
     }
@@ -3981,7 +4023,7 @@ export async function installManagedLoginRolePasswordsAndEnable(
   await client.query("set local log_parameter_max_length = 0");
   await client.query("set local log_parameter_max_length_on_error = 0");
   await client.query("set local password_encryption = 'scram-sha-256'");
-  for (const role of LOGIN_ROLES) {
+  for (const role of activatingRoles) {
     await client.query(
       "select pg_catalog.set_config('codestead.role_password', $1, true)",
       [rolePasswords[role].password],
@@ -4396,6 +4438,7 @@ export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
     requiresReplayAuthority: latestPhase.requiresReplayAuthority,
     requiresProviderRequest: latestPhase.requiresGuardedDelivery,
     requiresGuardedDelivery: latestPhase.requiresGuardedDelivery,
+    requiresMailWorkerRole: latestPhase.index === 74,
   });
   return 1;
 }
@@ -5279,6 +5322,7 @@ export async function verifyDatabaseRoleBootstrapState(
       requiresReplayAuthority: canonicalPhase?.requiresReplayAuthority ?? false,
       requiresProviderRequest: canonicalPhase?.requiresGuardedDelivery ?? false,
       requiresGuardedDelivery: canonicalPhase?.requiresGuardedDelivery ?? false,
+      requiresMailWorkerRole: canonicalPhase?.index === 74,
     });
   }
 
@@ -5335,7 +5379,7 @@ export async function verifyDatabaseRoleBootstrapState(
        ) direct_acl
       where grantee not in (
         'learncoding_owner', 'learncoding_migrator', 'learncoding_app',
-        'learncoding_worker', 'learncoding_ops', 'learncoding_backup_reporter'
+        'learncoding_worker', 'learncoding_mail_worker', 'learncoding_ops', 'learncoding_backup_reporter'
       )
          or not grant_not_delegable`,
     [postgresDatabase],
@@ -6055,6 +6099,7 @@ export async function runDatabaseRoleBootstrap(options) {
     [MIGRATOR_ROLE]: parsed.migrator,
     [APP_ROLE]: parsed.app,
     [WORKER_ROLE]: parsed.worker,
+    [MAIL_WORKER_ROLE]: parsed.mailWorker,
     [OPS_ROLE]: parsed.ops,
     [BACKUP_REPORTER_ROLE]: parsed.backupReporter,
   };
@@ -6262,7 +6307,9 @@ export async function runDatabaseRoleBootstrap(options) {
       await verifyBackupStatusAuthorityBeforeRepair(client, reviewedPhase);
     }
     await createAndResetRoles(client);
-    await installManagedLoginRolePasswordsAndEnable(client, rolePasswords);
+    await installManagedLoginRolePasswordsAndEnable(client, rolePasswords, {
+      activateMailWorker: lockedCapabilityResolution.reconcileApplicationAcls,
+    });
     if (lockedCapabilityResolution.reconcileApplicationAcls) {
       await transferBootstrapDatabaseRuntimeCapabilityOwnership(client, {
         postgresUser: options.postgresUser,
@@ -6544,6 +6591,7 @@ async function main() {
     databaseAppUrl: process.env.DATABASE_APP_URL ?? "",
     databaseMigratorUrl: process.env.DATABASE_MIGRATOR_URL ?? "",
     databaseWorkerUrl: process.env.DATABASE_WORKER_URL ?? "",
+    databaseMailWorkerUrl: process.env.DATABASE_MAIL_WORKER_URL ?? "",
     databaseOpsUrl: process.env.DATABASE_OPS_URL ?? "",
     databaseBackupReporterUrl: process.env.DATABASE_BACKUP_REPORTER_URL ?? "",
     bootstrapMode: restoredNoAclReconciliation ? "restored-no-acl" : "strict",

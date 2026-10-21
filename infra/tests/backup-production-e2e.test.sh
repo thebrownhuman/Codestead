@@ -98,10 +98,12 @@ write_database_role_url_files() {
   local root="$1" database="$2" bootstrap_user="$3" bootstrap_password="$4"
   local app_password="$5" migrator_password="$6" worker_password="$7"
   local ops_password="$8" backup_reporter_password="$9"
+  local mail_worker_password
+  mail_worker_password="$(random_hex 24)" || return 1
   [[ "$root" == /* && "$database" =~ ^[a-z_][a-z0-9_]{0,62}$ \
     && "$bootstrap_user" =~ ^[a-z_][a-z0-9_]{0,62}$ ]] || return 1
   for value in "$bootstrap_password" "$app_password" "$migrator_password" \
-    "$worker_password" "$ops_password" "$backup_reporter_password"; do
+    "$worker_password" "$ops_password" "$backup_reporter_password" "$mail_worker_password"; do
     [[ "$value" =~ ^[0-9a-f]{48}$ ]] || return 1
   done
   install -d -m 0700 "$root" || return 1
@@ -119,8 +121,10 @@ write_database_role_url_files() {
   printf 'postgresql://learncoding_backup_reporter:%s@postgres:5432/%s\n' \
     "$backup_reporter_password" "$database" \
     >"$root/database_backup_reporter_url" || return 1
+  printf 'postgresql://learncoding_mail_worker:%s@postgres:5432/%s\n' \
+    "$mail_worker_password" "$database" >"$root/database_mail_worker_url" || return 1
   chmod 0400 "$root"/* || return 1
-  [[ "$(find -P "$root" -mindepth 1 -maxdepth 1 -type f | wc -l | tr -d ' ')" == 6 ]] \
+  [[ "$(find -P "$root" -mindepth 1 -maxdepth 1 -type f | wc -l | tr -d ' ')" == 7 ]] \
     || return 1
 }
 
@@ -796,7 +800,7 @@ run_inner() {
     "$role_backup_reporter_password" \
     || fail "source database role URL fixture generation failed"
   for secret_name in database_bootstrap_url database_migrator_url \
-    database_worker_url database_ops_url database_backup_reporter_url; do
+    database_worker_url database_mail_worker_url database_ops_url database_backup_reporter_url; do
     install -m 0400 "$source_role_secret_root/$secret_name" \
       "$secrets_root/$secret_name" \
       || fail "database role secret staging failed for $secret_name"
@@ -1090,6 +1094,7 @@ EOF
     --env DATABASE_APP_URL_FILE=/run/secrets/database_app_url \
     --env DATABASE_MIGRATOR_URL_FILE=/run/secrets/database_migrator_url \
     --env DATABASE_WORKER_URL_FILE=/run/secrets/database_worker_url \
+    --env DATABASE_MAIL_WORKER_URL_FILE=/run/secrets/database_mail_worker_url \
     --env DATABASE_OPS_URL_FILE=/run/secrets/database_ops_url \
     --env DATABASE_BACKUP_REPORTER_URL_FILE=/run/secrets/database_backup_reporter_url \
     "$operations_digest" node /app/scripts/bootstrap-database-roles.mjs \
@@ -1139,6 +1144,7 @@ EOF
     --env DATABASE_APP_URL_FILE=/run/secrets/database_app_url \
     --env DATABASE_MIGRATOR_URL_FILE=/run/secrets/database_migrator_url \
     --env DATABASE_WORKER_URL_FILE=/run/secrets/database_worker_url \
+    --env DATABASE_MAIL_WORKER_URL_FILE=/run/secrets/database_mail_worker_url \
     --env DATABASE_OPS_URL_FILE=/run/secrets/database_ops_url \
     --env DATABASE_BACKUP_REPORTER_URL_FILE=/run/secrets/database_backup_reporter_url \
     "$operations_digest" node /app/scripts/bootstrap-database-roles.mjs \
@@ -1160,6 +1166,7 @@ EOF
     --env DATABASE_APP_URL_FILE=/run/secrets/database_app_url \
     --env DATABASE_MIGRATOR_URL_FILE=/run/secrets/database_migrator_url \
     --env DATABASE_WORKER_URL_FILE=/run/secrets/database_worker_url \
+    --env DATABASE_MAIL_WORKER_URL_FILE=/run/secrets/database_mail_worker_url \
     --env DATABASE_OPS_URL_FILE=/run/secrets/database_ops_url \
     --env DATABASE_BACKUP_REPORTER_URL_FILE=/run/secrets/database_backup_reporter_url \
     "$operations_digest" node /app/scripts/verify-database-role-boundaries.mjs \
@@ -1184,8 +1191,8 @@ if not isinstance(entries, list) or len(entries) != 74:
     raise SystemExit("reviewed migration journal must contain exactly 74 entries")
 if entries[-1].get("idx") != 73:
     raise SystemExit("reviewed migration journal tail index is not 73")
-if entries[-1].get("tag") != "0073_learner_ai_model_preference":
-    raise SystemExit("reviewed migration journal tail is not 0073")
+if entries[-1].get("tag") != "0074_mail_worker_role":
+    raise SystemExit("reviewed migration journal tail is not 0074")
 
 rows = []
 previous_when = -1
@@ -1222,7 +1229,7 @@ PY
   migration_created_at="${migration_fixture_metadata[2]}"
   migration_state_hash="${migration_fixture_metadata[3]}"
   [[ "$migration_count" == 74 && "$migration_last_id" == 73 \
-    && "$migration_created_at" == 1791465167378 \
+    && "$migration_created_at" == 1791920317388 \
     && "$migration_state_hash" =~ ^[0-9a-f]{64}$ ]] \
     || fail "migration fixture metadata is invalid"
   original_value="$(docker exec "$postgres_id" psql --username=learncoding \
@@ -1507,6 +1514,7 @@ PY
     --env RESTORE_NO_ACL_RECONCILIATION=true \
     --env DATABASE_MIGRATOR_URL_FILE=/run/secrets/database_migrator_url \
     --env DATABASE_WORKER_URL_FILE=/run/secrets/database_worker_url \
+    --env DATABASE_MAIL_WORKER_URL_FILE=/run/secrets/database_mail_worker_url \
     --env DATABASE_OPS_URL_FILE=/run/secrets/database_ops_url \
     --env DATABASE_BACKUP_REPORTER_URL_FILE=/run/secrets/database_backup_reporter_url \
     "$operations_digest" /bin/sh -ceu \
@@ -1530,6 +1538,7 @@ PY
     --env DATABASE_APP_URL_FILE=/run/secrets/database_app_url \
     --env DATABASE_MIGRATOR_URL_FILE=/run/secrets/database_migrator_url \
     --env DATABASE_WORKER_URL_FILE=/run/secrets/database_worker_url \
+    --env DATABASE_MAIL_WORKER_URL_FILE=/run/secrets/database_mail_worker_url \
     --env DATABASE_OPS_URL_FILE=/run/secrets/database_ops_url \
     --env DATABASE_BACKUP_REPORTER_URL_FILE=/run/secrets/database_backup_reporter_url \
     "$operations_digest" node /app/scripts/verify-database-role-boundaries.mjs \
