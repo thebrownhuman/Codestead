@@ -5,6 +5,7 @@ import { db } from "@/lib/db/client";
 import { account, authSessionHistory, session, user } from "@/lib/db/schema";
 import { boundedUserAgent } from "@/lib/session-controls";
 import { requireUnbreachedPassword } from "@/lib/security/breached-passwords";
+import { clearTrustedDevices, recordPasswordChanged } from "@/lib/security/password-security-events";
 
 type LockedAuthority = {
   mustChangePassword: boolean;
@@ -51,6 +52,8 @@ export interface ForcedPasswordChangeDependencies {
   hashPassword(password: string): Promise<string>;
   verifyPassword(hash: string, password: string): Promise<boolean>;
   transaction(operation: (tx: ForcedPasswordChangeTransaction) => Promise<ForcedPasswordChangeResult>): Promise<ForcedPasswordChangeResult>;
+  /** After commit: drop trusted devices, audit, and send the change notice. */
+  afterChanged?(userId: string): Promise<void>;
 }
 
 const productionDependencies: ForcedPasswordChangeDependencies = {
@@ -60,6 +63,14 @@ const productionDependencies: ForcedPasswordChangeDependencies = {
     return hashPassword(password);
   },
   verifyPassword: (hash, password) => verifyPassword({ hash, password }),
+  async afterChanged(userId) {
+    try {
+      await clearTrustedDevices(userId);
+    } catch {
+      console.error("forced_password_change_trusted_device_clear_failed");
+    }
+    await recordPasswordChanged({ userId, kind: "forced_change" });
+  },
   transaction: (operation) => db.transaction(async (tx) => operation({
     async lockAuthority(userId) {
       const [owner] = await tx
@@ -120,7 +131,7 @@ export async function completeForcedPasswordChange(
 ): Promise<ForcedPasswordChangeResult> {
   if (input.currentPassword === input.newPassword) return "invalid";
   const newHash = await dependencies.hashPassword(input.newPassword);
-  return dependencies.transaction(async (tx) => {
+  const result = await dependencies.transaction(async (tx) => {
     const authority = await tx.lockAuthority(input.userId);
     if (!authority) return "invalid";
     if (!authority.mustChangePassword) return "not-required";
@@ -149,4 +160,6 @@ export async function completeForcedPasswordChange(
     }
     return "changed";
   });
+  if (result === "changed") await dependencies.afterChanged?.(input.userId);
+  return result;
 }

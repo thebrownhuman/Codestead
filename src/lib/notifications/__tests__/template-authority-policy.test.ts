@@ -13,7 +13,7 @@ const EXPECTED_PRODUCTION_TEMPLATES = [
   "verify-email", "reset-password", "invitation", "access-request-admin",
   "lost-device-proof", "access-rejected", "learning-request-updated",
   "support-request-admin", "support-request-fixed",
-  "new-device", "session-revocation-requested",
+  "new-device", "password-changed", "session-revocation-requested",
   "session-revocation-updated", "session-revoked", "account-deleted",
   "credential-changed", "credential-revealed", "fallback-grant-changed",
   "learning-plan-changed", "storage-quota-changed", "inactivity-reminder",

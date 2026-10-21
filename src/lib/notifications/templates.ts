@@ -41,6 +41,7 @@ const subjects: Record<EmailTemplate, string> = {
   "support-request-admin": "A Codestead support request needs attention",
   "support-request-fixed": "Your Codestead support request was marked fixed",
   "new-device": "A Codestead device was approved",
+  "password-changed": "Your Codestead password was changed",
   "session-revocation-requested": "A device revocation needs review",
   "session-revocation-updated": "Your device revocation request was reviewed",
   "session-revoked": "A Codestead session was revoked",
@@ -83,6 +84,7 @@ export function renderEmail(
     case "support-request-admin": lead = "A learner sent a new support request. Open the requests queue to review it. Messages and diagnostics are available only inside Codestead."; action = "Review requests"; break;
     case "support-request-fixed": lead = "The administrator marked your support request fixed. Open Codestead to read the optional reply and try again."; action = "View request"; break;
     case "new-device": lead = "A new browser profile was approved for your account. Contact the administrator immediately if you do not recognize it."; action = "Review security"; break;
+    case "password-changed": lead = "Your Codestead password was just changed and your other sessions were signed out. If you did not do this, contact the administrator immediately."; action = "Review security"; break;
     case "session-revocation-requested": lead = `A learner requested revocation of ${variables.device ?? "an approved browser profile"}. Confirm the learner's identity before deciding.`; action = "Review request"; break;
     case "session-revocation-updated": lead = `Your browser-profile revocation request was ${variables.decision ?? "reviewed"}. ${variables.reason ?? "Open Codestead for the recorded decision."}`; action = "Review security"; break;
     case "session-revoked": lead = `${variables.device ?? "A browser profile"} was revoked by the administrator. Contact the administrator immediately if you did not expect this action.`; action = "Review security"; break;
