@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "platform": "linux/amd64",
-  "imageReference": "codestead-piston@sha256:5964ef2fa585c6e5f4dfbb458eed88ca86912805b352f6a19884f286a7533c63",
-  "imageConfigDigest": "sha256:969414c15abf668e773409b7d1ac4c17ca5e145e0bcb7bbbb94fb0d0b07492b1",
+  "imageReference": "codestead-piston@sha256:e6449b397403616afe005f7d1f76a4123a70ff63e075e92a0a7953decc59176c",
+  "imageConfigDigest": "sha256:67ca7ce878a0c19ed41c95f95158652b385d0794d8882fc77c790884ba0c32b4",
   "runtimeLabels": {
     "c": {
       "language": "c",
