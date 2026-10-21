@@ -8,7 +8,7 @@ import { afterAll, beforeAll } from "vitest";
 export const INTEGRATION_PISTON_URL = "http://piston.integration:2000";
 export const INTEGRATION_PISTON_IMAGE = `ghcr.io/codestead/piston@sha256:${"d".repeat(64)}`;
 
-export function usePistonRuntimeEnvironment() {
+export function installPistonRuntimeEnvironment() {
   const previous: Record<string, string | undefined> = {};
   const values: Record<string, string> = {
     CODE_RUNNER_PROVIDER: "piston",

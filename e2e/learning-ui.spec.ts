@@ -17,7 +17,7 @@ test.describe("authored learning UI", () => {
     await page.getByRole("option", { name: "C++", exact: true }).click();
     await expect(selector).toHaveText("C++");
     await expect(selector).toHaveAttribute("data-value", "cpp");
-    await expect(page.getByText(/C\+\+ practice.*isolated NUC runner/i)).toBeVisible();
+    await expect(page.getByText(/C\+\+ practice.*isolated Piston runner/i)).toBeVisible();
     const selectorBox = await selector.boundingBox();
     expect(selectorBox?.height ?? 0).toBeGreaterThanOrEqual(44);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);

@@ -142,13 +142,13 @@ import {
   validatedDisposableRetentionOpsEnvironment,
 } from "../scripts/lib/disposable-integration-environment";
 import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
-import { usePistonRuntimeEnvironment } from "./support/piston-runtime-environment";
+import { installPistonRuntimeEnvironment } from "./support/piston-runtime-environment";
 import {
   ageValidatedDisposableTerminalEmailOutboxFixtures,
   runValidatedIntegrationMigrations,
 } from "./support/with-validated-owner-fault-injection";
 
-usePistonRuntimeEnvironment();
+installPistonRuntimeEnvironment();
 
 const WORKSPACE_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
