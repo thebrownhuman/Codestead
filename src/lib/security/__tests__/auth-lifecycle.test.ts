@@ -3,14 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   process.env.BETTER_AUTH_SECRET ??= "coverage-test-secret-with-at-least-32-bytes";
-  return { limit: vi.fn(), select: vi.fn(), update: vi.fn(), insert: vi.fn(), transaction: vi.fn(), enqueue: vi.fn(), activation: vi.fn(), bootstrap: vi.fn(), archive: vi.fn(), resetSource: vi.fn(), resetVariables: vi.fn(), requireVariables: vi.fn(), options: undefined as unknown };
+  return { limit: vi.fn(), select: vi.fn(), update: vi.fn(), insert: vi.fn(), transaction: vi.fn(), enqueue: vi.fn(), activation: vi.fn(), bootstrap: vi.fn(), archive: vi.fn(), resetSource: vi.fn(), poolQuery: vi.fn(), mayReset: vi.fn(), resetVariables: vi.fn(), requireVariables: vi.fn(), options: undefined as unknown };
 });
 vi.mock("better-auth", () => ({ betterAuth: (options: unknown) => { mocks.options = options; return { options }; } }));
 vi.mock("better-auth/api", async (original) => ({ ...await original<typeof import("better-auth/api")>(), createAuthMiddleware: (handler: unknown) => handler }));
 vi.mock("better-auth/adapters/drizzle", () => ({ drizzleAdapter: () => ({}) }));
 vi.mock("better-auth/next-js", () => ({ nextCookies: () => ({}) }));
 vi.mock("better-auth/plugins", () => ({ admin: () => ({}), twoFactor: () => ({}) }));
-vi.mock("@/lib/db/client", () => ({ db: mocks, pool: {} }));
+vi.mock("@/lib/db/client", () => ({ db: mocks, pool: { query: mocks.poolQuery } }));
+vi.mock("@/lib/security/password-security-events", () => ({ mayResetPassword: mocks.mayReset, clearTrustedDevices: vi.fn(), recordPasswordChanged: vi.fn() }));
 vi.mock("@/lib/security/rate-limit", async (original) => ({ ...await original<typeof import("@/lib/security/rate-limit")>(), withRateLimit: mocks.limit }));
 vi.mock("@/lib/notifications/outbox", () => ({ enqueueEmail: mocks.enqueue }));
 vi.mock("@/lib/security/activation-context", () => ({ currentActivationAuthorization: mocks.activation, currentBootstrapAuthorization: mocks.bootstrap }));
@@ -63,7 +64,7 @@ describe("authentication account and session lifecycle", () => {
       onRequest(request: Request, context: { baseURL: string }): Promise<unknown>;
     };
     expect(plugin).toBeDefined();
-    await plugin.onRequest(new Request("http://localhost:3000/api/auth/sign-in/email"), { baseURL: "http://localhost:3000/api/auth" });
+    await plugin.onRequest(new Request("http://localhost:3000/api/auth/sign-in/email", { headers: { "cf-connecting-ip": "198.51.100.9" } }), { baseURL: "http://localhost:3000/api/auth" });
     expect(mocks.limit).toHaveBeenCalledTimes(storage === "database" ? 1 : 0);
     if (storage === "database") expect(mocks.limit.mock.calls[0][0].policy.failureMode).toBe("closed");
   });
@@ -153,6 +154,14 @@ describe("authentication account and session lifecycle", () => {
 });
 
 describe("authentication email callbacks", () => {
+  beforeEach(() => { mocks.mayReset.mockResolvedValue(true); });
+  it("withdraws the token and sends nothing for an ineligible account", async () => {
+    mocks.mayReset.mockResolvedValue(false);
+    await options().emailAndPassword.sendResetPassword({ token: "opaque-token", url: "https://example.test/reset", user: { id: "owner", name: "Ada", email: "learner@example.test" } });
+    expect(mocks.poolQuery).toHaveBeenCalledWith("delete from public.verification where identifier = $1 and value = $2", [expect.not.stringContaining("opaque-token"), "owner"]);
+    expect(mocks.resetSource).not.toHaveBeenCalled();
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+  });
   it("refuses a reset email whose verification source is missing", async () => {
     mocks.resetSource.mockResolvedValue(null);
     await expect(options().emailAndPassword.sendResetPassword({ token: "opaque-token", url: "https://example.test/reset", user: { id: "owner", name: "Ada", email: "learner@example.test" } })).rejects.toMatchObject({ code: "RESET_PASSWORD_SOURCE_UNAVAILABLE" });

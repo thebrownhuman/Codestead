@@ -17,6 +17,7 @@ import {
   loadResetPasswordVerificationSource,
   requireRevocableSourceVariables,
   RevocableSourceAuthorityError,
+  storedResetPasswordIdentifier,
 } from "@/lib/notifications/revocable-source-authority";
 import {
   archiveDeletedSession,
@@ -50,6 +51,12 @@ import {
 import { PERSISTENT_SESSION_LIFETIME } from "@/lib/security/session-lifetime";
 import { breachedPasswordPlugin } from "@/lib/security/breached-passwords";
 import { atomicAuthRateLimitPlugin } from "@/lib/security/auth-rate-limit";
+import {
+  clearTrustedDevices,
+  mayResetPassword,
+  recordPasswordChanged,
+} from "@/lib/security/password-security-events";
+import { holdResetRequestFloor, markResetRequestStarted } from "@/lib/security/reset-request-timing";
 
 /** Account behind a password-verified sign-in that is waiting for its second factor. */
 async function pendingTwoFactorUserId(ctx: GenericEndpointContext) {
@@ -97,6 +104,15 @@ export const auth = betterAuth({
     requireEmailVerification: true,
     revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user: authUser, url, token }) => {
+      // Inactive, banned and Google-only accounts get the same neutral
+      // response but no link; the unsent token is withdrawn immediately.
+      if (!(await mayResetPassword(authUser.id))) {
+        await pool.query("delete from public.verification where identifier = $1 and value = $2", [
+          storedResetPasswordIdentifier(token),
+          authUser.id,
+        ]);
+        return;
+      }
       const verificationId = await loadResetPasswordVerificationSource(pool, {
         token,
         userId: authUser.id,
@@ -121,6 +137,21 @@ export const auth = betterAuth({
         idempotencySeed: `reset-password:${verificationId}`,
       });
     },
+    // Runs after the new hash is stored and before sessions are revoked, so
+    // it must never throw: failures are logged inside recordPasswordChanged.
+    onPasswordReset: async ({ user: resetUser }) => {
+      try {
+        await clearTrustedDevices(resetUser.id);
+      } catch {
+        console.error("password_reset_trusted_device_clear_failed");
+      }
+      await recordPasswordChanged({ userId: resetUser.id, kind: "reset" });
+    },
+  },
+  verification: {
+    // Reset tokens are bearer credentials; keep only their SHA-256 at rest.
+    // Other identifiers (two-factor, trust-device) keep Better Auth's default.
+    storeIdentifier: { default: "plain", overrides: { "reset-password:": "hashed" } },
   },
   emailVerification: {
     sendOnSignUp: true,
@@ -201,6 +232,20 @@ export const auth = betterAuth({
   },
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === "/request-password-reset") {
+        markResetRequestStarted(ctx.request);
+        return;
+      }
+      if (ctx.path === "/reset-password") {
+        // Tokens issued before the eligibility rule (or for an account that
+        // changed state since) must not set a password on an ineligible user.
+        const token = typeof ctx.body?.token === "string" ? ctx.body.token : "";
+        const pending = token ? await ctx.context.internalAdapter.findVerificationValue(`reset-password:${token}`) : null;
+        if (pending && !(await mayResetPassword(pending.value))) {
+          throw new APIError("BAD_REQUEST", { code: "INVALID_TOKEN", message: "Invalid token" });
+        }
+        return;
+      }
       if (!SECOND_FACTOR_PATHS.includes(ctx.path)) return;
       const pendingUserId = await pendingTwoFactorUserId(ctx);
       if (!pendingUserId) return;
@@ -225,6 +270,10 @@ export const auth = betterAuth({
       if (await hasActiveSession(pendingUserId)) throw activeSessionElsewhereError();
     }),
     after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === "/request-password-reset") {
+        await holdResetRequestFloor(ctx.request);
+        return;
+      }
       if (ctx.path === "/sign-in/email") {
         // A second device never gets here: session creation is refused while
         // another device is active (session_one_active_user_unique), and the

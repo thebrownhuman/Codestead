@@ -9,6 +9,7 @@ const PRODUCTION_EMAIL_TEMPLATE_DEFINITIONS = Object.freeze([
   "support-request-admin",
   "support-request-fixed",
   "new-device",
+  "password-changed",
   "session-revocation-requested",
   "session-revocation-updated",
   "session-revoked",
@@ -219,6 +220,11 @@ const TEMPLATE_AUTHORITY_POLICY_DEFINITIONS = {
   "support-request-admin": { scope: "account", versions: VERSION_1, account: ACTIVE_ADMIN },
   "support-request-fixed": { scope: "account", versions: VERSION_1, account: ACTIVE_LEARNER },
   "new-device": {
+    scope: "account",
+    versions: VERSION_1,
+    account: NEW_DEVICE_ACCOUNT,
+  },
+  "password-changed": {
     scope: "account",
     versions: VERSION_1,
     account: NEW_DEVICE_ACCOUNT,

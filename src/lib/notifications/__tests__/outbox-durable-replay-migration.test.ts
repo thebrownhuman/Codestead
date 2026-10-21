@@ -223,8 +223,8 @@ describe("0067 durable email replay authority", () => {
     expect(registry).not.toBeNull();
     const templates = [...(registry?.[1] ?? "").matchAll(/"([^"]+)"/gu)]
       .map((match) => match[1]);
-    expect(templates).toHaveLength(31);
-    const nativeAdditions = ["support-request-admin", "support-request-fixed"];
+    expect(templates).toHaveLength(32);
+    const nativeAdditions = ["support-request-admin", "support-request-fixed", "password-changed"];
     expect(nativeAdditions.every((template) => templates.includes(template))).toBe(true);
     expect(new Set([
       ...SOURCE_MAP_TEMPLATES,

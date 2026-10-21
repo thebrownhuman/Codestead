@@ -233,13 +233,13 @@ describe("revocable mail source authority SQL", () => {
     })).toBeNull();
   });
 
-  it("binds reset authority to both stable row id and exact live bearer identifier", async () => {
+  it("binds reset authority to both stable row id and the hashed live bearer identifier", async () => {
     const authority = await subject();
     const query = authority.buildRevocableSourceAuthorityQuery({
       applicationUrl: APPLICATION_URL, now: NOW, outboxId: OUTBOX_ID,
       template: "reset-password", templateVersion: "1", variables: exactCases[0][2],
     });
-    expect(query?.values).toEqual([OUTBOX_ID, "verification_source_01", `reset-password:${RESET_TOKEN}`, NOW]);
+    expect(query?.values).toEqual([OUTBOX_ID, "verification_source_01", createHash("sha256").update(`reset-password:${RESET_TOKEN}`).digest("base64url"), NOW]);
   });
 
   it("binds inactivity to the canonical consent and coherent non-future stage markers", async () => {
@@ -317,7 +317,7 @@ describe("reset-password source resolution", () => {
     expect(normalized(text)).toContain("from public.verification");
     expect(normalized(text)).toContain("expires_at > statement_timestamp()");
     expect(normalized(text)).toContain("limit 2");
-    expect(values).toEqual([`reset-password:${RESET_TOKEN}`, "learner-1"]);
+    expect(values).toEqual([createHash("sha256").update(`reset-password:${RESET_TOKEN}`).digest("base64url"), "learner-1"]);
   });
 
   it.each([

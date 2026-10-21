@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/db/client", () => ({ db: { transaction: mocks.transaction } }));
 vi.mock("@/lib/security/breached-passwords", () => ({ requireUnbreachedPassword: mocks.checkPassword }));
+vi.mock("@/lib/security/password-security-events", () => ({ clearTrustedDevices: vi.fn(), recordPasswordChanged: vi.fn() }));
 
 import { completeForcedPasswordChange } from "../forced-password-change";
 
@@ -257,5 +258,18 @@ describe("productionDependencies transaction wiring", () => {
       currentPassword: "temporary-password",
       newPassword: "independent-new-password",
     })).resolves.toBe("invalid");
+  });
+
+  it("runs post-commit side effects only after a successful rotation", async () => {
+    const changed = dependencies();
+    const afterChanged = vi.fn(async () => undefined);
+    await completeForcedPasswordChange({ userId: "admin-1", currentPassword: "temporary-password", newPassword: "independent-new-password" }, { ...changed.deps, afterChanged });
+    expect(afterChanged).toHaveBeenCalledWith("admin-1");
+
+    const refused = dependencies();
+    refused.deps.verifyPassword.mockResolvedValue(false);
+    const notCalled = vi.fn(async () => undefined);
+    await expect(completeForcedPasswordChange({ userId: "admin-1", currentPassword: "wrong-password", newPassword: "independent-new-password" }, { ...refused.deps, afterChanged: notCalled })).resolves.toBe("invalid");
+    expect(notCalled).not.toHaveBeenCalled();
   });
 });

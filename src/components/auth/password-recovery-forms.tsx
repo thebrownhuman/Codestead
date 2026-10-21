@@ -3,7 +3,7 @@ import { BREACHED_PASSWORD_MESSAGE } from "@/lib/security/password-messages";
 
 import Link from "next/link";
 import { KeyRound, Mail } from "lucide-react";
-import { useCallback, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { PasswordInput } from "@/components/ui/password-input";
 import { authClient } from "@/lib/auth-client";
@@ -94,6 +94,12 @@ export function ResetPasswordForm({ token, invalid }: { token?: string; invalid?
     invalid || !token ? "This reset link is invalid or expired. Request a new link." : null,
   );
   const submittingRef = useRef(false);
+
+  // The token arrives as ?token=… and is held in props from here on. Drop it
+  // from the address bar so it is not kept in history, sync or screenshots.
+  useEffect(() => {
+    if (window.location.search) window.history.replaceState(window.history.state, "", window.location.pathname);
+  }, []);
 
   const cleanRevokedSessionRecovery = useCallback(async () => {
     setCleanupState("cleaning");
