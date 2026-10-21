@@ -6,7 +6,7 @@
   "legacyPins": {
     "c": { "versions": ["C23 / GCC 14.2.0"], "imageDigest": "sha256:d7c380a5503525ee45c36dc7fc8d68552ab0de218ff7cdc0fb974f4b718f67ad" },
     "cpp": { "versions": ["C++20 / G++ 14.2.0"], "imageDigest": "sha256:a2e77836bf601f9940e267957521b78c0997d0eef21c12c49c888eb665dbe7dc" },
-    "java": { "versions": ["Java 21", "Java SE 21"], "imageDigest": "sha256:3b68fbdc7a2ab29e3d6b7268fab497622f1afcf4bec3ce71df40754136d7beb9" },
+    "java": { "versions": ["Java 21", "Java SE 21"], "imageDigests": ["sha256:3b68fbdc7a2ab29e3d6b7268fab497622f1afcf4bec3ce71df40754136d7beb9", "sha256:785eb431d768b45f67056a8948c62c1cf4dc18498fb8513d48d5fc5bd1d00b83"] },
     "python": { "versions": ["Python 3.14"], "imageDigest": "sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb" },
     "javascript": { "versions": ["Node.js 22"], "imageDigest": "sha256:4a33b5b91221378dfd948fa3ea4a108ac8c1ebdf17bd795d3306e6b57171b194" }
   },
