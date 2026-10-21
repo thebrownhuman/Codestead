@@ -1,0 +1,83 @@
+{
+  "$schema": "../../schema/assessment-bank.schema.json",
+  "format": "assessment-bank",
+  "schemaVersion": "1.0.0",
+  "id": "practice.ai.search.heuristics.v1",
+  "courseId": "ai",
+  "courseVersion": "0.1.0",
+  "moduleId": "ai.search",
+  "skillId": "ai.search.heuristics",
+  "title": "Heuristics, greedy search and A* practice draft bank",
+  "publication": {
+    "stage": "draft",
+    "author": {
+      "id": "claude-assisted-practice",
+      "displayName": "Claude-assisted practice draft",
+      "kind": "ai-assisted"
+    },
+    "authoredAt": "2026-10-21T00:00:00.000Z",
+    "aiAssisted": true,
+    "reviewer": null,
+    "changeSummary": "Draft practice-only items for the ai.search practice quiz; owner content review required before learners see them."
+  },
+  "sourceRefs": [
+    "cs2023-ai"
+  ],
+  "items": [
+    {
+      "id": "ai.search.heuristics.practice.admissible",
+      "skillId": "ai.search.heuristics",
+      "title": "What admissible means",
+      "kind": "mcq",
+      "prompt": "A heuristic h(n) is admissible when:",
+      "points": 2,
+      "evidenceLevel": "interpret",
+      "pool": "practice",
+      "examEligibility": {
+        "eligible": false,
+        "rationale": "Practice-pool item: never exam-eligible by design; kept separate from the exam pool to protect exam integrity."
+      },
+      "hints": [
+        "Rule out each option that contradicts the definition, then check what is left."
+      ],
+      "feedback": {
+        "correct": "Correct. Admissible means h(n) is at most the true remaining cost. With an admissible heuristic, tree-search A* returns an optimal path.",
+        "incorrect": "Not quite. Admissible means h(n) is at most the true remaining cost. With an admissible heuristic, tree-search A* returns an optimal path."
+      },
+      "rubric": {
+        "passPoints": 2,
+        "criteria": [
+          {
+            "id": "choice",
+            "description": "Selects the option consistent with the definition.",
+            "points": 2,
+            "critical": true
+          }
+        ]
+      },
+      "privateAuthorNotes": [
+        "Owner content review: check wording, correctness and distractor quality."
+      ],
+      "options": [
+        {
+          "id": "never-over",
+          "text": "It never overestimates the true cost to reach the goal"
+        },
+        {
+          "id": "never-under",
+          "text": "It never underestimates the true cost"
+        },
+        {
+          "id": "exact",
+          "text": "It always equals the true cost"
+        }
+      ],
+      "answer": {
+        "correctOptionIds": [
+          "never-over"
+        ],
+        "explanation": "Admissible means h(n) is at most the true remaining cost. With an admissible heuristic, tree-search A* returns an optimal path."
+      }
+    }
+  ]
+}
