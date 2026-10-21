@@ -44,8 +44,9 @@ function validateHandoff() {
 }
 
 function legacyPin(language: RunnerLanguage, runtime: NonNullable<ExamItem["runtime"]>) {
-  const record = publicationPins.legacyPins[language];
-  return record.imageDigest === runtime.imageDigest && record.versions.includes(runtime.version);
+  const record: { versions: string[]; imageDigest?: string; imageDigests?: string[] } = publicationPins.legacyPins[language];
+  const digests = record.imageDigests ?? (record.imageDigest ? [record.imageDigest] : []);
+  return runtime.imageDigest !== undefined && digests.includes(runtime.imageDigest) && record.versions.includes(runtime.version);
 }
 
 /** A Piston pin for the currently deployed image (new forms). */
