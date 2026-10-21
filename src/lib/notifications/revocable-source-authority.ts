@@ -24,6 +24,15 @@ export const REVOCABLE_SOURCE_LOCK_ORDER = Object.freeze([
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const STABLE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,254}$/;
 const RESET_TOKEN = /^[A-Za-z0-9_-]{20,128}$/;
+
+/**
+ * Better Auth stores reset identifiers hashed (`verification.storeIdentifier`
+ * override for "reset-password:" in src/lib/auth.ts): base64url, unpadded,
+ * SHA-256 of the plain identifier. Raw SQL must match that stored form.
+ */
+export function storedResetPasswordIdentifier(token: string) {
+  return createHash("sha256").update(`reset-password:${token}`).digest("base64url");
+}
 const SHA256 = /^[0-9a-f]{64}$/;
 const LOST_DEVICE_RAW_PROOF = /^[A-Za-z0-9_-]{43}$/;
 const ISSUED_LOST_DEVICE_EVIDENCE = new WeakSet<object>();
@@ -514,7 +523,7 @@ function resetAuthorityQuery(
        and lower(btrim(recipient_user.email)) = mail.to_email
        and mail.variables ->> 'name' = recipient_user.name
      for share of recipient_user, source_verification
-  `, [input.outboxId, parsed.sourceId, `reset-password:${token}`, input.now]);
+  `, [input.outboxId, parsed.sourceId, storedResetPasswordIdentifier(token), input.now]);
 }
 
 function lostDeviceAuthorityQuery(
@@ -768,7 +777,7 @@ export async function loadResetPasswordVerificationSource(
           and expires_at > statement_timestamp()
         order by created_at desc, id desc
         limit 2`,
-      [`reset-password:${input.token}`, input.userId],
+      [storedResetPasswordIdentifier(input.token), input.userId],
     )).rows;
   } catch {
     throw new RevocableSourceAuthorityError("RESET_PASSWORD_SOURCE_UNAVAILABLE");

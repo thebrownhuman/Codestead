@@ -2,6 +2,11 @@ import { isIP } from "node:net";
 import type { BetterAuthPlugin } from "better-auth";
 
 import { withRateLimit, type RateLimitPolicy } from "./rate-limit";
+import {
+  holdResetRequestFloor,
+  markResetRequestStarted,
+  NEUTRAL_RESET_REQUEST_BODY,
+} from "./reset-request-timing";
 
 // Auth budgets are fixed and fail closed, independent of API policy overrides.
 const rules: Record<string, RateLimitPolicy> = {
@@ -13,6 +18,47 @@ const rules: Record<string, RateLimitPolicy> = {
   "/sign-up/email": { name: "auth_sign_up_ip", limit: 3, windowSeconds: 600, failureMode: "closed" },
   "/two-factor/verify-totp": { name: "auth_totp_ip", limit: 6, windowSeconds: 60, failureMode: "closed" },
 };
+
+const resetRequestEmailRule: RateLimitPolicy = {
+  name: "auth_reset_request_email",
+  limit: 5,
+  windowSeconds: 24 * 60 * 60,
+  failureMode: "closed",
+};
+
+function clientIp(request: Request) {
+  const candidate = request.headers.get("cf-connecting-ip")?.trim() ?? "";
+  // Node accepts interface-scoped IPv6 literals; proxy IP headers must not.
+  const version = candidate.includes("%") ? 0 : isIP(candidate);
+  return version === 6 ? new URL(`http://[${candidate}]`).hostname.slice(1, -1)
+    : version === 4 ? candidate : null;
+}
+
+/** Lowercased email from the JSON body, or null when absent/malformed. */
+async function requestedEmail(request: Request) {
+  try {
+    const body: unknown = await request.clone().json();
+    const email = body && typeof body === "object" ? (body as { email?: unknown }).email : undefined;
+    return typeof email === "string" && email.trim() && email.length <= 254 ? email.trim().toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+function tooManyRequests(retryAfter: string | null) {
+  return new Response(JSON.stringify({ message: "Too many requests. Please try again later." }), {
+    status: 429,
+    statusText: "Too Many Requests",
+    headers: { "X-Retry-After": retryAfter ?? "1" },
+  });
+}
+
+function protectionUnavailable() {
+  return new Response(JSON.stringify({ message: "Request protection is temporarily unavailable." }), {
+    status: 503,
+    headers: { "Retry-After": "30", "Cache-Control": "private, no-store" },
+  });
+}
 
 export function atomicAuthRateLimitPlugin(databaseRequired: boolean) {
   return {
@@ -26,20 +72,31 @@ export function atomicAuthRateLimitPlugin(databaseRequired: boolean) {
       const path = pathname.startsWith(`${basePath}/`) ? pathname.slice(basePath.length) : pathname;
       const rule = rules[/^\/reset-password\/[A-Za-z0-9_-]+$/.test(path) ? "/reset-password/:token" : path];
       if (!rule) return;
-      const candidate = request.headers.get("cf-connecting-ip")?.trim() ?? "";
-      // Node accepts interface-scoped IPv6 literals; proxy IP headers must not.
-      const version = candidate.includes("%") ? 0 : isIP(candidate);
-      const ip = version === 6 ? new URL(`http://[${candidate}]`).hostname.slice(1, -1)
-        : version === 4 ? candidate : "unavailable";
-      const response = await withRateLimit({ policy: rule, identity: { kind: "ip", value: ip } },
+      const ip = clientIp(request);
+      // The origin is only reachable through Cloudflare, which always sets
+      // cf-connecting-ip. A production request without it bypassed the edge;
+      // refuse it rather than pool every such caller into one shared bucket.
+      if (!ip && process.env.NODE_ENV === "production") {
+        console.error("auth_rate_limit_client_ip_unavailable");
+        return { response: protectionUnavailable() };
+      }
+      const isResetRequest = path === "/request-password-reset";
+      if (isResetRequest) markResetRequestStarted(request);
+      const response = await withRateLimit({ policy: rule, identity: { kind: "ip", value: ip ?? "unavailable" } },
         async () => new Response(null, { status: 204 }));
-      if (response.status === 204) return;
-      if (response.status !== 429) return { response };
-      return { response: new Response(JSON.stringify({ message: "Too many requests. Please try again later." }), {
-        status: 429,
-        statusText: "Too Many Requests",
-        headers: { "X-Retry-After": response.headers.get("Retry-After") ?? "1" },
-      }) };
+      if (response.status === 429) return { response: tooManyRequests(response.headers.get("Retry-After")) };
+      if (response.status !== 204) return { response };
+      if (!isResetRequest) return;
+      const email = await requestedEmail(request);
+      if (!email) return;
+      // Keyed by the submitted address whether or not an account exists, and
+      // answered with the same neutral body, so the budget is not an oracle.
+      const emailDecision = await withRateLimit({ policy: resetRequestEmailRule, identity: { kind: "email", value: email } },
+        async () => new Response(null, { status: 204 }));
+      if (emailDecision.status === 204) return;
+      if (emailDecision.status !== 429) return { response: emailDecision };
+      await holdResetRequestFloor(request);
+      return { response: Response.json(NEUTRAL_RESET_REQUEST_BODY) };
     },
   } satisfies BetterAuthPlugin;
 }
