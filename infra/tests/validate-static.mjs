@@ -2153,7 +2153,7 @@ const recoveryEnableCheckIndex = deploymentGuide.indexOf(
 );
 
 expect(
-  /Documentation=\/opt\/learncoding\/docs\/runbooks\/power-loss-recovery\.md/.test(recoveryService) &&
+  /^Documentation=file:\/opt\/learncoding\/docs\/runbooks\/power-loss-recovery\.md\r?$/m.test(recoveryService) &&
     /# Power-loss recovery runbook/.test(powerLossRecoveryRunbook) &&
     /\/etc\/learncoding\/existing-containers\.txt/.test(powerLossRecoveryRunbook) &&
     /virsh --connect qemu:\/\/\/system net-info default/.test(powerLossRecoveryRunbook) &&
