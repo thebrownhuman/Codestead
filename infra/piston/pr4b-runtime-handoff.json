@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "platform": "linux/amd64",
-  "imageReference": "codestead-piston@sha256:5964ef2fa585c6e5f4dfbb458eed88ca86912805b352f6a19884f286a7533c63",
-  "imageConfigDigest": "sha256:969414c15abf668e773409b7d1ac4c17ca5e145e0bcb7bbbb94fb0d0b07492b1",
+  "imageReference": "codestead-piston@sha256:e6449b397403616afe005f7d1f76a4123a70ff63e075e92a0a7953decc59176c",
+  "imageConfigDigest": "sha256:67ca7ce878a0c19ed41c95f95158652b385d0794d8882fc77c790884ba0c32b4",
   "runtimeLabels": {
     "c": {
       "language": "c",
@@ -75,7 +75,7 @@
   "buildInputSha256": {
     "Dockerfile": "03be3cdbde8ad7bdbba5c3963c75c0a3503602592a534c631df1e2e692df4b1d",
     "entrypoint.sh": "7ee5301283c7af996c3df931a7797df46b2e04513147d795f29b6f01eb9029bc",
-    "build-cds.sh": "bdc22515491a94ed12de518fbec555245aab4852141908fefb2ab751af4b7726",
+    "build-cds.sh": "eff6279f7da056f959d84f687c635b2178ac66327f6006c2974e6ee4dc3161f1",
     "install-packages.mjs": "d0c95da04cb8c0196d5a05ac48343e629f8e5287c092d3e0ddc1db65dd7bde47",
     "api-package.json": "128398b4394d3facbda38b27fdce6ccbac9bee024fa3774e7f4fe80ff35bc168",
     "api-package-lock.json": "5df84af17e80386b3ee90278c65d914c5db5f6e13cadcf65559343d8dc3e9f0b",

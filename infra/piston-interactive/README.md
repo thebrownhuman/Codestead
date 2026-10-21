@@ -51,10 +51,10 @@ match the batch build metadata and reviewed sources.
 
 CI builds the batch parent twice in the same job, verifies identical digests,
 and additionally requires its manifest to equal
-`sha256:6dc2d85a7b5b5fa15f1fae8f1232b43837eb912831bc23fc24c0dc0e0b5b0e3a`
+`sha256:7be3f3528a043b085dfc07a613892cd812c75bee0e60e69ffd0f015790ecdf40`
 before building the interactive variant. The local Docker Desktop reference
 builder produces parent
-`sha256:2fc2e55122fbdc25c6100a0ee7d8f29a31282b9e0202655e206b644985ed8ef6`;
+`sha256:e6449b397403616afe005f7d1f76a4123a70ff63e075e92a0a7953decc59176c`;
 that different builder's reference digest is recorded in the committed handoff.
 The CI pin never falls back to the local reference digest or to a registry pull.
 
