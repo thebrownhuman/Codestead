@@ -33,6 +33,12 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     typedEnv: typedEnvironmentEnabled,
+    // Next 16.3 Turbopack scope hoisting renames @electric-sql/pglite 0.5.8's
+    // hoisted esbuild namespace but leaves a stale reference, so production SQL
+    // practice threw "h.instantiateWasm is not a function" (dev was unaffected).
+    // Costs ~5% gzip client JS on app routes. e2e/csp.spec.ts guards it.
+    // TODO: re-enable once a Next/Turbopack release fixes this (re-run test:csp).
+    turbopackScopeHoisting: false,
     // Next's dev debug channel mistakes Playwright WebKit's fresh loads
     // (responseStart=0) for a Safari cache restore and reloads every page once.
     ...(isolatedDistDir ? { reactDebugChannel: false } : {}),
