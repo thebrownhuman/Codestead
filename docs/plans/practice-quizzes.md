@@ -6,14 +6,31 @@ Beta rule: simplicity first. Quizzes are low-stakes, retries are unlimited, and 
 ## 1. What a quiz is
 - **One quiz per module.** It covers every skill in the module, with one item per skill. Modules
   with fewer than 3 skills get up to 2 items per skill, and the quiz is capped at 10 items.
-- **Items come from the existing assessment banks** (`content/authored/assessment-banks/*.json`),
-  so nothing new is authored for v1. Draft items are allowed. `examEligibility` is ignored for
-  practice and stays untouched (the human-approval rule for exams does not change).
+- **Items live in the existing assessment banks** (`content/authored/assessment-banks/*.json`), but
+  a quiz uses only items explicitly marked **practice-only**.
+- **Exam integrity (hard rule).** Learners must never see an item that is, or could later become,
+  exam-eligible. Otherwise they memorize exam answers. So the plan is:
+  - **Explicit pool marker.** Add an optional item field `pool: "exam" | "practice"` to the
+    authored schema (`src/lib/content/authored-schema.ts`), defaulting to `"exam"`. A missing field
+    means exam pool, so existing items never leak into quizzes.
+  - **Disjoint pools, enforced by the schema.** The schema refuses `pool: "practice"` together with
+    `examEligibility.eligible = true`. `isExamEligibleItem` also returns false for practice items,
+    so the exam blueprint can never pick them, even after the owner approves a bank.
+  - **Server-side filter.** The practice selector accepts only `pool === "practice"` items, and the
+    check runs at selection time on the server (never trusted from the client). Draft items, or
+    items that merely aren't eligible yet, are **not** enough, because a draft can be approved later.
+  - **Content check.** A new `npm run test:practice-pool` validator scans all banks. It fails if any
+    practice item is exam-eligible, or if any item id or item hash appears in both pools (no copies
+    of an exam item renamed as practice).
+  - **Authoring.** Practice items are new items written into the same banks (no "promote a draft to
+    practice" path). In v1 the owner authors or approves a small practice set per module. Modules
+    without practice items show the empty state.
+- The human-approval rule for exams is unchanged.
 - **Item kinds in v1:**
   - `mcq` and exact-answer short items are checked instantly on the server.
   - Code items run through the existing runner (`src/lib/runner`, `/api/run` path) only when
     `INTERACTIVE_RUNNER_ENABLED` is on. Otherwise they are hidden from the quiz.
-  - Items that need human review (anything that would be `pending-review` in exams) are excluded.
+  - Items that need human grading are excluded.
 - **Selection:** reuse the deterministic selector idea from `src/app/api/exams/_lib/blueprint.ts`
   (seeded pick). The seed is `(userId, moduleId, attemptNumber)`, so each retry gets a reshuffled
   set while staying reproducible for debugging. No new selector logic beyond a thin practice wrapper.
@@ -60,7 +77,7 @@ Reuse what exists, and add one small table.
 
 | Reused | New |
 | --- | --- |
-| Assessment banks + authored schema | Practice selector wrapper (`src/lib/practice-quiz/select.ts`) |
+| Assessment banks + authored schema | `pool` item field, exam-guard, `test:practice-pool` validator; practice selector wrapper (`src/lib/practice-quiz/select.ts`) |
 | Seeded selection approach (blueprint) | `practice_quiz_item` table + migration 0076 |
 | `attempt` table (`kind='quiz'`) | Practice grader wrapper (MCQ/exact only, then runner) |
 | Exact-answer matcher, runner client | 3 API routes, quiz UI, feature flag |
@@ -71,7 +88,13 @@ Reuse what exists, and add one small table.
 - Grading is server-side only, and the response is accepted once per item per attempt.
 - At most one `in_progress` quiz attempt per user per module (starting again abandons the old one,
   setting its status to `cancelled`).
-- Rate limit start/submit with the existing rate limiter (`0071` flexible limiter) at 30/min/user.
+- Rate limits, using the existing flexible limiter (migration `0071`), are keyed by user id and
+  return 429 with `Retry-After`:
+  - **Attempt creation** (`start`): 10 per user per module per 10 minutes, and 60 per user per day
+    across all modules. This stops scraping the practice pool by re-rolling seeds.
+  - **Submit:** 30 per user per minute.
+  - **Read routes** (resume/summary): 120 per user per minute.
+- Exam-answer leakage is prevented by pool separation (section 1), not by limits.
 - Copying answers across retries is fine: it's practice. There is no proctoring and no timer.
 
 ## 7. API routes (all session-owner authz)
@@ -112,6 +135,13 @@ runner on the server.
   an empty module.
 - **DB:** migration ledger + role-boundary tests updated, and a cascade delete of attempt removes
   items.
+- **Exam integrity:**
+  - The schema rejects `pool: "practice"` combined with `eligible: true`.
+  - `isExamEligibleItem` returns false for practice items.
+  - The selector never returns an exam-pool item, including draft or approved items.
+  - The exam blueprint never returns a practice item.
+  - `test:practice-pool` fails on a fixture bank with an item id or hash shared across pools.
+- **Rate limits:** the 11th start in 10 minutes returns 429.
 - **Invariant:** a quiz submit writes **no** rows to `mastery_evidence`, `concept_mastery`, or
   `exam_session` (explicit test).
 - **UI:** component tests for each state, plus one Playwright smoke test (start → answer → results
@@ -127,8 +157,11 @@ runner on the server.
 ## 11. PR slices
 1. **`feat(practice-quiz): schema`**: migration `0076` + Drizzle table + ledger/role-boundary
    tests. No behaviour change.
-2. **`feat(practice-quiz): selector + grader`**: `src/lib/practice-quiz/*` pure functions with
-   unit tests (MCQ/exact only).
+2. **`feat(practice-quiz): pool + selector + grader`**:
+   - The `pool` field in the authored schema, the `isExamEligibleItem` guard, and the
+     `test:practice-pool` validator, wired into CI.
+   - `src/lib/practice-quiz/*` pure functions with unit tests (MCQ/exact only).
+   - A first small set of owner-approved practice items for one module.
 3. **`feat(practice-quiz): API`**: the 4 routes behind the flag, with authz, rate limit, and route
    tests including the no-mastery invariant.
 4. **`feat(practice-quiz): UI`**: module card + quiz page with all states, component tests, and the
