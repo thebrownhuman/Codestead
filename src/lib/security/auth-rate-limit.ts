@@ -73,14 +73,15 @@ export function atomicAuthRateLimitPlugin(databaseRequired: boolean) {
       const rule = rules[/^\/reset-password\/[A-Za-z0-9_-]+$/.test(path) ? "/reset-password/:token" : path];
       if (!rule) return;
       const ip = clientIp(request);
-      // The origin is only reachable through Cloudflare, which always sets
-      // cf-connecting-ip. A production request without it bypassed the edge;
-      // refuse it rather than pool every such caller into one shared bucket.
-      if (!ip && process.env.NODE_ENV === "production") {
-        console.error("auth_rate_limit_client_ip_unavailable");
+      const isResetRequest = path === "/request-password-reset";
+      // Cloudflare always sets cf-connecting-ip. A production reset request
+      // without it bypassed the edge; refuse it rather than let every such
+      // caller share one bucket that could lock recovery for everyone. Other
+      // auth paths keep the shared fallback so LAN/internal callers still work.
+      if (!ip && isResetRequest && process.env.NODE_ENV === "production") {
+        console.error("auth_reset_request_client_ip_unavailable");
         return { response: protectionUnavailable() };
       }
-      const isResetRequest = path === "/request-password-reset";
       if (isResetRequest) markResetRequestStarted(request);
       const response = await withRateLimit({ policy: rule, identity: { kind: "ip", value: ip ?? "unavailable" } },
         async () => new Response(null, { status: 204 }));

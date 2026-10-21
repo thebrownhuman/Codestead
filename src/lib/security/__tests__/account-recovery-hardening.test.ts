@@ -95,6 +95,12 @@ describe("M2: reset-request budgets", () => {
     expect(mocks.limit).not.toHaveBeenCalled();
   });
 
+  it("keeps the shared fallback bucket for other production auth paths", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    await atomicAuthRateLimitPlugin(true).onRequest(new Request("https://example.test/api/auth/sign-in/email", { method: "POST" }), BASE);
+    expect(mocks.limit.mock.calls[0]![0].identity).toEqual({ kind: "ip", value: "unavailable" });
+  });
+
   it("keeps the local-development fallback bucket outside production", async () => {
     vi.stubEnv("NODE_ENV", "test");
     await atomicAuthRateLimitPlugin(true).onRequest(new Request("https://example.test/api/auth/sign-in/email", { method: "POST" }), BASE);

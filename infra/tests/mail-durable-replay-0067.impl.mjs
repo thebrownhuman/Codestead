@@ -30,6 +30,10 @@ import {
   splitPostgresStatements,
 } from "../../scripts/lib/postgres-sql-statements.mjs";
 
+// Better Auth stores reset identifiers hashed (see src/lib/auth.ts).
+const storedResetIdentifier = (token) =>
+  createHash("sha256").update(`reset-password:${token}`).digest("base64url");
+
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(testDirectory, "../..");
 const migrationDirectory = path.join(repositoryRoot, "drizzle");
@@ -2733,7 +2737,7 @@ function seedSources(port, database) {
       INSERT INTO public.verification (
         id, identifier, value, expires_at
       ) VALUES (
-        '${RESET_VERIFICATION_ID}', 'reset-password:${RESET_TOKEN}', '${LEARNER_ID}',
+        '${RESET_VERIFICATION_ID}', '${storedResetIdentifier(RESET_TOKEN)}', '${LEARNER_ID}',
         pg_catalog.statement_timestamp() + interval '10 minutes'
       );
 
@@ -2935,32 +2939,32 @@ function seedHostileSources(port, database, hostileRows) {
         ),
         (
           '${RESET_MISMATCH_ID}',
-          'reset-password:${RESET_MISMATCH_SOURCE_TOKEN}', '${LEARNER_ID}',
+          '${storedResetIdentifier(RESET_MISMATCH_SOURCE_TOKEN)}', '${LEARNER_ID}',
           pg_catalog.statement_timestamp() + interval '10 minutes'
         ),
         (
           '${RESET_WRONG_RECIPIENT_ID}',
-          'reset-password:${RESET_WRONG_RECIPIENT_TOKEN}', '${LEARNER_ID}',
+          '${storedResetIdentifier(RESET_WRONG_RECIPIENT_TOKEN)}', '${LEARNER_ID}',
           pg_catalog.statement_timestamp() + interval '10 minutes'
         ),
         (
           '${RESET_SOURCE_VALUE_ID}',
-          'reset-password:${RESET_SOURCE_VALUE_TOKEN}', '${ADMIN_ID}',
+          '${storedResetIdentifier(RESET_SOURCE_VALUE_TOKEN)}', '${ADMIN_ID}',
           pg_catalog.statement_timestamp() + interval '10 minutes'
         ),
         (
           '${RESET_WRONG_VERSION_ID}',
-          'reset-password:${RESET_WRONG_VERSION_TOKEN}', '${LEARNER_ID}',
+          '${storedResetIdentifier(RESET_WRONG_VERSION_TOKEN)}', '${LEARNER_ID}',
           pg_catalog.statement_timestamp() + interval '10 minutes'
         ),
         (
           '${RESET_WRONG_KEY_ID}',
-          'reset-password:${RESET_WRONG_KEY_TOKEN}', '${LEARNER_ID}',
+          '${storedResetIdentifier(RESET_WRONG_KEY_TOKEN)}', '${LEARNER_ID}',
           pg_catalog.statement_timestamp() + interval '10 minutes'
         ),
         (
           '${NON_ASCII_RESET_ID}',
-          'reset-password:${NON_ASCII_RESET_TOKEN}',
+          '${storedResetIdentifier(NON_ASCII_RESET_TOKEN)}',
           '${NON_ASCII_RESET_USER_ID}',
           pg_catalog.statement_timestamp() + interval '10 minutes'
         );
