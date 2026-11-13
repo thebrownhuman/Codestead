@@ -15,6 +15,7 @@ import { deterministicUuid } from "./ids";
 import { toLearnerActivityForAttemptKind } from "./learner-activity";
 import { reviewedAuthoredActivitySpecification } from "./publication-binding";
 import { decodeReviewSchedule, reviewLanguageContext } from "./review-codec";
+import { countSessionActions } from "./session-action-counts";
 import type {
   AttemptCreateInput,
   AttemptGradeInput,
@@ -1424,8 +1425,7 @@ class DrizzleLearningTransaction implements LearningTransaction {
           .select({ type: sessionEvent.type, metadata: sessionEvent.metadata })
           .from(sessionEvent)
           .where(and(eq(sessionEvent.sessionId, sessionId), eq(sessionEvent.userId, userId)));
-        completedActions = eventRows.filter((row) => row.metadata.meaningful === true).length;
-        reviewActions = eventRows.filter((row) => row.type === "review_completed").length;
+        ({ completedActions, reviewActions } = countSessionActions(eventRows));
         reviewOnly = ownedSession.reviewOnly;
       }
     }
