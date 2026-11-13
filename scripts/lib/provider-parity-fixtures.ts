@@ -109,7 +109,9 @@ export function score(result: ExamRunnerResult, language: RunnerLanguage) {
 }
 
 export function verdict(result: ExamRunnerResult) {
-  return { status: result.status, compile: result.compile.status, tests: result.tests, totals: result.totals };
+  // Measured wall time is not part of the verdict and differs between providers.
+  const tests = result.tests.map((test) => ({ ...test, wallTimeMs: undefined }));
+  return { status: result.status, compile: result.compile.status, tests, totals: result.totals };
 }
 
 /** Test-only oracle retained until 6b; never enables native production routing. */

@@ -68,6 +68,7 @@ import {
   RunnerPersistenceAmbiguityError,
   runnerFailureRequiresReconciliation,
 } from "./runner-replay-policy";
+import { normalizedRunnerResult } from "./runner-result";
 
 import {
   buildEquivalentExamForm,
@@ -1520,63 +1521,6 @@ export async function recordExamEvent(input: {
 
 function stableRunnerId(prefix: string, value: string): string {
   return `${prefix}-${createHash("sha256").update(value).digest("hex").slice(0, 48)}`;
-}
-
-function normalizedRunnerResult(
-  job: RunnerJobResponse,
-  sourceHash: string,
-  fallbackRuntimeVersion: string,
-  startedAt: Date,
-  finishedAt: Date,
-): ExamRunnerResult | null {
-  const raw = job.result;
-  if (!raw) return null;
-  const statuses = new Set<ExamRunnerResult["status"]>([
-    "COMPILE_ONLY", "ACCEPTED", "WRONG_ANSWER", "COMPILE_ERROR", "RUNTIME_ERROR",
-    "TIMEOUT", "MEMORY_LIMIT", "OUTPUT_LIMIT", "INFRASTRUCTURE_ERROR",
-  ]);
-  const compileStatuses = new Set<ExamRunnerResult["compile"]["status"]>([
-    "OK", "COMPILE_ERROR", "TIMEOUT", "MEMORY_LIMIT", "OUTPUT_LIMIT", "INFRASTRUCTURE_ERROR",
-  ]);
-  const testStatuses = new Set<ExamRunnerResult["tests"][number]["status"]>([
-    "PASSED", "FAILED", "RUNTIME_ERROR", "TIMEOUT", "MEMORY_LIMIT", "OUTPUT_LIMIT",
-    "INFRASTRUCTURE_ERROR",
-  ]);
-  const status = statuses.has(raw.status as ExamRunnerResult["status"])
-    ? raw.status as ExamRunnerResult["status"]
-    : "INFRASTRUCTURE_ERROR";
-  const compileStatus = compileStatuses.has(raw.compile.status as ExamRunnerResult["compile"]["status"])
-    ? raw.compile.status as ExamRunnerResult["compile"]["status"]
-    : "INFRASTRUCTURE_ERROR";
-  return {
-    status,
-    requestHash: job.requestHash,
-    sourceHash,
-    runtimeVersion: raw.runtimeVersion ?? fallbackRuntimeVersion,
-    imageDigest: raw.imageDigest,
-    compile: {
-      status: compileStatus,
-      exitCode: raw.compile.exitCode,
-      stdout: raw.compile.stdout,
-      stderr: raw.compile.stderr,
-      wallTimeMs: 0,
-    },
-    ...(raw.run ? { run: { ...raw.run } } : {}),
-    tests: raw.tests.map((test) => ({
-      id: test.id,
-      visibility: test.visibility === "HIDDEN" ? "HIDDEN" : "VISIBLE",
-      category: test.category,
-      status: testStatuses.has(test.status as ExamRunnerResult["tests"][number]["status"])
-        ? test.status as ExamRunnerResult["tests"][number]["status"]
-        : "INFRASTRUCTURE_ERROR",
-      feedbackCode: test.feedbackCode,
-      exitCode: null,
-      wallTimeMs: 0,
-    })),
-    totals: raw.totals,
-    startedAt: startedAt.toISOString(),
-    finishedAt: finishedAt.toISOString(),
-  };
 }
 
 function storedExamRunnerResult(admission: RunnerAdmission): ExamRunnerResult | null {
