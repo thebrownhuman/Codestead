@@ -11,6 +11,7 @@ import {
   ENROLLMENT_DISCLOSURE_VERSION,
   REQUIRED_DISCLOSURE_PURPOSES,
 } from "@/lib/privacy/consent";
+import { isIanaTimezone } from "@/lib/preferences/timezone";
 import { INTEREST_CATEGORIES } from "@/lib/profile/interests";
 import { lockUserAuthority } from "@/lib/security/user-authority-lock";
 
@@ -58,7 +59,7 @@ const profileSchema = z.object({
   analogyFrequency: z.enum(["neutral", "helpful", "frequent"]),
   selectedTracks: z.array(z.enum(allowedTracks)).min(1).max(12),
   dsaLanguage: z.enum(["c", "cpp", "java", "python"]).optional(),
-  timezone: z.string().trim().min(3).max(80),
+  timezone: z.string().trim().min(3).max(80).refine(isIanaTimezone),
 });
 
 export async function POST(request: NextRequest) {
