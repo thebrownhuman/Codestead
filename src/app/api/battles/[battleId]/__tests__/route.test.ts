@@ -20,7 +20,7 @@ vi.mock("@/lib/battles/service", () => ({
 vi.mock("@/lib/security/audit-writer", () => ({ writeAuditEvent: mocks.audit }));
 vi.mock("@/lib/security/rate-limit", () => ({ withRateLimit: mocks.withRateLimit }));
 
-import { POST } from "../route";
+import { GET, POST } from "../route";
 
 describe("battle detail route", () => {
   beforeEach(() => {
@@ -57,5 +57,24 @@ describe("battle detail route", () => {
       warning: expect.stringContaining("completed"),
     });
     expect(mocks.submitBattle).toHaveBeenCalledOnce();
+  });
+
+  it("answers 404 for a malformed battle id without reaching the battle service", async () => {
+    const context = { params: Promise.resolve({ battleId: "not-a-uuid" }) };
+    const read = await GET(new NextRequest("https://learn.example.test/api/battles/not-a-uuid"), context);
+    const joined = await POST(
+      new NextRequest("https://learn.example.test/api/battles/not-a-uuid", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "join" }),
+      }),
+      context,
+    );
+
+    expect(read.status).toBe(404);
+    expect(joined.status).toBe(404);
+    expect(mocks.getBattle).not.toHaveBeenCalled();
+    expect(mocks.joinBattle).not.toHaveBeenCalled();
+    expect(mocks.audit).not.toHaveBeenCalled();
   });
 });
