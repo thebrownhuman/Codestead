@@ -1,3 +1,5 @@
+import type { SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -158,6 +160,16 @@ describe("versioned onboarding profile and disclosure", () => {
       new Set([ENROLLMENT_DISCLOSURE_VERSION]),
     );
     expect(mocks.onConflictDoNothing).toHaveBeenCalled();
+  });
+
+  it("does not move a learner who completed onboarding back to the MFA step on re-post", async () => {
+    expect((await POST(request(validBody))).status).toBe(200);
+    const [conflict] = mocks.onConflictDoUpdate.mock.calls[0] as unknown as [{ set: { onboardingStep: SQL } }];
+    expect(conflict.set.onboardingStep).not.toBe("mfa");
+    const rendered = new PgDialect().sqlToQuery(conflict.set.onboardingStep).sql;
+    expect(rendered).toBe(
+      `case when "learner_profile"."onboarding_step" = 'complete' then 'complete' else 'mfa' end`,
+    );
   });
 
   it("does not append onboarding consent after account deletion begins", async () => {
