@@ -548,6 +548,46 @@ describe("gradeExamSubmission pending and partial-credit branches", () => {
     expect(result.pendingReviewItemIds).toEqual(["q1"]);
   });
 
+  it("grades an unordered multi-option answer regardless of the order the options are given", () => {
+    const multi: ExamItem = {
+      ...exactItem("q1", "a,b", 100),
+      gradingEvidence: {
+        kind: "exact-answer",
+        acceptedAnswers: ["a,b", "First option,Second option"],
+        caseSensitive: false,
+        unordered: true,
+      },
+    };
+    const grade = (text: string) => gradeExamSubmission({
+      form: form([multi]),
+      answers: { q1: { text } },
+      runnerResults: {},
+      finalizedAt: "2026-07-12T00:10:00.000Z",
+      finalizedBy: "learner-submit",
+    }).officialScorePercent;
+
+    expect(grade("a,b")).toBe(100);
+    expect(grade("b,a")).toBe(100);
+    expect(grade("B, a")).toBe(100);
+    expect(grade("second option, first option")).toBe(100);
+    expect(grade("a")).toBe(0);
+    expect(grade("a,b,c")).toBe(0);
+    expect(grade("a,a,b")).toBe(0);
+  });
+
+  it("keeps ordinary exact answers order-sensitive", () => {
+    const grade = (text: string) => gradeExamSubmission({
+      form: form([exactItem("q1", "1,2", 100)]),
+      answers: { q1: { text } },
+      runnerResults: {},
+      finalizedAt: "2026-07-12T00:10:00.000Z",
+      finalizedBy: "learner-submit",
+    }).officialScorePercent;
+
+    expect(grade("1,2")).toBe(100);
+    expect(grade("2,1")).toBe(0);
+  });
+
   it("scores empty submitted source code as zero without invoking the runner", () => {
     const result = gradeExamSubmission({
       form: form([codeItem()]),
