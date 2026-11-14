@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { BattleError, getBattle, joinBattle, submitBattle } from "@/lib/battles/service";
 import { requireAuth } from "@/lib/http/authz";
+import { isUuid } from "@/lib/http/uuid";
 import { writeAuditEvent } from "@/lib/security/audit-writer";
 import { withRateLimit } from "@/lib/security/rate-limit";
 
@@ -35,6 +36,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ ba
     { policy: "battle_read_user", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
       const { battleId } = await context.params;
+      if (!isUuid(battleId)) return response(new BattleError("NOT_FOUND"));
       try { return NextResponse.json(await getBattle({ actorUserId: authz.session!.user.id, battleId }), { headers }); }
       catch (error) { return response(error); }
     },
@@ -53,6 +55,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ba
     { policy, identity: { kind: "user", value: authz.session.user.id } },
     async () => {
       const { battleId } = await context.params;
+      if (!isUuid(battleId)) return response(new BattleError("NOT_FOUND"));
       try {
         const report = body.data.action === "join"
           ? await joinBattle({ actorUserId: authz.session!.user.id, battleId })

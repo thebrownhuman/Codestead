@@ -10,6 +10,7 @@ import { notifyCredentialChanged } from "@/lib/credential-notifications";
 import { db } from "@/lib/db/client";
 import { providerCredential } from "@/lib/db/schema";
 import { requireAuth } from "@/lib/http/authz";
+import { isUuid } from "@/lib/http/uuid";
 import { writeAuditEvent } from "@/lib/security/audit-writer";
 import {
   openCredential,
@@ -51,6 +52,7 @@ export async function PATCH(
       const body = patchSchema.safeParse(jsonBody.value);
       if (!body.success) return NextResponse.json({ error: "Unknown credential action." }, { status: 400 });
       const { id } = await context.params;
+      if (!isUuid(id)) return NextResponse.json({ error: "Credential not found." }, { status: 404 });
       const mfa = await requireRecentMfa({
         sessionId: authz.session.session.id,
         userId: authz.session.user.id,
@@ -291,6 +293,7 @@ export async function DELETE(
         );
       }
       const { id } = await context.params;
+      if (!isUuid(id)) return NextResponse.json({ error: "Credential not found." }, { status: 404 });
       const mfa = await requireRecentMfa({
         sessionId: authz.session.session.id,
         userId: authz.session.user.id,
