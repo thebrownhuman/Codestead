@@ -162,7 +162,8 @@ export async function POST(request: NextRequest) {
           learningGoals: [body.data.goal],
           selectedTracks: body.data.selectedTracks,
           dsaLanguage: body.data.dsaLanguage,
-          onboardingStep: "mfa",
+          // A learner who already finished onboarding stays finished.
+          onboardingStep: sql`case when ${learnerProfile.onboardingStep} = 'complete' then 'complete' else 'mfa' end`,
           updatedAt: new Date(),
         },
       });
