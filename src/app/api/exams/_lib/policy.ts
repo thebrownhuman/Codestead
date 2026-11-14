@@ -202,6 +202,15 @@ function normalizedAnswer(value: string, caseSensitive: boolean): string {
   return caseSensitive ? normalized : normalized.toLocaleLowerCase("en-US");
 }
 
+/** Comma-separated answer compared as a set of parts, so "b,a" equals "a,b". */
+function unorderedAnswer(value: string, caseSensitive: boolean): string {
+  return value
+    .split(",")
+    .map((part) => normalizedAnswer(part, caseSensitive))
+    .sort()
+    .join(",");
+}
+
 export interface GradeExamInput {
   readonly form: ExamFormSnapshot;
   readonly answers: Readonly<Record<string, ExamAnswer>>;
@@ -242,9 +251,12 @@ export function gradeExamSubmission(input: GradeExamInput): ExamResult {
         pending.add(item.id);
         continue;
       }
-      const actual = normalizedAnswer(answer.text ?? "", evidence.caseSensitive);
+      const canonical = (value: string) => evidence.unordered
+        ? unorderedAnswer(value, evidence.caseSensitive)
+        : normalizedAnswer(value, evidence.caseSensitive);
+      const actual = canonical(answer.text ?? "");
       const correct = evidence.acceptedAnswers.some(
-        (accepted) => normalizedAnswer(accepted, evidence.caseSensitive) === actual,
+        (accepted) => canonical(accepted) === actual,
       );
       criteria.push({
         itemId: item.id,

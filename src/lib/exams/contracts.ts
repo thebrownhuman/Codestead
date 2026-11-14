@@ -30,6 +30,8 @@ export type ExamGradingEvidence =
       readonly kind: "exact-answer";
       readonly acceptedAnswers: readonly string[];
       readonly caseSensitive: boolean;
+      /** Accepted answers are comma-separated sets; compare ignoring order. */
+      readonly unordered?: boolean;
     }
   | {
       readonly kind: "runner-tests";
