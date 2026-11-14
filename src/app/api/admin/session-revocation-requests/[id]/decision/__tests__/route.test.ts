@@ -53,6 +53,8 @@ function post(id: string, decision: "approved" | "rejected" = "approved") {
 describe("admin session-revocation decision route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.select.mockReset();
+    mocks.transaction.mockReset();
     mocks.requireAdmin.mockResolvedValue({
       session: { user: { id: "admin-1" }, session: { id: "session-1" } },
       account: { role: "admin" },
@@ -63,11 +65,9 @@ describe("admin session-revocation decision route", () => {
   });
 
   it("answers 404 for a malformed request id without querying the uuid column", async () => {
-    mocks.select
-      .mockReturnValueOnce(query([{ mfaVerifiedAt: new Date() }]))
-      .mockImplementation(() => {
-        throw new Error("invalid input syntax for type uuid");
-      });
+    mocks.select.mockImplementation(() => {
+      throw new Error("invalid input syntax for type uuid");
+    });
     const response = await post("not-a-uuid");
     expect(response.status).toBe(404);
     expect(mocks.select).not.toHaveBeenCalled();
@@ -81,5 +81,52 @@ describe("admin session-revocation decision route", () => {
     const response = await post(requestId);
     expect(response.status).toBe(404);
     expect(mocks.select).toHaveBeenCalledTimes(2);
+  });
+
+  it("closes an approved request whose session is already gone instead of leaving it pending", async () => {
+    const pending = {
+      id: requestId,
+      userId: "learner-1",
+      sessionId: "session-gone",
+      status: "pending",
+      requestChannel: "authenticated",
+      identityVerifiedAt: null,
+      role: "learner",
+    };
+    mocks.select
+      .mockReturnValueOnce(query([{ mfaVerifiedAt: new Date() }]))
+      .mockReturnValueOnce(query([pending]));
+    const set = vi.fn((patch: Record<string, unknown>) => {
+      void patch;
+      return query([{ id: requestId }]);
+    });
+    const tx = {
+      // Locked request row, then the session lookup that finds nothing.
+      select: vi.fn().mockReturnValueOnce(query([pending])).mockReturnValueOnce(query([])),
+      insert: vi.fn(() => query([])),
+      delete: vi.fn(() => query([])),
+      update: vi.fn(() => ({ set })),
+    };
+    mocks.transaction.mockImplementation(async (callback) => callback(tx));
+
+    const response = await post(requestId, "approved");
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      ok: true,
+      decision: "approved",
+      sessionAlreadyEnded: true,
+    });
+    expect(set).toHaveBeenCalledWith(expect.objectContaining({
+      status: "approved",
+      decidedBy: "admin-1",
+    }));
+    // Nothing to archive or delete: the session row no longer exists.
+    expect(tx.insert).not.toHaveBeenCalled();
+    expect(tx.delete).not.toHaveBeenCalled();
+    expect(mocks.auditInTransaction).toHaveBeenLastCalledWith(tx, expect.objectContaining({
+      outcome: "success",
+      metadata: expect.objectContaining({ decision: "approved", sessionAlreadyEnded: true }),
+    }));
   });
 });
