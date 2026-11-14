@@ -7,6 +7,7 @@ import { revokeFallbackGrantCommand } from "@/lib/ai/fallback-grants";
 import { db } from "@/lib/db/client";
 import { session } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/http/authz";
+import { isUuid } from "@/lib/http/uuid";
 import { writeAuditEvent } from "@/lib/security/audit-writer";
 import { authorizePrivilegedAction } from "@/lib/security/privileged-access";
 import { withRateLimit } from "@/lib/security/rate-limit";
@@ -32,6 +33,9 @@ export async function POST(
         return NextResponse.json({ error: "A specific revocation reason is required." }, { status: 400 });
       }
       const { id } = await context.params;
+      if (!isUuid(id)) {
+        return NextResponse.json({ error: "Fallback grant not found." }, { status: 404 });
+      }
       const [authSession] = await db
         .select({ mfaVerifiedAt: session.mfaVerifiedAt })
         .from(session)

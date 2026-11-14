@@ -7,6 +7,7 @@ import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { accessRequest, invitation, session } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/http/authz";
+import { isUuid } from "@/lib/http/uuid";
 import { enqueueEmailInTransaction } from "@/lib/notifications/outbox";
 import { writeAuditEvent } from "@/lib/security/audit-writer";
 import { authorizePrivilegedAction } from "@/lib/security/privileged-access";
@@ -44,6 +45,12 @@ export async function POST(
   }
 
   const { id } = await context.params;
+  if (!isUuid(id)) {
+    return NextResponse.json(
+      { error: "Pending request not found." },
+      { status: 404 },
+    );
+  }
   const [candidateEmail] = await db
     .select({ email: accessRequest.email })
     .from(accessRequest)

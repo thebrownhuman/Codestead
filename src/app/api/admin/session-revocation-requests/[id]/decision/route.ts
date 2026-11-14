@@ -12,6 +12,7 @@ import {
   user,
 } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/http/authz";
+import { isUuid } from "@/lib/http/uuid";
 import { notifyRevocationDecision } from "@/lib/session-notifications";
 import {
   writeAuditEvent,
@@ -34,6 +35,7 @@ export async function POST(
   const authz = await requireAdmin();
   if (!authz.session) return secureAdminResponse(authz.response);
   const { id } = await context.params;
+  if (!isUuid(id)) return adminJson({ error: "Revocation request not found." }, 404);
   const jsonBody = await readBoundedJson(request);
   if (jsonBody.response?.status === 413) return secureAdminResponse(jsonBody.response);
   const body = bodySchema.safeParse(jsonBody.value);

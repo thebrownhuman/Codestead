@@ -18,6 +18,7 @@ vi.mock("@/lib/db/client", () => ({ db: {
 import { POST } from "../route";
 
 const token = ["test", "github", "credential"].join("_");
+const projectId = "9a000000-0000-4000-8000-000000000001";
 
 describe("GitHub review failures preserve stored results", () => {
   beforeEach(() => {
@@ -25,7 +26,7 @@ describe("GitHub review failures preserve stored results", () => {
     vi.stubEnv("GITHUB_TOKEN", token);
     mocks.requireAuth.mockResolvedValue({ session: { user: { id: "owner-1" } } });
     mocks.withRateLimit.mockImplementation(async (_input, handler) => handler());
-    mocks.select.mockReturnValue({ from: () => ({ where: () => ({ limit: async () => [{ id: "project-1" }] }) }) });
+    mocks.select.mockReturnValue({ from: () => ({ where: () => ({ limit: async () => [{ id: projectId }] }) }) });
     mocks.transaction.mockImplementation(() => { throw new Error("A failed review must never begin a write transaction."); });
   });
   afterEach(() => {
@@ -57,7 +58,7 @@ describe("GitHub review failures preserve stored results", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ repositoryUrl: "https://github.com/octo/repo" }),
-    }), { params: Promise.resolve({ id: "project-1" }) });
+    }), { params: Promise.resolve({ id: projectId }) });
 
     expect(response.status).toBe(422);
     const body = await response.json();
@@ -69,5 +70,16 @@ describe("GitHub review failures preserve stored results", () => {
     expect(mocks.update).not.toHaveBeenCalled();
     expect(mocks.insert).not.toHaveBeenCalled();
     expect(logSpies.every((spy) => spy.mock.calls.length === 0)).toBe(true);
+  });
+
+  it("answers 404 for a malformed project id without querying the uuid column", async () => {
+    const response = await POST(new NextRequest("https://learn.example.test/api/projects/not-a-uuid/review", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ repositoryUrl: "https://github.com/octo/repo" }),
+    }), { params: Promise.resolve({ id: "not-a-uuid" }) });
+
+    expect(response.status).toBe(404);
+    expect(mocks.select).not.toHaveBeenCalled();
   });
 });

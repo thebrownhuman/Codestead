@@ -292,6 +292,24 @@ describe("credential mutation API", () => {
     expect(mocks.validateProviderCredential).not.toHaveBeenCalled();
   });
 
+  it("answers 404 for a malformed credential id before MFA or any uuid query", async () => {
+    const malformed = { params: Promise.resolve({ id: "not-a-uuid" }) };
+    const patched = await PATCH(request({ action: "test", requestId }), malformed);
+    const deleted = await DELETE(
+      new NextRequest("https://learn.test/api/credentials/not-a-uuid", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ requestId }),
+      }),
+      malformed,
+    );
+    expect(patched.status).toBe(404);
+    expect(deleted.status).toBe(404);
+    expect(mocks.requireRecentMfa).not.toHaveBeenCalled();
+    expect(mocks.select).not.toHaveBeenCalled();
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
   it("gates deletion with MFA and binds the delete to the authenticated learner", async () => {
     const response = await DELETE(
       new NextRequest("https://learn.test/api/credentials/credential-1", {
