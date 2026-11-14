@@ -103,6 +103,9 @@ export const auth = betterAuth({
     maxPasswordLength: 128,
     requireEmailVerification: true,
     revokeSessionsOnPasswordReset: true,
+    // The mail outbox keeps the live reset link until it is used or expires,
+    // so keep that window short (the library default is one hour).
+    resetPasswordTokenExpiresIn: 15 * 60,
     sendResetPassword: async ({ user: authUser, url, token }) => {
       // Inactive, banned and Google-only accounts get the same neutral
       // response but no link; the unsent token is withdrawn immediately.
