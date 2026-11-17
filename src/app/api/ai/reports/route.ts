@@ -6,7 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { learningRequest, modelCall } from "@/lib/db/schema";
 import { requireAuth } from "@/lib/http/authz";
-import { writeAuditEvent } from "@/lib/security/audit-writer";
+import { writeAuditEventInTransaction } from "@/lib/security/audit-writer";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { containsCredentialOrHiddenEvidence } from "@/lib/security/sensitive-text";
 
@@ -75,36 +75,41 @@ export async function POST(request: NextRequest) {
         responseHash: ownedCall.responseHash,
         calledAt: ownedCall.createdAt.toISOString(),
       };
-      const [created] = await db
-        .insert(learningRequest)
-        .values({
-          userId: authz.session.user.id,
-          kind: "ai-output-report",
-          subject: `AI tutor report: ${body.data.category}`,
-          details: JSON.stringify({
+      // One transaction: if the audit row cannot be written the report is
+      // rolled back too, so a retry never leaves a duplicate report behind.
+      const created = await db.transaction(async (tx) => {
+        const [report] = await tx
+          .insert(learningRequest)
+          .values({
+            userId: authz.session.user.id,
+            kind: "ai-output-report",
+            subject: `AI tutor report: ${body.data.category}`,
+            details: JSON.stringify({
+              category: body.data.category,
+              description: body.data.description,
+              evidence,
+            }),
+          })
+          .returning({
+            id: learningRequest.id,
+            status: learningRequest.status,
+            createdAt: learningRequest.createdAt,
+          });
+        await writeAuditEventInTransaction(tx, {
+          actorUserId: authz.session.user.id,
+          subjectUserId: authz.session.user.id,
+          action: "ai_output.report",
+          resourceType: "learning_request",
+          resourceId: report.id,
+          outcome: "success",
+          metadata: {
             category: body.data.category,
-            description: body.data.description,
-            evidence,
-          }),
-        })
-        .returning({
-          id: learningRequest.id,
-          status: learningRequest.status,
-          createdAt: learningRequest.createdAt,
+            modelCallId: ownedCall.id,
+            provider: ownedCall.provider,
+            model: ownedCall.model,
+          },
         });
-      await writeAuditEvent({
-        actorUserId: authz.session.user.id,
-        subjectUserId: authz.session.user.id,
-        action: "ai_output.report",
-        resourceType: "learning_request",
-        resourceId: created.id,
-        outcome: "success",
-        metadata: {
-          category: body.data.category,
-          modelCallId: ownedCall.id,
-          provider: ownedCall.provider,
-          model: ownedCall.model,
-        },
+        return report;
       });
       return NextResponse.json(
         { report: created },

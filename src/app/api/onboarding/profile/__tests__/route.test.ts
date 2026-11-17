@@ -108,6 +108,12 @@ describe("versioned onboarding profile and disclosure", () => {
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
+  it("rejects a timezone that is not a real IANA zone before persistence", async () => {
+    const response = await POST(request({ ...validBody, timezone: "Not/AZone" }));
+    expect(response.status).toBe(400);
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
   it("requires a DSA language and enforces the cohort/leaderboard dependency", async () => {
     const missingLanguage = await POST(request({
       ...validBody,

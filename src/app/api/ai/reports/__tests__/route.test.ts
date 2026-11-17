@@ -9,16 +9,21 @@ const mocks = vi.hoisted(() => {
   const returning = vi.fn();
   const values = vi.fn(() => ({ returning }));
   const insert = vi.fn(() => ({ values }));
+  const tx = { insert };
+  const transaction = vi.fn(async (callback: (handle: typeof tx) => Promise<unknown>) => callback(tx));
   return {
-    limit, where, from, select, returning, values, insert,
+    limit, where, from, select, returning, values, insert, tx, transaction,
+    standaloneInsert: vi.fn(),
     requireAuth: vi.fn(), withRateLimit: vi.fn(), writeAuditEvent: vi.fn(),
   };
 });
 
-vi.mock("@/lib/db/client", () => ({ db: { select: mocks.select, insert: mocks.insert } }));
+vi.mock("@/lib/db/client", () => ({
+  db: { select: mocks.select, insert: mocks.standaloneInsert, transaction: mocks.transaction },
+}));
 vi.mock("@/lib/http/authz", () => ({ requireAuth: mocks.requireAuth }));
 vi.mock("@/lib/security/rate-limit", () => ({ withRateLimit: mocks.withRateLimit }));
-vi.mock("@/lib/security/audit-writer", () => ({ writeAuditEvent: mocks.writeAuditEvent }));
+vi.mock("@/lib/security/audit-writer", () => ({ writeAuditEventInTransaction: mocks.writeAuditEvent }));
 
 import { POST } from "../route";
 
@@ -111,10 +116,33 @@ describe("AI output report API", () => {
     expect(persisted).toContain("requestHash");
     expect(persisted).toContain("responseHash");
     expect(persisted).not.toMatch(/nvapi-|api[_-]?key|ciphertext|rawResponse/i);
-    expect(mocks.writeAuditEvent).toHaveBeenCalledWith(expect.objectContaining({
+    expect(mocks.writeAuditEvent).toHaveBeenCalledWith(mocks.tx, expect.objectContaining({
       action: "ai_output.report",
       outcome: "success",
       metadata: expect.objectContaining({ modelCallId: callId, provider: "nvidia_nim" }),
     }));
+  });
+
+  it("stores the report and its audit row in one transaction so a failed audit leaves no report", async () => {
+    mocks.writeAuditEvent.mockRejectedValueOnce(new Error("audit unavailable"));
+    let transactionFailure: unknown;
+    mocks.transaction.mockImplementationOnce(async (callback) => {
+      try {
+        return await callback(mocks.tx);
+      } catch (error) {
+        transactionFailure = error;
+        throw error;
+      }
+    });
+    await expect(POST(request({
+      modelCallId: callId,
+      category: "incorrect",
+      description: "The explanation says assignment compares values, which is incorrect.",
+    }))).rejects.toThrow("audit unavailable");
+    // The audit failure must abort the same transaction that inserted the
+    // report; an insert outside it would survive and a retry would duplicate it.
+    expect(transactionFailure).toBeInstanceOf(Error);
+    expect(mocks.insert).toHaveBeenCalledOnce();
+    expect(mocks.standaloneInsert).not.toHaveBeenCalled();
   });
 });
