@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => {
     failDedupCoverage: false,
     dedupCovered: true,
     failRollbackTo: false,
+    failRollback: false,
     failReleaseSavepoint: false,
     deletedObjectCount: 2,
     redactionEligibleTransitioned: 2,
@@ -181,6 +182,9 @@ const mocks = vi.hoisted(() => {
     if (sql === "rollback to savepoint retention_email_redaction" && state.failRollbackTo) {
       throw new Error("synthetic savepoint rollback failure");
     }
+    if (sql === "rollback" && state.failRollback) {
+      throw new Error("synthetic dead connection during rollback");
+    }
     if (sql === "release savepoint retention_email_redaction" && state.failReleaseSavepoint) {
       throw new Error("synthetic savepoint release failure");
     }
@@ -308,6 +312,14 @@ describe("retention runtime orchestration", () => {
     await expect(runRetention({ idempotencyKey: "retention:test:chat-audit-failure", dryRun: false, batchSize: 5, now })).rejects.toThrow("Audit unavailable");
     expect(mocks.query).toHaveBeenCalledWith("rollback");
   });
+  it("surfaces the original error and marks the run failed when rollback itself fails", async () => {
+    retentionAudit.mockRejectedValueOnce(new Error("Audit unavailable"));
+    mocks.state.failRollback = true;
+    await expect(runRetention({ idempotencyKey: "retention:test:rollback-failure", dryRun: false, batchSize: 5, now })).rejects.toThrow("Audit unavailable");
+    expect(mocks.query).toHaveBeenCalledWith("rollback");
+    expect(mocks.query.mock.calls.some(([sql]) => String(sql).includes("status = 'failed'"))).toBe(true);
+    expect(mocks.client.release).toHaveBeenCalledTimes(1);
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.state.claim = "new";
@@ -316,6 +328,7 @@ describe("retention runtime orchestration", () => {
     mocks.state.failDedupCoverage = false;
     mocks.state.dedupCovered = true;
     mocks.state.failRollbackTo = false;
+    mocks.state.failRollback = false;
     mocks.state.failReleaseSavepoint = false;
     mocks.state.deletedObjectCount = 2;
     mocks.state.redactionEligibleTransitioned = 2;
