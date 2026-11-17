@@ -17,13 +17,13 @@
   "imageEvidence": {
     "java": {
       "tag": "learncoding/runtime-java:local",
-      "manifestDigest": "sha256:785eb431d768b45f67056a8948c62c1cf4dc18498fb8513d48d5fc5bd1d00b83",
-      "configDigest": "sha256:79853ee01d90ec0c5e636eea6acb376133af302d10bc21102b9e6511ecb7a350",
-      "immutableReference": "learncoding/runtime-java@sha256:785eb431d768b45f67056a8948c62c1cf4dc18498fb8513d48d5fc5bd1d00b83",
-      "tagDescriptorDigest": "sha256:785eb431d768b45f67056a8948c62c1cf4dc18498fb8513d48d5fc5bd1d00b83",
-      "tagImageId": "sha256:785eb431d768b45f67056a8948c62c1cf4dc18498fb8513d48d5fc5bd1d00b83",
-      "exactReferenceDescriptorDigest": "sha256:785eb431d768b45f67056a8948c62c1cf4dc18498fb8513d48d5fc5bd1d00b83",
-      "exactReferenceImageId": "sha256:785eb431d768b45f67056a8948c62c1cf4dc18498fb8513d48d5fc5bd1d00b83",
+      "manifestDigest": "sha256:adefaec8aa4f9e8c15a32f5d1a32e106fa6132bad904a6044c3193e383c8f247",
+      "configDigest": "sha256:41f000c963ffb11f3473887319054143a76a01063b38bd02c2983f37fd20e6b7",
+      "immutableReference": "learncoding/runtime-java@sha256:adefaec8aa4f9e8c15a32f5d1a32e106fa6132bad904a6044c3193e383c8f247",
+      "tagDescriptorDigest": "sha256:adefaec8aa4f9e8c15a32f5d1a32e106fa6132bad904a6044c3193e383c8f247",
+      "tagImageId": "sha256:adefaec8aa4f9e8c15a32f5d1a32e106fa6132bad904a6044c3193e383c8f247",
+      "exactReferenceDescriptorDigest": "sha256:adefaec8aa4f9e8c15a32f5d1a32e106fa6132bad904a6044c3193e383c8f247",
+      "exactReferenceImageId": "sha256:adefaec8aa4f9e8c15a32f5d1a32e106fa6132bad904a6044c3193e383c8f247",
       "independentlyValidated": true
     },
     "python": {

@@ -17,7 +17,7 @@
   "imageEvidence": {
     "java": {
       "tag": "learncoding/runtime-java:local",
-      "manifestDigest": "sha256:785eb431d768b45f67056a8948c62c1cf4dc18498fb8513d48d5fc5bd1d00b83",
+      "manifestDigest": "sha256:adefaec8aa4f9e8c15a32f5d1a32e106fa6132bad904a6044c3193e383c8f247",
       "configDigest": null,
       "immutableReference": null,
       "tagDescriptorDigest": null,
