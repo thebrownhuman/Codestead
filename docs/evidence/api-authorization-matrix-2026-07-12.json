@@ -172,7 +172,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "7e28d8430e0ec46daa3d72b7270f5f5c79df04b69883576fea200a112fd793b1"
+      "operationSourceSha256": "c7f1a42dd804e665a2963a5dcc70cfd64a76f326b995f9a2368309dba0c3dede"
     },
     {
       "operation": "POST /api/admin/access-requests/[id]/reject",
@@ -185,7 +185,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "b821b4d275ebc6c8b2ebd39d657774c9857c5f5526d2abd7415df9402b4f99b2"
+      "operationSourceSha256": "8a6908dd3a41e5a326c8215c9cff1a2b43bd099455b4464f38b54368287116b9"
     },
     {
       "operation": "GET /api/admin/access-requests",
@@ -653,7 +653,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "19ff64487fd41a7d80570b321e13e3b0ec15369466865e6c5d702de0a1174aac"
+      "operationSourceSha256": "145c2d328a0bec8d91938776d2ca088e977b1d9a96130a40eedb5f67e96190a2"
     },
     {
       "operation": "GET /api/admin/fallback-grants",
@@ -991,7 +991,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "7caa4516097245c890c1daa2560c228fdc8bb0404c107ac778fd29c778d32072"
+      "operationSourceSha256": "a11473ebdca01af806836958555d8a48861fd531ae8688c5b49d00ad60522ab1"
     },
     {
       "operation": "GET /api/admin/session-revocation-requests",
@@ -1017,7 +1017,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by eq(modelCall.userId, authz.session.user.id)",
-      "operationSourceSha256": "3a6613ea96ba2bcf1d92a8e22f91de0bd9dbf9c5b3de52dbbca4b1852b632977"
+      "operationSourceSha256": "502151358d782a0d728edff0377cad645ef163372d9bee0ee9228770f0f40a68"
     },
     {
       "operation": "GET /api/ai/threads/[threadId]",
@@ -1108,7 +1108,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by getBattle({ actorUserId: authz.session!.user.id, battleId })",
-      "operationSourceSha256": "c1418b982064a34205bb1bf5c61693d88dcee09b34134ace9e30708e91798f8f"
+      "operationSourceSha256": "9bb54381241299aa97679a84f3141a5fe2bee9563db6bacd2fa2ac977371a45d"
     },
     {
       "operation": "POST /api/battles/[battleId]",
@@ -1121,7 +1121,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by actorUserId: authz.session!.user.id, battleId",
-      "operationSourceSha256": "163954a5f2116625800e917e555f2e334b6dd24381c496ba37075eefaa47555c"
+      "operationSourceSha256": "c67850f059f28f1fa0b374cd8d733e05829e1c8a10fb6ca69a1a3a69f116d0c7"
     },
     {
       "operation": "GET /api/battles",
@@ -1355,7 +1355,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by eq(providerCredential.userId, authz.session.user.id)",
-      "operationSourceSha256": "2d98201fb9a9ce61672871a1a367cc6f6dfcc4aaa27496ad305ca5066fe88c7d"
+      "operationSourceSha256": "c85f9d98919c6c84d9e4e6ffcc582fe1f9363f525ccf7c13cf54ba4015ec8d79"
     },
     {
       "operation": "PATCH /api/credentials/[id]",
@@ -1368,7 +1368,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by eq(providerCredential.userId, authz.session.user.id)",
-      "operationSourceSha256": "a3261d6607f689d9e1b657891206cc7934dd71d7bda91489c51dd3366c845818"
+      "operationSourceSha256": "e21c3ed3e52b48d5719d13406dbad6025e384bf2b6e78e69a25e864b8e3819db"
     },
     {
       "operation": "GET /api/credentials",
@@ -2109,7 +2109,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by eq(project.userId, authz.session.user.id)",
-      "operationSourceSha256": "35c2bd42ae71ede00234aff61a3950835d9037ae293bc3a82fc306348c3e2025"
+      "operationSourceSha256": "d0b7e40c55acb8038f01bad57774774030ba9151ba408dc652ad5c7b7dff9e88"
     },
     {
       "operation": "POST /api/projects/[id]/reviews/[reviewId]/appeal",
