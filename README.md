@@ -17,7 +17,7 @@ The repository is a **Core Beta implementation candidate**, not an approved lear
 
 ## Local verification
 
-Use Node 22 (CI 22.23.1, image 22.23.3), which satisfies React Router 8's runtime baseline. Docker is required for the production-shaped runner checks.
+Use Node 22 (CI 22.23.1, image 22.23.5), which satisfies React Router 8's runtime baseline. Docker is required for the production-shaped runner checks.
 
 ```bash
 npm ci
