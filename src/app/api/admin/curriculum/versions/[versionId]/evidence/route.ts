@@ -31,7 +31,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return adminJson({ report });
     } catch (error) {
       const code = error instanceof CurriculumAdminError ? error.code : "EVIDENCE_FAILED";
-      await writeAuditEvent({ actorUserId: authz.session.user.id, action: "curriculum.evidence", resourceType: "course_version", resourceId: versionId, reason: body.data.reason, outcome: "failure", metadata: { code } });
+      await writeAuditEvent({ actorUserId: authz.session.user.id, action: "curriculum.evidence", resourceType: "course_version", resourceId: versionId, reason: body.data.reason, outcome: "failure", metadata: { code } }).catch(() => undefined);
       return adminJson({ error: code }, curriculumErrorStatus(code));
     }
   });
