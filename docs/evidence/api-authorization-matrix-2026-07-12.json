@@ -53,13 +53,13 @@
       "file": "src/app/api/exams/_lib/service.ts",
       "purpose": "exam sessions and answers",
       "anchors": 4,
-      "sourceSha256": "d75f7087c5d7c21e348fd9eb33c6cbbc90325704e5c024028920eb3c43584425"
+      "sourceSha256": "df0f1c240b6e67f945cf06fe806bec7ad878d22a27b269547be020f19a0b7940"
     },
     {
       "file": "src/lib/learning-service/drizzle-store.ts",
       "purpose": "learning sessions and attempts",
       "anchors": 4,
-      "sourceSha256": "b214dddfb79491131d0356cf24d0d8535643c59253b37202767401341782594b"
+      "sourceSha256": "ec7cb39338db86f4d0240cbcaa2560aeb91d3dea9f3aaae04b3a2784d673fcb8"
     },
     {
       "file": "src/lib/daily-review/service.ts",
