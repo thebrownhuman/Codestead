@@ -748,7 +748,7 @@ jobs:
             'Signed-By: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc' \
             | sudo tee /etc/apt/sources.list.d/pgdg.sources >/dev/null
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends postgresql-17 postgresql-18
+          sudo apt-get install --yes --no-install-recommends postgresql-17=17.11-1.pgdg24.04+2 postgresql-client-17=17.11-1.pgdg24.04+2 postgresql-18
         timeout-minutes: 10
       - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-retention-redaction-0063
       - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-dispatch-binding-0064:pg17

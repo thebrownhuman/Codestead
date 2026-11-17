@@ -178,7 +178,7 @@ export function assertMailGuardedDelivery0069PostgresProjection(
   postgresProjection,
 ) {
   const installTimeoutAnchor =
-    "          sudo apt-get install --yes --no-install-recommends postgresql-17 postgresql-18\n        timeout-minutes: 10";
+    "          sudo apt-get install --yes --no-install-recommends postgresql-17=17.11-1.pgdg24.04+2 postgresql-client-17=17.11-1.pgdg24.04+2 postgresql-18\n        timeout-minutes: 10";
   assert.equal(
     postgresProjection.split(installTimeoutAnchor).length,
     2,

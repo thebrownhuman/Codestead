@@ -67,7 +67,7 @@ const registrationIndex = postgresJob.indexOf(
   `      - run: npm run ${registrationScript}`,
 );
 const installLines = postgresJob.match(
-  /^          sudo apt-get install --yes --no-install-recommends (?:postgresql-18|postgresql-17 postgresql-18)$/gmu,
+  /^          sudo apt-get install --yes --no-install-recommends (?:postgresql-18|postgresql-17=17\.11-1\.pgdg24\.04\+2 postgresql-client-17=17\.11-1\.pgdg24\.04\+2 postgresql-18)$/gmu,
 ) ?? [];
 assert.equal(
   installLines.length,
