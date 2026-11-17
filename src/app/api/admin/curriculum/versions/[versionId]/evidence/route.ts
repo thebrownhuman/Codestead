@@ -27,8 +27,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     await writeAuditEvent({ actorUserId: authz.session.user.id, action: "curriculum.evidence", resourceType: "course_version", resourceId: versionId, reason: body.data.reason, outcome: "allowed", metadata: { phase: "pre_mutation", expectedVersion: body.data.expectedVersion, expectedContentHash: body.data.expectedContentHash, notRunReason: body.data.notRunReason } });
     try {
       const report = await generateCurriculumReleaseEvidence({ actorUserId: authz.session.user.id, courseVersionId: versionId, ...body.data });
-      await writeAuditEvent({ actorUserId: authz.session.user.id, action: "curriculum.evidence", resourceType: "course_version", resourceId: versionId, reason: body.data.reason, outcome: "success", metadata: { evidenceVersion: report.evidenceVersion, publicationRevision: report.publicationRevision, replayed: report.replayed, notRunReports: report.notRunReports } });
-      return adminJson({ report });
+      const completionAuditRecorded = await writeAuditEvent({ actorUserId: authz.session.user.id, action: "curriculum.evidence", resourceType: "course_version", resourceId: versionId, reason: body.data.reason, outcome: "success", metadata: { evidenceVersion: report.evidenceVersion, publicationRevision: report.publicationRevision, replayed: report.replayed, notRunReports: report.notRunReports } }).then(() => true).catch(() => false);
+      return adminJson({ report, completionAuditRecorded });
     } catch (error) {
       const code = error instanceof CurriculumAdminError ? error.code : "EVIDENCE_FAILED";
       await writeAuditEvent({ actorUserId: authz.session.user.id, action: "curriculum.evidence", resourceType: "course_version", resourceId: versionId, reason: body.data.reason, outcome: "failure", metadata: { code } }).catch(() => undefined);

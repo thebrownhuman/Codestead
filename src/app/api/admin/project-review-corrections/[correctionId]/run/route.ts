@@ -74,7 +74,7 @@ export async function POST(
           requestId: body.data.requestId,
           reason: body.data.reason,
         });
-        await writeAuditEvent({
+        const completionAuditRecorded = await writeAuditEvent({
           actorUserId: authz.session.user.id,
           subjectUserId: detail.correction.userId,
           action: "project_review.correction_retry",
@@ -89,9 +89,10 @@ export async function POST(
             attemptCount: report.attemptCount,
             correctionExecution: "durable_worker_queued",
           },
-        });
+        }).then(() => true).catch(() => false);
         return adminJson({
           report,
+          completionAuditRecorded,
           execution: { state: report.status, worker: "project-review-correction-worker" },
         }, report.duplicate ? 200 : 202);
       } catch (error) {

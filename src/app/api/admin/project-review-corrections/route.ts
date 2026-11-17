@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
           requestId: body.data.requestId,
           reason: body.data.reason,
         });
-        await writeAuditEvent({
+        const completionAuditRecorded = await writeAuditEvent({
           actorUserId: authz.session.user.id,
           subjectUserId: queued.userId,
           action: "project_review.correction_queue",
@@ -106,9 +106,10 @@ export async function POST(request: NextRequest) {
             revision: queued.revision,
             correctionExecution: "durable_worker_queued",
           },
-        });
+        }).then(() => true).catch(() => false);
         return adminJson({
           correction: queued,
+          completionAuditRecorded,
           execution: { state: queued.status, worker: "project-review-correction-worker" },
         }, queued.duplicate ? 200 : 202);
       } catch (error) {

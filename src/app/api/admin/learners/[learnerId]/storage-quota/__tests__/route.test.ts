@@ -144,6 +144,20 @@ describe("administrator storage quota route", () => {
     );
   });
 
+  it("reports the committed quota change when only the completion audit write fails", async () => {
+    mocks.writeAuditEvent.mockRejectedValueOnce(new Error("audit store down"));
+    const response = await PATCH(request(), { params: Promise.resolve({ learnerId }) });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      quotaBytes: requestBody.quotaBytes,
+      rowVersion: 4,
+      auditCorrelationId: requestBody.requestId,
+      completionAuditRecorded: false,
+    });
+    expect(mocks.writeAuditEvent).not.toHaveBeenCalledWith(expect.objectContaining({ outcome: "failure" }));
+    expect(mocks.emailStorageQuotaChanged).toHaveBeenCalledTimes(1);
+  });
+
   it("uses the canonical persisted request ID for audit and email replay authority", async () => {
     const submittedRequestId = requestBody.requestId.toUpperCase();
     const canonicalRequestId = requestBody.requestId;

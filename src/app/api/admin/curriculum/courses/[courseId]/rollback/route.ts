@@ -26,8 +26,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     await writeAuditEvent({ actorUserId: authz.session.user.id, action: "curriculum.rollback", resourceType: "course", resourceId: courseId, reason: body.data.reason, outcome: "allowed", metadata: { phase: "pre_mutation", targetCourseVersionId: body.data.targetCourseVersionId, expectedPointerVersion: body.data.expectedPointerVersion } });
     try {
       const report = await rollbackCurriculumPointer({ actorUserId: authz.session.user.id, courseId, ...body.data });
-      await writeAuditEvent({ actorUserId: authz.session.user.id, action: "curriculum.rollback", resourceType: "course", resourceId: courseId, reason: body.data.reason, outcome: "success", metadata: { currentCourseVersionId: report.currentCourseVersionId, pointerVersion: report.pointerVersion, replayed: report.replayed } });
-      return adminJson({ report });
+      const completionAuditRecorded = await writeAuditEvent({ actorUserId: authz.session.user.id, action: "curriculum.rollback", resourceType: "course", resourceId: courseId, reason: body.data.reason, outcome: "success", metadata: { currentCourseVersionId: report.currentCourseVersionId, pointerVersion: report.pointerVersion, replayed: report.replayed } }).then(() => true).catch(() => false);
+      return adminJson({ report, completionAuditRecorded });
     } catch (error) { const code = error instanceof CurriculumAdminError ? error.code : "ROLLBACK_FAILED"; return adminJson({ error: code }, curriculumErrorStatus(code)); }
   });
 }
