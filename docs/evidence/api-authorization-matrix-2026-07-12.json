@@ -861,7 +861,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "9c5d3e82f60bc8b3d2bc36ebc6925ee3ad7b4b83c7e2e5a969dd2621fe5217a2"
+      "operationSourceSha256": "47f60d5f84eebbe2740ac1a460a080bf7286d6d4fca81ecfe48705d508618ccf"
     },
     {
       "operation": "GET /api/admin/learning-requests",
@@ -874,7 +874,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "d89138d1cd82c44925aac5233a090d6d2b9882fc0efeeebb0c822f201bce9559"
+      "operationSourceSha256": "e9894ac8c81e110a8ac613eaeec72b1d477bd826fd3c0c9a446906716496732d"
     },
     {
       "operation": "POST /api/admin/module-projects/[templateId]/decision",
@@ -2031,7 +2031,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "5ad2e2a612bc4f8b28e66ade6abef0adb4d2ba31589600b06406766c64c860d0"
+      "operationSourceSha256": "31856276075c9edce364a8626ee805a2fc3929ad416df482c8e368090895dac5"
     },
     {
       "operation": "GET /api/onboarding/status",

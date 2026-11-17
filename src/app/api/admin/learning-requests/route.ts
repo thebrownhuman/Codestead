@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, notInArray } from "drizzle-orm";
+import { and, desc, eq, inArray, ne, notInArray } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -33,7 +33,8 @@ export async function GET(request?: NextRequest) {
     .innerJoin(user, eq(user.id, learningRequest.userId))
     .where(and(
       support ? inArray(learningRequest.kind, [...supportKinds]) : notInArray(learningRequest.kind, [...supportKinds]),
-      filter.data.status ? eq(learningRequest.status, filter.data.status === "open" ? "pending" : "approved") : undefined,
+      filter.data.status === "open" ? eq(learningRequest.status, "pending") : undefined,
+      filter.data.status === "resolved" ? ne(learningRequest.status, "pending") : undefined,
     ))
     .orderBy(desc(learningRequest.createdAt))
     .limit(200);

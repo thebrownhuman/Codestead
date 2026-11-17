@@ -126,6 +126,7 @@ function exactAnswersFor(item: Exclude<DeterministicAssessmentItem, { kind: "cod
   readonly acceptedAnswers: readonly string[];
   readonly caseSensitive: boolean;
   readonly promptSuffix: string;
+  readonly unordered?: boolean;
 } {
   if (item.kind === "mcq") {
     const optionText = new Map(item.options.map((option) => [option.id, option.text]));
@@ -135,6 +136,7 @@ function exactAnswersFor(item: Exclude<DeterministicAssessmentItem, { kind: "cod
         item.answer.correctOptionIds.map((id) => optionText.get(id) ?? id).join(","),
       ],
       caseSensitive: false,
+      ...(item.answer.correctOptionIds.length > 1 ? { unordered: true } : {}),
       promptSuffix: `\n\nOptions:\n${item.options.map((option) => `${option.id}: ${option.text}`).join("\n")}\nAnswer with the option id.`,
     };
   }
@@ -216,6 +218,7 @@ function createApprovedAuthoredItem(
       kind: "exact-answer",
       acceptedAnswers: exact.acceptedAnswers,
       caseSensitive: exact.caseSensitive,
+      ...(exact.unordered ? { unordered: true } : {}),
     },
   };
 }
