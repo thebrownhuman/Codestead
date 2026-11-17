@@ -44,9 +44,17 @@ export interface RunnerJobResponse {
     status: string;
     imageDigest: string;
     runtimeVersion: string;
-    compile: { status: string; stdout: string; stderr: string; exitCode: number | null };
+    compile: { status: string; stdout: string; stderr: string; exitCode: number | null; wallTimeMs?: number };
     run?: { stdout: string; stderr: string; exitCode: number | null; wallTimeMs: number };
-    tests: Array<{ id: string; visibility: string; category: string; status: string; feedbackCode: string }>;
+    tests: Array<{
+      id: string;
+      visibility: string;
+      category: string;
+      status: string;
+      feedbackCode: string;
+      exitCode?: number | null;
+      wallTimeMs?: number;
+    }>;
     totals: { passed: number; failed: number; total: number };
   };
   error?: { code: string; retryable: boolean };

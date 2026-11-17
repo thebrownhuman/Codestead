@@ -73,11 +73,23 @@ type ThreadReadResponse = {
   error?: string;
 };
 
-const WELCOME: Message = {
-  id: "authored-welcome",
-  role: "assistant",
-  content: "Hey buddy. I can see you are working on Python scalar values. Before we begin: what is the difference, in your words, between a value and the name bound to it?",
+export type TutorLessonContext = {
+  courseId: string;
+  skillId: string;
+  title: string;
 };
+
+const WELCOME = { id: "authored-welcome" } as const;
+
+function welcomeMessage(lesson: TutorLessonContext | null | undefined): Message {
+  return {
+    id: WELCOME.id,
+    role: "assistant",
+    content: lesson
+      ? `Hey buddy. I can see you are working on ${lesson.title}. Before we begin: what do you already know about it, in your own words?`
+      : "Hey buddy. Before we begin: what are you working on, and what would you like to understand better?",
+  };
+}
 
 const NEW_THREAD_DRAFT_KEY = "__new_tutor_thread__";
 
@@ -128,7 +140,7 @@ async function jsonBody<T>(response: Response): Promise<T> {
   return response.json().catch(() => ({})) as Promise<T>;
 }
 
-export function TutorView() {
+export function TutorView({ lesson = null }: { lesson?: TutorLessonContext | null } = {}) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const historyToggle = useRef<HTMLButtonElement>(null);
   const historyBack = useRef<HTMLButtonElement>(null);
@@ -144,7 +156,7 @@ export function TutorView() {
   function closeHistory() {
     setHistoryOpen(false);
   }
-  const [messages, setMessages] = useState<Message[]>([WELCOME]);
+  const [messages, setMessages] = useState<Message[]>(() => [welcomeMessage(lesson)]);
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
   const [selectedThread, setSelectedThread] = useState<ThreadDetail | null>(null);
   const [openingThreadId, setOpeningThreadId] = useState<string | null>(null);
@@ -309,7 +321,7 @@ export function TutorView() {
     setOpeningThreadId(null);
     setHistoryBusy(false);
     setSelectedThread(null);
-    setMessages([WELCOME]);
+    setMessages([welcomeMessage(lesson)]);
     setMessageCursor(null);
     setError(null);
     setSanitizationNotice(null);
@@ -374,8 +386,7 @@ export function TutorView() {
         headers: { "content-type": "application/json", accept: "application/json" },
         body: JSON.stringify({
           requestId,
-          courseId: "python",
-          skillId: "python.values.scalars",
+          ...(lesson ? { courseId: lesson.courseId, skillId: lesson.skillId } : {}),
           message: content,
           ...(selectedThread ? { threadId: selectedThread.id } : {}),
         }),

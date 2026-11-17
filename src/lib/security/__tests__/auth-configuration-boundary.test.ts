@@ -16,6 +16,11 @@ describe("Better Auth security configuration", () => {
     expect(manifest.dependencies["better-auth"]).toBe("1.7.6");
   });
 
+  it("limits password reset links to 15 minutes", () => {
+    // The live link sits in the mail outbox until it is used or expires.
+    expect(authSource).toContain("resetPasswordTokenExpiresIn: 15 * 60,");
+  });
+
   it("disables implicit account linking even for a trusted OAuth provider", () => {
     expect(authSource).toContain("disableImplicitLinking: true");
   });
