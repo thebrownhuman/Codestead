@@ -58,7 +58,9 @@ describe("durable learner file tombstone transaction", () => {
       JSON.stringify({ operation: "user_file_delete", objectId: OBJECT_ID, storageKey: STORAGE_KEY }),
       `file-erasure:user-file-delete:${OBJECT_ID}`,
       expect.any(Date),
+      8,
     ]);
+    expect(job?.sql).not.toMatch(/\b100\b/);
     expect(calls.at(-1)?.sql).toBe("commit");
   });
 
