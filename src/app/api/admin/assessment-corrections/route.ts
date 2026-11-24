@@ -12,6 +12,7 @@ import { requireAdmin } from "@/lib/http/authz";
 import { writeAuditEvent } from "@/lib/security/audit-writer";
 
 import { authorizeAssessmentCorrection } from "./authorization";
+import { assessmentCorrectionPublicError } from "@/lib/assessment-corrections/domain";
 
 export async function GET(request: NextRequest) {
   const authz = await requireAdmin();
@@ -81,6 +82,6 @@ export async function POST(request: NextRequest) {
       outcome: "failure",
       metadata: { errorCode: error instanceof Error ? error.name : "UNKNOWN", itemId: body.data.itemId },
     }).catch(() => undefined);
-    return adminJson({ error: error instanceof Error ? error.message : "CORRECTION_CREATE_FAILED" }, assessmentCorrectionErrorStatus(error));
+    return adminJson({ error: assessmentCorrectionPublicError(error, "CORRECTION_CREATE_FAILED") }, assessmentCorrectionErrorStatus(error));
   }
 }

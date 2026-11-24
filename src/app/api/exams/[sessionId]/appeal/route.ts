@@ -3,6 +3,7 @@ import { type NextRequest } from "next/server";
 import { z } from "zod";
 
 import { requireAuth } from "@/lib/http/authz";
+import { withRateLimit } from "@/lib/security/rate-limit";
 
 import { examError, examJson } from "../../_lib/http";
 import { submitExamAppeal } from "../../_lib/service";
@@ -19,20 +20,25 @@ export async function POST(
 ) {
   const authz = await requireAuth();
   if (!authz.session) return authz.response;
-  const jsonBody = await readBoundedJson(request);
-  if (jsonBody.response?.status === 413) return jsonBody.response;
-  const body = appealSchema.safeParse(jsonBody.value);
-  if (!body.success) {
-    return examJson({ error: "Give a concise reason for the appeal.", code: "INVALID_APPEAL" }, { status: 400 });
-  }
-  const { sessionId } = await params;
-  try {
-    return examJson(await submitExamAppeal({
-      userId: authz.session.user.id,
-      sessionId,
-      ...body.data,
-    }), { status: 202 });
-  } catch (error) {
-    return examError(error);
-  }
+  return withRateLimit(
+    { policy: "exam_appeal_user", identity: { kind: "user", value: authz.session.user.id } },
+    async () => {
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return jsonBody.response;
+      const body = appealSchema.safeParse(jsonBody.value);
+      if (!body.success) {
+        return examJson({ error: "Give a concise reason for the appeal.", code: "INVALID_APPEAL" }, { status: 400 });
+      }
+      const { sessionId } = await params;
+      try {
+        return examJson(await submitExamAppeal({
+          userId: authz.session.user.id,
+          sessionId,
+          ...body.data,
+        }), { status: 202 });
+      } catch (error) {
+        return examError(error);
+      }
+    },
+  );
 }

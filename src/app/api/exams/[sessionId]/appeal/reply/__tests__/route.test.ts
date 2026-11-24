@@ -7,6 +7,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/http/authz", () => ({ requireAuth: mocks.requireAuth }));
+vi.mock("@/lib/security/rate-limit", () => ({
+  withRateLimit: (_check: unknown, handler: () => Promise<Response>) => handler(),
+}));
 vi.mock("@/app/api/exams/_lib/service", () => ({
   submitExamAppealReply: mocks.submitExamAppealReply,
 }));

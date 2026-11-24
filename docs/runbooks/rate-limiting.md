@@ -23,6 +23,10 @@ Codestead uses `rate-limiter-flexible` with PostgreSQL-backed fixed-window count
 | `exam_start_user` | 5 / hour | authenticated user | Start formal exam |
 | `exam_run_user` | 20 / minute | authenticated user | Compile/run during exam |
 | `exam_submit_user` | 10 / minute | authenticated user | Submit formal exam |
+| `exam_autosave_user` | 120 / minute | authenticated user | Autosave exam answer |
+| `exam_event_user` | 60 / minute | authenticated user | Exam integrity event (also capped per session) |
+| `exam_heartbeat_user` | 30 / minute | authenticated user | Exam heartbeat |
+| `exam_appeal_user` | 10 / hour | authenticated user | Exam appeal and appeal reply |
 | `file_upload_user` | 10 / hour | authenticated user | Upload learner file |
 | `github_review_user` | 5 / hour | authenticated user | Review public GitHub project |
 | `learning_request_user` | 5 / day | authenticated user | Request subject/topic content |

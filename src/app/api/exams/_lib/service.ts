@@ -96,6 +96,7 @@ import {
   computeRetakeEligibility,
   disconnectedDeltaSeconds,
   evaluateStartDevice,
+  examEventCapReached,
   gradeExamSubmission,
   hasPersistedRemediationEvidence,
   hasDeadlinePassed,
@@ -1502,6 +1503,14 @@ export async function recordExamEvent(input: {
     }
     if (owned.session.status !== "active" && owned.session.status !== "paused_by_system") {
       throw new ExamServiceError("This exam no longer accepts integrity events.", 409, "EXAM_NOT_ACTIVE");
+    }
+    const [stored] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(examEvent)
+      .where(eq(examEvent.examSessionId, input.sessionId));
+    if (examEventCapReached(stored?.count ?? 0)) {
+      // The row lock above serializes admissions, so the cap cannot be overshot.
+      return { accepted: false, duplicate: false };
     }
     const inserted = await tx
       .insert(examEvent)

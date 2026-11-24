@@ -14,6 +14,8 @@ import {
   deduplicateExamEvents,
   disconnectedDeltaSeconds,
   evaluateStartDevice,
+  examEventCapReached,
+  MAX_EXAM_EVENTS_PER_SESSION,
   gradeExamSubmission,
   hasDeadlinePassed,
   hasPersistedRemediationEvidence,
@@ -767,5 +769,15 @@ describe("authoritative equivalent re-exam grants", () => {
       ...input,
       result: { ...failed, infrastructureFailure: true },
     })).toBe(false);
+  });
+});
+
+describe("exam event cap", () => {
+  it("admits events below the per-session cap and refuses at the cap", () => {
+    expect(MAX_EXAM_EVENTS_PER_SESSION).toBeGreaterThan(0);
+    expect(examEventCapReached(0)).toBe(false);
+    expect(examEventCapReached(MAX_EXAM_EVENTS_PER_SESSION - 1)).toBe(false);
+    expect(examEventCapReached(MAX_EXAM_EVENTS_PER_SESSION)).toBe(true);
+    expect(examEventCapReached(MAX_EXAM_EVENTS_PER_SESSION + 50)).toBe(true);
   });
 });

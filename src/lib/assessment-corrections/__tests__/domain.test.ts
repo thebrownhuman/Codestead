@@ -10,6 +10,7 @@ import { hashAppealEvidence } from "@/lib/appeals/evidence";
 import { replacementEvidenceSchema, type ReplacementEvidence } from "../contracts";
 import {
   AssessmentCorrectionError,
+  assessmentCorrectionPublicError,
   buildImpactHashes,
   correctionMasteryLanguageContext,
   correctionTarget,
@@ -249,5 +250,15 @@ describe("assessment correction evidence domain", () => {
     };
     expect(() => correctionTarget(pending, "python.loops.code-1"))
       .toThrow(expect.objectContaining({ code: "ITEM_NOT_DETERMINISTIC" }));
+  });
+});
+
+describe("assessment correction public error message", () => {
+  it("passes through typed correction errors only", () => {
+    expect(assessmentCorrectionPublicError(new AssessmentCorrectionError("CORRECTION_NOT_FOUND"), "FALLBACK"))
+      .toBe("CORRECTION_NOT_FOUND");
+    expect(assessmentCorrectionPublicError(new Error('relation "x" password=secret'), "CORRECTION_CREATE_FAILED"))
+      .toBe("CORRECTION_CREATE_FAILED");
+    expect(assessmentCorrectionPublicError("boom", "CORRECTION_QUEUE_FAILED")).toBe("CORRECTION_QUEUE_FAILED");
   });
 });

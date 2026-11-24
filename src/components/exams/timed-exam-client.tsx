@@ -43,6 +43,7 @@ import {
   type ExamAnswerSaveState,
 } from "@/lib/exams/use-durable-exam-outbox";
 import { remainingExamSeconds, serverClockOffsetMs } from "@/app/api/exams/_lib/policy";
+import { examClockOffsetMs, stampExamReceivedAt } from "@/lib/exams/received-at";
 import { useConfirm } from "@/components/ui/use-confirm";
 
 import styles from "./exams.module.css";
@@ -339,7 +340,7 @@ function ActiveExam({
   const [remaining, setRemaining] = useState(() => remainingExamSeconds(
     exam.serverDeadlineAt,
     Date.now(),
-    serverClockOffsetMs(exam.serverNow, Date.now()),
+    examClockOffsetMs(exam, Date.now()),
   ));
   const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
   const [submitting, setSubmitting] = useState(false);
@@ -353,7 +354,7 @@ function ActiveExam({
   const [runState, setRunState] = useState<Record<string, { busy: boolean; label?: string; output?: string }>>({});
   const [runSyncInProgress, setRunSyncInProgress] = useState(false);
   const [stdin, setStdin] = useState<Record<string, string>>({});
-  const clockOffsetRef = useRef(serverClockOffsetMs(exam.serverNow, Date.now()));
+  const clockOffsetRef = useRef(examClockOffsetMs(exam, Date.now()));
   const expiryStartedRef = useRef(false);
   const answerWriteSequenceRef = useRef(new Map<string, number>());
   const submitAbortControllerRef = useRef<AbortController | null>(null);
@@ -983,6 +984,7 @@ export function TimedExamClient({
   } | null>(null);
 
   const acceptExam = useCallback((nextExam: ExamSessionView) => {
+    stampExamReceivedAt(nextExam, Date.now());
     loadedExamRef.current = nextExam;
     setExam(nextExam);
   }, []);
@@ -1016,6 +1018,7 @@ export function TimedExamClient({
   const load = useCallback(async () => {
     try {
       const response = await fetch(`/api/exams/${sessionId}`, { cache: "no-store" });
+      const receivedAtMs = Date.now();
       if (response.status === 401 || response.status === 403) {
         await handleAuthDenial();
         return false;
@@ -1025,6 +1028,7 @@ export function TimedExamClient({
       if (!response.ok || !isExamSessionView(loadedExam, sessionId)) {
         throw new Error(responseError(body, "Exam session could not be loaded."));
       }
+      stampExamReceivedAt(loadedExam, receivedAtMs);
       acceptExam(loadedExam);
       setError(null);
       return loadedExam.status === "active";

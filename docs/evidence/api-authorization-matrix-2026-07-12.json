@@ -53,7 +53,7 @@
       "file": "src/app/api/exams/_lib/service.ts",
       "purpose": "exam sessions and answers",
       "anchors": 4,
-      "sourceSha256": "d75f7087c5d7c21e348fd9eb33c6cbbc90325704e5c024028920eb3c43584425"
+      "sourceSha256": "8a4b76bdadd6b6c3f1caa2f2acd6598112e7497170222ac69a36d819198259dd"
     },
     {
       "file": "src/lib/learning-service/drizzle-store.ts",
@@ -276,7 +276,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "cf01b6269eb59fa648d5a62f0ce62c2925eb2bc5c9af4c0b06156adeb2add38d"
+      "operationSourceSha256": "d235216a4652ae94527a3a644a017cc963e5f6db7e83017381498b688bf2e49b"
     },
     {
       "operation": "GET /api/admin/assessment-corrections/[correctionId]",
@@ -289,7 +289,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "2072d9976abbf060baed5ee0fd93619fb7980942dc2bdca1784031c63a03dcc8"
+      "operationSourceSha256": "a129e9f0f4b3f2c3a5465dbd73409073b5ea47d62cb98bdee7155605d889b162"
     },
     {
       "operation": "GET /api/admin/assessment-corrections",
@@ -315,7 +315,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "b82c11abe72c2f430f1cc09ae550577a6d27c814fc3d56a0ada5943c2b69514a"
+      "operationSourceSha256": "83031656f38d22e4ca269cc4bdaabf9c40ae1db38fe4b8804bf33edd6b92fd00"
     },
     {
       "operation": "GET /api/admin/career",
@@ -1433,7 +1433,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by userId: authz.session.user.id",
-      "operationSourceSha256": "da616ae28f84fd5bbda260969de221d0e6235ad36625545ffe73c235840989d5"
+      "operationSourceSha256": "566acb9858e216fc19c1d70dcf9ee603a04020d9b822f9d0cb7d69bd663ed474"
     },
     {
       "operation": "POST /api/exams/[sessionId]/appeal",
@@ -1446,7 +1446,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by userId: authz.session.user.id",
-      "operationSourceSha256": "4efa314d353a17210454c4c4e6ac47957713826fe2ac667272bab7a72a3d6b8e"
+      "operationSourceSha256": "7773aaa81e2d1a80cdb1f84d210ede637e6d8f990f4b32448babc53d63a58a87"
     },
     {
       "operation": "PUT /api/exams/[sessionId]/autosave",
@@ -1459,7 +1459,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by userId: authz.session.user.id",
-      "operationSourceSha256": "5622e5a01eb04bab9e10081336234be3ba7e689886f6fbcbab880669292e3a4e"
+      "operationSourceSha256": "f53623fd570a7ebcbb024d72d91e2b1afc2b51d93e80089fb14ba2b4995cc024"
     },
     {
       "operation": "POST /api/exams/[sessionId]/events",
@@ -1472,7 +1472,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by userId: authz.session.user.id",
-      "operationSourceSha256": "4adc01970978e1caa459df647a4d97b0598841111e66384251b8dcf703300f6c"
+      "operationSourceSha256": "8341bd0ba4e31aef568e62bae5b8a76afe4bf3b19ef53c37faadbffa06f21073"
     },
     {
       "operation": "POST /api/exams/[sessionId]/heartbeat",
@@ -1485,7 +1485,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by heartbeatExam(authz.session.user.id, sessionId)",
-      "operationSourceSha256": "310feb1fffa2bbf6f511046ae2fa61772e1ab398af9da74c3df558e3775ab4dd"
+      "operationSourceSha256": "e9a2143c6d678cac9ba234bb7699c6614b053538645513813a7e4c9554c37711"
     },
     {
       "operation": "GET /api/exams/[sessionId]",

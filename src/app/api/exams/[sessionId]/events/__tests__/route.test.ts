@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ requireAuth: vi.fn(), recordExamEvent: vi.fn() }));
 vi.mock("@/lib/http/authz", () => ({ requireAuth: mocks.requireAuth }));
+vi.mock("@/lib/security/rate-limit", () => ({
+  withRateLimit: (_check: unknown, handler: () => Promise<Response>) => handler(),
+}));
 vi.mock("@/app/api/exams/_lib/service", () => {
   class ExamServiceError extends Error {
     constructor(message: string, readonly status: number, readonly code: string, readonly details = {}) {

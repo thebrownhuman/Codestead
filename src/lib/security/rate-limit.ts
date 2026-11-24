@@ -66,6 +66,10 @@ export type RateLimitPolicyName =
   | "exam_start_user"
   | "exam_run_user"
   | "exam_submit_user"
+  | "exam_autosave_user"
+  | "exam_event_user"
+  | "exam_heartbeat_user"
+  | "exam_appeal_user"
   | "exam_reexam_grant_admin"
   | "file_upload_user"
   | "github_review_user"
@@ -153,6 +157,10 @@ const DEFAULT_POLICIES: Record<RateLimitPolicyName, RateLimitPolicy> = {
   exam_start_user: policy("exam_start_user", 5, 60 * 60),
   exam_run_user: policy("exam_run_user", 20, 60),
   exam_submit_user: policy("exam_submit_user", 10, 60),
+  exam_autosave_user: policy("exam_autosave_user", 120, 60),
+  exam_event_user: policy("exam_event_user", 60, 60),
+  exam_heartbeat_user: policy("exam_heartbeat_user", 30, 60),
+  exam_appeal_user: policy("exam_appeal_user", 10, 60 * 60),
   exam_reexam_grant_admin: policy("exam_reexam_grant_admin", 20, 60 * 60),
   file_upload_user: policy("file_upload_user", 10, 60 * 60),
   github_review_user: policy("github_review_user", 5, 60 * 60),
