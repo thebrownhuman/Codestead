@@ -17,24 +17,24 @@
   "imageEvidence": {
     "java": {
       "tag": "learncoding/runtime-java:local",
-      "manifestDigest": "sha256:785eb431d768b45f67056a8948c62c1cf4dc18498fb8513d48d5fc5bd1d00b83",
-      "configDigest": "sha256:79853ee01d90ec0c5e636eea6acb376133af302d10bc21102b9e6511ecb7a350",
-      "immutableReference": "learncoding/runtime-java@sha256:785eb431d768b45f67056a8948c62c1cf4dc18498fb8513d48d5fc5bd1d00b83",
-      "tagDescriptorDigest": "sha256:785eb431d768b45f67056a8948c62c1cf4dc18498fb8513d48d5fc5bd1d00b83",
-      "tagImageId": "sha256:785eb431d768b45f67056a8948c62c1cf4dc18498fb8513d48d5fc5bd1d00b83",
-      "exactReferenceDescriptorDigest": "sha256:785eb431d768b45f67056a8948c62c1cf4dc18498fb8513d48d5fc5bd1d00b83",
-      "exactReferenceImageId": "sha256:785eb431d768b45f67056a8948c62c1cf4dc18498fb8513d48d5fc5bd1d00b83",
+      "manifestDigest": "sha256:a661c8d967b70615ad591dd4e3c57869fd91f23fad5ef9bc28e5743c38809175",
+      "configDigest": "sha256:d863e8b6f85f514f1e639a7e166d34390d32b193b8e7a66e952f18524d2979bc",
+      "immutableReference": "learncoding/runtime-java@sha256:a661c8d967b70615ad591dd4e3c57869fd91f23fad5ef9bc28e5743c38809175",
+      "tagDescriptorDigest": "sha256:a661c8d967b70615ad591dd4e3c57869fd91f23fad5ef9bc28e5743c38809175",
+      "tagImageId": "sha256:a661c8d967b70615ad591dd4e3c57869fd91f23fad5ef9bc28e5743c38809175",
+      "exactReferenceDescriptorDigest": "sha256:a661c8d967b70615ad591dd4e3c57869fd91f23fad5ef9bc28e5743c38809175",
+      "exactReferenceImageId": "sha256:a661c8d967b70615ad591dd4e3c57869fd91f23fad5ef9bc28e5743c38809175",
       "independentlyValidated": true
     },
     "python": {
       "tag": "learncoding/runtime-python:local",
-      "manifestDigest": "sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb",
-      "configDigest": "sha256:9e6e58082d37d77bf4e9eff174b719c78256896ebc04f867ed390f55ec05777e",
-      "immutableReference": "learncoding/runtime-python@sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb",
-      "tagDescriptorDigest": "sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb",
-      "tagImageId": "sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb",
-      "exactReferenceDescriptorDigest": "sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb",
-      "exactReferenceImageId": "sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb",
+      "manifestDigest": "sha256:0fcad574f43d244e28bcd18aef714ab4de0dd1ace1db8ded97056126da847480",
+      "configDigest": "sha256:1c0afad5ed5477adc9c4c184a983562884774bdb6003ee4c83746981d1cb752e",
+      "immutableReference": "learncoding/runtime-python@sha256:0fcad574f43d244e28bcd18aef714ab4de0dd1ace1db8ded97056126da847480",
+      "tagDescriptorDigest": "sha256:0fcad574f43d244e28bcd18aef714ab4de0dd1ace1db8ded97056126da847480",
+      "tagImageId": "sha256:0fcad574f43d244e28bcd18aef714ab4de0dd1ace1db8ded97056126da847480",
+      "exactReferenceDescriptorDigest": "sha256:0fcad574f43d244e28bcd18aef714ab4de0dd1ace1db8ded97056126da847480",
+      "exactReferenceImageId": "sha256:0fcad574f43d244e28bcd18aef714ab4de0dd1ace1db8ded97056126da847480",
       "independentlyValidated": true
     }
   },

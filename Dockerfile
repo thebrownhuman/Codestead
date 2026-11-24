@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e
 # Architecture-specific digest for the reviewed linux/amd64 Intel NUC target.
-ARG NODE_IMAGE=node:22.23.3-alpine3.23@sha256:489418a947387da1c5b4c0c5749c963da56ecaac0ced1da74c67db60e42f2b3a
+ARG NODE_IMAGE=node:22.23.5-alpine3.23@sha256:7ee381e2296c8edb56698bb4f14563880e8c3562d91564c085b334c1e1106faf
 ARG SOURCE_REPOSITORY
 ARG SOURCE_REVISION
 ARG SOURCE_DATE_EPOCH

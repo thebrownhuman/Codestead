@@ -13,13 +13,13 @@
   "externalProviderCalls": 0,
   "imageEvidence": {
     "tag": "learncoding/runtime-python:local",
-    "manifestDigest": "sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb",
-    "configDigest": "sha256:9e6e58082d37d77bf4e9eff174b719c78256896ebc04f867ed390f55ec05777e",
-    "immutableReference": "learncoding/runtime-python@sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb",
-    "tagDescriptorDigest": "sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb",
-    "tagImageId": "sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb",
-    "exactReferenceDescriptorDigest": "sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb",
-    "exactReferenceImageId": "sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb",
+    "manifestDigest": "sha256:0fcad574f43d244e28bcd18aef714ab4de0dd1ace1db8ded97056126da847480",
+    "configDigest": "sha256:1c0afad5ed5477adc9c4c184a983562884774bdb6003ee4c83746981d1cb752e",
+    "immutableReference": "learncoding/runtime-python@sha256:0fcad574f43d244e28bcd18aef714ab4de0dd1ace1db8ded97056126da847480",
+    "tagDescriptorDigest": "sha256:0fcad574f43d244e28bcd18aef714ab4de0dd1ace1db8ded97056126da847480",
+    "tagImageId": "sha256:0fcad574f43d244e28bcd18aef714ab4de0dd1ace1db8ded97056126da847480",
+    "exactReferenceDescriptorDigest": "sha256:0fcad574f43d244e28bcd18aef714ab4de0dd1ace1db8ded97056126da847480",
+    "exactReferenceImageId": "sha256:0fcad574f43d244e28bcd18aef714ab4de0dd1ace1db8ded97056126da847480",
     "independentlyValidated": true
   },
   "results": [

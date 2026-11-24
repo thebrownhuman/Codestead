@@ -27,7 +27,7 @@ sudoedit /etc/learncoding/production-load.env
 
 Confirm prerequisites, then start only the manual gate:
 
-Application runtime: Node 22 (CI 22.23.1, image 22.23.3). The digest-pinned Node image below is the separate reviewed load-fixture runtime; keep its exact identity for the fixture validator.
+Application runtime: Node 22 (CI 22.23.1, image 22.23.5). The digest-pinned Node image below is the separate reviewed load-fixture runtime; keep its exact identity for the fixture validator.
 
 ```bash
 sudo /usr/bin/bash /opt/learncoding/infra/ops/validate-production-load-host-runtime.sh

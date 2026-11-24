@@ -51,7 +51,7 @@ match the batch build metadata and reviewed sources.
 
 CI builds the batch parent twice in the same job, verifies identical digests,
 and additionally requires its manifest to equal
-`sha256:7be3f3528a043b085dfc07a613892cd812c75bee0e60e69ffd0f015790ecdf40`
+`sha256:ff1ccae2a9fe0f5bcfa431187b9530d3e9610cad2d3eb73041982014f1063a6c`
 before building the interactive variant. The local Docker Desktop reference
 builder produces parent
 `sha256:e6449b397403616afe005f7d1f76a4123a70ff63e075e92a0a7953decc59176c`;

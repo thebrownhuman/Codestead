@@ -8,11 +8,11 @@ These images are the only artifacts allowed to compile or execute learner code. 
 
 | Runtime | Tool version | Pinned source manifest |
 |---|---|---|
-| C | Alpine GCC 14.2.0-r6 (`-std=c23`) | `alpine:3.22@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764` plus exact `gcc` and `musl-dev` packages |
-| C++ | Alpine G++ 14.2.0-r6 (`-std=c++20`) | same reviewed Alpine manifest plus exact `g++` and `musl-dev` packages |
-| Java | Alpine OpenJDK 21.0.12_p8-r0 LTS | `alpine:3.23@sha256:1f3591b8a02ea153f41c5bba878ad477f63ab3d19349762cb77504db02a23e15` plus exact `openjdk21-jdk` package |
-| Python | CPython 3.14.7 | `python:3.14-alpine3.23@sha256:976bfed94200c6377b094feb91b7b1bd4849c8a4e3a7b2a364d95ddf1f1c6e01` |
-| JavaScript | Node.js 22.23.3 | `node:22-alpine3.23@sha256:489418a947387da1c5b4c0c5749c963da56ecaac0ced1da74c67db60e42f2b3a` with npm, npx, Corepack and Yarn removed |
+| C | Alpine GCC 14.2.0-r6 (`-std=c23`) | `alpine:3.22@sha256:3e9b4b680bfc9fb5269227cffbd6d42be39fbf7c0b908123913864aa4447e764` plus exact `gcc`, `musl-dev`, `musl-utils` and `zlib` packages |
+| C++ | Alpine G++ 14.2.0-r6 (`-std=c++20`) | same reviewed Alpine manifest plus exact `g++`, `musl-dev`, `musl-utils` and `zlib` packages |
+| Java | Alpine OpenJDK 21.0.13.1_p2-r0 LTS | `alpine:3.23@sha256:1f3591b8a02ea153f41c5bba878ad477f63ab3d19349762cb77504db02a23e15` plus exact `openjdk21-jdk`, `musl`, `musl-utils` and `zlib` packages |
+| Python | CPython 3.14.7 | `python:3.14-alpine3.23@sha256:976bfed94200c6377b094feb91b7b1bd4849c8a4e3a7b2a364d95ddf1f1c6e01` plus exact `musl`, `musl-utils` and `zlib` packages |
+| JavaScript | Node.js 22.23.3 | `node:22-alpine3.23@sha256:489418a947387da1c5b4c0c5749c963da56ecaac0ced1da74c67db60e42f2b3a` plus exact `musl`, `musl-utils` and `zlib` packages, with npm, npx, Corepack and Yarn removed |
 
 The harness build uses the same digest-pinned Alpine 3.22 manifest and exact GCC/musl development package versions. Package specifications are validated before Docker receives them, all final Alpine package databases remain present for vulnerability detection and SBOM attribution, and `/sbin/apk` is removed only after installation. The native harness is statically linked against musl. No package database, scanner target, or finding is deleted or ignored to satisfy the release gate.
 

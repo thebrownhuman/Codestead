@@ -48,7 +48,7 @@ export function assertMailDeliveryScope0059PostgresProjection(
   }
 
   const installLines = postgresProjection.match(
-    /^          sudo apt-get install --yes --no-install-recommends (?:postgresql-18|postgresql-17 postgresql-18)$/gmu,
+    /^          sudo apt-get install --yes --no-install-recommends (?:postgresql-18|postgresql-17=17\.11-1\.pgdg24\.04\+2 postgresql-client-17=17\.11-1\.pgdg24\.04\+2 postgresql-18=18\.6-1\.pgdg24\.04\+2 postgresql-client-18=18\.6-1\.pgdg24\.04\+2)$/gmu,
   ) ?? [];
   assert.equal(
     installLines.length,

@@ -8,13 +8,13 @@ export type PinnedCurriculumLanguage = "java" | "python";
 export const PINNED_CURRICULUM_RUNTIMES = Object.freeze({
   java: {
     tag: "learncoding/runtime-java:local",
-    imageDigest: "sha256:785eb431d768b45f67056a8948c62c1cf4dc18498fb8513d48d5fc5bd1d00b83",
+    imageDigest: "sha256:a661c8d967b70615ad591dd4e3c57869fd91f23fad5ef9bc28e5743c38809175",
     version: "Java SE 21",
     entrypoint: "Main.java",
   },
   python: {
     tag: "learncoding/runtime-python:local",
-    imageDigest: "sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb",
+    imageDigest: "sha256:0fcad574f43d244e28bcd18aef714ab4de0dd1ace1db8ded97056126da847480",
     version: "Python 3.14",
     entrypoint: "main.py",
   },

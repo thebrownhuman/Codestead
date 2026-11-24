@@ -33,7 +33,7 @@ export const postgresCiRuntimePolicy = Object.freeze({
     "    if: needs.changes.outputs.database == 'true'",
   ]),
   installCommand:
-    "sudo apt-get install --yes --no-install-recommends postgresql-17 postgresql-18",
+    "sudo apt-get install --yes --no-install-recommends postgresql-17=17.11-1.pgdg24.04+2 postgresql-client-17=17.11-1.pgdg24.04+2 postgresql-18=18.6-1.pgdg24.04+2 postgresql-client-18=18.6-1.pgdg24.04+2",
   dockerPg17Image:
     "postgres:17-bookworm@sha256:4f736ae292687621d4dbe0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
   dockerPg17IntegrationCommand:
@@ -406,7 +406,7 @@ function assertCanonicalPostgresInstallAndRuntimeMajors(
 
   const installLines =
     postgresProjection.match(
-      /^          sudo apt-get install --yes --no-install-recommends postgresql-\d+(?: postgresql-\d+)*$/gmu,
+      /^          sudo apt-get install --yes --no-install-recommends postgresql-(?:client-)?\d+(?:=[\w.+-]+)?(?: postgresql-(?:client-)?\d+(?:=[\w.+-]+)?)*$/gmu,
     ) ?? [];
   assert.deepEqual(
     installLines,

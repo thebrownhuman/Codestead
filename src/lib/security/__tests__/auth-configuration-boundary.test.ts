@@ -13,7 +13,7 @@ describe("Better Auth security configuration", () => {
     expect(authSource).toContain("breachedPasswordPlugin(),");
   });
   it("pins the audited Better Auth release exactly", () => {
-    expect(manifest.dependencies["better-auth"]).toBe("1.7.6");
+    expect(manifest.dependencies["better-auth"]).toBe("1.7.25");
   });
 
   it("disables implicit account linking even for a trusted OAuth provider", () => {
