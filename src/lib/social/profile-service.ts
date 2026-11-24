@@ -119,7 +119,46 @@ function validateUpdate(input: CohortProfileUpdate, now: Date) {
   }
 }
 
+function mapCohortWriteError(error: unknown) {
+  if ((error as { code?: string; constraint?: string }).code === "23505"
+    && (error as { constraint?: string }).constraint === "cohort_profile_alias_unique") {
+    return new SocialProfileError("ALIAS_TAKEN");
+  }
+  return error;
+}
+
 export async function updateCohortProfile(input: CohortProfileUpdate) {
+  // Reject a malformed request before taking a pooled connection.
+  validateUpdate(input, input.now ?? new Date());
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    const result = await updateCohortProfileInTransaction(client, input);
+    await client.query("commit");
+    return result;
+  } catch (error) {
+    await client.query("rollback").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Applies a cohort profile update on a client that is already inside a
+ * transaction. The caller owns begin/commit/rollback, so the update can share
+ * one atomic unit with other writes (for example the learning-profile save).
+ * A unique-alias violation surfaces as SocialProfileError("ALIAS_TAKEN").
+ */
+export async function updateCohortProfileInTransaction(client: PoolClient, input: CohortProfileUpdate) {
+  try {
+    return await applyCohortProfileUpdate(client, input);
+  } catch (error) {
+    throw mapCohortWriteError(error);
+  }
+}
+
+async function applyCohortProfileUpdate(client: PoolClient, input: CohortProfileUpdate) {
   const now = input.now ?? new Date();
   validateUpdate(input, now);
   const alias = input.alias.trim();
@@ -127,143 +166,128 @@ export async function updateCohortProfile(input: CohortProfileUpdate) {
   const requestedAchievements = sortedIds(input.selectedAchievementIds);
   const requestedProjects = sortedIds(input.selectedProjectIds);
   const fingerprint = requestFingerprint({ ...input, alias, bio });
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-    await client.query("select pg_advisory_xact_lock(hashtext($1))", [`cohort-profile:${input.actorUserId}`]);
-    const actor = await client.query<{ status: string; role: string | null }>(
-      `select status, role from "user" where id = $1 for update`, [input.actorUserId],
-    );
-    if (actor.rows[0]?.status !== "active" || actor.rows[0]?.role !== "learner") {
-      throw new SocialProfileError("NOT_FOUND");
-    }
-    const prior = await client.query<{ snapshot: Record<string, unknown>; resulting_version: string | number }>(
-      `select snapshot, resulting_version from cohort_profile_event where user_id = $1 and request_id = $2`,
-      [input.actorUserId, input.requestId],
-    );
-    if (prior.rows[0]) {
-      if (prior.rows[0].snapshot.requestHash !== fingerprint) throw new SocialProfileError("IDEMPOTENCY_MISMATCH");
-      await client.query("commit");
-      return { rowVersion: Number(prior.rows[0].resulting_version), replayed: true } as const;
-    }
-    const existing = (await client.query<ProfileRow>(
-      `select user_id, alias, bio, is_published, published_consent_record_id,
-              show_bio, show_streak, show_mastery_summary, selected_achievement_ids,
-              selected_project_ids, row_version, published_at, withdrawn_at
-         from cohort_profile where user_id = $1 for update`,
-      [input.actorUserId],
-    )).rows[0] ?? null;
-    if (Number(existing?.row_version ?? 0) !== input.expectedVersion) throw new SocialProfileError("VERSION_CONFLICT");
-
-    const consent = input.publish
-      ? await isCurrentSocialConsentAccepted(client, input.actorUserId, "cohort_profile")
-      : null;
-    if (input.publish && !consent) throw new SocialProfileError("CONSENT_REQUIRED");
-    const achievements = requestedAchievements.length
-      ? await client.query<{ id: string }>(
-          `select id from user_achievement where user_id = $1 and revoked_at is null and id = any($2::uuid[])`,
-          [input.actorUserId, requestedAchievements],
-        )
-      : { rows: [] as Array<{ id: string }> };
-    const projects = requestedProjects.length
-      ? await client.query<{ id: string }>(
-          `select id from project where user_id = $1 and id = any($2::uuid[])`,
-          [input.actorUserId, requestedProjects],
-        )
-      : { rows: [] as Array<{ id: string }> };
-    if (achievements.rows.length !== requestedAchievements.length || projects.rows.length !== requestedProjects.length) {
-      throw new SocialProfileError("INVALID_SELECTION");
-    }
-    const visibleAchievementIds = input.publish ? requestedAchievements : [];
-    const visibleProjectIds = input.publish ? requestedProjects : [];
-    const resultingVersion = input.expectedVersion + 1;
-    const event = !existing
-      ? (input.publish ? "published" : "created")
-      : existing.is_published && !input.publish
-        ? "withdrawn"
-        : !existing.is_published && input.publish
-          ? "published"
-          : "updated";
-    const snapshot = {
-      requestHash: fingerprint,
-      alias,
-      bio,
-      isPublished: input.publish,
-      publishedConsentRecordId: consent?.id ?? null,
-      showBio: input.showBio,
-      showStreak: input.showStreak,
-      showMasterySummary: input.showMasterySummary,
-      selectedAchievementIds: requestedAchievements,
-      selectedProjectIds: requestedProjects,
-    };
-    await client.query(
-      `insert into cohort_profile
-        (user_id, alias, bio, is_published, published_consent_record_id, show_bio, show_streak,
-         show_mastery_summary, selected_achievement_ids, selected_project_ids, row_version,
-         published_at, withdrawn_at, created_at, updated_at)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12,$13,$14,$14)
-       on conflict (user_id) do update set alias = excluded.alias, bio = excluded.bio,
-         is_published = excluded.is_published,
-         published_consent_record_id = excluded.published_consent_record_id,
-         show_bio = excluded.show_bio, show_streak = excluded.show_streak,
-         show_mastery_summary = excluded.show_mastery_summary,
-         selected_achievement_ids = excluded.selected_achievement_ids,
-         selected_project_ids = excluded.selected_project_ids,
-         row_version = excluded.row_version,
-         published_at = case when excluded.is_published then coalesce(cohort_profile.published_at, excluded.updated_at) else cohort_profile.published_at end,
-         withdrawn_at = case when excluded.is_published then null else excluded.updated_at end,
-         updated_at = excluded.updated_at`,
-      [input.actorUserId, alias, bio, input.publish, consent?.id ?? null, input.showBio, input.showStreak,
-        input.showMasterySummary, JSON.stringify(requestedAchievements), JSON.stringify(requestedProjects),
-        resultingVersion, input.publish ? now : null, input.publish ? null : now, now],
-    );
-    await client.query(
-      `update user_achievement set visibility = case when id = any($2::uuid[]) then 'cohort'::visibility else 'private'::visibility end
-        where user_id = $1`,
-      [input.actorUserId, visibleAchievementIds],
-    );
-    await client.query(
-      `update project set visibility = case when id = any($2::uuid[]) then 'cohort'::visibility else 'private'::visibility end
-        where user_id = $1`,
-      [input.actorUserId, visibleProjectIds],
-    );
-    const reason = event === "published"
-      ? "Learner explicitly published the cohort projection."
-      : event === "withdrawn"
-        ? "Learner explicitly withdrew the cohort projection."
-        : "Learner edited cohort projection fields and selections.";
-    await client.query(
-      `insert into cohort_profile_event
-        (user_id,actor_user_id,request_id,event,snapshot,evidence_hash,reason,resulting_version,occurred_at)
-       values ($1,$1,$2,$3,$4::jsonb,$5,$6,$7,$8)`,
-      [input.actorUserId, input.requestId, event, JSON.stringify(snapshot), hashSocialEvidence(snapshot), reason, resultingVersion, now],
-    );
-    if (event === "published" || event === "withdrawn" || (event === "updated" && input.publish)) {
-      await client.query(
-        `insert into notification (user_id,type,title,body,action_url,created_at)
-         values ($1,'cohort_visibility_changed',$2,$3,'/community',$4)`,
-        [input.actorUserId,
-          event === "published" ? "Cohort profile published" : event === "withdrawn" ? "Cohort profile withdrawn" : "Cohort profile updated",
-          event === "published"
-            ? "Your selected alias and fields can now appear to the closed cohort."
-            : event === "withdrawn"
-              ? "Your profile, badges, projects, and leaderboard entry are hidden from the cohort."
-              : "Your updated alias and selected fields can now appear to the closed cohort.",
-          now],
-      );
-    }
-    await client.query("commit");
-    return { rowVersion: resultingVersion, replayed: false, event } as const;
-  } catch (error) {
-    await client.query("rollback").catch(() => undefined);
-    if ((error as { code?: string; constraint?: string }).code === "23505"
-      && (error as { constraint?: string }).constraint === "cohort_profile_alias_unique") {
-      throw new SocialProfileError("ALIAS_TAKEN");
-    }
-    throw error;
-  } finally {
-    client.release();
+  await client.query("select pg_advisory_xact_lock(hashtext($1))", [`cohort-profile:${input.actorUserId}`]);
+  const actor = await client.query<{ status: string; role: string | null }>(
+    `select status, role from "user" where id = $1 for update`, [input.actorUserId],
+  );
+  if (actor.rows[0]?.status !== "active" || actor.rows[0]?.role !== "learner") {
+    throw new SocialProfileError("NOT_FOUND");
   }
+  const prior = await client.query<{ snapshot: Record<string, unknown>; resulting_version: string | number }>(
+    `select snapshot, resulting_version from cohort_profile_event where user_id = $1 and request_id = $2`,
+    [input.actorUserId, input.requestId],
+  );
+  if (prior.rows[0]) {
+    if (prior.rows[0].snapshot.requestHash !== fingerprint) throw new SocialProfileError("IDEMPOTENCY_MISMATCH");
+    return { rowVersion: Number(prior.rows[0].resulting_version), replayed: true } as const;
+  }
+  const existing = (await client.query<ProfileRow>(
+    `select user_id, alias, bio, is_published, published_consent_record_id,
+            show_bio, show_streak, show_mastery_summary, selected_achievement_ids,
+            selected_project_ids, row_version, published_at, withdrawn_at
+       from cohort_profile where user_id = $1 for update`,
+    [input.actorUserId],
+  )).rows[0] ?? null;
+  if (Number(existing?.row_version ?? 0) !== input.expectedVersion) throw new SocialProfileError("VERSION_CONFLICT");
+
+  const consent = input.publish
+    ? await isCurrentSocialConsentAccepted(client, input.actorUserId, "cohort_profile")
+    : null;
+  if (input.publish && !consent) throw new SocialProfileError("CONSENT_REQUIRED");
+  const achievements = requestedAchievements.length
+    ? await client.query<{ id: string }>(
+        `select id from user_achievement where user_id = $1 and revoked_at is null and id = any($2::uuid[])`,
+        [input.actorUserId, requestedAchievements],
+      )
+    : { rows: [] as Array<{ id: string }> };
+  const projects = requestedProjects.length
+    ? await client.query<{ id: string }>(
+        `select id from project where user_id = $1 and id = any($2::uuid[])`,
+        [input.actorUserId, requestedProjects],
+      )
+    : { rows: [] as Array<{ id: string }> };
+  if (achievements.rows.length !== requestedAchievements.length || projects.rows.length !== requestedProjects.length) {
+    throw new SocialProfileError("INVALID_SELECTION");
+  }
+  const visibleAchievementIds = input.publish ? requestedAchievements : [];
+  const visibleProjectIds = input.publish ? requestedProjects : [];
+  const resultingVersion = input.expectedVersion + 1;
+  const event = !existing
+    ? (input.publish ? "published" : "created")
+    : existing.is_published && !input.publish
+      ? "withdrawn"
+      : !existing.is_published && input.publish
+        ? "published"
+        : "updated";
+  const snapshot = {
+    requestHash: fingerprint,
+    alias,
+    bio,
+    isPublished: input.publish,
+    publishedConsentRecordId: consent?.id ?? null,
+    showBio: input.showBio,
+    showStreak: input.showStreak,
+    showMasterySummary: input.showMasterySummary,
+    selectedAchievementIds: requestedAchievements,
+    selectedProjectIds: requestedProjects,
+  };
+  await client.query(
+    `insert into cohort_profile
+      (user_id, alias, bio, is_published, published_consent_record_id, show_bio, show_streak,
+       show_mastery_summary, selected_achievement_ids, selected_project_ids, row_version,
+       published_at, withdrawn_at, created_at, updated_at)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12,$13,$14,$14)
+     on conflict (user_id) do update set alias = excluded.alias, bio = excluded.bio,
+       is_published = excluded.is_published,
+       published_consent_record_id = excluded.published_consent_record_id,
+       show_bio = excluded.show_bio, show_streak = excluded.show_streak,
+       show_mastery_summary = excluded.show_mastery_summary,
+       selected_achievement_ids = excluded.selected_achievement_ids,
+       selected_project_ids = excluded.selected_project_ids,
+       row_version = excluded.row_version,
+       published_at = case when excluded.is_published then coalesce(cohort_profile.published_at, excluded.updated_at) else cohort_profile.published_at end,
+       withdrawn_at = case when excluded.is_published then null else excluded.updated_at end,
+       updated_at = excluded.updated_at`,
+    [input.actorUserId, alias, bio, input.publish, consent?.id ?? null, input.showBio, input.showStreak,
+      input.showMasterySummary, JSON.stringify(requestedAchievements), JSON.stringify(requestedProjects),
+      resultingVersion, input.publish ? now : null, input.publish ? null : now, now],
+  );
+  await client.query(
+    `update user_achievement set visibility = case when id = any($2::uuid[]) then 'cohort'::visibility else 'private'::visibility end
+      where user_id = $1`,
+    [input.actorUserId, visibleAchievementIds],
+  );
+  await client.query(
+    `update project set visibility = case when id = any($2::uuid[]) then 'cohort'::visibility else 'private'::visibility end
+      where user_id = $1`,
+    [input.actorUserId, visibleProjectIds],
+  );
+  const reason = event === "published"
+    ? "Learner explicitly published the cohort projection."
+    : event === "withdrawn"
+      ? "Learner explicitly withdrew the cohort projection."
+      : "Learner edited cohort projection fields and selections.";
+  await client.query(
+    `insert into cohort_profile_event
+      (user_id,actor_user_id,request_id,event,snapshot,evidence_hash,reason,resulting_version,occurred_at)
+     values ($1,$1,$2,$3,$4::jsonb,$5,$6,$7,$8)`,
+    [input.actorUserId, input.requestId, event, JSON.stringify(snapshot), hashSocialEvidence(snapshot), reason, resultingVersion, now],
+  );
+  if (event === "published" || event === "withdrawn" || (event === "updated" && input.publish)) {
+    await client.query(
+      `insert into notification (user_id,type,title,body,action_url,created_at)
+       values ($1,'cohort_visibility_changed',$2,$3,'/community',$4)`,
+      [input.actorUserId,
+        event === "published" ? "Cohort profile published" : event === "withdrawn" ? "Cohort profile withdrawn" : "Cohort profile updated",
+        event === "published"
+          ? "Your selected alias and fields can now appear to the closed cohort."
+          : event === "withdrawn"
+            ? "Your profile, badges, projects, and leaderboard entry are hidden from the cohort."
+            : "Your updated alias and selected fields can now appear to the closed cohort.",
+        now],
+    );
+  }
+  return { rowVersion: resultingVersion, replayed: false, event } as const;
 }
 
 export async function withdrawCohortProfileForConsent(input: {
