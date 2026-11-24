@@ -107,11 +107,11 @@
         "reports": [
           {
             "path": "docs/evidence/dsa-parity-runtime-2026-07-12.json",
-            "sha256": "8581b960ab799272583e9308617e3d3be2d632c7d04cb8f93fe453a01546da6e"
+            "sha256": "f0ac2ea35bd009fc4addcfe7ff357a50bc15e8c6bd4a367d18abde6d76a8f80e"
           },
           {
             "path": "docs/evidence/c-cpp-executable-runtime-2026-07-12.json",
-            "sha256": "33c0fc0afc31186c962de5970c5e2d2c939e28c6357138907edaadf25b926863"
+            "sha256": "96a9c1a2c6599f4c13e3b7651b273318be8027abefb8a49aeee7b30f048fcfd1"
           },
           {
             "path": "docs/evidence/java-python-executable-runtime-2026-07-12.json",
