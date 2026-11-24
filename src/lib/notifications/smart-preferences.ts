@@ -1,6 +1,7 @@
 import type { PoolClient } from "pg";
 
 import { pool } from "@/lib/db/client";
+import { isIanaTimezone } from "@/lib/preferences/timezone";
 
 export type SmartReminderPreferenceValues = {
   dailyStudyEnabled: boolean;
@@ -74,12 +75,7 @@ function validMinute(value: number) {
 
 export function normalizeIanaTimezone(value: string) {
   const timezone = value.trim();
-  if (!timezone || timezone.length > 100) {
-    throw new SmartReminderPreferenceError("INVALID_TIMEZONE", 400);
-  }
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: timezone }).format(new Date(0));
-  } catch {
+  if (timezone.length > 100 || !isIanaTimezone(timezone)) {
     throw new SmartReminderPreferenceError("INVALID_TIMEZONE", 400);
   }
   return timezone;

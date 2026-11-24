@@ -17,6 +17,7 @@ import {
 import { buildDashboardActivityQuery, projectDashboardActivitySummary, type DashboardActivitySummary } from "./history";
 import { learningService } from "@/lib/learning-service/runtime";
 import { loadRewardProgress } from "@/lib/rewards/service";
+import { resolveIanaTimezone } from "@/lib/preferences/timezone";
 
 const OFFICIAL_ACTIVITY_TYPES = new Set(["lesson_completed", "attempt_submitted"]);
 const DASHBOARD_TOPIC_LIMIT = 4;
@@ -195,12 +196,7 @@ export interface AuthoritativeDashboardData {
 const dateFormatterCache = new Map<string, Intl.DateTimeFormat>();
 
 export function resolveDashboardTimeZone(candidate: string) {
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: candidate }).format(0);
-    return candidate;
-  } catch {
-    return "UTC";
-  }
+  return resolveIanaTimezone(candidate);
 }
 
 export function dashboardLocalDateKey(date: Date, timeZone: string) {

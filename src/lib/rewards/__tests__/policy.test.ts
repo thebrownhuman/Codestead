@@ -178,6 +178,9 @@ describe("learner-local challenge periods", () => {
       key: "weekly:2026-07-06",
     });
     expect(challengePeriod("weekly", now, "UTC").startLocalDate).toBe("2026-06-29");
+    // The period's zone is sent to Postgres AT TIME ZONE, which reads a bare
+    // offset with the opposite sign to Intl; such a stored value falls back.
+    expect(challengePeriod("weekly", now, "+05:30").timezone).toBe("UTC");
   });
 
   it("uses calendar month keys across DST and safely falls back for an invalid zone", () => {

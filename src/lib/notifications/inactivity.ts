@@ -13,6 +13,7 @@ import {
   INACTIVITY_MAIL_POLICY_VERSION,
   requireRevocableSourceVariables,
 } from "./revocable-source-authority";
+import { resolveIanaTimezone } from "@/lib/preferences/timezone";
 
 export const INACTIVITY_POLICY_VERSION = INACTIVITY_MAIL_POLICY_VERSION;
 export const FIRST_REMINDER_AFTER_MS = 24 * 60 * 60 * 1_000;
@@ -75,13 +76,7 @@ function validDate(value: Date) {
 
 /** Invalid or removed IANA identifiers fail closed to UTC instead of crashing the worker. */
 export function resolveIanaTimeZone(value: string | null | undefined) {
-  const candidate = value?.trim() || "UTC";
-  try {
-    new Intl.DateTimeFormat("en-GB", { timeZone: candidate }).format(0);
-    return candidate;
-  } catch {
-    return "UTC";
-  }
+  return resolveIanaTimezone(value);
 }
 
 export function localMinuteOfDay(at: Date, timeZone: string) {

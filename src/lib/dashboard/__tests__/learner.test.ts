@@ -11,6 +11,7 @@ import {
   deriveSelectedTrackPreviews,
   deriveTopicProjections,
   reportDashboardFailure,
+  resolveDashboardTimeZone,
   selectDashboardEnrollments,
   type DashboardActivityEvent,
   type DashboardMasteryTopicInput,
@@ -475,5 +476,13 @@ describe("deriveSelectedTrackPreviews", () => {
       publicationReady: false,
       href: null,
     }]);
+  });
+});
+
+describe("resolveDashboardTimeZone", () => {
+  it("keeps IANA zones and falls back to UTC for numeric offsets Postgres would read with the opposite sign", () => {
+    expect(resolveDashboardTimeZone("Asia/Kolkata")).toBe("Asia/Kolkata");
+    expect(resolveDashboardTimeZone("+05:30")).toBe("UTC");
+    expect(resolveDashboardTimeZone("Not/AZone")).toBe("UTC");
   });
 });

@@ -141,6 +141,7 @@ describe("smart reminder policy", () => {
 
   it("falls back to UTC for a corrupt persisted time zone", () => {
     expect(localClock(new Date("2026-07-13T13:30:00.000Z"), "Not/AZone").minute).toBe(810);
+    expect(localClock(new Date("2026-07-13T13:30:00.000Z"), "+05:30").minute).toBe(810);
   });
 
   it.each([

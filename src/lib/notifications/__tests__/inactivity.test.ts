@@ -241,6 +241,7 @@ describe("inactivity policy boundaries", () => {
 
   it("falls back to UTC for an invalid stored zone and rejects malformed inputs", () => {
     expect(resolveIanaTimeZone("Not/A_Zone")).toBe("UTC");
+    expect(resolveIanaTimeZone("+05:30")).toBe("UTC");
     expect(localMinuteOfDay(new Date("2026-07-12T12:34:00.000Z"), "Not/A_Zone")).toBe(12 * 60 + 34);
     expect(() => isWithinQuietHours({
       at: new Date(), timeZone: "UTC", enabled: true, startMinute: -1, endMinute: 10,
