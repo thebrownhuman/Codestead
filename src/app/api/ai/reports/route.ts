@@ -1,5 +1,5 @@
 import { readBoundedJson } from "@/lib/http/bounded-json";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -14,7 +14,12 @@ const reportSchema = z.object({
   modelCallId: z.string().uuid(),
   category: z.enum(["incorrect", "harmful", "off-topic", "privacy", "other"]),
   description: z.string().trim().min(20).max(2_000),
+  // Optional so older clients keep working; when present, a retry or double
+  // click with the same id replays the first report instead of duplicating it.
+  requestId: z.uuid().optional(),
 });
+
+class ReportIdempotencyMismatch extends Error {}
 
 export async function POST(request: NextRequest) {
   const authz = await requireAuth({ closedBookCapability: "ai_tutor" });
@@ -75,45 +80,75 @@ export async function POST(request: NextRequest) {
         responseHash: ownedCall.responseHash,
         calledAt: ownedCall.createdAt.toISOString(),
       };
+      const userId = authz.session.user.id;
+      const { requestId } = body.data;
+      const kind = "ai-output-report";
+      const subject = `AI tutor report: ${body.data.category}`;
+      const details = JSON.stringify({
+        category: body.data.category,
+        description: body.data.description,
+        evidence,
+      });
+      let outcome;
       // One transaction: if the audit row cannot be written the report is
       // rolled back too, so a retry never leaves a duplicate report behind.
-      const created = await db.transaction(async (tx) => {
-        const [report] = await tx
-          .insert(learningRequest)
-          .values({
-            userId: authz.session.user.id,
-            kind: "ai-output-report",
-            subject: `AI tutor report: ${body.data.category}`,
-            details: JSON.stringify({
+      try {
+        outcome = await db.transaction(async (tx) => {
+          if (requestId) {
+            await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`ai-output-report:${userId}`}, 0))`);
+            const [receipt] = await tx
+              .select({
+                id: learningRequest.id,
+                status: learningRequest.status,
+                createdAt: learningRequest.createdAt,
+                kind: learningRequest.kind,
+                subject: learningRequest.subject,
+                details: learningRequest.details,
+              })
+              .from(learningRequest)
+              .where(and(eq(learningRequest.userId, userId), eq(learningRequest.requestId, requestId)))
+              .limit(1);
+            if (receipt) {
+              if (receipt.kind !== kind || receipt.subject !== subject || receipt.details !== details) {
+                throw new ReportIdempotencyMismatch();
+              }
+              return { report: { id: receipt.id, status: receipt.status, createdAt: receipt.createdAt }, replayed: true };
+            }
+          }
+          const [report] = await tx
+            .insert(learningRequest)
+            .values({ userId, ...(requestId ? { requestId } : {}), kind, subject, details })
+            .returning({
+              id: learningRequest.id,
+              status: learningRequest.status,
+              createdAt: learningRequest.createdAt,
+            });
+          await writeAuditEventInTransaction(tx, {
+            actorUserId: authz.session.user.id,
+            subjectUserId: authz.session.user.id,
+            action: "ai_output.report",
+            resourceType: "learning_request",
+            resourceId: report.id,
+            outcome: "success",
+            metadata: {
               category: body.data.category,
-              description: body.data.description,
-              evidence,
-            }),
-          })
-          .returning({
-            id: learningRequest.id,
-            status: learningRequest.status,
-            createdAt: learningRequest.createdAt,
+              modelCallId: ownedCall.id,
+              provider: ownedCall.provider,
+              model: ownedCall.model,
+            },
           });
-        await writeAuditEventInTransaction(tx, {
-          actorUserId: authz.session.user.id,
-          subjectUserId: authz.session.user.id,
-          action: "ai_output.report",
-          resourceType: "learning_request",
-          resourceId: report.id,
-          outcome: "success",
-          metadata: {
-            category: body.data.category,
-            modelCallId: ownedCall.id,
-            provider: ownedCall.provider,
-            model: ownedCall.model,
-          },
-        });
-        return report;
-      });
+          return { report, replayed: false };
+          });
+      } catch (error) {
+        if (!(error instanceof ReportIdempotencyMismatch)) throw error;
+        return NextResponse.json(
+          { error: "This retry has different content. Start a new report." },
+          { status: 409, headers: { "Cache-Control": "private, no-store" } },
+        );
+      }
       return NextResponse.json(
-        { report: created },
-        { status: 201, headers: { "Cache-Control": "private, no-store" } },
+        { report: outcome.report, replayed: outcome.replayed },
+        { status: outcome.replayed ? 200 : 201, headers: { "Cache-Control": "private, no-store" } },
       );
     },
   );

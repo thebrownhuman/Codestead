@@ -158,6 +158,24 @@ describe("progress aggregation", () => {
     expect(aggregateCourseProgress(course, incomplete).complete).toBe(false);
   });
 
+  it("never counts a course with zero required skills as complete", () => {
+    const course = index.courseById.get("programming-foundations")!;
+    const electiveOnly = {
+      ...course,
+      modules: course.modules.map((module) => ({
+        ...module,
+        skills: module.skills.map((skill) => ({ ...skill, status: "elective" as const })),
+      })),
+    };
+    const allPassed = electiveOnly.modules.flatMap((module) =>
+      module.skills.map((skill) => ({ skillId: skill.id, stage: "PASSED" as const })),
+    );
+
+    expect(aggregateCourseProgress(electiveOnly, []).complete).toBe(false);
+    expect(aggregateCourseProgress(electiveOnly, allPassed).complete).toBe(false);
+    expect(deriveCompletedTrackIds({ ...snapshot, courses: [electiveOnly] }, allPassed)).toEqual([]);
+  });
+
   it("supports array, map and keyed-record inputs consistently", () => {
     const entry: SkillProgressInput = { skillId: "html.document.syntax", stage: "LEARNING" };
     const asArray = toProgressMap([entry]);

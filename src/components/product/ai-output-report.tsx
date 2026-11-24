@@ -3,7 +3,7 @@
 import { Select } from "@/components/ui/select";
 
 import { Flag, X } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import styles from "./product-pages.module.css";
 
@@ -12,29 +12,42 @@ export function AiOutputReport({ callId }: { callId: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  // One request id per report content: a retry or double click of the same
+  // report replays it server-side; editing the content starts a new report.
+  const requestRef = useRef<{ fingerprint: string; id: string } | null>(null);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const payload = {
+      modelCallId: callId,
+      category: form.get("category"),
+      description: form.get("description"),
+    };
+    const fingerprint = JSON.stringify(payload);
+    if (requestRef.current?.fingerprint !== fingerprint) {
+      requestRef.current = { fingerprint, id: crypto.randomUUID() };
+    }
     setBusy(true);
     setError(null);
-    const response = await fetch("/api/ai/reports", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        modelCallId: callId,
-        category: form.get("category"),
-        description: form.get("description"),
-      }),
-    });
-    const body = (await response.json().catch(() => ({}))) as { error?: string };
-    setBusy(false);
-    if (!response.ok) {
-      setError(body.error ?? "The report could not be submitted.");
-      return;
+    try {
+      const response = await fetch("/api/ai/reports", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...payload, requestId: requestRef.current.id }),
+      });
+      const body = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        setError(body.error ?? "The report could not be submitted.");
+        return;
+      }
+      setSubmitted(true);
+      setOpen(false);
+    } catch {
+      setError("The report could not be submitted. Check your connection and try again.");
+    } finally {
+      setBusy(false);
     }
-    setSubmitted(true);
-    setOpen(false);
   }
 
   if (submitted) return <small role="status">Reported for administrator review.</small>;

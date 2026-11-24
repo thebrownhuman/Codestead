@@ -463,6 +463,7 @@ describe("community spaces UI boundaries", () => {
     expect(mutationBodies[1]).toMatchObject({ action: "reply", postId });
 
     await user.click(screen.getByRole("button", { name: /Delete/i }));
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Remove post" }));
     await waitFor(() => expect(mutationBodies).toHaveLength(3));
     expect(mutationBodies[2]).toMatchObject({ action: "delete", target: "post", targetId: postId });
     expect(readCount).toBeGreaterThan(1);
@@ -506,8 +507,49 @@ describe("community spaces UI boundaries", () => {
 
     const deleteButtons = screen.getAllByRole("button", { name: /Delete/i });
     await user.click(deleteButtons[deleteButtons.length - 1]!);
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Remove reply" }));
     await waitFor(() => expect(mutationBodies).toHaveLength(2));
     expect(mutationBodies[1]).toMatchObject({ action: "delete", target: "reply", targetId: replyId });
+  });
+
+  it("sends nothing when the author cancels Delete on a post or a reply", async () => {
+    const user = userEvent.setup();
+    const replyId = "cc000000-0000-4000-8000-000000000008";
+    const owned = {
+      ...discussion,
+      posts: [{
+        ...discussion.posts[0]!,
+        own: true,
+        replies: [{
+          id: replyId, body: "My own reply.", rowVersion: 1,
+          createdAt: "2026-07-14T12:01:00.000Z", editedAt: null, authorAlias: "you", own: true,
+        }],
+      }],
+    };
+    const mutationBodies: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/community/discussions" && init?.method === "POST") {
+        mutationBodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        return new Response(JSON.stringify({ result: { ok: true } }), { status: 200 });
+      }
+      if (url.startsWith("/api/community/discussions")) return new Response(JSON.stringify(owned), { status: 200 });
+      if (url === "/api/battles") return new Response(JSON.stringify(battles), { status: 200 });
+      return new Response(JSON.stringify({ error: "unexpected" }), { status: 500 });
+    }));
+
+    render(<CommunitySpaces people={[]} />);
+    await screen.findByText("My own reply.");
+    const [deletePost, deleteReply] = screen.getAllByRole("button", { name: /Delete/i });
+
+    await user.click(deletePost!);
+    expect(within(screen.getByRole("alertdialog")).getByText(/Why does assignment point left\?/)).toBeInTheDocument();
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Cancel" }));
+    await user.click(deleteReply!);
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(mutationBodies).toEqual([]);
   });
 
   it("sends a post report without notifying the author", async () => {

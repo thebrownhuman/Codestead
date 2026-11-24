@@ -119,13 +119,13 @@
       "file": "src/lib/preferences/profile-settings.ts",
       "purpose": "owner-bound learning profile preferences and consent-gated cohort visibility",
       "anchors": 6,
-      "sourceSha256": "a243bc982a675252d708660eb404b4f0ccfbee6d5b0307857c7481dff318c0ef"
+      "sourceSha256": "2ea09035c99c199d0d683ab3040164e19fbb59f9d9a2bd89a69d9a514eb008dd"
     },
     {
       "file": "src/lib/social/profile-service.ts",
       "purpose": "consent-projected cohort sharing",
       "anchors": 3,
-      "sourceSha256": "866655d6dea3aecf9fc5903835b25e0d4a9b04df1b787f4f352e694822883ef3"
+      "sourceSha256": "50771378153ad573e881d8e1ae203bdf6e11ca081f29c4e56a3860cb78011795"
     },
     {
       "file": "src/lib/ai/chat-lifecycle.ts",
@@ -1017,7 +1017,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by eq(modelCall.userId, authz.session.user.id)",
-      "operationSourceSha256": "502151358d782a0d728edff0377cad645ef163372d9bee0ee9228770f0f40a68"
+      "operationSourceSha256": "3df604e0b5bafdd664081798b85d05bdc3232654df652efe62dacb11d5188f15"
     },
     {
       "operation": "GET /api/ai/threads/[threadId]",
