@@ -77,7 +77,7 @@
       "file": "src/lib/storage/file-deletion.ts",
       "purpose": "owner-bound file tombstone, quota release, and durable erasure enqueue",
       "anchors": 3,
-      "sourceSha256": "a6ff7e32579a9e54cddda51cbfb35dab59bb15ff2cd1dee97384e51dec80143a"
+      "sourceSha256": "b22484d40f724e3168530e8d92b661bbfdb3d1cedf0bc93eefa029cc5dcbdfae"
     },
     {
       "file": "src/lib/projects/revision-service.ts",
@@ -471,7 +471,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "75f212eb557eba4cf4c79ecdc7a2290a263203f9941f9febc06ba6e9ed7e71d3"
+      "operationSourceSha256": "3d4ccc74983dc388744fcad176cda2f2e1fa96984c6d76eb52aef2f06f2b7c7f"
     },
     {
       "operation": "GET /api/admin/curriculum",
@@ -536,7 +536,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "8f56221a11ffe5c07cfb719b618ba54f2af2052d6fefd4faa94ad9b8e5321a44"
+      "operationSourceSha256": "7da0094c2caa4828cd09ec28b0187d5b4859cec36aa7f5fb8e63da3e44cc4f1d"
     },
     {
       "operation": "GET /api/admin/curriculum/versions/[versionId]/gate",
@@ -640,7 +640,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "d9c74841e8ce899c75e5904aa053df083ae07f7dd4f564e05137a04d6fa4a8b8"
+      "operationSourceSha256": "6411e8695b7c0f8ee20325185ceeefdf674db12406a4d51c5adcabdd2c288b3c"
     },
     {
       "operation": "POST /api/admin/fallback-grants/[id]/revoke",
@@ -848,7 +848,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "2eb8017b7be356cb5b0108e2abccfa3e670baf06810f750556144183474b4642"
+      "operationSourceSha256": "fa46bbc35b9e005a93361168edde3ee43de758cfd45436cdd2f063e8c5147bc6"
     },
     {
       "operation": "POST /api/admin/learning-requests/[id]/decision",
@@ -939,7 +939,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "50147c2df7273e62b66ec7441d88f37ace6beb384805d3e1ec94dfdda1f61e04"
+      "operationSourceSha256": "1f864e9bb1ada1570b2f378f8da9f1addd3c38dc58e90709860a7b59caebea65"
     },
     {
       "operation": "GET /api/admin/project-review-corrections",
@@ -965,7 +965,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "daa77d1f19c75cd3ce41873ab9e070f285a8a3a7b1d9eb7017191454504c9974"
+      "operationSourceSha256": "7c1f1de2bf60b67ad76b325e40d2c29db2424c4dd33cac6919f54c6322e658d8"
     },
     {
       "operation": "POST /api/admin/runner-recovery/[jobId]/resolve",
