@@ -33,10 +33,10 @@ jobs:
               sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/g' "$source"
             fi
           done
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22.23.1
           cache: npm
@@ -44,7 +44,7 @@ jobs:
       - run: npm ci
         working-directory: services/runner
       - name: Set up Docker with containerd image store
-        uses: docker/setup-docker-action@6d7cfa65f60a9dda7b46e5513fa982536f3c9877 # v5.3.0
+        uses: docker/setup-docker-action@3f1ab1ab0e29231562e4db4ca600c1a49653bac6 # v5.7.0
         with:
           set-host: true
           daemon-config: |
@@ -92,7 +92,7 @@ jobs:
           git reset -q -- test-artifacts 2>/dev/null || true
           git diff --cached --binary > "$RUNNER_TEMP/regen/runtime-pins-regen.patch"
           git diff --cached --stat | tail -n 5
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: runtime-pins-regen
