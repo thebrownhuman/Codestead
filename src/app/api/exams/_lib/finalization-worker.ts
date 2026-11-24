@@ -2,12 +2,11 @@ import { pool } from "@/lib/db/client";
 import { RESULT_RESPONSE_KEY } from "@/lib/exams/constants";
 
 import { ExamServiceError, finalizeExam } from "./service";
-import { examFinalizationRetryDelayMs } from "./finalization-worker-policy";
+import { examFinalizationRetryDelayMs, isExamFinalizationTerminal } from "./finalization-worker-policy";
 
 export { examFinalizationRetryDelayMs } from "./finalization-worker-policy";
 
 const LEASE_MS = 15 * 60_000;
-const MAX_ATTEMPTS = 10;
 
 interface ClaimedFinalization {
   readonly id: string;
@@ -141,8 +140,11 @@ async function failOrRetry(
 ): Promise<"retried" | "failed" | "succeeded" | "lease-lost"> {
   if (await reconcileResultBearingJob(job.id, now)) return "succeeded";
   const indeterminate = errorCode === "RUNNER_INDETERMINATE";
-  const nonRetryable = errorCode === "LEARNER_NOT_ACTIVE";
-  const terminal = nonRetryable || (!indeterminate && job.runnerRequestGeneration >= MAX_ATTEMPTS);
+  const terminal = isExamFinalizationTerminal({
+    errorCode,
+    attemptCount: job.attemptCount,
+    runnerRequestGeneration: job.runnerRequestGeneration,
+  });
   const dueAt = new Date(now.getTime() + examFinalizationRetryDelayMs(job.attemptCount));
   const updated = await pool.query(
     `update exam_finalization_job
