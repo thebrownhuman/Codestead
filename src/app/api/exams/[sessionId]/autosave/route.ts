@@ -29,9 +29,8 @@ export async function PUT(
     authz.response.headers.set("Cache-Control", "no-store");
     return authz.response;
   }
-  const userId = authz.session.user.id;
   return withRateLimit(
-    { policy: "exam_autosave_user", identity: { kind: "user", value: userId } },
+    { policy: "exam_autosave_user", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
       const jsonBody = await readBoundedJson(request, 1024 * 1024);
       if (jsonBody.response?.status === 413) return jsonBody.response;
@@ -42,7 +41,7 @@ export async function PUT(
       const { sessionId } = await params;
       try {
         const saved = await autosaveExamAnswer({
-          userId,
+          userId: authz.session.user.id,
           sessionId,
           ...body.data,
         });

@@ -10,13 +10,12 @@ export async function POST(
 ) {
   const authz = await requireAuth();
   if (!authz.session) return authz.response;
-  const userId = authz.session.user.id;
   return withRateLimit(
-    { policy: "exam_heartbeat_user", identity: { kind: "user", value: userId } },
+    { policy: "exam_heartbeat_user", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
       const { sessionId } = await params;
       try {
-        return examJson(await heartbeatExam(userId, sessionId));
+        return examJson(await heartbeatExam(authz.session.user.id, sessionId));
       } catch (error) {
         return examError(error);
       }

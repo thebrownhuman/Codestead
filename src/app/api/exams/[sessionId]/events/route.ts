@@ -21,9 +21,8 @@ export async function POST(
 ) {
   const authz = await requireAuth();
   if (!authz.session) return authz.response;
-  const userId = authz.session.user.id;
   return withRateLimit(
-    { policy: "exam_event_user", identity: { kind: "user", value: userId } },
+    { policy: "exam_event_user", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
       const jsonBody = await readBoundedJson(request);
       if (jsonBody.response?.status === 413) return jsonBody.response;
@@ -34,7 +33,7 @@ export async function POST(
       const { sessionId } = await params;
       try {
         return examJson(await recordExamEvent({
-          userId,
+          userId: authz.session.user.id,
           sessionId,
           ...body.data,
         }));
