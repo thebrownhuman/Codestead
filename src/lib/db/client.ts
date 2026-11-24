@@ -12,6 +12,15 @@ const connectionString =
   process.env.DATABASE_URL ??
   "postgresql://learncoding:learncoding@127.0.0.1:5432/learncoding";
 
+const DEFAULT_POOL_SIZE = 10;
+
+// A bad DATABASE_POOL_SIZE ("abc", "0", "2.5") must not become NaN or a useless pool size.
+export function databasePoolSize(value: string | undefined): number {
+  const trimmed = value?.trim() ?? "";
+  if (!/^[1-9][0-9]*$/.test(trimmed)) return DEFAULT_POOL_SIZE;
+  return Number(trimmed);
+}
+
 declare global {
   var learnCodingPool: Pool | undefined;
 }
@@ -20,7 +29,7 @@ export const pool =
   globalThis.learnCodingPool ??
   new Pool({
     connectionString,
-    max: Number(process.env.DATABASE_POOL_SIZE ?? 10),
+    max: databasePoolSize(process.env.DATABASE_POOL_SIZE),
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 5_000,
   });
