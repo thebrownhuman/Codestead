@@ -163,7 +163,7 @@
         "engine": "isolated-runner",
         "language": "c",
         "version": "gcc (Alpine 14.2.0) 14.2.0",
-        "imageDigest": "sha256:f65ca16bc646478e4daa7e88bade1a3ef6f143b602bebecc3c6e6d40cc4476a7",
+        "imageDigest": "sha256:8cd23b93f1df970aff3a7e879983cc3deffd6b559202553df5d49118ce7ed949",
         "entrypoint": "main.c",
         "timeLimitMs": 3000,
         "memoryLimitMb": 128
@@ -244,7 +244,7 @@
         "engine": "isolated-runner",
         "language": "cpp",
         "version": "g++ (Alpine 14.2.0) 14.2.0",
-        "imageDigest": "sha256:36a1ec0c6e5cba6683496249d0ddb6d8f217e497a152ed9f7c6a65aca632606f",
+        "imageDigest": "sha256:0618fc463dcb4e6a25b188c3c12234a49fa5cfa67bd9fb534af7d985d3d8a52f",
         "entrypoint": "main.cpp",
         "timeLimitMs": 3000,
         "memoryLimitMb": 128
