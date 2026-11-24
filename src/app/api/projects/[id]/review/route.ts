@@ -8,6 +8,7 @@ import { project, projectReview, projectReviewEffective } from "@/lib/db/schema"
 import { hashAppealEvidence } from "@/lib/appeals/evidence";
 import { reviewPublicRepository } from "@/lib/github/reviewer";
 import { requireAuth } from "@/lib/http/authz";
+import { isUuid } from "@/lib/http/uuid";
 import { withRateLimit } from "@/lib/security/rate-limit";
 
 const bodySchema = z.object({ repositoryUrl: z.url().max(300) });
@@ -26,6 +27,7 @@ export async function POST(
   const body = bodySchema.safeParse(jsonBody.value);
   if (!body.success) return NextResponse.json({ error: "Provide a public GitHub repository URL." }, { status: 400 });
   const { id } = await context.params;
+  if (!isUuid(id)) return NextResponse.json({ error: "Project not found." }, { status: 404 });
   const [owned] = await db
     .select({ id: project.id })
     .from(project)

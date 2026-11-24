@@ -12,6 +12,7 @@ import {
   user,
 } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/http/authz";
+import { isUuid } from "@/lib/http/uuid";
 import { notifyRevocationDecision } from "@/lib/session-notifications";
 import {
   writeAuditEvent,
@@ -34,6 +35,7 @@ export async function POST(
   const authz = await requireAdmin();
   if (!authz.session) return secureAdminResponse(authz.response);
   const { id } = await context.params;
+  if (!isUuid(id)) return adminJson({ error: "Revocation request not found." }, 404);
   const jsonBody = await readBoundedJson(request);
   if (jsonBody.response?.status === 413) return secureAdminResponse(jsonBody.response);
   const body = bodySchema.safeParse(jsonBody.value);
@@ -148,8 +150,11 @@ export async function POST(
         .where(and(eq(session.id, locked.sessionId), eq(session.userId, locked.userId)))
         .limit(1)
         .for("update");
-      if (!ownedSession) return { kind: "session_missing" as const, userId: locked.userId };
     }
+    // The session can already be gone (signed out, expired or revoked another
+    // way). The outcome the learner asked for already holds, so the approval
+    // closes the request instead of leaving it pending forever.
+    const sessionAlreadyEnded = body.data.decision === "approved" && !ownedSession;
 
     await writeAuditEventInTransaction(tx, {
       actorUserId: authz.session.user.id,
@@ -208,9 +213,18 @@ export async function POST(
       resourceId: id,
       reason: body.data.reason,
       outcome: "success",
-      metadata: { decision: body.data.decision, sessionId: locked.sessionId },
+      metadata: {
+        decision: body.data.decision,
+        sessionId: locked.sessionId,
+        ...(sessionAlreadyEnded ? { sessionAlreadyEnded: true } : {}),
+      },
     });
-    return { kind: "decided" as const, userId: locked.userId, sessionId: locked.sessionId };
+    return {
+      kind: "decided" as const,
+      userId: locked.userId,
+      sessionId: locked.sessionId,
+      sessionAlreadyEnded,
+    };
   });
 
   if (outcome.kind === "not_found") return adminJson({ error: "Revocation request not found." }, 404);
@@ -219,19 +233,6 @@ export async function POST(
   }
   if (outcome.kind === "conflict") {
     return adminJson({ error: "This request has already been decided differently." }, 409);
-  }
-  if (outcome.kind === "session_missing") {
-    await writeAuditEvent({
-      actorUserId: authz.session.user.id,
-      subjectUserId: outcome.userId,
-      action: "session.revocation_decide",
-      resourceType: "session_revocation_request",
-      resourceId: id,
-      reason: body.data.reason,
-      outcome: "failure",
-      metadata: { decision: body.data.decision, failureCode: "SESSION_NOT_ACTIVE" },
-    });
-    return adminJson({ error: "The requested session is no longer active." }, 409);
   }
   if (outcome.kind === "replay") {
     await writeAuditEvent({
@@ -252,5 +253,13 @@ export async function POST(
     reason: body.data.reason,
     idempotencySeed: `${id}:${body.data.decision}`,
   }).catch(() => undefined);
+  if (outcome.sessionAlreadyEnded) {
+    return adminJson({
+      ok: true,
+      decision: body.data.decision,
+      sessionAlreadyEnded: true,
+      message: "The session had already ended, so the request was closed as approved.",
+    });
+  }
   return adminJson({ ok: true, decision: body.data.decision });
 }
