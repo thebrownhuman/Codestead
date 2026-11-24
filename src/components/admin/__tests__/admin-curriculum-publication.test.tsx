@@ -318,6 +318,7 @@ describe("administrator curriculum editorial queue", () => {
     expect(fetchMock).toHaveBeenCalledWith(`/api/admin/curriculum/versions/${versionDraft}/evidence`, expect.objectContaining({ method: "POST", body: expect.stringContaining('"targetStage":"verified"') }));
 
     await user.click(screen.getByRole("button", { name: "Retire version" }));
+    await user.click(await screen.findByRole("button", { name: "Retire" }));
     await waitFor(() => expect(screen.getByText(/retired; its immutable history/)).toBeInTheDocument());
 
     const currentCard = screen.getByRole("button", { name: /Lifecycle v0\.2\.0/i });
@@ -327,7 +328,46 @@ describe("administrator curriculum editorial queue", () => {
 
     await selectOption(user, screen.getByLabelText("Rollback target"), versionPrior);
     await user.click(screen.getByRole("button", { name: "Rollback pointer" }));
+    await user.click(await screen.findByRole("button", { name: "Roll back" }));
     await waitFor(() => expect(screen.getByText(/Catalog pointer rolled back/)).toBeInTheDocument());
+  });
+
+  it("sends nothing when the owner cancels Retire version or Rollback pointer", async () => {
+    const versionCurrent = "20000000-0000-4000-8000-000000000014";
+    const versionPrior = "20000000-0000-4000-8000-000000000015";
+    const versionOld = "20000000-0000-4000-8000-000000000016";
+    const base = { courseId: "course-cancel", courseSlug: "cancel", title: "Cancel", artifactCount: 1, aiAssistedCount: 0, approvedCount: 1, unreviewedCount: 0, evidenceVersion: 1 };
+    const cancelCandidates = [
+      { ...base, id: versionCurrent, version: "0.2.0", stage: "beta", publicationRevision: 2, contentHash: "e".repeat(64), pointerVersion: 4, isCurrent: true },
+      { ...base, id: versionPrior, version: "0.1.0", stage: "verified", publicationRevision: 1, contentHash: "f".repeat(64), pointerVersion: 3, isCurrent: false },
+      { ...base, id: versionOld, version: "0.0.1", stage: "beta", publicationRevision: 1, contentHash: "a".repeat(64), pointerVersion: null, isCurrent: false },
+    ];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/admin/curriculum") return json({
+        candidates: cancelCandidates,
+        reviewQueue: { total: 0, courseCount: 0, statusCounts: [], courseCounts: [], items: [] },
+      });
+      if (/\/versions\/[^/]+\/artifacts$/.test(url)) return json({ artifacts: [] });
+      if (/\/versions\/[^/]+\/owner-review$/.test(url)) return json({ reviewedArtifactIds: [] });
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<AdminCurriculumPublication />);
+    await screen.findByText("Editorial review queue");
+    await user.click(screen.getByRole("button", { name: /Cancel v0\.0\.1/i }));
+    await user.click(await screen.findByRole("button", { name: "Retire version" }));
+    await user.click(await screen.findByRole("button", { name: "Cancel" }));
+
+    await user.click(screen.getByRole("button", { name: /Cancel v0\.2\.0/i }));
+    await selectOption(user, await screen.findByLabelText("Rollback target"), versionPrior);
+    await user.click(screen.getByRole("button", { name: "Rollback pointer" }));
+    await user.click(await screen.findByRole("button", { name: "Cancel" }));
+
+    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/retire"), expect.anything());
+    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/rollback"), expect.anything());
   });
 
   it("sends nothing when the owner cancels Approve & publish", async () => {
