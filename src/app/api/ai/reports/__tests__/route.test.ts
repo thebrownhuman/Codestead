@@ -9,10 +9,11 @@ const mocks = vi.hoisted(() => {
   const returning = vi.fn();
   const values = vi.fn(() => ({ returning }));
   const insert = vi.fn(() => ({ values }));
-  const tx = { insert };
+  const execute = vi.fn();
+  const tx = { insert, select, execute };
   const transaction = vi.fn(async (callback: (handle: typeof tx) => Promise<unknown>) => callback(tx));
   return {
-    limit, where, from, select, returning, values, insert, tx, transaction,
+    limit, where, from, select, returning, values, insert, tx, transaction, execute,
     standaloneInsert: vi.fn(),
     requireAuth: vi.fn(), withRateLimit: vi.fn(), writeAuditEvent: vi.fn(),
   };
@@ -121,6 +122,38 @@ describe("AI output report API", () => {
       outcome: "success",
       metadata: expect.objectContaining({ modelCallId: callId, provider: "nvidia_nim" }),
     }));
+  });
+
+  it("replays a retried report with the same request id instead of creating a second one", async () => {
+    const requestId = "00000000-0000-4000-8000-0000000000aa";
+    const body = { modelCallId: callId, category: "incorrect", description: "The explanation says assignment compares values, which is incorrect.", requestId };
+    const [callRow] = await mocks.limit();
+    mocks.limit.mockResolvedValueOnce([callRow]).mockResolvedValueOnce([]);
+    const first = await POST(request(body));
+    expect(first.status).toBe(201);
+    expect(mocks.values).toHaveBeenCalledWith(expect.objectContaining({ requestId }));
+    const stored = (mocks.values.mock.calls[0] as unknown as [Record<string, unknown>])[0];
+    mocks.limit.mockResolvedValueOnce([callRow]).mockResolvedValueOnce([{
+      id: "00000000-0000-4000-8000-000000000002", status: "pending", createdAt: new Date("2026-07-12T10:01:00.000Z"),
+      kind: stored.kind, subject: stored.subject, details: stored.details,
+    }]);
+    const retry = await POST(request(body));
+    expect(retry.status).toBe(200);
+    await expect(retry.json()).resolves.toMatchObject({ replayed: true, report: { id: "00000000-0000-4000-8000-000000000002" } });
+    expect(mocks.insert).toHaveBeenCalledOnce();
+    expect(mocks.writeAuditEvent).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a reused request id with different report content", async () => {
+    const requestId = "00000000-0000-4000-8000-0000000000bb";
+    const [callRow] = await mocks.limit();
+    mocks.limit.mockResolvedValueOnce([callRow]).mockResolvedValueOnce([{
+      id: "00000000-0000-4000-8000-000000000002", status: "pending", createdAt: new Date(),
+      kind: "ai-output-report", subject: "AI tutor report: harmful", details: "{}",
+    }]);
+    const response = await POST(request({ modelCallId: callId, category: "incorrect", description: "The explanation says assignment compares values, which is incorrect.", requestId }));
+    expect(response.status).toBe(409);
+    expect(mocks.insert).not.toHaveBeenCalled();
   });
 
   it("stores the report and its audit row in one transaction so a failed audit leaves no report", async () => {
