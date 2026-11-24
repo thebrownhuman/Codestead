@@ -2109,7 +2109,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by eq(project.userId, authz.session.user.id)",
-      "operationSourceSha256": "d0b7e40c55acb8038f01bad57774774030ba9151ba408dc652ad5c7b7dff9e88"
+      "operationSourceSha256": "de74fddea90fb2a3cf18c8b717586dc248faaf02d9e96a16137bc0e63874f5d6"
     },
     {
       "operation": "POST /api/projects/[id]/reviews/[reviewId]/appeal",

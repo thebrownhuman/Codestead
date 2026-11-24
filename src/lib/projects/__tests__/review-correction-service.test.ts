@@ -547,14 +547,23 @@ describe("project review correction contracts", () => {
     );
   });
 
-  it("rolls back a claim whose project no longer has a repository URL", async () => {
+  it("fails a claim whose project no longer has a repository URL instead of blocking the queue", async () => {
     const client = claimClient({ selected: { ...claimedRow, github_url: null } });
-    mocks.connect.mockResolvedValueOnce(client);
+    const failure = failurePersistenceClient();
+    const analyzer = vi.fn();
+    mocks.connect.mockResolvedValueOnce(client).mockResolvedValueOnce(failure);
     await expect(processOneProjectReviewCorrection({
       workerId: "worker-1",
+      analyzer,
       now: NOW,
-    })).rejects.toMatchObject({ code: "REVIEW_NOT_CORRECTABLE" });
-    expect(client.query).toHaveBeenCalledWith("rollback");
+    })).resolves.toMatchObject({ processed: true, succeeded: false, errorCode: "REVIEW_NOT_CORRECTABLE" });
+    expect(client.query).toHaveBeenCalledWith("commit");
+    expect(client.query).not.toHaveBeenCalledWith("rollback");
+    expect(failure.query).toHaveBeenCalledWith(
+      expect.stringContaining("set status = 'failed'"),
+      expect.arrayContaining(["REVIEW_NOT_CORRECTABLE"]),
+    );
+    expect(analyzer).not.toHaveBeenCalled();
     expect(client.release).toHaveBeenCalledOnce();
   });
 

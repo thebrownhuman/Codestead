@@ -34,8 +34,17 @@ export async function POST(
     .where(and(eq(project.id, id), eq(project.userId, authz.session.user.id)))
     .limit(1);
   if (!owned) return NextResponse.json({ error: "Project not found." }, { status: 404 });
+  let review: Awaited<ReturnType<typeof reviewPublicRepository>>;
   try {
-    const review = await reviewPublicRepository(body.data.repositoryUrl);
+    review = await reviewPublicRepository(body.data.repositoryUrl);
+  } catch (error) {
+    // Reviewer errors are written for learners; pass them through.
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Repository review failed." },
+      { status: 422 },
+    );
+  }
+  try {
     const findings = review.findings.map((finding) => ({ ...finding })) as Record<string, unknown>[];
     const findingsHash = hashAppealEvidence(findings);
     const [stored] = await db.transaction(async (tx) => {
@@ -93,9 +102,10 @@ export async function POST(
     });
     return NextResponse.json({ review: { ...stored, filesReviewed: review.filesReviewed } }, { status: 201 });
   } catch (error) {
+    console.error("project review store failed", error instanceof Error ? error.name : "unknown");
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Repository review failed." },
-      { status: 422 },
+      { error: "Repository review could not be saved. Please try again." },
+      { status: 500 },
     );
       }
     },

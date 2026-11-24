@@ -549,7 +549,9 @@ async function claimCorrection(input: {
       await client.query("commit");
       return null;
     }
-    if (!row.github_url) throw new ProjectReviewCorrectionError("REVIEW_NOT_CORRECTABLE");
+    // A project without a repository URL cannot be re-analyzed. Claim it anyway
+    // (the caller records the failure with back-off) so it never stays at the
+    // head of the queue and blocks every later correction.
     await client.query(
       `update project_review_correction
           set status = 'running', attempt_count = attempt_count + 1,
@@ -584,7 +586,7 @@ async function claimCorrection(input: {
       userId: row.user_id,
       revision: Number(row.revision),
       reason: row.reason,
-      repositoryUrl: row.github_url,
+      repositoryUrl: row.github_url ?? "",
       sourceCommitSha: row.source_commit_sha,
       sourceAnalyzerVersion: row.source_analyzer_version,
       sourceRubricVersion: row.source_rubric_version,
@@ -937,6 +939,7 @@ export async function processOneProjectReviewCorrection(input: {
   const job = await claimCorrection({ workerId: input.workerId, correctionId: input.correctionId, now });
   if (!job) return { processed: false as const };
   try {
+    if (!job.repositoryUrl) throw new ProjectReviewCorrectionError("REVIEW_NOT_CORRECTABLE");
     const result = await (input.analyzer ?? configuredAnalyzer)(job.repositoryUrl, job.sourceCommitSha);
     const outcome = await persistCorrectionSuccess(job, result, now);
     await writeAuditEvent({
