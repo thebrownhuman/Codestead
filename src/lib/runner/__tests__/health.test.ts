@@ -72,9 +72,17 @@ describe("bounded runner health", () => {
     const second = fixture(); vi.stubEnv("CODE_RUNNER_PROVIDER", "legacy"); second.legacy.mockResolvedValue({ available: false });
     expect((await second.health()).status).toBe("unavailable"); expect(f.request).not.toHaveBeenCalled(); expect(second.legacy).not.toHaveBeenCalled();
   });
-  it("limits requests globally without attacker-controlled buckets", async () => {
-    const f = fixture(); for (let i = 0; i < 120; i++) await f.health();
-    expect(await f.health()).toEqual({ status: "unavailable", latencyMs: 0, limited: true }); expect(f.request).toHaveBeenCalledOnce();
-    await vi.advanceTimersByTimeAsync(60_000); expect((await f.health()).status).toBe("ready");
+  it("serves cached results without spending the probe budget", async () => {
+    const f = fixture();
+    for (let i = 0; i < 500; i++) expect(await f.health()).toEqual({ status: "ready", latencyMs: 0 });
+    expect(f.request).toHaveBeenCalledOnce();
+  });
+  it("limits real probes globally without attacker-controlled buckets", async () => {
+    const request = vi.fn<typeof fetch>().mockImplementation(async () => Response.json(inventory));
+    const health = createRunnerHealth({ request, warn: vi.fn(), cacheMs: 0 });
+    for (let i = 0; i < 120; i++) expect((await health()).status).toBe("ready");
+    expect(await health()).toEqual({ status: "unavailable", latencyMs: 0, limited: true });
+    expect(request).toHaveBeenCalledTimes(120);
+    await vi.advanceTimersByTimeAsync(60_000); expect((await health()).status).toBe("ready");
   });
 });
