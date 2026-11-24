@@ -136,7 +136,9 @@ export function aggregateCourseProgress(
       moduleId: module.id,
       ...aggregateSkills(module.skills, progress),
     })),
-    complete: counts.requiredCompleted === counts.required,
+    // 0 of 0 is not completion: a course with no required skills must never
+    // silently satisfy a track prerequisite.
+    complete: counts.required > 0 && counts.requiredCompleted === counts.required,
   };
 }
 
