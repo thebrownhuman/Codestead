@@ -94,6 +94,25 @@ describe("formal exam authored evidence", () => {
     expect(publicJson).not.toContain(form.seed);
   });
 
+  it("marks only multi-answer MCQ oracles as unordered", () => {
+    const mcq = programBank.items.find((item) => item.kind === "mcq")!;
+    const other = mcq.options.find((option) => !mcq.answer.correctOptionIds.includes(option.id))!;
+    const multi = {
+      ...mcq,
+      answer: { ...mcq.answer, correctOptionIds: [...mcq.answer.correctOptionIds, other.id] },
+    };
+    const evidenceFor = (item: DeterministicAssessmentItem) => buildEquivalentExamForm({
+      course,
+      module: oneSkill(programModule, "pf.computing.program"),
+      catalogVersion: "test",
+      seed: "approved-multi-answer",
+      assessmentBanks: [approvedBank(programBank, [item])],
+    }).items[0]?.gradingEvidence;
+
+    expect(evidenceFor(multi)).toMatchObject({ kind: "exact-answer", unordered: true });
+    expect(evidenceFor(mcq)).not.toHaveProperty("unordered");
+  });
+
   it("carries approved visible and hidden runner tests only in server grading evidence", () => {
     const code = variablesBank.items.find((item) => item.kind === "code")!;
     const form = buildEquivalentExamForm({

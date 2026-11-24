@@ -6,8 +6,8 @@ import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { learningRequest, session, user } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/http/authz";
-import { enqueueEmail } from "@/lib/notifications/outbox";
-import { writeAuditEvent } from "@/lib/security/audit-writer";
+import { enqueueEmailInTransaction } from "@/lib/notifications/outbox";
+import { writeAuditEventInTransaction } from "@/lib/security/audit-writer";
 import { authorizePrivilegedAction } from "@/lib/security/privileged-access";
 import { evaluateRequestOrigin } from "@/lib/security/request-origin-policy";
 import { containsCredentialOrHiddenEvidence } from "@/lib/security/sensitive-text";
@@ -62,7 +62,9 @@ export async function POST(
   if (!authorization.allowed) return NextResponse.json({ error: authorization.code }, { status: 403 });
 
   const decidedAt = new Date();
-  const candidate = await db.transaction(async (tx) => {
+  let candidate;
+  try {
+  candidate = await db.transaction(async (tx) => {
     const [pending] = await tx
       .select({
         id: learningRequest.id,
@@ -86,30 +88,35 @@ export async function POST(
         decidedAt,
       })
       .where(and(eq(learningRequest.id, pending.id), eq(learningRequest.status, "pending")));
+    // Same transaction as the decision: a failed email or audit write rolls
+    // the decision back, so the admin can retry and the learner is told.
+    await enqueueEmailInTransaction(tx, {
+      to: pending.learnerEmail,
+      userId: pending.userId,
+      template: "learning-request-updated",
+      variables: {
+        name: pending.learnerName,
+        subject: pending.subject,
+        url: `${process.env.APP_URL ?? "http://localhost:3000"}/requests`,
+      },
+      idempotencySeed: `${pending.id}:${body.data.decision}`,
+    });
+    await writeAuditEventInTransaction(tx, {
+      actorUserId: authz.session.user.id,
+      subjectUserId: pending.userId,
+      action: `learning_request.${body.data.decision}`,
+      resourceType: "learning_request",
+      resourceId: pending.id,
+      reason: body.data.reason,
+      outcome: "success",
+      metadata: { decision: body.data.decision },
+    });
     return pending;
   });
+  } catch {
+    return NextResponse.json({ error: "The decision could not be saved. Try again." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
+  }
   if (!candidate) return NextResponse.json({ error: "Pending request not found." }, { status: 404 });
 
-  await enqueueEmail({
-    to: candidate.learnerEmail,
-    userId: candidate.userId,
-    template: "learning-request-updated",
-    variables: {
-      name: candidate.learnerName,
-      subject: candidate.subject,
-      url: `${process.env.APP_URL ?? "http://localhost:3000"}/requests`,
-    },
-    idempotencySeed: `${candidate.id}:${body.data.decision}`,
-  });
-  await writeAuditEvent({
-    actorUserId: authz.session.user.id,
-    subjectUserId: candidate.userId,
-    action: `learning_request.${body.data.decision}`,
-    resourceType: "learning_request",
-    resourceId: candidate.id,
-    reason: body.data.reason,
-    outcome: "success",
-    metadata: { decision: body.data.decision },
-  });
   return NextResponse.json({ ok: true, decision: body.data.decision, decidedAt });
 }
