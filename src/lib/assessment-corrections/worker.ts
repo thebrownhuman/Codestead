@@ -85,51 +85,171 @@ async function appendCorrectionEvent(client: PoolClient, input: {
   );
 }
 
+/** A claim (and every renewal) holds the job for this long. */
+const REGRADE_LEASE_MS = 10 * 60_000;
+/**
+ * How many times an expired lease is requeued for same-generation runner
+ * reconciliation before the job is failed. Without a cap a job whose worker
+ * always dies (or always outlives its lease) is retried forever.
+ */
+const MAX_EXPIRED_LEASE_RECOVERIES = 3;
+
+/**
+ * Records a failed job on its correction: aggregate correction status plus a
+ * `regrade_failed` event. The caller has already moved the job to `failed`.
+ */
+async function recordRegradeFailure(client: PoolClient, input: {
+  readonly correctionId: string;
+  readonly jobId: string;
+  readonly impactId: string;
+  readonly code: string;
+  readonly attemptCount: number;
+  readonly now: Date;
+}) {
+  const priorDeterminateFailures = await client.query<{ count: number }>(
+    `select count(*)::int count
+       from assessment_correction_event
+      where correction_id = $1 and event = 'regrade_failed'
+        and evidence->>'jobId' = $2`,
+    [input.correctionId, input.jobId],
+  );
+  const determinateAttemptNumber = (priorDeterminateFailures.rows[0]?.count ?? 0) + 1;
+  const counts = await client.query<{ succeeded: number; failed: number; pending: number }>(
+    `select count(*) filter (where status = 'succeeded')::int as succeeded,
+            count(*) filter (where status in ('failed','timed_out'))::int as failed,
+            count(*) filter (where status in ('queued','leased','running'))::int as pending
+       from assessment_regrade_job where correction_id = $1`,
+    [input.correctionId],
+  );
+  const aggregate = counts.rows[0]!;
+  const status = aggregate.succeeded > 0 ? "partially_failed" : "failed";
+  await client.query(
+    `update assessment_correction set status = $2, updated_at = $3 where id = $1`,
+    [input.correctionId, status, input.now],
+  );
+  await appendCorrectionEvent(client, {
+    correctionId: input.correctionId,
+    actorRole: "system",
+    event: "regrade_failed",
+    reason: "Automatic deterministic regrade failed safely; no official result was changed.",
+    evidence: {
+      schemaVersion: 1,
+      jobId: input.jobId,
+      impactId: input.impactId,
+      errorCode: input.code,
+      attemptNumber: input.attemptCount,
+      leaseAttemptNumber: input.attemptCount,
+      determinateAttemptNumber,
+      retryAllowed: determinateAttemptNumber < 3,
+    },
+    now: input.now,
+  });
+}
+
+async function recoverExpiredLeases(client: PoolClient, now: Date) {
+  const expired = await client.query<{
+    id: string;
+    correction_id: string;
+    impact_id: string;
+    attempt_count: number;
+    runner_request_generation: number;
+  }>(
+    `select j.id, j.correction_id, j.impact_id, j.attempt_count, j.runner_request_generation
+       from assessment_regrade_job j
+      where j.status = 'running' and j.lease_expires_at <= $1
+      order by j.lease_expires_at, j.id
+      for update of j skip locked`,
+    [now],
+  );
+  for (const row of expired.rows) {
+    const priorRecoveries = await client.query<{ count: number }>(
+      `select count(*)::int count
+         from assessment_correction_event
+        where correction_id = $1 and event = 'queued'
+          and evidence->>'jobId' = $2
+          and evidence->>'reconciliation' = 'same_runner_request_generation'`,
+      [row.correction_id, row.id],
+    );
+    const recoveries = priorRecoveries.rows[0]?.count ?? 0;
+    if (recoveries >= MAX_EXPIRED_LEASE_RECOVERIES) {
+      const failed = await client.query(
+        `update assessment_regrade_job
+            set status = 'failed', lease_owner = null, lease_expires_at = null,
+                last_error_code = $3, completed_at = $1, updated_at = $1
+          where id = $2 and status = 'running' and lease_expires_at <= $1
+          returning id`,
+        [now, row.id, "WORKER_LEASE_EXPIRED"],
+      );
+      if (failed.rowCount !== 1) throw new AssessmentCorrectionError("WRITE_CONFLICT");
+      await recordRegradeFailure(client, {
+        correctionId: row.correction_id,
+        jobId: row.id,
+        impactId: row.impact_id,
+        code: "WORKER_LEASE_EXPIRED",
+        attemptCount: row.attempt_count,
+        now,
+      });
+      console.error(JSON.stringify({
+        event: "assessment_regrade.lease_recovery_exhausted",
+        jobId: row.id,
+        recoveries,
+      }));
+      continue;
+    }
+    const recovered = await client.query(
+      `update assessment_regrade_job
+          set status = 'queued', lease_owner = null, lease_expires_at = null,
+              last_error_code = 'WORKER_LEASE_EXPIRED_RECONCILING', updated_at = $1
+        where id = $2 and status = 'running' and lease_expires_at <= $1
+        returning id`,
+      [now, row.id],
+    );
+    if (recovered.rowCount !== 1) throw new AssessmentCorrectionError("WRITE_CONFLICT");
+    // Every recovery is recorded: these events are the recovery cap's counter.
+    await appendCorrectionEvent(client, {
+      correctionId: row.correction_id,
+      actorRole: "system",
+      event: "queued",
+      reason: "Expired worker lease retained for exact same-generation runner admission reconciliation.",
+      evidence: {
+        schemaVersion: 1,
+        jobId: row.id,
+        expiredLeaseAttempt: row.attempt_count,
+        expiredLeaseRecovery: recoveries + 1,
+        runnerRequestGeneration: row.runner_request_generation,
+        reconciliation: "same_runner_request_generation",
+      },
+      now,
+    });
+  }
+}
+
+/**
+ * Extends the caller's lease. Runner items run one after another inside one
+ * job, so a multi-item exam can outlive a single lease; renewing after each
+ * item keeps it alive through the final persist. A lost lease (another worker
+ * reclaimed the job) stops this run with WRITE_CONFLICT.
+ */
+async function renewLease(job: ClaimedJob, now: Date) {
+  const renewed = await pool.query(
+    `update assessment_regrade_job
+        set lease_expires_at = $5, updated_at = $4
+      where id = $1 and status = 'running' and lease_owner = $2
+        and attempt_count = $3 and runner_request_generation = $6
+        and lease_expires_at > $4
+      returning id`,
+    [job.id, job.leaseOwner, job.attemptCount, now,
+      new Date(now.getTime() + REGRADE_LEASE_MS), job.runnerRequestGeneration],
+  );
+  if (renewed.rowCount !== 1) throw new AssessmentCorrectionError("WRITE_CONFLICT");
+}
+
 async function claimJob(workerId: string, correctionId: string | undefined, now: Date): Promise<ClaimedJob | null> {
   const client = await pool.connect();
   try {
     await client.query("begin");
-    const leaseExpiresAt = new Date(now.getTime() + 10 * 60_000);
-    const expired = await client.query<{
-      id: string;
-      correction_id: string;
-      attempt_count: number;
-      runner_request_generation: number;
-    }>(
-      `select j.id, j.correction_id, j.attempt_count, j.runner_request_generation
-         from assessment_regrade_job j
-        where j.status = 'running' and j.lease_expires_at <= $1
-        order by j.lease_expires_at, j.id
-        for update of j skip locked`,
-      [now],
-    );
-    for (const row of expired.rows) {
-      const recovered = await client.query(
-        `update assessment_regrade_job
-            set status = 'queued', lease_owner = null, lease_expires_at = null,
-                last_error_code = 'WORKER_LEASE_EXPIRED_RECONCILING', updated_at = $1
-          where id = $2 and status = 'running' and lease_expires_at <= $1
-          returning id`,
-        [now, row.id],
-      );
-      if (recovered.rowCount !== 1) throw new AssessmentCorrectionError("WRITE_CONFLICT");
-      if (row.attempt_count >= 3) {
-        await appendCorrectionEvent(client, {
-          correctionId: row.correction_id,
-          actorRole: "system",
-          event: "queued",
-          reason: "Expired worker lease retained for exact same-generation runner admission reconciliation.",
-          evidence: {
-            schemaVersion: 1,
-            jobId: row.id,
-            expiredLeaseAttempt: row.attempt_count,
-            runnerRequestGeneration: row.runner_request_generation,
-            reconciliation: "same_runner_request_generation",
-          },
-          now,
-        });
-      }
-    }
+    const leaseExpiresAt = new Date(now.getTime() + REGRADE_LEASE_MS);
+    await recoverExpiredLeases(client, now);
     const result = await client.query<{
       id: string;
       correction_id: string;
@@ -277,42 +397,12 @@ async function markFailure(job: ClaimedJob, error: unknown, now: Date) {
       [job.id, code, now, job.leaseOwner, job.attemptCount, job.runnerRequestGeneration],
     );
     if (failed.rowCount !== 1) throw new AssessmentCorrectionError("WRITE_CONFLICT");
-    const priorDeterminateFailures = await client.query<{ count: number }>(
-      `select count(*)::int count
-         from assessment_correction_event
-        where correction_id = $1 and event = 'regrade_failed'
-          and evidence->>'jobId' = $2`,
-      [job.correctionId, job.id],
-    );
-    const determinateAttemptNumber = (priorDeterminateFailures.rows[0]?.count ?? 0) + 1;
-    const counts = await client.query<{ succeeded: number; failed: number; pending: number }>(
-      `select count(*) filter (where status = 'succeeded')::int as succeeded,
-              count(*) filter (where status in ('failed','timed_out'))::int as failed,
-              count(*) filter (where status in ('queued','leased','running'))::int as pending
-         from assessment_regrade_job where correction_id = $1`,
-      [job.correctionId],
-    );
-    const aggregate = counts.rows[0]!;
-    const status = aggregate.succeeded > 0 ? "partially_failed" : "failed";
-    await client.query(
-      `update assessment_correction set status = $2, updated_at = $3 where id = $1`,
-      [job.correctionId, status, now],
-    );
-    await appendCorrectionEvent(client, {
+    await recordRegradeFailure(client, {
       correctionId: job.correctionId,
-      actorRole: "system",
-      event: "regrade_failed",
-      reason: "Automatic deterministic regrade failed safely; no official result was changed.",
-      evidence: {
-        schemaVersion: 1,
-        jobId: job.id,
-        impactId: job.impactId,
-        errorCode: code,
-        attemptNumber: job.attemptCount,
-        leaseAttemptNumber: job.attemptCount,
-        determinateAttemptNumber,
-        retryAllowed: determinateAttemptNumber < 3,
-      },
+      jobId: job.id,
+      impactId: job.impactId,
+      code,
+      attemptCount: job.attemptCount,
       now,
     });
     await client.query("commit");
@@ -736,6 +826,7 @@ export async function processOneAssessmentRegrade(input: {
       ) {
         throw new AssessmentCorrectionError("RUNNER_INFRASTRUCTURE_FAILURE");
       }
+      await renewLease(job, mutationClock());
     }
     const mutationNow = mutationClock();
     const correctedResult = gradeExamSubmission({
