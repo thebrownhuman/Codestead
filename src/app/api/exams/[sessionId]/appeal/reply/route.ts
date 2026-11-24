@@ -3,6 +3,7 @@ import { type NextRequest } from "next/server";
 import { z } from "zod";
 
 import { requireAuth } from "@/lib/http/authz";
+import { withRateLimit } from "@/lib/security/rate-limit";
 
 import { examError, examJson } from "../../../_lib/http";
 import { submitExamAppealReply } from "../../../_lib/service";
@@ -18,23 +19,29 @@ export async function POST(
 ) {
   const authz = await requireAuth();
   if (!authz.session) return authz.response;
-  const jsonBody = await readBoundedJson(request);
-  if (jsonBody.response?.status === 413) return jsonBody.response;
-  const body = replySchema.safeParse(jsonBody.value);
-  if (!body.success) {
-    return examJson({
-      error: "Give the reviewer a reply from 20 to 2000 characters.",
-      code: "INVALID_APPEAL_REPLY",
-    }, { status: 400 });
-  }
-  const { sessionId } = await params;
-  try {
-    return examJson(await submitExamAppealReply({
-      userId: authz.session.user.id,
-      sessionId,
-      ...body.data,
-    }), { status: 202 });
-  } catch (error) {
-    return examError(error);
-  }
+  const userId = authz.session.user.id;
+  return withRateLimit(
+    { policy: "exam_appeal_user", identity: { kind: "user", value: userId } },
+    async () => {
+      const jsonBody = await readBoundedJson(request);
+      if (jsonBody.response?.status === 413) return jsonBody.response;
+      const body = replySchema.safeParse(jsonBody.value);
+      if (!body.success) {
+        return examJson({
+          error: "Give the reviewer a reply from 20 to 2000 characters.",
+          code: "INVALID_APPEAL_REPLY",
+        }, { status: 400 });
+      }
+      const { sessionId } = await params;
+      try {
+        return examJson(await submitExamAppealReply({
+          userId,
+          sessionId,
+          ...body.data,
+        }), { status: 202 });
+      } catch (error) {
+        return examError(error);
+      }
+    },
+  );
 }

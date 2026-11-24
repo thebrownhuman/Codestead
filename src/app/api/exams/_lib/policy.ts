@@ -18,6 +18,12 @@ import type {
 } from "./contracts";
 
 export const HEARTBEAT_INTERVAL_SECONDS = 15;
+/** Upper bound on stored client integrity events per exam session (each row holds up to 4 KB). */
+export const MAX_EXAM_EVENTS_PER_SESSION = 2_000;
+
+export function examEventCapReached(storedEventCount: number): boolean {
+  return storedEventCount >= MAX_EXAM_EVENTS_PER_SESSION;
+}
 export const MIN_EXAM_VIEWPORT_WIDTH = 768;
 export { MASTERY_RECHECK_DELAY_MS, MATERIAL_DISCONNECT_SECONDS };
 

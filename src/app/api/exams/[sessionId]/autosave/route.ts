@@ -3,6 +3,7 @@ import { type NextRequest } from "next/server";
 import { z } from "zod";
 
 import { requireAuth } from "@/lib/http/authz";
+import { withRateLimit } from "@/lib/security/rate-limit";
 
 import { SUPPORTED_EXAM_LANGUAGES } from "../../_lib/contracts";
 import { examError, examJson } from "../../_lib/http";
@@ -28,21 +29,27 @@ export async function PUT(
     authz.response.headers.set("Cache-Control", "no-store");
     return authz.response;
   }
-  const jsonBody = await readBoundedJson(request, 1024 * 1024);
-  if (jsonBody.response?.status === 413) return jsonBody.response;
-  const body = autosaveSchema.safeParse(jsonBody.value);
-  if (!body.success) {
-    return examJson({ error: "Autosave payload is invalid.", code: "INVALID_AUTOSAVE" }, { status: 400 });
-  }
-  const { sessionId } = await params;
-  try {
-    const saved = await autosaveExamAnswer({
-      userId: authz.session.user.id,
-      sessionId,
-      ...body.data,
-    });
-    return examJson({ saved });
-  } catch (error) {
-    return examError(error);
-  }
+  const userId = authz.session.user.id;
+  return withRateLimit(
+    { policy: "exam_autosave_user", identity: { kind: "user", value: userId } },
+    async () => {
+      const jsonBody = await readBoundedJson(request, 1024 * 1024);
+      if (jsonBody.response?.status === 413) return jsonBody.response;
+      const body = autosaveSchema.safeParse(jsonBody.value);
+      if (!body.success) {
+        return examJson({ error: "Autosave payload is invalid.", code: "INVALID_AUTOSAVE" }, { status: 400 });
+      }
+      const { sessionId } = await params;
+      try {
+        const saved = await autosaveExamAnswer({
+          userId,
+          sessionId,
+          ...body.data,
+        });
+        return examJson({ saved });
+      } catch (error) {
+        return examError(error);
+      }
+    },
+  );
 }
