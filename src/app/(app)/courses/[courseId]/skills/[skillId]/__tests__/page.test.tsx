@@ -121,3 +121,11 @@ describe("DSA skill page language binding", () => {
     }));
   });
 });
+
+describe("skill page malformed skill id", () => {
+  it("returns 404 instead of a URIError 500 for a malformed percent-encoded id", async () => {
+    const result = SkillPage({ params: Promise.resolve({ courseId: "dsa", skillId: "%E0%A4" }) });
+    await expect(result).rejects.toMatchObject({ digest: expect.stringContaining("404") });
+    expect(mocks.getSkillLocation).not.toHaveBeenCalled();
+  });
+});
