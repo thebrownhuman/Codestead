@@ -45,10 +45,10 @@
     }
   },
   "environment": {
-    "packageLockHash": "sha256:f60a71542c88dcbc824c987a35b54b697da0e8740a8a8c5de28e5eabdf51d27f",
+    "packageLockHash": "sha256:68bffd1e21c74c2cb0610508b8c2429047c508a5e02c3ca9df5aff1cc0ae2728",
     "node": {
       "tag": "learncoding/runtime-javascript:local",
-      "manifestDigest": "sha256:4a33b5b91221378dfd948fa3ea4a108ac8c1ebdf17bd795d3306e6b57171b194",
+      "manifestDigest": "sha256:a1459f3413d4ed6ed9e92f104f1a9a2856d45fe04872fabbb86b278b2f0dc6a3",
       "configDigest": null,
       "immutableReference": null,
       "tagDescriptorDigest": null,
@@ -56,7 +56,7 @@
       "exactReferenceDescriptorDigest": null,
       "exactReferenceImageId": null,
       "independentlyValidated": false,
-      "expectedImageDigest": "sha256:4a33b5b91221378dfd948fa3ea4a108ac8c1ebdf17bd795d3306e6b57171b194",
+      "expectedImageDigest": "sha256:a1459f3413d4ed6ed9e92f104f1a9a2856d45fe04872fabbb86b278b2f0dc6a3",
       "expectedVersion": "v22.23.3",
       "inspectedVersion": null,
       "versionMatches": null,

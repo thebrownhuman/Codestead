@@ -6,10 +6,10 @@
     "hiddenTestCount": 240,
     "examEligibleItemCount": 0,
     "imageDigests": {
-      "c": "sha256:9504396a512d645832b46bc0dce121300035649da837ad6150f3143cf2304c11",
-      "cpp": "sha256:29330bf1dfe1a154b46dd6a4e4ebb2d0690515e55cd1e2755d5ec845b92ff47a",
-      "java": "sha256:adefaec8aa4f9e8c15a32f5d1a32e106fa6132bad904a6044c3193e383c8f247",
-      "python": "sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb"
+      "c": "sha256:f65ca16bc646478e4daa7e88bade1a3ef6f143b602bebecc3c6e6d40cc4476a7",
+      "cpp": "sha256:36a1ec0c6e5cba6683496249d0ddb6d8f217e497a152ed9f7c6a65aca632606f",
+      "java": "sha256:db8b7801c26f94aad5d23c4831b6a19189a14507cd22b65fd08694c3ea53cdfd",
+      "python": "sha256:0fcad574f43d244e28bcd18aef714ab4de0dd1ace1db8ded97056126da847480"
     }
   },
   "selectedItems": 240,
@@ -22,7 +22,7 @@
   "imageEvidence": {
     "c": {
       "tag": "learncoding/runtime-c:local",
-      "manifestDigest": "sha256:9504396a512d645832b46bc0dce121300035649da837ad6150f3143cf2304c11",
+      "manifestDigest": "sha256:f65ca16bc646478e4daa7e88bade1a3ef6f143b602bebecc3c6e6d40cc4476a7",
       "configDigest": null,
       "immutableReference": null,
       "tagDescriptorDigest": null,
@@ -33,7 +33,7 @@
     },
     "cpp": {
       "tag": "learncoding/runtime-cpp:local",
-      "manifestDigest": "sha256:29330bf1dfe1a154b46dd6a4e4ebb2d0690515e55cd1e2755d5ec845b92ff47a",
+      "manifestDigest": "sha256:36a1ec0c6e5cba6683496249d0ddb6d8f217e497a152ed9f7c6a65aca632606f",
       "configDigest": null,
       "immutableReference": null,
       "tagDescriptorDigest": null,
@@ -44,7 +44,7 @@
     },
     "java": {
       "tag": "learncoding/runtime-java:local",
-      "manifestDigest": "sha256:adefaec8aa4f9e8c15a32f5d1a32e106fa6132bad904a6044c3193e383c8f247",
+      "manifestDigest": "sha256:db8b7801c26f94aad5d23c4831b6a19189a14507cd22b65fd08694c3ea53cdfd",
       "configDigest": null,
       "immutableReference": null,
       "tagDescriptorDigest": null,
@@ -55,7 +55,7 @@
     },
     "python": {
       "tag": "learncoding/runtime-python:local",
-      "manifestDigest": "sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb",
+      "manifestDigest": "sha256:0fcad574f43d244e28bcd18aef714ab4de0dd1ace1db8ded97056126da847480",
       "configDigest": null,
       "immutableReference": null,
       "tagDescriptorDigest": null,

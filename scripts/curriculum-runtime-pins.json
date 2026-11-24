@@ -4,32 +4,32 @@
     {
       "language": "c",
       "tag": "learncoding/runtime-c:local",
-      "digest": "sha256:9504396a512d645832b46bc0dce121300035649da837ad6150f3143cf2304c11",
-      "reference": "learncoding/runtime-c@sha256:9504396a512d645832b46bc0dce121300035649da837ad6150f3143cf2304c11"
+      "digest": "sha256:f65ca16bc646478e4daa7e88bade1a3ef6f143b602bebecc3c6e6d40cc4476a7",
+      "reference": "learncoding/runtime-c@sha256:f65ca16bc646478e4daa7e88bade1a3ef6f143b602bebecc3c6e6d40cc4476a7"
     },
     {
       "language": "cpp",
       "tag": "learncoding/runtime-cpp:local",
-      "digest": "sha256:29330bf1dfe1a154b46dd6a4e4ebb2d0690515e55cd1e2755d5ec845b92ff47a",
-      "reference": "learncoding/runtime-cpp@sha256:29330bf1dfe1a154b46dd6a4e4ebb2d0690515e55cd1e2755d5ec845b92ff47a"
+      "digest": "sha256:36a1ec0c6e5cba6683496249d0ddb6d8f217e497a152ed9f7c6a65aca632606f",
+      "reference": "learncoding/runtime-cpp@sha256:36a1ec0c6e5cba6683496249d0ddb6d8f217e497a152ed9f7c6a65aca632606f"
     },
     {
       "language": "java",
       "tag": "learncoding/runtime-java:local",
-      "digest": "sha256:adefaec8aa4f9e8c15a32f5d1a32e106fa6132bad904a6044c3193e383c8f247",
-      "reference": "learncoding/runtime-java@sha256:adefaec8aa4f9e8c15a32f5d1a32e106fa6132bad904a6044c3193e383c8f247"
+      "digest": "sha256:db8b7801c26f94aad5d23c4831b6a19189a14507cd22b65fd08694c3ea53cdfd",
+      "reference": "learncoding/runtime-java@sha256:db8b7801c26f94aad5d23c4831b6a19189a14507cd22b65fd08694c3ea53cdfd"
     },
     {
       "language": "javascript",
       "tag": "learncoding/runtime-javascript:local",
-      "digest": "sha256:4a33b5b91221378dfd948fa3ea4a108ac8c1ebdf17bd795d3306e6b57171b194",
-      "reference": "learncoding/runtime-javascript@sha256:4a33b5b91221378dfd948fa3ea4a108ac8c1ebdf17bd795d3306e6b57171b194"
+      "digest": "sha256:a1459f3413d4ed6ed9e92f104f1a9a2856d45fe04872fabbb86b278b2f0dc6a3",
+      "reference": "learncoding/runtime-javascript@sha256:a1459f3413d4ed6ed9e92f104f1a9a2856d45fe04872fabbb86b278b2f0dc6a3"
     },
     {
       "language": "python",
       "tag": "learncoding/runtime-python:local",
-      "digest": "sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb",
-      "reference": "learncoding/runtime-python@sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb"
+      "digest": "sha256:0fcad574f43d244e28bcd18aef714ab4de0dd1ace1db8ded97056126da847480",
+      "reference": "learncoding/runtime-python@sha256:0fcad574f43d244e28bcd18aef714ab4de0dd1ace1db8ded97056126da847480"
     }
   ]
 }

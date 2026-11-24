@@ -170,7 +170,7 @@
         "engine": "isolated-runner",
         "language": "c",
         "version": "C23 / GCC 14.2.0",
-        "imageDigest": "sha256:9504396a512d645832b46bc0dce121300035649da837ad6150f3143cf2304c11",
+        "imageDigest": "sha256:f65ca16bc646478e4daa7e88bade1a3ef6f143b602bebecc3c6e6d40cc4476a7",
         "entrypoint": "main.c",
         "timeLimitMs": 2000,
         "memoryLimitMb": 128
