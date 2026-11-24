@@ -110,12 +110,16 @@ export function evaluateAuthoredActivity(
   } else if (grading.kind === "numeric") {
     const expected = typeof grading.expected === "number" ? grading.expected : Number(grading.expected);
     const actualRaw = answerValue(answer);
-    const actual = typeof actualRaw === "number" ? actualRaw : Number(actualRaw);
+    // Only a number or a non-blank numeric string is an answer: Number("") / Number(null) / Number([]) are 0,
+    // which would mark a blank submission correct when the expected value is 0.
+    const actual = typeof actualRaw === "number"
+      ? actualRaw
+      : typeof actualRaw === "string" && actualRaw.trim() !== "" ? Number(actualRaw) : Number.NaN;
     const tolerance = typeof grading.tolerance === "number" ? grading.tolerance : 0;
-    if (!Number.isFinite(expected) || !Number.isFinite(actual) || tolerance < 0) {
+    if (!Number.isFinite(expected) || tolerance < 0) {
       return { state: "unavailable", reason: "invalid_grader_specification" };
     }
-    score = Math.abs(actual - expected) <= tolerance ? 1 : 0;
+    score = Number.isFinite(actual) && Math.abs(actual - expected) <= tolerance ? 1 : 0;
   } else if (grading.kind === "gaps") {
     const acceptedByGap = isRecord(grading.acceptedByGap) ? grading.acceptedByGap : null;
     const actualByGap = isRecord(answer.gaps) ? answer.gaps : null;

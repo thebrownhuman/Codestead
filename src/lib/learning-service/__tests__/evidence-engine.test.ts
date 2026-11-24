@@ -292,6 +292,15 @@ describe("authored deterministic evaluator", () => {
     )).toEqual({ state: "unavailable", reason: "invalid_grader_specification" });
   });
 
+  it("marks a blank or non-numeric numeric answer wrong instead of reading it as 0", () => {
+    const zero = activity({ grading: { kind: "numeric", expected: 0 } });
+    for (const value of ["", "   ", null, [], false, "abc"]) {
+      expect(evaluateAuthoredActivity(zero, { value })).toMatchObject({ state: "graded", passed: false, score: 0 });
+    }
+    expect(evaluateAuthoredActivity(zero, { value: "0" })).toMatchObject({ state: "graded", passed: true });
+    expect(evaluateAuthoredActivity(zero, { value: 0 })).toMatchObject({ state: "graded", passed: true });
+  });
+
   it("rejects a numeric grader with non-finite values or negative tolerance", () => {
     expect(evaluateAuthoredActivity(
       activity({ grading: { kind: "numeric", expected: "not-a-number", tolerance: 0 } }),

@@ -18,7 +18,13 @@ export default async function SkillPage({ params }: { params: Promise<{ courseId
   const { courseId, skillId } = await params;
   const repository = createContentRepository();
   const course = await repository.getCourse(courseId);
-  const location = await repository.getSkillLocation(decodeURIComponent(skillId));
+  let decodedSkillId: string;
+  try {
+    decodedSkillId = decodeURIComponent(skillId);
+  } catch {
+    notFound();
+  }
+  const location = await repository.getSkillLocation(decodedSkillId);
   if (!course || !location || location.course.id !== course.id) notFound();
   const publishedStage = (await listPublishedCourseStages().catch(() => new Map<string, "beta" | "verified">())).get(course.id);
 

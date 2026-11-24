@@ -9,6 +9,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { account, twoFactor, user } from "@/lib/db/schema";
 import { rateLimitIp, withRateLimit } from "@/lib/security/rate-limit";
+import { trustedClientHeaders } from "@/lib/security/trusted-client-headers";
 import { evaluateRequestOrigin } from "@/lib/security/request-origin-policy";
 import {
   claimTotpCode,
@@ -117,10 +118,7 @@ export async function POST(request: NextRequest) {
 
       await revokeSessionsForTakeover(candidate.userId);
 
-      const forwarded = {
-        "user-agent": request.headers.get("user-agent") ?? "",
-        ...(request.headers.get("x-forwarded-for") ? { "x-forwarded-for": request.headers.get("x-forwarded-for")! } : {}),
-      };
+      const forwarded = Object.fromEntries(trustedClientHeaders(request));
       try {
         const signIn = await auth.api.signInEmail({
           asResponse: true,

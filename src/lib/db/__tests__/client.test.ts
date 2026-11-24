@@ -123,3 +123,14 @@ describe("main database pool idle errors", () => {
     expect(console.error).toHaveBeenCalledExactlyOnceWith(JSON.stringify({ event: "database.pool_error", code: "UNKNOWN" }));
   });
 });
+
+describe("main database pool size", () => {
+  it.each([
+    [undefined, 10], ["4", 4], ["abc", 10], ["", 10], ["0", 10], ["-3", 10], ["2.5", 10], ["Infinity", 10],
+  ])("DATABASE_POOL_SIZE=%s gives max %s, never NaN or a non-positive size", async (value, expected) => {
+    if (value !== undefined) vi.stubEnv("DATABASE_POOL_SIZE", value);
+    else vi.stubEnv("DATABASE_POOL_SIZE", undefined as unknown as string);
+    await import("../client");
+    expect(mocks.created).toHaveBeenCalledWith(expect.objectContaining({ max: expected }));
+  });
+});

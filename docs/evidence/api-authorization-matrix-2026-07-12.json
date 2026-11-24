@@ -2252,7 +2252,7 @@
       "admin": "allowed",
       "objectAuthorization": "public-input",
       "ownershipProof": "validated public request",
-      "operationSourceSha256": "5054f632554d4b2128774404522821a457c5b6917bb3948f3f09ee9d57980a85"
+      "operationSourceSha256": "bd1f18b2fa523ca2d70569acf76620f9ec937f84aabff6ec61effb5f6e21d781"
     },
     {
       "operation": "POST /api/security/verify-backup-code",
