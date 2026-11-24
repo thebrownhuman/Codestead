@@ -8,7 +8,7 @@
     "imageDigests": {
       "c": "sha256:f65ca16bc646478e4daa7e88bade1a3ef6f143b602bebecc3c6e6d40cc4476a7",
       "cpp": "sha256:36a1ec0c6e5cba6683496249d0ddb6d8f217e497a152ed9f7c6a65aca632606f",
-      "java": "sha256:db8b7801c26f94aad5d23c4831b6a19189a14507cd22b65fd08694c3ea53cdfd",
+      "java": "sha256:a661c8d967b70615ad591dd4e3c57869fd91f23fad5ef9bc28e5743c38809175",
       "python": "sha256:0fcad574f43d244e28bcd18aef714ab4de0dd1ace1db8ded97056126da847480"
     }
   },
@@ -44,13 +44,13 @@
     },
     "java": {
       "tag": "learncoding/runtime-java:local",
-      "manifestDigest": "sha256:db8b7801c26f94aad5d23c4831b6a19189a14507cd22b65fd08694c3ea53cdfd",
-      "configDigest": "sha256:3c3bb04ca1a4b60966d79328712a9b8fa672a4a52ad146d69f2f5723accf70c9",
-      "immutableReference": "learncoding/runtime-java@sha256:db8b7801c26f94aad5d23c4831b6a19189a14507cd22b65fd08694c3ea53cdfd",
-      "tagDescriptorDigest": "sha256:db8b7801c26f94aad5d23c4831b6a19189a14507cd22b65fd08694c3ea53cdfd",
-      "tagImageId": "sha256:db8b7801c26f94aad5d23c4831b6a19189a14507cd22b65fd08694c3ea53cdfd",
-      "exactReferenceDescriptorDigest": "sha256:db8b7801c26f94aad5d23c4831b6a19189a14507cd22b65fd08694c3ea53cdfd",
-      "exactReferenceImageId": "sha256:db8b7801c26f94aad5d23c4831b6a19189a14507cd22b65fd08694c3ea53cdfd",
+      "manifestDigest": "sha256:a661c8d967b70615ad591dd4e3c57869fd91f23fad5ef9bc28e5743c38809175",
+      "configDigest": "sha256:d863e8b6f85f514f1e639a7e166d34390d32b193b8e7a66e952f18524d2979bc",
+      "immutableReference": "learncoding/runtime-java@sha256:a661c8d967b70615ad591dd4e3c57869fd91f23fad5ef9bc28e5743c38809175",
+      "tagDescriptorDigest": "sha256:a661c8d967b70615ad591dd4e3c57869fd91f23fad5ef9bc28e5743c38809175",
+      "tagImageId": "sha256:a661c8d967b70615ad591dd4e3c57869fd91f23fad5ef9bc28e5743c38809175",
+      "exactReferenceDescriptorDigest": "sha256:a661c8d967b70615ad591dd4e3c57869fd91f23fad5ef9bc28e5743c38809175",
+      "exactReferenceImageId": "sha256:a661c8d967b70615ad591dd4e3c57869fd91f23fad5ef9bc28e5743c38809175",
       "independentlyValidated": true
     },
     "python": {

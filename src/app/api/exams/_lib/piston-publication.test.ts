@@ -199,13 +199,14 @@ describe("legacy java pin digests", () => {
   const NEW_JAVA = "sha256:785eb431d768b45f67056a8948c62c1cf4dc18498fb8513d48d5fc5bd1d00b83";
   const REPIN_JAVA = "sha256:adefaec8aa4f9e8c15a32f5d1a32e106fa6132bad904a6044c3193e383c8f247";
   const MUSL_ZLIB_JAVA = "sha256:db8b7801c26f94aad5d23c4831b6a19189a14507cd22b65fd08694c3ea53cdfd";
+  const JDK_P2_JAVA = "sha256:a661c8d967b70615ad591dd4e3c57869fd91f23fad5ef9bc28e5743c38809175";
   function javaBank(imageDigest: string): AssessmentBank {
     const source = reviewedBank("java");
     return { ...source, items: source.items.map((item) => item.kind === "code" && item.runtime.engine === "isolated-runner"
       ? { ...item, runtime: { ...item.runtime, imageDigest } } : item) };
   }
 
-  it.each([OLD_JAVA, NEW_JAVA, REPIN_JAVA, MUSL_ZLIB_JAVA])("accepts reviewed java legacy digest %s", (digest) => {
+  it.each([OLD_JAVA, NEW_JAVA, REPIN_JAVA, MUSL_ZLIB_JAVA, JDK_P2_JAVA])("accepts reviewed java legacy digest %s", (digest) => {
     expect(form(javaBank(digest), true).items[0]!.runtime?.imageDigest).toBe(DEPLOYED);
   });
 

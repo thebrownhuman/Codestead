@@ -16,8 +16,8 @@
     {
       "language": "java",
       "tag": "learncoding/runtime-java:local",
-      "digest": "sha256:db8b7801c26f94aad5d23c4831b6a19189a14507cd22b65fd08694c3ea53cdfd",
-      "reference": "learncoding/runtime-java@sha256:db8b7801c26f94aad5d23c4831b6a19189a14507cd22b65fd08694c3ea53cdfd"
+      "digest": "sha256:a661c8d967b70615ad591dd4e3c57869fd91f23fad5ef9bc28e5743c38809175",
+      "reference": "learncoding/runtime-java@sha256:a661c8d967b70615ad591dd4e3c57869fd91f23fad5ef9bc28e5743c38809175"
     },
     {
       "language": "javascript",

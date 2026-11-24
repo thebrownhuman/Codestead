@@ -15,7 +15,7 @@
   "runtimeDigests": {
     "c": "sha256:f65ca16bc646478e4daa7e88bade1a3ef6f143b602bebecc3c6e6d40cc4476a7",
     "cpp": "sha256:36a1ec0c6e5cba6683496249d0ddb6d8f217e497a152ed9f7c6a65aca632606f",
-    "java": "sha256:db8b7801c26f94aad5d23c4831b6a19189a14507cd22b65fd08694c3ea53cdfd",
+    "java": "sha256:a661c8d967b70615ad591dd4e3c57869fd91f23fad5ef9bc28e5743c38809175",
     "python": "sha256:0fcad574f43d244e28bcd18aef714ab4de0dd1ace1db8ded97056126da847480"
   },
   "limitation": "AI-assisted module-scoped numeric kernels require independent skill-fit, idiom, oracle, safety, pedagogy, and accessibility review; this artifact is not publication approval."
