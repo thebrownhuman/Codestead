@@ -41,6 +41,8 @@ import {
 export { configuredRegradeExecutor, type RegradeExecutionInput, type RegradeExecutor } from "./runner-executor";
 
 interface ClaimedJob {
+  /** Set when the stored job could not be read; the job must be failed. */
+  readonly invalidJobError?: unknown;
   readonly id: string;
   readonly correctionId: string;
   readonly impactId: string;
@@ -176,19 +178,29 @@ async function claimJob(workerId: string, correctionId: string | undefined, now:
     }
     // The impact snapshot binds this form's own question for the correction;
     // legacy snapshots predate randomized-ID mapping and use the source ID.
-    const localItemId = row.snapshot.targetItemId ?? row.item_id;
-    const targetFromSnapshot = correctionTarget(row.snapshot.form, localItemId);
-    const target: CorrectionTarget = {
-      ...targetFromSnapshot,
-      courseId: row.course_id,
-      moduleId: row.module_id,
-      itemId: localItemId,
-      skillId: row.skill_id,
-      contentVersion: row.content_version,
-      faultyBundleVersion: row.faulty_bundle_version,
-      faultyEvidenceHash: row.faulty_evidence_hash,
-    };
-    const replacement = reviewedReplacement(target, replacementEvidenceSchema.parse(row.replacement_evidence));
+    // A job whose stored snapshot or evidence cannot be read must not stay
+    // queued: rolling back would leave it at the head of the queue and block
+    // every later job. Claim it anyway and let the caller record the failure.
+    let target: CorrectionTarget | undefined;
+    let replacement: ReturnType<typeof reviewedReplacement> | undefined;
+    let invalidJobError: unknown;
+    try {
+      const localItemId = row.snapshot.targetItemId ?? row.item_id;
+      const targetFromSnapshot = correctionTarget(row.snapshot.form, localItemId);
+      target = {
+        ...targetFromSnapshot,
+        courseId: row.course_id,
+        moduleId: row.module_id,
+        itemId: localItemId,
+        skillId: row.skill_id,
+        contentVersion: row.content_version,
+        faultyBundleVersion: row.faulty_bundle_version,
+        faultyEvidenceHash: row.faulty_evidence_hash,
+      };
+      replacement = reviewedReplacement(target, replacementEvidenceSchema.parse(row.replacement_evidence));
+    } catch (error) {
+      invalidJobError = error;
+    }
     await client.query(
       `update assessment_regrade_job
           set status = 'running', attempt_count = attempt_count + 1,
@@ -233,9 +245,10 @@ async function claimJob(workerId: string, correctionId: string | undefined, now:
       formHash: row.form_hash,
       answerSetHash: row.answer_set_hash,
       originalResultHash: row.original_result_hash,
-      replacement,
-      expectedRuntimeImageDigest: replacement.runtimeImageDigest,
-      target,
+      replacement: replacement as ReturnType<typeof reviewedReplacement>,
+      expectedRuntimeImageDigest: replacement?.runtimeImageDigest ?? "",
+      target: target as CorrectionTarget,
+      invalidJobError,
       createdBy: row.created_by,
       sourceAppealId: row.source_appeal_id,
       reviewHash: row.review_hash,
@@ -669,6 +682,7 @@ export async function processOneAssessmentRegrade(input: {
   const job = await claimJob(input.workerId, input.correctionId, claimNow);
   if (!job) return { processed: false as const };
   try {
+    if (job.invalidJobError !== undefined) throw job.invalidJobError;
     if (!verifyImpactSnapshot(job.snapshot, {
       formHash: job.formHash,
       answerSetHash: job.answerSetHash,

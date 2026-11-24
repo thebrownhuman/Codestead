@@ -458,6 +458,33 @@ describe("assessment correction outbox release", () => {
     mocks.writeAuditEvent.mockResolvedValue(undefined);
   });
 
+  it("fails a job with an unreadable snapshot instead of blocking the queue", async () => {
+    mocks.correctionTarget.mockImplementationOnce(() => {
+      throw new Error("snapshot target missing");
+    });
+    const claimClient = workerClaimClient();
+    const failureClient = workerFailureClient();
+    mocks.poolConnect
+      .mockResolvedValueOnce(claimClient)
+      .mockResolvedValueOnce(failureClient);
+
+    await expect(processOneAssessmentRegrade({
+      workerId: "assessment-worker-1",
+      now: WORKER_NOW,
+      clock: () => WORKER_NOW,
+    })).resolves.toMatchObject({
+      processed: true,
+      succeeded: false,
+      failureRecorded: true,
+    });
+    const claimSql = claimClient.query.mock.calls.map(([sql]) => normalizeSql(String(sql)));
+    expect(claimSql).toContain("commit");
+    expect(claimSql.some((sql) => sql.includes("set status = 'running'"))).toBe(true);
+    const failureSql = failureClient.query.mock.calls.map(([sql]) => normalizeSql(String(sql)));
+    expect(failureSql.some((sql) => sql.includes("set status = 'failed'"))).toBe(true);
+    expect(mocks.submit).not.toHaveBeenCalled();
+  });
+
   it("releases an inserted email outbox row before committing its outcome", async () => {
     const claimClient = workerClaimClient();
     const persistClient = workerPersistClient({ outboxRow });
