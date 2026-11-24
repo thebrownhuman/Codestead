@@ -1,6 +1,7 @@
 "use client";
 
 import { Select } from "@/components/ui/select";
+import { useConfirm } from "@/components/ui/use-confirm";
 
 import {
   AlertTriangle, CalendarClock, ChevronDown, Flag, Gamepad2, LockKeyhole,
@@ -144,6 +145,7 @@ export function CommunitySpaces({ people }: { people: Person[] }) {
   const [editing, setEditing] = useState<{ target: "post" | "reply"; id: string; version: number; title: string; body: string } | null>(null);
   const [replying, setReplying] = useState<string | null>(null);
   const [replyBody, setReplyBody] = useState("");
+  const { confirm, confirmDialog } = useConfirm();
   const [loadingReplies, setLoadingReplies] = useState(false);
   const logicalRequestIds = useRef(new Map<string, { fingerprint: string; requestId: string }>());
   const selectedGroupRef = useRef("");
@@ -271,6 +273,18 @@ export function CommunitySpaces({ people }: { people: Person[] }) {
       return false;
     }
     finally { setBusy(false); }
+  }
+
+  // Deleting is irreversible for the author, so it always asks first.
+  async function removeOwn(target: "post" | "reply", targetId: string, expectedVersion: number, preview: string) {
+    const ok = await confirm({
+      title: target === "post" ? "Remove this post?" : "Remove this reply?",
+      description: `"${preview.length > 80 ? `${preview.slice(0, 80)}…` : preview}" is removed from the cohort feed. This cannot be undone.`,
+      confirmLabel: target === "post" ? "Remove post" : "Remove reply",
+      destructive: true,
+    });
+    if (!ok) return;
+    await mutate({ action: "delete", target, targetId, expectedVersion }, target === "post" ? "Post removed from the cohort feed." : "Reply removed from the cohort feed.");
   }
 
   async function loadReplies(post: Post) {
@@ -497,12 +511,12 @@ export function CommunitySpaces({ people }: { people: Person[] }) {
         {visiblePosts.length ? visiblePosts.map((post) => <article className={styles.post} key={post.id}>
           <div className={styles.postMeta}><span className={styles.kind}>{post.kind.replace("_", " ")}</span><span>{post.authorAlias} · {formatTime(post.createdAt)}{post.editedAt ? " · edited" : ""}</span></div>
           {editing?.id === post.id ? <form className={styles.editForm} onSubmit={(event) => void saveEdit(event)}><label>Title<input value={editing.title} onChange={(event) => setEditing({ ...editing, title: event.target.value })} /></label><label>Post<textarea value={editing.body} onChange={(event) => setEditing({ ...editing, body: event.target.value })} /></label><div><button className="button button-primary">Save edit</button><button type="button" className="button button-secondary" onClick={() => setEditing(null)}>Cancel</button></div></form> : <><h3>{post.title}</h3><p className={styles.body}>{post.body}</p></>}
-          <div className={styles.actions}><button type="button" onClick={() => setReplying(replying === post.id ? null : post.id)}><MessageCircle size={14} /> Reply</button>{post.own && <><button type="button" onClick={() => setEditing({ target: "post", id: post.id, version: post.rowVersion, title: post.title, body: post.body })}><Pencil size={14} /> Edit</button><button type="button" onClick={() => void mutate({ action: "delete", target: "post", targetId: post.id, expectedVersion: post.rowVersion }, "Post removed from the cohort feed.")}><Trash2 size={14} /> Delete</button></>}<ReportControl target="post" targetId={post.id} onDone={setNotice} requestJson={requestJson} /></div>
+          <div className={styles.actions}><button type="button" onClick={() => setReplying(replying === post.id ? null : post.id)}><MessageCircle size={14} /> Reply</button>{post.own && <><button type="button" onClick={() => setEditing({ target: "post", id: post.id, version: post.rowVersion, title: post.title, body: post.body })}><Pencil size={14} /> Edit</button><button type="button" disabled={busy} onClick={() => void removeOwn("post", post.id, post.rowVersion, post.title)}><Trash2 size={14} /> Delete</button></>}<ReportControl target="post" targetId={post.id} onDone={setNotice} requestJson={requestJson} /></div>
           {replying === post.id && <form className={styles.replyForm} onSubmit={(event) => void reply(event)}><label htmlFor={`reply-${post.id}`}>Your reply</label><textarea id={`reply-${post.id}`} value={replyBody} minLength={2} maxLength={4000} onChange={(event) => setReplyBody(event.target.value)} required /><button className="button button-primary" disabled={busy}>Post reply</button></form>}
           {post.replies.length ? <div className={styles.replies}>{post.replies.map((item) => <div className={styles.reply} key={item.id}>
             <div><strong>{item.authorAlias}</strong><small>{formatTime(item.createdAt)}{item.editedAt ? " · edited" : ""}</small></div>
             {editing?.id === item.id ? <form className={styles.editForm} onSubmit={(event) => void saveEdit(event)}><label>Reply<textarea value={editing.body} onChange={(event) => setEditing({ ...editing, body: event.target.value })} /></label><div><button className="button button-primary">Save</button><button type="button" className="button button-secondary" onClick={() => setEditing(null)}>Cancel</button></div></form> : <p className={styles.body}>{item.body}</p>}
-            <div className={styles.actions}>{item.own && <><button type="button" onClick={() => setEditing({ target: "reply", id: item.id, version: item.rowVersion, title: "", body: item.body })}><Pencil size={13} /> Edit</button><button type="button" onClick={() => void mutate({ action: "delete", target: "reply", targetId: item.id, expectedVersion: item.rowVersion }, "Reply removed from the cohort feed.")}><Trash2 size={13} /> Delete</button></>}<ReportControl target="reply" targetId={item.id} onDone={setNotice} requestJson={requestJson} /></div>
+            <div className={styles.actions}>{item.own && <><button type="button" onClick={() => setEditing({ target: "reply", id: item.id, version: item.rowVersion, title: "", body: item.body })}><Pencil size={13} /> Edit</button><button type="button" disabled={busy} onClick={() => void removeOwn("reply", item.id, item.rowVersion, item.body)}><Trash2 size={13} /> Delete</button></>}<ReportControl target="reply" targetId={item.id} onDone={setNotice} requestJson={requestJson} /></div>
           </div>)}</div> : null}
           {post.replyNextCursor && <button type="button" className="button button-secondary" disabled={loadingReplies}
             onClick={() => void loadReplies(post)}>Load more replies</button>}
@@ -544,5 +558,6 @@ export function CommunitySpaces({ people }: { people: Person[] }) {
         </article>) : <div className={styles.state}><Trophy size={24} /><h3>No battles match this filter</h3><p>Create one from a reviewed activity, or choose another competition period.</p></div>}
       </div>
     </div>}
+    {confirmDialog}
   </section>;
 }
