@@ -122,6 +122,17 @@ describe("project review correction collection route", () => {
     }));
   });
 
+  it("reports the queued correction when only the completion audit write fails", async () => {
+    mocks.writeAuditEvent.mockResolvedValueOnce({}).mockRejectedValueOnce(new Error("audit store down"));
+    const response = await POST(request({ requestId, sourceReviewId, reason }));
+    expect(response.status).toBe(202);
+    expect(await response.json()).toMatchObject({
+      correction: { correctionId, status: "queued" },
+      completionAuditRecorded: false,
+    });
+    expect(mocks.writeAuditEvent).not.toHaveBeenCalledWith(expect.objectContaining({ outcome: "failure" }));
+  });
+
   it("rejects extra or malformed fields without touching storage", async () => {
     const response = await POST(request({ requestId, sourceReviewId, reason, userId: "attacker" }));
     expect(response.status).toBe(400);

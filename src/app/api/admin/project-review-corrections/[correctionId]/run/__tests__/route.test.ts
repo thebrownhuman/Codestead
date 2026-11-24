@@ -98,4 +98,15 @@ describe("project-review correction retry route", () => {
       execution: { state: "queued", worker: "project-review-correction-worker" },
     });
   });
+
+  it("reports the queued retry when only the completion audit write fails", async () => {
+    mocks.writeAuditEvent.mockRejectedValueOnce(new Error("audit store down"));
+    const response = await POST(request(), context);
+    expect(response.status).toBe(202);
+    expect(await response.json()).toMatchObject({
+      report: { status: "queued" },
+      completionAuditRecorded: false,
+    });
+    expect(mocks.writeAuditEvent).not.toHaveBeenCalledWith(expect.objectContaining({ outcome: "failure" }));
+  });
 });

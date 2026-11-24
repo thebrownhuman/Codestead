@@ -45,7 +45,7 @@ const mocks = vi.hoisted(() => {
       if (!job) return { rows: [], rowCount: 0 };
       job.status = "leased";
       job.leaseOwner = String(values[userDelete || global ? 2 : 3]);
-      return { rows: [{ id: job.id, payload: job.payload }], rowCount: 1 };
+      return { rows: [{ id: job.id, payload: job.payload, attemptCount: job.attemptCount }], rowCount: 1 };
     }
     if (sql.startsWith("update background_job") && sql.includes("status = 'succeeded'")) {
       const job = jobs.find((candidate) => candidate.id === values[0] && candidate.leaseOwner === values[1]);
@@ -132,6 +132,7 @@ vi.mock("node:fs/promises", async (importOriginal) => {
 
 import {
   enqueueFileErasures,
+  FILE_ERASURE_MAX_ATTEMPTS,
   FileErasureError,
   processFileErasures,
   processUserFileErasures,
@@ -355,6 +356,52 @@ describe("durable file-erasure state machine", () => {
       objectStorageRoot: ROOT,
       eraseObject: vi.fn(async () => ({ alreadyAbsent: false })),
     })).resolves.toMatchObject({ processed: 0, failed: 2, exhausted: 2 });
+  });
+
+  function failedRetryDelays() {
+    return mocks.query.mock.calls
+      .filter(([sql]) => String(sql).includes("status = 'failed'") && String(sql).includes("run_after"))
+      .map(([, values]) => (values?.[4] as Date).getTime() - (values?.[3] as Date).getTime());
+  }
+
+  it("backs off lifecycle erasure retries exponentially up to a cap", async () => {
+    const run = () => processFileErasures({
+      lifecycleRunId: RUN_ID,
+      objectStorageRoot: ROOT,
+      unlinkFile: mocks.unlink,
+      preparePath,
+      syncParentDirectory: vi.fn(async () => undefined),
+    });
+    addJob(1);
+    mocks.unlink.mockRejectedValue(Object.assign(new Error("denied"), { code: "EACCES" }));
+    await expect(run()).rejects.toMatchObject({ code: "FILE_ERASURE_FAILED" });
+    await expect(run()).rejects.toMatchObject({ code: "FILE_ERASURE_FAILED" });
+    await expect(run()).rejects.toMatchObject({ code: "FILE_ERASURE_FAILED" });
+    mocks.jobs[0]!.attemptCount = 20;
+    await expect(run()).rejects.toMatchObject({ code: "FILE_ERASURE_FAILED" });
+    expect(failedRetryDelays()).toEqual([30_000, 60_000, 120_000, 60 * 60_000]);
+  });
+
+  it("backs off global worker erasure retries exponentially", async () => {
+    addJob(1);
+    mocks.jobs[0]!.attemptCount = 3;
+    const eraseObject = vi.fn(async () => { throw new Error("storage offline"); });
+    await expect(processUserFileErasures({ objectStorageRoot: ROOT, limit: 1, eraseObject }))
+      .resolves.toMatchObject({ processed: 1, failed: 1 });
+    expect(failedRetryDelays()).toEqual([240_000]);
+  });
+
+  it("enqueues lifecycle erasures with a small attempt budget", async () => {
+    await enqueueFileErasures(mocks.client as never, {
+      lifecycleRunId: RUN_ID,
+      operation: "retention",
+      objects: [{ id: "c2000000-0000-4000-8000-000000000001", storageKey: "owner/c2000000-0000-4000-8000-000000000001" }],
+      now: new Date("2026-07-14T00:00:00.000Z"),
+    });
+    const insert = mocks.query.mock.calls.find(([sql]) => String(sql).startsWith("insert into background_job"));
+    expect(FILE_ERASURE_MAX_ATTEMPTS).toBe(8);
+    expect(String(insert?.[0])).not.toMatch(/\b100\b/);
+    expect(insert?.[1]).toContain(FILE_ERASURE_MAX_ATTEMPTS);
   });
 
   it("enqueues only opaque lifecycle/object coordinates and purges keys at durable completion", async () => {

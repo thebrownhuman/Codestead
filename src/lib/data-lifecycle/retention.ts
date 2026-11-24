@@ -1580,7 +1580,7 @@ export async function runRetention(input: {
         }
         await client.query("commit");
       } catch (error) {
-        await client.query("rollback");
+        await client.query("rollback").catch(() => undefined);
         throw error;
       }
 

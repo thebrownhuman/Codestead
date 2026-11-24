@@ -1,7 +1,7 @@
 import type { PoolClient } from "pg";
 
 import { pool } from "@/lib/db/client";
-import { FILE_ERASURE_JOB_TYPE } from "@/lib/data-lifecycle/file-erasure";
+import { FILE_ERASURE_JOB_TYPE, FILE_ERASURE_MAX_ATTEMPTS } from "@/lib/data-lifecycle/file-erasure";
 
 type DeletionPool = {
   connect(): Promise<Pick<PoolClient, "query" | "release">>;
@@ -146,9 +146,9 @@ export async function deleteUserFile(
       `insert into background_job
         (type, payload, status, priority, attempt_count, max_attempts,
          idempotency_key, run_after, created_at, updated_at)
-       values ($1,$2::jsonb,'queued',10,0,100,$3,$4,$4,$4)
+       values ($1,$2::jsonb,'queued',10,0,$5::int,$3,$4,$4,$4)
        on conflict (idempotency_key) do nothing`,
-      [FILE_ERASURE_JOB_TYPE, JSON.stringify(payload), jobKey, now],
+      [FILE_ERASURE_JOB_TYPE, JSON.stringify(payload), jobKey, now, FILE_ERASURE_MAX_ATTEMPTS],
     );
     const job = await client.query<{ type: string; payload: unknown }>(
       `select type, payload

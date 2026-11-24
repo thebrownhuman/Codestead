@@ -14,6 +14,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.auth.mockResolvedValue({ session: { user: { id: "authenticated-admin" }, session: { id: "session" } }, account: { role: "admin" } });
   mocks.authorize.mockResolvedValue({ allowed: true });
+  mocks.audit.mockResolvedValue({});
   mocks.generate.mockResolvedValue({ evidenceVersion: 1, publicationRevision: 2, replayed: false, notRunReports: [{ report: "security", reason: body.notRunReason }] });
 });
 describe("release generation route", () => {
@@ -32,5 +33,19 @@ describe("release generation route", () => {
     expect((await request()).status).toBe(200);
     expect(mocks.generate).toHaveBeenCalledWith(expect.objectContaining({ actorUserId: "authenticated-admin", courseVersionId: versionId, expectedContentHash: body.expectedContentHash }));
     expect(mocks.audit).toHaveBeenCalledWith(expect.objectContaining({ outcome: "success", metadata: expect.objectContaining({ notRunReports: [{ report: "security", reason: body.notRunReason }] }) }));
+  });
+  it("reports success when only the completion audit write fails", async () => {
+    mocks.audit.mockResolvedValueOnce({}).mockRejectedValueOnce(new Error("audit store down"));
+    const response = await request();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ report: { evidenceVersion: 1 }, completionAuditRecorded: false });
+    expect(mocks.audit).not.toHaveBeenCalledWith(expect.objectContaining({ outcome: "failure" }));
+  });
+  it("keeps the real error code when the failure audit write also fails", async () => {
+    mocks.generate.mockRejectedValue(new Error("generation broke"));
+    mocks.audit.mockResolvedValueOnce({}).mockRejectedValueOnce(new Error("audit store down"));
+    const response = await request();
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: "EVIDENCE_FAILED" });
   });
 });

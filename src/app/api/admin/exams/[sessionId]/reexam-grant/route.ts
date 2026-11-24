@@ -58,13 +58,13 @@ export async function POST(
           requestId: body.data.requestId,
           reason: body.data.reason,
         });
-        await writeAuditEvent({
+        const completionAuditRecorded = await writeAuditEvent({
           actorUserId: authz.session.user.id, subjectUserId: report.userId,
           action: "exam.reexam.grant", resourceType: "exam_reexam_grant", resourceId: report.id,
           reason: body.data.reason, outcome: "success",
           metadata: { sourceExamSessionId: sessionId, evidenceHash: report.evidenceHash, replayed: report.replayed },
-        });
-        return adminJson({ report });
+        }).then(() => true).catch(() => false);
+        return adminJson({ report, completionAuditRecorded });
       } catch (error) {
         const code = error instanceof ExamReexamGrantError ? error.code : "REEXAM_GRANT_FAILED";
         await writeAuditEvent({

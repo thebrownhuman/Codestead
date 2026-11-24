@@ -129,7 +129,7 @@ export async function PATCH(
             rowVersion: quota.rowVersion,
             replayed: quota.replayed,
           },
-        });
+        }).catch(() => null);
         let notificationWarning: string | undefined;
         try {
           await emailStorageQuotaChanged(quota);
@@ -151,7 +151,8 @@ export async function PATCH(
           quotaBytes: quota.quotaBytes,
           rowVersion: quota.rowVersion,
           replayed: quota.replayed,
-          auditCorrelationId: audit.correlationId,
+          auditCorrelationId: audit?.correlationId ?? quota.requestId,
+          completionAuditRecorded: audit !== null,
           ...(notificationWarning ? { warning: notificationWarning } : {}),
         }, { headers: noStore });
       } catch (error) {

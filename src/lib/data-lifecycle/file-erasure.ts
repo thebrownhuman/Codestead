@@ -9,6 +9,20 @@ import { NodeDurableObjectStore } from "@/lib/storage/durable-object-store";
 const JOB_TYPE = "storage.file_erasure.v1";
 const ALREADY_ABSENT = "FILE_ALREADY_ABSENT";
 const DEFAULT_LEASE_MS = 5 * 60 * 1_000;
+/** Same small attempt budget as the upload scan worker. */
+export const FILE_ERASURE_MAX_ATTEMPTS = 8;
+const RETRY_BASE_MS = 30_000;
+const RETRY_MAXIMUM_MS = 60 * 60_000;
+
+/** Exponential back-off: 30s, 1m, 2m, ... capped at one hour. */
+function retryDelayMs(failedAttempt: number) {
+  const exponent = Math.max(0, Math.min(20, Math.trunc(failedAttempt) - 1));
+  return Math.min(RETRY_MAXIMUM_MS, RETRY_BASE_MS * 2 ** exponent);
+}
+
+function retryAfter(job: ClaimedJob, failedAt: Date) {
+  return new Date(failedAt.getTime() + retryDelayMs(Number(job.attemptCount ?? 0) + 1));
+}
 
 type Queryable = Pick<PoolClient, "query">;
 
@@ -19,6 +33,8 @@ export type FileErasureObject = Readonly<{
 
 type ClaimedJob = Readonly<{
   id: string;
+  /** Attempts already recorded before this claim. */
+  attemptCount?: number;
   payload: {
     lifecycleRunId?: string;
     objectId: string;
@@ -82,13 +98,13 @@ export async function enqueueFileErasures(
               'objectId', source.object_id,
               'storageKey', source.storage_key
             ),
-            'queued', 10, 0, 100,
+            'queued', 10, 0, $6::int,
             'file-erasure:' || $2::text || ':' || source.object_id,
             $5, $5, $5
        from jsonb_to_recordset($4::jsonb)
          as source(object_id text, storage_key text)
      on conflict (idempotency_key) do nothing`,
-    [JOB_TYPE, input.lifecycleRunId, input.operation, JSON.stringify(payload), input.now],
+    [JOB_TYPE, input.lifecycleRunId, input.operation, JSON.stringify(payload), input.now, FILE_ERASURE_MAX_ATTEMPTS],
   );
   const mismatched = await client.query<{ count: string }>(
     `select count(*)::text as count
@@ -134,7 +150,7 @@ async function claimNextJob(
             completed_at = null, updated_at = $3
        from candidate
       where job.id = candidate.id
-      returning job.id, job.payload`,
+      returning job.id, job.payload, job.attempt_count as "attemptCount"`,
     [JOB_TYPE, input.lifecycleRunId, input.now, input.workerId, leaseExpiresAt],
   );
   return result.rows[0] ?? null;
@@ -165,7 +181,7 @@ async function claimNextGlobalJob(
             completed_at = null, updated_at = $2
        from candidate
       where job.id = candidate.id
-      returning job.id, job.payload`,
+      returning job.id, job.payload, job.attempt_count as "attemptCount"`,
     [JOB_TYPE, input.now, input.workerId, leaseExpiresAt],
   );
   return result.rows[0] ?? null;
@@ -281,6 +297,7 @@ export async function processFileErasures(input: {
         );
         if ((completed.rowCount ?? 0) !== 1) throw new FileErasureError("FILE_ERASURE_INCOMPLETE");
       } catch (error) {
+        const failedAt = new Date();
         await client.query(
           `update background_job
               set status = 'failed', attempt_count = attempt_count + 1,
@@ -288,7 +305,7 @@ export async function processFileErasures(input: {
                   last_error_code = $3, completed_at = null, updated_at = $4,
                   run_after = $5
             where id = $1 and status = 'leased' and lease_owner = $2`,
-          [job.id, workerId, safeFailureCode(error), new Date(), new Date(Date.now() + 30_000)],
+          [job.id, workerId, safeFailureCode(error), failedAt, retryAfter(job, failedAt)],
         ).catch(() => undefined);
         if (error instanceof FileErasureError) throw error;
         throw new FileErasureError("FILE_ERASURE_FAILED");
@@ -366,7 +383,7 @@ export async function processUserFileErasures(input: {
                   last_error_code = $3, completed_at = null, updated_at = $4,
                   run_after = $5
             where id = $1 and status = 'leased' and lease_owner = $2`,
-          [job.id, workerId, safeFailureCode(error), failedAt, new Date(failedAt.getTime() + 30_000)],
+          [job.id, workerId, safeFailureCode(error), failedAt, retryAfter(job, failedAt)],
         ).catch(() => undefined);
       }
     }

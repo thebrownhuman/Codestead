@@ -95,6 +95,17 @@ describe("administrator material-outage re-exam grant endpoint", () => {
     }));
   });
 
+  it("reports the issued grant when only the completion audit write fails", async () => {
+    mocks.audit.mockRejectedValueOnce(new Error("audit store down"));
+    const response = await POST(request(), context);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      report: { id: "63000000-0000-4000-8000-000000000001" },
+      completionAuditRecorded: false,
+    });
+    expect(mocks.audit).not.toHaveBeenCalledWith(expect.objectContaining({ outcome: "failure" }));
+  });
+
   it("fails closed when durable material-outage evidence is absent", async () => {
     mocks.issue.mockRejectedValue(new ExamReexamGrantError("MATERIAL_OUTAGE_EVIDENCE_REQUIRED"));
     const response = await POST(request(), context);
