@@ -1,4 +1,10 @@
-import { serverClockOffsetMs } from "@/app/api/exams/_lib/policy";
+export function serverClockOffsetMs(serverNowIso: string, receivedAtMs: number): number {
+  const serverNowMs = Date.parse(serverNowIso);
+  if (!Number.isFinite(serverNowMs) || !Number.isFinite(receivedAtMs)) {
+    throw new RangeError("server and client clock values must be valid");
+  }
+  return serverNowMs - receivedAtMs;
+}
 
 /**
  * Browser time at which each exam view arrived from the server. The deadline

@@ -107,13 +107,7 @@ export function evaluateStartDevice(claim: StartDeviceClaim): StartDeviceDecisio
 
 export { examDurationMinutes } from "@/lib/exams/duration";
 
-export function serverClockOffsetMs(serverNowIso: string, receivedAtMs: number): number {
-  const serverNowMs = Date.parse(serverNowIso);
-  if (!Number.isFinite(serverNowMs) || !Number.isFinite(receivedAtMs)) {
-    throw new RangeError("server and client clock values must be valid");
-  }
-  return serverNowMs - receivedAtMs;
-}
+export { serverClockOffsetMs } from "@/lib/exams/received-at";
 
 export function remainingExamSeconds(
   deadlineIso: string,
