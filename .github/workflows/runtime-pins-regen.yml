@@ -1,0 +1,99 @@
+name: runtime-pins-regen
+
+# Regenerates curriculum runtime pins and executable evidence on the same
+# GitHub-hosted runner image CI uses, so digests match CI builds. Laptop
+# Docker builds never reproduce CI digests. Download the `runtime-pins-regen`
+# artifact and `git apply` the patch on the target branch.
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "regen/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-pins-regen-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regen:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      RUNTIME_LOCAL_RISK_ACCEPTANCE: accept-unsigned-local-buildkit-provenance-v1
+      RUNTIME_SOURCE_REPOSITORY: ${{ github.server_url }}/${{ github.repository }}
+      RUNTIME_SOURCE_REVISION: ${{ github.sha }}
+    steps:
+      - name: Use the primary Ubuntu archive
+        run: |
+          for source in /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list; do
+            if [[ -f "$source" ]]; then
+              sudo sed -i 's/azure.archive.ubuntu.com/archive.ubuntu.com/g' "$source"
+            fi
+          done
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.23.1
+          cache: npm
+      - run: npm ci
+      - run: npm ci
+        working-directory: services/runner
+      - name: Set up Docker with containerd image store
+        uses: docker/setup-docker-action@6d7cfa65f60a9dda7b46e5513fa982536f3c9877 # v5.3.0
+        with:
+          set-host: true
+          daemon-config: |
+            {
+              "features": {
+                "containerd-snapshotter": true
+              }
+            }
+      - run: npm run runtime:build
+        working-directory: services/runner
+      - run: npm run runtime:inspect
+        working-directory: services/runner
+      - run: npx playwright install --with-deps chromium
+        timeout-minutes: 10
+      - run: npm run curriculum:runtime-pins:apply
+      - name: Regenerate evidence and structure files
+        run: |
+          set -uo pipefail
+          failed=()
+          for script in \
+            java-python:executable:evidence:apply \
+            ai-code:executable:evidence:apply \
+            c-cpp:executable:evidence:apply \
+            web:executable:evidence:apply \
+            dsa:parity:evidence:apply \
+            java-python:executable:structure:apply \
+            ai-code:executable:structure:apply \
+            c-cpp:executable:structure:apply \
+            web:executable:structure:apply \
+            dsa:parity:structure:apply; do
+            echo "::group::$script"
+            npm run "$script" || failed+=("$script")
+            echo "::endgroup::"
+          done
+          if (( ${#failed[@]} )); then
+            echo "::warning::failed: ${failed[*]}"
+          fi
+      - name: Verify evidence (informational)
+        run: npm run evidence:verify || echo "::warning::evidence:verify failed"
+      - name: Write patch
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/regen"
+          git add -A -- . ':!services/runner/dist' ':!test-artifacts'
+          git diff --cached --binary > "$RUNNER_TEMP/regen/runtime-pins-regen.patch"
+          git diff --cached --stat | tail -n 5
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: runtime-pins-regen
+          path: ${{ runner.temp }}/regen/runtime-pins-regen.patch
+          retention-days: 7
