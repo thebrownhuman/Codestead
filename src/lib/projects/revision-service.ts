@@ -248,6 +248,24 @@ async function recordMeaningfulProjectMilestone(
   // append an idempotent meaningful event to it as well. All writes share the
   // revision transaction, so a failed milestone marker cannot leave a
   // half-committed revision (and an exact request replay cannot double-count).
+  //
+  // Only the first checkpoint of a project per UTC day counts. A checkpoint
+  // needs only a 10-character summary, so without this any learner could keep
+  // a streak alive and silence inactivity reminders by saving trivial
+  // revisions. The project row is already locked by the caller, so two
+  // concurrent checkpoints for the same project cannot both pass this check.
+  const dayStart = new Date(Date.UTC(
+    input.now.getUTCFullYear(),
+    input.now.getUTCMonth(),
+    input.now.getUTCDate(),
+  ));
+  const earlierToday = await client.query(
+    `select 1 from project_revision
+      where project_id = $1 and id <> $2 and created_at >= $3
+      limit 1`,
+    [input.projectId, input.revisionId, dayStart],
+  );
+  if (earlierToday.rows.length > 0) return;
   const activeSession = await client.query<{ id: string }>(
     `select id from learning_session
       where user_id = $1 and status = 'active' and ended_at is null

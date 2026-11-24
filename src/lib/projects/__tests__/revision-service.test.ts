@@ -79,6 +79,7 @@ type CreateScenario = {
   }>;
   createdId?: string | null;
   activeSession?: string | null;
+  earlierRevisionToday?: boolean;
   loadedRevision?: ReturnType<typeof revisionRow> | null;
   loadedFiles?: ReturnType<typeof linkedFile>[];
   failAt?: string;
@@ -120,6 +121,9 @@ function createHarness(scenario: CreateScenario = {}) {
     }
     if (statement.startsWith("insert into project_revision_object")) return { rows: [] };
     if (statement.startsWith("update project set updated_at")) return { rows: [] };
+    if (statement.startsWith("select 1 from project_revision")) {
+      return { rows: scenario.earlierRevisionToday ? [{ "?column?": 1 }] : [] };
+    }
     if (statement.startsWith("select id from learning_session")) {
       const activeSession = scenario.activeSession === undefined ? sessionId : scenario.activeSession;
       return { rows: activeSession ? [{ id: activeSession }] : [] };
@@ -322,6 +326,21 @@ describe("createProjectRevision transaction", () => {
     expect(harness.calls.some((call) => call.statement.startsWith("update learning_session"))).toBe(false);
     expect(harness.calls.some((call) => call.statement.startsWith("update \"user\""))).toBe(true);
     expect(harness.calls.some((call) => call.statement.startsWith("update inactivity_episode"))).toBe(true);
+  });
+
+  it("counts only the first checkpoint per project per UTC day as meaningful activity", async () => {
+    const harness = createHarness({ earlierRevisionToday: true });
+
+    await expect(createProjectRevision(baseInput())).resolves.toMatchObject({ duplicate: false });
+
+    const dayCheck = harness.calls.find((call) => call.statement.startsWith("select 1 from project_revision"));
+    expect(dayCheck?.values).toEqual([projectId, revisionId, new Date("2026-07-12T00:00:00.000Z")]);
+    expect(harness.calls.some((call) => call.statement.startsWith("insert into project_revision "))).toBe(true);
+    expect(harness.calls.some((call) => call.statement.startsWith("select id from learning_session"))).toBe(false);
+    expect(harness.calls.some((call) => call.statement.startsWith("insert into learning_session_event"))).toBe(false);
+    expect(harness.calls.some((call) => call.statement.startsWith("update \"user\""))).toBe(false);
+    expect(harness.calls.some((call) => call.statement.startsWith("update inactivity_episode"))).toBe(false);
+    expect(harness.calls.at(-1)?.statement).toBe("commit");
   });
 
   it("uses the service clock when a caller does not supply one", async () => {
