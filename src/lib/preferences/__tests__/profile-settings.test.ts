@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => {
   const limit = vi.fn(); const where = vi.fn<(condition: SQL) => { limit: typeof limit }>(() => ({ limit })); const from = vi.fn(() => ({ where })); const select = vi.fn(() => ({ from }));
   const upsert = vi.fn(); const values = vi.fn(() => ({ onConflictDoUpdate: upsert })); const insert = vi.fn(() => ({ values }));
   const tx = { select, insert, execute: vi.fn() };
-  const clientQuery = vi.fn(async (_statement: string) => ({ rows: [] }));
+  const clientQuery = vi.fn<(statement: string) => Promise<{ rows: never[] }>>(async () => ({ rows: [] }));
   const client = { query: clientQuery, release: vi.fn() };
   return { limit, where, select, insert, values, upsert, tx, transaction: vi.fn((action: (transaction: typeof tx) => unknown) => action(tx)), connect: vi.fn(async () => client), client, clientQuery, cohort: vi.fn(), publish: vi.fn(), lock: vi.fn() };
 });
