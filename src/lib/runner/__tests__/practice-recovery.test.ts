@@ -29,7 +29,7 @@ vi.mock("../admission", async (importOriginal) => ({
 
 import { buildPracticeRunnerRequest, practiceAdmissionRequestHash } from "../practice-dispatch";
 import { processPracticeRunnerRecoveryBatch } from "../practice-recovery";
-import type { RunnerAdmission } from "../admission";
+import { RunnerAdmissionError, type RunnerAdmission } from "../admission";
 import { runtimeByLanguage } from "../client";
 import { PISTON_RUNTIMES } from "../piston-client";
 import { languages, transport, nativePracticeBaseline, type Outcome } from "../../../../scripts/lib/provider-parity-fixtures";
@@ -467,6 +467,33 @@ describe("practice runner crash recovery", () => {
       reconciled: 1,
     });
     expect(remote.submit).toHaveBeenCalledWith(snapshot, admission.requestId);
+  });
+
+  it("never moves a quarantined job back to retry wait when admission reports RECOVERY_QUARANTINED", async () => {
+    mocks.poolQuery.mockImplementation(async (statement: string) => {
+      if (statement.includes("with stale as")) return { rows: [], rowCount: 0 };
+      if (statement.includes("select j.id")) return { rows: [{ id: admission.runnerJobId }], rowCount: 1 };
+      throw new Error(`Unexpected pool SQL: ${statement}`);
+    });
+    const retryWaitUpdates: string[] = [];
+    mocks.guardQuery.mockImplementation(async (statement: string) => {
+      if (statement.includes("pg_try_advisory_lock")) return { rows: [{ acquired: true }] };
+      if (statement.includes("pg_advisory_unlock")) return { rows: [{}] };
+      if (statement.includes("from runner_job j")) return { rows: [row] };
+      if (statement.includes("select recovery_attempt_count")) return { rows: [{ recovery_attempt_count: 0 }] };
+      if (statement.includes("update runner_job")) {
+        if (statement.includes("recovery_state = 'retry_wait'")) retryWaitUpdates.push(statement);
+        return { rows: [], rowCount: 0 };
+      }
+      throw new Error(`Unexpected SQL: ${statement}`);
+    });
+    mocks.beginRunnerDispatch.mockRejectedValueOnce(new RunnerAdmissionError("RECOVERY_QUARANTINED"));
+
+    await expect(processPracticeRunnerRecoveryBatch({ runner: runner() })).resolves.toMatchObject({ indeterminate: 1 });
+    expect(retryWaitUpdates).toHaveLength(1);
+    // A nullable recovery_state must still be updatable, so the guard is
+    // null-safe rather than a plain `<>` comparison.
+    expect(retryWaitUpdates[0]).toContain("recovery_state is distinct from 'quarantined'");
   });
 
   it("moves two indeterminate oldest jobs into retry wait so a later healthy job is not starved", async () => {

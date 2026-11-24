@@ -127,7 +127,8 @@ async function recordRecoveryDisposition(
           set recovery_state = 'retry_wait', recovery_attempt_count = $2,
               recovery_next_attempt_at = $3,
               recovery_last_error_code = 'PRACTICE_RUNNER_INDETERMINATE'
-        where id = $1 and status in ('queued','leased','running')`,
+        where id = $1 and status in ('queued','leased','running')
+          and recovery_state is distinct from 'quarantined'`,
       [jobId, attempt, new Date(now.getTime() + retryDelayMs(attempt))],
     );
   }
