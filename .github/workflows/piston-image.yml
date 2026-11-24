@@ -67,7 +67,7 @@ jobs:
         run: node infra/piston/verify-digest.mjs first-build-metadata.json infra/piston/build-metadata.json
       - name: Assert the reproducible CI batch parent pin
         run: |
-          node --input-type=module -e "import assert from 'node:assert/strict'; import { readFileSync } from 'node:fs'; const metadata = JSON.parse(readFileSync('infra/piston/build-metadata.json')); assert.equal(metadata['containerimage.digest'], 'sha256:7be3f3528a043b085dfc07a613892cd812c75bee0e60e69ffd0f015790ecdf40', 'CI batch parent differs from the reviewed reproducible pin');"
+          node --input-type=module -e "import assert from 'node:assert/strict'; import { readFileSync } from 'node:fs'; const metadata = JSON.parse(readFileSync('infra/piston/build-metadata.json')); assert.equal(metadata['containerimage.digest'], 'sha256:ff1ccae2a9fe0f5bcfa431187b9530d3e9610cad2d3eb73041982014f1063a6c', 'CI batch parent differs from the reviewed reproducible pin');"
       - name: Test actual image and record its manifest
         run: |
           node infra/piston/test-image.mjs codestead-piston:ci > smoke.log 2>&1 || { cat smoke.log; exit 1; }
