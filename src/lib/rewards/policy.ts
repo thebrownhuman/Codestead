@@ -1,3 +1,5 @@
+import { resolveIanaTimezone } from "@/lib/preferences/timezone";
+
 export const REWARD_POLICY_VERSION = "reward-ledger-2026-07.v1" as const;
 export const LEVEL_POLICY_VERSION = "level-curve-2026-07.v1" as const;
 export const CHALLENGE_POLICY_VERSION = "challenge-xp-2026-07.v1" as const;
@@ -240,15 +242,6 @@ const CHALLENGE_XP_TARGET: Readonly<Record<ChallengeKind, number>> = Object.free
   monthly: 1_000,
 });
 
-function validTimezone(candidate: string) {
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: candidate }).format(0);
-    return candidate;
-  } catch {
-    return "UTC";
-  }
-}
-
 function localDateParts(now: Date, timezone: string) {
   if (!Number.isFinite(now.getTime())) throw new RangeError("A valid challenge timestamp is required.");
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -267,7 +260,7 @@ function dateKey(date: Date) {
 }
 
 export function challengePeriod(kind: ChallengeKind, now: Date, timezone: string): ChallengePeriod {
-  const safeTimezone = validTimezone(timezone);
+  const safeTimezone = resolveIanaTimezone(timezone);
   const parts = localDateParts(now, safeTimezone);
   const localCalendarDate = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
   let start: Date;

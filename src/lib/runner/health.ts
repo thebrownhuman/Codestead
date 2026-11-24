@@ -7,6 +7,8 @@ type Health = { status: "ready" | "unavailable"; latencyMs: number; limited?: tr
 type Dependencies = {
   request: typeof fetch;
   warn: (message: string) => void;
+  /** Test seam; production uses the 30 s default. */
+  cacheMs?: number;
 };
 const CACHE_MS = 30_000;
 const TIMEOUT_MS = 3_000;
@@ -39,6 +41,7 @@ export function createRunnerHealth(deps: Dependencies = {
   warn: (message) => console.warn(message),
 }) {
   const limiter = new RateLimiterMemory({ points: 120, duration: 60 });
+  const cacheMs = deps.cacheMs ?? CACHE_MS;
   let cached: { result: Health; expires: number } | undefined;
   let pending: Promise<Health> | undefined;
   async function probe(): Promise<Health> {
@@ -70,13 +73,17 @@ export function createRunnerHealth(deps: Dependencies = {
     } finally { clearTimeout(timer); }
   }
   return async (): Promise<Health> => {
+    // Cached and in-flight results are free: only a real probe spends the
+    // limiter, so a caller polling this endpoint cannot exhaust the bucket and
+    // make the runner look unavailable to everyone else.
+    if (cached && Date.now() < cached.expires) return cached.result;
+    if (pending) return pending;
     // No per-IP map, forwarded-header trust, credential access, or database dependency.
     try { await limiter.consume("runner-health"); }
     catch { return { status: "unavailable", latencyMs: 0, limited: true }; }
-    if (cached && Date.now() < cached.expires) return cached.result;
     if (!pending) {
       pending = probe().then((result) => {
-        cached = { result, expires: Date.now() + CACHE_MS };
+        cached = { result, expires: Date.now() + cacheMs };
         return result;
       }).finally(() => { pending = undefined; });
     }

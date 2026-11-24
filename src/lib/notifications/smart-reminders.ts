@@ -12,6 +12,7 @@ import {
 import {
   allowlistedOperationalErrorCode,
 } from "@/lib/security/operational-code";
+import { resolveIanaTimezone } from "@/lib/preferences/timezone";
 
 export type SmartReminderKind = "daily_study" | "revision" | "goal" | "challenge" | "weekly_summary";
 export type SmartReminderDatabase = Pick<Database, "execute" | "transaction">;
@@ -110,15 +111,6 @@ const copy: Record<SmartReminderKind, {
   },
 };
 
-function validTimezone(value: string) {
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: value }).format(new Date(0));
-    return value;
-  } catch {
-    return "UTC";
-  }
-}
-
 function weekNumber(year: number, month: number, day: number) {
   const date = new Date(Date.UTC(year, month - 1, day));
   const weekday = date.getUTCDay() || 7;
@@ -128,7 +120,7 @@ function weekNumber(year: number, month: number, day: number) {
 }
 
 export function localClock(now: Date, requestedTimezone: string): LocalClock {
-  const timezone = validTimezone(requestedTimezone);
+  const timezone = resolveIanaTimezone(requestedTimezone);
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone,
     year: "numeric",

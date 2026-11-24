@@ -22,7 +22,7 @@ describe("smart reminder preference validation", () => {
     expect(normalizeIanaTimezone(` ${timezone} `)).toBe(timezone);
   });
 
-  it.each(["", "Not/AZone", "x".repeat(101)])("rejects invalid time zone %s", (timezone) => {
+  it.each(["", "Not/AZone", "x".repeat(101), "+05:30", "-08:00"])("rejects invalid time zone %s", (timezone) => {
     expect(() => normalizeIanaTimezone(timezone)).toThrow(SmartReminderPreferenceError);
   });
 });

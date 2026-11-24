@@ -9,6 +9,7 @@ import { requireAdmin } from "@/lib/http/authz";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { authorizePrivilegedAction } from "@/lib/security/privileged-access";
 import { writeAuditEvent } from "@/lib/security/audit-writer";
+import { writeAuditEventSafely } from "@/lib/security/audit-safe";
 import {
   changeLearnerStorageQuota,
   getLearnerStorageQuota,
@@ -114,7 +115,7 @@ export async function PATCH(
           actorUserId: authz.session.user.id,
           reason: body.data.reason,
         });
-        const audit = await writeAuditEvent({
+        const audit = await writeAuditEventSafely({
           actorUserId: authz.session.user.id,
           subjectUserId: quota.learnerUserId,
           action: "storage.quota.change",
@@ -129,13 +130,13 @@ export async function PATCH(
             rowVersion: quota.rowVersion,
             replayed: quota.replayed,
           },
-        }).catch(() => null);
+        });
         let notificationWarning: string | undefined;
         try {
           await emailStorageQuotaChanged(quota);
         } catch {
           notificationWarning = "The in-app notice was recorded, but email delivery could not be queued.";
-          await writeAuditEvent({
+          await writeAuditEventSafely({
             actorUserId: authz.session.user.id,
             subjectUserId: quota.learnerUserId,
             action: "storage.quota.notification",
@@ -144,19 +145,20 @@ export async function PATCH(
             outcome: "failure",
             correlationId: quota.requestId,
             metadata: { errorCode: "EMAIL_ENQUEUE_FAILED" },
-          }).catch(() => undefined);
+          });
         }
         return NextResponse.json({
           usedBytes: quota.usedBytes,
           quotaBytes: quota.quotaBytes,
           rowVersion: quota.rowVersion,
           replayed: quota.replayed,
-          auditCorrelationId: audit?.correlationId ?? quota.requestId,
+          // Null when the audit write failed: no audit row carries this change.
+          auditCorrelationId: audit?.correlationId ?? null,
           completionAuditRecorded: audit !== null,
           ...(notificationWarning ? { warning: notificationWarning } : {}),
         }, { headers: noStore });
       } catch (error) {
-        await writeAuditEvent({
+        await writeAuditEventSafely({
           actorUserId: authz.session.user.id,
           action: "storage.quota.change",
           resourceType: "learner_profile",
@@ -167,7 +169,7 @@ export async function PATCH(
           metadata: {
             errorCode: error instanceof StorageQuotaAdminError ? error.code : "STORAGE_QUOTA_CHANGE_FAILED",
           },
-        }).catch(() => undefined);
+        });
         return NextResponse.json(
           { error: error instanceof StorageQuotaAdminError ? error.message : "Storage quota could not be changed safely." },
           { status: storageQuotaAdminHttpStatus(error), headers: noStore },

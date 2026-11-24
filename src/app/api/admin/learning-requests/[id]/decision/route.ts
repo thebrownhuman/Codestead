@@ -42,7 +42,12 @@ export async function POST(
     try {
       const result = await fixSupportRequest(authz.session.user.id, id, fixed.data.reply);
       return NextResponse.json(result ?? { error: "Open support request not found." }, { status: result ? 200 : 404, headers: { "Cache-Control": "private, no-store" } });
-    } catch {
+    } catch (error) {
+      console.error(JSON.stringify({
+        event: "learning_request.fix_failed",
+        requestId: id,
+        errorName: error instanceof Error ? error.name : "UnknownError",
+      }));
       return NextResponse.json({ error: "The request could not be marked fixed. Try again." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
     }
   }
@@ -113,7 +118,13 @@ export async function POST(
     });
     return pending;
   });
-  } catch {
+  } catch (error) {
+    console.error(JSON.stringify({
+      event: "learning_request.decision_failed",
+      requestId: id,
+      decision: body.data.decision,
+      errorName: error instanceof Error ? error.name : "UnknownError",
+    }));
     return NextResponse.json({ error: "The decision could not be saved. Try again." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
   if (!candidate) return NextResponse.json({ error: "Pending request not found." }, { status: 404 });

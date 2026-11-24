@@ -31,8 +31,13 @@ describe("admin mark fixed boundary", () => {
     mocks.fix.mockResolvedValueOnce(null);
     expect((await POST(post({ decision: "fixed" }), context)).status).toBe(404);
     mocks.fix.mockRejectedValueOnce(new Error("private SQL"));
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const response = await POST(post({ decision: "fixed" }), context);
     expect(response.status).toBe(503);
     expect(JSON.stringify(await response.json())).not.toContain("private SQL");
+    expect(errorLog).toHaveBeenCalledExactlyOnceWith(JSON.stringify({
+      event: "learning_request.fix_failed", requestId: id, errorName: "Error",
+    }));
+    errorLog.mockRestore();
   });
 });

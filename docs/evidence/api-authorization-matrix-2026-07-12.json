@@ -83,7 +83,7 @@
       "file": "src/lib/projects/revision-service.ts",
       "purpose": "learner-owned project revisions and file associations",
       "anchors": 4,
-      "sourceSha256": "e5e1cb962fb094578c713a4748669896f2afbe036ef802529ef774fbb79972dd"
+      "sourceSha256": "975571f98dc9b8897ffde5628c0b0ca8c8690df8a87447948f4d9ee4cd73c17b"
     },
     {
       "file": "src/lib/session-controls.ts",
@@ -237,7 +237,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "212bd7198ab292d6d39d7bf30c59a14236b88874f4726761e68e5360147dcb8c"
+      "operationSourceSha256": "f87a734a0543dd489c1155ea2f0f7d8cb35d8e728519f321d39514ac25a6eac1"
     },
     {
       "operation": "GET /api/admin/appeals/[appealId]",
@@ -471,7 +471,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "3d4ccc74983dc388744fcad176cda2f2e1fa96984c6d76eb52aef2f06f2b7c7f"
+      "operationSourceSha256": "07a0bb96c00c6497351439840eb39baf74f434a0fbfb2e6e81e181bbd17162f9"
     },
     {
       "operation": "GET /api/admin/curriculum",
@@ -536,7 +536,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "7da0094c2caa4828cd09ec28b0187d5b4859cec36aa7f5fb8e63da3e44cc4f1d"
+      "operationSourceSha256": "8720b11e6bd9ac31245b0a0bd7cc566b9316f84cf98aa5e0c0da0ed0dcdaec7d"
     },
     {
       "operation": "GET /api/admin/curriculum/versions/[versionId]/gate",
@@ -640,7 +640,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "6411e8695b7c0f8ee20325185ceeefdf674db12406a4d51c5adcabdd2c288b3c"
+      "operationSourceSha256": "35f58a31010c0b7e2d85a0c2c5f435595ed91e762f2b502ae3c8725e4fb30a15"
     },
     {
       "operation": "POST /api/admin/fallback-grants/[id]/revoke",
@@ -848,7 +848,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "fa46bbc35b9e005a93361168edde3ee43de758cfd45436cdd2f063e8c5147bc6"
+      "operationSourceSha256": "489796563fcf499f39cbf4e8618c7f74ee8774af75d0cdddc2c5b776697d2837"
     },
     {
       "operation": "POST /api/admin/learning-requests/[id]/decision",
@@ -861,7 +861,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "47f60d5f84eebbe2740ac1a460a080bf7286d6d4fca81ecfe48705d508618ccf"
+      "operationSourceSha256": "3ffb6db9c966b0e4b535379f019b07a1590f5fdf799529429f50e6ddc4bcaa9d"
     },
     {
       "operation": "GET /api/admin/learning-requests",
@@ -939,7 +939,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "1f864e9bb1ada1570b2f378f8da9f1addd3c38dc58e90709860a7b59caebea65"
+      "operationSourceSha256": "9efb079537ed0b086a2282c6df457849a41f91c00e9e812006b67d2288c36f18"
     },
     {
       "operation": "GET /api/admin/project-review-corrections",
@@ -965,7 +965,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "7c1f1de2bf60b67ad76b325e40d2c29db2424c4dd33cac6919f54c6322e658d8"
+      "operationSourceSha256": "2be42e58a3a29f694e40096e55efccd0ab41730067636c8548c88ef3d74f8703"
     },
     {
       "operation": "POST /api/admin/runner-recovery/[jobId]/resolve",

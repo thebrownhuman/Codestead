@@ -661,3 +661,184 @@ describe("assessment correction outbox release", () => {
     expect(failureClient.query).toHaveBeenCalledWith("commit");
   });
 });
+
+describe("assessment regrade lease", () => {
+  const runnerItem = (id: string) => ({
+    id,
+    skillId: "skill-1",
+    language: "python",
+    runtime: { version: "Python 3.14", imageDigest: DIGEST },
+    gradingEvidence: execution.evidence,
+  });
+  const multiItemForm = {
+    ...workerSnapshot.form,
+    items: [runnerItem("python.item-1"), runnerItem("python.item-2")],
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.poolConnect.mockReset();
+    mocks.poolQuery.mockReset();
+    mocks.correctionTarget.mockReturnValue({ itemId: "python.item-1" });
+    mocks.reviewedReplacement.mockImplementation(
+      (_target: unknown, replacement: typeof replacementEvidence) => replacement,
+    );
+    mocks.verifyImpactSnapshot.mockReturnValue(true);
+    mocks.replaceFormEvidence.mockReturnValue(multiItemForm);
+    mocks.effectiveAnswers.mockReturnValue({
+      "python.item-1": { sourceCode: "print(1)" },
+      "python.item-2": { sourceCode: "print(2)" },
+    });
+    mocks.gradeExamSubmission.mockReturnValue(correctedWorkerResult);
+    mocks.runnerEvidenceManifest.mockReturnValue({ schemaVersion: 1 });
+    mocks.masteryEffect.mockReturnValue("no_change");
+    mocks.correctionMasteryLanguageContext.mockReturnValue("python");
+    mocks.applyAssessmentMasteryProjectionRepair.mockResolvedValue(undefined);
+    mocks.reconcileAssessmentCorrectionCompletion.mockResolvedValue(undefined);
+    mocks.writeAuditEvent.mockResolvedValue(undefined);
+  });
+
+  function steppingClock(stepMs: number) {
+    let current = WORKER_NOW.getTime();
+    return () => {
+      current += stepMs;
+      return new Date(current);
+    };
+  }
+
+  function renewalCalls() {
+    return mocks.poolQuery.mock.calls.filter(([sql]) => (
+      normalizeSql(String(sql)).startsWith("update assessment_regrade_job set lease_expires_at")
+    ));
+  }
+
+  const passingRun = () => ({ ...runnerResult, runtimeVersion: "Python 3.14", imageDigest: DIGEST });
+
+  it("renews the lease after every runner item so a slow multi-item exam keeps it", async () => {
+    mocks.poolQuery.mockResolvedValue(queryResult([{ id: execution.jobId }], 1));
+    const executed: string[] = [];
+    const executor = {
+      execute: vi.fn(async (input: RegradeExecutionInput) => {
+        executed.push(`${input.itemId}:${renewalCalls().length}`);
+        return passingRun();
+      }),
+    };
+    mocks.poolConnect
+      .mockResolvedValueOnce(workerClaimClient())
+      .mockResolvedValueOnce(workerPersistClient({ outboxRow: null }));
+
+    // Each clock read is 6 minutes later: without renewal the 10-minute
+    // claim lease would be gone before the outcome is persisted.
+    await expect(processOneAssessmentRegrade({
+      workerId: "assessment-worker-1",
+      now: WORKER_NOW,
+      clock: steppingClock(6 * 60_000),
+      executor: executor as never,
+    })).resolves.toMatchObject({ processed: true, succeeded: true });
+
+    expect(executed).toEqual(["python.item-1:0", "python.item-2:1"]);
+    const renewals = renewalCalls();
+    expect(renewals).toHaveLength(2);
+    for (const [, values] of renewals) {
+      const [jobId, owner, attemptCount, now, expiresAt, generation] = values as [
+        string, string, number, Date, Date, number,
+      ];
+      expect([jobId, owner, attemptCount, generation]).toEqual([
+        execution.jobId, "assessment-worker-1", 1, execution.runnerRequestGeneration,
+      ]);
+      expect(expiresAt.getTime() - now.getTime()).toBe(10 * 60_000);
+    }
+  });
+
+  it("stops running items once the lease can no longer be renewed", async () => {
+    mocks.poolQuery.mockResolvedValue(queryResult([], 0));
+    const executor = { execute: vi.fn(async () => passingRun()) };
+    mocks.poolConnect
+      .mockResolvedValueOnce(workerClaimClient())
+      .mockResolvedValueOnce(workerFailureClient());
+
+    await expect(processOneAssessmentRegrade({
+      workerId: "assessment-worker-1",
+      now: WORKER_NOW,
+      clock: () => WORKER_NOW,
+      executor: executor as never,
+    })).resolves.toMatchObject({ processed: true, succeeded: false, errorCode: "WRITE_CONFLICT" });
+    expect(executor.execute).toHaveBeenCalledTimes(1);
+    expect(mocks.gradeExamSubmission).not.toHaveBeenCalled();
+  });
+
+  function expiredLeaseClaimClient(priorRecoveries: number) {
+    return databaseClient(async (sql) => {
+      const normalized = normalizeSql(sql);
+      if (
+        normalized.includes("from assessment_regrade_job j")
+        && normalized.includes("j.status = 'running'")
+      ) {
+        return queryResult([{
+          id: execution.jobId,
+          correction_id: execution.correctionId,
+          impact_id: claimedWorkerRow.impact_id,
+          attempt_count: 7,
+          runner_request_generation: 1,
+        }], 1);
+      }
+      if (normalized.includes("evidence->>'reconciliation'")) {
+        return queryResult([{ count: priorRecoveries }], 1);
+      }
+      if (normalized.includes("select count(*)::int count")) {
+        return queryResult([{ count: 0 }], 1);
+      }
+      if (normalized.includes("count(*) filter (where status = 'succeeded')")) {
+        return queryResult([{ succeeded: 0, failed: 1, pending: 0 }], 1);
+      }
+      if (normalized.includes("join assessment_correction_impact")) {
+        return queryResult([], 0);
+      }
+      return queryResult([], 1);
+    });
+  }
+
+  function insertedEvents(client: ReturnType<typeof databaseClient>) {
+    return client.query.mock.calls
+      .filter(([statement]) => normalizeSql(String(statement)).startsWith("insert into assessment_correction_event"))
+      .map(([, values]) => (values as unknown[])[3]);
+  }
+
+  it("requeues an expired lease for reconciliation while under the recovery cap", async () => {
+    const claimClient = expiredLeaseClaimClient(1);
+    mocks.poolConnect.mockResolvedValueOnce(claimClient);
+
+    await expect(processOneAssessmentRegrade({
+      workerId: "assessment-worker-1",
+      now: WORKER_NOW,
+    })).resolves.toEqual({ processed: false });
+
+    const sql = claimClient.query.mock.calls.map(([statement]) => normalizeSql(String(statement)));
+    expect(sql.some((statement) => statement.includes("set status = 'queued'"))).toBe(true);
+    expect(sql.some((statement) => statement.includes("set status = 'failed'"))).toBe(false);
+    expect(insertedEvents(claimClient)).toEqual(["queued"]);
+  });
+
+  it("fails a job whose lease has expired too many times instead of retrying forever", async () => {
+    const claimClient = expiredLeaseClaimClient(3);
+    mocks.poolConnect.mockResolvedValueOnce(claimClient);
+
+    await expect(processOneAssessmentRegrade({
+      workerId: "assessment-worker-1",
+      now: WORKER_NOW,
+    })).resolves.toEqual({ processed: false });
+
+    const sql = claimClient.query.mock.calls.map(([statement]) => normalizeSql(String(statement)));
+    expect(sql.some((statement) => statement.includes("set status = 'queued'"))).toBe(false);
+    const failed = claimClient.query.mock.calls.find(([statement]) => (
+      normalizeSql(String(statement)).includes("set status = 'failed'")
+    ));
+    expect(failed?.[1]).toContain("WORKER_LEASE_EXPIRED");
+    const correction = claimClient.query.mock.calls.find(([statement]) => (
+      normalizeSql(String(statement)).startsWith("update assessment_correction set status")
+    ));
+    expect((correction?.[1] as unknown[] | undefined)?.[1]).toBe("failed");
+    expect(insertedEvents(claimClient)).toEqual(["regrade_failed"]);
+    expect(sql).toContain("commit");
+  });
+});
