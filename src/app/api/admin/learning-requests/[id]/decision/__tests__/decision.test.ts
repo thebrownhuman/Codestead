@@ -92,12 +92,17 @@ describe("admin learning-request decision", () => {
   ])("does not commit the decision when the %s cannot be written", async (_name, inTransaction, standalone) => {
     inTransaction.mockRejectedValueOnce(new Error("private SQL"));
     standalone.mockRejectedValueOnce(new Error("private SQL"));
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     const response = await POST(post(decision), context);
 
     expect(mocks.committed).not.toHaveBeenCalled();
     expect(response.status).toBe(503);
     expect(JSON.stringify(await response.json())).not.toContain("private SQL");
+    expect(errorLog).toHaveBeenCalledExactlyOnceWith(JSON.stringify({
+      event: "learning_request.decision_failed", requestId: id, decision: "approved", errorName: "Error",
+    }));
+    errorLog.mockRestore();
   });
 
   it("returns not found without side effects when the request is no longer pending", async () => {

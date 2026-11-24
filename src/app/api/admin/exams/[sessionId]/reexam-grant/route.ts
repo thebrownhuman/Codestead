@@ -9,6 +9,7 @@ import { session } from "@/lib/db/schema";
 import { ExamReexamGrantError, issueExamReexamGrant } from "@/lib/exams/reexam-grant";
 import { requireAdmin } from "@/lib/http/authz";
 import { writeAuditEvent } from "@/lib/security/audit-writer";
+import { writeAuditEventSafely } from "@/lib/security/audit-safe";
 import { authorizePrivilegedAction } from "@/lib/security/privileged-access";
 import { withRateLimit } from "@/lib/security/rate-limit";
 
@@ -58,20 +59,20 @@ export async function POST(
           requestId: body.data.requestId,
           reason: body.data.reason,
         });
-        const completionAuditRecorded = await writeAuditEvent({
+        const completionAuditRecorded = (await writeAuditEventSafely({
           actorUserId: authz.session.user.id, subjectUserId: report.userId,
           action: "exam.reexam.grant", resourceType: "exam_reexam_grant", resourceId: report.id,
           reason: body.data.reason, outcome: "success",
           metadata: { sourceExamSessionId: sessionId, evidenceHash: report.evidenceHash, replayed: report.replayed },
-        }).then(() => true).catch(() => false);
+        })) !== null;
         return adminJson({ report, completionAuditRecorded });
       } catch (error) {
         const code = error instanceof ExamReexamGrantError ? error.code : "REEXAM_GRANT_FAILED";
-        await writeAuditEvent({
+        await writeAuditEventSafely({
           actorUserId: authz.session.user.id, action: "exam.reexam.grant",
           resourceType: "exam_session", resourceId: sessionId, reason: body.data.reason,
           outcome: "failure", metadata: { errorCode: code },
-        }).catch(() => undefined);
+        });
         const status = code === "EXAM_NOT_FOUND" ? 404
           : ["REASON_REQUIRED", "EXAM_NOT_FINALIZED", "EXAM_FINALIZATION_PENDING", "PASS_ALREADY_PROTECTED", "PENDING_REVIEW_CANNOT_BE_BYPASSED", "REEXAM_GRANT_SOURCE_INELIGIBLE", "REEXAM_SOURCE_NOT_CURRENT", "MATERIAL_OUTAGE_EVIDENCE_REQUIRED", "GRANT_ALREADY_EXISTS", "IDEMPOTENCY_MISMATCH"].includes(code) ? 409
             : 500;

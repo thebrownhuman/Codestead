@@ -13,6 +13,7 @@ import {
   queueProjectReviewCorrection,
 } from "@/lib/projects/review-correction-service";
 import { writeAuditEvent } from "@/lib/security/audit-writer";
+import { writeAuditEventSafely } from "@/lib/security/audit-safe";
 import { authorizePrivilegedAction } from "@/lib/security/privileged-access";
 import { withRateLimit } from "@/lib/security/rate-limit";
 
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
           requestId: body.data.requestId,
           reason: body.data.reason,
         });
-        const completionAuditRecorded = await writeAuditEvent({
+        const completionAuditRecorded = (await writeAuditEventSafely({
           actorUserId: authz.session.user.id,
           subjectUserId: queued.userId,
           action: "project_review.correction_queue",
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest) {
             revision: queued.revision,
             correctionExecution: "durable_worker_queued",
           },
-        }).then(() => true).catch(() => false);
+        })) !== null;
         return adminJson({
           correction: queued,
           completionAuditRecorded,
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
         const code = error instanceof ProjectReviewCorrectionError
           ? error.code
           : "PROJECT_REVIEW_CORRECTION_FAILED";
-        await writeAuditEvent({
+        await writeAuditEventSafely({
           actorUserId: authz.session.user.id,
           subjectUserId: subject.userId,
           action: "project_review.correction_queue",
@@ -126,7 +127,7 @@ export async function POST(request: NextRequest) {
           outcome: "failure",
           correlationId: body.data.requestId,
           metadata: { errorCode: code, trigger: "defective_review" },
-        }).catch(() => undefined);
+        });
         const status = error instanceof ProjectReviewCorrectionError
           ? error.code === "REVIEW_NOT_FOUND"
             ? 404

@@ -13,6 +13,7 @@ import {
   requestProjectReviewCorrectionRetry,
 } from "@/lib/projects/review-correction-service";
 import { writeAuditEvent } from "@/lib/security/audit-writer";
+import { writeAuditEventSafely } from "@/lib/security/audit-safe";
 import { authorizePrivilegedAction } from "@/lib/security/privileged-access";
 import { withRateLimit } from "@/lib/security/rate-limit";
 
@@ -74,7 +75,7 @@ export async function POST(
           requestId: body.data.requestId,
           reason: body.data.reason,
         });
-        const completionAuditRecorded = await writeAuditEvent({
+        const completionAuditRecorded = (await writeAuditEventSafely({
           actorUserId: authz.session.user.id,
           subjectUserId: detail.correction.userId,
           action: "project_review.correction_retry",
@@ -89,7 +90,7 @@ export async function POST(
             attemptCount: report.attemptCount,
             correctionExecution: "durable_worker_queued",
           },
-        }).then(() => true).catch(() => false);
+        })) !== null;
         return adminJson({
           report,
           completionAuditRecorded,
@@ -99,7 +100,7 @@ export async function POST(
         const code = error instanceof ProjectReviewCorrectionError
           ? error.code
           : "PROJECT_REVIEW_RETRY_FAILED";
-        await writeAuditEvent({
+        await writeAuditEventSafely({
           actorUserId: authz.session.user.id,
           subjectUserId: detail.correction.userId,
           action: "project_review.correction_retry",
@@ -109,7 +110,7 @@ export async function POST(
           outcome: "failure",
           correlationId: body.data.requestId,
           metadata: { errorCode: code },
-        }).catch(() => undefined);
+        });
         return adminJson({ error: code }, error instanceof ProjectReviewCorrectionError ? 409 : 500);
       }
     },

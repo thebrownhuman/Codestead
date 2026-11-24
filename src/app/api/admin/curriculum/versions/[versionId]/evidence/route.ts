@@ -7,6 +7,7 @@ import { CurriculumAdminError, generateCurriculumReleaseEvidence } from "@/lib/c
 import { generateReleaseEvidenceRequestSchema } from "@/lib/curriculum-publication/contracts";
 import { requireAdmin } from "@/lib/http/authz";
 import { writeAuditEvent } from "@/lib/security/audit-writer";
+import { writeAuditEventSafely } from "@/lib/security/audit-safe";
 import { withRateLimit } from "@/lib/security/rate-limit";
 
 import { authorizeCurriculumAdmin, curriculumErrorStatus } from "../../../authorization";
@@ -27,11 +28,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     await writeAuditEvent({ actorUserId: authz.session.user.id, action: "curriculum.evidence", resourceType: "course_version", resourceId: versionId, reason: body.data.reason, outcome: "allowed", metadata: { phase: "pre_mutation", expectedVersion: body.data.expectedVersion, expectedContentHash: body.data.expectedContentHash, notRunReason: body.data.notRunReason } });
     try {
       const report = await generateCurriculumReleaseEvidence({ actorUserId: authz.session.user.id, courseVersionId: versionId, ...body.data });
-      const completionAuditRecorded = await writeAuditEvent({ actorUserId: authz.session.user.id, action: "curriculum.evidence", resourceType: "course_version", resourceId: versionId, reason: body.data.reason, outcome: "success", metadata: { evidenceVersion: report.evidenceVersion, publicationRevision: report.publicationRevision, replayed: report.replayed, notRunReports: report.notRunReports } }).then(() => true).catch(() => false);
+      const completionAuditRecorded = (await writeAuditEventSafely({ actorUserId: authz.session.user.id, action: "curriculum.evidence", resourceType: "course_version", resourceId: versionId, reason: body.data.reason, outcome: "success", metadata: { evidenceVersion: report.evidenceVersion, publicationRevision: report.publicationRevision, replayed: report.replayed, notRunReports: report.notRunReports } })) !== null;
       return adminJson({ report, completionAuditRecorded });
     } catch (error) {
       const code = error instanceof CurriculumAdminError ? error.code : "EVIDENCE_FAILED";
-      await writeAuditEvent({ actorUserId: authz.session.user.id, action: "curriculum.evidence", resourceType: "course_version", resourceId: versionId, reason: body.data.reason, outcome: "failure", metadata: { code } }).catch(() => undefined);
+      await writeAuditEventSafely({ actorUserId: authz.session.user.id, action: "curriculum.evidence", resourceType: "course_version", resourceId: versionId, reason: body.data.reason, outcome: "failure", metadata: { code } });
       return adminJson({ error: code }, curriculumErrorStatus(code));
     }
   });

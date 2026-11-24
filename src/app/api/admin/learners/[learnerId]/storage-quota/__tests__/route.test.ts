@@ -146,14 +146,25 @@ describe("administrator storage quota route", () => {
 
   it("reports the committed quota change when only the completion audit write fails", async () => {
     mocks.writeAuditEvent.mockRejectedValueOnce(new Error("audit store down"));
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const response = await PATCH(request(), { params: Promise.resolve({ learnerId }) });
     expect(response.status).toBe(200);
+    // No audit row exists, so no audit correlation id may be reported.
     expect(await response.json()).toMatchObject({
       quotaBytes: requestBody.quotaBytes,
       rowVersion: 4,
-      auditCorrelationId: requestBody.requestId,
+      auditCorrelationId: null,
       completionAuditRecorded: false,
     });
+    expect(errorLog).toHaveBeenCalledWith(JSON.stringify({
+      event: "audit.write_failed",
+      action: "storage.quota.change",
+      outcome: "success",
+      resourceType: "learner_profile",
+      resourceId: learnerId,
+      errorName: "Error",
+    }));
+    errorLog.mockRestore();
     expect(mocks.writeAuditEvent).not.toHaveBeenCalledWith(expect.objectContaining({ outcome: "failure" }));
     expect(mocks.emailStorageQuotaChanged).toHaveBeenCalledTimes(1);
   });
