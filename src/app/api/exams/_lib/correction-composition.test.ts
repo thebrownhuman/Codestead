@@ -284,6 +284,8 @@ function regradeRun(snapshot: ImpactSnapshot) {
     review_hash: "6".repeat(64),
   };
   const outcomeInserts: unknown[][] = [];
+  // The worker renews its lease through pool.query after each runner item.
+  mocks.query.mockResolvedValue(result([{ id: claimRow.id }], 1));
   mocks.connect
     .mockResolvedValueOnce(client((sql) => {
       if (sql.includes("join assessment_correction_impact")) return result([claimRow], 1);
