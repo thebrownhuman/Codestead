@@ -41,7 +41,7 @@ export function AdminSessionControls({ learnerId }: { readonly learnerId: string
   const [totp, setTotp] = useState("");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
 
   const load = useCallback(async () => {
     setData(await requestAdminJson<ResponseBody>(
@@ -58,7 +58,7 @@ export function AdminSessionControls({ learnerId }: { readonly learnerId: string
       .then(setData)
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setMessage(error instanceof Error ? error.message : "Session controls could not be loaded.");
+        setMessage({ text: error instanceof Error ? error.message : "Session controls could not be loaded.", error: true });
       });
     return () => controller.abort();
   }, [learnerId]);
@@ -94,12 +94,12 @@ export function AdminSessionControls({ learnerId }: { readonly learnerId: string
         `/api/admin/learners/${encodeURIComponent(learnerId)}/sessions/${encodeURIComponent(sessionId)}/revoke`,
         { reason },
       );
-      setMessage("Session revoked. The learner was notified.");
+      setMessage({ text: "Session revoked. The learner was notified.", error: false });
       setTotp("");
       setReason("");
       await load();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "The session could not be revoked.");
+      setMessage({ text: error instanceof Error ? error.message : "The session could not be revoked.", error: true });
     } finally {
       setBusy(false);
     }
@@ -113,12 +113,12 @@ export function AdminSessionControls({ learnerId }: { readonly learnerId: string
         `/api/admin/session-revocation-requests/${encodeURIComponent(requestId)}/decision`,
         { decision, reason },
       );
-      setMessage(`Revocation request ${decision}. The learner was notified.`);
+      setMessage({ text: `Revocation request ${decision}. The learner was notified.`, error: false });
       setTotp("");
       setReason("");
       await load();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "The request could not be decided.");
+      setMessage({ text: error instanceof Error ? error.message : "The request could not be decided.", error: true });
     } finally {
       setBusy(false);
     }
@@ -131,7 +131,15 @@ export function AdminSessionControls({ learnerId }: { readonly learnerId: string
         <div><Laptop size={18} /><span><strong>Authentication sessions</strong><small>Active and recent browser profiles; token and network data are never returned</small></span></div>
         <span className="pill">{data?.sessions.filter((item) => item.state === "active").length ?? 0} active</span>
       </div>
-      {message && <p aria-live="polite" className={styles.inlineSuccess}>{message}</p>}
+      {message && (
+        <p
+          aria-live={message.error ? "assertive" : "polite"}
+          className={message.error ? styles.inlineError : styles.inlineSuccess}
+          role={message.error ? "alert" : "status"}
+        >
+          {message.text}
+        </p>
+      )}
       {data?.sessions.length ? (
         <div className={styles.eventList}>
           {data.sessions.map((item) => (
