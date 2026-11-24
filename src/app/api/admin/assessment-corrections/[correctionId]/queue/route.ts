@@ -12,6 +12,7 @@ import { requireAdmin } from "@/lib/http/authz";
 import { writeAuditEvent } from "@/lib/security/audit-writer";
 
 import { authorizeAssessmentCorrection } from "../../authorization";
+import { assessmentCorrectionPublicError } from "@/lib/assessment-corrections/domain";
 
 export async function POST(
   request: NextRequest,
@@ -60,6 +61,6 @@ export async function POST(
     }).then(() => true).catch(() => false);
     return adminJson({ report, completionAuditRecorded });
   } catch (error) {
-    return adminJson({ error: error instanceof Error ? error.message : "CORRECTION_QUEUE_FAILED" }, assessmentCorrectionErrorStatus(error));
+    return adminJson({ error: assessmentCorrectionPublicError(error, "CORRECTION_QUEUE_FAILED") }, assessmentCorrectionErrorStatus(error));
   }
 }

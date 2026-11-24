@@ -62,6 +62,11 @@ export class AssessmentCorrectionError extends Error {
   }
 }
 
+/** Error text safe to show an admin: typed correction codes only, never raw library or database messages. */
+export function assessmentCorrectionPublicError(error: unknown, fallback: string): string {
+  return error instanceof AssessmentCorrectionError ? error.code : fallback;
+}
+
 /**
  * Mastery facets use one canonical context for the whole formal-exam form.
  * Language courses keep conceptual mastery even when a coding item executes in

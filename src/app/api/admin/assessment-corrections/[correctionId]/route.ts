@@ -6,6 +6,7 @@ import {
   getAssessmentCorrectionDetail,
 } from "@/lib/assessment-corrections/admin-service";
 import { requireAdmin } from "@/lib/http/authz";
+import { assessmentCorrectionPublicError } from "@/lib/assessment-corrections/domain";
 
 export async function GET(
   _request: Request,
@@ -18,6 +19,6 @@ export async function GET(
   try {
     return adminJson({ detail: await getAssessmentCorrectionDetail(correctionId) });
   } catch (error) {
-    return adminJson({ error: error instanceof Error ? error.message : "CORRECTION_DETAIL_FAILED" }, assessmentCorrectionErrorStatus(error));
+    return adminJson({ error: assessmentCorrectionPublicError(error, "CORRECTION_DETAIL_FAILED") }, assessmentCorrectionErrorStatus(error));
   }
 }
